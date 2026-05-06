@@ -9,6 +9,7 @@
  */
 
 import { useQueryData } from '../core/useQueryData';
+import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import {
   getComprehensiveEHR,
   getClinicPatientRecords,
@@ -22,12 +23,13 @@ import {
  * Hook to get comprehensive EHR for a user
  */
 export const useComprehensiveEHR = (userId: string) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(
     ['ehrClinic', 'comprehensive', userId],
     async () => {
       return await getComprehensiveEHR(userId);
     },
-    { enabled: !!userId }
+    { enabled: !!userId, refetchInterval: isConnected ? false : 300_000 }
   );
 };
 
@@ -43,12 +45,13 @@ export const useClinicPatientRecords = (
     search?: string;
   }
 ) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(
     ['ehrClinic', 'patientRecords', clinicId, filters],
     async () => {
       return await getClinicPatientRecords(clinicId, filters);
     },
-    { enabled: !!clinicId }
+    { enabled: !!clinicId, refetchInterval: isConnected ? false : 300_000 }
   );
 };
 
@@ -57,12 +60,13 @@ export const useClinicPatientRecords = (
  * 🔒 clinicId is used for cache key only — server action auto-sources from session
  */
 export const useClinicEHRAnalytics = (clinicId: string, period?: 'day' | 'week' | 'month' | 'year') => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(
     ['ehrClinic', 'analytics', clinicId, period],
     async () => {
       return await getClinicEHRAnalytics(clinicId, period);
     },
-    { enabled: !!clinicId }
+    { enabled: !!clinicId, refetchInterval: isConnected ? false : 600_000 }
   );
 };
 
@@ -77,12 +81,13 @@ export const useClinicPatientSummary = (
     limit?: number;
   }
 ) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(
     ['ehrClinic', 'patientSummary', clinicId, filters],
     async () => {
       return await getClinicPatientSummary(clinicId, filters);
     },
-    { enabled: !!clinicId }
+    { enabled: !!clinicId, refetchInterval: isConnected ? false : 300_000 }
   );
 };
 
@@ -101,12 +106,13 @@ export const useSearchClinicEHR = (
     limit?: number;
   }
 ) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(
     ['ehrClinic', 'search', clinicId, query, filters],
     async () => {
       return await searchClinicEHRRecords(clinicId, query, filters);
     },
-    { enabled: !!clinicId && !!query }
+    { enabled: !!clinicId && !!query, refetchInterval: isConnected ? false : 300_000 }
   );
 };
 
@@ -123,11 +129,12 @@ export const useClinicCriticalAlerts = (
     limit?: number;
   }
 ) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(
     ['ehrClinic', 'criticalAlerts', clinicId, filters],
     async () => {
       return await getClinicCriticalAlerts(clinicId, filters);
     },
-    { enabled: !!clinicId }
+    { enabled: !!clinicId, refetchInterval: isConnected ? false : 120_000 }
   );
 };

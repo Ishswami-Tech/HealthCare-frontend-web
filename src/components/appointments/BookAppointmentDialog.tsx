@@ -349,10 +349,11 @@ export function BookAppointmentDialog({
     {
       enabled: shouldLoadAvailability,
       ...(availabilityRefetchIntervalMs
-        ? { refetchIntervalMs: availabilityRefetchIntervalMs }
+      ? { refetchIntervalMs: availabilityRefetchIntervalMs }
         : {}),
     }
   );
+  const showAvailabilityLoader = shouldLoadAvailability && availabilityLoading && !availability && !availabilityError;
 
   const { mutateAsync: createAppointment, isPending: isBooking } = useCreateAppointment(activeClinicId);
   const { mutateAsync: proposeVideoAppointment, isPending: isProposingVideoAppointment } = useProposeVideoAppointment();
@@ -1813,7 +1814,15 @@ export function BookAppointmentDialog({
             )}
           </div>
 
-          {availabilityLoading ? (
+          {!shouldLoadAvailability ? (
+            <div className="flex flex-col items-center py-10 text-muted-foreground text-center border border-dashed rounded-xl">
+              <Video className="w-8 h-8 mb-2 opacity-20" />
+              <p className="text-sm font-medium">Select a doctor and date to load availability</p>
+              <p className="text-xs mt-1 opacity-60">
+                Availability will appear automatically once the doctor, clinic, and date are selected.
+              </p>
+            </div>
+          ) : showAvailabilityLoader ? (
             <div className="flex items-center gap-2 py-6 text-muted-foreground text-sm justify-center">
               <Loader2 className="w-5 h-5 animate-spin" /> Checking video availability...
             </div>
@@ -1923,7 +1932,15 @@ export function BookAppointmentDialog({
           </div>
         </div>
 
-        {availabilityLoading ? (
+        {!shouldLoadAvailability ? (
+          <div className="flex flex-col items-center py-10 text-muted-foreground text-center border border-dashed rounded-xl">
+            <Clock className="w-8 h-8 mb-2 opacity-20" />
+            <p className="text-sm font-medium">Select a doctor and date to load availability</p>
+            <p className="text-xs mt-1 opacity-60">
+              Availability will appear automatically once the doctor, clinic, and date are selected.
+            </p>
+          </div>
+        ) : showAvailabilityLoader ? (
           <div className="flex items-center gap-2 py-6 text-muted-foreground text-sm justify-center">
             <Loader2 className="w-5 h-5 animate-spin" /> Checking availability...
           </div>

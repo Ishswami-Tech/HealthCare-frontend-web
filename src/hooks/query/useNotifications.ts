@@ -22,6 +22,7 @@ import { nowIso } from '@/lib/utils/date-time';
 
 import { useEffect, useCallback } from "react";
 import { useQueryData, useMutationOperation } from "@/hooks/core";
+import { useWebSocketStatus } from "@/app/providers/WebSocketProvider";
 import { useAuth } from "../auth/useAuth";
 import {
   useNotificationStore,
@@ -47,6 +48,7 @@ const SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes
  */
 export function useNotifications(enabled: boolean = true) {
   const { session } = useAuth();
+  const { isConnected } = useWebSocketStatus();
   const {
     notifications,
     unreadCount,
@@ -75,7 +77,7 @@ export function useNotifications(enabled: boolean = true) {
     {
       enabled: enabled && !!session?.user?.id && !!session?.isAuthenticated,
       refetchOnWindowFocus: false,
-      refetchInterval: enabled ? SYNC_INTERVAL : false,
+      refetchInterval: enabled ? (isConnected ? SYNC_INTERVAL : 60_000) : false,
       staleTime: 2 * 60 * 1000, // 2 minutes
     }
   );
@@ -141,7 +143,7 @@ export function useNotifications(enabled: boolean = true) {
       loadingMessage: "Marking as read...",
       successMessage: "Notification marked as read",
       showToast: false, // Don't show toast for read actions
-      invalidateQueries: [["notifications"]],
+      invalidateQueries: [["notifications"], ["notificationSettings"]],
     }
   );
 
@@ -165,7 +167,7 @@ export function useNotifications(enabled: boolean = true) {
       loadingMessage: "Marking all as read...",
       successMessage: "All notifications marked as read",
       showToast: false, // Don't show toast for read actions
-      invalidateQueries: [["notifications"]],
+      invalidateQueries: [["notifications"], ["notificationSettings"]],
     }
   );
 
@@ -186,7 +188,7 @@ export function useNotifications(enabled: boolean = true) {
       loadingMessage: "Deleting notification...",
       successMessage: "Notification deleted",
       showToast: false, // Don't show toast for delete actions
-      invalidateQueries: [["notifications"]],
+      invalidateQueries: [["notifications"], ["notificationSettings"]],
     }
   );
 
@@ -276,7 +278,7 @@ export const useUpdateNotificationSettings = () => {
       toastId: TOAST_IDS.NOTIFICATION.PREFERENCE_UPDATE,
       loadingMessage: 'Updating settings...',
       successMessage: 'Notification settings updated successfully',
-      invalidateQueries: [['notificationSettings']],
+      invalidateQueries: [['notificationSettings'], ['notifications']],
     }
   );
 };

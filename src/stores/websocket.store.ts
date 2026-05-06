@@ -170,6 +170,7 @@ export const useWebSocketStore = create<WebSocketState>()(
                 onAuthError(error);
               }
               set({
+                isConnected: false,
                 connectionStatus: 'error',
                 error: message || 'Authentication failed',
               });
@@ -177,6 +178,7 @@ export const useWebSocketStore = create<WebSocketState>()(
             }
 
             set((state) => ({
+              isConnected: false,
               connectionStatus: 'error',
               error: error.message || 'Connection failed',
               connectionMetrics: {
@@ -210,6 +212,7 @@ export const useWebSocketStore = create<WebSocketState>()(
 
           socket.on('reconnect_error', (error) => {
             set({
+              isConnected: false,
               connectionStatus: 'error',
               error: `Reconnection failed: ${error.message}`,
             });
@@ -217,6 +220,7 @@ export const useWebSocketStore = create<WebSocketState>()(
 
           socket.on('reconnect_failed', () => {
             set({
+              isConnected: false,
               connectionStatus: 'error',
               error: 'Failed to reconnect after maximum attempts',
             });

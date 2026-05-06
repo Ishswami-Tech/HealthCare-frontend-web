@@ -142,7 +142,7 @@ export const useCreateTherapistAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.CREATE,
       loadingMessage: 'Creating appointment...',
       successMessage: 'Appointment created successfully',
-      invalidateQueries: [['therapistAppointments']],
+      invalidateQueries: [['therapistAppointments'], ['therapistPatientAppointments'], ['therapistClients'], ['therapistClient']],
     }
   );
 };
@@ -159,7 +159,7 @@ export const useUpdateTherapistAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Updating appointment...',
       successMessage: 'Appointment updated successfully',
-      invalidateQueries: [['therapistAppointments']],
+      invalidateQueries: [['therapistAppointments'], ['therapistPatientAppointments'], ['therapistClients'], ['therapistClient']],
     }
   );
 };
@@ -176,7 +176,7 @@ export const useDeleteTherapistAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.DELETE,
       loadingMessage: 'Deleting appointment...',
       successMessage: 'Appointment deleted successfully',
-      invalidateQueries: [['therapistAppointments']],
+      invalidateQueries: [['therapistAppointments'], ['therapistPatientAppointments'], ['therapistClients'], ['therapistClient']],
     }
   );
 };
@@ -201,7 +201,7 @@ export const useUpdateTherapistClientSession = () => {
       toastId: TOAST_IDS.PROFILE.COMPLETE,
       loadingMessage: 'Updating session...',
       successMessage: 'Session updated successfully',
-      invalidateQueries: [['therapistClients'], ['therapistClient']],
+      invalidateQueries: [['therapistClients'], ['therapistClient'], ['therapistAppointments'], ['therapistPatientAppointments']],
     }
   );
 };

@@ -10,6 +10,7 @@ import { useRBAC } from '../utils/useRBAC';
 import { Permission } from '@/types/rbac.types';
 import { logger } from '@/lib/utils/logger';
 import { useQueryData, useMutationOperation, useOptimisticMutation, useQueryClient } from '../core';
+import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import { TOAST_IDS, useToast } from '../utils/use-toast';
 import { sanitizeErrorMessage } from '@/lib/utils/error-handler';
 import { useAuth } from '../auth/useAuth';
@@ -334,6 +335,7 @@ export const useAppointments = (
 ) => {
   const clinicId = useCurrentClinicId();
   const { hasPermission } = useRBAC();
+  const { isConnected } = useWebSocketStatus();
   
   // Memoize query key for performance
   const queryKey = useMemo(
@@ -387,6 +389,7 @@ export const useAppointments = (
       refetchOnWindowFocus: false, // Reduce unnecessary refetches
       refetchOnMount: true, // Refetch when invalidated so post-payment redirects see fresh data
       refetchOnReconnect: true,
+      refetchInterval: options?.enabled === false ? false : (isConnected ? false : 30_000),
       retry: (failureCount, error: Error) => {
         if (error.message.includes('Access denied')) {
           return false;
@@ -498,6 +501,9 @@ export const useCreateAppointment = (clinicId?: string) => {
         void queryClient.invalidateQueries({ queryKey: ['myAppointments'], exact: false });
         void queryClient.invalidateQueries({ queryKey: ['userUpcomingAppointments'], exact: false });
         void queryClient.invalidateQueries({ queryKey: getAppointmentStatsQueryKey(), exact: false });
+        void queryClient.invalidateQueries({ queryKey: ['doctorAppointments'], exact: false });
+        void queryClient.invalidateQueries({ queryKey: ['doctorSchedule'], exact: false });
+        void queryClient.invalidateQueries({ queryKey: ['queue'], exact: false });
         if (appointment) {
           toast({
             title: 'Success',
@@ -575,6 +581,7 @@ export const useProposeVideoAppointment = () => {
         ['video-appointments'],
         ['myAppointments'],
         ['userUpcomingAppointments'],
+        ['appointmentStats'],
         ['doctorAppointments'],
         ['doctorSchedule'],
         ['doctorAvailability'],
@@ -731,7 +738,18 @@ export const useUpdateAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Updating appointment...',
       successMessage: 'Appointment updated successfully',
-      invalidateQueries: [['appointments'], ['appointment'], ['myAppointments']],
+      invalidateQueries: [
+        ['appointments'],
+        ['appointment'],
+        ['myAppointments'],
+        ['userUpcomingAppointments'],
+        ['doctorAppointments'],
+        ['doctorSchedule'],
+        ['video-appointments'],
+        ['appointmentStats'],
+        ['queue'],
+        ['queue-status'],
+      ],
       onSuccess: (updatedAppointment) => {
         const appointmentId = String((updatedAppointment as any)?.appointmentId || (updatedAppointment as any)?.id || '');
         if (!appointmentId) {
@@ -786,7 +804,18 @@ export const useCancelAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.CANCEL,
       loadingMessage: 'Cancelling appointment...',
       successMessage: 'Appointment cancelled successfully',
-      invalidateQueries: [['appointments'], ['appointment'], ['myAppointments']],
+      invalidateQueries: [
+        ['appointments'],
+        ['appointment'],
+        ['myAppointments'],
+        ['userUpcomingAppointments'],
+        ['doctorAppointments'],
+        ['doctorSchedule'],
+        ['video-appointments'],
+        ['appointmentStats'],
+        ['queue'],
+        ['queue-status'],
+      ],
       onError: (error: Error) => {
         logger.error('Failed to cancel appointment', error, { component: 'useAppointments' });
       },
@@ -816,7 +845,18 @@ export const useConfirmAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Confirming appointment...',
       successMessage: 'Appointment confirmed successfully',
-      invalidateQueries: [['appointments'], ['appointment'], ['myAppointments']],
+      invalidateQueries: [
+        ['appointments'],
+        ['appointment'],
+        ['myAppointments'],
+        ['userUpcomingAppointments'],
+        ['doctorAppointments'],
+        ['doctorSchedule'],
+        ['video-appointments'],
+        ['appointmentStats'],
+        ['queue'],
+        ['queue-status'],
+      ],
     }
   );
 };
@@ -826,6 +866,7 @@ export const useConfirmAppointment = () => {
  */
 export const useUserUpcomingAppointments = () => {
   const { hasPermission } = useRBAC();
+  const { isConnected } = useWebSocketStatus();
 
   return useQueryData(
     ['userUpcomingAppointments'],
@@ -841,6 +882,8 @@ export const useUserUpcomingAppointments = () => {
       enabled: hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 5 * 60 * 1000, // 5 minutes
       refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+      refetchInterval: isConnected ? false : 30_000,
     }
   );
 };
@@ -884,7 +927,18 @@ export const useCheckInAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Checking in patient...',
       successMessage: 'Patient check-in confirmed successfully',
-      invalidateQueries: [['appointments'], ['appointment'], ['myAppointments']],
+      invalidateQueries: [
+        ['appointments'],
+        ['appointment'],
+        ['myAppointments'],
+        ['userUpcomingAppointments'],
+        ['doctorAppointments'],
+        ['doctorSchedule'],
+        ['video-appointments'],
+        ['appointmentStats'],
+        ['queue'],
+        ['queue-status'],
+      ],
     }
   );
 };
@@ -911,7 +965,18 @@ export const useStartAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.START,
       loadingMessage: 'Starting appointment...',
       successMessage: 'Appointment started successfully',
-      invalidateQueries: [['appointments'], ['appointment'], ['myAppointments']],
+      invalidateQueries: [
+        ['appointments'],
+        ['appointment'],
+        ['myAppointments'],
+        ['userUpcomingAppointments'],
+        ['doctorAppointments'],
+        ['doctorSchedule'],
+        ['video-appointments'],
+        ['appointmentStats'],
+        ['queue'],
+        ['queue-status'],
+      ],
     }
   );
 };
@@ -972,6 +1037,12 @@ export const useCompleteAppointment = () => {
         ['prescriptions'],
         ['patient-prescriptions'],
         ['medical-records'],
+        ['appointmentStats'],
+        ['queue'],
+        ['queue-status'],
+        ['billing-analytics'],
+        ['payments'],
+        ['invoices'],
       ],
     }
   );
@@ -1031,7 +1102,10 @@ export const useConfirmFinalVideoSlot = () => {
         ['clinicLocations'],
         ['clinics'],
         ['clinic'],
-      ['myClinic'],
+        ['myClinic'],
+        ['appointmentStats'],
+        ['queue'],
+        ['queue-status'],
       ],
       onSuccess: (confirmedAppointment) => {
         const appointmentId = String((confirmedAppointment as any)?.appointmentId || (confirmedAppointment as any)?.id || '');
@@ -1107,7 +1181,18 @@ export const useForceCheckInAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Checking in patient...',
       successMessage: 'Patient check-in confirmed successfully',
-      invalidateQueries: [['appointments'], ['appointment'], ['myAppointments'], ['queue']],
+      invalidateQueries: [
+        ['appointments'],
+        ['appointment'],
+        ['myAppointments'],
+        ['userUpcomingAppointments'],
+        ['doctorAppointments'],
+        ['doctorSchedule'],
+        ['video-appointments'],
+        ['appointmentStats'],
+        ['queue'],
+        ['queue-status'],
+      ],
     }
   );
 };
@@ -1135,7 +1220,18 @@ export const useMarkAppointmentNoShow = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: "Marking appointment as no-show...",
       successMessage: "Appointment marked as no-show",
-      invalidateQueries: [["appointments"], ["appointment"], ["myAppointments"]],
+      invalidateQueries: [
+        ["appointments"],
+        ["appointment"],
+        ["myAppointments"],
+        ["userUpcomingAppointments"],
+        ["doctorAppointments"],
+        ["doctorSchedule"],
+        ["video-appointments"],
+        ["appointmentStats"],
+        ["queue"],
+        ["queue-status"],
+      ],
     }
   );
 };
@@ -1387,6 +1483,7 @@ export const useMyAppointments = (filters?: {
 }) => {
   const { hasPermission } = useRBAC();
   const { session } = useAuth();
+  const { isConnected } = useWebSocketStatus();
   const userId = session?.user?.id;
   const userRole = session?.user?.role;
   
@@ -1417,6 +1514,7 @@ export const useMyAppointments = (filters?: {
       refetchOnMount: true, // Refetch when invalidated so payment callback navigation refreshes the list
       refetchOnWindowFocus: false,
       refetchOnReconnect: true,
+      refetchInterval: isConnected ? false : 30_000,
       retry: (failureCount, error: Error) => {
         if (error.message.includes('Access denied')) {
           return false;
@@ -1501,6 +1599,7 @@ export const useTestAppointmentContext = () => {
 export const useAppointmentsWithErrorHandling = (filters?: AppointmentFilters) => {
   const clinicId = useCurrentClinicId();
   const { hasPermission } = useRBAC();
+  const { isConnected } = useWebSocketStatus();
   
   // Memoize query configuration
   const queryConfig = useMemo(() => {
@@ -1544,6 +1643,7 @@ export const useAppointmentsWithErrorHandling = (filters?: AppointmentFilters) =
       gcTime: 5 * 60 * 1000, // 5 minutes GC time
       refetchOnWindowFocus: false,
       refetchOnReconnect: true,
+      refetchInterval: isConnected ? false : 30_000,
       retry: (failureCount: number, error: Error) => {
         // Don't retry on permission errors
         if (error.message.includes('permission') || error.message.includes('Access denied')) {
@@ -1679,6 +1779,7 @@ export const useBulkAppointmentOperations = () => {
 export const useAppointmentStats = () => {
   const { hasPermission } = useRBAC();
   const clinicId = useCurrentClinicId();
+  const { isConnected } = useWebSocketStatus();
   
   return useQueryData(
     getAppointmentStatsQueryKey(clinicId),
@@ -1711,6 +1812,9 @@ export const useAppointmentStats = () => {
     {
       enabled: !!clinicId && hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 5 * 60 * 1000, // 5 minutes
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+      refetchInterval: isConnected ? false : 15_000,
     }
   );
 };

@@ -33,7 +33,7 @@ export const useRevokeSession = () => {
       toastId: TOAST_IDS.SESSION.TERMINATE,
       loadingMessage: "Revoking session...",
       successMessage: "Session revoked successfully",
-      invalidateQueries: [["activeSessions"]],
+      invalidateQueries: [["activeSessions"], ["session"], ["auth", "session"]],
     }
   );
 };

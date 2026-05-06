@@ -2,6 +2,7 @@
 import { nowIso } from '@/lib/utils/date-time';
 
 import { useEffect, useRef } from 'react';
+import type { QueryClient } from '@tanstack/react-query';
 import { useQueryData, useOptimisticMutation, useQueryClient } from '@/hooks/core';
 import {
   invalidateAppointmentQueryFamilies,
@@ -10,6 +11,14 @@ import {
 import { useWebSocketContext, useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import { useAppStore } from '@/stores';
 import { useAuth } from '@/hooks/auth/useAuth';
+import {
+  createAppointment as createAppointmentAction,
+  cancelAppointment as cancelAppointmentAction,
+  getAppointments,
+  updateAppointment as updateAppointmentAction,
+} from '@/lib/actions/appointments.server';
+import { getAppointmentAnalytics } from '@/lib/actions/analytics.server';
+import { getQueueStats } from '@/lib/actions/queue.server';
 import {
   getQueueStatusQueryKey,
   normalizeQueueStatusSnapshot,
@@ -21,6 +30,71 @@ import {
   getAppointmentQueryKey,
   getAppointmentStatsQueryKey,
 } from '@/lib/query/appointment-query-keys';
+
+const CRITICAL_REALTIME_QUERY_PREFIXES: readonly ReadonlyArray<string>[] = [
+  ['appointments'],
+  ['appointment'],
+  ['appointmentStats'],
+  ['myAppointments'],
+  ['userUpcomingAppointments'],
+  ['video-appointments'],
+  ['video-appointment'],
+  ['doctorAppointments'],
+  ['doctorSchedule'],
+  ['doctorAvailability'],
+  ['doctorPatients'],
+  ['doctors'],
+  ['doctor'],
+  ['queue'],
+  ['queue-status'],
+  ['queue-metrics'],
+  ['queueHistory'],
+  ['queueAnalytics'],
+  ['queueConfig'],
+  ['queueNotifications'],
+  ['queueWaitTimes'],
+  ['queueCapacity'],
+  ['queuePerformanceMetrics'],
+  ['queueAlerts'],
+  ['billing'],
+  ['billing-plans'],
+  ['billing-plan'],
+  ['subscriptions'],
+  ['clinic-subscriptions'],
+  ['active-subscription'],
+  ['invoices'],
+  ['clinic-invoices'],
+  ['payments'],
+  ['clinic-payments'],
+  ['clinic-ledger'],
+  ['billing-analytics'],
+  ['clinics'],
+  ['clinic'],
+  ['myClinic'],
+  ['clinicLocations'],
+  ['clinicLocation'],
+  ['clinicDoctors'],
+  ['notifications'],
+  ['userProfile'],
+  ['user'],
+  ['users'],
+  ['patients'],
+  ['receptionists'],
+  ['clinicAdmins'],
+  ['ehr'],
+  ['ehrClinic'],
+];
+
+async function refetchCriticalRealtimeQueries(queryClient: QueryClient) {
+  await Promise.all(
+    CRITICAL_REALTIME_QUERY_PREFIXES.map((queryKey) =>
+      queryClient.refetchQueries({
+        queryKey,
+        exact: false,
+      })
+    )
+  );
+}
 
 // Enhanced query hooks with real-time WebSocket integration
 
@@ -37,30 +111,13 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
     getAppointmentQueryKey(resolvedClinicId, filters),
     async () => {
       if (!resolvedClinicId) throw new Error('No clinic selected');
-      
-      // Use actual API endpoint from config
-      const { API_ENDPOINTS } = await import('@/lib/config/config');
-      const params = new URLSearchParams({ clinicId: resolvedClinicId });
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value === undefined || value === null || value === '') return;
-        params.set(key, Array.isArray(value) ? value.join(',') : String(value));
-      });
-      
-      // ✅ SECURITY: Use centralized API client instead of direct fetch
-      const { clinicApiClient } = await import('@/lib/api/client');
-      const response = await clinicApiClient.get<Appointment[]>(
-        `${API_ENDPOINTS.APPOINTMENTS.GET_ALL}?${params}`
-      );
-      
-      if (!response.success || !response.data) {
-        throw new Error(response.message || 'Failed to fetch appointments');
+
+      const response = await getAppointments({ ...filters, clinicId: resolvedClinicId });
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to fetch appointments');
       }
-      
-      // Handle both array and object with appointments property
-      const appointments = Array.isArray(response.data) 
-        ? response.data 
-        : (response.data as { appointments?: Appointment[] }).appointments || [];
-      
+
+      const appointments = response.appointments || [];
       return { success: true, data: appointments };
     },
     {
@@ -68,6 +125,8 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
       staleTime: 60 * 1000, // 1 minute (optimized for 10M users - real-time updates reduce need for frequent refetch)
       gcTime: 10 * 60 * 1000, // 10 minutes (increased for 10M users)
       refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+      refetchInterval: isConnected ? false : 30_000,
     }
   );
 
@@ -85,19 +144,13 @@ export function useRealTimeAppointmentStats() {
     getAppointmentStatsQueryKey(currentClinic?.id),
     async () => {
       if (!currentClinic) throw new Error('No clinic selected');
-      
-      const { API_ENDPOINTS } = await import('@/lib/config/config');
-      // ✅ SECURITY: Use centralized API client instead of direct fetch
-      const { clinicApiClient } = await import('@/lib/api/client');
-      const response = await clinicApiClient.get<Record<string, unknown>>(
-        `${API_ENDPOINTS.APPOINTMENTS.ANALYTICS}?clinicId=${currentClinic.id}`
-      );
-      
-      if (!response.success || !response.data) {
+
+      const response = await getAppointmentAnalytics({ clinicId: currentClinic.id });
+      if (!response) {
         throw new Error('Failed to fetch appointment stats');
       }
-      
-      return { success: true, data: response.data };
+
+      return { success: true, data: response as Record<string, unknown> };
     },
     {
       enabled: !!currentClinic,
@@ -105,6 +158,7 @@ export function useRealTimeAppointmentStats() {
       gcTime: 15 * 60 * 1000, // 15 minutes
       refetchInterval: isConnected ? false : 10 * 60 * 1000, // 10 minutes if not real-time (increased for 10M users)
       refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
     }
   );
 
@@ -126,23 +180,12 @@ export function useRealTimeQueueStatus(queueName?: string, locationId?: string) 
     async () => {
       if (!currentClinic) throw new Error('No clinic selected');
 
-      const { API_ENDPOINTS } = await import('@/lib/config/config');
-      const params = new URLSearchParams({
-        locationId: locationId || currentClinic.id,
-      });
-      if (queueName) params.append('queueName', queueName);
-
-      // ✅ SECURITY: Use centralized API client instead of direct fetch
-      const { clinicApiClient } = await import('@/lib/api/client');
-      const response = await clinicApiClient.get<Record<string, unknown>>(
-        `${API_ENDPOINTS.QUEUE.STATS}?${params}`
-      );
-
-      if (!response.success || !response.data) {
+      const response = await getQueueStats(locationId || currentClinic.id);
+      if (!response) {
         throw new Error('Failed to fetch queue status');
       }
 
-      return normalizeQueueStatusSnapshot(response.data);
+      return normalizeQueueStatusSnapshot(response as QueueStatusSnapshot);
     },
     {
       enabled: !!currentClinic && !!locationId,
@@ -227,23 +270,17 @@ export function useRealTimeAppointmentMutation() {
     queryKey: getAppointmentQueryKey(currentClinic?.id),
     mutationFn: async (appointmentData: Partial<Appointment>) => {
       if (!currentClinic) throw new Error('No clinic selected');
-      
-      const { API_ENDPOINTS } = await import('@/lib/config/config');
-      // ✅ SECURITY: Use centralized API client instead of direct fetch
-      const { clinicApiClient } = await import('@/lib/api/client');
-      const response = await clinicApiClient.post<Appointment>(
-        API_ENDPOINTS.APPOINTMENTS.CREATE,
-        {
-          ...appointmentData,
-          clinicId: currentClinic.id,
-        }
-      );
-      
-      if (!response.success || !response.data) {
-        throw new Error(response.message || 'Failed to create appointment');
+
+      const response = await createAppointmentAction({
+        ...(appointmentData as any),
+        clinicId: currentClinic.id,
+      });
+
+      if (!response.success || !response.appointment) {
+        throw new Error(response.error || 'Failed to create appointment');
       }
-      
-      return response.data;
+
+      return response.appointment;
     },
     optimisticUpdate: (current, variables) => {
       // Create optimistic appointment
@@ -269,19 +306,13 @@ export function useRealTimeAppointmentMutation() {
   const updateAppointment = useOptimisticMutation<Appointment, { id: string; updates: Partial<Appointment> }>({
     queryKey: getAppointmentQueryKey(currentClinic?.id),
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Appointment> }) => {
-      const { API_ENDPOINTS } = await import('@/lib/config/config');
-      // ✅ SECURITY: Use centralized API client instead of direct fetch
-      const { clinicApiClient } = await import('@/lib/api/client');
-      const response = await clinicApiClient.put<Appointment>(
-        API_ENDPOINTS.APPOINTMENTS.UPDATE(id),
-        updates
-      );
-      
-      if (!response.success || !response.data) {
-        throw new Error(response.message || 'Failed to update appointment');
+      const response = await updateAppointmentAction(id, updates as any);
+
+      if (!response.success || !response.appointment) {
+        throw new Error(response.error || 'Failed to update appointment');
       }
-      
-      return response.data;
+
+      return response.appointment;
     },
     optimisticUpdate: (current, variables) => {
       return (current || []).map((apt: Appointment) =>
@@ -303,17 +334,11 @@ export function useRealTimeAppointmentMutation() {
   const deleteAppointment = useOptimisticMutation<Appointment, string>({
     queryKey: getAppointmentQueryKey(currentClinic?.id),
     mutationFn: async (id: string) => {
-      const { API_ENDPOINTS } = await import('@/lib/config/config');
-      // ✅ SECURITY: Use centralized API client instead of direct fetch
-      const { clinicApiClient } = await import('@/lib/api/client');
-      const response = await clinicApiClient.delete<{ message: string }>(
-        API_ENDPOINTS.APPOINTMENTS.DELETE(id)
-      );
-      
+      const response = await cancelAppointmentAction(id);
       if (!response.success) {
-        throw new Error(response.message || 'Failed to delete appointment');
+        throw new Error(response.error || 'Failed to delete appointment');
       }
-      
+
       // Return the deleted appointment for optimistic update
       const appointments = queryClient.getQueryData<{ success: boolean; data: Appointment[] }>(
         getAppointmentQueryKey(currentClinic?.id)
@@ -346,6 +371,7 @@ export function useRealTimeAppointmentMutation() {
 export function useWebSocketQuerySync() {
   const queryClient = useQueryClient();
   const { isConnected, subscribe } = useWebSocketContext();
+  const fallbackRefetchInFlightRef = useRef(false);
 
   useEffect(() => {
     if (!isConnected) return;
@@ -412,6 +438,28 @@ export function useWebSocketQuerySync() {
       unsubscribeBatchInvalidate();
     };
   }, [isConnected, subscribe, queryClient]);
+
+  useEffect(() => {
+    if (isConnected) {
+      fallbackRefetchInFlightRef.current = false;
+      return;
+    }
+
+    if (fallbackRefetchInFlightRef.current) {
+      return;
+    }
+
+    fallbackRefetchInFlightRef.current = true;
+    const timer = setTimeout(() => {
+      void refetchCriticalRealtimeQueries(queryClient).finally(() => {
+        fallbackRefetchInFlightRef.current = false;
+      });
+    }, 750);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [isConnected, queryClient]);
 
   return { isConnected };
 }

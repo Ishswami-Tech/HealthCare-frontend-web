@@ -1,3 +1,4 @@
+import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import { useQueryData, useMutationOperation } from '../core';
 import { TOAST_IDS } from '../utils/use-toast';
 import {
@@ -66,10 +67,12 @@ import {
  * Hook to get comprehensive health record for a user
  */
 export const useComprehensiveHealthRecord = (userId: string) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(['ehr', 'comprehensive', userId], async () => {
     return await getComprehensiveHealthRecord(userId);
   }, {
     enabled: !!userId,
+    refetchInterval: isConnected ? false : 300_000,
   });
 };
 
@@ -79,10 +82,12 @@ export const useComprehensiveHealthRecord = (userId: string) => {
  * Hook to get medical history for a user
  */
 export const useMedicalHistory = (userId: string) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(['ehr', 'medical-history', userId], async () => {
     return await getMedicalHistory(userId);
   }, {
     enabled: !!userId,
+    refetchInterval: isConnected ? false : 300_000,
   });
 };
 
@@ -107,7 +112,7 @@ export const useCreateMedicalHistory = () => {
       toastId: TOAST_IDS.EHR.HISTORY_CREATE,
       loadingMessage: 'Creating medical history...',
       successMessage: 'Medical history created successfully',
-      invalidateQueries: [['ehr', 'medical-history']],
+      invalidateQueries: [['ehr', 'medical-history'], ['ehr', 'comprehensive'], ['ehrClinic']],
     }
   );
 };
@@ -135,7 +140,7 @@ export const useUpdateMedicalHistory = () => {
       toastId: TOAST_IDS.EHR.HISTORY_UPDATE,
       loadingMessage: 'Updating medical history...',
       successMessage: 'Medical history updated successfully',
-      invalidateQueries: [['ehr', 'medical-history']],
+      invalidateQueries: [['ehr', 'medical-history'], ['ehr', 'comprehensive'], ['ehrClinic']],
     }
   );
 };
@@ -152,7 +157,7 @@ export const useDeleteMedicalHistory = () => {
       toastId: TOAST_IDS.EHR.HISTORY_DELETE,
       loadingMessage: 'Deleting medical history...',
       successMessage: 'Medical history deleted successfully',
-      invalidateQueries: [['ehr', 'medical-history']],
+      invalidateQueries: [['ehr', 'medical-history'], ['ehr', 'comprehensive'], ['ehrClinic']],
     }
   );
 };
@@ -160,9 +165,10 @@ export const useDeleteMedicalHistory = () => {
 // ===== LAB REPORTS HOOKS =====
 
 export const useLabReports = (userId: string) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(['ehr', 'lab-reports', userId], async () => {
     return await getLabReports(userId);
-  }, { enabled: !!userId });
+  }, { enabled: !!userId, refetchInterval: isConnected ? false : 600_000 });
 };
 
 export const useCreateLabReport = () => {
@@ -174,7 +180,7 @@ export const useCreateLabReport = () => {
       toastId: TOAST_IDS.EHR.LAB_CREATE,
       loadingMessage: 'Creating lab report...',
       successMessage: 'Lab report created successfully',
-      invalidateQueries: [['ehr', 'lab-reports']],
+      invalidateQueries: [['ehr', 'lab-reports'], ['ehr', 'comprehensive'], ['ehrClinic']],
     }
   );
 };
@@ -188,7 +194,7 @@ export const useUpdateLabReport = () => {
       toastId: TOAST_IDS.EHR.LAB_UPDATE,
       loadingMessage: 'Updating lab report...',
       successMessage: 'Lab report updated successfully',
-      invalidateQueries: [['ehr', 'lab-reports']],
+      invalidateQueries: [['ehr', 'lab-reports'], ['ehr', 'comprehensive'], ['ehrClinic']],
     }
   );
 };
@@ -202,7 +208,7 @@ export const useDeleteLabReport = () => {
       toastId: TOAST_IDS.EHR.LAB_DELETE,
       loadingMessage: 'Deleting lab report...',
       successMessage: 'Lab report deleted successfully',
-      invalidateQueries: [['ehr', 'lab-reports']],
+      invalidateQueries: [['ehr', 'lab-reports'], ['ehr', 'comprehensive'], ['ehrClinic']],
     }
   );
 };
@@ -210,9 +216,10 @@ export const useDeleteLabReport = () => {
 // ===== RADIOLOGY REPORTS HOOKS =====
 
 export const useRadiologyReports = (userId: string) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(['ehr', 'radiology-reports', userId], async () => {
     return await getRadiologyReports(userId);
-  }, { enabled: !!userId });
+  }, { enabled: !!userId, refetchInterval: isConnected ? false : 600_000 });
 };
 
 export const useCreateRadiologyReport = () => {
@@ -224,7 +231,7 @@ export const useCreateRadiologyReport = () => {
       toastId: TOAST_IDS.EHR.RADIOLOGY_CREATE,
       loadingMessage: 'Creating radiology report...',
       successMessage: 'Radiology report created successfully',
-      invalidateQueries: [['ehr', 'radiology-reports']],
+      invalidateQueries: [['ehr', 'radiology-reports'], ['ehr', 'comprehensive'], ['ehrClinic']],
     }
   );
 };
@@ -238,7 +245,7 @@ export const useUpdateRadiologyReport = () => {
       toastId: TOAST_IDS.EHR.RADIOLOGY_UPDATE,
       loadingMessage: 'Updating radiology report...',
       successMessage: 'Radiology report updated successfully',
-      invalidateQueries: [['ehr', 'radiology-reports']],
+      invalidateQueries: [['ehr', 'radiology-reports'], ['ehr', 'comprehensive'], ['ehrClinic']],
     }
   );
 };
@@ -252,7 +259,7 @@ export const useDeleteRadiologyReport = () => {
       toastId: TOAST_IDS.EHR.RADIOLOGY_DELETE,
       loadingMessage: 'Deleting radiology report...',
       successMessage: 'Radiology report deleted successfully',
-      invalidateQueries: [['ehr', 'radiology-reports']],
+      invalidateQueries: [['ehr', 'radiology-reports'], ['ehr', 'comprehensive'], ['ehrClinic']],
     }
   );
 };
@@ -260,9 +267,10 @@ export const useDeleteRadiologyReport = () => {
 // ===== SURGICAL RECORDS HOOKS =====
 
 export const useSurgicalRecords = (userId: string) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(['ehr', 'surgical-records', userId], async () => {
     return await getSurgicalRecords(userId);
-  }, { enabled: !!userId });
+  }, { enabled: !!userId, refetchInterval: isConnected ? false : 600_000 });
 };
 
 export const useCreateSurgicalRecord = () => {
@@ -274,7 +282,7 @@ export const useCreateSurgicalRecord = () => {
       toastId: TOAST_IDS.EHR.SURGICAL_CREATE,
       loadingMessage: 'Creating surgical record...',
       successMessage: 'Surgical record created successfully',
-      invalidateQueries: [['ehr', 'surgical-records']],
+      invalidateQueries: [['ehr', 'surgical-records'], ['ehr', 'comprehensive'], ['ehrClinic']],
     }
   );
 };
@@ -288,7 +296,7 @@ export const useUpdateSurgicalRecord = () => {
       toastId: TOAST_IDS.EHR.SURGICAL_UPDATE,
       loadingMessage: 'Updating surgical record...',
       successMessage: 'Surgical record updated successfully',
-      invalidateQueries: [['ehr', 'surgical-records']],
+      invalidateQueries: [['ehr', 'surgical-records'], ['ehr', 'comprehensive'], ['ehrClinic']],
     }
   );
 };
@@ -302,7 +310,7 @@ export const useDeleteSurgicalRecord = () => {
       toastId: TOAST_IDS.EHR.SURGICAL_DELETE,
       loadingMessage: 'Deleting surgical record...',
       successMessage: 'Surgical record deleted successfully',
-      invalidateQueries: [['ehr', 'surgical-records']],
+      invalidateQueries: [['ehr', 'surgical-records'], ['ehr', 'comprehensive'], ['ehrClinic']],
     }
   );
 };
@@ -310,9 +318,10 @@ export const useDeleteSurgicalRecord = () => {
 // ===== VITALS HOOKS =====
 
 export const useVitals = (userId: string, type?: string) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(['ehr', 'vitals', userId, type], async () => {
     return await getVitals(userId, type);
-  }, { enabled: !!userId });
+  }, { enabled: !!userId, refetchInterval: isConnected ? false : 120_000 });
 };
 
 export const useCreateVital = () => {
@@ -324,7 +333,7 @@ export const useCreateVital = () => {
       toastId: TOAST_IDS.EHR.VITAL_CREATE,
       loadingMessage: 'Creating vital...',
       successMessage: 'Vital created successfully',
-      invalidateQueries: [['ehr', 'vitals']],
+      invalidateQueries: [['ehr', 'vitals'], ['ehr', 'comprehensive'], ['ehrClinic']],
     }
   );
 };
@@ -338,7 +347,7 @@ export const useUpdateVital = () => {
       toastId: TOAST_IDS.EHR.VITAL_UPDATE,
       loadingMessage: 'Updating vital...',
       successMessage: 'Vital updated successfully',
-      invalidateQueries: [['ehr', 'vitals']],
+      invalidateQueries: [['ehr', 'vitals'], ['ehr', 'comprehensive'], ['ehrClinic']],
     }
   );
 };
@@ -352,7 +361,7 @@ export const useDeleteVital = () => {
       toastId: TOAST_IDS.EHR.VITAL_DELETE,
       loadingMessage: 'Deleting vital...',
       successMessage: 'Vital deleted successfully',
-      invalidateQueries: [['ehr', 'vitals']],
+      invalidateQueries: [['ehr', 'vitals'], ['ehr', 'comprehensive'], ['ehrClinic']],
     }
   );
 };
@@ -360,9 +369,10 @@ export const useDeleteVital = () => {
 // ===== ALLERGIES HOOKS =====
 
 export const useAllergies = (userId: string) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(['ehr', 'allergies', userId], async () => {
     return await getAllergies(userId);
-  }, { enabled: !!userId });
+  }, { enabled: !!userId, refetchInterval: isConnected ? false : 300_000 });
 };
 
 export const useCreateAllergy = () => {
@@ -374,7 +384,7 @@ export const useCreateAllergy = () => {
       toastId: TOAST_IDS.EHR.ALLERGY_CREATE,
       loadingMessage: 'Creating allergy...',
       successMessage: 'Allergy created successfully',
-      invalidateQueries: [['ehr', 'allergies']],
+      invalidateQueries: [['ehr', 'allergies'], ['ehr', 'comprehensive'], ['ehrClinic']],
     }
   );
 };
@@ -388,7 +398,7 @@ export const useUpdateAllergy = () => {
       toastId: TOAST_IDS.EHR.ALLERGY_UPDATE,
       loadingMessage: 'Updating allergy...',
       successMessage: 'Allergy updated successfully',
-      invalidateQueries: [['ehr', 'allergies']],
+      invalidateQueries: [['ehr', 'allergies'], ['ehr', 'comprehensive'], ['ehrClinic']],
     }
   );
 };
@@ -402,7 +412,7 @@ export const useDeleteAllergy = () => {
       toastId: TOAST_IDS.EHR.ALLERGY_DELETE,
       loadingMessage: 'Deleting allergy...',
       successMessage: 'Allergy deleted successfully',
-      invalidateQueries: [['ehr', 'allergies']],
+      invalidateQueries: [['ehr', 'allergies'], ['ehr', 'comprehensive'], ['ehrClinic']],
     }
   );
 };
@@ -410,9 +420,10 @@ export const useDeleteAllergy = () => {
 // ===== MEDICATIONS HOOKS =====
 
 export const useMedications = (userId: string, activeOnly?: boolean) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(['ehr', 'medications', userId, activeOnly], async () => {
     return await getMedications(userId, activeOnly);
-  }, { enabled: !!userId });
+  }, { enabled: !!userId, refetchInterval: isConnected ? false : 300_000 });
 };
 
 export const useCreateMedication = () => {
@@ -424,7 +435,7 @@ export const useCreateMedication = () => {
       toastId: TOAST_IDS.EHR.MEDICATION_CREATE,
       loadingMessage: 'Creating medication...',
       successMessage: 'Medication created successfully',
-      invalidateQueries: [['ehr', 'medications']],
+      invalidateQueries: [['ehr', 'medications'], ['ehr', 'comprehensive'], ['ehrClinic']],
     }
   );
 };
@@ -438,7 +449,7 @@ export const useUpdateMedication = () => {
       toastId: TOAST_IDS.EHR.MEDICATION_UPDATE,
       loadingMessage: 'Updating medication...',
       successMessage: 'Medication updated successfully',
-      invalidateQueries: [['ehr', 'medications']],
+      invalidateQueries: [['ehr', 'medications'], ['ehr', 'comprehensive'], ['ehrClinic']],
     }
   );
 };
@@ -452,7 +463,7 @@ export const useDeleteMedication = () => {
       toastId: TOAST_IDS.EHR.MEDICATION_DELETE,
       loadingMessage: 'Deleting medication...',
       successMessage: 'Medication deleted successfully',
-      invalidateQueries: [['ehr', 'medications']],
+      invalidateQueries: [['ehr', 'medications'], ['ehr', 'comprehensive'], ['ehrClinic']],
     }
   );
 };
@@ -460,9 +471,10 @@ export const useDeleteMedication = () => {
 // ===== IMMUNIZATIONS HOOKS =====
 
 export const useImmunizations = (userId: string) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(['ehr', 'immunizations', userId], async () => {
     return await getImmunizations(userId);
-  }, { enabled: !!userId });
+  }, { enabled: !!userId, refetchInterval: isConnected ? false : 300_000 });
 };
 
 export const useCreateImmunization = () => {
@@ -474,7 +486,7 @@ export const useCreateImmunization = () => {
       toastId: TOAST_IDS.EHR.IMMUNIZATION_CREATE,
       loadingMessage: 'Creating immunization...',
       successMessage: 'Immunization created successfully',
-      invalidateQueries: [['ehr', 'immunizations']],
+      invalidateQueries: [['ehr', 'immunizations'], ['ehr', 'comprehensive'], ['ehrClinic']],
     }
   );
 };
@@ -488,7 +500,7 @@ export const useUpdateImmunization = () => {
       toastId: TOAST_IDS.EHR.IMMUNIZATION_UPDATE,
       loadingMessage: 'Updating immunization...',
       successMessage: 'Immunization updated successfully',
-      invalidateQueries: [['ehr', 'immunizations']],
+      invalidateQueries: [['ehr', 'immunizations'], ['ehr', 'comprehensive'], ['ehrClinic']],
     }
   );
 };
@@ -502,7 +514,7 @@ export const useDeleteImmunization = () => {
       toastId: TOAST_IDS.EHR.IMMUNIZATION_DELETE,
       loadingMessage: 'Deleting immunization...',
       successMessage: 'Immunization deleted successfully',
-      invalidateQueries: [['ehr', 'immunizations']],
+      invalidateQueries: [['ehr', 'immunizations'], ['ehr', 'comprehensive'], ['ehrClinic']],
     }
   );
 };
@@ -510,15 +522,17 @@ export const useDeleteImmunization = () => {
 // ===== ANALYTICS HOOKS =====
 
 export const useHealthTrends = (userId: string, vitalType: string, startDate?: string, endDate?: string) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(['ehr', 'analytics', 'health-trends', userId, vitalType, startDate, endDate], async () => {
     return await getHealthTrends(userId, vitalType, startDate, endDate);
-  }, { enabled: !!userId && !!vitalType });
+  }, { enabled: !!userId && !!vitalType, refetchInterval: isConnected ? false : 600_000 });
 };
 
 export const useMedicationAdherence = (userId: string) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(['ehr', 'analytics', 'medication-adherence', userId], async () => {
     return await getMedicationAdherence(userId);
-  }, { enabled: !!userId });
+  }, { enabled: !!userId, refetchInterval: isConnected ? false : 600_000 });
 };
 
 // ===== PRESCRIPTIONS HOOKS =====
@@ -527,10 +541,12 @@ export const useMedicationAdherence = (userId: string) => {
  * Hook to get patient prescriptions
  */
 export const usePatientPrescriptions = (patientId: string, status?: 'active' | 'completed' | 'cancelled') => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(['prescriptions', 'patient', patientId, status], async () => {
     return await getPatientPrescriptions(patientId, status);
   }, {
     enabled: !!patientId,
+    refetchInterval: isConnected ? false : 300_000,
   });
 };
 
@@ -538,10 +554,12 @@ export const usePatientPrescriptions = (patientId: string, status?: 'active' | '
  * Hook to get prescription by ID
  */
 export const usePrescription = (prescriptionId: string) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(['prescription', prescriptionId], async () => {
     return await getPrescriptionById(prescriptionId);
   }, {
     enabled: !!prescriptionId,
+    refetchInterval: isConnected ? false : 300_000,
   });
 };
 
@@ -569,7 +587,7 @@ export const useCreatePrescription = () => {
       toastId: TOAST_IDS.PRESCRIPTION.CREATE,
       loadingMessage: 'Creating prescription...',
       successMessage: 'Prescription created successfully',
-      invalidateQueries: [['prescriptions']],
+      invalidateQueries: [['prescriptions'], ['medicalRecords'], ['ehr'], ['ehrClinic']],
     }
   );
 };
@@ -599,7 +617,7 @@ export const useUpdatePrescription = () => {
       toastId: TOAST_IDS.PRESCRIPTION.UPDATE,
       loadingMessage: 'Updating prescription...',
       successMessage: 'Prescription updated successfully',
-      invalidateQueries: [['prescriptions']],
+      invalidateQueries: [['prescriptions'], ['medicalRecords'], ['ehr'], ['ehrClinic']],
     }
   );
 };
@@ -678,7 +696,7 @@ export const useCreateMedicine = () => {
       toastId: TOAST_IDS.MEDICINE.CREATE,
       loadingMessage: 'Creating medicine...',
       successMessage: 'Medicine created successfully',
-      invalidateQueries: [['medicines']],
+      invalidateQueries: [['medicines'], ['medicineInventory'], ['medicalRecords'], ['ehr'], ['ehrClinic']],
     }
   );
 };
@@ -709,7 +727,7 @@ export const useUpdateMedicine = () => {
       toastId: TOAST_IDS.MEDICINE.UPDATE,
       loadingMessage: 'Updating medicine...',
       successMessage: 'Medicine updated successfully',
-      invalidateQueries: [['medicines']],
+      invalidateQueries: [['medicines'], ['medicineInventory'], ['medicalRecords'], ['ehr'], ['ehrClinic']],
     }
   );
 };
@@ -726,7 +744,7 @@ export const useDeleteMedicine = () => {
       toastId: TOAST_IDS.MEDICINE.DELETE,
       loadingMessage: 'Deleting medicine...',
       successMessage: 'Medicine deleted successfully',
-      invalidateQueries: [['medicines']],
+      invalidateQueries: [['medicines'], ['medicineInventory'], ['medicalRecords'], ['ehr'], ['ehrClinic']],
     }
   );
 };
@@ -777,7 +795,7 @@ export const useUpdateMedicineInventory = () => {
       toastId: TOAST_IDS.MEDICINE.INVENTORY_UPDATE,
       loadingMessage: 'Updating medicine inventory...',
       successMessage: 'Medicine inventory updated successfully',
-      invalidateQueries: [['medicineInventory']],
+      invalidateQueries: [['medicineInventory'], ['medicines'], ['medicalRecords'], ['ehr'], ['ehrClinic']],
     }
   );
 };
@@ -832,7 +850,7 @@ export const useCreateMedicalRecord = () => {
       toastId: TOAST_IDS.MEDICAL_RECORD.CREATE,
       loadingMessage: 'Creating medical record...',
       successMessage: 'Medical record created successfully',
-      invalidateQueries: [['medicalRecords']],
+      invalidateQueries: [['medicalRecords'], ['ehr'], ['ehrClinic'], ['prescriptions']],
     }
   );
 };
@@ -856,7 +874,7 @@ export const useUpdateMedicalRecord = () => {
       toastId: TOAST_IDS.MEDICAL_RECORD.UPDATE,
       loadingMessage: 'Updating medical record...',
       successMessage: 'Medical record updated successfully',
-      invalidateQueries: [['medicalRecords']],
+      invalidateQueries: [['medicalRecords'], ['ehr'], ['ehrClinic'], ['prescriptions']],
     }
   );
 };
@@ -873,7 +891,7 @@ export const useDeleteMedicalRecord = () => {
       toastId: TOAST_IDS.MEDICAL_RECORD.DELETE,
       loadingMessage: 'Deleting medical record...',
       successMessage: 'Medical record deleted successfully',
-      invalidateQueries: [['medicalRecords']],
+      invalidateQueries: [['medicalRecords'], ['ehr'], ['ehrClinic'], ['prescriptions']],
     }
   );
 };
@@ -893,7 +911,7 @@ export const useUploadMedicalRecordFile = () => {
       toastId: TOAST_IDS.MEDICAL_RECORD.UPLOAD,
       loadingMessage: 'Uploading medical record file...',
       successMessage: 'Medical record file uploaded successfully',
-      invalidateQueries: [['medicalRecords']],
+      invalidateQueries: [['medicalRecords'], ['ehr'], ['ehrClinic'], ['prescriptions']],
     }
   );
 };
@@ -929,7 +947,7 @@ export const useCreateMedicalRecordTemplate = () => {
       toastId: TOAST_IDS.MEDICAL_RECORD.TEMPLATE_CREATE,
       loadingMessage: 'Creating medical record template...',
       successMessage: 'Medical record template created successfully',
-      invalidateQueries: [['medicalRecordTemplates']],
+      invalidateQueries: [['medicalRecordTemplates'], ['medicalRecords'], ['ehr'], ['ehrClinic']],
     }
   );
 };

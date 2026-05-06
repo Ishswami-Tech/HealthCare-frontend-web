@@ -52,8 +52,9 @@ export function WebSocketProvider({
     autoConnect: shouldConnect,
     subscribeToQueues: shouldConnect,
     subscribeToAppointments: shouldConnect,
-    tenantId: currentClinic?.id || undefined,
+    tenantId: currentClinic?.id || user?.clinicId || undefined,
     userId: user?.id || undefined,
+    clinicId: currentClinic?.id || user?.clinicId || undefined,
   });
 
   // ✅ Retry logic is handled by useWebSocketIntegration hook

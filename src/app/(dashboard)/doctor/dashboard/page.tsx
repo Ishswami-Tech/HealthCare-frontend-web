@@ -23,6 +23,7 @@ import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-t
 import {
   getAppointmentViewState,
   formatAppointmentTime,
+  getVideoSessionDecision,
   isPaidVideoAppointmentAwaitingDoctorConfirmation,
   shouldShowAppointmentOnDoctorDashboard,
 } from "@/lib/utils/appointmentUtils";
@@ -35,6 +36,7 @@ import {
   getReceptionistAppointmentDateLabel,
   getReceptionistAppointmentTimeLabel,
 } from "@/lib/utils/appointmentUtils";
+import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 import {
   extractQueueEntries,
   getQueuePatientDisplayName,
@@ -531,9 +533,29 @@ export default function DoctorDashboard() {
         const awaitingConfirmation = isPaidVideoAppointmentAwaitingDoctorConfirmation(appointment) && !resolvedVideoSlotConfirmations[appointmentId];
         const proposedSlots = Array.isArray(appointment.proposedSlots) ? appointment.proposedSlots : [];
         const paymentReady = !appointment.isVideo || appointment.paymentCompleted;
+        const videoSessionDecision = appointment.isVideo ? getVideoSessionDecision(appointment) : null;
         return (
           <div className="flex gap-2">
-            {appointment.statusEnum === "CONFIRMED" && appointment.checkedInAt && (
+            {appointment.statusEnum === "CONFIRMED" && appointment.isVideo && videoSessionDecision?.canJoin && (
+              <Button
+                size="sm"
+                className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                disabled={startAppointmentMutation.isPending || !paymentReady}
+                onClick={async () => {
+                  await startAppointmentMutation.mutateAsync(appointment.id);
+                  router.push(buildVideoSessionRoute(appointment.id));
+                }}
+                title={!paymentReady ? "Video request is waiting for payment" : undefined}
+              >
+                {startAppointmentMutation.isPending ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Play className="w-3 h-3 fill-current" />
+                )}
+                Join Session
+              </Button>
+            )}
+            {appointment.statusEnum === "CONFIRMED" && !appointment.isVideo && appointment.checkedInAt && (
               <Button
                 size="sm"
                 className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
@@ -554,7 +576,7 @@ export default function DoctorDashboard() {
                 Start
               </Button>
             )}
-            {appointment.statusEnum === "CONFIRMED" && !appointment.checkedInAt && (
+            {appointment.statusEnum === "CONFIRMED" && !appointment.isVideo && !appointment.checkedInAt && (
               <Button
                 size="sm"
                 variant="outline"

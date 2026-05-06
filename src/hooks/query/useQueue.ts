@@ -129,7 +129,13 @@ export const useUpdateQueueStatus = () => {
       toastId: TOAST_IDS.QUEUE.UPDATE,
       loadingMessage: 'Updating queue status...',
       successMessage: 'Queue status updated successfully',
-      invalidateQueries: [['queue'], ['queue-status']],
+      invalidateQueries: [
+        ['queue'],
+        ['queue-status'],
+        ['queueHistory'],
+        ['queueAnalytics'],
+        ['queuePerformanceMetrics'],
+      ],
     }
   );
 };
@@ -149,7 +155,13 @@ export const useCallNextPatient = () => {
       toastId: TOAST_IDS.QUEUE.CALL_NEXT,
       loadingMessage: 'Calling next patient...',
       successMessage: 'Next patient called successfully',
-      invalidateQueries: [['queue'], ['queue-status']],
+      invalidateQueries: [
+        ['queue'],
+        ['queue-status'],
+        ['queueHistory'],
+        ['queueAnalytics'],
+        ['queuePerformanceMetrics'],
+      ],
     }
   );
 };
@@ -172,7 +184,13 @@ export const useAddToQueue = () => {
       toastId: TOAST_IDS.QUEUE.UPDATE,
       loadingMessage: 'Adding to queue...',
       successMessage: 'Patient added to queue successfully',
-      invalidateQueries: [['queue'], ['queue-status']],
+      invalidateQueries: [
+        ['queue'],
+        ['queue-status'],
+        ['queueHistory'],
+        ['queueAnalytics'],
+        ['queuePerformanceMetrics'],
+      ],
     }
   );
 };
@@ -192,7 +210,13 @@ export const useRemoveFromQueue = () => {
       toastId: TOAST_IDS.QUEUE.UPDATE,
       loadingMessage: 'Removing from queue...',
       successMessage: 'Patient removed from queue successfully',
-      invalidateQueries: [['queue'], ['queue-status']],
+      invalidateQueries: [
+        ['queue'],
+        ['queue-status'],
+        ['queueHistory'],
+        ['queueAnalytics'],
+        ['queuePerformanceMetrics'],
+      ],
     }
   );
 };
@@ -213,7 +237,13 @@ export const useReorderQueue = () => {
       toastId: TOAST_IDS.QUEUE.UPDATE,
       loadingMessage: 'Reordering queue...',
       successMessage: 'Queue reordered successfully',
-      invalidateQueries: [['queue'], ['queue-status']],
+      invalidateQueries: [
+        ['queue'],
+        ['queue-status'],
+        ['queueHistory'],
+        ['queueAnalytics'],
+        ['queuePerformanceMetrics'],
+      ],
     }
   );
 };
@@ -364,7 +394,13 @@ export const useUpdateQueuePosition = () => {
       toastId: TOAST_IDS.QUEUE.UPDATE,
       loadingMessage: 'Updating queue position...',
       successMessage: 'Queue position updated successfully',
-      invalidateQueries: [['queue'], ['queue-status']],
+      invalidateQueries: [
+        ['queue'],
+        ['queue-status'],
+        ['queueHistory'],
+        ['queueAnalytics'],
+        ['queuePerformanceMetrics'],
+      ],
     }
   );
 };
@@ -383,7 +419,13 @@ export const usePauseQueue = () => {
       toastId: TOAST_IDS.QUEUE.UPDATE,
       loadingMessage: 'Pausing queue...',
       successMessage: 'Queue paused successfully',
-      invalidateQueries: [['queue'], ['queue-status']],
+      invalidateQueries: [
+        ['queue'],
+        ['queue-status'],
+        ['queueHistory'],
+        ['queueAnalytics'],
+        ['queuePerformanceMetrics'],
+      ],
     }
   );
 };
@@ -414,7 +456,13 @@ export const useTransferQueueEntry = () => {
       toastId: TOAST_IDS.QUEUE.UPDATE,
       loadingMessage: 'Moving patient to queue...',
       successMessage: 'Patient moved successfully',
-      invalidateQueries: [['queue'], ['queue-status']],
+      invalidateQueries: [
+        ['queue'],
+        ['queue-status'],
+        ['queueHistory'],
+        ['queueAnalytics'],
+        ['queuePerformanceMetrics'],
+      ],
     }
   );
 };
@@ -433,7 +481,13 @@ export const useResumeQueue = () => {
       toastId: TOAST_IDS.QUEUE.UPDATE,
       loadingMessage: 'Resuming queue...',
       successMessage: 'Queue resumed successfully',
-      invalidateQueries: [['queue'], ['queue-status']],
+      invalidateQueries: [
+        ['queue'],
+        ['queue-status'],
+        ['queueHistory'],
+        ['queueAnalytics'],
+        ['queuePerformanceMetrics'],
+      ],
     }
   );
 };
@@ -465,7 +519,14 @@ export const useUpdateQueueConfig = () => {
       toastId: TOAST_IDS.QUEUE.UPDATE,
       loadingMessage: 'Updating queue configuration...',
       successMessage: 'Queue configuration updated successfully',
-      invalidateQueries: [['queue'], ['queue-status'], ['queueConfig']],
+      invalidateQueries: [
+        ['queue'],
+        ['queue-status'],
+        ['queueConfig'],
+        ['queueHistory'],
+        ['queueAnalytics'],
+        ['queuePerformanceMetrics'],
+      ],
     }
   );
 };
@@ -577,7 +638,13 @@ export const useUpdateQueueCapacity = () => {
       toastId: TOAST_IDS.QUEUE.UPDATE,
       loadingMessage: 'Updating queue capacity...',
       successMessage: 'Queue capacity updated successfully',
-      invalidateQueries: [['queueCapacity']],
+      invalidateQueries: [
+        ['queueCapacity'],
+        ['queue'],
+        ['queue-status'],
+        ['queueHistory'],
+        ['queueAnalytics'],
+      ],
     }
   );
 };

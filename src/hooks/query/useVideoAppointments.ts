@@ -4,6 +4,7 @@
 import { useEffect, useCallback, useState } from 'react';
 import { useQueryData, useMutationOperation, useQueryClient } from '@/hooks/core';
 import { useCurrentClinicId } from './useClinics';
+import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import { useRBAC } from '../utils/useRBAC';
 import { useToast } from '../utils/use-toast';
 import { useVideoAppointmentWebSocket } from '../realtime/useVideoAppointmentSocketIO';
@@ -173,6 +174,7 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
   const { session } = useAuth();
   const { hasPermission } = useRBAC();
   const queryClient = useQueryClient();
+  const { isConnected: socketConnected } = useWebSocketStatus();
   const {
     subscribeToVideoAppointments,
     subscribeToConsultationEvents,
@@ -232,7 +234,7 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
       enabled: canFetch,
       staleTime: 2 * 60 * 1000, // 2 minutes (optimized for 10M users)
       gcTime: 10 * 60 * 1000, // 10 minutes
-      refetchInterval: false, // Disable auto-refetch - rely on WebSocket for real-time updates
+      refetchInterval: socketConnected ? false : 30_000, // Poll when websocket is unavailable
       refetchOnWindowFocus: false,
     }
   );
@@ -295,6 +297,7 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
 export function useVideoAppointment(id: string) {
   const { hasPermission } = useRBAC();
   const queryClient = useQueryClient();
+  const { isConnected: socketConnected } = useWebSocketStatus();
   const resolvedAppointmentId = normalizeVideoSessionAppointmentId(id);
   const {
     subscribeToVideoAppointments,
@@ -327,7 +330,7 @@ export function useVideoAppointment(id: string) {
       enabled: !!resolvedAppointmentId && hasPermission(Permission.VIEW_VIDEO_APPOINTMENTS),
       staleTime: 1 * 60 * 1000, // 1 minute - WebSocket handles real-time updates
       gcTime: 5 * 60 * 1000, // 5 minutes
-      refetchInterval: false, // Disable polling - WebSocket handles updates
+      refetchInterval: socketConnected ? false : 30_000, // Poll when websocket is unavailable
       refetchOnWindowFocus: false,
       retry: false,
     }
@@ -428,7 +431,20 @@ export function useCreateVideoAppointment() {
       toastId: TOAST_IDS.VIDEO.JOIN,
       loadingMessage: 'Creating video appointment...',
       successMessage: 'Video appointment created successfully',
-      invalidateQueries: [['video-appointments'], ['appointments'], ['myAppointments']],
+      invalidateQueries: [
+        ['video-appointments'],
+        ['video-appointment'],
+        ['appointments'],
+        ['myAppointments'],
+        ['userUpcomingAppointments'],
+        ['doctorAppointments'],
+        ['doctorSchedule'],
+        ['appointmentStats'],
+        ['waiting-room-queue'],
+        ['admin-video-sessions'],
+        ['queue'],
+        ['queue-status'],
+      ],
       onSuccess: (_, variables) => {
         // Send WebSocket event
         sendVideoAppointmentEvent('created', {
@@ -480,7 +496,18 @@ export function useUpdateVideoAppointment() {
       toastId: TOAST_IDS.VIDEO.JOIN,
       loadingMessage: 'Updating video appointment...',
       successMessage: 'Video appointment updated successfully',
-      invalidateQueries: [['video-appointments'], ['video-appointment'], ['appointments'], ['myAppointments']],
+      invalidateQueries: [
+        ['video-appointments'],
+        ['video-appointment'],
+        ['appointments'],
+        ['myAppointments'],
+        ['userUpcomingAppointments'],
+        ['doctorAppointments'],
+        ['doctorSchedule'],
+        ['appointmentStats'],
+        ['waiting-room-queue'],
+        ['admin-video-sessions'],
+      ],
       onSuccess: (_, variables) => {
         // Send WebSocket event
         sendVideoAppointmentEvent('updated', {
@@ -520,7 +547,20 @@ export function useEndVideoAppointment() {
       toastId: TOAST_IDS.VIDEO.END,
       loadingMessage: 'Ending video appointment...',
       successMessage: 'Video appointment ended successfully',
-      invalidateQueries: [['video-appointments'], ['video-appointment'], ['appointments'], ['myAppointments']],
+      invalidateQueries: [
+        ['video-appointments'],
+        ['video-appointment'],
+        ['appointments'],
+        ['myAppointments'],
+        ['userUpcomingAppointments'],
+        ['doctorAppointments'],
+        ['doctorSchedule'],
+        ['appointmentStats'],
+        ['waiting-room-queue'],
+        ['admin-video-sessions'],
+        ['queue'],
+        ['queue-status'],
+      ],
       onSuccess: (_, appointmentId) => {
         // Send WebSocket events
         sendVideoAppointmentEvent('ended', {
@@ -560,7 +600,18 @@ export function useDeleteVideoAppointment() {
       toastId: TOAST_IDS.VIDEO.END,
       loadingMessage: 'Deleting video appointment...',
       successMessage: 'Video appointment deleted successfully',
-      invalidateQueries: [['video-appointments'], ['appointments'], ['myAppointments']],
+      invalidateQueries: [
+        ['video-appointments'],
+        ['video-appointment'],
+        ['appointments'],
+        ['myAppointments'],
+        ['userUpcomingAppointments'],
+        ['doctorAppointments'],
+        ['doctorSchedule'],
+        ['appointmentStats'],
+        ['waiting-room-queue'],
+        ['admin-video-sessions'],
+      ],
       onSuccess: (_, appointmentId) => {
         queryClient.removeQueries({ queryKey: ['video-appointment', appointmentId] });
       },
@@ -595,7 +646,18 @@ export function useRescheduleVideoAppointment() {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Rescheduling appointment...',
       successMessage: 'Appointment rescheduled successfully',
-      invalidateQueries: [['video-appointments'], ['video-appointment'], ['appointments'], ['myAppointments']],
+      invalidateQueries: [
+        ['video-appointments'],
+        ['video-appointment'],
+        ['appointments'],
+        ['myAppointments'],
+        ['userUpcomingAppointments'],
+        ['doctorAppointments'],
+        ['doctorSchedule'],
+        ['appointmentStats'],
+        ['waiting-room-queue'],
+        ['admin-video-sessions'],
+      ],
       onSuccess: (_, variables) => {
         sendVideoAppointmentEvent('updated', {
           appointmentId: variables.appointmentId,
@@ -628,7 +690,18 @@ export function useRejectVideoProposal() {
       toastId: TOAST_IDS.APPOINTMENT.CANCEL, // Using cancel toast ID as it's a rejection
       loadingMessage: 'Rejecting proposal...',
       successMessage: 'Proposal rejected successfully',
-      invalidateQueries: [['video-appointments'], ['video-appointment'], ['appointments'], ['myAppointments']],
+      invalidateQueries: [
+        ['video-appointments'],
+        ['video-appointment'],
+        ['appointments'],
+        ['myAppointments'],
+        ['userUpcomingAppointments'],
+        ['doctorAppointments'],
+        ['doctorSchedule'],
+        ['appointmentStats'],
+        ['waiting-room-queue'],
+        ['admin-video-sessions'],
+      ],
       onSuccess: (_, variables) => {
         sendVideoAppointmentEvent('updated', {
           appointmentId: variables.appointmentId,
@@ -666,7 +739,20 @@ export function useCancelVideoAppointment() {
       toastId: TOAST_IDS.APPOINTMENT.CANCEL,
       loadingMessage: 'Cancelling appointment...',
       successMessage: 'Appointment cancelled successfully',
-      invalidateQueries: [['video-appointments'], ['video-appointment'], ['appointments'], ['myAppointments']],
+      invalidateQueries: [
+        ['video-appointments'],
+        ['video-appointment'],
+        ['appointments'],
+        ['myAppointments'],
+        ['userUpcomingAppointments'],
+        ['doctorAppointments'],
+        ['doctorSchedule'],
+        ['appointmentStats'],
+        ['waiting-room-queue'],
+        ['admin-video-sessions'],
+        ['queue'],
+        ['queue-status'],
+      ],
       onSuccess: (_, variables) => {
         sendVideoAppointmentEvent('updated', {
           appointmentId: variables.appointmentId,
@@ -1060,11 +1146,13 @@ export function useVideoCallControls() {
 }
 
 export function useAdminVideoSessions() {
+  const { isConnected: socketConnected } = useWebSocketStatus();
+
   return useQueryData(
     ['admin-video-sessions'],
     async () => await listAllVideoSessions(),
     {
-      refetchInterval: 30_000,
+      refetchInterval: socketConnected ? false : 30_000,
     }
   );
 }
@@ -1088,6 +1176,8 @@ export function useTerminateVideoSession() {
 }
 
 export function useWaitingRoomQueue(appointmentId: string, enabled: boolean = true) {
+  const { isConnected: socketConnected } = useWebSocketStatus();
+
   return useQueryData(
     ['waiting-room-queue', appointmentId],
     async () => {
@@ -1096,6 +1186,7 @@ export function useWaitingRoomQueue(appointmentId: string, enabled: boolean = tr
     },
     {
       enabled: enabled && !!appointmentId,
+      refetchInterval: socketConnected ? false : 15_000,
     }
   );
 }
@@ -1140,13 +1231,15 @@ export function useAdmitFromWaitingRoom() {
       toastId: TOAST_IDS.VIDEO.JOIN,
       loadingMessage: 'Admitting participant...',
       successMessage: 'Participant admitted',
-      invalidateQueries: [['waiting-room-queue']],
+      invalidateQueries: [['waiting-room-queue'], ['video-appointments'], ['video-appointment'], ['admin-video-sessions']],
       showToast: false,
     }
   );
 }
 
 export function useVideoChatMessages(appointmentId: string) {
+  const { isConnected: socketConnected } = useWebSocketStatus();
+
   return useQueryData(
     ['video-chat-messages', appointmentId],
     async () => {
@@ -1155,6 +1248,7 @@ export function useVideoChatMessages(appointmentId: string) {
     },
     {
       enabled: !!appointmentId,
+      refetchInterval: socketConnected ? false : 10_000,
     }
   );
 }
@@ -1176,7 +1270,7 @@ export function useSendVideoChatMessage() {
       toastId: TOAST_IDS.VIDEO.ERROR,
       loadingMessage: 'Sending message...',
       successMessage: 'Message sent',
-      invalidateQueries: [['video-chat-messages']],
+      invalidateQueries: [['video-chat-messages'], ['video-appointment']],
       showToast: false,
     }
   );
@@ -1202,6 +1296,8 @@ export function useUpdateVideoTypingIndicator() {
 }
 
 export function useMedicalNotes(appointmentId: string) {
+  const { isConnected: socketConnected } = useWebSocketStatus();
+
   return useQueryData(
     ['video-medical-notes', appointmentId],
     async () => {
@@ -1210,6 +1306,7 @@ export function useMedicalNotes(appointmentId: string) {
     },
     {
       enabled: !!appointmentId,
+      refetchInterval: socketConnected ? false : 30_000,
     }
   );
 }
@@ -1231,7 +1328,7 @@ export function useCreateMedicalNote() {
       toastId: TOAST_IDS.GLOBAL.SUCCESS,
       loadingMessage: 'Saving note...',
       successMessage: 'Medical note saved',
-      invalidateQueries: [['video-medical-notes']],
+      invalidateQueries: [['video-medical-notes'], ['video-appointment'], ['video-appointments']],
       showToast: false,
     }
   );
@@ -1256,7 +1353,7 @@ export function useDeleteMedicalNote() {
       toastId: TOAST_IDS.GLOBAL.SUCCESS,
       loadingMessage: 'Deleting note...',
       successMessage: 'Medical note deleted',
-      invalidateQueries: [['video-medical-notes']],
+      invalidateQueries: [['video-medical-notes'], ['video-appointment'], ['video-appointments']],
       showToast: false,
     }
   );
@@ -1282,13 +1379,15 @@ export function useUpdateMedicalNote() {
       toastId: TOAST_IDS.GLOBAL.SUCCESS,
       loadingMessage: 'Updating note...',
       successMessage: 'Medical note updated',
-      invalidateQueries: [['video-medical-notes']],
+      invalidateQueries: [['video-medical-notes'], ['video-appointment'], ['video-appointments']],
       showToast: false,
     }
   );
 }
 
 export function useAnnotations(appointmentId: string) {
+  const { isConnected: socketConnected } = useWebSocketStatus();
+
   return useQueryData(
     ['video-annotations', appointmentId],
     async () => {
@@ -1297,6 +1396,7 @@ export function useAnnotations(appointmentId: string) {
     },
     {
       enabled: !!appointmentId,
+      refetchInterval: socketConnected ? false : 30_000,
     }
   );
 }
@@ -1320,7 +1420,7 @@ export function useCreateAnnotation() {
       toastId: TOAST_IDS.GLOBAL.SUCCESS,
       loadingMessage: 'Saving annotation...',
       successMessage: 'Annotation saved',
-      invalidateQueries: [['video-annotations']],
+      invalidateQueries: [['video-annotations'], ['video-appointment'], ['video-appointments']],
       showToast: false,
     }
   );
@@ -1345,7 +1445,7 @@ export function useDeleteAnnotation() {
       toastId: TOAST_IDS.GLOBAL.SUCCESS,
       loadingMessage: 'Deleting annotation...',
       successMessage: 'Annotation deleted',
-      invalidateQueries: [['video-annotations']],
+      invalidateQueries: [['video-annotations'], ['video-appointment'], ['video-appointments']],
       showToast: false,
     }
   );
@@ -1384,12 +1484,15 @@ export function useManageVideoParticipantEnhanced() {
       toastId: TOAST_IDS.VIDEO.JOIN,
       loadingMessage: 'Updating participant...',
       successMessage: 'Participant action completed',
+      invalidateQueries: [['video-appointments'], ['video-appointment'], ['waiting-room-queue'], ['admin-video-sessions']],
       showToast: false,
     }
   );
 }
 
 export function useCallTranscription(appointmentId: string) {
+  const { isConnected: socketConnected } = useWebSocketStatus();
+
   return useQueryData(
     ['video-transcription', appointmentId],
     async () => {
@@ -1398,11 +1501,13 @@ export function useCallTranscription(appointmentId: string) {
     },
     {
       enabled: !!appointmentId,
+      refetchInterval: socketConnected ? false : 30_000,
     }
   );
 }
 
 export function useCallQuality(appointmentId: string, userId?: string) {
+  const { isConnected: socketConnected } = useWebSocketStatus();
   const { user } = useAuth();
   const resolvedUserId = userId ?? user?.id;
 
@@ -1433,6 +1538,7 @@ export function useCallQuality(appointmentId: string, userId?: string) {
     {
       enabled: Boolean(appointmentId && resolvedUserId),
       retry: false,
+      refetchInterval: socketConnected ? false : 30_000,
     }
   );
 }
@@ -1456,6 +1562,8 @@ export function useUpdateCallQualityMetrics() {
 }
 
 export function useVirtualBackgroundSettings(appointmentId: string) {
+  const { isConnected: socketConnected } = useWebSocketStatus();
+
   return useQueryData(
     ['video-virtual-background', appointmentId],
     async () => {
@@ -1464,6 +1572,7 @@ export function useVirtualBackgroundSettings(appointmentId: string) {
     },
     {
       enabled: !!appointmentId,
+      refetchInterval: socketConnected ? false : 60_000,
     }
   );
 }
@@ -1498,7 +1607,7 @@ export function useUpdateVirtualBackground() {
       toastId: TOAST_IDS.GLOBAL.SUCCESS,
       loadingMessage: 'Applying background...',
       successMessage: 'Background updated',
-      invalidateQueries: [['video-virtual-background']],
+      invalidateQueries: [['video-virtual-background'], ['video-appointment'], ['video-appointments']],
       showToast: false,
     }
   );

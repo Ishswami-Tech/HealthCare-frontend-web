@@ -1,5 +1,6 @@
 import { useQueryData, useMutationOperation } from '../core';
 import { useAuth } from '@/hooks/auth/useAuth';
+import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import { TOAST_IDS } from '../utils/use-toast';
 import { useRBAC } from '../utils/useRBAC';
 import { useAppStore } from '@/stores';
@@ -84,7 +85,7 @@ export const useCreateClinic = () => {
       toastId: TOAST_IDS.CLINIC.CREATE,
       loadingMessage: 'Creating clinic...',
       successMessage: 'Clinic created successfully',
-      invalidateQueries: [['clinics']],
+      invalidateQueries: [['clinics'], ['myClinic'], ['current-clinic']],
     }
   );
 };
@@ -93,6 +94,7 @@ export const useCreateClinic = () => {
  * Hook to get all clinics
  */
 export const useClinics = (options?: { enabled?: boolean }) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(
     ['clinics'],
     async () => {
@@ -100,6 +102,7 @@ export const useClinics = (options?: { enabled?: boolean }) => {
     },
     {
       enabled: options?.enabled ?? true,
+      refetchInterval: isConnected ? false : 300_000,
     }
   );
 };
@@ -111,6 +114,7 @@ export const useClinics = (options?: { enabled?: boolean }) => {
  */
 export const useClinic = (clinicId?: string) => {
   const id = clinicId || CLINIC_ID;
+  const { isConnected } = useWebSocketStatus();
   
   return useQueryData<ClinicWithRelations>(
     ['clinic', id],
@@ -123,6 +127,7 @@ export const useClinic = (clinicId?: string) => {
     },
     {
       enabled: !!id,
+      refetchInterval: isConnected ? false : 300_000,
     }
   );
 };
@@ -131,6 +136,7 @@ export const useClinic = (clinicId?: string) => {
  * Hook to get clinic by app name
  */
 export const useClinicByAppName = (appName: string) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData<ClinicWithRelations>(
     ['clinicByAppName', appName],
     async () => {
@@ -142,6 +148,7 @@ export const useClinicByAppName = (appName: string) => {
     },
     {
       enabled: !!appName,
+      refetchInterval: isConnected ? false : 900_000,
     }
   );
 };
@@ -152,6 +159,7 @@ export const useClinicByAppName = (appName: string) => {
  */
 export const useMyClinic = () => {
   const { session, isPending } = useAuth();
+  const { isConnected } = useWebSocketStatus();
   
   return useQueryData<ClinicWithRelations>(
     ['myClinic'],
@@ -164,6 +172,7 @@ export const useMyClinic = () => {
     },
     {
       enabled: !!session?.user?.id && !isPending,
+      refetchInterval: isConnected ? false : 120_000,
     }
   );
 };
@@ -184,7 +193,7 @@ export const useUpdateClinic = () => {
       toastId: TOAST_IDS.CLINIC.UPDATE,
       loadingMessage: 'Updating clinic...',
       successMessage: 'Clinic updated successfully',
-      invalidateQueries: [['clinics'], ['clinic']],
+      invalidateQueries: [['clinics'], ['clinic'], ['myClinic'], ['current-clinic']],
     }
   );
 };
@@ -205,7 +214,7 @@ export const useDeleteClinic = () => {
       toastId: TOAST_IDS.CLINIC.DELETE,
       loadingMessage: 'Deleting clinic...',
       successMessage: 'Clinic deleted successfully',
-      invalidateQueries: [['clinics']],
+      invalidateQueries: [['clinics'], ['myClinic'], ['current-clinic']],
     }
   );
 };
@@ -228,7 +237,7 @@ export const useCreateClinicLocation = () => {
       toastId: TOAST_IDS.LOCATION.CREATE,
       loadingMessage: 'Creating clinic location...',
       successMessage: 'Clinic location created successfully',
-      invalidateQueries: [['clinicLocations']],
+      invalidateQueries: [['clinicLocations'], ['clinicLocation'], ['activeLocations'], ['clinicStats'], ['myClinic']],
     }
   );
 };
@@ -237,7 +246,7 @@ export const useCreateClinicLocation = () => {
  * Hook to get all locations for a clinic
  */
 export const useClinicLocations = (clinicId: string) => {
-  
+  const { isConnected } = useWebSocketStatus();
   return useQueryData<ClinicLocation[]>(
     ['clinicLocations', clinicId],
     async () => {
@@ -249,6 +258,7 @@ export const useClinicLocations = (clinicId: string) => {
     },
     {
       enabled: !!clinicId,
+      refetchInterval: isConnected ? false : 300_000,
     }
   );
 };
@@ -257,6 +267,7 @@ export const useClinicLocations = (clinicId: string) => {
  * Hook to get clinic location by ID
  */
 export const useClinicLocation = (clinicId: string, locationId: string) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData<ClinicLocation>(
     ['clinicLocation', clinicId, locationId],
     async () => {
@@ -268,6 +279,7 @@ export const useClinicLocation = (clinicId: string, locationId: string) => {
     },
     {
       enabled: !!clinicId && !!locationId,
+      refetchInterval: isConnected ? false : 300_000,
     }
   );
 };
@@ -288,7 +300,7 @@ export const useUpdateClinicLocation = () => {
       toastId: TOAST_IDS.LOCATION.UPDATE,
       loadingMessage: 'Updating clinic location...',
       successMessage: 'Clinic location updated successfully',
-      invalidateQueries: [['clinicLocations']],
+      invalidateQueries: [['clinicLocations'], ['clinicLocation'], ['activeLocations'], ['clinicStats'], ['myClinic']],
     }
   );
 };
@@ -309,7 +321,7 @@ export const useDeleteClinicLocation = () => {
       toastId: TOAST_IDS.LOCATION.DELETE,
       loadingMessage: 'Deleting clinic location...',
       successMessage: 'Clinic location deleted successfully',
-      invalidateQueries: [['clinicLocations']],
+      invalidateQueries: [['clinicLocations'], ['clinicLocation'], ['activeLocations'], ['clinicStats'], ['myClinic']],
     }
   );
 };
@@ -330,7 +342,7 @@ export const useGenerateLocationQR = () => {
       toastId: TOAST_IDS.LOCATION.UPDATE,
       loadingMessage: 'Generating QR code...',
       successMessage: 'QR code generated successfully',
-      invalidateQueries: [['clinicLocations']],
+      invalidateQueries: [['clinicLocations'], ['clinicLocation'], ['activeLocations'], ['clinicStats'], ['myClinic']],
     }
   );
 };
@@ -354,7 +366,7 @@ export const useVerifyLocationQR = () => {
       toastId: TOAST_IDS.LOCATION.UPDATE,
       loadingMessage: 'Verifying QR code...',
       successMessage: 'QR code verified successfully',
-      invalidateQueries: [['clinicLocations']],
+      invalidateQueries: [['clinicLocations'], ['clinicLocation'], ['activeLocations'], ['clinicStats'], ['myClinic']],
       showToast: false,
     }
   );
@@ -378,7 +390,7 @@ export const useAssignClinicAdmin = () => {
       toastId: TOAST_IDS.USER.UPDATE,
       loadingMessage: 'Assigning clinic admin...',
       successMessage: 'Clinic admin assigned successfully',
-      invalidateQueries: [['clinicUsers']],
+      invalidateQueries: [['clinicUsers'], ['clinicUsersByRole'], ['clinicDoctors'], ['doctors'], ['users']],
     }
   );
 };
@@ -387,6 +399,7 @@ export const useAssignClinicAdmin = () => {
  * Hook to get clinic doctors
  */
 export const useClinicDoctors = (clinicId: string) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData<ClinicUser[]>(
     ['clinicDoctors', clinicId],
     async () => {
@@ -395,6 +408,7 @@ export const useClinicDoctors = (clinicId: string) => {
     },
     {
       enabled: !!clinicId,
+      refetchInterval: isConnected ? false : 300_000,
     }
   );
 };
@@ -406,6 +420,7 @@ export const useClinicPatients = (clinicId: string, params?: {
   page?: number;
   limit?: number;
 }) => {
+  const { isConnected } = useWebSocketStatus();
   const queryPage = Math.max(params?.page ?? 1, 1);
   const queryLimit = Math.max(params?.limit ?? 100, 1);
   
@@ -416,6 +431,7 @@ export const useClinicPatients = (clinicId: string, params?: {
     },
     {
       enabled: !!clinicId,
+      refetchInterval: isConnected ? false : 180_000,
     }
   );
 };
@@ -436,7 +452,7 @@ export const useRegisterPatientToClinic = () => {
       toastId: TOAST_IDS.PATIENT.CREATE,
       loadingMessage: 'Registering patient to clinic...',
       successMessage: 'Patient registered to clinic successfully',
-      invalidateQueries: [['clinicPatients']],
+      invalidateQueries: [['clinicPatients'], ['patients'], ['users']],
     }
   );
 };
@@ -445,6 +461,7 @@ export const useRegisterPatientToClinic = () => {
  * Hook to get clinic users by role
  */
 export const useClinicUsersByRole = (clinicId: string, role: string) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData<ClinicUser[]>(
     ['clinicUsersByRole', clinicId, role],
     async () => {
@@ -452,6 +469,7 @@ export const useClinicUsersByRole = (clinicId: string, role: string) => {
     },
     {
       enabled: !!clinicId && !!role,
+      refetchInterval: isConnected ? false : 300_000,
     }
   );
 };
@@ -491,7 +509,7 @@ export const useAssociateUserWithClinic = () => {
       toastId: TOAST_IDS.CLINIC.UPDATE,
       loadingMessage: 'Associating user with clinic...',
       successMessage: 'User associated with clinic successfully',
-      invalidateQueries: [['clinics']],
+      invalidateQueries: [['clinics'], ['myClinic'], ['current-clinic']],
     }
   );
 };
@@ -500,6 +518,7 @@ export const useAssociateUserWithClinic = () => {
  * Hook to get clinic stats
  */
 export const useClinicStats = (clinicId: string) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData<ClinicStats>(
     ['clinicStats', clinicId],
     async () => {
@@ -511,6 +530,7 @@ export const useClinicStats = (clinicId: string) => {
     },
     {
       enabled: !!clinicId,
+      refetchInterval: isConnected ? false : 300_000,
     }
   );
 };
@@ -519,6 +539,7 @@ export const useClinicStats = (clinicId: string) => {
  * Hook to get clinic operating hours
  */
 export const useClinicOperatingHours = (clinicId: string) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData<any[]>(
     ['clinicOperatingHours', clinicId],
     async () => {
@@ -526,6 +547,7 @@ export const useClinicOperatingHours = (clinicId: string) => {
     },
     {
       enabled: !!clinicId,
+      refetchInterval: isConnected ? false : 900_000,
     }
   );
 };
@@ -534,6 +556,7 @@ export const useClinicOperatingHours = (clinicId: string) => {
  * Hook to get clinic settings
  */
 export const useClinicSettings = (clinicId: string) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData<ClinicSettings>(
     ['clinicSettings', clinicId],
     async () => {
@@ -545,6 +568,7 @@ export const useClinicSettings = (clinicId: string) => {
     },
     {
       enabled: !!clinicId,
+      refetchInterval: isConnected ? false : 900_000,
     }
   );
 };
@@ -565,7 +589,7 @@ export const useUpdateClinicSettings = () => {
       toastId: TOAST_IDS.CLINIC.UPDATE,
       loadingMessage: 'Updating clinic settings...',
       successMessage: 'Clinic settings updated successfully',
-      invalidateQueries: [['clinicSettings']],
+      invalidateQueries: [['clinicSettings'], ['myClinic'], ['clinicStats']],
     }
   );
 };
@@ -576,7 +600,7 @@ export const useUpdateClinicSettings = () => {
 export const useActiveLocations = (clinicId: string, options?: {
   enabled?: boolean;
 }) => {
-  
+  const { isConnected } = useWebSocketStatus();
   return useQueryData<ClinicLocation[]>(
     ['activeLocations', clinicId],
     async () => {
@@ -592,6 +616,7 @@ export const useActiveLocations = (clinicId: string, options?: {
       gcTime: 30 * 60 * 1000,
       refetchOnWindowFocus: false,
       refetchOnMount: true,
+      refetchInterval: isConnected ? false : 300_000,
     }
   );
 };
@@ -620,6 +645,7 @@ export const useGenerateClinicToken = () => {
  * Hook to check clinic permission
  */
 export const useHasClinicPermission = (clinicId: string) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData<boolean>(
     ['hasClinicPermission', clinicId],
     async () => {
@@ -627,6 +653,7 @@ export const useHasClinicPermission = (clinicId: string) => {
     },
     {
       enabled: !!clinicId,
+      refetchInterval: isConnected ? false : 300_000,
     }
   );
 };
@@ -724,6 +751,7 @@ export const useCurrentClinicId = () => {
 // ✅ Current Clinic Hook
 export const useCurrentClinic = () => {
   const clinicId = useCurrentClinicId();
+  const { isConnected } = useWebSocketStatus();
   
   return useQueryData(
     ['current-clinic', clinicId],
@@ -740,6 +768,7 @@ export const useCurrentClinic = () => {
     {
       enabled: !!clinicId,
       staleTime: 5 * 60 * 1000, // 5 minutes
+      refetchInterval: isConnected ? false : 300_000,
     }
   );
 };
