@@ -918,11 +918,6 @@ export function useVideoCall() {
         role: videoRole,
       });
       
-      toast({
-        title: 'Video Call Started',
-        description: 'Connecting to video appointment...',
-      });
-
       return call;
     } catch (error) {
       toast({
@@ -964,11 +959,6 @@ export function useVideoCall() {
         appointmentId,
       });
       
-      toast({
-        title: 'Video Call Ended',
-        description: 'Video appointment has been ended',
-      });
-
       if (consultationEndError) {
         const consultationMessage =
           consultationEndError instanceof Error

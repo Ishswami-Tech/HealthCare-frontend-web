@@ -652,7 +652,6 @@ export default function DoctorDashboard() {
                         confirmedSlotIndex: pendingVideoSlotSelections[appointmentId] ?? 0,
                       });
                       setResolvedVideoSlotConfirmations((current) => ({ ...current, [appointmentId]: true }));
-                      await refetchAppointments();
                       setPendingVideoSlotSelections((current) => {
                         const next = { ...current };
                         delete next[appointmentId];
@@ -663,7 +662,6 @@ export default function DoctorDashboard() {
                       if (message.includes("not awaiting doctor slot confirmation")) {
                         setResolvedVideoSlotConfirmations((current) => ({ ...current, [appointmentId]: true }));
                         showSuccessToast("Slot is already confirmed. Refreshing the list.", { id: TOAST_IDS.APPOINTMENT.UPDATE });
-                        await refetchAppointments();
                         setPendingVideoSlotSelections((current) => {
                           const next = { ...current };
                           delete next[appointmentId];
@@ -676,7 +674,6 @@ export default function DoctorDashboard() {
                           "That proposed slot is no longer available. Please choose a different proposed slot and try again.",
                           { id: TOAST_IDS.APPOINTMENT.UPDATE }
                         );
-                        await refetchAppointments();
                         setPendingVideoSlotSelections((current) => {
                           const next = { ...current };
                           delete next[appointmentId];

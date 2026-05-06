@@ -10,7 +10,8 @@ import {
   Search,
   UserPlus,
   MoreVertical,
-  ChevronDown
+  ChevronDown,
+  WifiOff
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -20,11 +21,10 @@ import { useToast } from "@/hooks/utils/use-toast";
 import { useVideoCall, useVideoCallControls } from "@/hooks/query/useVideoAppointments";
 import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointmentSocketIO";
 import { useAuth } from "@/hooks/auth/useAuth";
-import { 
+import {
   getAppointmentDateTimeValue, 
   formatDateInIST, 
   formatTimeInIST,
-  getVideoSessionDecision
 } from "@/lib/utils/appointmentUtils";
 import { resolveVideoDisplayName, ParticipantInfo, OpenViduAPI } from "@/lib/video/openvidu";
 import { TOAST_IDS } from "@/hooks/utils/use-toast";
@@ -88,13 +88,13 @@ export default function VideoAppointmentRoom({
   const isAdmin = user?.role === "CLINIC_ADMIN" || user?.role === "SUPER_ADMIN";
 
   // Use the refined video hooks
-  const { 
-    startCall, 
-    endCall, 
-    isInCall, 
-    publisher, 
+  const {
+    startCall,
+    endCall,
+    isInCall,
+    publisher,
     subscribers,
-    getCurrentCall
+    getCurrentCall,
   } = useVideoCall();
   const { getCallControls } = useVideoCallControls();
   
@@ -131,6 +131,7 @@ export default function VideoAppointmentRoom({
   const [isEndCallActionBusy, setIsEndCallActionBusy] = useState(false);
   const [call, setCall] = useState<OpenViduAPI | null>(null);
   const callRef = useRef<OpenViduAPI | null>(null);
+  const hasAutoStartedRef = useRef(false);
   const [sessionMovedMessage, setSessionMovedMessage] = useState<string | null>(null);
   const [virtualBackgroundMode, setVirtualBackgroundMode] = useState<VirtualBackgroundMode>("none");
   const [virtualBackgroundBlurIntensity, setVirtualBackgroundBlurIntensity] = useState(0);
@@ -202,6 +203,11 @@ export default function VideoAppointmentRoom({
   const [activePanel, setActivePanel] = useState<"chat" | "notes" | "participants">("chat");
   const [activeAudioDeviceId, setActiveAudioDeviceId] = useState<string | null>(null);
   const [activeVideoDeviceId, setActiveVideoDeviceId] = useState<string | null>(null);
+  const [connectionIssue, setConnectionIssue] = useState<null | {
+    severity: "warning" | "error";
+    title: string;
+    description: string;
+  }>(null);
   const [participants, setParticipants] = useState<ParticipantInfo[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [callDuration, setCallDuration] = useState(0);
@@ -211,8 +217,6 @@ export default function VideoAppointmentRoom({
     p.userId?.toLowerCase().includes(searchTerm.toLowerCase())
   );
   const participantsSignatureRef = useRef("");
-
-  const videoSessionDecision = getVideoSessionDecision(appointment);
 
   const showSuccessToast = (title: string, options?: any) => {
     toast({
@@ -365,9 +369,53 @@ export default function VideoAppointmentRoom({
     });
   }, [call, virtualBackgroundMode, virtualBackgroundSettings]);
 
+  useEffect(() => {
+    const handleSessionDisconnected = (event: Event) => {
+      const detail = (event as CustomEvent<{ reason?: string }>).detail;
+      setConnectionIssue({
+        severity: "error",
+        title: "Connection lost",
+        description: detail?.reason
+          ? `OpenVidu disconnected (${detail.reason}).`
+          : "OpenVidu disconnected. Reconnect to continue the consultation.",
+      });
+      setIsConnecting(false);
+    };
+
+    const handleSessionException = (event: Event) => {
+      const detail = (event as CustomEvent<{ message?: string }>).detail;
+      setConnectionIssue({
+        severity: "warning",
+        title: "Connection unstable",
+        description: detail?.message
+          ? `OpenVidu reported a transport issue: ${detail.message}`
+          : "OpenVidu reported a transport issue. The room will try to recover.",
+      });
+    };
+
+    const handleLocalConnectionCreated = () => {
+      setConnectionIssue(null);
+    };
+
+    window.addEventListener("openvidu-session-disconnected", handleSessionDisconnected as EventListener);
+    window.addEventListener("openvidu-exception", handleSessionException as EventListener);
+    window.addEventListener("openvidu-connection-created", handleLocalConnectionCreated as EventListener);
+
+    return () => {
+      window.removeEventListener("openvidu-session-disconnected", handleSessionDisconnected as EventListener);
+      window.removeEventListener("openvidu-exception", handleSessionException as EventListener);
+      window.removeEventListener("openvidu-connection-created", handleLocalConnectionCreated as EventListener);
+    };
+  }, []);
+
   const handleStartCall = async () => {
+    if (callRef.current || isConnecting) {
+      return;
+    }
+
     try {
       setIsConnecting(true);
+      setConnectionIssue(null);
       claimOwnership();
       setSessionMovedMessage(null);
       const previewAudioTrack = initialMediaStream?.getAudioTracks()[0]?.clone();
@@ -386,6 +434,7 @@ export default function VideoAppointmentRoom({
           ...(previewVideoTrack && startWithVideoEnabled ? { videoSource: previewVideoTrack } : {}),
         }
       );
+      setConnectionIssue(null);
       setCall(videoCall);
       callRef.current = videoCall;
 
@@ -412,6 +461,15 @@ export default function VideoAppointmentRoom({
     }
   };
 
+  useEffect(() => {
+    if (isInCall() || isConnecting || sessionMovedMessage || hasAutoStartedRef.current || connectionIssue) {
+      return;
+    }
+
+    hasAutoStartedRef.current = true;
+    void handleStartCall();
+  }, [connectionIssue, handleStartCall, isConnecting, isInCall, sessionMovedMessage]);
+
   const handleLeaveRoom = () => {
     const activeCall = call;
     if (activeCall) {
@@ -421,6 +479,7 @@ export default function VideoAppointmentRoom({
 
     setCall(null);
     callRef.current = null;
+    setConnectionIssue(null);
     initialMediaStream?.getTracks().forEach((track) => track.stop());
 
     sendParticipantLeft(resolvedAppointmentId, {
@@ -582,6 +641,7 @@ export default function VideoAppointmentRoom({
       }
       setCall(null);
       callRef.current = null;
+      setConnectionIssue(null);
       initialMediaStream?.getTracks().forEach((track) => track.stop());
 
       if (!options?.skipToast && activeCall) {
@@ -682,29 +742,56 @@ export default function VideoAppointmentRoom({
           {/* Video Area — shrinks horizontally with smooth transition when sidebar opens */}
           <div className="flex-1 relative bg-background min-w-0 overflow-hidden transition-all duration-300 ease-in-out dark:bg-meet-black">
             {!isInCall() ? (
-              !isConnecting && (
-                <div className="flex h-full flex-col items-center justify-center p-6 text-foreground dark:text-white">
-                  <div className="w-full max-w-xl rounded-2xl border border-border bg-card p-8 text-center shadow-lg dark:border-gray-700 dark:bg-dark-gray">
-                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4 dark:bg-meet-black">
-                      <Phone className="h-8 w-8 text-foreground dark:text-white" />
-                    </div>
-                    <h2 className="mt-4 text-2xl font-semibold">Ready to Join</h2>
-                    <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground dark:text-gray-300">
-                      Check your camera and microphone before joining.
-                    </p>
-                    <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-                      <Button
-                        onClick={handleStartCall}
-                        size="lg"
-                        className="w-full sm:w-auto rounded-full bg-[#8ab4f8] hover:bg-[#aecbfa] px-8 text-meet-black font-semibold"
-                      >
-                        <Phone className="mr-2 h-5 w-5" />
-                        {videoSessionDecision.label}
-                      </Button>
-                    </div>
-                  </div>
+              <div className="flex h-full flex-col items-center justify-center p-6 text-foreground dark:text-white">
+                <div className="w-full max-w-xl rounded-2xl border border-border bg-card p-8 text-center shadow-lg dark:border-gray-700 dark:bg-dark-gray">
+                  <Loader2 className="mx-auto h-10 w-10 animate-spin text-meet-blue" />
+                  {connectionIssue ? (
+                    <>
+                      <h2 className="mt-4 text-2xl font-semibold">{connectionIssue.title}</h2>
+                      <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground dark:text-gray-300">
+                        {connectionIssue.description}
+                      </p>
+                      <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+                        <Button
+                          type="button"
+                          onClick={handleStartCall}
+                          size="lg"
+                          className="w-full sm:w-auto rounded-full bg-[#8ab4f8] px-8 text-meet-black font-semibold"
+                        >
+                          Retry connection
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={handleLeaveRoom}
+                          variant="outline"
+                          size="lg"
+                          className="w-full sm:w-auto rounded-full px-8 font-semibold"
+                        >
+                          Leave room
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <h2 className="mt-4 text-2xl font-semibold">Opening room</h2>
+                      <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground dark:text-gray-300">
+                        The preview is complete. Connecting you directly to the live consultation now.
+                      </p>
+                      <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+                        <Button
+                          type="button"
+                          disabled
+                          size="lg"
+                          className="w-full sm:w-auto rounded-full bg-[#8ab4f8] px-8 text-meet-black font-semibold opacity-80"
+                        >
+                          <Phone className="mr-2 h-5 w-5" />
+                          Joining...
+                        </Button>
+                      </div>
+                    </>
+                  )}
                 </div>
-              )
+              </div>
             ) : (
               (layout === "speaker" || isScreenSharing) ? (
               <SpeakerLayout 
@@ -721,6 +808,27 @@ export default function VideoAppointmentRoom({
                   raisedHands={raisedHands}
                 />
               )
+            )}
+
+            {connectionIssue && isInCall() && (
+              <div className="absolute left-4 right-4 top-4 z-40 rounded-2xl border border-amber-200 bg-amber-50/95 px-4 py-3 text-amber-900 shadow-lg backdrop-blur dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+                <div className="flex items-start gap-3">
+                  <WifiOff className="mt-0.5 h-5 w-5 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold">{connectionIssue.title}</p>
+                    <p className="mt-1 text-sm opacity-90">{connectionIssue.description}</p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleStartCall}
+                    className="shrink-0 rounded-full border-amber-300 text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:text-amber-100 dark:hover:bg-amber-900/40"
+                  >
+                    Retry
+                  </Button>
+                </div>
+              </div>
             )}
 
             {isConnecting && (

@@ -116,11 +116,13 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
 
   // Handle send message
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !isConnected) return;
+    if (!newMessage.trim()) return;
 
     try {
-      // Send via WebSocket for real-time
-      sendChatMessageWS(appointmentId, newMessage.trim());
+      // Send via WebSocket when available, but always persist via API.
+      if (isConnected) {
+        sendChatMessageWS(appointmentId, newMessage.trim());
+      }
 
       // Also send via API for persistence
       const result = await sendChatMessageMutation.mutateAsync({
@@ -268,21 +270,21 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
                 }
               }}
               placeholder="Type a message..."
-              className="flex-1 rounded-2xl bg-white border-border focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-[#202124] dark:text-white dark:border-white/10"
-              disabled={!isConnected || sendChatMessageMutation.isPending}
+            className="flex-1 rounded-2xl bg-white border-border focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-[#202124] dark:text-white dark:border-white/10"
+              disabled={sendChatMessageMutation.isPending}
             />
             <Button
               onClick={() => void handleSendMessage()}
               size="icon"
               className="h-10 w-10 rounded-2xl bg-[#1a73e8] text-white shadow-md shadow-blue-500/20 hover:bg-[#1558b0]"
-              disabled={!newMessage.trim() || !isConnected || sendChatMessageMutation.isPending}
+              disabled={!newMessage.trim() || sendChatMessageMutation.isPending}
             >
               <Send className="h-4 w-4" />
             </Button>
           </div>
           {!isConnected && (
             <p className="mt-2 text-xs text-muted-foreground dark:text-gray-400">
-              Reconnecting to chat...
+              Reconnecting to chat. Messages will still be saved through the API.
             </p>
           )}
           <p className="mt-1 text-xs text-muted-foreground dark:text-gray-400">

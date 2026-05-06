@@ -67,23 +67,37 @@ import type {
 const extractAppointments = (payload: unknown): Appointment[] => {
   const dedupe = (items: Appointment[]) =>
     Array.from(
-      new Map(
-        items.map((appointment) => {
-          const compositeKey = [
-            String((appointment as any)?.date || (appointment as any)?.appointmentDate || ""),
-            String((appointment as any)?.time || (appointment as any)?.appointmentTime || ""),
-            String((appointment as any)?.doctorId || (appointment as any)?.doctor?.id || ""),
-            String((appointment as any)?.patientId || (appointment as any)?.patient?.id || ""),
-            String((appointment as any)?.type || (appointment as any)?.appointmentType || ""),
-            String((appointment as any)?.status || ""),
-            String((appointment as any)?.locationId || (appointment as any)?.location?.id || ""),
-            String((appointment as any)?.clinicId || (appointment as any)?.clinic?.id || ""),
-          ].join("|");
+      items.reduce((acc, appointment) => {
+        const id = String((appointment as any)?.appointmentId || appointment?.id || "");
+        const fallbackKey = [
+          String((appointment as any)?.date || (appointment as any)?.appointmentDate || ""),
+          String((appointment as any)?.time || (appointment as any)?.appointmentTime || ""),
+          String((appointment as any)?.doctorId || (appointment as any)?.doctor?.id || ""),
+          String((appointment as any)?.patientId || (appointment as any)?.patient?.id || ""),
+          String((appointment as any)?.type || (appointment as any)?.appointmentType || ""),
+          String((appointment as any)?.locationId || (appointment as any)?.location?.id || ""),
+          String((appointment as any)?.clinicId || (appointment as any)?.clinic?.id || ""),
+        ].join("|");
+        const key = id || fallbackKey;
+        const current = acc.get(key);
 
-          const id = String(appointment?.id || "");
-          return [compositeKey || id, appointment];
-        })
-      ).values()
+        if (!current) {
+          acc.set(key, appointment);
+          return acc;
+        }
+
+        const currentUpdatedAt = new Date(
+          String((current as any)?.updatedAt || (current as any)?.updated_at || (current as any)?.createdAt || (current as any)?.created_at || '')
+        ).getTime();
+        const incomingUpdatedAt = new Date(
+          String((appointment as any)?.updatedAt || (appointment as any)?.updated_at || (appointment as any)?.createdAt || (appointment as any)?.created_at || '')
+        ).getTime();
+
+        if (!Number.isFinite(currentUpdatedAt) || !Number.isFinite(incomingUpdatedAt) || incomingUpdatedAt >= currentUpdatedAt) {
+          acc.set(key, appointment);
+        }
+        return acc;
+      }, new Map<string, Appointment>()).values()
     );
 
   if (Array.isArray(payload)) return dedupe(payload as Appointment[]);

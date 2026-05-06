@@ -712,31 +712,21 @@ export function VideoAppointmentsList({
         return;
       }
 
-      await confirmVideoSlot.mutateAsync({
-        appointmentId,
-        confirmedSlotIndex: pendingSlotSelections[appointmentId] ?? 0,
-      });
-      setResolvedSlotConfirmations((current) => ({ ...current, [appointmentId]: true }));
-      if (isPatient) {
-        await refetchMyAppointments();
-      } else {
-        await refetchStaff();
-      }
-      setPendingSlotSelections((current) => {
-        const next = { ...current };
-        delete next[appointmentId];
-        return next;
-      });
+                      await confirmVideoSlot.mutateAsync({
+                        appointmentId,
+                        confirmedSlotIndex: pendingSlotSelections[appointmentId] ?? 0,
+                      });
+                      setResolvedSlotConfirmations((current) => ({ ...current, [appointmentId]: true }));
+                      setPendingSlotSelections((current) => {
+                        const next = { ...current };
+                        delete next[appointmentId];
+                        return next;
+                      });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (message.includes("not awaiting doctor slot confirmation")) {
         setResolvedSlotConfirmations((current) => ({ ...current, [appointmentId]: true }));
         showSuccessToast("Slot is already confirmed. Refreshing the list.", { id: TOAST_IDS.APPOINTMENT.UPDATE });
-        if (isPatient) {
-          await refetchMyAppointments();
-        } else {
-          await refetchStaff();
-        }
         setPendingSlotSelections((current) => {
           const next = { ...current };
           delete next[appointmentId];
@@ -749,11 +739,6 @@ export function VideoAppointmentsList({
           "That proposed slot is no longer available. Please choose a different proposed slot and try again.",
           { id: TOAST_IDS.APPOINTMENT.UPDATE }
         );
-        if (isPatient) {
-          await refetchMyAppointments();
-        } else {
-          await refetchStaff();
-        }
         setPendingSlotSelections((current) => {
           const next = { ...current };
           delete next[appointmentId];

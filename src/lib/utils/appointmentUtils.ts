@@ -552,11 +552,13 @@ function hasProposedSlots(appointment: any): boolean {
 
 function hasConfirmedSlot(appointment: any): boolean {
   const confirmedSlotIndex = appointment?.confirmedSlotIndex ?? appointment?.confirmed_slot_index;
+  const normalizedStatus = normalizeAppointmentStatus(appointment?.status);
   return (
-    confirmedSlotIndex !== null &&
-    confirmedSlotIndex !== undefined &&
-    confirmedSlotIndex !== '' &&
-    !Number.isNaN(Number(confirmedSlotIndex))
+    (confirmedSlotIndex !== null &&
+      confirmedSlotIndex !== undefined &&
+      confirmedSlotIndex !== '' &&
+      !Number.isNaN(Number(confirmedSlotIndex))) ||
+    normalizedStatus === 'CONFIRMED'
   );
 }
 

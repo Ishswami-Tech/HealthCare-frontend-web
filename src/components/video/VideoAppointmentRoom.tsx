@@ -143,6 +143,11 @@ export function VideoAppointmentRoom({
   const callRef = useRef<OpenViduAPI | null>(null);
   const isMountedRef = useRef(true);
   const [hasConsultationStarted, setHasConsultationStarted] = useState(false);
+  const [connectionIssue, setConnectionIssue] = useState<null | {
+    severity: "warning" | "error";
+    title: string;
+    description: string;
+  }>(null);
   const resolvedAppointmentId = String(appointment.appointmentId || appointment.id || "");
   const currentUserId = user?.id ?? null;
   const {
@@ -200,6 +205,45 @@ export function VideoAppointmentRoom({
   const canRecord = (isDoctor || isAdmin) && APP_CONFIG.FEATURES.VIDEO_RECORDING;
   // canEndForAll: doctors and admins can end the session for everyone; patients only leave
   const canEndForAll = isDoctor || isAdmin;
+
+  useEffect(() => {
+    const handleSessionDisconnected = (event: Event) => {
+      const detail = (event as CustomEvent<{ reason?: string }>).detail;
+      setConnectionIssue({
+        severity: "error",
+        title: "Connection lost",
+        description: detail?.reason
+          ? `OpenVidu disconnected (${detail.reason}).`
+          : "OpenVidu disconnected. Reconnect to continue the consultation.",
+      });
+      setIsConnecting(false);
+    };
+
+    const handleSessionException = (event: Event) => {
+      const detail = (event as CustomEvent<{ message?: string }>).detail;
+      setConnectionIssue({
+        severity: "warning",
+        title: "Connection unstable",
+        description: detail?.message
+          ? `OpenVidu reported a transport issue: ${detail.message}`
+          : "OpenVidu reported a transport issue. The room will try to recover.",
+      });
+    };
+
+    const handleLocalConnectionCreated = () => {
+      setConnectionIssue(null);
+    };
+
+    window.addEventListener("openvidu-session-disconnected", handleSessionDisconnected as EventListener);
+    window.addEventListener("openvidu-exception", handleSessionException as EventListener);
+    window.addEventListener("openvidu-connection-created", handleLocalConnectionCreated as EventListener);
+
+    return () => {
+      window.removeEventListener("openvidu-session-disconnected", handleSessionDisconnected as EventListener);
+      window.removeEventListener("openvidu-exception", handleSessionException as EventListener);
+      window.removeEventListener("openvidu-connection-created", handleLocalConnectionCreated as EventListener);
+    };
+  }, []);
 
   useEffect(() => {
     const session = call?.getSession();
@@ -386,6 +430,7 @@ export function VideoAppointmentRoom({
         throw new Error("User session is not ready. Please try joining again.");
       }
       setIsConnecting(true);
+      setConnectionIssue(null);
 
       if (!latestAppointment) {
         throw new Error("Unable to verify the latest appointment status. Please try again.");
@@ -419,6 +464,7 @@ export function VideoAppointmentRoom({
       }
       callRef.current = videoCall;
       setCall(videoCall);
+      setConnectionIssue(null);
 
       // Send WebSocket event for participant joined
       sendParticipantJoined(resolvedAppointmentId, {
@@ -456,17 +502,18 @@ export function VideoAppointmentRoom({
   }, [resolvedAppointmentId]);
 
   useEffect(() => {
-    if (!autoStart || autoStartTriggeredRef.current || call || isConnecting || !currentUserId || isLiveAppointmentPending) return;
+    if (!autoStart || autoStartTriggeredRef.current || call || isConnecting || connectionIssue || !currentUserId || isLiveAppointmentPending) return;
     autoStartTriggeredRef.current = true;
     void handleStartCall().catch(() => {
       autoStartTriggeredRef.current = false;
     });
-  }, [autoStart, call, currentUserId, handleStartCall, isConnecting, isLiveAppointmentPending]);
+  }, [autoStart, call, connectionIssue, currentUserId, handleStartCall, isConnecting, isLiveAppointmentPending]);
 
   useEffect(() => {
     if (
       call ||
       isConnecting ||
+      connectionIssue ||
       !currentUserId ||
       isLiveAppointmentPending ||
       autoStartTriggeredRef.current
@@ -486,6 +533,7 @@ export function VideoAppointmentRoom({
     call,
     handleStartCall,
     hasConsultationStarted,
+    connectionIssue,
     isConnecting,
     isLiveAppointmentPending,
     currentUserId,
@@ -511,6 +559,7 @@ export function VideoAppointmentRoom({
       }
       setCall(null);
       callRef.current = null;
+      setConnectionIssue(null);
 
       // Send WebSocket event for participant left
       sendParticipantLeft(resolvedAppointmentId, {
@@ -550,6 +599,7 @@ export function VideoAppointmentRoom({
 
     setCall(null);
     callRef.current = null;
+    setConnectionIssue(null);
 
     // Send WebSocket event for participant left
     sendParticipantLeft(resolvedAppointmentId, {
@@ -818,6 +868,36 @@ export function VideoAppointmentRoom({
       <div className={`grid flex-1 min-h-0 gap-3 px-3 pb-3 sm:px-4 sm:pb-4 lg:gap-4 lg:p-6 ${showSidePanel ? "xl:grid-cols-[minmax(0,1fr)_380px]" : "xl:grid-cols-1"}`}>
         {/* Main Video Area */}
         <div className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-border bg-slate-950 shadow-sm">
+          {connectionIssue && isInCall() && (
+            <div className={cn(
+              "m-3 rounded-2xl border px-4 py-3 shadow-sm",
+              connectionIssue.severity === "error"
+                ? "border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-100"
+                : "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100"
+            )}>
+              <div className="flex items-start gap-3">
+                <WifiOff className="mt-0.5 h-5 w-5 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold">{connectionIssue.title}</p>
+                  <p className="mt-1 text-sm opacity-90">{connectionIssue.description}</p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleStartCall}
+                  className={cn(
+                    "shrink-0 rounded-full",
+                    connectionIssue.severity === "error"
+                      ? "border-rose-300 text-rose-800 hover:bg-rose-100 dark:border-rose-800 dark:text-rose-100 dark:hover:bg-rose-900/40"
+                      : "border-amber-300 text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:text-amber-100 dark:hover:bg-amber-900/40"
+                  )}
+                >
+                  Retry
+                </Button>
+              </div>
+            </div>
+          )}
           
           {/* Dynamic Video Grid */}
           <div className="relative flex-1 overflow-hidden p-3 sm:p-4 lg:p-5">
@@ -849,18 +929,48 @@ export function VideoAppointmentRoom({
                       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-muted sm:h-16 sm:w-16">
                         <Phone className="h-7 w-7 text-foreground sm:h-8 sm:w-8" />
                       </div>
-                      <h2 className="mt-4 text-xl font-semibold sm:mt-5 sm:text-2xl">Ready to Join</h2>
-                      <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-                        Start the session when you're ready. The live room, chat, and notes will open together in one workspace.
-                      </p>
-                      <Button
-                        onClick={handleStartCall}
-                        size="lg"
-                        className="mt-5 w-full rounded-2xl bg-emerald-500 px-6 text-white hover:bg-emerald-600 sm:mt-6 sm:w-auto"
-                    >
-                      <Phone className="mr-2 h-5 w-5" />
-                        {videoSessionDecision.label}
-                      </Button>
+                      {connectionIssue ? (
+                        <>
+                          <h2 className="mt-4 text-xl font-semibold sm:mt-5 sm:text-2xl">
+                            {connectionIssue.title}
+                          </h2>
+                          <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                            {connectionIssue.description}
+                          </p>
+                          <div className="mt-5 flex flex-col gap-3 sm:mt-6 sm:flex-row sm:justify-center">
+                            <Button
+                              onClick={handleStartCall}
+                              size="lg"
+                              className="w-full rounded-2xl bg-emerald-500 px-6 text-white hover:bg-emerald-600 sm:w-auto"
+                            >
+                              Retry connection
+                            </Button>
+                            <Button
+                              onClick={handleLeaveRoom}
+                              size="lg"
+                              variant="outline"
+                              className="w-full rounded-2xl sm:w-auto"
+                            >
+                              Leave room
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <h2 className="mt-4 text-xl font-semibold sm:mt-5 sm:text-2xl">Opening room</h2>
+                          <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                            The preview is complete. Connecting you to the live consultation now.
+                          </p>
+                          <Button
+                            onClick={handleStartCall}
+                            size="lg"
+                            className="mt-5 w-full rounded-2xl bg-emerald-500 px-6 text-white hover:bg-emerald-600 sm:mt-6 sm:w-auto"
+                          >
+                            <Phone className="mr-2 h-5 w-5" />
+                            {videoSessionDecision.label}
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 )

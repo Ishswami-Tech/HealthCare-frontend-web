@@ -226,13 +226,7 @@ export default function PatientDashboard() {
           time: timeLabel,
           location: normalized.locationName,
           status: viewState.isVideo && !viewState.paymentCompleted ? "SCHEDULED" : normalized.status || "SCHEDULED",
-          statusLabel: getAppointmentStatusBadgeLabel({
-            ...apt,
-            status: normalized.status,
-            type: normalized.type,
-            proposedSlots: (apt as any).proposedSlots,
-            confirmedSlotIndex: (apt as any).confirmedSlotIndex,
-          }),
+          statusLabel: viewState.displayStatusLabel,
           isOnline: normalized.isOnline,
         };
       });
@@ -249,13 +243,7 @@ export default function PatientDashboard() {
           date: normalized.normalizedDate,
           time: normalized.normalizedTime || "Time TBD",
           location: normalized.locationName,
-          statusLabel: getAppointmentStatusBadgeLabel({
-            ...apt,
-            status: viewState.awaitingDoctorSlotConfirmation ? "SCHEDULED" : normalized.status,
-            type: normalized.type,
-            proposedSlots: (apt as any).proposedSlots,
-            confirmedSlotIndex: (apt as any).confirmedSlotIndex,
-          }),
+          statusLabel: viewState.displayStatusLabel,
           proposedSlots: Array.isArray((apt as any).proposedSlots) ? (apt as any).proposedSlots : [],
         };
       })

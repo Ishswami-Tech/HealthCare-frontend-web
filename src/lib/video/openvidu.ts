@@ -342,15 +342,25 @@ export class OpenViduAPI {
     });
 
     // Session disconnected
-    this.session.on('sessionDisconnected', () => {
+    this.session.on('sessionDisconnected', (event: any) => {
+      const reason = String(event?.reason || event?.exception || 'session disconnected');
       this.cleanup();
-      window.dispatchEvent(new CustomEvent('openvidu-session-disconnected'));
+      window.dispatchEvent(new CustomEvent('openvidu-session-disconnected', {
+        detail: {
+          reason,
+        },
+      }));
     });
 
     // Exception occurred
     this.session.on('exception', (exception: Error) => {
       console.error('OpenVidu exception:', exception);
-      window.dispatchEvent(new CustomEvent('openvidu-exception', { detail: exception }));
+      window.dispatchEvent(new CustomEvent('openvidu-exception', {
+        detail: {
+          message: exception instanceof Error ? exception.message : 'OpenVidu exception',
+          name: exception instanceof Error ? exception.name : 'OpenViduException',
+        },
+      }));
     });
   }
 
