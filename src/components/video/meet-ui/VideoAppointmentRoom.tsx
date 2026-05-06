@@ -773,7 +773,7 @@ export default function VideoAppointmentRoom({
                     </>
                   ) : (
                     <>
-                      <h2 className="mt-4 text-2xl font-semibold">Opening room</h2>
+                      <h2 className="mt-4 text-2xl font-semibold">Connecting to consultation</h2>
                       <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground dark:text-gray-300">
                         The preview is complete. Connecting you directly to the live consultation now.
                       </p>
@@ -785,7 +785,7 @@ export default function VideoAppointmentRoom({
                           className="w-full sm:w-auto rounded-full bg-[#8ab4f8] px-8 text-meet-black font-semibold opacity-80"
                         >
                           <Phone className="mr-2 h-5 w-5" />
-                          Joining...
+                          Connecting...
                         </Button>
                       </div>
                     </>
@@ -835,7 +835,7 @@ export default function VideoAppointmentRoom({
               <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/90 text-foreground dark:bg-meet-black dark:text-white">
                 <div className="text-center">
                   <Loader2 className="mx-auto h-12 w-12 animate-spin text-meet-blue" />
-                  <p className="mt-4 text-lg font-medium">Joining the call...</p>
+                          <p className="mt-4 text-lg font-medium">Connecting to consultation...</p>
                 </div>
               </div>
             )}
@@ -1062,7 +1062,7 @@ export default function VideoAppointmentRoom({
               onToggleChat={() => toggleSidePanel("chat")}
               onToggleParticipants={() => toggleSidePanel("participants")}
               onToggleInfo={() => toggleSidePanel("notes")}
-              onEndCall={handleEndCall}
+              onEndCall={handleLeaveRoom}
               onGetDevices={call?.getDevices.bind(call) || controls?.getDevices.bind(controls)}
               onChangeAudioDevice={async (id) => {
                 if (call) await call.changeAudioSource(id);

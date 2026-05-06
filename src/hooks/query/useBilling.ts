@@ -38,7 +38,39 @@ import type {
   CreateSubscriptionData,
   CreateInvoiceData,
   CreatePaymentData,
+  Invoice,
 } from '@/types/billing.types';
+
+function getInvoiceSortTimestamp(invoice: Pick<Invoice, 'createdAt' | 'updatedAt' | 'dueDate' | 'paidDate'>): number {
+  const candidate =
+    invoice.createdAt ||
+    invoice.updatedAt ||
+    invoice.paidDate ||
+    invoice.dueDate ||
+    '';
+  const timestamp = new Date(candidate).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function sortInvoicesNewestFirst(invoices: Invoice[]): Invoice[] {
+  return [...invoices].sort((left, right) => getInvoiceSortTimestamp(right) - getInvoiceSortTimestamp(left));
+}
+
+function getPaymentSortTimestamp(payment: {
+  createdAt?: string;
+  updatedAt?: string;
+  paymentDate?: string;
+}): number {
+  const candidate = payment.paymentDate || payment.createdAt || payment.updatedAt || "";
+  const timestamp = new Date(candidate).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function sortPaymentsNewestFirst<T extends { createdAt?: string; updatedAt?: string; paymentDate?: string }>(
+  payments: T[]
+): T[] {
+  return [...payments].sort((left, right) => getPaymentSortTimestamp(right) - getPaymentSortTimestamp(left));
+}
 
 // ============ Billing Plans Hooks ============
 
@@ -266,7 +298,7 @@ export function useInvoices(userId: string) {
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch invoices');
       }
-      return result.invoices || [];
+      return sortInvoicesNewestFirst((result.invoices || []) as Invoice[]);
     },
     {
       enabled: !!userId,
@@ -289,7 +321,7 @@ export function useClinicInvoices(enabled: boolean = true) {
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch clinic invoices');
       }
-      return result.invoices || [];
+      return sortInvoicesNewestFirst((result.invoices || []) as Invoice[]);
     },
     {
       enabled: enabled && !!clinicId,
@@ -356,7 +388,7 @@ export function usePayments(userId: string) {
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch payments');
       }
-      return result.payments || [];
+      return sortPaymentsNewestFirst(result.payments || []);
     },
     {
       enabled: !!userId,
@@ -386,7 +418,7 @@ export function useClinicPayments(filters?: {
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch clinic payments');
       }
-      return result.payments || [];
+      return sortPaymentsNewestFirst(result.payments || []);
     },
     {
       enabled: enabled && !!clinicId,

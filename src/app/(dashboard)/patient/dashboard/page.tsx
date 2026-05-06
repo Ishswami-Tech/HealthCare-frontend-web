@@ -155,7 +155,7 @@ export default function PatientDashboard() {
             if (!first && !second) return 0;
             if (!first) return 1;
             if (!second) return -1;
-            return first.getTime() - second.getTime();
+            return second.getTime() - first.getTime();
           })
       : [];
 
@@ -180,7 +180,7 @@ export default function PatientDashboard() {
             if (!first && !second) return 0;
             if (!first) return 1;
             if (!second) return -1;
-            return first.getTime() - second.getTime();
+            return second.getTime() - first.getTime();
           })
       : [];
 
@@ -206,7 +206,7 @@ export default function PatientDashboard() {
         if (!first && !second) return 0;
         if (!first) return 1;
         if (!second) return -1;
-        return first.getTime() - second.getTime();
+        return second.getTime() - first.getTime();
       })
       .map((apt: any) => {
         const normalized = normalizePatientAppointment(apt);
@@ -253,10 +253,34 @@ export default function PatientDashboard() {
       0
     );
 
-    const latestVitals = (vitalSignsData as any)?.[0] || {};
-    const latestPrescriptions = Array.isArray(prescriptionsData) ? prescriptionsData : [];
-    const billingInvoices = Array.isArray(invoicesData) ? invoicesData : [];
-    const billingPayments = Array.isArray(paymentsData) ? paymentsData : [];
+    const latestVitals = Array.isArray(vitalSignsData)
+      ? [...vitalSignsData].sort(
+          (left: any, right: any) =>
+            new Date(right.recordedAt || right.createdAt || right.updatedAt || 0).getTime() -
+            new Date(left.recordedAt || left.createdAt || left.updatedAt || 0).getTime()
+        )[0] || {}
+      : (vitalSignsData as any)?.[0] || {};
+    const latestPrescriptions = Array.isArray(prescriptionsData)
+      ? [...prescriptionsData].sort(
+          (left: any, right: any) =>
+            new Date(right.prescribedAt || right.createdAt || right.updatedAt || 0).getTime() -
+            new Date(left.prescribedAt || left.createdAt || left.updatedAt || 0).getTime()
+        )
+      : [];
+    const billingInvoices = Array.isArray(invoicesData)
+      ? [...invoicesData].sort(
+          (left: any, right: any) =>
+            new Date(right.createdAt || right.updatedAt || 0).getTime() -
+            new Date(left.createdAt || left.updatedAt || 0).getTime()
+        )
+      : [];
+    const billingPayments = Array.isArray(paymentsData)
+      ? [...paymentsData].sort(
+          (left: any, right: any) =>
+            new Date(right.createdAt || right.updatedAt || 0).getTime() -
+            new Date(left.createdAt || left.updatedAt || 0).getTime()
+        )
+      : [];
     const openInvoices = billingInvoices.filter((invoice: any) => {
       const status = String(invoice?.status || "").toUpperCase();
       return status === "OPEN" || status === "OVERDUE";
@@ -346,7 +370,7 @@ export default function PatientDashboard() {
       hasMedications: latestPrescriptions.length > 0,
       hasBillingData: billingInvoices.length > 0 || billingPayments.length > 0,
       hasTreatmentData: Boolean((medicalRecordsData as any)?.[0]?.treatment),
-      hasVitalData: Boolean((vitalSignsData as any)?.[0]),
+      hasVitalData: Boolean(latestVitals && Object.keys(latestVitals).length > 0),
       recordsCount: Array.isArray(medicalRecordsData) ? medicalRecordsData.length : 0,
     };
   }, [
@@ -420,7 +444,7 @@ export default function PatientDashboard() {
             }
           />
 
- why           <Card className="overflow-hidden border border-emerald-200/70 bg-linear-to-br from-emerald-50 via-background to-sky-50 shadow-sm dark:border-emerald-900/40 dark:from-emerald-950/30 dark:via-card dark:to-sky-950/20">
+   <Card className="overflow-hidden border border-emerald-200/70 bg-linear-to-br from-emerald-50 via-background to-sky-50 shadow-sm dark:border-emerald-900/40 dark:from-emerald-950/30 dark:via-card dark:to-sky-950/20">
             <CardContent className="p-3 sm:p-4">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="min-w-0 flex-1 space-y-3">

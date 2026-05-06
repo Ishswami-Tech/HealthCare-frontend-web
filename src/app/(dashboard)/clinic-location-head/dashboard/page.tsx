@@ -93,10 +93,19 @@ export default function ClinicLocationHeadDashboard() {
 
   const upcomingAppointments = useMemo(
     () =>
-      appointments
+      [...appointments]
         .filter((a: Record<string, unknown>) => {
           const s = String(a.status ?? "").toUpperCase();
           return ["SCHEDULED", "CONFIRMED", "WAITING", "IN_PROGRESS"].includes(s);
+        })
+        .sort((left: Record<string, unknown>, right: Record<string, unknown>) => {
+          const leftTime = new Date(
+            String(left.date || left.appointmentDate || left.createdAt || left.updatedAt || 0)
+          ).getTime();
+          const rightTime = new Date(
+            String(right.date || right.appointmentDate || right.createdAt || right.updatedAt || 0)
+          ).getTime();
+          return rightTime - leftTime;
         })
         .slice(0, 5),
     [appointments]

@@ -31,7 +31,7 @@ import {
   CalendarClock,
   Search,
 } from "lucide-react";
-import { useCompleteAppointment } from "@/hooks/query/useAppointments";
+import { useUpdateAppointment } from "@/hooks/query/useAppointments";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useCreatePrescription, useMedicines } from "@/hooks/query/usePharmacy";
 import type { Medicine } from "@/types/pharmacy.types";
@@ -102,7 +102,7 @@ export function QuickPrescriptionModal({
   const [medicineSearch, setMedicineSearch] = useState("");
   const [medications, setMedications] = useState<MedicationRow[]>([createEmptyMedication()]);
 
-  const completeAppointment = useCompleteAppointment();
+  const updateAppointment = useUpdateAppointment();
   const createPharmacyPrescription = useCreatePrescription();
   const { data: medicinesData, isPending: medicinesLoading } = useMedicines(clinicId || "", {
     limit: 200,
@@ -230,13 +230,25 @@ export function QuickPrescriptionModal({
         .filter(Boolean)
         .join("\n");
 
-      const appointmentTask = completeAppointment.mutateAsync({
+      const appointmentTask = updateAppointment.mutateAsync({
         id: appointmentId,
         data: {
           diagnosis: diagnosis.trim(),
           notes: notes.trim(),
           treatmentPlan: treatmentPlan.trim() || notes.trim(),
-          medications: cleanMedications.map(formatMedicationSummary),
+          metadata: {
+            prescriptionIssued: cleanMedications.length > 0,
+            medicineSkipped: cleanMedications.length === 0,
+            medicineCount: cleanMedications.length,
+            consultationDraft: {
+              diagnosis: diagnosis.trim() || null,
+              notes: notes.trim() || null,
+              treatmentPlan: treatmentPlan.trim() || notes.trim() || null,
+              medicationCount: cleanMedications.length,
+              savedAt: new Date().toISOString(),
+              savedBy: doctorId,
+            },
+          },
           ...(prescriptionText ? { prescription: prescriptionText } : {}),
           ...(followUpDate ? { followUpDate } : {}),
           ...(followUpNotes.trim() ? { followUpNotes: followUpNotes.trim() } : {}),
@@ -269,12 +281,12 @@ export function QuickPrescriptionModal({
         const pharmacyError =
           pharmacyResult.status === "rejected" ? pharmacyResult.reason : null;
 
-        console.error("Failed to save complete prescription payload", {
-          appointmentError,
-          pharmacyError,
-        });
-        return;
-      }
+          console.error("Failed to save prescription payload", {
+            appointmentError,
+            pharmacyError,
+          });
+          return;
+        }
 
       setDiagnosis("");
       setTreatmentPlan("");
@@ -285,18 +297,18 @@ export function QuickPrescriptionModal({
       setMedications([createEmptyMedication()]);
       onClose();
     } catch (error) {
-      console.error("Failed to complete appointment with prescription:", error);
+      console.error("Failed to save prescription:", error);
     }
   };
 
   const hasInventoryMedicines = inventoryMedicines.length > 0;
-  const isSubmitting = completeAppointment.isPending || createPharmacyPrescription.isPending;
+  const isSubmitting = updateAppointment.isPending || createPharmacyPrescription.isPending;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] w-[calc(100vw-1rem)] max-w-4xl overflow-y-auto p-0 sm:w-[calc(100vw-2rem)]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl">
+          <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
               <Pill className="h-4 w-4" />
             </div>
@@ -304,13 +316,14 @@ export function QuickPrescriptionModal({
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
             Record diagnosis, treatment, and structured medicines for{" "}
-            <span className="font-semibold text-foreground">{patientName}</span>.
+            <span className="font-semibold text-foreground">{patientName}</span>. Saving this
+            keeps the consultation open until you complete it from the dashboard.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5 py-2">
+        <div className="max-h-[calc(90vh-5rem)] space-y-5 overflow-y-auto px-4 py-2 sm:px-6">
           <Card className="border-border/70">
-            <CardContent className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
+            <CardContent className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
               <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Patient</p>
                 <p className="mt-1 font-semibold">{patientName}</p>

@@ -51,7 +51,16 @@ function getStatusClasses(status: string): string {
 }
 
 export function PaymentHistory({ payments, onRefetch, compact = false }: PaymentHistoryProps) {
-  const completedPayments = payments.filter((p) => p.status === "COMPLETED");
+  const sortedPayments = useMemo(
+    () =>
+      [...payments].sort((left, right) => {
+        const leftDate = new Date(left.paymentDate || left.createdAt || left.updatedAt || 0).getTime();
+        const rightDate = new Date(right.paymentDate || right.createdAt || right.updatedAt || 0).getTime();
+        return rightDate - leftDate;
+      }),
+    [payments]
+  );
+  const completedPayments = sortedPayments.filter((p) => p.status === "COMPLETED");
   const totalCompleted = completedPayments.reduce((sum, p) => sum + p.amount, 0);
 
   const columns = useMemo<ColumnDef<Payment>[]>(
@@ -147,7 +156,7 @@ export function PaymentHistory({ payments, onRefetch, compact = false }: Payment
         <CardContent>
           <DataTable
             columns={columns}
-            data={payments}
+            data={sortedPayments}
             pageSize={10}
             emptyMessage="No payment records found"
           />

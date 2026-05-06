@@ -957,10 +957,10 @@ export function VideoAppointmentRoom({
                         </>
                       ) : (
                         <>
-                          <h2 className="mt-4 text-xl font-semibold sm:mt-5 sm:text-2xl">Opening room</h2>
-                          <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-                            The preview is complete. Connecting you to the live consultation now.
-                          </p>
+                      <h2 className="mt-4 text-xl font-semibold sm:mt-5 sm:text-2xl">Connecting to consultation</h2>
+                      <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                        The preview is complete. Connecting you to the live consultation now.
+                      </p>
                           <Button
                             onClick={handleStartCall}
                             size="lg"
@@ -1104,32 +1104,17 @@ export function VideoAppointmentRoom({
                 </div>
 
                 <div className="flex flex-col items-center gap-1">
-                  {canEndForAll ? (
-                    <Button
-                      variant="destructive"
-                      size="lg"
-                      onClick={() => handleEndCall()}
-                      className="h-12 w-12 shrink-0 rounded-full bg-rose-600 p-0 text-white shadow-sm hover:bg-rose-700"
-                      title="End session for all"
-                      aria-label="End session for all"
-                    >
-                      <PhoneOff className="h-[22px] w-[22px]" />
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="destructive"
-                      size="lg"
-                      onClick={handleLeaveRoom}
-                      className="h-12 w-12 shrink-0 rounded-full bg-rose-600 p-0 text-white shadow-sm hover:bg-rose-700"
-                      title="Leave session"
-                      aria-label="Leave session"
-                    >
-                      <PhoneOff className="h-[22px] w-[22px]" />
-                    </Button>
-                  )}
-                  <span className="text-[10px] text-muted-foreground sm:text-[11px]">
-                    {canEndForAll ? "End" : "Leave"}
-                  </span>
+                  <Button
+                    variant="destructive"
+                    size="lg"
+                    onClick={handleLeaveRoom}
+                    className="h-12 w-12 shrink-0 rounded-full bg-rose-600 p-0 text-white shadow-sm hover:bg-rose-700"
+                    title="Leave session"
+                    aria-label="Leave session"
+                  >
+                    <PhoneOff className="h-[22px] w-[22px]" />
+                  </Button>
+                  <span className="text-[10px] text-muted-foreground sm:text-[11px]">Leave</span>
                 </div>
 
                 {canEndForAll && (

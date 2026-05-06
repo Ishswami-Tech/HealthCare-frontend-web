@@ -31,7 +31,7 @@ import { useStartAppointment, useCompleteAppointment, useUpdateAppointment } fro
 import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { useRealTimeAppointments, useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
-import { showSuccessToast, showErrorToast, showInfoToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import { showInfoToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import {
   getAppointmentViewState,
   getAppointmentDateTimeValue,
@@ -443,16 +443,11 @@ export default function DoctorAppointments() {
   const startConsultation = async (appointmentId: string, options?: { openVideoAfterStart?: boolean }) => {
     try {
       await startAppointmentMutation.mutateAsync(appointmentId);
-      showSuccessToast("Consultation started successfully", {
-        id: TOAST_IDS.GLOBAL.SUCCESS,
-      });
       if (options?.openVideoAfterStart) {
         router.push(buildVideoSessionRoute(appointmentId));
       }
     } catch (error: unknown) {
-      showErrorToast(error instanceof Error ? error.message : "Failed to start consultation", {
-        id: TOAST_IDS.GLOBAL.ERROR,
-      });
+      void error;
     }
   };
 
@@ -473,17 +468,12 @@ export default function DoctorAppointments() {
         id: appointmentId,
         data: completionData,
       });
-      showSuccessToast("Consultation completed successfully", {
-        id: TOAST_IDS.GLOBAL.SUCCESS,
-      });
       setDiagnosis("");
       setPrescription("");
       setConsultationNotes("");
       setSelectedAppointment(null);
     } catch (error: unknown) {
-      showErrorToast(error instanceof Error ? error.message : "Failed to complete consultation", {
-        id: TOAST_IDS.GLOBAL.ERROR,
-      });
+      void error;
     }
   };
 
@@ -548,14 +538,8 @@ export default function DoctorAppointments() {
             }
           : current
       );
-
-      showSuccessToast("Consultation draft saved successfully", {
-        id: TOAST_IDS.GLOBAL.SUCCESS,
-      });
     } catch (error: unknown) {
-      showErrorToast(error instanceof Error ? error.message : "Failed to save consultation draft", {
-        id: TOAST_IDS.GLOBAL.ERROR,
-      });
+      void error;
     }
   };
 

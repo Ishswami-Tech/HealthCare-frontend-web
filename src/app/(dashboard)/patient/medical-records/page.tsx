@@ -86,10 +86,26 @@ export default function PatientMedicalRecords() {
     });
   };
 
-  const medicalHistory = typedHealthData?.medicalHistory || [];
-  const prescriptions = typedHealthData?.prescriptions || [];
-  const labReports = typedHealthData?.labReports || [];
-  const vitalSigns = typedHealthData?.vitals || [];
+  const medicalHistory = [...(typedHealthData?.medicalHistory || [])].sort(
+    (left: any, right: any) =>
+      new Date(String(right.date || right.createdAt || right.updatedAt || 0)).getTime() -
+      new Date(String(left.date || left.createdAt || left.updatedAt || 0)).getTime()
+  );
+  const prescriptions = [...(typedHealthData?.prescriptions || [])].sort(
+    (left: any, right: any) =>
+      new Date(String(right.prescribedAt || right.createdAt || right.updatedAt || 0)).getTime() -
+      new Date(String(left.prescribedAt || left.createdAt || left.updatedAt || 0)).getTime()
+  );
+  const labReports = [...(typedHealthData?.labReports || [])].sort(
+    (left: any, right: any) =>
+      new Date(String(right.date || right.createdAt || right.updatedAt || 0)).getTime() -
+      new Date(String(left.date || left.createdAt || left.updatedAt || 0)).getTime()
+  );
+  const vitalSigns = [...(typedHealthData?.vitals || [])].sort(
+    (left: any, right: any) =>
+      new Date(String(right.date || right.recordedAt || right.createdAt || 0)).getTime() -
+      new Date(String(left.date || left.recordedAt || left.createdAt || 0)).getTime()
+  );
 
   const filteredMedicalHistory = medicalHistory.filter((record: PatientMedicalHistoryEntry) => {
     if (!searchTerm) return true;

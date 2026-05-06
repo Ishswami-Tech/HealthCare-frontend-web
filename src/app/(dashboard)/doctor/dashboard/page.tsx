@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -183,6 +184,9 @@ export default function DoctorDashboard() {
   const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
   const [activePatient, setActivePatient] = useState<{ id: string; name: string } | null>(null);
   const [activeAppointmentId, setActiveAppointmentId] = useState<string | null>(null);
+  const [consultSummary, setConsultSummary] = useState("");
+  const [skipMedicineSelected, setSkipMedicineSelected] = useState(false);
+  const [consultTick, setConsultTick] = useState(() => Date.now());
   const [pendingVideoSlotSelections, setPendingVideoSlotSelections] = useState<Record<string, number>>({});
 
   // Enable real-time WebSocket sync
@@ -284,6 +288,69 @@ export default function DoctorDashboard() {
 
   const selectedDoctorQueueItems = activeDoctorQueueSection?.items ?? [];
   const highlightedQueuePatient = selectedDoctorQueueItems[0] ?? liveQueueEntries[0] ?? null;
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setConsultTick(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const currentInPersonConsult = useMemo(() => {
+    const activeQueueAppointmentId = String((highlightedQueuePatient as any)?.appointmentId || "");
+    const activeAppointment =
+      visibleAppointmentsArray.find(
+        (appointment: AppointmentWithRelations) =>
+          appointment.doctorId === doctorId &&
+          appointment.type === "IN_PERSON" &&
+          String(appointment.status || "").toUpperCase() === "IN_PROGRESS"
+      ) ||
+      (activeQueueAppointmentId
+        ? visibleAppointmentsArray.find((appointment: AppointmentWithRelations) => appointment.id === activeQueueAppointmentId)
+        : null) ||
+      visibleAppointmentsArray.find(
+        (appointment: AppointmentWithRelations) =>
+          appointment.doctorId === doctorId &&
+          appointment.type === "IN_PERSON" &&
+          !["COMPLETED", "CANCELLED", "NO_SHOW"].includes(String(appointment.status || "").toUpperCase()) &&
+          Boolean(appointment.checkedInAt)
+      ) ||
+      null;
+
+    return activeAppointment;
+  }, [doctorId, highlightedQueuePatient, visibleAppointmentsArray]);
+
+  const currentConsultStatus = String(currentInPersonConsult?.status || "").toUpperCase();
+  const currentConsultStartedAt = currentInPersonConsult?.startedAt ? new Date(currentInPersonConsult.startedAt) : null;
+  const consultElapsedLabel = useMemo(() => {
+    if (!currentConsultStartedAt || Number.isNaN(currentConsultStartedAt.getTime())) {
+      return "00:00";
+    }
+
+    const elapsedMs = Math.max(0, consultTick - currentConsultStartedAt.getTime());
+    const totalSeconds = Math.floor(elapsedMs / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    return hours > 0
+      ? `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+      : `${minutes}:${String(seconds).padStart(2, "0")}`;
+  }, [consultTick, currentConsultStartedAt]);
+
+  const canStartConsultation =
+    Boolean(currentInPersonConsult) &&
+    ["CONFIRMED", "SCHEDULED", "WAITING"].includes(currentConsultStatus) &&
+    Boolean(currentInPersonConsult?.checkedInAt) &&
+    !currentInPersonConsult?.startedAt;
+
+  const isConsultInProgress = currentConsultStatus === "IN_PROGRESS";
+
+  useEffect(() => {
+    setConsultSummary("");
+    setSkipMedicineSelected(false);
+  }, [currentInPersonConsult?.id]);
 
   const awaitingSlotReviewAppointments = useMemo(
     () =>
@@ -406,7 +473,54 @@ export default function DoctorDashboard() {
   const openPrescription = (apt: TransformedAppointment) => {
     setActivePatient({ id: apt.patientId, name: apt.patientName });
     setActiveAppointmentId(apt.id);
+    setSkipMedicineSelected(false);
     setIsPrescriptionModalOpen(true);
+  };
+
+  const openPrescriptionForConsult = () => {
+    if (!currentInPersonConsult) {
+      return;
+    }
+
+    setActivePatient({
+      id: currentInPersonConsult.patientId,
+      name: getAppointmentPatientName(currentInPersonConsult as AppointmentWithRelations),
+    });
+    setActiveAppointmentId(currentInPersonConsult.id);
+    setSkipMedicineSelected(false);
+    setIsPrescriptionModalOpen(true);
+  };
+
+  const handleStartConsultation = async () => {
+    if (!currentInPersonConsult) {
+      return;
+    }
+
+    await startAppointmentMutation.mutateAsync(currentInPersonConsult.id);
+    await refetchAppointments();
+  };
+
+  const handleCompleteWithoutMedicine = async () => {
+    if (!currentInPersonConsult) {
+      return;
+    }
+
+    await completeAppointmentMutation.mutateAsync({
+      id: currentInPersonConsult.id,
+      data: {
+        notes: consultSummary.trim(),
+        treatmentPlan: consultSummary.trim(),
+        metadata: {
+          medicineSkipped: true,
+          prescriptionIssued: false,
+          source: "doctor-dashboard",
+          consultSummary: consultSummary.trim(),
+        },
+      },
+    });
+    setConsultSummary("");
+    setSkipMedicineSelected(false);
+    await refetchAppointments();
   };
 
   const formatProposedSlot = (slot?: { date: string; time: string }) => {
@@ -651,6 +765,7 @@ export default function DoctorDashboard() {
                         appointmentId,
                         confirmedSlotIndex: pendingVideoSlotSelections[appointmentId] ?? 0,
                       });
+                      showSuccessToast("Slot confirmed successfully", { id: TOAST_IDS.APPOINTMENT.UPDATE });
                       setResolvedVideoSlotConfirmations((current) => ({ ...current, [appointmentId]: true }));
                       setPendingVideoSlotSelections((current) => {
                         const next = { ...current };
@@ -952,11 +1067,140 @@ export default function DoctorDashboard() {
         </CardContent>
       </Card>
 
+      <Card className="overflow-hidden border-l-4 border-l-emerald-500 shadow-sm">
+        <CardHeader className="border-b border-border bg-muted/40 px-4 py-3 dark:bg-muted/20">
+          <CardTitle className="flex items-center gap-2 text-base font-bold text-foreground">
+            <Clock className="h-4 w-4 text-emerald-600" />
+            In-Person Consultation
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 p-4">
+          {currentInPersonConsult ? (
+            <>
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge
+                      variant="outline"
+                    className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200"
+                    >
+                      {isConsultInProgress ? "In progress" : "Ready to start"}
+                    </Badge>
+                    <Badge variant="outline" className="border-border bg-background text-foreground">
+                      {currentInPersonConsult.type}
+                    </Badge>
+                    <Badge variant="outline" className="border-border bg-background text-foreground">
+                      {getDisplayDoctorName(user?.name || user?.firstName || null)}
+                    </Badge>
+                  </div>
+                  <div className="text-xl font-semibold text-foreground">
+                    {getAppointmentPatientName(currentInPersonConsult as AppointmentWithRelations)}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                    <span>{getReceptionistAppointmentDateLabel(currentInPersonConsult as Record<string, unknown>)}</span>
+                    <span>·</span>
+                    <span>{getReceptionistAppointmentTimeLabel(currentInPersonConsult as Record<string, unknown>)}</span>
+                    <span>·</span>
+                    <span>Session {currentInPersonConsult.id.slice(0, 8).toUpperCase()}</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span>Checked in: {currentInPersonConsult.checkedInAt ? formatDateInIST(new Date(currentInPersonConsult.checkedInAt), {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: true,
+                    }) : "Not yet"}</span>
+                    {currentConsultStartedAt && (
+                      <span>Started: {formatDateInIST(currentConsultStartedAt, {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: true,
+                      })}</span>
+                    )}
+                  </div>
+                </div>
+
+                  <div className="flex min-w-[180px] flex-col gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300">
+                    Consultation timer
+                  </div>
+                  <div className="text-3xl font-bold leading-none">
+                    {isConsultInProgress ? consultElapsedLabel : "0:00"}
+                  </div>
+                  <div className="text-xs text-emerald-700/80 dark:text-emerald-200/80">
+                    {isConsultInProgress ? "Live consult duration" : "Timer starts after consultation begins"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Consultation summary
+                </label>
+                <Textarea
+                  value={consultSummary}
+                  onChange={(event) => setConsultSummary(event.target.value)}
+                  placeholder="Symptoms, exam findings, diagnosis, and treatment summary"
+                  className="min-h-[96px]"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  onClick={handleStartConsultation}
+                  disabled={!canStartConsultation || startAppointmentMutation.isPending}
+                  className="bg-emerald-600 text-white hover:bg-emerald-700"
+                >
+                  {startAppointmentMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+                  Start Consultation
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={openPrescriptionForConsult}
+                  disabled={!currentInPersonConsult || !isConsultInProgress || isPrescriptionModalOpen}
+                >
+                  <Pill className="mr-2 h-4 w-4" />
+                  Add Prescription
+                </Button>
+                <Button
+                  variant={skipMedicineSelected ? "default" : "outline"}
+                  onClick={() => setSkipMedicineSelected(true)}
+                  disabled={!currentInPersonConsult || !isConsultInProgress}
+                  className={skipMedicineSelected ? "bg-amber-600 text-white hover:bg-amber-700" : undefined}
+                >
+                  <AlertCircle className="mr-2 h-4 w-4" />
+                  Skip Medicine
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleCompleteWithoutMedicine}
+                  disabled={!currentInPersonConsult || !isConsultInProgress || !skipMedicineSelected || completeAppointmentMutation.isPending}
+                >
+                  {completeAppointmentMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                  Complete Appointment
+                </Button>
+              </div>
+
+              <div className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-muted-foreground dark:bg-muted/20">
+                {skipMedicineSelected
+                  ? "Medicine will be skipped and the consult will be completed with the recorded summary."
+                  : isConsultInProgress
+                    ? "Provide a prescription or mark this consult as medicine-skipped before completion."
+                    : "Check the patient in and start the consultation to activate the timer."}
+              </div>
+            </>
+          ) : (
+            <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
+              No checked-in in-person patient is ready right now.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-4">
         {/* Active Treatment Queue Table - Dominant Column */}
         <div className="lg:col-span-3 space-y-4">
           <Card className="overflow-hidden border-l-4 border-l-emerald-400 shadow-sm">
-            <CardHeader className="flex flex-col gap-3 border-b border-border bg-muted/40 px-4 pb-4 pt-4 sm:flex-row sm:items-end sm:justify-between">
+            <CardHeader className="flex flex-col gap-3 border-b border-border bg-muted/40 px-4 pb-4 pt-4 dark:bg-muted/20 sm:flex-row sm:items-end sm:justify-between">
               <CardTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
                 <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
                   <Activity className="w-4 h-4" />
@@ -967,7 +1211,7 @@ export default function DoctorDashboard() {
                 <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium text-muted-foreground">
                   <span className="rounded-full border border-border bg-background px-2.5 py-1">Direct treatment lanes</span>
                   <span className="rounded-full border border-border bg-background px-2.5 py-1">Live queue snapshot</span>
-                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-700">
+                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
                     Read only
                   </span>
                 </div>
@@ -983,17 +1227,17 @@ export default function DoctorDashboard() {
             </CardHeader>
             <CardContent className="space-y-3 p-3 sm:p-4">
               {highlightedQueuePatient ? (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 px-3 py-3 shadow-sm">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 px-3 py-3 shadow-sm dark:border-emerald-900 dark:bg-emerald-950/40">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-700">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300">
                         Next patient
                       </div>
                       <div className="mt-1 truncate text-lg font-semibold text-foreground">
                         {getQueuePatientDisplayName(highlightedQueuePatient)}
                       </div>
                       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                        <Badge variant="outline" className="border-emerald-200 bg-white text-emerald-700">
+                        <Badge variant="outline" className="border-emerald-200 bg-white text-emerald-700 dark:border-emerald-900 dark:bg-muted/20 dark:text-emerald-200">
                           {getDoctorQueueLaneLabel(highlightedQueuePatient)}
                         </Badge>
                         <span>{highlightedQueuePatient.doctorName || "Assigned doctor pending"}</span>
@@ -1003,8 +1247,8 @@ export default function DoctorDashboard() {
                     </div>
                     <Badge
                       variant="outline"
-                      className="shrink-0 border-emerald-200 bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white"
-                    >
+                    className="shrink-0 border-emerald-200 bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white dark:border-emerald-700 dark:bg-emerald-500"
+                  >
                       {getQueueStatusLabel(highlightedQueuePatient)}
                     </Badge>
                   </div>

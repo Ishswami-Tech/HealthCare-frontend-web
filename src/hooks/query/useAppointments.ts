@@ -16,16 +16,18 @@ import { sanitizeErrorMessage } from '@/lib/utils/error-handler';
 import { useAuth } from '../auth/useAuth';
 import { Role } from '@/types/auth.types';
 import {
-  createAppointment,
-  getAppointments,
-  getMyAppointments,
-  getAppointmentById,
-  getAppointmentServiceCatalog,
-  updateAppointment,
-  updateAppointmentStatus, // Consolidated status update
-  bulkUpdateAppointmentStatus,
-  getUserUpcomingAppointments,
-  cancelAppointment,
+    createAppointment,
+    getAppointments,
+    getMyAppointments,
+    getAppointmentById,
+    getAppointmentServiceCatalog,
+    updateAppointment,
+    updateAppointmentStatus, // Consolidated status update
+    startConsultation,
+    completeAppointment,
+    bulkUpdateAppointmentStatus,
+    getUserUpcomingAppointments,
+    cancelAppointment,
   testAppointmentContext,
   proposeVideoAppointment,
   confirmVideoSlot,
@@ -958,18 +960,28 @@ export const useCheckInAppointment = () => {
 };
 
 /**
- * Hook for starting an appointment
+ * Shared mutation implementation for starting a consultation or appointment.
  */
-export const useStartAppointment = () => {
+const useStartConsultationMutation = (
+  loadingMessage: string,
+  successMessage: string,
+  invalidateQueries: string[][]
+) => {
   const { hasPermission } = useRBAC();
-  
+  const { user } = useAuth();
+
   return useMutationOperation<{ success: boolean }, string>(
     async (appointmentId: string) => {
       if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
         throw new Error('Insufficient permissions to start appointment');
       }
-      
-      const result = await updateAppointmentStatus(appointmentId, { status: 'IN_PROGRESS' });
+      if (!user?.id) {
+        throw new Error('Doctor identity is unavailable');
+      }
+
+      const result = await startConsultation(appointmentId, {
+        doctorId: String(user.id),
+      });
       if (!result.success) {
         throw new Error(result.error);
       }
@@ -977,29 +989,36 @@ export const useStartAppointment = () => {
     },
     {
       toastId: TOAST_IDS.APPOINTMENT.START,
-      loadingMessage: 'Starting appointment...',
-      successMessage: 'Appointment started successfully',
-      invalidateQueries: [
-        ['appointments'],
-        ['appointment'],
-        ['myAppointments'],
-        ['userUpcomingAppointments'],
-        ['doctorAppointments'],
-        ['doctorSchedule'],
-        ['video-appointments'],
-        ['appointmentStats'],
-        ['queue'],
-        ['queue-status'],
-      ],
+      loadingMessage,
+      successMessage,
+      invalidateQueries,
     }
   );
 };
+
+/**
+ * Hook for starting an appointment
+ */
+export const useStartAppointment = () =>
+  useStartConsultationMutation('Starting appointment...', 'Appointment started successfully', [
+    ['appointments'],
+    ['appointment'],
+    ['myAppointments'],
+    ['userUpcomingAppointments'],
+    ['doctorAppointments'],
+    ['doctorSchedule'],
+    ['video-appointments'],
+    ['appointmentStats'],
+    ['queue'],
+    ['queue-status'],
+  ]);
 
 /**
  * Hook for completing an appointment
  */
 export const useCompleteAppointment = () => {
   const { hasPermission } = useRBAC();
+  const { user } = useAuth();
   
   return useMutationOperation<{ success: boolean }, { 
       id: string; 
@@ -1011,6 +1030,7 @@ export const useCompleteAppointment = () => {
         medications?: string[];
         followUpDate?: string;
         followUpNotes?: string;
+        metadata?: Record<string, unknown>;
       }
     }>(
     async ({ id, data }: { 
@@ -1029,8 +1049,14 @@ export const useCompleteAppointment = () => {
       if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
         throw new Error('Insufficient permissions to complete appointment');
       }
+      if (!user?.id) {
+        throw new Error('Doctor identity is unavailable');
+      }
       
-      const result = await updateAppointmentStatus(id, { ...data, status: 'COMPLETED' });
+      const result = await completeAppointment(id, {
+        doctorId: String(user.id),
+        ...data,
+      });
       if (!result.success) {
         throw new Error(result.error);
       }
@@ -1102,6 +1128,7 @@ export const useConfirmFinalVideoSlot = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Confirming final slot...',
       successMessage: 'Final slot confirmed successfully',
+      showToast: false,
       invalidateQueries: [
         ['appointments'],
         ['video-appointments'],
@@ -1931,29 +1958,11 @@ export const useDoctorQueue = (doctorId: string) => {
 /**
  * Hook for starting consultation
  */
-export const useStartConsultation = () => {
-  const { hasPermission } = useRBAC();
-  
-  return useMutationOperation<{ success: boolean }, string>(
-    async (appointmentId: string) => {
-      if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
-        throw new Error('Insufficient permissions to start consultation');
-      }
-      
-      const result = await updateAppointmentStatus(appointmentId, { status: 'IN_PROGRESS' });
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-      return { success: true };
-    },
-    {
-      toastId: TOAST_IDS.APPOINTMENT.START,
-      loadingMessage: 'Starting consultation...',
-      successMessage: 'Consultation started successfully',
-      invalidateQueries: [['appointments'], ['myAppointments']],
-    }
-  );
-};
+export const useStartConsultation = () =>
+  useStartConsultationMutation('Starting consultation...', 'Consultation started successfully', [
+    ['appointments'],
+    ['myAppointments'],
+  ]);
 
 /**
  * Hook to check if appointment can be cancelled

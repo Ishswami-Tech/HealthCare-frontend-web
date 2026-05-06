@@ -716,6 +716,7 @@ export function VideoAppointmentsList({
                         appointmentId,
                         confirmedSlotIndex: pendingSlotSelections[appointmentId] ?? 0,
                       });
+                      showSuccessToast("Slot confirmed successfully", { id: TOAST_IDS.APPOINTMENT.UPDATE });
                       setResolvedSlotConfirmations((current) => ({ ...current, [appointmentId]: true }));
                       setPendingSlotSelections((current) => {
                         const next = { ...current };
@@ -1060,7 +1061,7 @@ export function VideoAppointmentsList({
                 <Button
                   size="sm"
                   className="h-9 px-4 rounded-xl"
-                  onClick={() => router.push("/patient/appointments?mode=video")}
+                  onClick={() => router.push("/video-appointments")}
                 >
                   Book Session
                 </Button>
@@ -1113,7 +1114,7 @@ export function VideoAppointmentsList({
                 <Button
                   size="sm"
                   className="rounded-xl"
-                  onClick={() => router.push("/patient/appointments?mode=video")}
+                  onClick={() => router.push("/video-appointments")}
                 >
                   Book Session
                 </Button>
