@@ -37,6 +37,7 @@ import {
 import { PaymentHistory } from "@/components/billing/PaymentHistory";
 import { PaymentButton } from "@/components/payments";
 import { useCurrentClinicId } from "@/hooks/query/useClinics";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { useLayoutStore } from "@/stores/layout.store";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import type { BillingPlan, Invoice, Subscription } from "@/types/billing.types";
@@ -57,6 +58,8 @@ export default function PatientBillingPage() {
   useEffect(() => {
     setPageTitle("My Billing & Payments");
   }, [setPageTitle]);
+
+  useWebSocketQuerySync();
 
   const userId = session?.user?.id || "";
 

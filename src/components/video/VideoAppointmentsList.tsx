@@ -558,7 +558,7 @@ export function VideoAppointmentsList({
       return !data.clinicId || data.clinicId === resolvedClinicId;
     };
 
-    const refreshPatientAndStaffViews = async (payload: unknown) => {
+    const refreshPatientAndStaffViews = (payload: unknown) => {
       if (!shouldRefreshForClinic(payload)) {
         return;
       }
@@ -569,24 +569,18 @@ export function VideoAppointmentsList({
       if (appointmentId) {
         setResolvedSlotConfirmations((current) => ({ ...current, [appointmentId]: true }));
       }
-
-      if (isPatient) {
-        await refetchMyAppointments();
-      } else {
-        await refetchStaff();
-      }
     };
 
     const unsubscribeSlotConfirmed = subscribe("appointment.slot.confirmed", (payload) => {
-      void refreshPatientAndStaffViews(payload);
+      refreshPatientAndStaffViews(payload);
     });
 
     const unsubscribeConfirmed = subscribe("appointment.confirmed", (payload) => {
-      void refreshPatientAndStaffViews(payload);
+      refreshPatientAndStaffViews(payload);
     });
 
     const unsubscribeUpdated = subscribe("appointment.updated", (payload) => {
-      void refreshPatientAndStaffViews(payload);
+      refreshPatientAndStaffViews(payload);
     });
 
     return () => {
@@ -594,7 +588,7 @@ export function VideoAppointmentsList({
       unsubscribeConfirmed();
       unsubscribeUpdated();
     };
-  }, [isConnected, resolvedClinicId, subscribe, isPatient, refetchMyAppointments, refetchStaff]);
+  }, [isConnected, resolvedClinicId, subscribe]);
 
   const searchLower = searchTerm.toLowerCase();
   const filteredAppointments = appointments.filter((apt) => {
@@ -643,7 +637,9 @@ export function VideoAppointmentsList({
       await rescheduleAppointment.mutateAsync({ appointmentId, date: rescheduleDate, time: rescheduleTime, reason: actionReason || "User reschedule" });
       setIsRescheduleOpen(false);
       resetActionState();
-    } catch (error) {}
+    } catch (error) {
+      showErrorToast(error, { id: TOAST_IDS.APPOINTMENT.UPDATE });
+    }
   };
 
   const handleCancelSubmit = async () => {
@@ -657,7 +653,9 @@ export function VideoAppointmentsList({
       await cancelAppointment.mutateAsync({ appointmentId, reason: actionReason || "User cancel" });
       setIsCancelOpen(false);
       resetActionState();
-    } catch (error) {}
+    } catch (error) {
+      showErrorToast(error, { id: TOAST_IDS.APPOINTMENT.CANCEL });
+    }
   };
 
   const handleRejectSubmit = async () => {
@@ -671,7 +669,9 @@ export function VideoAppointmentsList({
       await rejectProposal.mutateAsync({ appointmentId, reason: actionReason || "Doctor reject" });
       setIsRejectOpen(false);
       resetActionState();
-    } catch (error) {}
+    } catch (error) {
+      showErrorToast(error, { id: TOAST_IDS.APPOINTMENT.CANCEL });
+    }
   };
 
   const handleConfirmSlot = async (appointment: VideoAppointment) => {

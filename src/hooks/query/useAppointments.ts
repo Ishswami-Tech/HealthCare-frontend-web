@@ -1018,6 +1018,15 @@ export const useCheckInAppointment = () => {
 /**
  * Shared mutation implementation for starting a consultation or appointment.
  */
+type StartConsultationVariables =
+  | string
+  | {
+      appointmentId: string;
+      doctorId?: string;
+      consultationType?: string;
+      notes?: string;
+    };
+
 const useStartConsultationMutation = (
   loadingMessage: string,
   successMessage: string,
@@ -1026,17 +1035,31 @@ const useStartConsultationMutation = (
   const { hasPermission } = useRBAC();
   const { user } = useAuth();
 
-  return useMutationOperation<{ success: boolean }, string>(
-    async (appointmentId: string) => {
+  return useMutationOperation<{ success: boolean }, StartConsultationVariables>(
+    async (variables: StartConsultationVariables) => {
+      const appointmentId = typeof variables === 'string' ? variables : variables.appointmentId;
+      const doctorId =
+        typeof variables === 'string'
+          ? String(user?.id || '')
+          : String(variables.doctorId || user?.id || '');
+      const consultationType =
+        typeof variables === 'string' ? undefined : variables.consultationType;
+      const notes = typeof variables === 'string' ? undefined : variables.notes;
+
       if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
         throw new Error('Insufficient permissions to start appointment');
       }
-      if (!user?.id) {
+      if (!appointmentId) {
+        throw new Error('Appointment ID is required');
+      }
+      if (!doctorId) {
         throw new Error('Doctor identity is unavailable');
       }
 
       const result = await startConsultation(appointmentId, {
-        doctorId: String(user.id),
+        doctorId,
+        ...(consultationType ? { consultationType } : {}),
+        ...(notes ? { notes } : {}),
       });
       if (!result.success) {
         throw new Error(result.error);
