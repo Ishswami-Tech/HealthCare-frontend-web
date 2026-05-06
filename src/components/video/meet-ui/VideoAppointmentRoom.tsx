@@ -793,7 +793,7 @@ export default function VideoAppointmentRoom({
                     </div>
                   </div>
                 </div>
-              </div>
+              )
             ) : (
               (layout === "speaker" || isScreenSharing) ? (
               <SpeakerLayout 
@@ -837,7 +837,7 @@ export default function VideoAppointmentRoom({
               <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/90 text-foreground dark:bg-meet-black dark:text-white">
                 <div className="text-center">
                   <Loader2 className="mx-auto h-12 w-12 animate-spin text-meet-blue" />
-                  <p className="mt-4 text-lg font-medium">Joining the call...</p>
+                          <p className="mt-4 text-lg font-medium">Connecting to consultation...</p>
                 </div>
               </div>
             )}
