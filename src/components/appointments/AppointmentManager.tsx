@@ -74,6 +74,7 @@ import {
   CreditCard,
 } from "lucide-react";
 import { PaymentButton } from "@/components/payments/PaymentButton";
+import { Role } from "@/types/auth.types";
 
 type StatusFilter = "ALL" | "SCHEDULED" | "CONFIRMED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
 
@@ -112,6 +113,16 @@ export default function AppointmentManager({
   const { session } = useAuth();
   const user = session?.user;
   const hasShownRealtimeToastRef = useRef(false);
+  const checkInRoute = useMemo(() => {
+    const userRole = String(user?.role || "").toUpperCase().replace(/\s+/g, "_");
+    if (userRole === Role.RECEPTIONIST) {
+      return "/receptionist/check-in";
+    }
+    if (userRole === Role.CLINIC_LOCATION_HEAD) {
+      return "/clinic-location-head/check-in";
+    }
+    return "/patient/check-in";
+  }, [user?.role]);
 
   // Real-time WebSocket integration
   const { isConnected, isRealTimeEnabled } = useWebSocketStatus();
@@ -578,7 +589,7 @@ export default function AppointmentManager({
                   <Button
                     className="h-10 px-6 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm shadow-sm transition-all active:scale-95 flex-1"
                     onClick={() => {
-                      window.location.href = "/patient/check-in";
+                      window.location.href = checkInRoute;
                     }}
                   >
                     <CheckCircle className="w-4 h-4 mr-2" />

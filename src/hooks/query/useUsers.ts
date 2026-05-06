@@ -1,6 +1,7 @@
 import { useQueryData, useMutationOperation } from '../core';
 import { TOAST_IDS } from '../utils/use-toast';
 import { useAuth } from '../auth/useAuth';
+import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import { setProfileComplete } from '@/lib/actions/auth.server';
 import {
   getAllUsers,
@@ -30,8 +31,11 @@ import {
  * Hook to get user profile
  */
 export const useUserProfile = () => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(['userProfile'], async () => {
     return await getUserProfile();
+  }, {
+    refetchInterval: isConnected ? false : 300_000,
   });
 };
 
@@ -47,7 +51,7 @@ export const useUpdateUserProfile = () => {
       toastId: TOAST_IDS.PROFILE.UPDATE,
       loadingMessage: 'Updating user profile...',
       successMessage: 'User profile updated successfully',
-      invalidateQueries: [['userProfile']],
+      invalidateQueries: [['userProfile'], ['user'], ['users']],
     }
   );
 };
@@ -59,11 +63,13 @@ export const useUpdateUserProfile = () => {
  */
 export const useUser = (id: string) => {
   const { session } = useAuth();
+  const { isConnected } = useWebSocketStatus();
   return useQueryData<Record<string, unknown>>(
     ['user', id],
     async () => (await getUserById(id)) as Record<string, unknown>,
     {
       enabled: !!id && !!session?.user,
+      refetchInterval: isConnected ? false : 300_000,
     }
   );
 };
@@ -80,7 +86,7 @@ export const useUpdateUser = () => {
       toastId: TOAST_IDS.USER.UPDATE,
       loadingMessage: 'Updating user...',
       successMessage: 'User updated successfully',
-      invalidateQueries: [['users']],
+      invalidateQueries: [['users'], ['user'], ['userProfile'], ['patients'], ['doctors'], ['receptionists'], ['clinicAdmins']],
     }
   );
 };
@@ -97,7 +103,7 @@ export const useDeleteUser = () => {
       toastId: TOAST_IDS.USER.DELETE,
       loadingMessage: 'Deleting user...',
       successMessage: 'User deleted successfully',
-      invalidateQueries: [['users']],
+      invalidateQueries: [['users'], ['user'], ['userProfile'], ['patients'], ['doctors'], ['receptionists'], ['clinicAdmins']],
     }
   );
 };
@@ -107,11 +113,13 @@ export const useDeleteUser = () => {
  */
 export const useUsers = () => {
   const { session } = useAuth();
+  const { isConnected } = useWebSocketStatus();
   return useQueryData<Record<string, unknown>[]>(
     ['users'],
     async () => (await getAllUsers()) as Record<string, unknown>[],
     {
       enabled: !!session?.user,
+      refetchInterval: isConnected ? false : 600_000,
     }
   );
 };
@@ -123,11 +131,13 @@ export const useUsers = () => {
  */
 export const usePatients = () => {
   const { session } = useAuth();
+  const { isConnected } = useWebSocketStatus();
   return useQueryData<Record<string, unknown>[]>(
     ['patients'],
     async () => (await getUsersByRole('PATIENT')) as Record<string, unknown>[],
     {
       enabled: !!session?.user,
+      refetchInterval: isConnected ? false : 300_000,
     }
   );
 };
@@ -137,11 +147,13 @@ export const usePatients = () => {
  */
 export const useDoctors = () => {
   const { session } = useAuth();
+  const { isConnected } = useWebSocketStatus();
   return useQueryData<Record<string, unknown>[]>(
     ['doctors'],
     async () => (await getUsersByRole('DOCTOR')) as Record<string, unknown>[],
     {
       enabled: !!session?.user,
+      refetchInterval: isConnected ? false : 300_000,
     }
   );
 };
@@ -151,11 +163,13 @@ export const useDoctors = () => {
  */
 export const useReceptionists = () => {
   const { session } = useAuth();
+  const { isConnected } = useWebSocketStatus();
   return useQueryData<Record<string, unknown>[]>(
     ['receptionists'],
     async () => (await getUsersByRole('RECEPTIONIST')) as Record<string, unknown>[],
     {
       enabled: !!session?.user,
+      refetchInterval: isConnected ? false : 300_000,
     }
   );
 };
@@ -165,11 +179,13 @@ export const useReceptionists = () => {
  */
 export const useClinicAdmins = () => {
   const { session } = useAuth();
+  const { isConnected } = useWebSocketStatus();
   return useQueryData<Record<string, unknown>[]>(
     ['clinicAdmins'],
     async () => (await getUsersByRole('CLINIC_ADMIN')) as Record<string, unknown>[],
     {
       enabled: !!session?.user,
+      refetchInterval: isConnected ? false : 300_000,
     }
   );
 };
@@ -332,7 +348,7 @@ export const useCreateUser = () => {
       toastId: TOAST_IDS.USER.CREATE,
       loadingMessage: 'Creating user...',
       successMessage: 'User created successfully',
-      invalidateQueries: [['users'], ['patients'], ['doctors']],
+      invalidateQueries: [['users'], ['patients'], ['doctors'], ['receptionists'], ['clinicAdmins'], ['userProfile']],
     }
   );
 };
@@ -370,7 +386,7 @@ export const useUpdateUserRole = () => {
       toastId: TOAST_IDS.USER.UPDATE,
       loadingMessage: 'Updating user role...',
       successMessage: 'User role updated successfully',
-      invalidateQueries: [['users']],
+      invalidateQueries: [['users'], ['user'], ['patients'], ['doctors'], ['receptionists'], ['clinicAdmins']],
     }
   );
 };
@@ -386,6 +402,7 @@ export const useSetProfileComplete = () => {
       loadingMessage: 'Finalizing profile...',
       successMessage: 'Profile finalized successfully',
       showToast: false,
+      invalidateQueries: [['userProfile'], ['user'], ['myClinic']],
     }
   );
 };
@@ -460,7 +477,7 @@ export const useBulkUpdateUsers = () => {
       toastId: TOAST_IDS.USER.UPDATE,
       loadingMessage: 'Updating users...',
       successMessage: 'Users updated successfully',
-      invalidateQueries: [['users']],
+      invalidateQueries: [['users'], ['patients'], ['doctors'], ['receptionists'], ['clinicAdmins'], ['userProfile']],
     }
   );
 };
@@ -518,7 +535,7 @@ export const useToggleUserVerification = () => {
       toastId: TOAST_IDS.USER.UPDATE,
       loadingMessage: 'Updating user verification...',
       successMessage: 'User verification updated successfully',
-      invalidateQueries: [['users']],
+      invalidateQueries: [['users'], ['user'], ['patients'], ['doctors'], ['receptionists'], ['clinicAdmins']],
     }
   );
 };

@@ -2,7 +2,6 @@
 
 import React from "react";
 import Script from "next/script";
-import { Inter, Playfair_Display } from "next/font/google";
 import { cn } from "@/lib/utils";
 
 import {
@@ -16,12 +15,6 @@ import Footer from "@/components/ayurveda/Footer";
 import { WhatsAppButton } from "@/components/contact/whatsapp-button";
 import { useTranslation } from "@/lib/i18n/context";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  variable: "--font-playfair",
-});
-
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
 
@@ -29,9 +22,13 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     <div
       className={cn(
         "min-h-screen bg-background relative",
-        inter.variable,
-        playfair.variable
       )}
+      style={
+        {
+          ["--font-inter" as any]: "system-ui, sans-serif",
+          ["--font-playfair" as any]: "Georgia, 'Times New Roman', serif",
+        } as React.CSSProperties
+      }
     >
       <Navigation />
       <main className="relative z-10 overflow-x-clip">{children}</main>

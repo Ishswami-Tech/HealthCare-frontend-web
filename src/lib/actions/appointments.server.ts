@@ -147,6 +147,131 @@ export async function updateAppointmentStatus(id: string, data: any) {
 }
 
 /**
+ * Start a consultation using the dedicated backend endpoint.
+ */
+export async function startConsultation(
+  id: string,
+  data: {
+    doctorId: string;
+    consultationType?: string;
+    notes?: string;
+  }
+) {
+  try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
+    const payload = {
+      doctorId: data.doctorId,
+      ...(data.consultationType ? { consultationType: data.consultationType } : {}),
+      ...(data.notes ? { notes: data.notes } : {}),
+    };
+
+    const { data: appointment } = await authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.START(id), {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+
+    const { ipAddress, userAgent } = await getClientInfo();
+    await auditLog({
+      userId: session.user.id,
+      action: 'APPOINTMENT_CONSULTATION_STARTED',
+      resource: 'APPOINTMENT',
+      resourceId: id,
+      result: 'SUCCESS',
+      riskLevel: 'LOW',
+      ipAddress,
+      userAgent,
+      sessionId: session.session_id,
+      metadata: payload,
+    });
+
+    revalidatePath(`/dashboard/appointments/${id}`);
+    revalidatePath('/doctor/dashboard');
+    revalidatePath('/doctor/appointments');
+    revalidatePath('/doctor/video');
+    revalidatePath('/patient/appointments');
+    revalidateCache('appointments');
+    revalidateCache('myAppointments');
+    revalidateCache('queue');
+    revalidateCache('queue-status');
+    return { success: true, appointment };
+  } catch (error) {
+    logger.error('Failed to start consultation', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to start consultation' };
+  }
+}
+
+/**
+ * Complete an appointment using the dedicated backend endpoint.
+ */
+export async function completeAppointment(
+  id: string,
+  data: {
+    doctorId: string;
+    diagnosis?: string;
+    prescription?: string;
+    notes?: string;
+    treatmentPlan?: string;
+    medications?: string[];
+    followUpDate?: string;
+    followUpNotes?: string;
+    metadata?: Record<string, unknown>;
+  }
+) {
+  try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
+    const { doctorId, ...rest } = data;
+    const validatedData = completeAppointmentSchema.parse(rest);
+    const payload = {
+      doctorId,
+      ...validatedData,
+      ...(validatedData.metadata ? { metadata: validatedData.metadata } : {}),
+    };
+
+    const { data: appointment } = await authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.COMPLETE(id), {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+
+    const { ipAddress, userAgent } = await getClientInfo();
+    await auditLog({
+      userId: session.user.id,
+      action: 'APPOINTMENT_COMPLETED',
+      resource: 'APPOINTMENT',
+      resourceId: id,
+      result: 'SUCCESS',
+      riskLevel: 'LOW',
+      ipAddress,
+      userAgent,
+      sessionId: session.session_id,
+      metadata: {
+        ...payload,
+        appointmentId: id,
+      },
+    });
+
+    revalidatePath(`/dashboard/appointments/${id}`);
+    revalidatePath('/doctor/dashboard');
+    revalidatePath('/doctor/appointments');
+    revalidatePath('/patient/appointments');
+    revalidateCache('appointments');
+    revalidateCache('myAppointments');
+    revalidateCache('queue');
+    revalidateCache('queue-status');
+    revalidateCache('prescriptions');
+    revalidateCache('patient-prescriptions');
+    revalidateCache('medical-records');
+    return { success: true, appointment };
+  } catch (error) {
+    logger.error('Failed to complete appointment', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to complete appointment' };
+  }
+}
+
+/**
  * Cancel an appointment using the dedicated ownership-aware backend route.
  */
 export async function cancelAppointment(id: string, reason?: string) {
@@ -270,6 +395,52 @@ export async function getAppointmentServiceCatalog(): Promise<{
       error instanceof Error ? error : new Error(String(error))
     );
     return { success: false, error: 'Failed to fetch appointment services' };
+  }
+}
+
+export async function getCheckInLocations(): Promise<{
+  success: boolean;
+  data?: unknown[];
+  error?: string;
+}> {
+  try {
+    const { data } = await authenticatedApi<{
+      data?: unknown[];
+      locations?: unknown[];
+    }>(API_ENDPOINTS.APPOINTMENTS.CHECK_IN_LOCATIONS, {});
+
+    const locations = Array.isArray(data?.data)
+      ? data.data
+      : Array.isArray(data?.locations)
+        ? data.locations
+        : Array.isArray(data as unknown[])
+          ? (data as unknown[])
+          : [];
+
+    return { success: true, data: locations };
+  } catch (error) {
+    logger.error(
+      'Failed to get check-in locations',
+      error instanceof Error ? error : new Error(String(error))
+    );
+    return { success: false, error: 'Failed to fetch check-in locations' };
+  }
+}
+
+export async function getCheckInHistory(): Promise<{
+  success: boolean;
+  data?: unknown;
+  error?: string;
+}> {
+  try {
+    const { data } = await authenticatedApi<unknown>(API_ENDPOINTS.APPOINTMENTS.CHECK_IN_HISTORY, {});
+    return { success: true, data };
+  } catch (error) {
+    logger.error(
+      'Failed to get check-in history',
+      error instanceof Error ? error : new Error(String(error))
+    );
+    return { success: false, error: 'Failed to fetch check-in history' };
   }
 }
 
@@ -593,6 +764,7 @@ export async function checkInAppointment(
         body: JSON.stringify({
           checkInMethod: 'manual',
           notes: 'Manual receptionist check-in',
+          ...(options?.locationId ? { locationId: options.locationId } : {}),
         }),
       });
     } catch (checkInError) {

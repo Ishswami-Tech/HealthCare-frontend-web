@@ -466,6 +466,8 @@ export const API_ENDPOINTS = {
     CREATE: '/appointments',
     GET_ALL: '/appointments',
     SERVICES: '/appointments/services/catalog',
+    CHECK_IN_LOCATIONS: '/appointments/check-in/locations',
+    CHECK_IN_HISTORY: '/appointments/check-in/history',
     MY_APPOINTMENTS: '/appointments/my-appointments', // Patient-specific endpoint
     GET_BY_TENANT: (tenantId: string) => `/appointments/tenant/${tenantId}`,
     GET_BY_ID: (id: string) => `/appointments/${id}`,

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useQueryData, useMutationOperation } from '../core';
+import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import { TOAST_IDS } from '../utils/use-toast';
 import {
   getPatients,
@@ -41,12 +42,14 @@ export const usePatients = (clinicId: string, filters?: {
 }, options?: {
   enabled?: boolean;
 }) => {
+  const { isConnected } = useWebSocketStatus();
   const setCollection = usePatientStore((state) => state.setCollection);
 
   const query = useQueryData(['patients', clinicId, filters], async () => {
     return await getPatients(clinicId, filters);
   }, {
     enabled: !!clinicId && (options?.enabled ?? true),
+    refetchInterval: isConnected ? false : 120_000,
   });
 
   useEffect(() => {
@@ -69,10 +72,12 @@ export const usePatients = (clinicId: string, filters?: {
  * Hook to get patient by ID
  */
 export const usePatient = (clinicId: string, patientId: string) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(['patient', clinicId, patientId], async () => {
     return await getPatientById(clinicId, patientId);
   }, {
     enabled: !!clinicId && !!patientId,
+    refetchInterval: isConnected ? false : 120_000,
   });
 };
 
@@ -86,10 +91,12 @@ export const usePatientAppointments = (patientId: string, filters?: {
   doctorId?: string;
   limit?: number;
 }) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(['patientAppointments', patientId, filters], async () => {
     return await getPatientAppointments(patientId, filters);
   }, {
     enabled: !!patientId,
+    refetchInterval: isConnected ? false : 30_000,
   });
 };
 
@@ -102,10 +109,12 @@ export const usePatientMedicalHistory = (patientId: string, filters?: {
   endDate?: string;
   limit?: number;
 }) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(['patientMedicalHistory', patientId, filters], async () => {
     return await getPatientMedicalHistory('', patientId, filters);
   }, {
     enabled: !!patientId,
+    refetchInterval: isConnected ? false : 120_000,
   });
 };
 
@@ -115,10 +124,12 @@ export const usePatientMedicalHistory = (patientId: string, filters?: {
 export const usePatientMedicalRecords = (clinicId: string, patientId: string, options?: {
   enabled?: boolean;
 }) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(['patientMedicalRecords', clinicId, patientId], async () => {
     return await getPatientMedicalHistory(clinicId, patientId);
   }, {
     enabled: !!clinicId && !!patientId && (options?.enabled !== false),
+    refetchInterval: isConnected ? false : 120_000,
   });
 };
 
@@ -130,10 +141,12 @@ export const usePatientVitalSigns = (patientId: string, filters?: {
   endDate?: string;
   limit?: number;
 }) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(['patientVitalSigns', patientId, filters], async () => {
     return await getPatientVitalSigns(patientId, filters);
   }, {
     enabled: !!patientId,
+    refetchInterval: isConnected ? false : 30_000,
   });
 };
 
@@ -146,10 +159,12 @@ export const usePatientLabResults = (patientId: string, filters?: {
   endDate?: string;
   limit?: number;
 }) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(['patientLabResults', patientId, filters], async () => {
     return await getPatientLabResults(patientId, filters);
   }, {
     enabled: !!patientId,
+    refetchInterval: isConnected ? false : 60_000,
   });
 };
 
@@ -157,10 +172,12 @@ export const usePatientLabResults = (patientId: string, filters?: {
  * Hook to get patient statistics
  */
 export const usePatientStats = (patientId: string) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(['patientStats', patientId], async () => {
     return await getPatientStats(patientId);
   }, {
     enabled: !!patientId,
+    refetchInterval: isConnected ? false : 60_000,
   });
 };
 
@@ -173,10 +190,12 @@ export const usePatientTimeline = (patientId: string, filters?: {
   eventTypes?: string[];
   limit?: number;
 }) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(['patientTimeline', patientId, filters], async () => {
     return await getPatientTimeline(patientId, filters);
   }, {
     enabled: !!patientId,
+    refetchInterval: isConnected ? false : 60_000,
   });
 };
 
@@ -184,10 +203,12 @@ export const usePatientTimeline = (patientId: string, filters?: {
  * Hook to get patient care plan
  */
 export const usePatientCarePlan = (patientId: string) => {
+  const { isConnected } = useWebSocketStatus();
   return useQueryData(['patientCarePlan', patientId], async () => {
     return await getPatientCarePlan(patientId);
   }, {
     enabled: !!patientId,
+    refetchInterval: isConnected ? false : 120_000,
   });
 };
 
@@ -224,7 +245,13 @@ export const useCreatePatient = () => {
       toastId: TOAST_IDS.PATIENT.CREATE,
       loadingMessage: 'Creating patient...',
       successMessage: 'Patient created successfully',
-      invalidateQueries: [['patients']],
+      invalidateQueries: [
+        ['patients'],
+        ['users'],
+        ['patientStats'],
+        ['patientTimeline'],
+        ['patientCarePlan'],
+      ],
     }
   );
 };
@@ -320,7 +347,13 @@ export const useQuickRegisterPatient = () => {
       toastId: TOAST_IDS.PATIENT.CREATE,
       loadingMessage: 'Registering patient...',
       successMessage: 'Patient registered successfully',
-      invalidateQueries: [['patients'], ['users']],
+      invalidateQueries: [
+        ['patients'],
+        ['users'],
+        ['patientStats'],
+        ['patientTimeline'],
+        ['patientCarePlan'],
+      ],
     }
   );
 };
@@ -359,7 +392,13 @@ export const useUpdatePatient = () => {
       toastId: TOAST_IDS.PATIENT.UPDATE,
       loadingMessage: 'Updating patient...',
       successMessage: 'Patient updated successfully',
-      invalidateQueries: [['patients']],
+      invalidateQueries: [
+        ['patients'],
+        ['users'],
+        ['patientStats'],
+        ['patientTimeline'],
+        ['patientCarePlan'],
+      ],
     }
   );
 };
@@ -376,7 +415,13 @@ export const useDeletePatient = () => {
       toastId: TOAST_IDS.PATIENT.DELETE,
       loadingMessage: 'Deleting patient...',
       successMessage: 'Patient deleted successfully',
-      invalidateQueries: [['patients']],
+      invalidateQueries: [
+        ['patients'],
+        ['users'],
+        ['patientStats'],
+        ['patientTimeline'],
+        ['patientCarePlan'],
+      ],
     }
   );
 };
@@ -404,7 +449,7 @@ export const useAddPatientMedicalHistory = () => {
       toastId: TOAST_IDS.EHR.HISTORY_CREATE,
       loadingMessage: 'Adding medical history...',
       successMessage: 'Medical history added successfully',
-      invalidateQueries: [['patientMedicalHistory']],
+      invalidateQueries: [['patientMedicalHistory'], ['patientMedicalRecords'], ['patientTimeline'], ['patientStats']],
     }
   );
 };
@@ -437,7 +482,7 @@ export const useAddPatientVitalSigns = () => {
       toastId: TOAST_IDS.EHR.VITAL_CREATE,
       loadingMessage: 'Adding vital signs...',
       successMessage: 'Vital signs added successfully',
-      invalidateQueries: [['patientVitalSigns']],
+      invalidateQueries: [['patientVitalSigns'], ['patientMedicalRecords'], ['patientTimeline'], ['patientStats']],
     }
   );
 };
@@ -469,7 +514,7 @@ export const useAddPatientLabResult = () => {
       toastId: TOAST_IDS.EHR.LAB_CREATE,
       loadingMessage: 'Adding lab result...',
       successMessage: 'Lab result added successfully',
-      invalidateQueries: [['patientLabResults']],
+      invalidateQueries: [['patientLabResults'], ['patientMedicalRecords'], ['patientTimeline'], ['patientStats']],
     }
   );
 };
@@ -552,7 +597,7 @@ export const useUpdatePatientCarePlan = () => {
       toastId: TOAST_IDS.PATIENT.UPDATE,
       loadingMessage: 'Updating patient care plan...',
       successMessage: 'Patient care plan updated successfully',
-      invalidateQueries: [['patientCarePlan']],
+      invalidateQueries: [['patientCarePlan'], ['patientTimeline'], ['patientStats']],
     }
   );
 };

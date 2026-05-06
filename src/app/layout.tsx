@@ -4,7 +4,6 @@
  * Follows DRY, SOLID, KISS principles
  */
 
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { AppProvider } from "@/app/providers/AppProvider";
 import { PerformanceProvider } from "@/app/providers/PerformanceProvider";
@@ -19,12 +18,6 @@ const BRAND_NAME = APP_CONFIG.CLINIC.APP_NAME;
 const OG_IMAGE = "/assets/og/og-image.png";
 const SITE_DESCRIPTION =
   "Experience authentic Ayurvedic care in Chinchwad, Pune with Panchakarma, Agnikarma, Viddha Karma, appointments, and secure patient workflows.";
-
-const inter = Inter({
-  subsets: ["latin"],
-  display: "swap",
-  preload: true,
-});
 
 export const metadata = {
   title: `${BRAND_NAME} | Authentic Ayurvedic Healing & Wellness`,
@@ -102,17 +95,16 @@ export default async function RootLayout({
       lang={DEFAULT_LANGUAGE}
       suppressHydrationWarning
       data-scroll-behavior="smooth"
+      style={{ ["--font-inter" as any]: "system-ui, sans-serif" }}
     >
       <head>
         {/* Performance & Resource Hints */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="//accounts.google.com" />
         <link rel="dns-prefetch" href="//www.google-analytics.com" />
         
         <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
       </head>
-      <body className={cn(inter.className, "antialiased")} suppressHydrationWarning>
+      <body className={cn("font-sans antialiased")} suppressHydrationWarning>
         <PerformanceProvider
           enableWebVitals={true}
           enableResourceTracking={true}

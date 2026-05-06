@@ -3,6 +3,7 @@
 
 import { useQueryData, useMutationOperation } from '../core';
 import { useCurrentClinicId } from './useClinics';
+import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import {
   getBillingPlans,
   getBillingPlan,
@@ -37,7 +38,39 @@ import type {
   CreateSubscriptionData,
   CreateInvoiceData,
   CreatePaymentData,
+  Invoice,
 } from '@/types/billing.types';
+
+function getInvoiceSortTimestamp(invoice: Pick<Invoice, 'createdAt' | 'updatedAt' | 'dueDate' | 'paidDate'>): number {
+  const candidate =
+    invoice.createdAt ||
+    invoice.updatedAt ||
+    invoice.paidDate ||
+    invoice.dueDate ||
+    '';
+  const timestamp = new Date(candidate).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function sortInvoicesNewestFirst(invoices: Invoice[]): Invoice[] {
+  return [...invoices].sort((left, right) => getInvoiceSortTimestamp(right) - getInvoiceSortTimestamp(left));
+}
+
+function getPaymentSortTimestamp(payment: {
+  createdAt?: string;
+  updatedAt?: string;
+  paymentDate?: string;
+}): number {
+  const candidate = payment.paymentDate || payment.createdAt || payment.updatedAt || "";
+  const timestamp = new Date(candidate).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function sortPaymentsNewestFirst<T extends { createdAt?: string; updatedAt?: string; paymentDate?: string }>(
+  payments: T[]
+): T[] {
+  return [...payments].sort((left, right) => getPaymentSortTimestamp(right) - getPaymentSortTimestamp(left));
+}
 
 // ============ Billing Plans Hooks ============
 
@@ -89,7 +122,7 @@ export function useCreateBillingPlan() {
       toastId: 'billing-plan-create',
       loadingMessage: 'Creating billing plan...',
       successMessage: 'Billing plan created successfully',
-      invalidateQueries: [['billing-plans']],
+      invalidateQueries: [['billing-plans'], ['billing-analytics']],
     }
   );
 }
@@ -107,7 +140,7 @@ export function useUpdateBillingPlan() {
       toastId: 'billing-plan-update',
       loadingMessage: 'Updating billing plan...',
       successMessage: 'Billing plan updated successfully',
-      invalidateQueries: [['billing-plans'], ['billing-plan']],
+      invalidateQueries: [['billing-plans'], ['billing-plan'], ['billing-analytics']],
     }
   );
 }
@@ -124,7 +157,7 @@ export function useDeleteBillingPlan() {
       toastId: 'billing-plan-delete',
       loadingMessage: 'Deleting billing plan...',
       successMessage: 'Billing plan deleted successfully',
-      invalidateQueries: [['billing-plans']],
+      invalidateQueries: [['billing-plans'], ['billing-plan'], ['billing-analytics']],
     }
   );
 }
@@ -132,6 +165,8 @@ export function useDeleteBillingPlan() {
 // ============ Subscriptions Hooks ============
 
 export function useSubscriptions(userId: string, enabled: boolean = true) {
+  const { isConnected } = useWebSocketStatus();
+
   return useQueryData(
     ['subscriptions', userId],
     async () => {
@@ -146,12 +181,14 @@ export function useSubscriptions(userId: string, enabled: boolean = true) {
       staleTime: 10 * 60 * 1000, // 10 minutes (optimized for 10M users)
       gcTime: 30 * 60 * 1000, // 30 minutes
       refetchOnWindowFocus: false,
+      refetchInterval: isConnected ? false : 60_000,
     }
   );
 }
 
 export function useClinicSubscriptions(enabled: boolean = true) {
   const clinicId = useCurrentClinicId();
+  const { isConnected } = useWebSocketStatus();
 
   return useQueryData(
     ['clinic-subscriptions', clinicId],
@@ -167,11 +204,14 @@ export function useClinicSubscriptions(enabled: boolean = true) {
       staleTime: 10 * 60 * 1000,
       gcTime: 30 * 60 * 1000,
       refetchOnWindowFocus: false,
+      refetchInterval: isConnected ? false : 60_000,
     }
   );
 }
 
 export function useActiveSubscription(userId: string, clinicId: string, enabled: boolean = true) {
+  const { isConnected } = useWebSocketStatus();
+
   return useQueryData(
     ['active-subscription', userId, clinicId],
     async () => {
@@ -186,6 +226,7 @@ export function useActiveSubscription(userId: string, clinicId: string, enabled:
       staleTime: 5 * 60 * 1000, // 5 minutes (optimized for 10M users)
       gcTime: 15 * 60 * 1000, // 15 minutes
       refetchOnWindowFocus: false,
+      refetchInterval: isConnected ? false : 60_000,
     }
   );
 }
@@ -203,7 +244,7 @@ export function useCreateSubscription() {
       toastId: 'subscription-create',
       loadingMessage: 'Creating subscription...',
       successMessage: 'Subscription created successfully',
-      invalidateQueries: [['subscriptions'], ['active-subscription']],
+      invalidateQueries: [['subscriptions'], ['active-subscription'], ['clinic-subscriptions'], ['billing-analytics']],
     }
   );
 }
@@ -221,7 +262,7 @@ export function useCancelSubscription() {
       toastId: 'subscription-cancel',
       loadingMessage: 'Cancelling subscription...',
       successMessage: 'Subscription cancelled successfully',
-      invalidateQueries: [['subscriptions'], ['active-subscription']],
+      invalidateQueries: [['subscriptions'], ['active-subscription'], ['clinic-subscriptions'], ['billing-analytics']],
     }
   );
 }
@@ -248,6 +289,8 @@ export function useSubscriptionUsageStats(id: string) {
 // ============ Invoices Hooks ============
 
 export function useInvoices(userId: string) {
+  const { isConnected } = useWebSocketStatus();
+
   return useQueryData(
     ['invoices', userId],
     async () => {
@@ -255,19 +298,21 @@ export function useInvoices(userId: string) {
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch invoices');
       }
-      return result.invoices || [];
+      return sortInvoicesNewestFirst((result.invoices || []) as Invoice[]);
     },
     {
       enabled: !!userId,
       staleTime: 10 * 60 * 1000, // 10 minutes (optimized for 10M users)
       gcTime: 30 * 60 * 1000, // 30 minutes
       refetchOnWindowFocus: false,
+      refetchInterval: isConnected ? false : 60_000,
     }
   );
 }
 
 export function useClinicInvoices(enabled: boolean = true) {
   const clinicId = useCurrentClinicId();
+  const { isConnected } = useWebSocketStatus();
 
   return useQueryData(
     ['clinic-invoices', clinicId],
@@ -276,13 +321,14 @@ export function useClinicInvoices(enabled: boolean = true) {
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch clinic invoices');
       }
-      return result.invoices || [];
+      return sortInvoicesNewestFirst((result.invoices || []) as Invoice[]);
     },
     {
       enabled: enabled && !!clinicId,
       staleTime: 10 * 60 * 1000,
       gcTime: 30 * 60 * 1000,
       refetchOnWindowFocus: false,
+      refetchInterval: isConnected ? false : 60_000,
     }
   );
 }
@@ -300,7 +346,7 @@ export function useCreateInvoice() {
       toastId: 'invoice-create',
       loadingMessage: 'Creating invoice...',
       successMessage: 'Invoice created successfully',
-      invalidateQueries: [['invoices']],
+      invalidateQueries: [['invoices'], ['clinic-invoices'], ['billing-analytics']],
     }
   );
 }
@@ -318,7 +364,14 @@ export function useMarkInvoiceAsPaid() {
       toastId: 'invoice-mark-paid',
       loadingMessage: 'Marking invoice as paid...',
       successMessage: 'Invoice marked as paid',
-      invalidateQueries: [['invoices'], ['clinic-invoices'], ['payments'], ['clinic-payments']],
+      invalidateQueries: [
+        ['invoices'],
+        ['clinic-invoices'],
+        ['payments'],
+        ['clinic-payments'],
+        ['clinic-ledger'],
+        ['billing-analytics'],
+      ],
     }
   );
 }
@@ -326,6 +379,8 @@ export function useMarkInvoiceAsPaid() {
 // ============ Payments Hooks ============
 
 export function usePayments(userId: string) {
+  const { isConnected } = useWebSocketStatus();
+
   return useQueryData(
     ['payments', userId],
     async () => {
@@ -333,13 +388,14 @@ export function usePayments(userId: string) {
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch payments');
       }
-      return result.payments || [];
+      return sortPaymentsNewestFirst(result.payments || []);
     },
     {
       enabled: !!userId,
       staleTime: 10 * 60 * 1000, // 10 minutes (optimized for 10M users)
       gcTime: 30 * 60 * 1000, // 30 minutes
       refetchOnWindowFocus: false,
+      refetchInterval: isConnected ? false : 60_000,
     }
   );
 }
@@ -353,6 +409,7 @@ export function useClinicPayments(filters?: {
   endDate?: string;
 }, enabled: boolean = true) {
   const clinicId = useCurrentClinicId();
+  const { isConnected } = useWebSocketStatus();
 
   return useQueryData(
     ['clinic-payments', clinicId, filters],
@@ -361,13 +418,14 @@ export function useClinicPayments(filters?: {
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch clinic payments');
       }
-      return result.payments || [];
+      return sortPaymentsNewestFirst(result.payments || []);
     },
     {
       enabled: enabled && !!clinicId,
       staleTime: 2 * 60 * 1000,
       gcTime: 10 * 60 * 1000,
       refetchOnWindowFocus: false,
+      refetchInterval: isConnected ? false : 60_000,
     }
   );
 }
@@ -380,6 +438,8 @@ export function useClinicLedger(filters?: {
   startDate?: string;
   endDate?: string;
 }, enabled: boolean = true) {
+  const { isConnected } = useWebSocketStatus();
+
   return useQueryData(
     ['clinic-ledger', filters],
     async () => {
@@ -394,6 +454,7 @@ export function useClinicLedger(filters?: {
       staleTime: 2 * 60 * 1000,
       gcTime: 10 * 60 * 1000,
       refetchOnWindowFocus: false,
+      refetchInterval: isConnected ? false : 60_000,
     }
   );
 }
@@ -411,7 +472,14 @@ export function useCreatePayment() {
       toastId: 'payment-create',
       loadingMessage: 'Processing payment...',
       successMessage: 'Payment verified.',
-      invalidateQueries: [['payments'], ['invoices']],
+      invalidateQueries: [
+        ['payments'],
+        ['invoices'],
+        ['clinic-payments'],
+        ['clinic-invoices'],
+        ['clinic-ledger'],
+        ['billing-analytics'],
+      ],
     }
   );
 }
@@ -429,7 +497,13 @@ export function useReleaseAppointmentPayout() {
       toastId: 'release-payout',
       loadingMessage: 'Releasing payout...',
       successMessage: 'Payout released successfully',
-      invalidateQueries: [['clinic-ledger'], ['clinic-payments'], ['payments'], ['billing-analytics']],
+      invalidateQueries: [
+        ['clinic-ledger'],
+        ['clinic-payments'],
+        ['payments'],
+        ['billing-analytics'],
+        ['clinic-invoices'],
+      ],
     }
   );
 }
@@ -474,7 +548,14 @@ export function useCreateInPersonAppointmentWithSubscription() {
       toastId: 'subscription-appointment-create',
       loadingMessage: 'Booking appointment...',
       successMessage: 'Appointment booked successfully',
-      invalidateQueries: [['appointments'], ['myAppointments'], ['subscriptions']],
+      invalidateQueries: [
+        ['appointments'],
+        ['myAppointments'],
+        ['subscriptions'],
+        ['active-subscription'],
+        ['clinic-subscriptions'],
+        ['billing-analytics'],
+      ],
       showToast: false,
     }
   );
@@ -493,7 +574,13 @@ export function useReconcilePayment() {
       toastId: 'reconcile-payment',
       loadingMessage: 'Reconciling payment...',
       successMessage: 'Payment reconciled',
-      invalidateQueries: [['clinic-ledger'], ['clinic-payments'], ['payments'], ['billing-analytics']],
+      invalidateQueries: [
+        ['clinic-ledger'],
+        ['clinic-payments'],
+        ['payments'],
+        ['billing-analytics'],
+        ['clinic-invoices'],
+      ],
     }
   );
 }
@@ -521,13 +608,15 @@ export function useGenerateInvoicePDF() {
     loadingMessage: 'Generating invoice PDF...',
     successMessage: 'Invoice PDF request submitted',
     errorMessage: 'Failed to generate invoice PDF',
-    invalidateQueries: [['invoices'], ['clinic-invoices']],
+    invalidateQueries: [['invoices'], ['clinic-invoices'], ['billing-analytics']],
   });
 }
 
 // ============ Analytics Hooks ============
 
 export function useBillingAnalytics(clinicId: string) {
+  const { isConnected } = useWebSocketStatus();
+
   return useQueryData(
     ['billing-analytics', clinicId],
     async () => {
@@ -540,6 +629,7 @@ export function useBillingAnalytics(clinicId: string) {
     {
       enabled: !!clinicId,
       staleTime: 10 * 60 * 1000, // 10 minutes
+      refetchInterval: isConnected ? false : 60_000,
     }
   );
 }

@@ -1,15 +1,34 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useCurrentClinic, useClinicStats, useActiveLocations } from "@/hooks/query/useClinics";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useCurrentClinic, useClinicLocations, useClinicStats } from "@/hooks/query/useClinics";
+import { useUsersByClinic } from "@/hooks/query/useUsers";
+import { useDoctors } from "@/hooks/query/useDoctors";
+import { useAssistantDoctorCoverage } from "@/hooks/query/useAppointments";
 import { useMedicineDeskQueue } from "@/hooks/query/usePharmacy";
 import { useQueue } from "@/hooks/query/useQueue";
 import { useRealTimeAppointments } from "@/hooks/realtime/useRealTimeQueries";
 import { cn } from "@/lib/utils";
+import {
+  getAppointmentDateTimeValue,
+  getAppointmentPaymentDisplayState,
+  getAppointmentPatientName,
+  getReceptionistAppointmentDateLabel,
+  getReceptionistAppointmentTimeLabel,
+} from "@/lib/utils/appointmentUtils";
 import {
   extractQueueEntries,
   getQueuePositionLabel,
@@ -22,9 +41,7 @@ import { formatDateTimeInIST } from "@/lib/utils/date-time";
 import {
   Settings,
   Clock,
-  TrendingUp,
   AlertCircle,
-  Plus,
   CalendarDays,
   Loader2,
   ArrowUpRight,
@@ -33,17 +50,24 @@ import {
   UserPlus,
   IndianRupee,
   RefreshCcw,
+  MapPin,
+  Users,
 } from "lucide-react";
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 export default function ClinicAdminDashboard() {
+  const router = useRouter();
   const { data: currentClinic, isPending: isLoadingClinic } = useCurrentClinic();
   const clinicId = currentClinic?.id;
 
-  const { data: locations = [] } = useActiveLocations(clinicId || "");
-  const locationId = locations[0]?.id || "";
-
   // Real data fetching
   const { data: clinicStats, isPending: isLoadingStats, refetch: refetchStats } = useClinicStats(clinicId || "");
+  const { data: clinicLocationsData, isPending: isLoadingLocations } = useClinicLocations(clinicId || "");
+  const { data: clinicStaffData } = useUsersByClinic(clinicId || "");
+  const { data: doctorsData } = useDoctors(clinicId || "", undefined, { enabled: !!clinicId });
+  const { data: assistantCoverageData = [] } = useAssistantDoctorCoverage();
   const { data: appointmentsData } = useRealTimeAppointments({
     limit: 100,
   });
@@ -53,13 +77,264 @@ export default function ClinicAdminDashboard() {
   const { data: medicineDeskQueue = [] } = useMedicineDeskQueue(clinicId || "", !!clinicId);
 
   const appointments = (appointmentsData as any)?.data || [];
+  const clinicLocations = useMemo(() => {
+    const data = clinicLocationsData as any;
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.locations)) return data.locations;
+    if (Array.isArray(data?.data)) return data.data;
+    return [];
+  }, [clinicLocationsData]);
+
+  const staffMembers = useMemo(() => {
+    const data = clinicStaffData as any;
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.users)) return data.users;
+    if (Array.isArray(data?.data)) return data.data;
+    return [];
+  }, [clinicStaffData]);
+
+  const doctorRosters = useMemo(() => {
+    const data = doctorsData as any;
+    const source = Array.isArray(data) ? data : Array.isArray(data?.doctors) ? data.doctors : Array.isArray(data?.data) ? data.data : [];
+
+    return source.map((doctor: any) => ({
+      id: String(doctor?.id || ""),
+      name: String(doctor?.name || `${doctor?.firstName || ""} ${doctor?.lastName || ""}`.trim() || "Doctor"),
+      specialization: String(doctor?.specialization || doctor?.specializations?.[0] || "General"),
+      isActive: doctor?.isActive !== false,
+      hasSchedule:
+        Boolean(doctor?.schedule) ||
+        Boolean(doctor?.weeklySchedule) ||
+        Boolean(doctor?.schedule?.schedules) ||
+        Boolean(doctor?.schedule?.weeklySchedule),
+    })).filter((doctor: any) => doctor.id);
+  }, [doctorsData]);
+
   const queueItems = useMemo(
     () =>
       extractQueueEntries(liveQueueData)
-        .filter((item) => !["COMPLETED", "CANCELLED", "NO_SHOW"].includes(String(item.status || "").toUpperCase()))
-        .sort((a, b) => a.position - b.position),
+        .filter((item: any) => !["COMPLETED", "CANCELLED", "NO_SHOW"].includes(String(item.status || "").toUpperCase()))
+        .sort((a: any, b: any) => a.position - b.position),
     [liveQueueData]
   );
+
+  const queueSections = useMemo(() => {
+    const sectionMap = new Map<
+      string,
+      {
+        key: string;
+        title: string;
+        items: any[];
+      }
+    >();
+
+    queueItems.forEach((item: any) => {
+      const title = String(item.locationName || item.locationId || "Unassigned location").trim();
+      const key = title.toLowerCase().replace(/\s+/g, "_");
+      const section = sectionMap.get(key);
+
+      if (section) {
+        section.items.push(item);
+        return;
+      }
+
+      sectionMap.set(key, {
+        key,
+        title,
+        items: [item],
+      });
+    });
+
+    return Array.from(sectionMap.values()).sort((a, b) => b.items.length - a.items.length || a.title.localeCompare(b.title));
+  }, [queueItems]);
+
+  const [activeQueueLane, setActiveQueueLane] = useState("");
+
+  useEffect(() => {
+    if (queueSections.length === 0) {
+      if (activeQueueLane) {
+        setActiveQueueLane("");
+      }
+      return;
+    }
+
+    if (!queueSections.some((section) => section.key === activeQueueLane)) {
+      setActiveQueueLane(queueSections[0]?.key || "");
+    }
+  }, [activeQueueLane, queueSections]);
+
+  const activeQueueSection = useMemo(() => {
+    if (!queueSections.length) {
+      return null;
+    }
+
+    return queueSections.find((section) => section.key === activeQueueLane) || queueSections[0];
+  }, [activeQueueLane, queueSections]);
+
+  const selectedQueueItems = activeQueueSection?.items || [];
+  const highlightedQueueItem = selectedQueueItems[0] || queueItems[0] || null;
+
+  const todayKey = useMemo(
+    () => formatDateTimeInIST(new Date(), { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA"),
+    []
+  );
+
+  const inPersonAppointments = useMemo(
+    () =>
+      appointments
+        .filter((appointment: any) => String(appointment?.type || appointment?.appointmentType || "").toUpperCase() !== "VIDEO_CALL")
+        .map((appointment: any) => {
+          const dateTime = getAppointmentDateTimeValue(appointment);
+          const appointmentDate = dateTime
+            ? formatDateTimeInIST(dateTime, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA")
+            : String(appointment?.date || appointment?.appointmentDate || "").split("T")[0] || "";
+          return {
+            raw: appointment,
+            dateTime,
+            appointmentDate,
+            patientName: getAppointmentPatientName(appointment),
+            checkedInAt: appointment?.checkedInAt ? new Date(appointment.checkedInAt) : null,
+            status: String(appointment?.status || "").toUpperCase(),
+            locationId: String(appointment?.locationId || appointment?.location?.id || ""),
+            locationName: String(appointment?.location?.name || appointment?.locationName || ""),
+            doctorName: String(appointment?.doctor?.name || appointment?.doctorName || appointment?.assignedDoctor?.name || appointment?.assignedDoctorName || ""),
+            paymentStatus: getAppointmentPaymentDisplayState(appointment).paymentStatus,
+            dateLabel: getReceptionistAppointmentDateLabel(appointment),
+            timeLabel: getReceptionistAppointmentTimeLabel(appointment),
+          };
+        })
+        .sort((a: any, b: any) => (a.dateTime?.getTime() || 0) - (b.dateTime?.getTime() || 0)),
+    [appointments]
+  );
+
+  const todayAppointments = useMemo(
+    () => inPersonAppointments.filter((appointment: any) => appointment.appointmentDate === todayKey),
+    [inPersonAppointments, todayKey]
+  );
+
+  const pendingCheckIns = useMemo(
+    () =>
+      todayAppointments.filter(
+        (appointment: any) =>
+          !appointment.checkedInAt &&
+          !["COMPLETED", "CANCELLED", "NO_SHOW"].includes(appointment.status)
+      ),
+    [todayAppointments]
+  );
+
+  const checkedInToday = useMemo(
+    () => todayAppointments.filter((appointment: any) => Boolean(appointment.checkedInAt)).length,
+    [todayAppointments]
+  );
+
+  const locationSummaries = useMemo(() => {
+    const queueByLocation = queueItems.reduce<Record<string, number>>((accumulator, item) => {
+      const locationKey = String(item.locationId || "unassigned");
+      accumulator[locationKey] = (accumulator[locationKey] || 0) + 1;
+      return accumulator;
+    }, {});
+
+    return clinicLocations
+      .map((location: any) => {
+        const locationId = String(location?.id || "");
+        const locationAppointments = todayAppointments.filter((appointment: any) => appointment.locationId === locationId);
+        return {
+          id: locationId,
+          name: String(location?.name || "Location"),
+          isActive: location?.isActive !== false,
+          checkedIn: locationAppointments.filter((appointment: any) => Boolean(appointment.checkedInAt)).length,
+          pending: locationAppointments.filter(
+            (appointment: any) =>
+              !appointment.checkedInAt &&
+              !["COMPLETED", "CANCELLED", "NO_SHOW"].includes(appointment.status)
+          ).length,
+          queueCount: queueByLocation[locationId] || 0,
+        };
+      })
+      .sort((a: any, b: any) => b.queueCount - a.queueCount || Number(a.isActive) - Number(b.isActive));
+  }, [clinicLocations, queueItems, todayAppointments]);
+
+  const activeLocationCount = locationSummaries.filter((location: any) => location.isActive).length;
+  const inactiveLocationCount = locationSummaries.filter((location: any) => !location.isActive).length;
+
+  const clinicSettingsSnapshot = useMemo(() => {
+    const base = isRecord(currentClinic) && isRecord(currentClinic.settings) ? currentClinic.settings : {};
+    const appointmentSettings = isRecord(base.appointmentSettings) ? base.appointmentSettings : {};
+    const notificationSettings = isRecord(base.notificationSettings) ? base.notificationSettings : {};
+    const notifications = isRecord(base.notifications) ? base.notifications : {};
+    const paymentSettings = isRecord(base.paymentSettings) ? base.paymentSettings : {};
+    const opdControls = isRecord(appointmentSettings.opdControls)
+      ? appointmentSettings.opdControls
+      : isRecord(base.opdControls)
+      ? base.opdControls
+      : {};
+
+    const paymentMethods = Array.isArray((paymentSettings as any).paymentMethods)
+      ? (paymentSettings as any).paymentMethods.join(", ")
+      : "Cash, Card, UPI";
+
+    return {
+      appointmentDuration: Number(appointmentSettings.appointmentDuration || 0) || 30,
+      maxAdvanceBooking: Number(appointmentSettings.maxAdvanceBooking || 0) || 30,
+      minAdvanceBooking: Number(appointmentSettings.minAdvanceBooking || 0) || 2,
+      cancellationWindow: Number(appointmentSettings.cancellationWindow || 0) || 24,
+      noShowWindowMinutes: Number(appointmentSettings.noShowWindowMinutes || 0) || 15,
+      walkInAllowed: appointmentSettings.walkInAllowed !== false,
+      generalConsultationEnabled: opdControls.generalConsultationEnabled !== false,
+      videoConsultationEnabled: opdControls.videoConsultationEnabled !== false,
+      clinicPaused: Boolean(opdControls.isOpdPaused || opdControls.clinicPaused),
+      emergencyOnly: Boolean(opdControls.emergencyOnly),
+      notificationsEnabled:
+        Boolean(notifications.email ?? notificationSettings.emailNotifications) ||
+        Boolean(notifications.sms ?? notificationSettings.smsNotifications) ||
+        Boolean(notifications.push ?? notificationSettings.pushNotifications),
+      paymentMethods,
+      autoBilling: Boolean(paymentSettings.autoBilling),
+      timezone: String(currentClinic?.timezone || "Asia/Kolkata"),
+    };
+  }, [currentClinic]);
+
+  const doctorRosterSummary = useMemo(() => {
+    const total = doctorRosters.length;
+    const active = doctorRosters.filter((doctor: any) => doctor.isActive).length;
+    const scheduled = doctorRosters.filter((doctor: any) => doctor.hasSchedule).length;
+    const specialties = new Set(doctorRosters.map((doctor: any) => doctor.specialization).filter(Boolean)).size;
+    return { total, active, scheduled, specialties };
+  }, [doctorRosters]);
+
+  const assistantCoverageSummary = useMemo(() => {
+    const data = Array.isArray(assistantCoverageData) ? assistantCoverageData : [];
+    const active = data.filter((entry: any) => entry?.isActive !== false).length;
+    const assigned = data.filter((entry: any) => Array.isArray(entry?.primaryDoctorIds) && entry.primaryDoctorIds.length > 0).length;
+    return { total: data.length, active, assigned };
+  }, [assistantCoverageData]);
+
+  const nextCheckIns = useMemo(
+    () =>
+      pendingCheckIns
+        .slice(0, 5)
+        .map((appointment: any) => ({
+          id: appointment.raw.id,
+          patientName: appointment.patientName,
+          doctorName: appointment.doctorName || "Assigned doctor",
+          locationName: appointment.locationName || "Main clinic",
+          timeLabel: appointment.timeLabel,
+          dateLabel: appointment.dateLabel,
+          paymentStatus: appointment.paymentStatus,
+        })),
+    [pendingCheckIns]
+  );
+
+  const staffSummary = useMemo(() => {
+    const total = staffMembers.length;
+    const active = staffMembers.filter((member: any) => member?.isActive !== false).length;
+    const doctors = staffMembers.filter((member: any) => String(member?.role || "").toUpperCase() === "DOCTOR").length;
+    const reception = staffMembers.filter((member: any) => String(member?.role || "").toUpperCase() === "RECEPTIONIST").length;
+    const support = Math.max(total - doctors - reception, 0);
+    return { total, active, doctors, reception, support };
+  }, [staffMembers]);
 
   const stats = useMemo(() => {
     if (!clinicStats) return null;
@@ -75,14 +350,19 @@ export default function ClinicAdminDashboard() {
   }, [clinicStats]);
 
   const recentEvents = useMemo(() => {
-    return appointments.slice(0, 3).map((apt: any) => ({
+    return [...inPersonAppointments]
+      .sort((a: any, b: any) => (b.checkedInAt?.getTime() || b.dateTime?.getTime() || 0) - (a.checkedInAt?.getTime() || a.dateTime?.getTime() || 0))
+      .slice(0, 3)
+      .map((apt: any) => ({
       id: apt.id,
-      type: "appointment",
-      message: `Appointment scheduled for ${apt.patient?.name || apt.patient?.firstName || apt.patientName || "a patient"}`,
-      time: formatDateTimeInIST(apt.createdAt || Date.now(), { hour: "2-digit", minute: "2-digit" }, "en-IN"),
-      date: formatDateTimeInIST(apt.createdAt, { day: "2-digit", month: "short", year: "numeric" }, "en-IN"),
+      type: apt.checkedInAt ? "check-in" : "appointment",
+      message: apt.checkedInAt
+        ? `${apt.patientName} checked in${apt.locationName ? ` at ${apt.locationName}` : ""}`
+        : `${apt.patientName} scheduled${apt.locationName ? ` for ${apt.locationName}` : ""}`,
+      time: formatDateTimeInIST(apt.checkedInAt || apt.dateTime || new Date(), { hour: "2-digit", minute: "2-digit" }, "en-IN"),
+      date: formatDateTimeInIST(apt.checkedInAt || apt.dateTime || new Date(), { day: "2-digit", month: "short", year: "numeric" }, "en-IN"),
     }));
-  }, [appointments]);
+  }, [inPersonAppointments]);
 
   const medicineDeskItems = useMemo(
     () =>
@@ -115,7 +395,7 @@ export default function ClinicAdminDashboard() {
     }
 
     const unpaidMedicineCount = medicineDeskItems.filter(
-      (item) => !item.readyForHandover && item.paymentStatus !== "PAID"
+      (item: any) => !item.readyForHandover && item.paymentStatus !== "PAID"
     ).length;
     if (unpaidMedicineCount > 0) {
       alerts.push({
@@ -128,7 +408,15 @@ export default function ClinicAdminDashboard() {
     return alerts;
   }, [medicineDeskItems, stats?.waitTime]);
 
-  if (isLoadingClinic || isLoadingStats) {
+  const adminQuickLinks = [
+    { href: "/clinic-admin/staff", label: "Staff", icon: UserPlus },
+    { href: "/clinic-admin/locations", label: "Locations", icon: MapPin },
+    { href: "/clinic-admin/schedule", label: "Schedule", icon: CalendarDays },
+    { href: "/clinic-admin/settings", label: "Settings", icon: Settings },
+    { href: "/queue", label: "Queue", icon: Activity },
+  ];
+
+  if (isLoadingClinic || isLoadingStats || isLoadingLocations) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] gap-4">
         <Loader2 className="w-12 h-12 animate-spin text-primary" />
@@ -138,47 +426,105 @@ export default function ClinicAdminDashboard() {
   }
 
   return (
-    <DashboardPageShell className="min-h-screen bg-transparent p-4 sm:p-6 sm:space-y-6">
+    <DashboardPageShell className="mx-auto max-w-7xl space-y-4 px-4 pb-6 pt-0 sm:space-y-5 sm:px-6 lg:px-8">
       <DashboardPageHeader
         eyebrow="Clinic Admin"
-        title="Control Hub"
-        description="Monitor clinic operations, live queue health, and medicine-desk readiness across the active location."
+        title="Operations Dashboard"
+        description="Track clinic workload, staff access, live queue movement, and medicine-desk readiness from one practical console."
         meta={
-          <span className="text-sm font-medium text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-muted-foreground">
             <span className="font-semibold text-primary">{currentClinic?.name || "Clinic"}</span>
-            {" - "}
-            Live operational status
-          </span>
+            <span className="h-1 w-1 rounded-full bg-muted-foreground/50" />
+            <span>Live operational status</span>
+          </div>
         }
         actionsSlot={
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => refetchStats()}
-              className="h-10 px-4 font-bold flex items-center gap-2 border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-200 dark:hover:bg-blue-950/40"
+              className="h-9 items-center gap-2 border border-border bg-card px-4 font-semibold text-foreground shadow-sm hover:bg-muted"
             >
               <RefreshCcw className="w-4 h-4" />
-              Sync Data
+              Sync
             </Button>
-            <Button asChild className="h-10 px-6 font-bold shadow-lg shadow-emerald-500/20 active:scale-95 transition-all flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white">
-              <Link href="/clinic-admin/schedule" prefetch={false}>
-                <Plus className="w-4 h-4" />
-                Manage Schedule
+            <Button asChild variant="outline" className="h-9 items-center gap-2 border-border bg-card px-4 font-semibold text-foreground shadow-sm hover:bg-muted">
+              <Link href="/clinic-admin/staff" prefetch={false}>
+                <UserPlus className="w-4 h-4" />
+                Staff
               </Link>
             </Button>
-            <Button asChild variant="outline" className="h-10 px-6 font-bold flex items-center gap-2 rounded-xl border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50">
+            <Button asChild className="h-9 items-center gap-2 bg-emerald-600 px-4 font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 active:scale-95">
+              <Link href="/clinic-admin/schedule" prefetch={false}>
+                <CalendarDays className="w-4 h-4" />
+                Schedule
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="h-9 items-center gap-2 border-border bg-card px-4 font-semibold text-foreground shadow-sm hover:bg-muted">
               <Link href="/queue" prefetch={false}>
                 <Activity className="w-4 h-4" />
-                Open Queue Workspace
+                Queue
               </Link>
             </Button>
           </div>
         }
       />
 
+      <Card className="overflow-hidden border border-border bg-card shadow-sm">
+        <CardHeader className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+              <Activity className="w-5 h-5 text-primary" />
+              Workflow Shortcuts
+            </CardTitle>
+            <CardDescription className="text-sm">
+              Quick access to common clinic-admin tasks.
+            </CardDescription>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {adminQuickLinks.map((link) => (
+              <Button
+                key={link.href}
+                asChild
+                variant="outline"
+                size="sm"
+                className="h-8 gap-2 border-border bg-muted/30 px-3 text-xs font-semibold text-foreground hover:bg-muted"
+              >
+                <Link href={link.href} prefetch={false}>
+                  <link.icon className="w-4 h-4" />
+                  {link.label}
+                </Link>
+              </Button>
+            ))}
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-xl border border-border bg-background px-4 py-3 shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Today</p>
+            <p className="mt-1 text-2xl font-semibold">{stats?.todayAppointments || 0}</p>
+            <p className="text-xs text-muted-foreground">Appointments scheduled today</p>
+          </div>
+          <div className="rounded-xl border border-border bg-background px-4 py-3 shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Live queue</p>
+            <p className="mt-1 text-2xl font-semibold">{queueItems.length}</p>
+            <p className="text-xs text-muted-foreground">Patients currently moving through the clinic</p>
+          </div>
+          <div className="rounded-xl border border-border bg-background px-4 py-3 shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Staff</p>
+            <p className="mt-1 text-2xl font-semibold">{stats?.totalStaff || 0}</p>
+            <p className="text-xs text-muted-foreground">Active users linked to this clinic</p>
+          </div>
+          <div className="rounded-xl border border-border bg-background px-4 py-3 shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Checked in</p>
+            <p className="mt-1 text-2xl font-semibold">{checkedInToday}</p>
+            <p className="text-xs text-muted-foreground">Patients already moved into the flow</p>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Impact Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
         {[
           { 
             label: "Appointments Today", 
@@ -192,7 +538,7 @@ export default function ClinicAdminDashboard() {
           },
           { 
             label: "Clinic Revenue", 
-            value: `₹${(stats?.revenue || 0).toLocaleString()}`, 
+            value: `INR ${(stats?.revenue || 0).toLocaleString()}`, 
             sub: "Gross billing", 
             icon: IndianRupee, 
             color: "text-purple-600", 
@@ -227,29 +573,29 @@ export default function ClinicAdminDashboard() {
             icon: Activity,
             color: "text-amber-600",
             bg: "bg-amber-500/10",
-            trend: `${medicineDeskItems.filter((item) => item.paymentStatus !== "PAID").length} unpaid`,
-            isUp: medicineDeskItems.filter((item) => item.paymentStatus === "PAID").length > 0
+            trend: `${medicineDeskItems.filter((item: any) => item.paymentStatus !== "PAID").length} unpaid`,
+            isUp: medicineDeskItems.filter((item: any) => item.paymentStatus === "PAID").length > 0
           }
         ].map((item, i) => (
-          <Card key={i} className={cn("group border-none shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden ring-1", item.bg, "ring-neutral-200 dark:ring-neutral-800")}>
-            <div className={cn("h-1 w-full opacity-30 group-hover:opacity-100 transition-opacity", item.color.replace('text', 'bg'))} />
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className={cn("p-2.5 rounded-xl shrink-0", item.bg)}>
+          <Card key={i} className="overflow-hidden border border-border bg-card shadow-sm">
+            <div className={cn("h-1 w-full opacity-70", item.color.replace('text', 'bg'))} />
+            <CardContent className="p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <div className="shrink-0 rounded-xl border border-border bg-background p-2.5">
                   <item.icon className={cn("w-5 h-5", item.color)} />
                 </div>
                 <div className={cn(
-                  "flex items-center gap-1 text-[10px] font-black uppercase px-2 py-1 rounded-lg",
-                  item.isUp ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-600"
+                  "flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-semibold uppercase",
+                  item.isUp ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"
                 )}>
                   {item.isUp ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                   {item.trend}
                 </div>
               </div>
               <div className="space-y-1">
-                <p className="text-2xl font-black tracking-tight">{item.value}</p>
+                <p className="text-2xl font-semibold tracking-tight">{item.value}</p>
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{item.label}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{item.label}</p>
                   <span className="text-[10px] font-medium text-neutral-400">{item.sub}</span>
                 </div>
               </div>
@@ -258,275 +604,634 @@ export default function ClinicAdminDashboard() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-foreground">
-        {/* Live Queue Tracker */}
-        <Card className="lg:col-span-8 border-none shadow-lg bg-blue-50/60 dark:bg-blue-950/10 ring-1 ring-blue-100 dark:ring-blue-900 overflow-hidden">
-          <CardHeader className="p-6 border-b bg-neutral-50/50 dark:bg-neutral-900/50 flex flex-row items-center justify-between">
-            <div className="space-y-1">
-              <CardTitle className="text-xl font-black flex items-center gap-2">
-                <Clock className="w-5 h-5 text-primary" />
-                Live Clinic Queue
-              </CardTitle>
-              <CardDescription className="text-xs font-medium">Real-time patient flow across all departments</CardDescription>
+      <Card className="overflow-hidden border border-border bg-card shadow-sm">
+        <CardHeader className="flex flex-col gap-3 border-b border-border bg-muted/40 px-4 pb-4 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <CardTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
+              <Activity className="w-5 h-5 text-primary" />
+              Clinic Admin Snapshot
+            </CardTitle>
+            <CardDescription className="text-sm">
+              High-value summaries from staff, locations, schedule, and settings.
+            </CardDescription>
+          </div>
+          <div className="flex flex-wrap gap-2 text-[11px] font-medium text-muted-foreground">
+            <span className="rounded-full border border-border bg-background px-2.5 py-1">One glance overview</span>
+            <span className="rounded-full border border-border bg-background px-2.5 py-1">Direct page links</span>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-4 shadow-sm dark:border-indigo-900/70 dark:bg-indigo-950/20">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-indigo-700 dark:text-indigo-300">Staff Directory</p>
+                <p className="mt-1 text-2xl font-semibold">{staffSummary.active}/{staffSummary.total}</p>
+              </div>
+              <Users className="h-5 w-5 text-indigo-600 dark:text-indigo-300" />
             </div>
-            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-none animate-pulse">
-              Live Monitoring
-            </Badge>
+            <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+              <Badge variant="outline" className="border-indigo-200 bg-white text-indigo-700">Doctors {staffSummary.doctors}</Badge>
+              <Badge variant="outline" className="border-indigo-200 bg-white text-indigo-700">Reception {staffSummary.reception}</Badge>
+            </div>
+            <Button asChild variant="link" className="mt-2 h-auto p-0 text-xs font-semibold text-indigo-700 hover:no-underline">
+              <Link href="/clinic-admin/staff" prefetch={false}>Open staff page</Link>
+            </Button>
+          </div>
+
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 shadow-sm dark:border-emerald-900/70 dark:bg-emerald-950/20">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Locations</p>
+                <p className="mt-1 text-2xl font-semibold">{activeLocationCount}/{locationSummaries.length || clinicLocations.length || 0}</p>
+              </div>
+              <MapPin className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+              <Badge variant="outline" className="border-emerald-200 bg-white text-emerald-700">Queued {queueItems.length}</Badge>
+              <Badge variant="outline" className="border-emerald-200 bg-white text-emerald-700">Paused {inactiveLocationCount}</Badge>
+            </div>
+            <Button asChild variant="link" className="mt-2 h-auto p-0 text-xs font-semibold text-emerald-700 hover:no-underline">
+              <Link href="/clinic-admin/locations" prefetch={false}>Open locations page</Link>
+            </Button>
+          </div>
+
+          <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-4 shadow-sm dark:border-sky-900/70 dark:bg-sky-950/20">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">Schedule</p>
+                <p className="mt-1 text-2xl font-semibold">{doctorRosterSummary.scheduled}/{doctorRosterSummary.total}</p>
+              </div>
+              <CalendarDays className="h-5 w-5 text-sky-600 dark:text-sky-300" />
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+              <Badge variant="outline" className="border-sky-200 bg-white text-sky-700">Doctors {doctorRosterSummary.total}</Badge>
+              <Badge variant="outline" className="border-sky-200 bg-white text-sky-700">Specialties {doctorRosterSummary.specialties}</Badge>
+            </div>
+            <Button asChild variant="link" className="mt-2 h-auto p-0 text-xs font-semibold text-sky-700 hover:no-underline">
+              <Link href="/clinic-admin/schedule" prefetch={false}>Open schedule page</Link>
+            </Button>
+          </div>
+
+          <div className="rounded-xl border border-violet-200 bg-violet-50/70 p-4 shadow-sm dark:border-violet-900/70 dark:bg-violet-950/20">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300">Settings</p>
+                <p className="mt-1 text-2xl font-semibold">{clinicSettingsSnapshot.appointmentDuration}m</p>
+              </div>
+              <Settings className="h-5 w-5 text-violet-600 dark:text-violet-300" />
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+              <Badge variant="outline" className="border-violet-200 bg-white text-violet-700">
+                {clinicSettingsSnapshot.walkInAllowed ? "Walk-ins on" : "Walk-ins off"}
+              </Badge>
+              <Badge variant="outline" className="border-violet-200 bg-white text-violet-700">
+                {clinicSettingsSnapshot.clinicPaused ? "Paused" : "Open"}
+              </Badge>
+            </div>
+            <Button asChild variant="link" className="mt-2 h-auto p-0 text-xs font-semibold text-violet-700 hover:no-underline">
+              <Link href="/clinic-admin/settings" prefetch={false}>Open settings page</Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <Card className="overflow-hidden border border-border bg-card shadow-sm">
+          <CardHeader className="border-b px-4 py-3">
+            <CardTitle className="text-base font-semibold">Booking Policy</CardTitle>
+            <CardDescription className="text-xs">Clinic booking and visit timing rules.</CardDescription>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="space-y-3 p-4">
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Duration</div>
+                <div className="mt-1 text-lg font-semibold">{clinicSettingsSnapshot.appointmentDuration}m</div>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Advance</div>
+                <div className="mt-1 text-lg font-semibold">{clinicSettingsSnapshot.minAdvanceBooking}h / {clinicSettingsSnapshot.maxAdvanceBooking}d</div>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Cancel</div>
+                <div className="mt-1 text-lg font-semibold">{clinicSettingsSnapshot.cancellationWindow}h</div>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">No-show</div>
+                <div className="mt-1 text-lg font-semibold">{clinicSettingsSnapshot.noShowWindowMinutes}m</div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 text-[11px]">
+              <Badge variant="outline" className="border-border bg-background">{clinicSettingsSnapshot.walkInAllowed ? "Walk-ins allowed" : "Walk-ins blocked"}</Badge>
+              <Badge variant="outline" className="border-border bg-background">{clinicSettingsSnapshot.timezone}</Badge>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="overflow-hidden border border-border bg-card shadow-sm">
+          <CardHeader className="border-b px-4 py-3">
+            <CardTitle className="text-base font-semibold">Consultation Modes</CardTitle>
+            <CardDescription className="text-xs">Current OPD and consultation switches.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3 p-4">
+            <div className="flex flex-wrap gap-2 text-[11px]">
+              <Badge variant="outline" className={cn("border", clinicSettingsSnapshot.generalConsultationEnabled ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700")}>
+                General {clinicSettingsSnapshot.generalConsultationEnabled ? "On" : "Off"}
+              </Badge>
+              <Badge variant="outline" className={cn("border", clinicSettingsSnapshot.videoConsultationEnabled ? "border-sky-200 bg-sky-50 text-sky-700" : "border-amber-200 bg-amber-50 text-amber-700")}>
+                Video {clinicSettingsSnapshot.videoConsultationEnabled ? "On" : "Off"}
+              </Badge>
+              <Badge variant="outline" className={cn("border", clinicSettingsSnapshot.emergencyOnly ? "border-rose-200 bg-rose-50 text-rose-700" : "border-border bg-background text-muted-foreground")}>
+                {clinicSettingsSnapshot.emergencyOnly ? "Emergency only" : "Standard mode"}
+              </Badge>
+              <Badge variant="outline" className={cn("border", clinicSettingsSnapshot.clinicPaused ? "border-rose-200 bg-rose-50 text-rose-700" : "border-emerald-200 bg-emerald-50 text-emerald-700")}>
+                {clinicSettingsSnapshot.clinicPaused ? "Paused" : "Open"}
+              </Badge>
+            </div>
+            <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+              Notifications {clinicSettingsSnapshot.notificationsEnabled ? "enabled" : "disabled"} · Auto billing {clinicSettingsSnapshot.autoBilling ? "on" : "off"}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="overflow-hidden border border-border bg-card shadow-sm">
+          <CardHeader className="border-b px-4 py-3">
+            <CardTitle className="text-base font-semibold">Doctor Coverage</CardTitle>
+            <CardDescription className="text-xs">Schedule coverage and assistant mappings.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3 p-4">
+            <div className="grid grid-cols-3 gap-2 text-sm">
+              <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Doctors</div>
+                <div className="mt-1 text-lg font-semibold">{doctorRosterSummary.active}/{doctorRosterSummary.total}</div>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Scheduled</div>
+                <div className="mt-1 text-lg font-semibold">{doctorRosterSummary.scheduled}</div>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Assistants</div>
+                <div className="mt-1 text-lg font-semibold">{assistantCoverageSummary.active}/{assistantCoverageSummary.total}</div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 text-[11px]">
+              <Badge variant="outline" className="border-border bg-background">Specialties {doctorRosterSummary.specialties}</Badge>
+              <Badge variant="outline" className="border-border bg-background">Mapped {assistantCoverageSummary.assigned}</Badge>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 text-foreground lg:grid-cols-12">
+        <div className="space-y-6 lg:col-span-8">
+        <Card className="overflow-hidden border-l-4 border-l-emerald-400 shadow-sm">
+          <CardHeader className="flex flex-col gap-3 border-b border-border bg-muted/40 px-4 pb-4 pt-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="space-y-1">
+              <CardTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                  <Clock className="w-4 h-4" />
+                </div>
+                Queue
+              </CardTitle>
+              <CardDescription className="text-sm">Real-time patient flow across all departments</CardDescription>
+            </div>
+            <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto">
+              <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium text-muted-foreground">
+                <span className="rounded-full border border-border bg-background px-2.5 py-1">Live queue snapshot</span>
+                <span className="rounded-full border border-border bg-background px-2.5 py-1">Location lanes</span>
+                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-700">
+                  Live Monitoring
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                onClick={() => router.push("/queue")}
+              >
+                View Queue Workspace
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3 p-3 sm:p-4">
             {isLoadingQueue ? (
-              <div className="flex justify-center p-12">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : queueItems.length > 0 ? (
-              <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
-                {queueItems.map((item, idx: number) => (
-                  <div key={item.entryId || item.appointmentId || idx} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-4 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors group">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-linear-to-br from-primary/10 to-blue-500/10 flex items-center justify-center font-black text-primary text-sm shadow-sm group-hover:scale-110 transition-transform">
-                        {item.tokenNumber || item.position || idx + 1}
-                      </div>
-                        <div>
-                          <h4 className="font-bold text-sm">{item.patientName || "Walk-in Patient"}</h4>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-[10px] font-bold uppercase text-muted-foreground">
-                              {item.doctorName || (item.assignedDoctorId ? "Assigned Doctor" : "Unassigned Doctor")}
-                            </span>
-                            <span className="w-1 h-1 bg-neutral-300 rounded-full" />
-                            <span className="text-[10px] font-bold uppercase text-primary/80">
-                              {resolveQueueDisplayLabel(item)}
-                            </span>
-                            {item.primaryDoctorId &&
-                            String(item.primaryDoctorId) !==
-                              String(item.assignedDoctorId || "") ? (
-                              <>
-                                <span className="w-1 h-1 bg-neutral-300 rounded-full" />
-                                <span className="text-[10px] font-bold uppercase text-amber-600">
-                                  Delegated
-                                </span>
-                              </>
-                            ) : null}
-                          </div>
+              <div className="space-y-3">
+                {highlightedQueueItem ? (
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 px-3 py-3 shadow-sm">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-700">
+                          Next patient
                         </div>
-                    </div>
-                    <div className="flex items-center gap-6">
-                      <div className="text-right hidden sm:block">
-                        <p className="text-xs font-bold">
-                          {item.appointmentTime || item.checkedInAt || item.startedAt || "Now"}
-                        </p>
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase">
-                          {typeof item.waitTime === "number" ? `${item.waitTime}m wait` : item.waitTime || "Live queue"}
-                        </p>
+                        <div className="mt-1 truncate text-lg font-semibold text-foreground">
+                          {highlightedQueueItem.patientName || "Walk-in Patient"}
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          <Badge variant="outline" className="border-emerald-200 bg-white text-emerald-700">
+                            {highlightedQueueItem.locationName || highlightedQueueItem.locationId || "Main clinic"}
+                          </Badge>
+                          <span>{highlightedQueueItem.doctorName || "Assigned doctor pending"}</span>
+                          <span className="text-muted-foreground/60">·</span>
+                          <span>Queue #{highlightedQueueItem.position || 0}</span>
+                        </div>
                       </div>
-                      <Badge className={cn(
-                        "rounded-lg border-none px-3 py-1 text-[10px] font-black uppercase tracking-widest",
-                        String(item.status || "").toUpperCase() === "IN_PROGRESS"
-                          ? "bg-blue-500 text-white"
-                          : String(item.status || "").toUpperCase() === "CONFIRMED"
-                            ? "bg-emerald-500 text-white"
-                            : "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300"
-                      )}>
-                        {getQueueStatusLabel(item)}
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "shrink-0 px-2.5 py-1 text-xs font-semibold",
+                          String(highlightedQueueItem.status || "").toUpperCase() === "IN_PROGRESS"
+                            ? "border-blue-200 bg-blue-50 text-blue-700"
+                            : String(highlightedQueueItem.status || "").toUpperCase() === "CONFIRMED"
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-border bg-background text-muted-foreground"
+                        )}
+                      >
+                        {getQueueStatusLabel(highlightedQueueItem)}
                       </Badge>
                     </div>
                   </div>
-                ))}
+                ) : null}
+
+                {queueSections.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {queueSections.map((section) => (
+                      <Badge
+                        key={section.key}
+                        asChild
+                        variant="outline"
+                        className={`cursor-pointer gap-2 px-3 py-2 text-sm font-semibold shadow-sm transition ${
+                          activeQueueSection?.key === section.key
+                            ? "border-emerald-500 bg-emerald-600 text-white shadow-md ring-1 ring-emerald-300"
+                            : "border-border bg-background text-foreground hover:bg-muted/40"
+                        }`}
+                      >
+                        <button type="button" onClick={() => setActiveQueueLane(section.key)}>
+                          <span className="truncate font-semibold">{section.title}</span>
+                          <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
+                            {section.items.length}
+                          </span>
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                ) : null}
+
+                <div className="flex items-center justify-between rounded-xl border border-border bg-background px-3 py-2">
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-600">
+                      Selected lane
+                    </div>
+                    <div className="mt-1 truncate text-sm font-semibold text-foreground">
+                      {activeQueueSection?.title || "Live queue"}
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
+                    {selectedQueueItems.length}
+                  </Badge>
+                </div>
+
+                <div className="overflow-hidden rounded-xl border border-border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/40 hover:bg-muted/40">
+                        <TableHead className="w-[68px] text-xs">Token</TableHead>
+                        <TableHead className="text-xs">Patient</TableHead>
+                        <TableHead className="text-xs">Doctor</TableHead>
+                        <TableHead className="text-xs">Location</TableHead>
+                        <TableHead className="text-xs">Wait</TableHead>
+                        <TableHead className="text-right text-xs">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedQueueItems.slice(0, 5).map((item: any, idx: number) => (
+                        <TableRow key={item.entryId || item.appointmentId || idx} className="border-border/60 transition-colors hover:bg-muted/20">
+                          <TableCell className="py-2 font-semibold text-primary">
+                            <span className="inline-flex min-w-9 items-center justify-center rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-700">
+                              {item.tokenNumber || item.position || idx + 1}
+                            </span>
+                          </TableCell>
+                          <TableCell className="py-2">
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-semibold">{item.patientName || "Walk-in Patient"}</div>
+                              <div className="mt-1 text-[11px] text-muted-foreground">{resolveQueueDisplayLabel(item)}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-2 text-sm text-muted-foreground">
+                            <div className="truncate">{item.doctorName || (item.assignedDoctorId ? "Assigned Doctor" : "Unassigned Doctor")}</div>
+                            {item.primaryDoctorId &&
+                            String(item.primaryDoctorId) !== String(item.assignedDoctorId || "") ? (
+                              <Badge variant="outline" className="mt-1 border-amber-200 bg-amber-50 px-1.5 py-0 text-[10px] font-semibold uppercase text-amber-700">
+                                Delegated
+                              </Badge>
+                            ) : null}
+                          </TableCell>
+                          <TableCell className="py-2 text-sm text-muted-foreground">
+                            <div className="truncate">{item.locationName || item.locationId || "Main clinic"}</div>
+                          </TableCell>
+                          <TableCell className="py-2 text-sm text-muted-foreground">
+                            <div>{item.appointmentTime || item.checkedInAt || item.startedAt || "Now"}</div>
+                            <div className="text-[11px]">{typeof item.waitTime === "number" ? `${item.waitTime}m wait` : item.waitTime || "Live queue"}</div>
+                          </TableCell>
+                          <TableCell className="py-2 text-right">
+                            <Badge
+                              className={cn(
+                                "rounded-lg border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-widest",
+                                String(item.status || "").toUpperCase() === "IN_PROGRESS"
+                                  ? "border-blue-200 bg-blue-50 text-blue-700"
+                                  : String(item.status || "").toUpperCase() === "CONFIRMED"
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                    : "border-border bg-muted text-muted-foreground"
+                              )}
+                            >
+                              {getQueueStatusLabel(item)}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             ) : (
-              <div className="p-12 text-center space-y-4">
-                <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto">
-                  <Clock className="w-8 h-8 text-neutral-400" />
+              <div className="space-y-4">
+                <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h4 className="font-semibold">No active queue right now</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Use the runway below to see the next patients who should be checked in.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline" className="border-border bg-background">{pendingCheckIns.length} pending check-ins</Badge>
+                    <Badge variant="outline" className="border-border bg-background">{activeLocationCount} active locations</Badge>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-black">Queue is Empty</h4>
-                  <p className="text-sm text-muted-foreground font-medium">No patients currently in the live queue.</p>
+
+                <div className="overflow-hidden rounded-xl border border-border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/40 hover:bg-muted/40">
+                        <TableHead className="text-xs">Patient</TableHead>
+                        <TableHead className="text-xs">Doctor</TableHead>
+                        <TableHead className="text-xs">Location</TableHead>
+                        <TableHead className="text-xs">Check-in</TableHead>
+                        <TableHead className="text-right text-xs">State</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {nextCheckIns.length > 0 ? (
+                        nextCheckIns.map((item: any) => (
+                          <TableRow key={item.id} className="border-border/60 transition-colors hover:bg-muted/20">
+                            <TableCell className="py-2 font-semibold">{item.patientName}</TableCell>
+                            <TableCell className="py-2 text-sm text-muted-foreground">{item.doctorName}</TableCell>
+                            <TableCell className="py-2 text-sm text-muted-foreground">{item.locationName}</TableCell>
+                            <TableCell className="py-2 text-sm text-muted-foreground">
+                              <div>{item.dateLabel}</div>
+                              <div className="text-xs">{item.timeLabel}</div>
+                            </TableCell>
+                            <TableCell className="py-2 text-right">
+                              <Badge variant="outline" className="border-amber-200 bg-amber-50 text-[10px] font-semibold uppercase text-amber-700">
+                                {item.paymentStatus === "PAID" ? "Ready" : "Awaiting payment"}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
+                            No upcoming check-ins queued.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
                 </div>
               </div>
             )}
-            <div className="p-4 bg-neutral-50/80 dark:bg-neutral-900/80 border-t flex justify-center">
-              <Button asChild variant="link" className="text-xs font-black uppercase text-primary hover:no-underline">
+            <div className="mt-3 flex justify-center border-t pt-3">
+              <Button asChild variant="link" className="text-xs font-semibold uppercase text-primary hover:no-underline">
                 <Link href="/clinic-admin/schedule" prefetch={false}>View Staff Schedule</Link>
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Sidebar Insights */}
-        <div className="lg:col-span-4 space-y-8 text-neutral-900">
-          {/* Recent Performance */}
-        <Card className="border-none shadow-lg bg-blue-600 text-white overflow-hidden relative">
-            <div className="absolute top-0 right-0 p-4 opacity-10">
-              <TrendingUp className="w-24 h-24" />
-            </div>
-            <CardHeader className="p-6 pb-2">
-              <CardTitle className="text-lg font-black text-white/90">Clinical Efficiency</CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 pt-0 space-y-6">
+          <Card className="overflow-hidden border-l-4 border-l-amber-400 shadow-sm">
+            <CardHeader className="flex flex-col gap-2 border-b border-border bg-muted/40 px-4 pb-4 pt-4 sm:flex-row sm:items-end sm:justify-between">
               <div className="space-y-1">
-                <h3 className="text-4xl font-black">{stats?.completionRate || 0}%</h3>
-                <p className="text-xs font-bold text-white/70 uppercase tracking-widest">Appointment Strike Rate</p>
+                <CardTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+                    <Activity className="w-4 h-4" />
+                  </div>
+                  Medicine Desk Queue
+                </CardTitle>
+                <CardDescription className="text-sm">
+                  Payment-gated prescription handovers across the clinic
+                </CardDescription>
               </div>
-              <div className="h-2 w-full bg-white/20 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-white rounded-full transition-all duration-1000" 
-                  style={{ width: `${stats?.completionRate || 0}%` }} 
-                />
+              <Badge variant="outline" className="w-fit border-amber-200 bg-amber-50 text-amber-700">
+                Live medication flow
+              </Badge>
+            </CardHeader>
+            <CardContent className="space-y-3 p-3 sm:p-4">
+              {medicineDeskItems.length > 0 ? (
+                <div className="overflow-hidden rounded-xl border border-border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/40 hover:bg-muted/40">
+                        <TableHead>Patient</TableHead>
+                        <TableHead>Queue</TableHead>
+                        <TableHead className="text-right">Payment</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {medicineDeskItems.map((item: any) => (
+                        <TableRow key={item.id} className="border-border/60 transition-colors hover:bg-muted/20">
+                          <TableCell className="font-semibold">{item.patientName}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {item.queuePosition ? getQueuePositionLabel({ position: item.queuePosition }) : "Awaiting medicine handover"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Badge
+                              className={
+                                item.paymentStatus === "PAID"
+                                  ? "bg-emerald-500 text-white"
+                                  : "bg-amber-500 text-white"
+                              }
+                            >
+                              {item.paymentStatus === "PAID" ? "Payment verified" : "Payment pending"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right text-sm font-medium text-muted-foreground">
+                            {item.pendingAmount > 0 ? `INR ${item.pendingAmount.toFixed(2)}` : "—"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
+                  No active medicine desk queue right now.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-4 text-foreground lg:col-span-4">
+          <Card className="overflow-hidden border border-border bg-card shadow-sm">
+            <CardHeader className="border-b px-4 py-3">
+              <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                <MapPin className="w-4 h-4 text-primary" />
+                Location Health
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Active branches and check-in pressure.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 p-4">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Active</p>
+                  <p className="mt-1 text-xl font-semibold">{activeLocationCount}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Paused</p>
+                  <p className="mt-1 text-xl font-semibold">{inactiveLocationCount}</p>
+                </div>
               </div>
-              <div className="flex gap-4">
-                <div className="flex-1 p-3 bg-white/10 rounded-xl backdrop-blur-sm border border-white/10">
-                  <p className="text-[10px] font-black uppercase text-white/60 mb-1">Confirmed</p>
-                  <p className="text-xl font-black">{queueItems.length}</p>
-                </div>
-                <div className="flex-1 p-3 bg-white/10 rounded-xl backdrop-blur-sm border border-white/10">
-                  <p className="text-[10px] font-black uppercase text-white/60 mb-1">Medicine Desk</p>
-                  <p className="text-xl font-black">{medicineDeskItems.length}</p>
-                </div>
+
+              <div className="overflow-hidden rounded-lg border border-border">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40 hover:bg-muted/40">
+                      <TableHead className="whitespace-nowrap text-xs">Location</TableHead>
+                      <TableHead className="whitespace-nowrap text-right text-xs">Queue</TableHead>
+                      <TableHead className="whitespace-nowrap text-right text-xs">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {locationSummaries.length > 0 ? (
+                      locationSummaries.slice(0, 4).map((location: any) => (
+                        <TableRow key={location.id}>
+                          <TableCell className="truncate pr-2 text-sm font-medium">{location.name}</TableCell>
+                          <TableCell className="whitespace-nowrap text-right text-sm text-muted-foreground">{location.queueCount}</TableCell>
+                          <TableCell className="whitespace-nowrap text-right">
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "border text-[10px] font-semibold uppercase",
+                                location.isActive
+                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                  : "border-amber-200 bg-amber-50 text-amber-700"
+                              )}
+                            >
+                              {location.isActive ? "Active" : "Paused"}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={3} className="py-5 text-center text-sm text-muted-foreground">
+                          No clinic locations configured yet.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
           </Card>
 
-          {/* Activity Log */}
-          <Card className="border-none shadow-lg bg-purple-50/60 dark:bg-purple-950/10 ring-1 ring-purple-100 dark:ring-purple-900">
-            <CardHeader className="p-6 border-b">
-              <CardTitle className="text-lg font-black flex items-center gap-2">
-                <Activity className="w-5 h-5 text-purple-600" />
-                Clinical Feed
+          <Card className="overflow-hidden border border-border bg-card shadow-sm">
+            <CardHeader className="border-b px-4 py-3">
+              <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                <Users className="w-4 h-4 text-primary" />
+                Staff Snapshot
               </CardTitle>
+              <CardDescription className="text-xs">
+                Workforce ready to receive patients today.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="p-6">
-              <div className="space-y-6">
-                {recentEvents.length > 0 ? recentEvents.map((event: any, i: number) => (
-                  <div key={i} className="flex gap-4 items-start relative pb-6 border-l-2 border-neutral-100 last:border-0 last:pb-0 pl-4 ml-2">
-                    <div className="absolute -left-[9px] top-1 w-4 h-4 bg-background ring-2 ring-primary rounded-full shrink-0" />
-                    <div className="space-y-1 -mt-1">
-                      <p className="text-sm font-bold text-neutral-800 dark:text-neutral-200 leading-tight">{event.message}</p>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black uppercase text-primary">{event.time}</span>
-                        <span className="text-[10px] font-bold text-neutral-400">{event.date}</span>
+            <CardContent className="space-y-3 p-4">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Total</p>
+                  <p className="mt-1 text-xl font-semibold">{staffSummary.total}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Active</p>
+                  <p className="mt-1 text-xl font-semibold">{staffSummary.active}</p>
+                </div>
+              </div>
+              <div className="overflow-hidden rounded-lg border border-border">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40 hover:bg-muted/40">
+                      <TableHead className="text-xs">Role</TableHead>
+                      <TableHead className="text-right text-xs">Count</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="py-2 text-sm">Doctors</TableCell>
+                      <TableCell className="py-2 text-right text-sm font-semibold">{staffSummary.doctors}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="py-2 text-sm">Reception</TableCell>
+                      <TableCell className="py-2 text-right text-sm font-semibold">{staffSummary.reception}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="py-2 text-sm">Support</TableCell>
+                      <TableCell className="py-2 text-right text-sm font-semibold">{staffSummary.support}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-border bg-card shadow-sm">
+            <CardHeader className="border-b px-4 py-3">
+              <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                <Activity className="w-4 h-4 text-primary" />
+                Recent Movement
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Latest appointment and check-in activity.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4">
+              <div className="space-y-2">
+                {recentEvents.length > 0 ? (
+                  recentEvents.map((event: any, i: number) => (
+                    <div key={i} className="rounded-lg border border-border bg-muted/10 px-3 py-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">{event.message}</p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">{event.date}</p>
+                        </div>
+                        <Badge variant="outline" className="shrink-0 border-border bg-background text-[10px] font-semibold uppercase">
+                          {event.time}
+                        </Badge>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="rounded-lg border border-dashed border-border bg-muted/20 px-3 py-4 text-sm text-muted-foreground">
+                    No recent activity detected.
                   </div>
-                )) : (
-                  <p className="text-center text-sm text-neutral-400 py-8">No recent activity detected.</p>
                 )}
               </div>
             </CardContent>
           </Card>
         </div>
-      </div>
-
-      <Card className="border-none shadow-lg bg-amber-50/60 dark:bg-amber-950/10 ring-1 ring-amber-100 dark:ring-amber-900 overflow-hidden">
-        <CardHeader className="p-6 border-b bg-neutral-50/50 dark:bg-neutral-900/50">
-          <CardTitle className="text-xl font-black flex items-center gap-2">
-            <Activity className="w-5 h-5 text-amber-600" />
-            Medicine Desk Queue
-          </CardTitle>
-          <CardDescription className="text-xs font-medium">
-            Payment-gated prescription handovers across the clinic
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          {medicineDeskItems.length > 0 ? (
-            <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
-              {medicineDeskItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div>
-                    <div className="font-semibold">{item.patientName}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {item.queuePosition ? getQueuePositionLabel({ position: item.queuePosition }) : "Awaiting medicine handover"}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Badge
-                      className={
-                        item.paymentStatus === "PAID"
-                          ? "bg-emerald-500 text-white"
-                          : "bg-amber-500 text-white"
-                      }
-                    >
-                      {item.paymentStatus === "PAID" ? "Payment verified" : "Payment pending"}
-                    </Badge>
-                    {item.pendingAmount > 0 ? (
-                      <span className="text-sm font-medium text-muted-foreground">
-                        INR {item.pendingAmount.toFixed(2)}
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="p-6 text-sm text-muted-foreground">
-              No active medicine desk queue right now.
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Quick Action Alerts */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-8 text-foreground">
-        {liveAlerts.length > 0 ? liveAlerts.map((alert) => (
-          <Card
-            key={alert.title}
-            className={cn(
-              "border-none ring-1 transition-colors",
-              alert.tone === "amber"
-                ? "bg-orange-50/50 dark:bg-orange-500/10 ring-orange-100 dark:ring-orange-500/20"
-                : "bg-blue-50/50 dark:bg-blue-500/10 ring-blue-100 dark:ring-blue-500/20"
-            )}
-          >
-            <CardContent className="p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <div className="p-3 bg-white dark:bg-neutral-800 rounded-2xl shadow-sm shrink-0">
-                {alert.tone === "amber" ? (
-                  <AlertCircle className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-                ) : (
-                  <Settings className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                )}
-              </div>
-              <div>
-                <h4
-                  className={cn(
-                    "text-sm font-black",
-                    alert.tone === "amber"
-                      ? "text-orange-900 dark:text-orange-100"
-                      : "text-blue-900 dark:text-blue-100"
-                  )}
-                >
-                  {alert.title}
-                </h4>
-                <p
-                  className={cn(
-                    "text-xs font-semibold uppercase tracking-tight",
-                    alert.tone === "amber"
-                      ? "text-orange-700/70 dark:text-orange-300/70"
-                      : "text-blue-700/70 dark:text-blue-300/70"
-                  )}
-                >
-                  {alert.description}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )) : (
-          <Card className="md:col-span-2 border-none bg-emerald-50/60 dark:bg-emerald-500/10 ring-1 ring-emerald-100 dark:ring-emerald-500/20">
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="p-3 bg-white dark:bg-neutral-800 rounded-2xl shadow-sm shrink-0">
-                <Activity className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div>
-                <h4 className="text-sm font-black text-emerald-900 dark:text-emerald-100">
-                  Operations Stable
-                </h4>
-                <p className="text-xs font-semibold uppercase tracking-tight text-emerald-700/70 dark:text-emerald-300/70">
-                  No high-priority queue or medicine desk alerts right now
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </DashboardPageShell>
   );

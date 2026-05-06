@@ -112,7 +112,11 @@ export const useCreateCounselorAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.CREATE,
       loadingMessage: 'Creating appointment...',
       successMessage: 'Appointment created successfully',
-      invalidateQueries: [['counselorAppointments']],
+      invalidateQueries: [
+        ['counselorAppointments'],
+        ['counselorClients'],
+        ['counselorClient'],
+      ],
     }
   );
 };
@@ -129,7 +133,11 @@ export const useUpdateCounselorAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Updating appointment...',
       successMessage: 'Appointment updated successfully',
-      invalidateQueries: [['counselorAppointments']],
+      invalidateQueries: [
+        ['counselorAppointments'],
+        ['counselorClients'],
+        ['counselorClient'],
+      ],
     }
   );
 };
@@ -146,7 +154,11 @@ export const useDeleteCounselorAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.DELETE,
       loadingMessage: 'Deleting appointment...',
       successMessage: 'Appointment deleted successfully',
-      invalidateQueries: [['counselorAppointments']],
+      invalidateQueries: [
+        ['counselorAppointments'],
+        ['counselorClients'],
+        ['counselorClient'],
+      ],
     }
   );
 };
@@ -171,7 +183,11 @@ export const useUpdateCounselorClientSession = () => {
       toastId: TOAST_IDS.PROFILE.COMPLETE,
       loadingMessage: 'Updating session...',
       successMessage: 'Session updated successfully',
-      invalidateQueries: [['counselorClients'], ['counselorClient']],
+      invalidateQueries: [
+        ['counselorClients'],
+        ['counselorClient'],
+        ['counselorAppointments'],
+      ],
     }
   );
 };

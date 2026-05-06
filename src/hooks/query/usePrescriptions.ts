@@ -64,7 +64,15 @@ export const useCreatePrescription = () => {
       toastId: TOAST_IDS.PRESCRIPTION.CREATE,
       loadingMessage: 'Creating prescription...',
       successMessage: 'Prescription created successfully',
-      invalidateQueries: [['prescriptions'], ['patientPrescriptions']],
+      invalidateQueries: [
+        ['prescriptions'],
+        ['patientPrescriptions'],
+        ['patient-prescriptions'],
+        ['medical-records'],
+        ['medicalRecords'],
+        ['ehr'],
+        ['ehrClinic'],
+      ],
     }
   );
 };
@@ -81,7 +89,15 @@ export const useUpdatePrescription = () => {
       toastId: TOAST_IDS.PRESCRIPTION.UPDATE,
       loadingMessage: 'Updating prescription...',
       successMessage: 'Prescription updated successfully',
-      invalidateQueries: [['prescriptions'], ['patientPrescriptions']],
+      invalidateQueries: [
+        ['prescriptions'],
+        ['patientPrescriptions'],
+        ['patient-prescriptions'],
+        ['medical-records'],
+        ['medicalRecords'],
+        ['ehr'],
+        ['ehrClinic'],
+      ],
     }
   );
 };
@@ -98,7 +114,15 @@ export const useDeletePrescription = () => {
       toastId: TOAST_IDS.PRESCRIPTION.DELETE,
       loadingMessage: 'Deleting prescription...',
       successMessage: 'Prescription deleted successfully',
-      invalidateQueries: [['prescriptions'], ['patientPrescriptions']],
+      invalidateQueries: [
+        ['prescriptions'],
+        ['patientPrescriptions'],
+        ['patient-prescriptions'],
+        ['medical-records'],
+        ['medicalRecords'],
+        ['ehr'],
+        ['ehrClinic'],
+      ],
     }
   );
 };

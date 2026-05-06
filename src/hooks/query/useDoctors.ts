@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo } from 'react';
 import { useQueryData, useMutationOperation } from '../core';
+import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import { TOAST_IDS } from '../utils/use-toast';
 import { useAuth } from '@/hooks/auth/useAuth';
 import {
@@ -44,10 +45,13 @@ export const useDoctors = (clinicId: string, filters?: {
 }, options?: {
   enabled?: boolean;
 }) => {
+  const { isConnected } = useWebSocketStatus();
+
   return useQueryData(['doctors', clinicId, filters], async () => {
     return await getDoctors(clinicId, filters);
   }, {
     enabled: !!clinicId && (options?.enabled ?? true),
+    refetchInterval: isConnected ? false : 120_000,
   });
 };
 
@@ -55,10 +59,13 @@ export const useDoctors = (clinicId: string, filters?: {
  * Hook to get doctor by ID
  */
 export const useDoctor = (doctorId: string) => {
+  const { isConnected } = useWebSocketStatus();
+
   return useQueryData(['doctor', doctorId], async () => {
     return await getDoctorById(doctorId);
   }, {
     enabled: !!doctorId,
+    refetchInterval: isConnected ? false : 120_000,
   });
 };
 
@@ -66,10 +73,13 @@ export const useDoctor = (doctorId: string) => {
  * Hook to get doctor schedule
  */
 export const useDoctorSchedule = (clinicId: string, doctorId: string, date?: string) => {
+  const { isConnected } = useWebSocketStatus();
+
   return useQueryData(['doctorSchedule', clinicId, doctorId, date], async () => {
     return await getDoctorSchedule(clinicId, doctorId, date);
   }, {
     enabled: !!clinicId && !!doctorId,
+    refetchInterval: isConnected ? false : 30_000,
   });
 };
 
@@ -78,6 +88,7 @@ export const useDoctorSchedule = (clinicId: string, doctorId: string, date?: str
  */
 export const useDoctorAvailabilityLegacy = (doctorId: string, date: string, locationId?: string) => {
   const clinicId = useCurrentClinicId();
+  const { isConnected } = useWebSocketStatus();
 
   return useQueryData(['doctorAvailability', doctorId, date, locationId || 'all'], async () => {
     if (!clinicId) {
@@ -87,6 +98,7 @@ export const useDoctorAvailabilityLegacy = (doctorId: string, date: string, loca
     return res.availability;
   }, {
     enabled: !!clinicId && !!doctorId && !!date,
+    refetchInterval: isConnected ? false : 30_000,
   });
 };
 
@@ -98,10 +110,13 @@ export const useDoctorAppointments = (doctorId: string, filters?: {
   status?: string;
   limit?: number;
 }) => {
+  const { isConnected } = useWebSocketStatus();
+
   return useQueryData(['doctorAppointments', doctorId, filters], async () => {
     return await getDoctorAppointments(doctorId, filters);
   }, {
     enabled: !!doctorId,
+    refetchInterval: isConnected ? false : 30_000,
   });
 };
 
@@ -117,12 +132,14 @@ export const useDoctorPatients = (clinicId: string, filters?: {
 }, options?: {
   enabled?: boolean;
 }) => {
+  const { isConnected } = useWebSocketStatus();
   const setCollection = usePatientStore((state) => state.setCollection);
 
   const query = useQueryData(['doctorPatients', clinicId, filters], async () => {
     return await getDoctorPatients(clinicId, filters);
   }, {
     enabled: !!clinicId && (options?.enabled ?? true),
+    refetchInterval: isConnected ? false : 60_000,
   });
 
   useEffect(() => {
@@ -145,10 +162,13 @@ export const useDoctorPatients = (clinicId: string, filters?: {
  * Hook to get doctor statistics
  */
 export const useDoctorStats = (doctorId: string, period?: 'day' | 'week' | 'month' | 'year') => {
+  const { isConnected } = useWebSocketStatus();
+
   return useQueryData(['doctorStats', doctorId, period], async () => {
     return await getDoctorStats(doctorId, period);
   }, {
     enabled: !!doctorId,
+    refetchInterval: isConnected ? false : 120_000,
   });
 };
 
@@ -156,10 +176,13 @@ export const useDoctorStats = (doctorId: string, period?: 'day' | 'week' | 'mont
  * Hook to get doctor reviews
  */
 export const useDoctorReviews = (doctorId: string, limit: number = 10) => {
+  const { isConnected } = useWebSocketStatus();
+
   return useQueryData(['doctorReviews', doctorId, limit], async () => {
     return await getDoctorReviews(doctorId, limit);
   }, {
     enabled: !!doctorId,
+    refetchInterval: isConnected ? false : 300_000,
   });
 };
 
@@ -179,10 +202,13 @@ export const useDoctorPerformanceMetrics = (doctorId: string, filters?: {
   startDate?: string;
   endDate?: string;
 }) => {
+  const { isConnected } = useWebSocketStatus();
+
   return useQueryData(['doctorPerformanceMetrics', doctorId, filters], async () => {
     return await getDoctorPerformanceMetrics(doctorId, filters);
   }, {
     enabled: !!doctorId,
+    refetchInterval: isConnected ? false : 300_000,
   });
 };
 
@@ -194,10 +220,13 @@ export const useDoctorEarnings = (doctorId: string, filters?: {
   endDate?: string;
   period?: 'day' | 'week' | 'month' | 'year';
 }) => {
+  const { isConnected } = useWebSocketStatus();
+
   return useQueryData(['doctorEarnings', doctorId, filters], async () => {
     return await getDoctorEarnings(doctorId, filters);
   }, {
     enabled: !!doctorId,
+    refetchInterval: isConnected ? false : 300_000,
   });
 };
 
@@ -229,7 +258,20 @@ export const useCreateDoctor = () => {
       toastId: TOAST_IDS.DOCTOR.CREATE,
       loadingMessage: 'Creating doctor...',
       successMessage: 'Doctor created successfully',
-      invalidateQueries: [['doctors']],
+      invalidateQueries: [
+        ['doctors'],
+        ['doctor'],
+        ['doctorSchedule'],
+        ['doctorAvailability'],
+        ['doctorAppointments'],
+        ['doctorStats'],
+        ['doctorReviews'],
+        ['doctorPerformanceMetrics'],
+        ['doctorEarnings'],
+        ['clinicDoctors'],
+        ['clinicUsersByRole'],
+        ['users'],
+      ],
     }
   );
 };
@@ -257,7 +299,20 @@ export const useUpdateDoctor = () => {
       toastId: TOAST_IDS.DOCTOR.UPDATE,
       loadingMessage: 'Updating doctor...',
       successMessage: 'Doctor updated successfully',
-      invalidateQueries: [['doctors']],
+      invalidateQueries: [
+        ['doctors'],
+        ['doctor'],
+        ['doctorSchedule'],
+        ['doctorAvailability'],
+        ['doctorAppointments'],
+        ['doctorStats'],
+        ['doctorReviews'],
+        ['doctorPerformanceMetrics'],
+        ['doctorEarnings'],
+        ['clinicDoctors'],
+        ['clinicUsersByRole'],
+        ['users'],
+      ],
     }
   );
 };
@@ -274,7 +329,20 @@ export const useDeleteDoctor = () => {
       toastId: TOAST_IDS.DOCTOR.DELETE,
       loadingMessage: 'Deleting doctor...',
       successMessage: 'Doctor deleted successfully',
-      invalidateQueries: [['doctors']],
+      invalidateQueries: [
+        ['doctors'],
+        ['doctor'],
+        ['doctorSchedule'],
+        ['doctorAvailability'],
+        ['doctorAppointments'],
+        ['doctorStats'],
+        ['doctorReviews'],
+        ['doctorPerformanceMetrics'],
+        ['doctorEarnings'],
+        ['clinicDoctors'],
+        ['clinicUsersByRole'],
+        ['users'],
+      ],
     }
   );
 };
@@ -300,7 +368,14 @@ export const useUpdateDoctorSchedule = () => {
       toastId: TOAST_IDS.DOCTOR.UPDATE,
       loadingMessage: 'Updating doctor schedule...',
       successMessage: 'Doctor schedule updated successfully',
-      invalidateQueries: [['doctorSchedule']],
+      invalidateQueries: [
+        ['doctorSchedule'],
+        ['doctorAvailability'],
+        ['doctorAppointments'],
+        ['doctorStats'],
+        ['doctorPerformanceMetrics'],
+        ['clinicDoctors'],
+      ],
     }
   );
 };
@@ -327,7 +402,14 @@ export const useUpdateDoctorAvailability = () => {
       toastId: TOAST_IDS.DOCTOR.UPDATE,
       loadingMessage: 'Updating doctor availability...',
       successMessage: 'Doctor availability updated successfully',
-      invalidateQueries: [['doctorAvailability']],
+      invalidateQueries: [
+        ['doctorAvailability'],
+        ['doctorSchedule'],
+        ['doctorAppointments'],
+        ['doctorStats'],
+        ['doctorPerformanceMetrics'],
+        ['clinicDoctors'],
+      ],
     }
   );
 };
@@ -352,7 +434,7 @@ export const useAddDoctorReview = () => {
       toastId: TOAST_IDS.DOCTOR.UPDATE,
       loadingMessage: 'Adding doctor review...',
       successMessage: 'Doctor review added successfully',
-      invalidateQueries: [['doctorReviews']],
+      invalidateQueries: [['doctorReviews'], ['doctor'], ['doctorStats']],
     }
   );
 };
@@ -404,7 +486,7 @@ export const useUpdateDoctorProfile = () => {
       toastId: TOAST_IDS.DOCTOR.UPDATE,
       loadingMessage: 'Updating doctor profile...',
       successMessage: 'Doctor profile updated successfully',
-      invalidateQueries: [['doctor']],
+      invalidateQueries: [['doctor'], ['doctors'], ['clinicDoctors'], ['doctorStats']],
     }
   );
 };

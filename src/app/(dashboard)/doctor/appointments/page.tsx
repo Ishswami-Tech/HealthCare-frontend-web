@@ -31,7 +31,7 @@ import { useStartAppointment, useCompleteAppointment, useUpdateAppointment } fro
 import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { useRealTimeAppointments, useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
-import { showSuccessToast, showErrorToast, showInfoToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import { showInfoToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import {
   getAppointmentViewState,
   getAppointmentDateTimeValue,
@@ -178,6 +178,10 @@ const getPaymentBadgeClasses = (paymentStatus: string) => {
       return "bg-gray-100 text-gray-800";
   }
 };
+
+const WORKFLOW_ACTION_BUTTON_CLASS = "h-9 rounded-xl px-3 gap-2";
+const WORKFLOW_ICON_BUTTON_CLASS = "h-9 w-9 rounded-xl";
+const WORKFLOW_PANEL_CLASS = "rounded-2xl border border-border bg-muted/20 p-4";
 
 export default function DoctorAppointments() {
   const router = useRouter();
@@ -382,23 +386,36 @@ export default function DoctorAppointments() {
         cell: ({ row }) => {
           const app = row.original;
           return (
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={() => setSelectedAppointment(app)}>
+            <div className="flex items-center justify-end gap-2 whitespace-nowrap">
+              <Button
+                variant="outline"
+                size="sm"
+                className={WORKFLOW_ICON_BUTTON_CLASS}
+                onClick={() => setSelectedAppointment(app)}
+                aria-label={`View details for ${app.patientName}`}
+              >
                 <Eye className="w-4 h-4" />
               </Button>
               {app.status === APPOINTMENT_STATUS.CONFIRMED && app.checkedInAt && (
-              <Button
-                size="sm"
-                onClick={() => startConsultation(app.id, app.type === "VIDEO_CALL" ? { openVideoAfterStart: true } : undefined)}
-                disabled={startAppointmentMutation.isPending || (app.type === "VIDEO_CALL" && !app.paymentCompleted)}
-                title={app.type === "VIDEO_CALL" && !app.paymentCompleted ? "Video request is waiting for payment" : undefined}
-              >
+                <Button
+                  size="sm"
+                  className={WORKFLOW_ACTION_BUTTON_CLASS}
+                  onClick={() => startConsultation(app.id, app.type === "VIDEO_CALL" ? { openVideoAfterStart: true } : undefined)}
+                  disabled={startAppointmentMutation.isPending || (app.type === "VIDEO_CALL" && !app.paymentCompleted)}
+                  title={app.type === "VIDEO_CALL" && !app.paymentCompleted ? "Video request is waiting for payment" : undefined}
+                >
                   <Play className="mr-1 h-4 w-4" />
                   {app.type === "VIDEO_CALL" ? "Start video" : "Start"}
                 </Button>
               )}
               {app.status === APPOINTMENT_STATUS.CONFIRMED && !app.checkedInAt && (
-                <Button size="sm" variant="outline" disabled title="Patient must be checked in before consultation can start">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className={WORKFLOW_ACTION_BUTTON_CLASS}
+                  disabled
+                  title="Patient must be checked in before consultation can start"
+                >
                   <Play className="mr-1 h-4 w-4" />
                   Waiting check-in
                 </Button>
@@ -409,6 +426,7 @@ export default function DoctorAppointments() {
                     <Button
                       variant="outline"
                       size="sm"
+                      className={WORKFLOW_ACTION_BUTTON_CLASS}
                       onClick={() => router.push(buildVideoSessionRoute(app.id))}
                       disabled={!app.paymentCompleted}
                     >
@@ -418,6 +436,7 @@ export default function DoctorAppointments() {
                   ) : null}
                   <Button
                     size="sm"
+                    className={WORKFLOW_ACTION_BUTTON_CLASS}
                     onClick={() =>
                       completeConsultation(app.id, {
                         diagnosis,
@@ -443,16 +462,11 @@ export default function DoctorAppointments() {
   const startConsultation = async (appointmentId: string, options?: { openVideoAfterStart?: boolean }) => {
     try {
       await startAppointmentMutation.mutateAsync(appointmentId);
-      showSuccessToast("Consultation started successfully", {
-        id: TOAST_IDS.GLOBAL.SUCCESS,
-      });
       if (options?.openVideoAfterStart) {
         router.push(buildVideoSessionRoute(appointmentId));
       }
     } catch (error: unknown) {
-      showErrorToast(error instanceof Error ? error.message : "Failed to start consultation", {
-        id: TOAST_IDS.GLOBAL.ERROR,
-      });
+      void error;
     }
   };
 
@@ -473,17 +487,12 @@ export default function DoctorAppointments() {
         id: appointmentId,
         data: completionData,
       });
-      showSuccessToast("Consultation completed successfully", {
-        id: TOAST_IDS.GLOBAL.SUCCESS,
-      });
       setDiagnosis("");
       setPrescription("");
       setConsultationNotes("");
       setSelectedAppointment(null);
     } catch (error: unknown) {
-      showErrorToast(error instanceof Error ? error.message : "Failed to complete consultation", {
-        id: TOAST_IDS.GLOBAL.ERROR,
-      });
+      void error;
     }
   };
 
@@ -548,14 +557,8 @@ export default function DoctorAppointments() {
             }
           : current
       );
-
-      showSuccessToast("Consultation draft saved successfully", {
-        id: TOAST_IDS.GLOBAL.SUCCESS,
-      });
     } catch (error: unknown) {
-      showErrorToast(error instanceof Error ? error.message : "Failed to save consultation draft", {
-        id: TOAST_IDS.GLOBAL.ERROR,
-      });
+      void error;
     }
   };
 
@@ -711,10 +714,10 @@ export default function DoctorAppointments() {
           />
 
           <Dialog open={!!selectedAppointment} onOpenChange={(open) => !open && setSelectedAppointment(null)}>
-            <DialogContent className="max-h-[90vh] max-w-6xl overflow-y-auto">
+            <DialogContent className="max-h-[90vh] max-w-6xl overflow-y-auto p-0">
               {selectedAppointment && (
-                <>
-                  <DialogHeader>
+                <div className="space-y-5 p-6">
+                  <DialogHeader className="space-y-2">
                     <DialogTitle className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                       <span>Patient Details: {selectedAppointment.patientName}</span>
                       <span className="text-sm font-normal text-muted-foreground">
@@ -723,7 +726,7 @@ export default function DoctorAppointments() {
                     </DialogTitle>
                   </DialogHeader>
 
-                  <div className="grid gap-4 rounded-xl border border-border bg-muted/20 p-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="grid gap-4 rounded-2xl border border-border bg-muted/20 p-4 sm:grid-cols-2 lg:grid-cols-4">
                     <div>
                       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Status</p>
                       <Badge className={getStatusColor(selectedAppointment.status)}>{getStatusLabel(selectedAppointment.status)}</Badge>
@@ -745,7 +748,7 @@ export default function DoctorAppointments() {
                   </div>
 
                   <Tabs defaultValue="patient-info" className="space-y-4">
-                    <TabsList className="grid w-full grid-cols-3">
+                    <TabsList className="grid h-11 w-full grid-cols-3 rounded-xl bg-muted p-1">
                       <TabsTrigger value="patient-info">Patient Info</TabsTrigger>
                       <TabsTrigger value="consultation">Consultation</TabsTrigger>
                       <TabsTrigger value="prescription">Prescription</TabsTrigger>
@@ -818,8 +821,8 @@ export default function DoctorAppointments() {
                     </TabsContent>
 
                     <TabsContent value="consultation">
-                      <div className="space-y-4">
-                        <div>
+                      <div className="grid gap-4 lg:grid-cols-2">
+                        <div className={WORKFLOW_PANEL_CLASS}>
                           <label htmlFor="diagnosis" className="mb-2 block text-sm font-medium">
                             Diagnosis
                           </label>
@@ -831,7 +834,7 @@ export default function DoctorAppointments() {
                           />
                         </div>
 
-                        <div>
+                        <div className={WORKFLOW_PANEL_CLASS}>
                           <label htmlFor="consultationNotes" className="mb-2 block text-sm font-medium">
                             Consultation Notes
                           </label>
@@ -845,7 +848,7 @@ export default function DoctorAppointments() {
                         </div>
 
                         <Button
-                          className="w-full"
+                          className="h-10 w-full rounded-xl lg:col-span-2"
                           onClick={() => {
                             if (selectedAppointment) {
                               saveConsultationDraft(selectedAppointment.id);
@@ -869,8 +872,8 @@ export default function DoctorAppointments() {
                     </TabsContent>
 
                     <TabsContent value="prescription">
-                      <div className="space-y-4">
-                        <div>
+                      <div className="grid gap-4 lg:grid-cols-2">
+                        <div className={WORKFLOW_PANEL_CLASS}>
                           <label htmlFor="prescription" className="mb-2 block text-sm font-medium">
                             Prescription & Treatment Plan
                           </label>
@@ -883,17 +886,24 @@ export default function DoctorAppointments() {
                           />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className={WORKFLOW_PANEL_CLASS}>
+                          <div className="space-y-2">
+                            <p className="text-sm font-medium text-foreground">Workflow actions</p>
+                            <p className="text-sm text-muted-foreground">
+                              Save a draft first if you want to preserve interim notes before finalizing the prescription.
+                            </p>
+                          </div>
+                          <div className="mt-4 grid gap-3 sm:grid-cols-2">
                           <Button
                             variant="outline"
-                            className="w-full"
+                            className="h-10 w-full rounded-xl"
                             onClick={() => selectedAppointment && saveConsultationDraft(selectedAppointment.id)}
                             disabled={updateAppointmentMutation.isPending}
                           >
                             {updateAppointmentMutation.isPending ? "Saving..." : "Save as Draft"}
                           </Button>
                           <Button
-                            className="w-full"
+                            className="h-10 w-full rounded-xl"
                             onClick={() => {
                               if (selectedAppointment) {
                                 completeConsultation(selectedAppointment.id, {
@@ -917,11 +927,12 @@ export default function DoctorAppointments() {
                               </>
                             )}
                           </Button>
+                          </div>
                         </div>
                       </div>
                     </TabsContent>
                   </Tabs>
-                </>
+                </div>
               )}
             </DialogContent>
           </Dialog>

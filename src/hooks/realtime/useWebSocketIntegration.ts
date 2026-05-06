@@ -190,9 +190,9 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
     autoConnect = true,
     subscribeToQueues = true,
     subscribeToAppointments = true,
-    tenantId = currentClinic?.id || 'default',
+    tenantId = currentClinic?.id || session?.user?.clinicId || 'default',
     userId = user?.id || undefined,
-    clinicId = currentClinic?.id
+    clinicId = currentClinic?.id || session?.user?.clinicId
   } = options;
 
   // Initialize WebSocket connection - Real-time enabled

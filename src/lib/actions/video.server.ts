@@ -3,6 +3,7 @@
 import { authenticatedApi, getServerSession } from './auth.server';
 import { API_ENDPOINTS } from '../config/config';
 import { isApiError } from '@/lib/utils/error-handler';
+import { normalizeVideoSessionAppointmentId } from '@/lib/utils/video-session-route';
 import type { BackgroundPreset, VirtualBackgroundSettings } from '@/types/video.types';
 
 // ===== VIDEO TOKEN MANAGEMENT =====
@@ -218,7 +219,8 @@ async function getConsultationId(appointmentId: string): Promise<string> {
     );
     // The status response should contain the consultation/session ID
     if (response && typeof response === 'object' && 'id' in response) {
-      return response.id as string;
+      const resolvedId = normalizeVideoSessionAppointmentId(String(response.id));
+      return resolvedId || appointmentId;
     }
     // Fallback: use appointmentId as consultationId (if they're the same)
     return appointmentId;
@@ -949,9 +951,8 @@ export async function saveTranscriptToEHR(appointmentId: string) {
  * Get current virtual background settings
  */
 export async function getVirtualBackgroundSettings(appointmentId: string) {
-  const consultationId = await getConsultationId(appointmentId);
   const { data: response } = await authenticatedApi(
-    API_ENDPOINTS.VIDEO.VIRTUAL_BACKGROUND.GET(consultationId),
+    API_ENDPOINTS.VIDEO.VIRTUAL_BACKGROUND.GET(appointmentId),
     {}
   );
   return response as VirtualBackgroundSettings | null;
@@ -982,7 +983,6 @@ export async function updateVirtualBackground(
     customBackgroundId?: string;
   }
 ) {
-  const consultationId = await getConsultationId(appointmentId);
   const session = await getServerSession();
   const userId = session?.user?.id || '';
 
@@ -996,7 +996,7 @@ export async function updateVirtualBackground(
     {
       method: 'POST',
       body: JSON.stringify({
-        consultationId,
+        consultationId: appointmentId,
         userId,
         ...data,
       }),

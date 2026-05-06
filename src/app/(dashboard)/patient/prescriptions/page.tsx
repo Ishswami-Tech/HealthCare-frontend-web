@@ -196,7 +196,14 @@ export default function PatientPrescriptions() {
       : [];
 
   const displayPrescriptions = useMemo(
-    () => prescriptions.map(normalizePrescription),
+    () =>
+      [...prescriptions]
+        .map(normalizePrescription)
+        .sort(
+          (left: any, right: any) =>
+            new Date(String(right.date || right.prescribedAt || right.createdAt || 0)).getTime() -
+            new Date(String(left.date || left.prescribedAt || left.createdAt || 0)).getTime()
+        ),
     [prescriptions]
   );
 

@@ -47,7 +47,7 @@ import { showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import {
   useAppointmentServices,
   useAppointments,
-  useCheckInAppointment,
+  useForceCheckInAppointment,
   useMarkAppointmentNoShow,
   useReassignAppointmentDoctor,
 } from "@/hooks/query/useAppointments";
@@ -186,7 +186,7 @@ export default function ReceptionistAppointmentsPage() {
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
   const [activeDoctorId, setActiveDoctorId] = useState<string | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<ViewAppointment | null>(null);
-  const checkInMutation = useCheckInAppointment();
+  const checkInMutation = useForceCheckInAppointment();
   const markNoShowMutation = useMarkAppointmentNoShow();
   const reassignAppointmentMutation = useReassignAppointmentDoctor();
   const callNextPatientMutation = useQueueCallNextPatient();

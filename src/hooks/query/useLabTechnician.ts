@@ -85,7 +85,18 @@ export const useCreateLabResult = () => {
       toastId: TOAST_IDS.EHR.LAB_CREATE,
       loadingMessage: 'Creating lab result...',
       successMessage: 'Lab result created successfully',
-      invalidateQueries: [['labTechnicianResults'], ['patientLabResults']],
+      invalidateQueries: [
+        ['labTechnicianResults'],
+        ['patientLabResults'],
+        ['patientMedicalRecords'],
+        ['patientTimeline'],
+        ['patientStats'],
+        ['medicalRecords'],
+        ['medicalRecords', 'lab-reports'],
+        ['medicalRecords', 'comprehensive'],
+        ['ehr'],
+        ['ehrClinic'],
+      ],
     }
   );
 };
@@ -102,7 +113,18 @@ export const useUpdateLabResult = () => {
       toastId: TOAST_IDS.EHR.LAB_UPDATE,
       loadingMessage: 'Updating lab result...',
       successMessage: 'Lab result updated successfully',
-      invalidateQueries: [['labTechnicianResults'], ['patientLabResults']],
+      invalidateQueries: [
+        ['labTechnicianResults'],
+        ['patientLabResults'],
+        ['patientMedicalRecords'],
+        ['patientTimeline'],
+        ['patientStats'],
+        ['medicalRecords'],
+        ['medicalRecords', 'lab-reports'],
+        ['medicalRecords', 'comprehensive'],
+        ['ehr'],
+        ['ehrClinic'],
+      ],
     }
   );
 };
@@ -119,7 +141,18 @@ export const useDeleteLabResult = () => {
       toastId: TOAST_IDS.EHR.LAB_DELETE,
       loadingMessage: 'Deleting lab result...',
       successMessage: 'Lab result deleted successfully',
-      invalidateQueries: [['labTechnicianResults'], ['patientLabResults']],
+      invalidateQueries: [
+        ['labTechnicianResults'],
+        ['patientLabResults'],
+        ['patientMedicalRecords'],
+        ['patientTimeline'],
+        ['patientStats'],
+        ['medicalRecords'],
+        ['medicalRecords', 'lab-reports'],
+        ['medicalRecords', 'comprehensive'],
+        ['ehr'],
+        ['ehrClinic'],
+      ],
     }
   );
 };

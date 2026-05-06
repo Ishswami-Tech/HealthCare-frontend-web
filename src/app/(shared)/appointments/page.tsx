@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "@/lib/actions/auth.server";
 import { Role } from "@/types/auth.types";
 
+export const dynamic = "force-dynamic";
+
 function getAppointmentsRouteByRole(role?: string): string {
   const normalizedRole = String(role || "").trim().toUpperCase();
 

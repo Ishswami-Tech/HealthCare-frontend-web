@@ -348,7 +348,7 @@ export const useCreateMedicine = () => {
       toastId: TOAST_IDS.MEDICINE.CREATE,
       loadingMessage: "Creating medicine...",
       successMessage: "Medicine created successfully",
-      invalidateQueries: [["medicines"]],
+      invalidateQueries: [["medicines"], ["inventory"], ["pharmacyStats"], ["pharmacyBatchAudit"]],
     },
   );
 };
@@ -373,7 +373,7 @@ export const useUpdateMedicine = () => {
       toastId: TOAST_IDS.MEDICINE.UPDATE,
       loadingMessage: "Updating medicine...",
       successMessage: "Medicine updated successfully",
-      invalidateQueries: [["medicines"]],
+      invalidateQueries: [["medicines"], ["inventory"], ["pharmacyStats"], ["pharmacyBatchAudit"]],
     },
   );
 };
@@ -396,7 +396,7 @@ export const useDeleteMedicine = () => {
       toastId: TOAST_IDS.MEDICINE.DELETE,
       loadingMessage: "Deleting medicine...",
       successMessage: "Medicine deleted successfully",
-      invalidateQueries: [["medicines"]],
+      invalidateQueries: [["medicines"], ["inventory"], ["pharmacyStats"], ["pharmacyBatchAudit"]],
     },
   );
 };
@@ -431,7 +431,7 @@ export const useCreatePrescription = () => {
       toastId: TOAST_IDS.PRESCRIPTION.CREATE,
       loadingMessage: "Creating prescription...",
       successMessage: "Prescription created successfully",
-      invalidateQueries: [["prescriptions"]],
+      invalidateQueries: [["prescriptions"], ["medicineDeskQueue"], ["pharmacyStats"], ["pharmacyBatchAudit"]],
     },
   );
 };
@@ -460,6 +460,8 @@ export const useUpdatePrescriptionStatus = () => {
         ["prescriptions"],
         ["medicineDeskQueue"],
         ["pharmacyStats"],
+        ["pharmacyBatchAudit"],
+        ["medicalRecords"],
       ],
     },
   );
@@ -488,6 +490,7 @@ export const useDispensePrescription = () => {
         ["medicineDeskQueue"],
         ["pharmacyStats"],
         ["pharmacyBatchAudit"],
+        ["medicalRecords"],
       ],
     },
   );
@@ -516,6 +519,7 @@ export const useReversePrescriptionDispense = () => {
         ["medicineDeskQueue"],
         ["pharmacyStats"],
         ["pharmacyBatchAudit"],
+        ["medicalRecords"],
       ],
     },
   );
@@ -541,7 +545,7 @@ export const useUpdateInventory = () => {
       toastId: TOAST_IDS.PHARMACY.INVENTORY_UPDATE,
       loadingMessage: "Updating inventory...",
       successMessage: "Inventory updated successfully",
-      invalidateQueries: [["inventory"]],
+      invalidateQueries: [["inventory"], ["medicines"], ["pharmacyStats"], ["pharmacyBatchAudit"]],
     },
   );
 };
@@ -575,7 +579,7 @@ export const useCreatePharmacyOrder = () => {
       toastId: TOAST_IDS.PHARMACY.ORDER_CREATE,
       loadingMessage: "Creating pharmacy order...",
       successMessage: "Pharmacy order created successfully",
-      invalidateQueries: [["pharmacyOrders"]],
+      invalidateQueries: [["pharmacyOrders"], ["pharmacyStats"], ["inventory"]],
     },
   );
 };

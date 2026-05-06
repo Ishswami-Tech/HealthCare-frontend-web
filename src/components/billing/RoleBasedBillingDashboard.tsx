@@ -360,8 +360,6 @@ export function RoleBasedBillingDashboard({
     try {
       await markInvoiceAsPaidMutation.mutateAsync(invoiceId);
       onRefetch?.();
-    } catch (error) {
-      showErrorToast(error);
     } finally {
       setMarkingPaidId(null);
     }

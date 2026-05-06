@@ -180,6 +180,23 @@ export function PaymentButton({
     return verifyResponse;
   };
 
+  const finalizeSuccessfulPayment = async (
+    usedProvider: PaymentProvider,
+    orderId: string,
+    resolvedClinicId: string
+  ) => {
+    await verifyPayment(usedProvider, {
+      orderId,
+      paymentId: orderId,
+      clinicId: resolvedClinicId,
+    });
+    invalidateSuccessfulPaymentQueries();
+    showSuccessToast("Payment verified.", {
+      id: TOAST_IDS.PAYMENT.SUCCESS,
+    });
+    onSuccess?.(orderId);
+  };
+
   const handleCashfreePayment = async (
     paymentIntent: Record<string, unknown>,
     usedProvider: PaymentProvider
@@ -263,16 +280,7 @@ export function PaymentButton({
       } else if (result?.redirect) {
         return;
       } else {
-        await verifyPayment(usedProvider, {
-          orderId,
-          paymentId: orderId,
-          clinicId: resolvedClinicId,
-        });
-        invalidateSuccessfulPaymentQueries();
-        showSuccessToast("Payment verified.", {
-          id: TOAST_IDS.PAYMENT.SUCCESS,
-        });
-        onSuccess?.(orderId);
+        await finalizeSuccessfulPayment(usedProvider, orderId, resolvedClinicId);
       }
     } catch (error) {
       try {
@@ -281,16 +289,7 @@ export function PaymentButton({
           return;
         }
 
-        await verifyPayment(usedProvider, {
-          orderId,
-          paymentId: orderId,
-          clinicId: resolvedClinicId,
-        });
-        invalidateSuccessfulPaymentQueries();
-        showSuccessToast("Payment verified.", {
-          id: TOAST_IDS.PAYMENT.SUCCESS,
-        });
-        onSuccess?.(orderId);
+        await finalizeSuccessfulPayment(usedProvider, orderId, resolvedClinicId);
       } catch {
         const message =
           error instanceof Error
