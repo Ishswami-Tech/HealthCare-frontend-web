@@ -2,8 +2,6 @@
 
 import { useState, useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Role } from "@/types/auth.types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +25,18 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { DataTable } from "@/components/ui/data-table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DashboardPageHeader as PatientPageHeader,
+  DashboardPageShell as PatientPageShell,
+} from "@/components/dashboard/DashboardPageShell";
 
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
@@ -45,8 +55,10 @@ import {
   Mail,
   Edit,
   Trash2,
-  Clock,
-  Building2,
+  Ban,
+  Stethoscope,
+  Video,
+  AlertTriangle,
   Search,
   Loader2,
 } from "lucide-react";
@@ -64,6 +76,13 @@ const DAYS = [
 
 type DayKey = (typeof DAYS)[number];
 type WorkingHours = Record<DayKey, { start: string; end: string } | null>;
+type LocationPermissions = {
+  isOpdPaused: boolean;
+  pauseReason: string;
+  generalConsultationEnabled: boolean;
+  videoConsultationEnabled: boolean;
+  emergencyOnly: boolean;
+};
 type LocationFormState = {
   name: string;
   address: string;
@@ -74,7 +93,11 @@ type LocationFormState = {
   phone: string;
   email: string;
   timezone: string;
+  latitude: string;
+  longitude: string;
+  googlePlaceId: string;
   isActive: boolean;
+  permissions: LocationPermissions;
   workingHours: WorkingHours;
 };
 
@@ -88,10 +111,39 @@ type LocationRow = {
   phone: string;
   email: string;
   timezone: string;
+  latitude: string;
+  longitude: string;
+  googlePlaceId: string;
   country: string;
   isActive: boolean;
+  permissions: LocationPermissions;
   workingHours: unknown;
   raw: any;
+};
+
+const FORM_FIELD_CLASS = "space-y-2";
+const FORM_INPUT_CLASS = "h-10";
+const TIME_INPUT_CLASS =
+  "h-10 w-full min-w-0 rounded-md border border-teal-200 bg-white px-3 text-sm font-medium leading-none tabular-nums shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:border-teal-400 focus-visible:ring-2 focus-visible:ring-teal-200/70 dark:border-teal-900/70 dark:bg-background [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-70 [&::-webkit-datetime-edit-fields-wrapper]:p-0 [&::-webkit-datetime-edit]:p-0 [&::-webkit-datetime-edit-hour-field]:px-0.5 [&::-webkit-datetime-edit-minute-field]:px-0.5 [&::-webkit-datetime-edit-ampm-field]:px-1";
+const TOOLBAR_CARD_CLASS = "rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 shadow-sm dark:border-emerald-900/70 dark:bg-emerald-950/20 sm:p-4";
+const TABLE_CARD_CLASS = "rounded-xl border border-blue-200 bg-blue-50/70 p-3 shadow-sm dark:border-blue-900/70 dark:bg-blue-950/20 sm:p-4";
+
+const DEFAULT_LOCATION_PERMISSIONS: LocationPermissions = {
+  isOpdPaused: false,
+  pauseReason: "",
+  generalConsultationEnabled: true,
+  videoConsultationEnabled: true,
+  emergencyOnly: false,
+};
+
+const DAY_LABEL: Record<DayKey, string> = {
+  monday: "Monday",
+  tuesday: "Tuesday",
+  wednesday: "Wednesday",
+  thursday: "Thursday",
+  friday: "Friday",
+  saturday: "Saturday",
+  sunday: "Sunday",
 };
 
 const DEFAULT_WORKING_HOURS: WorkingHours = {
@@ -128,13 +180,217 @@ function normalizeWorkingHours(value: unknown): WorkingHours {
   }, {} as WorkingHours);
 }
 
-function summarizeWorkingHours(value: unknown) {
+function workingHoursItems(value: unknown) {
   const hours = normalizeWorkingHours(value);
   return DAYS.map((day) => {
     const slot = hours[day];
     const label = day.charAt(0).toUpperCase() + day.slice(1, 3);
-    return slot ? `${label} ${slot.start}-${slot.end}` : `${label} Closed`;
-  }).join(" • ");
+    return {
+      day: label,
+      time: slot ? `${slot.start}-${slot.end}` : "Closed",
+      isClosed: !slot,
+    };
+  });
+}
+
+function workingHoursGroups(value: unknown) {
+  const items = workingHoursItems(value);
+  return items.reduce<Array<{ startDay: string; endDay: string; time: string; isClosed: boolean }>>(
+    (groups, item) => {
+      const current = groups[groups.length - 1];
+      if (current && current.time === item.time && current.isClosed === item.isClosed) {
+        current.endDay = item.day;
+      } else {
+        groups.push({
+          startDay: item.day,
+          endDay: item.day,
+          time: item.time,
+          isClosed: item.isClosed,
+        });
+      }
+      return groups;
+    },
+    []
+  );
+}
+
+function displayValue(value?: string | null) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : "Not added";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function normalizeLocationPermissions(location: unknown): LocationPermissions {
+  const source = isRecord(location) ? location : {};
+  const settings = isRecord(source.settings) ? source.settings : {};
+  const controls = isRecord(settings.operationalControls)
+    ? settings.operationalControls
+    : isRecord(settings.opdControls)
+    ? settings.opdControls
+    : isRecord(source.permissions)
+    ? source.permissions
+    : {};
+
+  return {
+    isOpdPaused: Boolean(controls.isOpdPaused ?? controls.isPaused ?? DEFAULT_LOCATION_PERMISSIONS.isOpdPaused),
+    pauseReason: typeof controls.pauseReason === "string" ? controls.pauseReason : DEFAULT_LOCATION_PERMISSIONS.pauseReason,
+    generalConsultationEnabled: Boolean(controls.generalConsultationEnabled ?? DEFAULT_LOCATION_PERMISSIONS.generalConsultationEnabled),
+    videoConsultationEnabled: Boolean(controls.videoConsultationEnabled ?? DEFAULT_LOCATION_PERMISSIONS.videoConsultationEnabled),
+    emergencyOnly: Boolean(controls.emergencyOnly ?? DEFAULT_LOCATION_PERMISSIONS.emergencyOnly),
+  };
+}
+
+function getGooglePlaceId(location: unknown) {
+  const source = isRecord(location) ? location : {};
+  const settings = isRecord(source.settings) ? source.settings : {};
+  const value = source.googlePlaceId ?? settings.googlePlaceId ?? settings.googleMapsPlaceId;
+  return typeof value === "string" ? value : "";
+}
+
+function buildLocationPayload<T extends object>(
+  location: T
+): Omit<T, "permissions" | "raw"> & { settings: Record<string, unknown> } {
+  const source = { ...(location as Record<string, any>) };
+  const permissions = source.permissions as LocationPermissions | undefined;
+  const googlePlaceId = typeof source.googlePlaceId === "string" ? source.googlePlaceId.trim() : "";
+  delete source.permissions;
+  delete source.raw;
+  delete source.googlePlaceId;
+  if (source.latitude === "") {
+    delete source.latitude;
+  } else if (source.latitude !== undefined) {
+    const latitude = Number(source.latitude);
+    if (Number.isFinite(latitude)) {
+      source.latitude = latitude;
+    } else {
+      delete source.latitude;
+    }
+  }
+  if (source.longitude === "") {
+    delete source.longitude;
+  } else if (source.longitude !== undefined) {
+    const longitude = Number(source.longitude);
+    if (Number.isFinite(longitude)) {
+      source.longitude = longitude;
+    } else {
+      delete source.longitude;
+    }
+  }
+  const settings = isRecord(source.settings) ? source.settings : {};
+  return ({
+    ...source,
+    settings: {
+      ...settings,
+      operationalControls: permissions ?? normalizeLocationPermissions(location),
+      ...(googlePlaceId ? { googlePlaceId } : {}),
+    },
+  } as unknown) as Omit<T, "permissions" | "raw"> & { settings: Record<string, unknown> };
+}
+
+function formatAddress(location: LocationRow) {
+  const cityState = [location.city, location.state].filter(Boolean).join(", ");
+  const postal = [cityState, location.zipCode].filter(Boolean).join(" ");
+  const parts = [location.address, postal].filter(Boolean);
+  return parts.length ? parts.join(", ") : "Address not added";
+}
+
+function WorkingHoursTable({
+  value,
+  target,
+  onToggleDay,
+  onUpdateTime,
+}: {
+  value: unknown;
+  target: "new" | "edit";
+  onToggleDay: (target: "new" | "edit", day: DayKey, enabled: boolean) => void;
+  onUpdateTime: (target: "new" | "edit", day: DayKey, field: "start" | "end", value: string) => void;
+}) {
+  const hours = normalizeWorkingHours(value);
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-teal-200 bg-white/80 dark:border-teal-900/70 dark:bg-background/40">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-teal-100/70 hover:bg-teal-100/70 dark:bg-teal-950/30 dark:hover:bg-teal-950/30">
+            <TableHead className="w-[128px] px-3">Day</TableHead>
+            <TableHead className="px-3">Hours</TableHead>
+            <TableHead className="w-[72px] px-3 text-right">Action</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {DAYS.map((day) => {
+            const slot = hours[day];
+            return (
+              <TableRow key={day} className="hover:bg-teal-50/70 dark:hover:bg-teal-950/20">
+                <TableCell className="px-3 font-semibold">{DAY_LABEL[day]}</TableCell>
+                <TableCell className="px-3">
+                  {slot ? (
+                    <div className="flex flex-wrap gap-2">
+                      <div className="grid w-full grid-cols-1 gap-2 rounded-md border border-teal-200 bg-background p-2 dark:border-teal-900/70 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+                        <div className="min-w-0 space-y-1">
+                          <Label className="text-[11px] font-medium leading-none text-muted-foreground">
+                            Start
+                          </Label>
+                          <Input
+                            type="time"
+                            className={TIME_INPUT_CLASS}
+                            value={slot.start}
+                            onChange={(event) => onUpdateTime(target, day, "start", event.target.value)}
+                            aria-label={`${DAY_LABEL[day]} start time`}
+                          />
+                        </div>
+                        <div className="min-w-0 space-y-1">
+                          <Label className="text-[11px] font-medium leading-none text-muted-foreground">
+                            End
+                          </Label>
+                          <Input
+                            type="time"
+                            className={TIME_INPUT_CLASS}
+                            value={slot.end}
+                            onChange={(event) => onUpdateTime(target, day, "end", event.target.value)}
+                            aria-label={`${DAY_LABEL[day]} end time`}
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="h-9 w-8 text-destructive"
+                          onClick={() => onToggleDay(target, day, false)}
+                          aria-label={`Close ${DAY_LABEL[day]}`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="inline-flex rounded-md bg-teal-100/70 px-2 py-1 text-xs text-teal-900 dark:bg-teal-950/40 dark:text-teal-200">
+                      Closed
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell className="px-3 text-right">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    onClick={() => onToggleDay(target, day, true)}
+                    disabled={!!slot}
+                    aria-label={`Open ${DAY_LABEL[day]}`}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
+  );
 }
 
 export default function ClinicLocationsPage() {
@@ -190,7 +446,11 @@ export default function ClinicLocationsPage() {
     phone: "",
     email: "",
     timezone: "Asia/Kolkata",
+    latitude: "",
+    longitude: "",
+    googlePlaceId: "",
     isActive: true,
+    permissions: DEFAULT_LOCATION_PERMISSIONS,
     workingHours: {
       monday: { start: "09:00", end: "18:00" },
       tuesday: { start: "09:00", end: "18:00" },
@@ -237,6 +497,33 @@ export default function ClinicLocationsPage() {
     });
   };
 
+  const updatePermission = (
+    target: "new" | "edit",
+    key: keyof LocationPermissions,
+    value: string | boolean
+  ) => {
+    if (target === "new") {
+      setNewLocation({
+        ...newLocation,
+        permissions: {
+          ...newLocation.permissions,
+          [key]: value as never,
+        },
+      });
+      return;
+    }
+
+    if (!selectedLocation) return;
+    const currentPermissions = normalizeLocationPermissions(selectedLocation);
+    setSelectedLocation({
+      ...selectedLocation,
+      permissions: {
+        ...currentPermissions,
+        [key]: value as never,
+      },
+    });
+  };
+
   const toggleWorkingDay = (target: "new" | "edit", day: DayKey, enabled: boolean) => {
     if (target === "new") {
       const current = normalizeWorkingHours(newLocation.workingHours);
@@ -272,7 +559,7 @@ export default function ClinicLocationsPage() {
     try {
       createLocationMutation.mutate({
         clinicId,
-        data: newLocation,
+        data: buildLocationPayload(newLocation) as any,
       });
 
       showSuccessToast("Location created successfully", {
@@ -288,7 +575,11 @@ export default function ClinicLocationsPage() {
         phone: "",
         email: "",
         timezone: "Asia/Kolkata",
+        latitude: "",
+        longitude: "",
+        googlePlaceId: "",
         isActive: true,
+        permissions: DEFAULT_LOCATION_PERMISSIONS,
         workingHours: {
           monday: { start: "09:00", end: "18:00" },
           tuesday: { start: "09:00", end: "18:00" },
@@ -308,7 +599,13 @@ export default function ClinicLocationsPage() {
   };
 
   const handleEditLocation = (location: any) => {
-    setSelectedLocation(location);
+    setSelectedLocation({
+      ...location,
+      latitude: location.latitude ?? "",
+      longitude: location.longitude ?? "",
+      googlePlaceId: getGooglePlaceId(location),
+      permissions: normalizeLocationPermissions(location),
+    });
     setIsEditDialogOpen(true);
   };
 
@@ -324,7 +621,7 @@ export default function ClinicLocationsPage() {
       updateLocationMutation.mutate({
         clinicId,
         locationId: selectedLocation.id,
-        data: selectedLocation,
+        data: buildLocationPayload(selectedLocation) as any,
       });
 
       showSuccessToast("Location updated successfully", {
@@ -381,8 +678,12 @@ export default function ClinicLocationsPage() {
         phone: location.phone,
         email: location.email,
         timezone: location.timezone,
+        latitude: location.latitude ?? "",
+        longitude: location.longitude ?? "",
+        googlePlaceId: getGooglePlaceId(location),
         country: location.country,
         isActive: location.isActive,
+        permissions: normalizeLocationPermissions(location),
         workingHours: location.workingHours,
         raw: location,
       })),
@@ -395,10 +696,11 @@ export default function ClinicLocationsPage() {
         accessorKey: "name",
         header: "Location",
         cell: ({ row }) => (
-          <div className="space-y-1">
-            <div className="font-semibold">{row.original.name}</div>
-            <div className="text-xs text-muted-foreground">
-              {row.original.address}, {row.original.city}, {row.original.state} {row.original.zipCode}
+          <div className="w-[280px] space-y-1.5">
+            <div className="truncate font-semibold text-foreground">{displayValue(row.original.name)}</div>
+            <div className="flex items-start gap-1.5 text-xs leading-5 text-muted-foreground">
+              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span className="line-clamp-2 whitespace-normal">{formatAddress(row.original)}</span>
             </div>
           </div>
         ),
@@ -407,18 +709,14 @@ export default function ClinicLocationsPage() {
         accessorKey: "contact",
         header: "Contact",
         cell: ({ row }) => (
-          <div className="space-y-1 text-sm">
-            <div className="flex items-center gap-2">
-              <Phone className="w-4 h-4 text-muted-foreground" />
-              <span>{row.original.phone}</span>
+          <div className="w-[128px] space-y-1 text-xs">
+            <div className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
+              <Phone className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{displayValue(row.original.phone)}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Mail className="w-4 h-4 text-muted-foreground" />
-              <span>{row.original.email}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-muted-foreground" />
-              <span>{row.original.timezone}</span>
+            <div className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
+              <Mail className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{displayValue(row.original.email)}</span>
             </div>
           </div>
         ),
@@ -427,17 +725,63 @@ export default function ClinicLocationsPage() {
         accessorKey: "status",
         header: "Status",
         cell: ({ row }) => (
-          <Badge variant={row.original.isActive ? "default" : "secondary"}>
+          <Badge variant={row.original.isActive ? "default" : "secondary"} className="w-[64px] justify-center whitespace-nowrap px-2">
             {row.original.isActive ? "Active" : "Inactive"}
           </Badge>
         ),
       },
       {
+        accessorKey: "permissions",
+        header: "Permissions",
+        cell: ({ row }) => {
+          const permissions = row.original.permissions;
+          const permissionItems = [
+            { label: "OPD", enabled: !permissions.isOpdPaused, icon: Ban },
+            { label: "General", enabled: permissions.generalConsultationEnabled, icon: Stethoscope },
+            { label: "Video", enabled: permissions.videoConsultationEnabled, icon: Video },
+            { label: "Emergency", enabled: permissions.emergencyOnly, icon: AlertTriangle },
+          ];
+
+          return (
+            <div className="flex min-w-0 max-w-full flex-wrap content-start gap-1.5 whitespace-normal">
+              {permissionItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <span
+                    key={item.label}
+                    className={
+                      item.enabled
+                        ? "inline-flex max-w-full items-center gap-1 whitespace-nowrap rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] leading-none text-emerald-800 dark:border-emerald-900/70 dark:bg-emerald-950/30 dark:text-emerald-200"
+                        : "inline-flex max-w-full items-center gap-1 whitespace-nowrap rounded-md border border-muted bg-muted/50 px-2 py-1 text-[11px] leading-none text-muted-foreground"
+                    }
+                  >
+                    <Icon className="h-3 w-3" />
+                    {item.label}
+                  </span>
+                );
+              })}
+            </div>
+          );
+        },
+      },
+      {
         accessorKey: "workingHours",
         header: "Working Hours",
         cell: ({ row }) => (
-          <div className="max-w-[420px] text-xs text-muted-foreground">
-            {summarizeWorkingHours(row.original.workingHours)}
+          <div className="flex min-w-0 max-w-full flex-wrap content-start gap-1.5 whitespace-normal">
+            {workingHoursGroups(row.original.workingHours).map((item) => (
+              <span
+                key={`${item.startDay}-${item.endDay}-${item.time}`}
+                className="inline-flex max-w-full items-center gap-1 whitespace-nowrap rounded-md border border-border bg-muted/40 px-2 py-1 text-[11px] leading-none text-muted-foreground"
+              >
+                <span className="shrink-0 font-medium text-foreground">
+                  {item.startDay === item.endDay ? item.startDay : `${item.startDay}-${item.endDay}`}
+                </span>
+                <span className={item.isClosed ? "text-muted-foreground" : "text-emerald-700 dark:text-emerald-400"}>
+                  {item.time}
+                </span>
+              </span>
+            ))}
           </div>
         ),
       },
@@ -445,12 +789,12 @@ export default function ClinicLocationsPage() {
         id: "actions",
         header: "Actions",
         cell: ({ row }) => (
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => handleEditLocation(row.original.raw)}>
-              <Edit className="w-4 h-4" />
+          <div className="flex w-[84px] items-center justify-end gap-1">
+            <Button variant="ghost" size="icon-sm" onClick={() => handleEditLocation(row.original.raw)} aria-label={`Edit ${row.original.name}`}>
+              <Edit className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => handleDeleteLocation(row.original.id)} disabled={isDeleting}>
-              <Trash2 className="w-4 h-4 text-red-600" />
+            <Button variant="ghost" size="icon-sm" onClick={() => handleDeleteLocation(row.original.id)} disabled={isDeleting} aria-label={`Delete ${row.original.name}`}>
+              <Trash2 className="h-4 w-4 text-red-600" />
             </Button>
           </div>
         ),
@@ -461,49 +805,52 @@ export default function ClinicLocationsPage() {
 
   if (isPendingLocations) {
     return (
-      
-          <div className="p-6 flex items-center justify-center min-h-[400px]">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-          </div>
-      
+      <PatientPageShell className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+        <div className="flex min-h-[400px] items-center justify-center rounded-xl border border-border bg-card">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </PatientPageShell>
     );
   }
 
   return (
-    
-        <div className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">Clinic Locations</h1>
-              <p className="text-gray-600 mt-1">
-                Manage your clinic locations and branches
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <WebSocketStatusIndicator />
-              <Dialog
-                open={isCreateDialogOpen}
-                onOpenChange={setIsCreateDialogOpen}
-              >
-                <DialogTrigger asChild>
-                  <Button className="flex items-center gap-2">
-                    <Plus className="w-4 h-4" />
-                    Add Location
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
+    <PatientPageShell className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+      <PatientPageHeader
+        eyebrow="Clinic Admin"
+        title="Clinic Locations"
+        description="Manage your clinic locations and branches"
+        meta={
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span>{filteredLocations.length} of {locations.length} locations</span>
+            <span className="h-1 w-1 rounded-full bg-muted-foreground/50" />
+            <WebSocketStatusIndicator />
+          </div>
+        }
+        actionsSlot={
+          <Dialog
+            open={isCreateDialogOpen}
+            onOpenChange={setIsCreateDialogOpen}
+          >
+            <DialogTrigger asChild>
+              <Button className="h-9 rounded-lg px-4 text-sm font-semibold sm:h-10">
+                <Plus className="h-4 w-4" />
+                Add Location
+              </Button>
+            </DialogTrigger>
+                <DialogContent className="max-h-[92vh] w-[calc(100vw-1rem)] gap-0 overflow-y-auto border-teal-200 bg-teal-50 p-0 dark:border-teal-900/70 dark:bg-teal-950 sm:max-w-3xl">
+                  <DialogHeader className="border-b border-teal-200 bg-white/70 px-4 pb-4 pt-5 dark:border-teal-900/70 dark:bg-background/40 sm:px-6">
                     <DialogTitle>Create New Location</DialogTitle>
                     <DialogDescription>
                       Add a new clinic location or branch office
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
+                  <div className="space-y-5 px-4 py-5 sm:px-6">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div className={FORM_FIELD_CLASS}>
                         <Label htmlFor="name">Location Name *</Label>
                         <Input
                           id="name"
+                          className={FORM_INPUT_CLASS}
                           value={newLocation.name}
                           onChange={(e) =>
                             setNewLocation({
@@ -514,10 +861,11 @@ export default function ClinicLocationsPage() {
                           placeholder="Main Branch"
                         />
                       </div>
-                      <div>
+                      <div className={FORM_FIELD_CLASS}>
                         <Label htmlFor="phone">Phone *</Label>
                         <Input
                           id="phone"
+                          className={FORM_INPUT_CLASS}
                           value={newLocation.phone}
                           onChange={(e) =>
                             setNewLocation({
@@ -529,10 +877,11 @@ export default function ClinicLocationsPage() {
                         />
                       </div>
                     </div>
-                    <div>
+                    <div className={FORM_FIELD_CLASS}>
                       <Label htmlFor="address">Address *</Label>
                       <Textarea
                         id="address"
+                        className="min-h-24"
                         value={newLocation.address}
                         onChange={(e) =>
                           setNewLocation({
@@ -544,11 +893,52 @@ export default function ClinicLocationsPage() {
                         rows={2}
                       />
                     </div>
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-3 rounded-lg border border-teal-200 bg-white/80 p-3 dark:border-teal-900/70 dark:bg-background/40">
                       <div>
+                        <Label>Google Maps Validation</Label>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Use coordinates and Google Place ID to validate the physical branch location.
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className={FORM_FIELD_CLASS}>
+                          <Label htmlFor="latitude">Latitude</Label>
+                          <Input
+                            id="latitude"
+                            className={FORM_INPUT_CLASS}
+                            value={newLocation.latitude}
+                            onChange={(e) => setNewLocation({ ...newLocation, latitude: e.target.value })}
+                            placeholder="18.5204"
+                          />
+                        </div>
+                        <div className={FORM_FIELD_CLASS}>
+                          <Label htmlFor="longitude">Longitude</Label>
+                          <Input
+                            id="longitude"
+                            className={FORM_INPUT_CLASS}
+                            value={newLocation.longitude}
+                            onChange={(e) => setNewLocation({ ...newLocation, longitude: e.target.value })}
+                            placeholder="73.8567"
+                          />
+                        </div>
+                        <div className={FORM_FIELD_CLASS}>
+                          <Label htmlFor="googlePlaceId">Google Place ID</Label>
+                          <Input
+                            id="googlePlaceId"
+                            className={FORM_INPUT_CLASS}
+                            value={newLocation.googlePlaceId}
+                            onChange={(e) => setNewLocation({ ...newLocation, googlePlaceId: e.target.value })}
+                            placeholder="ChIJ..."
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      <div className={FORM_FIELD_CLASS}>
                         <Label htmlFor="city">City *</Label>
                         <Input
                           id="city"
+                          className={FORM_INPUT_CLASS}
                           value={newLocation.city}
                           onChange={(e) =>
                             setNewLocation({
@@ -559,10 +949,11 @@ export default function ClinicLocationsPage() {
                           placeholder="Mumbai"
                         />
                       </div>
-                      <div>
+                      <div className={FORM_FIELD_CLASS}>
                         <Label htmlFor="state">State *</Label>
                         <Input
                           id="state"
+                          className={FORM_INPUT_CLASS}
                           value={newLocation.state}
                           onChange={(e) =>
                             setNewLocation({
@@ -573,10 +964,11 @@ export default function ClinicLocationsPage() {
                           placeholder="Maharashtra"
                         />
                       </div>
-                      <div>
+                      <div className={FORM_FIELD_CLASS}>
                         <Label htmlFor="zipCode">ZIP Code *</Label>
                         <Input
                           id="zipCode"
+                          className={FORM_INPUT_CLASS}
                           value={newLocation.zipCode}
                           onChange={(e) =>
                             setNewLocation({
@@ -588,11 +980,12 @@ export default function ClinicLocationsPage() {
                         />
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      <div className={FORM_FIELD_CLASS}>
                         <Label htmlFor="email">Email *</Label>
                         <Input
                           id="email"
+                          className={FORM_INPUT_CLASS}
                           type="email"
                           value={newLocation.email}
                           onChange={(e) =>
@@ -604,7 +997,7 @@ export default function ClinicLocationsPage() {
                           placeholder="location@clinic.com"
                         />
                       </div>
-                      <div>
+                      <div className={FORM_FIELD_CLASS}>
                         <Label htmlFor="timezone">Timezone</Label>
                         <Select
                           value={newLocation.timezone}
@@ -612,7 +1005,7 @@ export default function ClinicLocationsPage() {
                             setNewLocation({ ...newLocation, timezone: value })
                           }
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className={FORM_INPUT_CLASS}>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -626,8 +1019,23 @@ export default function ClinicLocationsPage() {
                           </SelectContent>
                         </Select>
                       </div>
+                      <div className={FORM_FIELD_CLASS}>
+                        <Label htmlFor="country">Country</Label>
+                        <Input
+                          id="country"
+                          className={FORM_INPUT_CLASS}
+                          value={newLocation.country}
+                          onChange={(e) =>
+                            setNewLocation({
+                              ...newLocation,
+                              country: e.target.value,
+                            })
+                          }
+                          placeholder="India"
+                        />
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between rounded-lg border border-teal-200 bg-white/80 px-3 py-3 dark:border-teal-900/70 dark:bg-background/40">
                       <Label>Active Status</Label>
                       <Switch
                         checked={newLocation.isActive}
@@ -636,42 +1044,53 @@ export default function ClinicLocationsPage() {
                         }
                       />
                     </div>
-                    <div className="space-y-3">
-                      <Label>Working Hours</Label>
-                      <div className="grid gap-3">
-                        {DAYS.map((day) => {
-                          const slot = normalizeWorkingHours(newLocation.workingHours)[day];
-                          return (
-                            <div key={day} className="grid grid-cols-1 md:grid-cols-[120px_80px_1fr_1fr] gap-3 items-center">
-                              <div className="font-medium capitalize">{day}</div>
-                              <div className="flex items-center gap-2">
-                                <Switch
-                                  checked={!!slot}
-                                  onCheckedChange={(checked) => toggleWorkingDay("new", day, checked)}
-                                />
-                                <span className="text-xs text-gray-500">
-                                  {slot ? "Open" : "Closed"}
-                                </span>
-                              </div>
-                              <Input
-                                type="time"
-                                value={slot?.start || ""}
-                                disabled={!slot}
-                                onChange={(e) => updateWorkingHours("new", day, "start", e.target.value)}
-                              />
-                              <Input
-                                type="time"
-                                value={slot?.end || ""}
-                                disabled={!slot}
-                                onChange={(e) => updateWorkingHours("new", day, "end", e.target.value)}
-                              />
-                            </div>
-                          );
-                        })}
+                    <div className="space-y-3 rounded-lg border border-teal-200 bg-white/80 p-3 dark:border-teal-900/70 dark:bg-background/40">
+                      <div>
+                        <Label>Location Permissions</Label>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Control OPD and consultation availability for this branch.
+                        </p>
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <div className="flex items-center justify-between rounded-md border border-teal-100 bg-teal-50/60 px-3 py-2 dark:border-teal-900/60 dark:bg-teal-950/20">
+                          <Label className="text-sm">Pause OPD</Label>
+                          <Switch checked={newLocation.permissions.isOpdPaused} onCheckedChange={(checked) => updatePermission("new", "isOpdPaused", checked)} />
+                        </div>
+                        <div className="flex items-center justify-between rounded-md border border-teal-100 bg-teal-50/60 px-3 py-2 dark:border-teal-900/60 dark:bg-teal-950/20">
+                          <Label className="text-sm">General Consultation</Label>
+                          <Switch checked={newLocation.permissions.generalConsultationEnabled} onCheckedChange={(checked) => updatePermission("new", "generalConsultationEnabled", checked)} />
+                        </div>
+                        <div className="flex items-center justify-between rounded-md border border-teal-100 bg-teal-50/60 px-3 py-2 dark:border-teal-900/60 dark:bg-teal-950/20">
+                          <Label className="text-sm">Video Consultation</Label>
+                          <Switch checked={newLocation.permissions.videoConsultationEnabled} onCheckedChange={(checked) => updatePermission("new", "videoConsultationEnabled", checked)} />
+                        </div>
+                        <div className="flex items-center justify-between rounded-md border border-teal-100 bg-teal-50/60 px-3 py-2 dark:border-teal-900/60 dark:bg-teal-950/20">
+                          <Label className="text-sm">Emergency Only</Label>
+                          <Switch checked={newLocation.permissions.emergencyOnly} onCheckedChange={(checked) => updatePermission("new", "emergencyOnly", checked)} />
+                        </div>
+                      </div>
+                      <div className={FORM_FIELD_CLASS}>
+                        <Label htmlFor="pauseReason">Pause Reason</Label>
+                        <Input
+                          id="pauseReason"
+                          className={FORM_INPUT_CLASS}
+                          value={newLocation.permissions.pauseReason}
+                          onChange={(e) => updatePermission("new", "pauseReason", e.target.value)}
+                          placeholder="Optional reason shown to staff"
+                        />
                       </div>
                     </div>
+                    <div className="space-y-3">
+                      <Label>Working Hours</Label>
+                      <WorkingHoursTable
+                        value={newLocation.workingHours}
+                        target="new"
+                        onToggleDay={toggleWorkingDay}
+                        onUpdateTime={updateWorkingHours}
+                      />
+                    </div>
                   </div>
-                  <DialogFooter>
+                  <DialogFooter className="sticky bottom-0 border-t border-teal-200 bg-white/90 px-4 py-4 dark:border-teal-900/70 dark:bg-background/90 sm:px-6">
                     <Button
                       variant="outline"
                       onClick={() => setIsCreateDialogOpen(false)}
@@ -693,45 +1112,55 @@ export default function ClinicLocationsPage() {
                     </Button>
                   </DialogFooter>
                 </DialogContent>
-              </Dialog>
-            </div>
-          </div>
+          </Dialog>
+        }
+      />
 
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <div className={TOOLBAR_CARD_CLASS}>
+            <div className="relative w-full max-w-md">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search locations..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="h-10 pl-10"
               />
             </div>
           </div>
 
-          <DataTable
-            columns={locationColumns}
-            data={locationRows}
-            pageSize={10}
-            emptyMessage={searchTerm ? "No locations found matching your search" : "No locations added yet"}
-          />
+          <div className={TABLE_CARD_CLASS}>
+            <DataTable
+              columns={locationColumns}
+              data={locationRows}
+              pageSize={10}
+              compact
+              tableClassName="table-auto"
+              emptyMessage={searchTerm ? "No locations found matching your search" : "No locations added yet"}
+              toolbar={
+                <div className="px-1 text-sm font-medium text-blue-900 dark:text-blue-100">
+                  Showing {filteredLocations.length} of {locations.length} locations
+                </div>
+              }
+            />
+          </div>
 
           {/* Edit Dialog */}
           <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
+            <DialogContent className="max-h-[92vh] w-[calc(100vw-1rem)] gap-0 overflow-y-auto border-teal-200 bg-teal-50 p-0 dark:border-teal-900/70 dark:bg-teal-950 sm:max-w-3xl">
+              <DialogHeader className="border-b border-teal-200 bg-white/70 px-4 pb-4 pt-5 dark:border-teal-900/70 dark:bg-background/40 sm:px-6">
                 <DialogTitle>Edit Location</DialogTitle>
                 <DialogDescription>
                   Update location information
                 </DialogDescription>
               </DialogHeader>
               {selectedLocation && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
+                <div className="space-y-5 px-4 py-5 sm:px-6">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className={FORM_FIELD_CLASS}>
                       <Label htmlFor="edit-name">Location Name *</Label>
                       <Input
                         id="edit-name"
+                        className={FORM_INPUT_CLASS}
                         value={selectedLocation.name}
                         onChange={(e) =>
                           setSelectedLocation({
@@ -741,10 +1170,11 @@ export default function ClinicLocationsPage() {
                         }
                       />
                     </div>
-                    <div>
+                    <div className={FORM_FIELD_CLASS}>
                       <Label htmlFor="edit-phone">Phone *</Label>
                       <Input
                         id="edit-phone"
+                        className={FORM_INPUT_CLASS}
                         value={selectedLocation.phone}
                         onChange={(e) =>
                           setSelectedLocation({
@@ -755,10 +1185,11 @@ export default function ClinicLocationsPage() {
                       />
                     </div>
                   </div>
-                  <div>
+                  <div className={FORM_FIELD_CLASS}>
                     <Label htmlFor="edit-address">Address *</Label>
                     <Textarea
                       id="edit-address"
+                      className="min-h-24"
                       value={selectedLocation.address}
                       onChange={(e) =>
                         setSelectedLocation({
@@ -769,11 +1200,67 @@ export default function ClinicLocationsPage() {
                       rows={2}
                     />
                   </div>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-3 rounded-lg border border-teal-200 bg-white/80 p-3 dark:border-teal-900/70 dark:bg-background/40">
                     <div>
+                      <Label>Google Maps Validation</Label>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Use coordinates and Google Place ID to validate the physical branch location.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      <div className={FORM_FIELD_CLASS}>
+                        <Label htmlFor="edit-latitude">Latitude</Label>
+                        <Input
+                          id="edit-latitude"
+                          className={FORM_INPUT_CLASS}
+                          value={selectedLocation.latitude ?? ""}
+                          onChange={(e) =>
+                            setSelectedLocation({
+                              ...selectedLocation,
+                              latitude: e.target.value,
+                            })
+                          }
+                          placeholder="18.5204"
+                        />
+                      </div>
+                      <div className={FORM_FIELD_CLASS}>
+                        <Label htmlFor="edit-longitude">Longitude</Label>
+                        <Input
+                          id="edit-longitude"
+                          className={FORM_INPUT_CLASS}
+                          value={selectedLocation.longitude ?? ""}
+                          onChange={(e) =>
+                            setSelectedLocation({
+                              ...selectedLocation,
+                              longitude: e.target.value,
+                            })
+                          }
+                          placeholder="73.8567"
+                        />
+                      </div>
+                      <div className={FORM_FIELD_CLASS}>
+                        <Label htmlFor="edit-googlePlaceId">Google Place ID</Label>
+                        <Input
+                          id="edit-googlePlaceId"
+                          className={FORM_INPUT_CLASS}
+                          value={selectedLocation.googlePlaceId ?? ""}
+                          onChange={(e) =>
+                            setSelectedLocation({
+                              ...selectedLocation,
+                              googlePlaceId: e.target.value,
+                            })
+                          }
+                          placeholder="ChIJ..."
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className={FORM_FIELD_CLASS}>
                       <Label htmlFor="edit-city">City *</Label>
                       <Input
                         id="edit-city"
+                        className={FORM_INPUT_CLASS}
                         value={selectedLocation.city}
                         onChange={(e) =>
                           setSelectedLocation({
@@ -783,10 +1270,11 @@ export default function ClinicLocationsPage() {
                         }
                       />
                     </div>
-                    <div>
+                    <div className={FORM_FIELD_CLASS}>
                       <Label htmlFor="edit-state">State *</Label>
                       <Input
                         id="edit-state"
+                        className={FORM_INPUT_CLASS}
                         value={selectedLocation.state}
                         onChange={(e) =>
                           setSelectedLocation({
@@ -796,10 +1284,11 @@ export default function ClinicLocationsPage() {
                         }
                       />
                     </div>
-                    <div>
+                    <div className={FORM_FIELD_CLASS}>
                       <Label htmlFor="edit-zipCode">ZIP Code *</Label>
                       <Input
                         id="edit-zipCode"
+                        className={FORM_INPUT_CLASS}
                         value={selectedLocation.zipCode}
                         onChange={(e) =>
                           setSelectedLocation({
@@ -810,11 +1299,12 @@ export default function ClinicLocationsPage() {
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className={FORM_FIELD_CLASS}>
                       <Label htmlFor="edit-email">Email *</Label>
                       <Input
                         id="edit-email"
+                        className={FORM_INPUT_CLASS}
                         type="email"
                         value={selectedLocation.email}
                         onChange={(e) =>
@@ -825,7 +1315,7 @@ export default function ClinicLocationsPage() {
                         }
                       />
                     </div>
-                    <div>
+                    <div className={FORM_FIELD_CLASS}>
                       <Label htmlFor="edit-timezone">Timezone</Label>
                       <Select
                         value={selectedLocation.timezone}
@@ -836,7 +1326,7 @@ export default function ClinicLocationsPage() {
                           })
                         }
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className={FORM_INPUT_CLASS}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -850,8 +1340,23 @@ export default function ClinicLocationsPage() {
                         </SelectContent>
                       </Select>
                     </div>
+                    <div className={FORM_FIELD_CLASS}>
+                      <Label htmlFor="edit-country">Country</Label>
+                      <Input
+                        id="edit-country"
+                        className={FORM_INPUT_CLASS}
+                        value={selectedLocation.country}
+                        onChange={(e) =>
+                          setSelectedLocation({
+                            ...selectedLocation,
+                            country: e.target.value,
+                          })
+                        }
+                        placeholder="India"
+                      />
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between rounded-lg border border-teal-200 bg-white/80 px-3 py-3 dark:border-teal-900/70 dark:bg-background/40">
                     <Label>Active Status</Label>
                     <Switch
                       checked={selectedLocation.isActive}
@@ -863,43 +1368,54 @@ export default function ClinicLocationsPage() {
                       }
                     />
                   </div>
+                  <div className="space-y-3 rounded-lg border border-teal-200 bg-white/80 p-3 dark:border-teal-900/70 dark:bg-background/40">
+                    <div>
+                      <Label>Location Permissions</Label>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Control OPD and consultation availability for this branch.
+                      </p>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <div className="flex items-center justify-between rounded-md border border-teal-100 bg-teal-50/60 px-3 py-2 dark:border-teal-900/60 dark:bg-teal-950/20">
+                        <Label className="text-sm">Pause OPD</Label>
+                        <Switch checked={normalizeLocationPermissions(selectedLocation).isOpdPaused} onCheckedChange={(checked) => updatePermission("edit", "isOpdPaused", checked)} />
+                      </div>
+                      <div className="flex items-center justify-between rounded-md border border-teal-100 bg-teal-50/60 px-3 py-2 dark:border-teal-900/60 dark:bg-teal-950/20">
+                        <Label className="text-sm">General Consultation</Label>
+                        <Switch checked={normalizeLocationPermissions(selectedLocation).generalConsultationEnabled} onCheckedChange={(checked) => updatePermission("edit", "generalConsultationEnabled", checked)} />
+                      </div>
+                      <div className="flex items-center justify-between rounded-md border border-teal-100 bg-teal-50/60 px-3 py-2 dark:border-teal-900/60 dark:bg-teal-950/20">
+                        <Label className="text-sm">Video Consultation</Label>
+                        <Switch checked={normalizeLocationPermissions(selectedLocation).videoConsultationEnabled} onCheckedChange={(checked) => updatePermission("edit", "videoConsultationEnabled", checked)} />
+                      </div>
+                      <div className="flex items-center justify-between rounded-md border border-teal-100 bg-teal-50/60 px-3 py-2 dark:border-teal-900/60 dark:bg-teal-950/20">
+                        <Label className="text-sm">Emergency Only</Label>
+                        <Switch checked={normalizeLocationPermissions(selectedLocation).emergencyOnly} onCheckedChange={(checked) => updatePermission("edit", "emergencyOnly", checked)} />
+                      </div>
+                    </div>
+                    <div className={FORM_FIELD_CLASS}>
+                      <Label htmlFor="edit-pauseReason">Pause Reason</Label>
+                      <Input
+                        id="edit-pauseReason"
+                        className={FORM_INPUT_CLASS}
+                        value={normalizeLocationPermissions(selectedLocation).pauseReason}
+                        onChange={(e) => updatePermission("edit", "pauseReason", e.target.value)}
+                        placeholder="Optional reason shown to staff"
+                      />
+                    </div>
+                  </div>
                   <div className="space-y-3">
                     <Label>Working Hours</Label>
-                    <div className="grid gap-3">
-                      {DAYS.map((day) => {
-                        const slot = normalizeWorkingHours(selectedLocation.workingHours)[day];
-                        return (
-                          <div key={day} className="grid grid-cols-1 md:grid-cols-[120px_80px_1fr_1fr] gap-3 items-center">
-                            <div className="font-medium capitalize">{day}</div>
-                            <div className="flex items-center gap-2">
-                              <Switch
-                                checked={!!slot}
-                                onCheckedChange={(checked) => toggleWorkingDay("edit", day, checked)}
-                              />
-                              <span className="text-xs text-gray-500">
-                                {slot ? "Open" : "Closed"}
-                              </span>
-                            </div>
-                            <Input
-                              type="time"
-                              value={slot?.start || ""}
-                              disabled={!slot}
-                              onChange={(e) => updateWorkingHours("edit", day, "start", e.target.value)}
-                            />
-                            <Input
-                              type="time"
-                              value={slot?.end || ""}
-                              disabled={!slot}
-                              onChange={(e) => updateWorkingHours("edit", day, "end", e.target.value)}
-                            />
-                          </div>
-                        );
-                      })}
-                    </div>
+                    <WorkingHoursTable
+                      value={selectedLocation.workingHours}
+                      target="edit"
+                      onToggleDay={toggleWorkingDay}
+                      onUpdateTime={updateWorkingHours}
+                    />
                   </div>
                 </div>
               )}
-              <DialogFooter>
+              <DialogFooter className="sticky bottom-0 border-t border-teal-200 bg-white/90 px-4 py-4 dark:border-teal-900/70 dark:bg-background/90 sm:px-6">
                 <Button
                   variant="outline"
                   onClick={() => setIsEditDialogOpen(false)}
@@ -922,7 +1438,7 @@ export default function ClinicLocationsPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        </div>
+    </PatientPageShell>
     
   );
 }

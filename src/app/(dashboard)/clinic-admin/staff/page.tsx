@@ -20,6 +20,7 @@ import { useUsersByClinic } from "@/hooks/query/useUsers";
 import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { cn } from "@/lib/utils";
+import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 
 type StaffMember = {
   id: string;
@@ -314,36 +315,33 @@ export default function ClinicAdminStaff() {
   }
 
   return (
-    <div className="min-h-screen bg-transparent p-4 text-foreground sm:p-8">
-      <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-primary/10 p-2">
-              <Users className="h-6 w-6 text-primary" />
+    <DashboardPageShell className="mx-auto max-w-7xl px-4 pb-6 pt-0 sm:px-6 lg:px-8">
+      <DashboardPageHeader
+        eyebrow="Clinic Admin"
+        title="Staff Roster"
+        description="Manage healthcare professionals, support staff, and role assignments for this clinic."
+        meta={
+          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <span className="font-medium text-primary">{clinicName || "Your clinic"}</span>
+            <span className="h-1 w-1 rounded-full bg-muted-foreground/50" />
+            <span>{staff.length} staff members</span>
+          </div>
+        }
+        actionsSlot={
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="hidden sm:block">
+              <WebSocketStatusIndicator />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">
-              Clinic Staff Roster
-            </h1>
+            <Button
+              onClick={() => setIsAddStaffModalOpen(true)}
+              className="h-9 gap-2 px-4 font-semibold"
+            >
+              <Plus className="h-4 w-4" />
+              Add Staff
+            </Button>
           </div>
-          <p className="font-medium text-muted-foreground">
-            Manage healthcare professionals and administrative staff for{" "}
-            <span className="font-bold text-primary">{clinicName || "your clinic"}</span>
-          </p>
-        </div>
-
-        <div className="flex w-full flex-col flex-wrap items-start gap-3 sm:flex-row sm:items-center md:w-auto">
-          <div className="hidden sm:block">
-            <WebSocketStatusIndicator />
-          </div>
-          <Button
-            onClick={() => setIsAddStaffModalOpen(true)}
-            className="flex w-full items-center justify-center gap-2 bg-primary px-6 shadow-lg shadow-primary/20 transition-all hover:bg-primary/90 active:scale-95 sm:w-auto"
-          >
-            <Plus className="h-4 w-4" />
-            Create Staff Member
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
@@ -487,6 +485,6 @@ export default function ClinicAdminStaff() {
         onOpenChange={setIsAddStaffModalOpen}
         onSuccess={() => refetch?.()}
       />
-    </div>
+    </DashboardPageShell>
   );
 }

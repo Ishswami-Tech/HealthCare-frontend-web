@@ -112,6 +112,24 @@ const PERMISSION_GROUPS = [
   },
 ];
 
+const ROLE_CARD_VARIANTS = [
+  "bg-blue-50/80 border-blue-100 dark:bg-blue-950/20 dark:border-blue-900/40",
+  "bg-emerald-50/80 border-emerald-100 dark:bg-emerald-950/20 dark:border-emerald-900/40",
+  "bg-violet-50/80 border-violet-100 dark:bg-violet-950/20 dark:border-violet-900/40",
+  "bg-amber-50/80 border-amber-100 dark:bg-amber-950/20 dark:border-amber-900/40",
+  "bg-sky-50/80 border-sky-100 dark:bg-sky-950/20 dark:border-sky-900/40",
+  "bg-rose-50/80 border-rose-100 dark:bg-rose-950/20 dark:border-rose-900/40",
+];
+
+const PERMISSION_GROUP_VARIANTS = [
+  "bg-slate-50/80 border-slate-100 dark:bg-slate-950/20 dark:border-slate-900/40",
+  "bg-cyan-50/80 border-cyan-100 dark:bg-cyan-950/20 dark:border-cyan-900/40",
+  "bg-lime-50/80 border-lime-100 dark:bg-lime-950/20 dark:border-lime-900/40",
+  "bg-fuchsia-50/80 border-fuchsia-100 dark:bg-fuchsia-950/20 dark:border-fuchsia-900/40",
+  "bg-orange-50/80 border-orange-100 dark:bg-orange-950/20 dark:border-orange-900/40",
+  "bg-indigo-50/80 border-indigo-100 dark:bg-indigo-950/20 dark:border-indigo-900/40",
+];
+
 interface AssignRoleModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -270,22 +288,22 @@ export function AssignRoleModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-full sm:max-w-[95vw] lg:max-w-6xl p-0 overflow-hidden border border-neutral-200 dark:border-neutral-800 shadow-2xl bg-white dark:bg-neutral-950 h-[92vh] sm:h-[85vh] flex flex-col rounded-2xl">
+      <DialogContent className="max-w-full sm:max-w-[95vw] lg:max-w-6xl p-0 overflow-hidden border border-neutral-200 dark:border-neutral-800 shadow-2xl bg-white dark:bg-neutral-950 max-h-[88vh] flex flex-col rounded-2xl">
         {/* Professional Header */}
-        <div className="bg-white dark:bg-neutral-900 px-6 py-6 sm:px-8 border-b border-neutral-200 dark:border-neutral-800 shrink-0">
+        <div className="bg-white dark:bg-neutral-900 px-5 py-4 sm:px-6 border-b border-neutral-200 dark:border-neutral-800 shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                 <ShieldCheck className="w-6 h-6" />
               </div>
               <div className="space-y-0.5">
-                <DialogTitle className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
+                <DialogTitle className="text-xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
                   Assign Role & Permissions
                 </DialogTitle>
-                <DialogDescription className="text-sm text-neutral-500 font-medium flex items-center gap-2">
-                  <span>{staffMember.name}</span>
-                  <span className="opacity-40">•</span>
-                  <span className="text-xs">{staffMember.email}</span>
+                <DialogDescription className="text-sm font-medium text-neutral-500">
+                  <span className="mr-2">{staffMember.name}</span>
+                  <span className="opacity-40">|</span>
+                  <span className="ml-2 text-xs">{staffMember.email}</span>
                 </DialogDescription>
               </div>
             </div>
@@ -315,7 +333,7 @@ export function AssignRoleModal({
 
         <div className="flex flex-1 overflow-hidden min-h-0 bg-neutral-50/50 dark:bg-neutral-900/10">
           {/* Navigation Sidebar */}
-          <div className="hidden sm:flex w-64 lg:w-72 border-r border-neutral-200 dark:border-neutral-800 flex-col p-4 gap-4 shrink-0 bg-white dark:bg-neutral-900/50">
+          <div className="hidden sm:flex w-60 lg:w-68 border-r border-neutral-200 dark:border-neutral-800 flex-col p-4 gap-4 shrink-0 bg-white dark:bg-neutral-900/50">
             <div className="space-y-1">
               <h3 className="px-3 text-[11px] font-bold text-neutral-400 uppercase tracking-wider mb-3">Settings</h3>
               
@@ -331,7 +349,7 @@ export function AssignRoleModal({
                 >
                   <UserCircle2 className="w-5 h-5 shrink-0" />
                   <div className="text-left overflow-hidden">
-                    <span className="font-semibold text-sm block truncate">Basic Role</span>
+                    <span className="font-semibold text-sm block truncate">Role</span>
                   </div>
                   {activeTab === "role" && <ChevronRight className="w-4 h-4 ml-auto" />}
                 </button>
@@ -378,16 +396,17 @@ export function AssignRoleModal({
             <div className="flex-1 overflow-y-auto">
               <div className="p-6 lg:p-10 pb-24">
                 {activeTab === "role" && (
-                  <div className="space-y-8">
-                    <div className="border-b pb-6 border-neutral-100 dark:border-neutral-800">
-                      <h3 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">Select Staff Role</h3>
-                      <p className="text-sm text-neutral-500 mt-1">Assign a primary role to define the user's main responsibilities.</p>
+              <div className="space-y-6">
+                    <div className="border-b pb-4 border-neutral-100 dark:border-neutral-800">
+                      <h3 className="text-xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">Select Staff Role</h3>
+                      <p className="text-sm text-neutral-500 mt-1">Choose the main access level for this account.</p>
                     </div>
  
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {assignableRoles.map((role) => {
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                      {assignableRoles.map((role, index) => {
                         const info = ROLE_INFO[role] || { label: role, description: "Standard user role." };
                         const isSelected = selectedRole === role;
+                        const variantClass = ROLE_CARD_VARIANTS[index % ROLE_CARD_VARIANTS.length];
                         
                         return (
                           <div 
@@ -402,10 +421,10 @@ export function AssignRoleModal({
                             role="button"
                             tabIndex={0}
                             className={cn(
-                              "relative p-5 rounded-xl border-2 transition-all duration-200 cursor-pointer flex flex-col gap-4 group",
+                              "relative p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer flex flex-col gap-3 group",
                               isSelected 
                                 ? "border-primary bg-primary/5 shadow-md ring-4 ring-primary/5 translate-y-[-2px]" 
-                                : "border-neutral-100 dark:border-neutral-800 hover:border-neutral-200 dark:hover:border-neutral-700 bg-white dark:bg-neutral-900/40"
+                                : `${variantClass} hover:shadow-sm`
                             )}
                           >
                             <div className="flex items-center justify-between">
@@ -436,11 +455,11 @@ export function AssignRoleModal({
                 )}
 
                 {activeTab === "permissions" && (
-                  <div className="space-y-8 animate-in fade-in duration-500">
-                    <div className="flex items-center justify-between border-b pb-6 border-neutral-100 dark:border-neutral-800">
+                  <div className="space-y-6 animate-in fade-in duration-500">
+                    <div className="flex items-center justify-between border-b pb-4 border-neutral-100 dark:border-neutral-800">
                       <div>
-                        <h3 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">Custom Permissions</h3>
-                        <p className="text-sm text-neutral-500 mt-1">Fine-tune individual module access for this user.</p>
+                        <h3 className="text-xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">Custom Permissions</h3>
+                        <p className="text-sm text-neutral-500 mt-1">Fine-tune module access as needed.</p>
                       </div>
                       <Button 
                         variant="outline" 
@@ -463,14 +482,15 @@ export function AssignRoleModal({
                       />
                     </div>
                     
-                    <Accordion type="multiple" defaultValue={PERMISSION_GROUPS.map(g => g.name)} className="space-y-6">
-                      {Object.entries(groupedPermissions).map(([groupName, perms]) => {
+                    <Accordion type="multiple" defaultValue={PERMISSION_GROUPS.map(g => g.name)} className="space-y-4">
+                      {Object.entries(groupedPermissions).map(([groupName, perms], groupIndex) => {
                         if (perms.length === 0) return null;
                         const selectedCount = perms.filter(p => selectedPermissions.includes(p)).length;
+                        const variantClass = PERMISSION_GROUP_VARIANTS[groupIndex % PERMISSION_GROUP_VARIANTS.length];
  
                         return (
-                          <div key={groupName} className="space-y-3">
-                            <AccordionItem value={groupName} className="border-none">
+                          <div key={groupName} className="space-y-2">
+                            <AccordionItem value={groupName} className={cn("rounded-2xl border p-3", variantClass)}>
                               <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-3">
                                   <span className="font-bold text-sm text-neutral-700 dark:text-neutral-300">{groupName}</span>
@@ -504,7 +524,7 @@ export function AssignRoleModal({
                               
                               <AccordionTrigger className="hidden" />
                               
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                                 {perms.map((p) => {
                                   const isSelected = selectedPermissions.includes(p);
                                   const isDefault = (ROLE_PERMISSIONS[selectedRole] || []).includes(p);
@@ -522,7 +542,7 @@ export function AssignRoleModal({
                                       role="button"
                                       tabIndex={0}
                                       className={cn(
-                                        "flex items-center gap-3 p-4 rounded-xl border transition-all duration-200 cursor-pointer group/item",
+                                        "flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 cursor-pointer group/item",
                                         isSelected 
                                           ? "bg-primary/5 border-primary/20" 
                                           : "bg-white dark:bg-neutral-900/40 border-neutral-100 dark:border-neutral-800 hover:border-neutral-200"
@@ -567,7 +587,7 @@ export function AssignRoleModal({
         </div>
 
         {/* Simple Footer */}
-        <div className="shrink-0 px-8 py-5 border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex items-center justify-between">
+        <div className="shrink-0 px-5 py-4 border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex items-center justify-between">
           <div className="hidden sm:flex items-center gap-6 text-sm text-neutral-500 font-medium">
             <div className="flex items-center gap-2">
               <Shield className="w-4 h-4 text-emerald-500" />

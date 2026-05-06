@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils/index";
 import Link from "next/link";
 import NextImage from "next/image";
 import { useAuth } from "@/hooks/auth/useAuth";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useRBAC } from "@/hooks/utils/useRBAC";
 import { Permission } from "@/types/rbac.types";
 import {
@@ -49,6 +49,61 @@ import { motion } from "framer-motion";
 // ============================================================================
 
 import { SidebarLink } from "@/lib/utils/index";
+
+function splitHref(href: string): { pathname: string; searchParams: URLSearchParams } {
+  const [path, search = ""] = href.split("?");
+  return {
+    pathname: path || "/",
+    searchParams: new URLSearchParams(search),
+  };
+}
+
+function normalizeSidebarPath(pathname: string): string {
+  const videoAliases = new Set([
+    "/video-appointments",
+    "/super-admin/video",
+    "/clinic-admin/video",
+    "/doctor/video",
+    "/assistant-doctor/video",
+    "/receptionist/video",
+    "/therapist/video",
+    "/counselor/video",
+    "/patient/video",
+  ]);
+
+  if (videoAliases.has(pathname)) {
+    return "/video-appointments";
+  }
+
+  return pathname;
+}
+
+function isSidebarLinkActive(currentPathname: string, currentSearch: URLSearchParams, href: string): boolean {
+  const { pathname: targetPathname, searchParams: targetSearch } = splitHref(href);
+  const normalizedCurrentPathname = normalizeSidebarPath(currentPathname);
+  const normalizedTargetPathname = normalizeSidebarPath(targetPathname);
+
+  const pathMatches =
+    normalizedCurrentPathname === normalizedTargetPathname ||
+    (normalizedTargetPathname !== "/" &&
+      normalizedCurrentPathname.startsWith(`${normalizedTargetPathname}/`));
+
+  if (!pathMatches) {
+    return false;
+  }
+
+  if ([...targetSearch.keys()].length === 0) {
+    return true;
+  }
+
+  for (const [key, value] of targetSearch.entries()) {
+    if (currentSearch.get(key) !== value) {
+      return false;
+    }
+  }
+
+  return true;
+}
 
 export interface SidebarProps {
   links: SidebarLink[];
@@ -111,6 +166,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
   const { open, setOpenMobile, isMobile } = useSidebar(); // Access setOpen to toggle on hover
   const { t } = useTranslation();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [avatarError, setAvatarError] = useState(false);
 
   const { hasPermission } = useRBAC();
@@ -143,6 +199,9 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
   const profileRoute = profileRouteByRole[normalizedRole] || "/patient/profile";
   const displayRole = (normalizedRole || "USER")
     .replace(/_/g, " ");
+  const isProfileActive = isSidebarLinkActive(pathname, new URLSearchParams(searchParams.toString()), profileRoute);
+  const activeNavClass =
+    "!bg-emerald-50 !text-emerald-700 font-semibold shadow-sm ring-1 ring-emerald-200 border border-emerald-200 dark:!bg-emerald-900/25 dark:!text-emerald-200 dark:ring-emerald-700/40 dark:border-emerald-700/40";
 
   const firstLetter = user.name?.charAt(0).toUpperCase() || "U";
 
@@ -169,14 +228,21 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
           {filteredLinks.map((link, idx) => {
             const isLogout = link.href === "#logout" || link.title === t("sidebar.logout");
             const Icon = link.icon || Menu;
+            const isActive = isSidebarLinkActive(pathname, searchParams, link.href);
 
             return (
               <SidebarMenuItem key={idx} className="">
                 <SidebarMenuButton
                   asChild
-                  isActive={pathname === link.href}
+                  isActive={isActive}
                   tooltip={link.title}
-                  className={cn("text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors overflow-hidden", !open && "mx-auto justify-center")}
+                  className={cn(
+                    "relative transition-all duration-200 overflow-hidden hover:-translate-y-0.5 hover:shadow-sm",
+                    isActive
+                      ? activeNavClass
+                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-200",
+                    !open && "mx-auto justify-center"
+                  )}
                   onClick={(e: any) => {
                     if (isLogout) {
                       e.preventDefault();
@@ -184,7 +250,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                     }
                     handleLinkClick();
                   }}
-                >
+                  >
                   {isLogout ? (
                     <button className={cn("flex items-center gap-2 w-full text-destructive hover:text-destructive/80", !open && "justify-center")}>
                       <span className="size-4 flex items-center justify-center shrink-0">
@@ -206,8 +272,14 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                     <Link
                       href={link.href}
                       prefetch={false}
-                      className={cn("flex items-center gap-2 w-full", !open && "justify-center")}
+                      className={cn("relative flex items-center gap-2 w-full", !open && "justify-center")}
                     >
+                      {isActive && (
+                        <span
+                          className="absolute -top-1 left-1/2 size-2 -translate-x-1/2 rounded-full bg-primary"
+                          aria-hidden="true"
+                        />
+                      )}
                       <span className="size-4 flex items-center justify-center shrink-0">
                         <Icon className="size-4" />
                       </span>
@@ -235,16 +307,25 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
       <SidebarFooter className="border-t border-sidebar-border/50 px-2 py-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton 
-              asChild 
-              className={cn("h-auto p-2 hover:bg-sidebar-accent transition-colors overflow-hidden", !open && "mx-auto justify-center")}
+              <SidebarMenuButton 
+                asChild 
+              className={cn(
+                "relative h-auto p-2 transition-all duration-200 overflow-hidden hover:-translate-y-0.5 hover:shadow-sm",
+                isProfileActive
+                  ? activeNavClass
+                  : "hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-200",
+                !open && "mx-auto justify-center"
+              )}
               onClick={handleLinkClick}
             >
               <Link
                 href={profileRoute}
                 prefetch={false}
-                className={cn("flex items-center gap-3 w-full", !open && "justify-center")}
+                className={cn("relative flex items-center gap-3 w-full", !open && "justify-center")}
               >
+                {isProfileActive && (
+                  <span className="absolute -top-1 left-1/2 size-2 -translate-x-1/2 rounded-full bg-primary" aria-hidden="true" />
+                )}
                 {!avatarError && user.avatarUrl ? (
                   <NextImage
                     src={user.avatarUrl}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useCurrentClinic, useUpdateClinic } from "@/hooks/query/useClinics";
 import { useDoctors } from "@/hooks/query/useDoctors";
@@ -14,7 +14,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Save, Plus, Trash2 } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  DashboardPageHeader as PatientPageHeader,
+  DashboardPageShell as PatientPageShell,
+} from "@/components/dashboard/DashboardPageShell";
+import { OperatingWindowsEditor } from "@/components/dashboard/OperatingWindowsEditor";
+import { AlertTriangle, Loader2, Save, Plus, Stethoscope, Trash2, Video, Ban } from "lucide-react";
 import type {
   Clinic,
   ClinicDoctorConsultationControl,
@@ -40,6 +54,100 @@ const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "obj
 const toNumber = (v: unknown, fb: number) => Number.isFinite(Number(v)) ? Number(v) : fb;
 const normalizeTime = (v: unknown, fb: string) => typeof v === "string" && /^([01]\d|2[0-3]):([0-5]\d)$/.test(v.trim()) ? v.trim() : fb;
 const parseSessions = (v: unknown): ClinicOperatingSession[] => Array.isArray(v) ? v.map(x => isRecord(x) ? ({ start: normalizeTime(x.start,"11:00"), end: normalizeTime(x.end,"14:00") }) : null).filter((x): x is ClinicOperatingSession => !!x) : isRecord(v) ? [{ start: normalizeTime(v.start,"11:00"), end: normalizeTime(v.end,"14:00") }] : [];
+const FORM_FIELD_CLASS = "space-y-2";
+const FORM_INPUT_CLASS = "h-10";
+const TIME_INPUT_CLASS =
+  "h-10 w-full min-w-0 rounded-md border border-indigo-200 bg-white px-3 text-sm font-medium leading-none tabular-nums shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:border-indigo-400 focus-visible:ring-2 focus-visible:ring-indigo-200/70 dark:border-indigo-900/70 dark:bg-background [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-70 [&::-webkit-datetime-edit-fields-wrapper]:p-0 [&::-webkit-datetime-edit]:p-0 [&::-webkit-datetime-edit-hour-field]:px-0.5 [&::-webkit-datetime-edit-minute-field]:px-0.5 [&::-webkit-datetime-edit-ampm-field]:px-1";
+const COMPACT_CARD_PADDING = "gap-4 py-4";
+const COMPACT_CARD_HEADER = "px-4 sm:px-5";
+const COMPACT_CARD_CONTENT = "px-4 sm:px-5";
+const PROFILE_CARD_CLASS = `${COMPACT_CARD_PADDING} border-emerald-200 bg-emerald-50/70 shadow-sm dark:border-emerald-900/70 dark:bg-emerald-950/20`;
+const BOOKING_CARD_CLASS = `${COMPACT_CARD_PADDING} border-sky-200 bg-sky-50/70 shadow-sm dark:border-sky-900/70 dark:bg-sky-950/20`;
+const OPD_CARD_CLASS = `${COMPACT_CARD_PADDING} border-indigo-200 bg-indigo-50/70 shadow-sm dark:border-indigo-900/70 dark:bg-indigo-950/20`;
+const ALERT_CARD_CLASS = `${COMPACT_CARD_PADDING} border-amber-200 bg-amber-50/70 shadow-sm dark:border-amber-900/70 dark:bg-amber-950/20`;
+const NOTIFY_CARD_CLASS = `${COMPACT_CARD_PADDING} border-violet-200 bg-violet-50/70 shadow-sm dark:border-violet-900/70 dark:bg-violet-950/20`;
+const BILLING_CARD_CLASS = `${COMPACT_CARD_PADDING} border-teal-200 bg-teal-50/70 shadow-sm dark:border-teal-900/70 dark:bg-teal-950/20`;
+const DOCTOR_CARD_CLASS = `${COMPACT_CARD_PADDING} border-blue-200 bg-blue-50/70 shadow-sm dark:border-blue-900/70 dark:bg-blue-950/20`;
+const ASSISTANT_CARD_CLASS = `${COMPACT_CARD_PADDING} border-fuchsia-200 bg-fuchsia-50/70 shadow-sm dark:border-fuchsia-900/70 dark:bg-fuchsia-950/20`;
+
+function SettingField({
+  label,
+  children,
+  className = "",
+}: {
+  label: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`${FORM_FIELD_CLASS} ${className}`}>
+      <Label>{label}</Label>
+      {children}
+    </div>
+  );
+}
+
+function ToggleRow({
+  label,
+  description,
+  checked,
+  onCheckedChange,
+}: {
+  label: string;
+  description?: string;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <div className="flex min-h-11 items-center justify-between gap-3 rounded-lg border border-border bg-muted/20 px-3 py-2">
+      <div className="min-w-0 space-y-1">
+        <Label className="text-sm leading-5">{label}</Label>
+        {description ? <p className="text-xs leading-5 text-muted-foreground">{description}</p> : null}
+      </div>
+      <Switch checked={checked} onCheckedChange={onCheckedChange} />
+    </div>
+  );
+}
+
+function IconTableHead({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex h-7 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground">
+          {children}
+          <span className="sr-only">{label}</span>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function TimeInput({
+  value,
+  onChange,
+  label,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  label: string;
+}) {
+  return (
+    <Input
+      type="time"
+      className={TIME_INPUT_CLASS}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      aria-label={label}
+    />
+  );
+}
 
 function omitAssistantCoverage(value: unknown): Record<string, unknown> {
   const record = isRecord(value) ? value : {};
@@ -188,43 +296,329 @@ export default function ClinicAdminSettingsPage() {
       },
     }));
 
-  if (isPending || !ready) return <div className="p-6 flex items-center justify-center min-h-[420px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-  if (!clinic?.id) return <div className="p-6"><Card className="border-blue-100 bg-blue-50/70 dark:border-blue-900 dark:bg-blue-950/20"><CardHeader><CardTitle>Clinic Settings</CardTitle><CardDescription>Clinic context is not available.</CardDescription></CardHeader></Card></div>;
+  const isSaving = updateClinic.isPending || updateAssistantCoverageMutation.isPending;
+
+  if (isPending || !ready) {
+    return (
+      <PatientPageShell className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
+        <div className="flex min-h-[420px] items-center justify-center rounded-xl border border-border bg-card">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </PatientPageShell>
+    );
+  }
+
+  if (!clinic?.id) {
+    return (
+      <PatientPageShell className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+        <Card className={PROFILE_CARD_CLASS}>
+          <CardHeader>
+            <CardTitle>Clinic Settings</CardTitle>
+            <CardDescription>Clinic context is not available.</CardDescription>
+          </CardHeader>
+        </Card>
+      </PatientPageShell>
+    );
+  }
 
   return (
-    <div className="p-4 sm:p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div><h1 className="text-2xl sm:text-3xl font-bold">Clinic Settings</h1><p className="text-sm text-muted-foreground mt-1">Dynamic OPD sessions + emergency + doctor-wise controls.</p></div>
-        <Button className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20" onClick={save} disabled={updateClinic.isPending || updateAssistantCoverageMutation.isPending}>{updateClinic.isPending || updateAssistantCoverageMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}Save Changes</Button>
+    <PatientPageShell className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
+      <PatientPageHeader
+        eyebrow="Clinic Admin"
+        title="Clinic Settings"
+        description="Manage clinic profile, OPD sessions, booking policies, notifications, billing, and doctor controls."
+        meta={
+          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <span>{doctors.length} doctors</span>
+            <span className="h-1 w-1 rounded-full bg-muted-foreground/50" />
+            <span>{assistantDoctors.length} assistant doctors</span>
+          </div>
+        }
+        actions={[
+          {
+            label: isSaving ? "Saving..." : "Save Changes",
+            onClick: save,
+            disabled: isSaving,
+            icon: isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />,
+          },
+        ]}
+      />
+
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="space-y-3">
+          <Card className={PROFILE_CARD_CLASS}>
+            <CardHeader className={COMPACT_CARD_HEADER}>
+              <CardTitle>Clinic Profile</CardTitle>
+              <CardDescription>Public clinic identity and contact details.</CardDescription>
+            </CardHeader>
+            <CardContent className={`${COMPACT_CARD_CONTENT} grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3`}>
+            <SettingField label="Clinic Name">
+              <Input className={FORM_INPUT_CLASS} value={clinicForm.name} onChange={(e) => setCF("name", e.target.value)} />
+            </SettingField>
+            <SettingField label="Phone">
+              <Input className={FORM_INPUT_CLASS} value={clinicForm.phone} onChange={(e) => setCF("phone", e.target.value)} />
+            </SettingField>
+            <SettingField label="Email">
+              <Input className={FORM_INPUT_CLASS} type="email" value={clinicForm.email} onChange={(e) => setCF("email", e.target.value)} />
+            </SettingField>
+            <SettingField label="Website">
+              <Input className={FORM_INPUT_CLASS} value={clinicForm.website} onChange={(e) => setCF("website", e.target.value)} />
+            </SettingField>
+            <SettingField label="City">
+              <Input className={FORM_INPUT_CLASS} value={clinicForm.city} onChange={(e) => setCF("city", e.target.value)} />
+            </SettingField>
+            <SettingField label="State">
+              <Input className={FORM_INPUT_CLASS} value={clinicForm.state} onChange={(e) => setCF("state", e.target.value)} />
+            </SettingField>
+            <SettingField label="Country">
+              <Input className={FORM_INPUT_CLASS} value={clinicForm.country} onChange={(e) => setCF("country", e.target.value)} />
+            </SettingField>
+            <SettingField label="Zip Code">
+              <Input className={FORM_INPUT_CLASS} value={clinicForm.zipCode} onChange={(e) => setCF("zipCode", e.target.value)} />
+            </SettingField>
+            <SettingField label="Timezone">
+              <Input className={FORM_INPUT_CLASS} value={clinicForm.timezone} onChange={(e) => setCF("timezone", e.target.value)} />
+            </SettingField>
+            <SettingField label="Language">
+              <Input className={FORM_INPUT_CLASS} value={clinicForm.language} onChange={(e) => setCF("language", e.target.value)} />
+            </SettingField>
+            <SettingField label="Address" className="sm:col-span-2 xl:col-span-3">
+              <Textarea className="min-h-20" value={clinicForm.address} onChange={(e) => setCF("address", e.target.value)} />
+            </SettingField>
+            <SettingField label="Description" className="sm:col-span-2 xl:col-span-3">
+              <Textarea className="min-h-20" value={clinicForm.description} onChange={(e) => setCF("description", e.target.value)} />
+            </SettingField>
+          </CardContent>
+        </Card>
+
+        <Card className={OPD_CARD_CLASS}>
+          <CardHeader className={COMPACT_CARD_HEADER}>
+            <CardTitle>Dynamic OPD Sessions</CardTitle>
+            <CardDescription>Add one or more operating sessions per day. Empty days are treated as closed.</CardDescription>
+          </CardHeader>
+          <CardContent className={COMPACT_CARD_CONTENT}>
+            <OperatingWindowsEditor
+              sessions={sessions}
+              onAddSession={addSession}
+              onUpdateSession={updSession}
+              onDeleteSession={delSession}
+            />
+          </CardContent>
+        </Card>
+        </div>
+
+        <div className="space-y-3">
+          <Card className={BOOKING_CARD_CLASS}>
+            <CardHeader className={COMPACT_CARD_HEADER}>
+              <CardTitle>Booking Policy</CardTitle>
+              <CardDescription>Appointment limits and patient self-service rules.</CardDescription>
+            </CardHeader>
+            <CardContent className={`${COMPACT_CARD_CONTENT} space-y-3`}>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                <SettingField label="Duration (minutes)">
+                  <Input className={FORM_INPUT_CLASS} type="number" value={settings.appointmentDuration} onChange={(e) => setSF("appointmentDuration", toNumber(e.target.value, 30))} />
+                </SettingField>
+                <SettingField label="No-show Window (minutes)">
+                  <Input className={FORM_INPUT_CLASS} type="number" value={settings.noShowWindowMinutes} onChange={(e) => setSF("noShowWindowMinutes", toNumber(e.target.value, 15))} />
+                </SettingField>
+                <SettingField label="Min Advance Booking (hours)">
+                  <Input className={FORM_INPUT_CLASS} type="number" value={settings.minAdvanceBooking} onChange={(e) => setSF("minAdvanceBooking", toNumber(e.target.value, 2))} />
+                </SettingField>
+                <SettingField label="Max Advance Booking (days)">
+                  <Input className={FORM_INPUT_CLASS} type="number" value={settings.maxAdvanceBooking} onChange={(e) => setSF("maxAdvanceBooking", toNumber(e.target.value, 30))} />
+                </SettingField>
+                <SettingField label="Cancellation Window (hours)">
+                  <Input className={FORM_INPUT_CLASS} type="number" value={settings.cancellationWindow} onChange={(e) => setSF("cancellationWindow", toNumber(e.target.value, 24))} />
+                </SettingField>
+              </div>
+              <div className="grid gap-2">
+                <ToggleRow label="Allow Rescheduling" checked={settings.allowRescheduling} onCheckedChange={(value) => setSF("allowRescheduling", value)} />
+                <ToggleRow label="Allow Cancellation" checked={settings.allowCancellation} onCheckedChange={(value) => setSF("allowCancellation", value)} />
+                <ToggleRow label="Auto Confirmation" checked={settings.autoConfirmation} onCheckedChange={(value) => setSF("autoConfirmation", value)} />
+                <ToggleRow label="Walk-in Allowed" checked={settings.walkInAllowed} onCheckedChange={(value) => setSF("walkInAllowed", value)} />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className={ALERT_CARD_CLASS}>
+            <CardHeader className={COMPACT_CARD_HEADER}>
+              <CardTitle>Emergency / OPD Controls</CardTitle>
+              <CardDescription>Temporarily restrict clinic consultations.</CardDescription>
+            </CardHeader>
+            <CardContent className={`${COMPACT_CARD_CONTENT} space-y-3`}>
+              <ToggleRow label="Pause Clinic OPD" checked={settings.clinicPaused} onCheckedChange={(value) => setSF("clinicPaused", value)} />
+              <SettingField label="Pause Reason">
+                <Input className={FORM_INPUT_CLASS} value={settings.pauseReason} onChange={(e) => setSF("pauseReason", e.target.value)} />
+              </SettingField>
+              <ToggleRow label="General Consultation Enabled" checked={settings.generalConsultationEnabled} onCheckedChange={(value) => setSF("generalConsultationEnabled", value)} />
+              <ToggleRow label="Video Consultation Enabled" checked={settings.videoConsultationEnabled} onCheckedChange={(value) => setSF("videoConsultationEnabled", value)} />
+              <ToggleRow label="Emergency Only Mode" checked={settings.emergencyOnly} onCheckedChange={(value) => setSF("emergencyOnly", value)} />
+            </CardContent>
+          </Card>
+
+          <Card className={NOTIFY_CARD_CLASS}>
+            <CardHeader className={COMPACT_CARD_HEADER}>
+              <CardTitle>Notifications</CardTitle>
+              <CardDescription>Clinic-level appointment notification preferences.</CardDescription>
+            </CardHeader>
+            <CardContent className={`${COMPACT_CARD_CONTENT} grid gap-2`}>
+              <ToggleRow label="Email Notifications" checked={settings.emailNotifications} onCheckedChange={(value) => setSF("emailNotifications", value)} />
+              <ToggleRow label="SMS Notifications" checked={settings.smsNotifications} onCheckedChange={(value) => setSF("smsNotifications", value)} />
+              <ToggleRow label="Push Notifications" checked={settings.pushNotifications} onCheckedChange={(value) => setSF("pushNotifications", value)} />
+              <ToggleRow label="Appointment Reminders" checked={settings.appointmentReminders} onCheckedChange={(value) => setSF("appointmentReminders", value)} />
+              <ToggleRow label="Cancellation Alerts" checked={settings.cancellationAlerts} onCheckedChange={(value) => setSF("cancellationAlerts", value)} />
+            </CardContent>
+          </Card>
+
+          <Card className={BILLING_CARD_CLASS}>
+            <CardHeader className={COMPACT_CARD_HEADER}>
+              <CardTitle>Billing</CardTitle>
+              <CardDescription>Payment methods and policy fees.</CardDescription>
+            </CardHeader>
+            <CardContent className={`${COMPACT_CARD_CONTENT} space-y-3`}>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+                <SettingField label="Currency">
+                  <Input className={FORM_INPUT_CLASS} value={clinicForm.currency} onChange={(e) => setCF("currency", e.target.value)} />
+                </SettingField>
+                <SettingField label="No-show Fee">
+                  <Input className={FORM_INPUT_CLASS} type="number" value={settings.noShowFee} onChange={(e) => setSF("noShowFee", toNumber(e.target.value, 0))} />
+                </SettingField>
+                <SettingField label="Cancel Fee">
+                  <Input className={FORM_INPUT_CLASS} type="number" value={settings.cancellationFee} onChange={(e) => setSF("cancellationFee", toNumber(e.target.value, 0))} />
+                </SettingField>
+              </div>
+              <SettingField label="Payment Methods">
+                <Input className={FORM_INPUT_CLASS} value={settings.paymentMethodsText} onChange={(e) => setSF("paymentMethodsText", e.target.value)} />
+              </SettingField>
+              <ToggleRow label="Auto Billing" checked={settings.autoBilling} onCheckedChange={(value) => setSF("autoBilling", value)} />
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
-      <Card className="border-blue-100 bg-blue-50/70 dark:border-blue-900 dark:bg-blue-950/20"><CardHeader><CardTitle>Clinic Profile</CardTitle></CardHeader><CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div><Label>Clinic Name</Label><Input value={clinicForm.name} onChange={e=>setCF("name",e.target.value)} /></div><div><Label>Phone</Label><Input value={clinicForm.phone} onChange={e=>setCF("phone",e.target.value)} /></div>
-        <div><Label>Email</Label><Input value={clinicForm.email} onChange={e=>setCF("email",e.target.value)} /></div><div><Label>Website</Label><Input value={clinicForm.website} onChange={e=>setCF("website",e.target.value)} /></div>
-        <div><Label>City</Label><Input value={clinicForm.city} onChange={e=>setCF("city",e.target.value)} /></div><div><Label>State</Label><Input value={clinicForm.state} onChange={e=>setCF("state",e.target.value)} /></div>
-        <div><Label>Country</Label><Input value={clinicForm.country} onChange={e=>setCF("country",e.target.value)} /></div><div><Label>Zip Code</Label><Input value={clinicForm.zipCode} onChange={e=>setCF("zipCode",e.target.value)} /></div>
-        <div className="md:col-span-2"><Label>Address</Label><Textarea value={clinicForm.address} onChange={e=>setCF("address",e.target.value)} /></div>
-      </CardContent></Card>
+      <Card className={DOCTOR_CARD_CLASS}>
+        <CardHeader className={COMPACT_CARD_HEADER}>
+          <CardTitle>Doctor-wise Controls</CardTitle>
+          <CardDescription>Override consultation availability for individual doctors.</CardDescription>
+        </CardHeader>
+        <CardContent className={`${COMPACT_CARD_CONTENT}`}>
+          {doctors.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No doctors found.</p>
+          ) : (
+            <div className="overflow-hidden rounded-lg border border-blue-200 bg-white/80 dark:border-blue-900/70 dark:bg-background/40">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-blue-100/70 hover:bg-blue-100/70 dark:bg-blue-950/30 dark:hover:bg-blue-950/30">
+                    <TableHead className="w-[240px] px-3">Doctor</TableHead>
+                    <TableHead className="w-[68px] px-2 text-center">
+                      <IconTableHead label="Pause Doctor">
+                        <Ban className="h-4 w-4" />
+                      </IconTableHead>
+                    </TableHead>
+                    <TableHead className="w-[68px] px-2 text-center">
+                      <IconTableHead label="General Consultation">
+                        <Stethoscope className="h-4 w-4" />
+                      </IconTableHead>
+                    </TableHead>
+                    <TableHead className="w-[68px] px-2 text-center">
+                      <IconTableHead label="Video Consultation">
+                        <Video className="h-4 w-4" />
+                      </IconTableHead>
+                    </TableHead>
+                    <TableHead className="w-[68px] px-2 text-center">
+                      <IconTableHead label="Emergency Only">
+                        <AlertTriangle className="h-4 w-4" />
+                      </IconTableHead>
+                    </TableHead>
+                    <TableHead className="min-w-[220px] px-3">Pause Reason</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {doctors.map((doctor) => {
+                    const control = doctorCtrl[doctor.id];
+                    if (!control) return null;
+                    return (
+                      <TableRow key={doctor.id} className="hover:bg-blue-50/70 dark:hover:bg-blue-950/20">
+                        <TableCell className="px-3">
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold">{doctor.name}</p>
+                            <p className="text-xs text-muted-foreground">{doctor.role || "DOCTOR"}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-2 text-center">
+                          <Switch checked={control.isPaused} onCheckedChange={(value) => updDoc(doctor.id, "isPaused", value)} aria-label={`Pause ${doctor.name}`} />
+                        </TableCell>
+                        <TableCell className="px-2 text-center">
+                          <Switch checked={control.generalConsultationEnabled} onCheckedChange={(value) => updDoc(doctor.id, "generalConsultationEnabled", value)} aria-label={`General consultation for ${doctor.name}`} />
+                        </TableCell>
+                        <TableCell className="px-2 text-center">
+                          <Switch checked={control.videoConsultationEnabled} onCheckedChange={(value) => updDoc(doctor.id, "videoConsultationEnabled", value)} aria-label={`Video consultation for ${doctor.name}`} />
+                        </TableCell>
+                        <TableCell className="px-2 text-center">
+                          <Switch checked={control.emergencyOnly} onCheckedChange={(value) => updDoc(doctor.id, "emergencyOnly", value)} aria-label={`Emergency only for ${doctor.name}`} />
+                        </TableCell>
+                        <TableCell className="px-3">
+                          <Input className="h-9 min-w-[180px]" value={control.pauseReason} onChange={(e) => updDoc(doctor.id, "pauseReason", e.target.value)} placeholder="Optional reason" />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-      <Card className="border-indigo-100 bg-indigo-50/70 dark:border-indigo-900 dark:bg-indigo-950/20"><CardHeader><CardTitle>Dynamic OPD Sessions</CardTitle><CardDescription>Add multiple sessions per day.</CardDescription></CardHeader><CardContent className="space-y-3">
-        {DAYS.map(d => <div key={d} className="border rounded-md p-3 space-y-2 border-indigo-100 bg-white/70 dark:border-indigo-900/70 dark:bg-neutral-900/30"><div className="flex items-center justify-between"><p className="font-medium text-sm">{DAY_LABEL[d]}</p><Button type="button" variant="outline" size="sm" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-900 dark:text-indigo-300 dark:hover:bg-indigo-950/30" onClick={()=>addSession(d)}><Plus className="h-3 w-3 mr-1" />Add Session</Button></div>{sessions[d].length===0?<p className="text-xs text-muted-foreground">Closed</p>:sessions[d].map((s,i)=><div key={`${d}-${i}`} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 items-end"><div><Label className="text-xs text-indigo-700 dark:text-indigo-200">Start</Label><Input type="time" value={s.start} onChange={e=>updSession(d,i,"start",e.target.value)} /></div><div><Label className="text-xs text-indigo-700 dark:text-indigo-200">End</Label><Input type="time" value={s.end} onChange={e=>updSession(d,i,"end",e.target.value)} /></div><Button type="button" variant="outline" size="icon" className="border-rose-200 text-rose-700 hover:bg-rose-50 dark:border-rose-900 dark:text-rose-300 dark:hover:bg-rose-950/30" onClick={()=>delSession(d,i)}><Trash2 className="h-4 w-4" /></Button></div>)}</div>)}
-      </CardContent></Card>
-
-      <Card className="border-amber-100 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/20"><CardHeader><CardTitle>Emergency / OPD Controls</CardTitle></CardHeader><CardContent className="space-y-3">
-        <div className="flex items-center justify-between border rounded-md p-3 border-amber-200 bg-white/70 dark:border-amber-900/70 dark:bg-neutral-900/30"><Label>Pause Clinic OPD</Label><Switch checked={settings.clinicPaused} onCheckedChange={v=>setSF("clinicPaused",v)} /></div>
-        <div><Label>Pause Reason</Label><Input value={settings.pauseReason} onChange={e=>setSF("pauseReason",e.target.value)} /></div>
-        <div className="flex items-center justify-between border rounded-md p-3 border-amber-200 bg-white/70 dark:border-amber-900/70 dark:bg-neutral-900/30"><Label>General Consultation Enabled</Label><Switch checked={settings.generalConsultationEnabled} onCheckedChange={v=>setSF("generalConsultationEnabled",v)} /></div>
-        <div className="flex items-center justify-between border rounded-md p-3 border-amber-200 bg-white/70 dark:border-amber-900/70 dark:bg-neutral-900/30"><Label>Video Consultation Enabled</Label><Switch checked={settings.videoConsultationEnabled} onCheckedChange={v=>setSF("videoConsultationEnabled",v)} /></div>
-        <div className="flex items-center justify-between border rounded-md p-3 border-amber-200 bg-white/70 dark:border-amber-900/70 dark:bg-neutral-900/30"><Label>Emergency Only Mode</Label><Switch checked={settings.emergencyOnly} onCheckedChange={v=>setSF("emergencyOnly",v)} /></div>
-      </CardContent></Card>
-
-      <Card className="border-emerald-100 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/20"><CardHeader><CardTitle>Doctor-Wise Controls</CardTitle></CardHeader><CardContent className="space-y-3">
-        {doctors.length===0 ? <p className="text-sm text-muted-foreground">No doctors found.</p> : doctors.map((doctor)=>{ const c=doctorCtrl[doctor.id]; if(!c) return null; return <div key={doctor.id} className="border rounded-md p-3 space-y-2 border-emerald-200 bg-white/70 dark:border-emerald-900/70 dark:bg-neutral-900/30"><p className="font-medium">{doctor.name}</p><div className="grid grid-cols-1 sm:grid-cols-2 gap-2"><div className="flex items-center justify-between border rounded-md p-2 border-emerald-200 bg-emerald-50/70 dark:border-emerald-900/70 dark:bg-emerald-950/10"><Label className="text-sm">Pause Doctor</Label><Switch checked={c.isPaused} onCheckedChange={v=>updDoc(doctor.id,"isPaused",v)} /></div><div className="flex items-center justify-between border rounded-md p-2 border-emerald-200 bg-emerald-50/70 dark:border-emerald-900/70 dark:bg-emerald-950/10"><Label className="text-sm">General Enabled</Label><Switch checked={c.generalConsultationEnabled} onCheckedChange={v=>updDoc(doctor.id,"generalConsultationEnabled",v)} /></div><div className="flex items-center justify-between border rounded-md p-2 border-emerald-200 bg-emerald-50/70 dark:border-emerald-900/70 dark:bg-emerald-950/10"><Label className="text-sm">Video Enabled</Label><Switch checked={c.videoConsultationEnabled} onCheckedChange={v=>updDoc(doctor.id,"videoConsultationEnabled",v)} /></div><div className="flex items-center justify-between border rounded-md p-2 border-emerald-200 bg-emerald-50/70 dark:border-emerald-900/70 dark:bg-emerald-950/10"><Label className="text-sm">Emergency Only</Label><Switch checked={c.emergencyOnly} onCheckedChange={v=>updDoc(doctor.id,"emergencyOnly",v)} /></div></div><div><Label className="text-xs text-emerald-700 dark:text-emerald-200">Reason</Label><Input value={c.pauseReason} onChange={e=>updDoc(doctor.id,"pauseReason",e.target.value)} /></div></div>; })}
-      </CardContent></Card>
-
-      <Card className="border-purple-100 bg-purple-50/70 dark:border-purple-900 dark:bg-purple-950/20"><CardHeader><CardTitle>Assistant Doctor Coverage</CardTitle><CardDescription>Choose which primary doctors each assistant doctor can cover at this clinic. Reassignment will use this configuration.</CardDescription></CardHeader><CardContent className="space-y-3">
-        {assistantDoctors.length===0 ? <p className="text-sm text-muted-foreground">No assistant doctors found.</p> : assistantDoctors.map((assistant) => { const coverage = assistantCoverage[assistant.id] || { assistantDoctorId: assistant.id, primaryDoctorIds: [], isActive: false }; return <div key={assistant.id} className="border rounded-md p-3 space-y-3 border-purple-200 bg-white/70 dark:border-purple-900/70 dark:bg-neutral-900/30"><div className="flex items-center justify-between gap-3"><div><p className="font-medium">{assistant.name}</p><p className="text-xs text-muted-foreground">Assistant coverage for main doctor bookings</p></div><div className="flex items-center gap-2"><Label className="text-sm">Active</Label><Switch checked={coverage.isActive} onCheckedChange={(value)=>setAssistantCoverageActive(assistant.id, value)} /></div></div><div className="flex flex-wrap gap-2">{primaryDoctors.length===0 ? <p className="text-sm text-muted-foreground">No primary doctors found.</p> : primaryDoctors.map((doctor) => { const selected = coverage.primaryDoctorIds.includes(doctor.id); return <Button key={doctor.id} type="button" variant={selected ? "default" : "outline"} size="sm" className={selected ? "bg-purple-600 hover:bg-purple-700 text-white" : "border-purple-200 text-purple-700 hover:bg-purple-50 dark:border-purple-900 dark:text-purple-300 dark:hover:bg-purple-950/30"} onClick={()=>toggleAssistantPrimaryDoctor(assistant.id, doctor.id)}>{doctor.name}</Button>; })}</div></div>; })}
-      </CardContent></Card>
-    </div>
+      <Card className={ASSISTANT_CARD_CLASS}>
+        <CardHeader className={COMPACT_CARD_HEADER}>
+          <CardTitle>Assistant Doctor Coverage</CardTitle>
+          <CardDescription>Choose which primary doctors each assistant doctor can cover at this clinic.</CardDescription>
+        </CardHeader>
+        <CardContent className={`${COMPACT_CARD_CONTENT} grid grid-cols-1 gap-3 xl:grid-cols-2`}>
+          {assistantDoctors.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No assistant doctors found.</p>
+          ) : (
+            assistantDoctors.map((assistant) => {
+              const coverage = assistantCoverage[assistant.id] || { assistantDoctorId: assistant.id, primaryDoctorIds: [], isActive: false };
+              return (
+                <div key={assistant.id} className="space-y-2 rounded-lg border border-fuchsia-200 bg-white/80 p-3 dark:border-fuchsia-900/70 dark:bg-background/40">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold">{assistant.name}</p>
+                      <p className="text-xs text-muted-foreground">Assistant coverage for main doctor bookings</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm">Active</Label>
+                      <Switch checked={coverage.isActive} onCheckedChange={(value) => setAssistantCoverageActive(assistant.id, value)} />
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {primaryDoctors.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No primary doctors found.</p>
+                    ) : (
+                      primaryDoctors.map((doctor) => {
+                        const selected = coverage.primaryDoctorIds.includes(doctor.id);
+                        return (
+                          <Button
+                            key={doctor.id}
+                            type="button"
+                            variant={selected ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => toggleAssistantPrimaryDoctor(assistant.id, doctor.id)}
+                          >
+                            {doctor.name}
+                          </Button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </CardContent>
+      </Card>
+    </PatientPageShell>
   );
 }

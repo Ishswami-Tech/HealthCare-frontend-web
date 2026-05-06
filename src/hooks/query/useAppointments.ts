@@ -21,6 +21,8 @@ import {
     getMyAppointments,
     getAppointmentById,
     getAppointmentServiceCatalog,
+    getCheckInLocations,
+    getCheckInHistory,
     updateAppointment,
     updateAppointmentStatus, // Consolidated status update
     startConsultation,
@@ -897,6 +899,60 @@ export const useUserUpcomingAppointments = () => {
     {
       enabled: hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 5 * 60 * 1000, // 5 minutes
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+      refetchInterval: isConnected ? false : 30_000,
+    }
+  );
+};
+
+/**
+ * Hook for fetching clinic check-in locations
+ */
+export const useCheckInLocations = () => {
+  const { hasPermission } = useRBAC();
+  const clinicId = useCurrentClinicId();
+  const { isConnected } = useWebSocketStatus();
+
+  return useQueryData(
+    ['checkInLocations', clinicId],
+    async () => {
+      const result = await getCheckInLocations();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch check-in locations');
+      }
+      return result.data || [];
+    },
+    {
+      enabled: !!clinicId && hasPermission(Permission.VIEW_APPOINTMENTS),
+      staleTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+      refetchInterval: isConnected ? false : 30_000,
+    }
+  );
+};
+
+/**
+ * Hook for fetching clinic check-in history
+ */
+export const useCheckInHistory = () => {
+  const { hasPermission } = useRBAC();
+  const clinicId = useCurrentClinicId();
+  const { isConnected } = useWebSocketStatus();
+
+  return useQueryData(
+    ['checkInHistory', clinicId],
+    async () => {
+      const result = await getCheckInHistory();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch check-in history');
+      }
+      return result.data;
+    },
+    {
+      enabled: !!clinicId && hasPermission(Permission.VIEW_APPOINTMENTS),
+      staleTime: 2 * 60 * 1000,
       refetchOnWindowFocus: false,
       refetchOnReconnect: true,
       refetchInterval: isConnected ? false : 30_000,

@@ -398,6 +398,52 @@ export async function getAppointmentServiceCatalog(): Promise<{
   }
 }
 
+export async function getCheckInLocations(): Promise<{
+  success: boolean;
+  data?: unknown[];
+  error?: string;
+}> {
+  try {
+    const { data } = await authenticatedApi<{
+      data?: unknown[];
+      locations?: unknown[];
+    }>(API_ENDPOINTS.APPOINTMENTS.CHECK_IN_LOCATIONS, {});
+
+    const locations = Array.isArray(data?.data)
+      ? data.data
+      : Array.isArray(data?.locations)
+        ? data.locations
+        : Array.isArray(data as unknown[])
+          ? (data as unknown[])
+          : [];
+
+    return { success: true, data: locations };
+  } catch (error) {
+    logger.error(
+      'Failed to get check-in locations',
+      error instanceof Error ? error : new Error(String(error))
+    );
+    return { success: false, error: 'Failed to fetch check-in locations' };
+  }
+}
+
+export async function getCheckInHistory(): Promise<{
+  success: boolean;
+  data?: unknown;
+  error?: string;
+}> {
+  try {
+    const { data } = await authenticatedApi<unknown>(API_ENDPOINTS.APPOINTMENTS.CHECK_IN_HISTORY, {});
+    return { success: true, data };
+  } catch (error) {
+    logger.error(
+      'Failed to get check-in history',
+      error instanceof Error ? error : new Error(String(error))
+    );
+    return { success: false, error: 'Failed to fetch check-in history' };
+  }
+}
+
 export async function getAppointmentReassignmentCandidates(
   id: string
 ): Promise<{
@@ -718,6 +764,7 @@ export async function checkInAppointment(
         body: JSON.stringify({
           checkInMethod: 'manual',
           notes: 'Manual receptionist check-in',
+          ...(options?.locationId ? { locationId: options.locationId } : {}),
         }),
       });
     } catch (checkInError) {

@@ -7,7 +7,6 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { useNotificationPreferences, useUpdateNotificationPreferences } from '@/hooks/query';
 import { Loader2, Bell, Save } from 'lucide-react';
-import { showSuccessToast, showErrorToast, TOAST_IDS } from '@/hooks/utils/use-toast';
 
 interface NotificationPreferencesProps {
   userId?: string;
@@ -78,15 +77,7 @@ export function NotificationPreferences({ userId, onSave }: NotificationPreferen
       { ...settings, ...(userId ? { userId } : {}) },
       {
         onSuccess: () => {
-          showSuccessToast('Notification preferences updated successfully', {
-            id: TOAST_IDS.NOTIFICATION.PREFERENCE_UPDATE,
-          });
           onSave?.();
-        },
-        onError: (error: Error) => {
-          showErrorToast(error.message || 'Failed to update preferences', {
-            id: TOAST_IDS.NOTIFICATION.PREFERENCE_UPDATE,
-          });
         },
       }
     );

@@ -381,6 +381,20 @@ export function useWebSocketQuerySync() {
       invalidateBillingQueryFamilies(queryClient);
     };
 
+    const invalidateQueueQueryFamilies = () => {
+      void queryClient.invalidateQueries({ queryKey: ['queue'], exact: false });
+      void queryClient.invalidateQueries({ queryKey: ['queue-status'], exact: false });
+      void queryClient.invalidateQueries({ queryKey: ['queue-metrics'], exact: false });
+      void queryClient.invalidateQueries({ queryKey: ['queueHistory'], exact: false });
+      void queryClient.invalidateQueries({ queryKey: ['queueAnalytics'], exact: false });
+      void queryClient.invalidateQueries({ queryKey: ['queueConfig'], exact: false });
+      void queryClient.invalidateQueries({ queryKey: ['queueNotifications'], exact: false });
+      void queryClient.invalidateQueries({ queryKey: ['queueWaitTimes'], exact: false });
+      void queryClient.invalidateQueries({ queryKey: ['queueCapacity'], exact: false });
+      void queryClient.invalidateQueries({ queryKey: ['queuePerformanceMetrics'], exact: false });
+      void queryClient.invalidateQueries({ queryKey: ['queueAlerts'], exact: false });
+    };
+
     // Global cache invalidation events
     const unsubscribeGlobalRefresh = subscribe('cache:invalidate', (rawData: unknown) => {
       const data = rawData as {
@@ -416,6 +430,15 @@ export function useWebSocketQuerySync() {
       })
     );
 
+    const checkInLifecycleEvents = ['appointment.checked_in', 'appointment.confirmed'] as const;
+
+    const unsubscribeCheckInLifecycleEvents = checkInLifecycleEvents.map((event) =>
+      subscribe(event, () => {
+        invalidateAppointmentsAndBilling();
+        invalidateQueueQueryFamilies();
+      })
+    );
+
     // Batch invalidation for performance
     const unsubscribeBatchInvalidate = subscribe('cache:batch_invalidate', (rawData: unknown) => {
       const data = rawData as {
@@ -435,6 +458,7 @@ export function useWebSocketQuerySync() {
       unsubscribeGlobalRefresh();
       unsubscribeQueryUpdate();
       unsubscribePaymentLifecycleEvents.forEach((unsubscribe) => unsubscribe());
+      unsubscribeCheckInLifecycleEvents.forEach((unsubscribe) => unsubscribe());
       unsubscribeBatchInvalidate();
     };
   }, [isConnected, subscribe, queryClient]);
