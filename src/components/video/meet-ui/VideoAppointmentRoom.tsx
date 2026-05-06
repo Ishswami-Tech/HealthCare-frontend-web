@@ -777,9 +777,9 @@ export default function VideoAppointmentRoom({
                     <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4 dark:bg-meet-black">
                       <Phone className="h-8 w-8 text-foreground dark:text-white" />
                     </div>
-                    <h2 className="mt-4 text-2xl font-semibold">Ready to Join</h2>
+                    <h2 className="mt-4 text-2xl font-semibold">Opening room</h2>
                     <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground dark:text-gray-300">
-                      Check your camera and microphone before joining.
+                      The preview is complete. Connecting you directly to the live consultation now.
                     </p>
                     <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
                       <Button

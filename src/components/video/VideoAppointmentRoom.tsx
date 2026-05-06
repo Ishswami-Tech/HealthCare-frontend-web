@@ -957,10 +957,10 @@ export function VideoAppointmentRoom({
                         </>
                       ) : (
                         <>
-                      <h2 className="mt-4 text-xl font-semibold sm:mt-5 sm:text-2xl">Connecting to consultation</h2>
-                      <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-                        The preview is complete. Connecting you to the live consultation now.
-                      </p>
+                          <h2 className="mt-4 text-xl font-semibold sm:mt-5 sm:text-2xl">Opening room</h2>
+                          <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                            The preview is complete. Connecting you to the live consultation now.
+                          </p>
                           <Button
                             onClick={handleStartCall}
                             size="lg"
