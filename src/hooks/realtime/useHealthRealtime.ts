@@ -186,7 +186,7 @@ function convertRealtimeToDetailed(realtime: RealtimeHealthStatus): DetailedHeal
   if (services.video) {
     result.video = {
       status: services.video.status === 'healthy' ? 'up' : 'down',
-      primaryProvider: 'openvidu',
+      primaryProvider: 'video',
     };
     if (services.video.status === 'healthy') {
       result.video.isHealthy = true;

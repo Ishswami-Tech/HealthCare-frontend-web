@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Mic, MicOff, Video, VideoOff, Phone, Clock, Shield } from "lucide-react";
+import { Loader2, Mic, MicOff, Video, VideoOff, Shield, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
@@ -12,9 +12,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { VideoAppointmentMeetRoom } from "@/components/video/VideoAppointmentMeetRoom";
 import { useAppointment } from "@/hooks/query/useAppointments";
 import { useVideoAppointment } from "@/hooks/query/useVideoAppointments";
+import { useAuth } from "@/hooks/auth/useAuth";
 import { formatDateTimeInIST, formatTimeInIST, nowIso } from "@/lib/utils/date-time";
 import {
   getAppointmentDoctorName,
@@ -23,6 +23,8 @@ import {
   getVideoSessionDecision,
 } from "@/lib/utils/appointmentUtils";
 import { getVideoSessionExitRoute } from "@/lib/utils/video-session-route";
+import { generateVideoToken } from "@/lib/actions/video.server";
+import { VideoAppointmentRoomWorkspace, type VideoRoomAccess } from "@/components/video/VideoAppointmentRoomWorkspace";
 import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
 
 const MEET_MEDIA_BUTTON_ON =
@@ -37,6 +39,7 @@ const MEET_STATUS_BADGE =
   "rounded-full border border-blue-200/70 bg-blue-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-blue-700 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-200";
 const MEET_INFO_CARD =
   "rounded-2xl border border-slate-200/80 bg-white/90 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-dark-gray dark:bg-meet-black/90";
+const VIDEO_ACTIVE_WINDOW_MS = 3 * 60 * 60 * 1000;
 
 type VideoAppointmentMeetSessionProps = {
   appointmentId: string;
@@ -65,7 +68,7 @@ function normalizeAppointment(
   const endTime =
     appointment?.endTime ||
     appointment?.scheduledEndTime ||
-    new Date(new Date(startTime).getTime() + 60 * 60 * 1000).toISOString();
+    new Date(new Date(startTime).getTime() + VIDEO_ACTIVE_WINDOW_MS).toISOString();
 
   return {
     id: resolvedAppointmentId,
@@ -90,14 +93,6 @@ function normalizeAppointment(
       .toLowerCase()
       .replace(/_/g, "-") as VideoAppointment["status"],
     paymentCompleted: getAppointmentViewState(appointment).paymentCompleted,
-    confirmedSlotIndex:
-      appointment?.confirmedSlotIndex ??
-      appointment?.confirmed_slot_index ??
-      null,
-    proposedSlots:
-      appointment?.proposedSlots ??
-      appointment?.proposed_slots ??
-      undefined,
     sessionId:
       appointment?.sessionId ||
       (consultationSessionId && consultationSessionId !== resolvedAppointmentId
@@ -115,20 +110,64 @@ function isMergeableValue(value: unknown): boolean {
   return value !== undefined && value !== null;
 }
 
+function resolveVideoTokenRole(role?: string | null): "patient" | "doctor" | "receptionist" | "clinic_admin" {
+  switch (String(role || "").trim().toUpperCase()) {
+    case "DOCTOR":
+    case "ASSISTANT_DOCTOR":
+    case "THERAPIST":
+    case "COUNSELOR":
+      return "doctor";
+    case "RECEPTIONIST":
+    case "NURSE":
+      return "receptionist";
+    case "CLINIC_ADMIN":
+    case "CLINIC_LOCATION_HEAD":
+    case "SUPER_ADMIN":
+      return "clinic_admin";
+    default:
+      return "patient";
+  }
+}
+
+function resolveVideoProvider(
+  accessProvider?: string | null,
+  meetingUrl?: string | null
+): VideoRoomAccess["provider"] {
+  const normalized = String(accessProvider || "").trim().toLowerCase();
+  if (normalized === "cloudflare" || normalized === "daily" || normalized === "google-meet") {
+    return normalized;
+  }
+
+  const url = String(meetingUrl || "").trim().toLowerCase();
+  if (url.includes("meet.google.com")) return "google-meet";
+  if (url.includes("daily.co")) return "daily";
+  return "cloudflare";
+}
+
+function formatProviderLabel(provider: VideoRoomAccess["provider"]) {
+  switch (provider) {
+    case "cloudflare":
+      return "Cloudflare Realtime";
+    case "daily":
+      return "Daily";
+    case "google-meet":
+      return "Google Meet";
+    default:
+      return "Video";
+  }
+}
+
 export function VideoAppointmentMeetSession({
   appointmentId,
   viewerRole,
   onBack,
 }: VideoAppointmentMeetSessionProps) {
   const router = useRouter();
+  const { session } = useAuth();
   const resolvedAppointmentId = appointmentId.trim();
   const { data: appointmentQuery, isPending, error } =
     useVideoAppointment(resolvedAppointmentId);
   const { data: appointmentRecordQuery } = useAppointment(resolvedAppointmentId);
-  const [appointment, setAppointment] = React.useState<VideoAppointment | null>(
-    null
-  );
-  const [hasJoined, setHasJoined] = React.useState(false);
   const [isRequesting, setIsRequesting] = React.useState(true);
   const [permissionError, setPermissionError] = React.useState<string | null>(null);
   const [mediaStream, setMediaStream] = React.useState<MediaStream | null>(null);
@@ -139,6 +178,8 @@ export function VideoAppointmentMeetSession({
   const [isAudioEnabled, setIsAudioEnabled] = React.useState(true);
   const [isVideoEnabled, setIsVideoEnabled] = React.useState(true);
   const [isMirrored, setIsMirrored] = React.useState(true);
+  const [isJoiningRoom, setIsJoiningRoom] = React.useState(false);
+  const [joinedAccess, setJoinedAccess] = React.useState<VideoRoomAccess | null>(null);
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const mediaStreamRef = React.useRef<MediaStream | null>(null);
   const previewHandedOffRef = React.useRef(false);
@@ -151,8 +192,8 @@ export function VideoAppointmentMeetSession({
     [appointmentRecordQuery]
   );
   const appointmentConsultationSource = React.useMemo(
-    () => (appointmentQuery as any)?.appointment || (appointmentQuery as any)?.data || appointment,
-    [appointmentQuery, appointment]
+    () => (appointmentQuery as any)?.appointment || (appointmentQuery as any)?.data || null,
+    [appointmentQuery]
   );
   const appointmentDetailsSource = React.useMemo(() => {
     if (appointmentRecordSource && appointmentConsultationSource) {
@@ -175,10 +216,21 @@ export function VideoAppointmentMeetSession({
 
     return appointmentConsultationSource || appointmentRecordSource;
   }, [appointmentConsultationSource, appointmentRecordSource]);
+  const appointment = React.useMemo(
+    () =>
+      appointmentDetailsSource
+        ? normalizeAppointment(appointmentDetailsSource, resolvedAppointmentId)
+        : null,
+    [appointmentDetailsSource, resolvedAppointmentId]
+  );
   const videoSessionDecision = React.useMemo(
     () => getVideoSessionDecision(appointmentDetailsSource || appointment),
     [appointment, appointmentDetailsSource]
   );
+  const meetingUrl = React.useMemo(() => {
+    const raw = (appointmentDetailsSource as { meetingUrl?: unknown } | null | undefined)?.meetingUrl;
+    return typeof raw === "string" ? raw.trim() : "";
+  }, [appointmentDetailsSource]);
   const appointmentDoctorName = getAppointmentDoctorName(appointmentDetailsSource);
   const appointmentPatientName = getAppointmentPatientName(appointmentDetailsSource);
   const appointmentDateValue =
@@ -201,6 +253,25 @@ export function VideoAppointmentMeetSession({
   const appointmentSessionLabel = resolvedAppointmentId
     ? resolvedAppointmentId.slice(-8).toUpperCase()
     : "TBD";
+  const appointmentProvider = String(
+    (appointmentDetailsSource as { provider?: unknown } | null | undefined)?.provider || ""
+  )
+    .trim()
+    .toLowerCase();
+  const isDailyProvider = resolveVideoProvider(
+    appointmentProvider || null,
+    meetingUrl
+  ) === "daily";
+  const meetingProviderLabel =
+    isDailyProvider ? "Daily" : appointmentProvider || "backend video api";
+  const meetingUrlLabel =
+    isDailyProvider
+      ? "In-app room available"
+      : meetingUrl.length > 0
+        ? meetingUrl.length > 64
+          ? `${meetingUrl.slice(0, 61)}...`
+          : meetingUrl
+        : "Waiting for the backend to generate a meeting link";
   const appointmentDoctorLabel = appointmentDoctorName || "Doctor assigned";
   const appointmentPatientLabel = appointmentPatientName || "Patient TBD";
   const viewerRoleNormalized = String(viewerRole || "").trim().toUpperCase();
@@ -219,20 +290,34 @@ export function VideoAppointmentMeetSession({
               : viewerRoleNormalized === "DOCTOR" || viewerRoleNormalized === "ASSISTANT_DOCTOR"
                 ? "Patient"
                 : "Video appointment";
-
-  React.useEffect(() => {
-    const liveAppointmentSource =
-      appointmentDetailsSource ||
-      (appointmentQuery as any)?.appointment ||
-      (appointmentQuery as any)?.data ||
-      null;
-
-    if (!resolvedAppointmentId || !liveAppointmentSource) {
-      return;
+  const blockedReason = videoSessionDecision.blockedReason || "";
+  const sessionStateLabel = React.useMemo(() => {
+    const normalized = blockedReason.toLowerCase();
+    if (normalized.includes("join opens")) {
+      return "Waiting for your visit";
+    }
+    if (normalized.includes("payment is required")) {
+      return "Payment required";
+    }
+    if (normalized.includes("cancelled") || normalized.includes("completed") || normalized.includes("no-show")) {
+      return "This session is closed";
+    }
+    return "Session unavailable";
+  }, [blockedReason]);
+  const sessionStateMessage = React.useMemo(() => {
+    if (!blockedReason) {
+      return "Your video visit is ready to join.";
     }
 
-    setAppointment(normalizeAppointment(liveAppointmentSource, resolvedAppointmentId));
-  }, [appointmentDetailsSource, appointmentQuery, resolvedAppointmentId]);
+    const normalized = blockedReason.toLowerCase();
+    if (normalized.includes("join opens")) {
+      return "Your appointment is confirmed. Join opens automatically in the allowed window.";
+    }
+    if (normalized.includes("payment is required")) {
+      return "The appointment needs a verified payment before video access can open.";
+    }
+    return blockedReason;
+  }, [blockedReason]);
 
   const loadPreviewStream = React.useCallback(
     async (
@@ -424,10 +509,93 @@ export function VideoAppointmentMeetSession({
     void loadPreviewStream(selectedVideoDeviceId, resolvedDeviceId, isVideoEnabled, isAudioEnabled);
   };
 
-  const handleJoin = () => {
+  const handleJoin = async () => {
     previewHandedOffRef.current = true;
-    setHasJoined(true);
+
+    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+    mediaStreamRef.current = null;
+
+    const currentUserId = session?.user?.id || "";
+    if (!currentUserId) {
+      setPermissionError("You must be signed in to join the consultation.");
+      return;
+    }
+
+    try {
+      setIsJoiningRoom(true);
+      setPermissionError(null);
+
+      const tokenResult = await generateVideoToken({
+        appointmentId: resolvedAppointmentId,
+        userId: currentUserId,
+        userRole: resolveVideoTokenRole(viewerRole || session?.user?.role || null),
+        userInfo: {
+          displayName:
+            session?.user?.name ||
+            [session?.user?.firstName, session?.user?.lastName].filter(Boolean).join(" ") ||
+            "Participant",
+          email: session?.user?.email || "",
+        },
+      });
+
+      const resolvedAccess: VideoRoomAccess = {
+        provider: resolveVideoProvider(
+          (tokenResult as { provider?: string | null })?.provider || (appointmentDetailsSource as { provider?: string | null })?.provider,
+          (tokenResult as { meetingUrl?: string | null })?.meetingUrl || meetingUrl
+        ),
+        token: String((tokenResult as { token?: string | null })?.token || ""),
+        roomName: String(
+          (tokenResult as { roomName?: string | null })?.roomName ||
+            appointmentDetailsSource?.roomName ||
+            appointmentDoctorLabel ||
+            `Room ${appointmentSessionLabel}`
+        ),
+        meetingUrl: String((tokenResult as { meetingUrl?: string | null })?.meetingUrl || meetingUrl),
+        roomId: String((tokenResult as { roomId?: string | null })?.roomId || ""),
+        meetingId: String((tokenResult as { meetingId?: string | null })?.meetingId || ""),
+      };
+
+      if (resolvedAccess.provider === "google-meet" && resolvedAccess.meetingUrl) {
+        window.open(resolvedAccess.meetingUrl, "_blank", "noopener,noreferrer");
+      }
+
+      setJoinedAccess(resolvedAccess);
+    } catch (error) {
+      setPermissionError(
+        error instanceof Error ? error.message : "Unable to join the video consultation."
+      );
+    } finally {
+      setIsJoiningRoom(false);
+    }
   };
+
+  const handleCopyMeetingLink = async () => {
+    if (!meetingUrl) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(meetingUrl);
+    } catch {
+      // Ignore clipboard failures; users can still use the visible link.
+    }
+  };
+
+  const handleLeaveRoom = React.useCallback(() => {
+    // Stop all media tracks before navigating away
+    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+    mediaStreamRef.current = null;
+
+    if (onBack) {
+      onBack();
+      return;
+    }
+    if (typeof window !== "undefined" && window.opener) {
+      window.close();
+      return;
+    }
+    router.replace(exitRoute);
+  }, [exitRoute, onBack, router]);
 
   const handleLeavePreview = () => {
     mediaStream?.getTracks().forEach((track) => track.stop());
@@ -444,10 +612,18 @@ export function VideoAppointmentMeetSession({
 
   if (isPending || !appointment || isRequesting) {
     return (
-      <div className="flex min-h-dvh w-full items-center justify-center px-4 py-6 text-center bg-background text-foreground dark:bg-meet-black dark:text-white">
-        <div className="rounded-3xl border border-border bg-card px-5 py-4 text-center shadow-sm sm:px-6 sm:py-5 dark:border-dark-gray dark:bg-meet-black">
-          <Loader2 className="mx-auto h-9 w-9 animate-spin text-foreground dark:text-white" />
-          <p className="mt-3 text-sm font-medium">Getting ready...</p>
+      <div className="flex min-h-dvh w-full items-center justify-center bg-[#111315] px-6 text-center text-white">
+        <div className="space-y-4 max-w-xs w-full">
+          <div className="relative mx-auto h-14 w-14">
+            <div className="h-full w-full animate-spin rounded-full border-2 border-[#8ab4f8]/20 border-t-[#8ab4f8]" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Video className="h-6 w-6 text-[#8ab4f8]" />
+            </div>
+          </div>
+          <div>
+            <p className="text-[16px] font-medium text-white">Getting ready…</p>
+            <p className="mt-1 text-[13px] text-[#9aa0a6]">Preparing your consultation.</p>
+          </div>
         </div>
       </div>
     );
@@ -455,116 +631,130 @@ export function VideoAppointmentMeetSession({
 
   if (error || permissionError) {
     return (
-      <div className="flex min-h-dvh w-full items-center justify-center px-4 py-6 text-center bg-background text-foreground dark:bg-meet-black dark:text-white">
-        <div className="max-w-md rounded-3xl border border-border bg-card px-5 py-5 text-center shadow-sm sm:px-6 sm:py-6 dark:border-dark-gray dark:bg-meet-black">
-          <p className="text-lg font-semibold">Permissions required</p>
-          <p className="mt-2 text-sm text-muted-foreground dark:text-gray-400">
+      <div className="flex min-h-dvh w-full items-center justify-center bg-[#111315] px-6 text-center text-white">
+        <div className="max-w-sm w-full rounded-2xl border border-[#ea4335]/20 bg-[#ea4335]/10 px-6 py-8 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#ea4335]/20">
+            <VideoOff className="h-7 w-7 text-[#f28b82]" />
+          </div>
+          <p className="text-[16px] font-semibold text-white">Unable to join</p>
+          <p className="mt-2 text-[13px] text-[#9aa0a6]">
             {permissionError || "Unable to load this meeting."}
           </p>
-          <div className="mt-6 flex justify-center">
-            <Button
-              onClick={() => window.location.reload()}
-              className="rounded-full bg-meet-blue text-white hover:bg-blue-600"
-            >
-              Retry
-            </Button>
-          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-6 rounded-full bg-[#8ab4f8] px-6 py-2.5 text-[13px] font-semibold text-[#202124] hover:bg-[#aecbfa] transition-colors"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
   }
 
-  if (hasJoined) {
+  if (joinedAccess) {
     return (
-      <VideoAppointmentMeetRoom
-        appointment={appointment}
-        startWithAudioEnabled={isAudioEnabled}
-        startWithVideoEnabled={isVideoEnabled}
-        initialMediaStream={mediaStream}
-        onLeaveRoom={handleLeavePreview}
+      <VideoAppointmentRoomWorkspace
+        appointment={appointmentDetailsSource || appointment}
+        viewerRole={viewerRole}
+        access={joinedAccess}
+        onLeave={handleLeaveRoom}
       />
     );
   }
-  return (
-      <div className="relative flex min-h-dvh w-full flex-col items-stretch justify-center gap-4 overflow-hidden bg-background px-4 py-6 text-foreground dark:bg-meet-black dark:text-white sm:px-6 sm:py-8 lg:flex-row lg:items-center lg:gap-8 lg:px-8">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(26,115,232,0.14),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(52,168,83,0.10),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.78),rgba(255,255,255,0.94))] dark:bg-[radial-gradient(circle_at_top_right,rgba(138,180,248,0.18),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(52,168,83,0.12),transparent_28%),linear-gradient(180deg,rgba(32,33,36,0.94),rgba(32,33,36,0.98))]" />
-      
-      {/* Left side: Video Preview */}
-      <div className="w-full max-w-3xl flex flex-col gap-4 z-10 lg:w-[65%]">
-        <div className={`${MEET_INFO_CARD} relative aspect-video w-full overflow-hidden`}>
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#ea4335] via-[#fbbc05] to-[#34a853]" />
-          <video
-            ref={videoRef}
-            autoPlay
-            muted
-            playsInline
-            className={`h-full w-full object-cover transition-opacity duration-500 ${
-              isMirrored ? "-scale-x-100" : ""
-            } ${isVideoEnabled ? "opacity-100" : "opacity-0"}`}
-          />
-          {!isVideoEnabled && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-card px-4 text-center dark:bg-meet-black">
-            <div className="mb-6 flex h-32 w-32 items-center justify-center rounded-full bg-linear-to-br from-[#ea4335] via-[#fbbc05] to-[#34a853] shadow-lg shadow-blue-500/10">
-                <VideoOff className="h-12 w-12 text-white" />
-              </div>
-              <p className="text-xl font-normal text-foreground dark:text-white">Camera is off</p>
-            </div>
-          )}
 
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-6 flex justify-center pb-8">
-            <div className="flex justify-center gap-4">
-              <Button
-                type="button"
-                onClick={toggleAudio}
-                aria-pressed={isAudioEnabled}
-                className={`h-14 w-14 rounded-full transition-all ${isAudioEnabled ? MEET_MEDIA_BUTTON_ON : MEET_MEDIA_BUTTON_OFF}`}
-              >
-                {isAudioEnabled ? <Mic className="h-6 w-6" /> : <MicOff className="h-6 w-6" />}
-              </Button>
-              <Button
-                type="button"
-                onClick={toggleVideo}
-                aria-pressed={isVideoEnabled}
-                className={`h-14 w-14 rounded-full transition-all ${isVideoEnabled ? MEET_MEDIA_BUTTON_ON : MEET_MEDIA_BUTTON_OFF}`}
-              >
-                {isVideoEnabled ? <Video className="h-6 w-6" /> : <VideoOff className="h-6 w-6" />}
-              </Button>
+  return (
+    <div className="relative min-h-dvh w-full overflow-y-auto bg-[#111315] text-white">
+      {/* Subtle background glow */}
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_right,rgba(138,180,248,0.08),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(52,168,83,0.06),transparent_40%)]" />
+
+      {/* Full-height centered on desktop, scrollable column on mobile */}
+      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-0 px-4 py-6 sm:px-6 sm:py-8 lg:min-h-dvh lg:flex-row lg:items-center lg:gap-10 lg:px-10 lg:py-0">
+
+        {/* ── Left: Video preview ── */}
+        <div className="w-full flex-shrink-0 lg:w-[56%]">
+          {/* Video card */}
+          <div className="relative w-full overflow-hidden rounded-2xl bg-[#1e1f20] border border-white/10">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#ea4335] via-[#fbbc05] to-[#34a853]" />
+
+            {/* 3:4 portrait on mobile, 16:9 landscape on desktop */}
+            <div className="relative w-full aspect-[3/4] lg:aspect-video">
+              <video
+                ref={videoRef}
+                autoPlay
+                muted
+                playsInline
+                className={`h-full w-full object-cover transition-opacity duration-300 ${isMirrored ? "-scale-x-100" : ""} ${isVideoEnabled ? "opacity-100" : "opacity-0"}`}
+              />
+              {!isVideoEnabled && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#1e1f20]">
+                  <div className="flex h-28 w-28 items-center justify-center rounded-full bg-[#3c4043]">
+                    <VideoOff className="h-12 w-12 text-[#9aa0a6]" />
+                  </div>
+                  <p className="mt-3 text-[13px] text-[#9aa0a6]">Camera is off</p>
+                </div>
+              )}
+
+              {/* Mic + Camera overlay */}
+              <div className="absolute inset-x-0 bottom-0 flex justify-center gap-5 bg-gradient-to-t from-black/75 to-transparent pb-8 pt-20">
+                <button
+                  type="button"
+                  onClick={toggleAudio}
+                  aria-pressed={isAudioEnabled}
+                  className={`flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all ${isAudioEnabled ? "bg-[#3c4043]/90 text-white hover:bg-[#5f6368]" : "bg-[#ea4335] text-white hover:bg-[#d93025]"}`}
+                >
+                  {isAudioEnabled ? <Mic className="h-6 w-6" /> : <MicOff className="h-6 w-6" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleVideo}
+                  aria-pressed={isVideoEnabled}
+                  className={`flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all ${isVideoEnabled ? "bg-[#3c4043]/90 text-white hover:bg-[#5f6368]" : "bg-[#ea4335] text-white hover:bg-[#d93025]"}`}
+                >
+                  {isVideoEnabled ? <Video className="h-6 w-6" /> : <VideoOff className="h-6 w-6" />}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="mt-4 grid gap-3 px-1 sm:grid-cols-2 sm:px-2">
-          <div className="space-y-1">
+          {/* Device selectors — compact */}
+          <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
             <Select value={selectedAudioDeviceId} onValueChange={handleAudioDeviceChange}>
-            <SelectTrigger className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-none hover:bg-muted dark:border-dark-gray dark:bg-transparent dark:text-[#9aa0a6] dark:hover:bg-dark-gray focus:ring-1 focus:ring-blue-500">
-                <Mic className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Microphone" />
+              <SelectTrigger className="h-10 w-full min-w-0 rounded-xl border border-white/10 bg-[#2d2e30] px-3 text-[12px] text-white focus:ring-1 focus:ring-[#8ab4f8]/40 overflow-hidden">
+                <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+                  <Mic className="h-3.5 w-3.5 text-[#9aa0a6] shrink-0" />
+                  <span className="truncate min-w-0 flex-1 text-left text-[12px]">
+                    <SelectValue placeholder="Microphone" />
+                  </span>
+                </div>
               </SelectTrigger>
-              <SelectContent className="rounded-md border-border bg-popover text-popover-foreground dark:border-dark-gray dark:bg-[#2d2e30] dark:text-white">
+              <SelectContent position="popper" className="rounded-xl border border-white/10 bg-[#2d2e30] text-white">
                 {audioDevices.length === 0 ? (
-                  <SelectItem value="default-mic" className="py-2">Default microphone</SelectItem>
+                  <SelectItem value="default-mic" className="py-1.5 text-[12px]">Default microphone</SelectItem>
                 ) : (
                   audioDevices.map((device, index) => (
-                    <SelectItem key={device.deviceId} value={device.deviceId} className="py-2 focus:bg-muted focus:text-foreground dark:focus:bg-[#4a4d51] dark:focus:text-white">
+                    <SelectItem key={device.deviceId} value={device.deviceId} className="py-1.5 text-[12px] focus:bg-white/10 focus:text-white">
                       {device.label || `Microphone ${index + 1}`}
                     </SelectItem>
                   ))
                 )}
               </SelectContent>
             </Select>
-          </div>
-          <div className="space-y-1">
+
             <Select value={selectedVideoDeviceId} onValueChange={handleVideoDeviceChange}>
-            <SelectTrigger className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-none hover:bg-muted dark:border-dark-gray dark:bg-transparent dark:text-[#9aa0a6] dark:hover:bg-dark-gray focus:ring-1 focus:ring-blue-500">
-                <Video className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Camera" />
+              <SelectTrigger className="h-10 w-full min-w-0 rounded-xl border border-white/10 bg-[#2d2e30] px-3 text-[12px] text-white focus:ring-1 focus:ring-[#8ab4f8]/40 overflow-hidden">
+                <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+                  <Video className="h-3.5 w-3.5 text-[#9aa0a6] shrink-0" />
+                  <span className="truncate min-w-0 flex-1 text-left text-[12px]">
+                    <SelectValue placeholder="Camera" />
+                  </span>
+                </div>
               </SelectTrigger>
-              <SelectContent className="rounded-md border-border bg-popover text-popover-foreground dark:border-dark-gray dark:bg-[#2d2e30] dark:text-white">
+              <SelectContent position="popper" className="rounded-xl border border-white/10 bg-[#2d2e30] text-white">
                 {videoDevices.length === 0 ? (
-                  <SelectItem value="default-camera" className="py-2">Default camera</SelectItem>
+                  <SelectItem value="default-camera" className="py-1.5 text-[12px]">Default camera</SelectItem>
                 ) : (
                   videoDevices.map((device, index) => (
-                    <SelectItem key={device.deviceId} value={device.deviceId} className="py-2 focus:bg-muted focus:text-foreground dark:focus:bg-[#4a4d51] dark:focus:text-white">
+                    <SelectItem key={device.deviceId} value={device.deviceId} className="py-1.5 text-[12px] focus:bg-white/10 focus:text-white">
                       {device.label || `Camera ${index + 1}`}
                     </SelectItem>
                   ))
@@ -573,52 +763,108 @@ export function VideoAppointmentMeetSession({
             </Select>
           </div>
         </div>
-      </div>
 
-      {/* Right side: Meeting details & Join button */}
-      <div className="flex w-full max-w-sm flex-col items-center text-center z-10 p-2 sm:p-4 lg:w-[35%] lg:items-center">
-        <div className={MEET_STATUS_BADGE}>
-          {videoSessionDecision.blockedReason ? "Session unavailable" : "Ready to join"}
-        </div>
-        <h1 className="mt-3 text-3xl sm:text-[36px] font-normal text-foreground dark:text-white mb-2 tracking-tight">
-          {videoSessionDecision.blockedReason ? "This session is closed" : "Ready to join?"}
-        </h1>
-        <p className="text-muted-foreground dark:text-[#9aa0a6] text-base mb-8 font-normal">
-          Meeting with <span className="text-foreground font-medium dark:text-white">{meetingWithLabel}</span>
-        </p>
-        
-        <div className="flex w-full flex-col gap-3 sm:flex-row sm:justify-center">
-          {!videoSessionDecision.blockedReason ? (
-            <Button
-              onClick={handleJoin}
-              className={`h-12 w-full rounded-full px-6 text-[14px] font-medium shadow-md shadow-blue-500/20 transition-all border-0 hover:shadow-lg hover:shadow-blue-500/30 sm:w-auto ${MEET_JOIN_BUTTON}`}
-            >
-              Join now
-            </Button>
-          ) : (
-            <div className="w-full rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-              {videoSessionDecision.blockedReason}
+        {/* ── Right: Meeting info + join ── */}
+        <div className="mt-5 flex w-full flex-col lg:mt-0 lg:flex-1 lg:justify-center">
+          <h1 className="text-center text-[26px] sm:text-[30px] lg:text-[38px] font-bold text-white tracking-tight lg:text-left">
+            {sessionStateLabel}
+          </h1>
+          <p className="mt-2 text-center text-[14px] lg:text-[16px] text-[#9aa0a6] lg:text-left">
+            Meeting with <span className="font-semibold text-white">{meetingWithLabel}</span>
+          </p>
+
+          {/* Provider info — dev only */}
+          <div className="mt-3 inline-flex max-w-full items-start gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-left">
+            <Shield className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
+            <p className="text-[12px] leading-5 text-emerald-50/90">
+              Join opens 5 minutes before your visit and stays open for 3 hours after start.
+            </p>
+          </div>
+
+          {process.env.NODE_ENV === "development" && (
+            <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#9aa0a6]">Provider</span>
+              <span className="text-[12px] font-semibold text-white">{meetingProviderLabel}</span>
+              <span className="text-white/20">·</span>
+              <span className="text-[10px] font-mono text-[#9aa0a6]">{appointmentSessionLabel}</span>
+              <span className="text-white/20">·</span>
+              <span className="text-[11px] text-[#9aa0a6] truncate min-w-0">{meetingUrlLabel}</span>
             </div>
           )}
-          <Button
-            onClick={handleLeavePreview}
-            variant="outline"
-            className={`h-12 w-full rounded-full px-6 text-[14px] font-medium transition-colors sm:w-auto ${MEET_SECONDARY_BUTTON}`}
-          >
-            Return
-          </Button>
-        </div>
-        
-        <div className="mt-8 text-sm text-muted-foreground dark:text-[#9aa0a6] w-full flex flex-col items-center gap-2">
-          {appointmentTimeSlotLabel !== "TBD" && (
-             <p>Scheduled: {appointmentTimeSlotLabel}</p>
+
+          {/* Blocked reason */}
+          {blockedReason && (
+            <div className="mt-4 w-full rounded-xl border border-[#fbbc05]/20 bg-[#fbbc05]/8 px-4 py-3 text-[13px] text-[#fbbc05]">
+              {sessionStateMessage}
+            </div>
           )}
-          <p className="flex items-center gap-2 text-xs uppercase tracking-wider mt-4">
-            <Shield className="h-4 w-4" /> Secure Session: {appointmentSessionLabel}
-          </p>
+
+          {/* Action buttons */}
+          <div className="mt-6 flex w-full flex-col gap-3">
+            {!blockedReason && (
+              <button
+                type="button"
+                onClick={() => void handleJoin()}
+                disabled={!meetingUrl || isJoiningRoom}
+                className="group relative w-full overflow-hidden rounded-full bg-[#8ab4f8] px-6 py-3.5 text-[15px] font-bold text-[#202124] transition-all hover:bg-[#aecbfa] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-[#8ab4f8]/30"
+              >
+                <span className="relative z-10 flex items-center justify-center gap-2">
+                  {isJoiningRoom ? (
+                    <>
+                      <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Joining…
+                    </>
+                  ) : (
+                    "Join now"
+                  )}
+                </span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleLeavePreview}
+              className="w-full rounded-full border border-white/20 bg-white/8 px-6 py-3.5 text-[15px] font-medium text-white transition-all hover:bg-white/15 hover:border-white/30 active:scale-[0.98]"
+            >
+              Return
+            </button>
+          </div>
+
+          {/* Copy / open for non-daily */}
+          {meetingUrl && !blockedReason && !isDailyProvider && (
+            <div className="mt-3 flex w-full flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={handleCopyMeetingLink}
+                className="flex-1 rounded-full border border-white/15 bg-white/5 py-2.5 text-[13px] font-medium text-white hover:bg-white/10 transition active:scale-[0.98]"
+              >
+                Copy link
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleJoin()}
+                className="flex-1 rounded-full bg-[#34a853] py-2.5 text-[13px] font-semibold text-white hover:bg-[#2d9248] transition active:scale-[0.98] shadow-lg shadow-[#34a853]/20"
+              >
+                Open meeting
+              </button>
+            </div>
+          )}
+
+          {/* Footer info */}
+          <div className="mt-8 flex flex-col items-center gap-1.5 text-[12px] text-[#5f6368] lg:items-start">
+            {appointmentTimeSlotLabel !== "TBD" && (
+              <p className="text-[#9aa0a6]">Scheduled: <span className="text-white/70">{appointmentTimeSlotLabel}</span></p>
+            )}
+            <p className="flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
+              <Shield className="h-3.5 w-3.5 text-[#34a853]" />
+              <span className="text-[#34a853]">Secure</span>
+              <span className="text-[#5f6368]">Session: {appointmentSessionLabel}</span>
+            </p>
+          </div>
         </div>
       </div>
-
     </div>
   );
 }

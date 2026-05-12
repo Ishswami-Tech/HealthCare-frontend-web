@@ -65,7 +65,7 @@ export default function AssistantDoctorDashboard() {
       appointments: "/assistant-doctor/appointments",
       patients: "/assistant-doctor/patients",
       prescriptions: "/assistant-doctor/prescriptions",
-      video: "/assistant-doctor/video",
+      video: "/assistant-doctor/appointments",
       coverage: "/assistant-doctor/coverage",
       queue: "/queue",
     }),

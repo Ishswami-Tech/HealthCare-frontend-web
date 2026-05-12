@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@/hooks/core";
 import { getAppointmentStatsQueryKey } from "@/lib/query/appointment-query-keys";
 import { verifyPaymentCallback } from "@/lib/actions/billing.server";
+import { syncAppointmentInCache } from "@/lib/utils/appointment-cache";
 
 type VerifyState = "loading" | "success" | "failed";
 const ALLOWED_PROVIDERS = new Set(["cashfree"]);
@@ -16,6 +18,7 @@ export default function PaymentCallbackPage() {
   const searchParams = useSearchParams();
   const [state, setState] = useState<VerifyState>("loading");
   const [message, setMessage] = useState("Verifying payment...");
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
 
   const params = useMemo(() => {
     const orderId =
@@ -31,11 +34,18 @@ export default function PaymentCallbackPage() {
     const provider = ALLOWED_PROVIDERS.has(rawProvider) ? rawProvider : "cashfree";
     const clinicId = searchParams.get("clinicId") || "";
     const appointmentId = searchParams.get("appointmentId") || "";
-    return { orderId, paymentId, provider, clinicId, appointmentId };
+    const appointmentType = (searchParams.get("appointmentType") || "").toUpperCase();
+    return { orderId, paymentId, provider, clinicId, appointmentId, appointmentType };
   }, [searchParams]);
 
+  const redirectPath =
+    params.appointmentType === "VIDEO_CALL"
+      ? "/patient/appointments"
+      : params.appointmentId
+        ? "/patient/appointments"
+        : "/patient/payments?tab=payments";
+
   useEffect(() => {
-    let redirectTimer: ReturnType<typeof setTimeout> | undefined;
     const verify = async () => {
       if (!params.orderId) {
         setState("failed");
@@ -78,11 +88,23 @@ export default function PaymentCallbackPage() {
           queryClient.invalidateQueries({ queryKey: ["billing-analytics"], exact: false }),
         ]);
 
+        if (params.appointmentId) {
+          syncAppointmentInCache(queryClient, { id: params.appointmentId, status: "CONFIRMED" }, {
+            appointmentStatus: "CONFIRMED",
+            queryKeys: [
+              ["myAppointments"],
+              ["appointments"],
+              ["userUpcomingAppointments"],
+              ["appointment", params.appointmentId],
+              ["video-appointments"],
+              ["video-appointment", params.appointmentId],
+            ],
+          });
+        }
+
         setState("success");
-        setMessage("Payment verified.");
-        redirectTimer = setTimeout(() => {
-          router.replace(params.appointmentId ? "/patient/appointments" : "/patient/billing");
-        }, 1500);
+        setSecondsLeft(3);
+        setMessage("Payment verified. Redirecting shortly...");
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
@@ -95,12 +117,29 @@ export default function PaymentCallbackPage() {
     };
 
     verify();
-    return () => {
-      if (redirectTimer) {
-        clearTimeout(redirectTimer);
-      }
-    };
-  }, [params, queryClient, router]);
+  }, [params, queryClient]);
+
+  useEffect(() => {
+    if (state !== "success") {
+      setSecondsLeft(null);
+      return;
+    }
+
+    if (secondsLeft === null) {
+      return;
+    }
+
+    if (secondsLeft <= 0) {
+      router.replace(redirectPath);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setSecondsLeft((current) => (current === null ? null : current - 1));
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [state, secondsLeft, redirectPath, router]);
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center px-4">
@@ -118,9 +157,17 @@ export default function PaymentCallbackPage() {
         <h1 className="text-lg font-semibold">Payment Callback</h1>
         <p className="text-sm text-muted-foreground">{message}</p>
         {state === "success" && (
-          <p className="text-sm font-medium text-primary">
-            Redirecting to {params.appointmentId ? "appointments" : "billing"}...
-          </p>
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-primary">
+              Payment is confirmed. You will be redirected in {secondsLeft ?? 0} seconds.
+            </p>
+            <Button
+              className="w-full"
+              onClick={() => router.replace(redirectPath)}
+            >
+              Go to {params.appointmentType === "VIDEO_CALL" ? "video appointments" : params.appointmentId ? "appointments" : "billing"}
+            </Button>
+          </div>
         )}
       </div>
     </div>

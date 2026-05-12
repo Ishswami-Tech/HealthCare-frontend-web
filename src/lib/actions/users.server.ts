@@ -84,6 +84,10 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
       responseData && typeof responseData.data === 'object' && responseData.data !== null
         ? (responseData.data as Record<string, unknown>)
         : responseData;
+    const responseUser =
+      responsePayload && typeof responsePayload.user === 'object' && responsePayload.user !== null
+        ? (responsePayload.user as Record<string, unknown>)
+        : undefined;
     const isProfileComplete =
       typeof responsePayload?.profileComplete === 'boolean'
         ? responsePayload.profileComplete
@@ -91,32 +95,26 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
           ? responsePayload.isProfileComplete
           : typeof responsePayload?.requiresProfileCompletion === 'boolean'
             ? !responsePayload.requiresProfileCompletion
+            : typeof responseUser?.profileComplete === 'boolean'
+              ? responseUser.profileComplete
+              : typeof responseUser?.isProfileComplete === 'boolean'
+                ? responseUser.isProfileComplete
+                : typeof responseUser?.requiresProfileCompletion === 'boolean'
+                  ? !responseUser.requiresProfileCompletion
             : undefined;
 
-    // Only update cookie if backend provides authoritative completion status.
-    if (isProfileComplete === true) {
-      cookieStore.set({
-        name: 'profile_complete',
-        value: 'true',
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 60 * 60 * 24 * 7, // 7 days
-      });
-      logger.info('[updateUserProfile] Profile is now complete, cookie updated');
-    } else if (isProfileComplete === false) {
-      cookieStore.set({
-        name: 'profile_complete',
-        value: 'false',
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 60 * 60 * 24 * 7, // 7 days
-      });
-      logger.debug('[updateUserProfile] Profile still incomplete, cookie updated');
-    }
+    // A successful profile-update request means completion has been satisfied.
+    // Keep the cookie authoritative even when the backend omits an explicit flag.
+    cookieStore.set({
+      name: 'profile_complete',
+      value: 'true',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+    logger.info('[updateUserProfile] Profile completion cookie set to true after successful update');
     
     return { success: true, data, ...(isProfileComplete !== undefined ? { profileComplete: isProfileComplete } : {}) };
   } catch (error) {

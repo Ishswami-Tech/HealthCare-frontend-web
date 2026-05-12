@@ -1,15 +1,14 @@
 /**
- * 🔒 Secure Token Manager
+ * Secure Token Manager
  * Provides secure token access with httpOnly-cookie-first behavior.
- * 
+ *
  * SECURITY: Tokens must never be persisted in browser storage.
  */
 
 'use client';
 
 import { useAuthStore } from '@/stores/auth.store';
-
-// clinicApiClient import removed - not used in this file
+import { normalizeClinicId } from '@/lib/utils/clinic-id';
 
 /**
  * Client-side code should not read access tokens directly.
@@ -29,7 +28,7 @@ export async function getSessionId(): Promise<string | null> {
  * Get clinic ID securely
  */
 export async function getClinicId(): Promise<string | null> {
-  return useAuthStore.getState().session?.user?.clinicId || null;
+  return normalizeClinicId(useAuthStore.getState().session?.user?.clinicId || null) || null;
 }
 
 /**
@@ -68,7 +67,7 @@ export function setClinicId(_clinicId: string): void {
     ...currentSession,
     user: {
       ...currentSession.user,
-      clinicId: _clinicId,
+      clinicId: normalizeClinicId(_clinicId),
     },
   });
   return;
@@ -86,22 +85,11 @@ export function clearTokens(): void {
  * Uses the centralized API client which handles token management
  */
 export async function getAuthHeaders(): Promise<Record<string, string>> {
-  // Use the API client's auth header generator which handles both
-  // server-side (cookies) and client-side (localStorage) scenarios
-  // clinicApiClient not needed here
   const { APP_CONFIG } = await import('@/lib/config/config');
-  
-  // The API client already handles secure token access
-  // This is a wrapper for convenience
+
   const token = await getAccessToken();
   const sessionId = await getSessionId();
-  let clinicId = await getClinicId();
-
-  // ✅ Fallback to APP_CONFIG.CLINIC.ID if clinic ID is not in localStorage
-  // This ensures clinic ID is always set from environment variable or config default
-  if (!clinicId) {
-    clinicId = APP_CONFIG.CLINIC.ID;
-  }
+  const clinicId = normalizeClinicId((await getClinicId()) || APP_CONFIG.CLINIC.ID);
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -113,11 +101,9 @@ export async function getAuthHeaders(): Promise<Record<string, string>> {
   if (sessionId) {
     headers['X-Session-ID'] = sessionId;
   }
-  // ✅ Always include clinic ID in headers (from localStorage or config)
   if (clinicId) {
     headers['X-Clinic-ID'] = clinicId;
   }
 
   return headers;
 }
-

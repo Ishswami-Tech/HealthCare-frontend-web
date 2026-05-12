@@ -18,6 +18,7 @@ export * from './websocket.store';
 export * from './notifications.store';
 export * from './health.store';
 export * from './patients.store';
+export * from './patient-ui.store';
 
 // Store provider for SSR compatibility
 import { ReactNode, useEffect } from 'react';

@@ -67,9 +67,15 @@ interface GoogleLoginResponse {
 // SessionData is replaced by imported Session type
 
 // Helper functions
-function getRedirectPath(user: { role?: Role | string } | null | undefined, redirectUrl?: string): string {
+function getRedirectPath(
+  user: { role?: Role | string; profileComplete?: boolean | undefined } | null | undefined,
+  redirectUrl?: string
+): string {
   if (redirectUrl && !redirectUrl.includes('/auth/')) {
     return redirectUrl;
+  }
+  if (user?.profileComplete === false) {
+    return ROUTES.PROFILE_COMPLETION;
   }
   if (user?.role) {
     return getDashboardByRole(user.role as Role);
@@ -334,18 +340,19 @@ export function useAuth() {
           return;
         }
 
+        const initialProfileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
         // Create session data with proper defaults
         const sessionData: Session = {
           user: {
             id: data.user.id,
             email: data.user.email,
             role: data.user.role,
-            name: data.user.name || '',
-            firstName: data.user.firstName || data.user.name?.split(' ')[0] || '',
-            lastName: data.user.lastName || data.user.name?.split(' ').slice(1).join(' ') || '',
+            name: data.user.name || [data.user.firstName, data.user.lastName].filter(Boolean).join(' ').trim(),
+            firstName: data.user.firstName || data.user.name?.split(/\s+/)[0] || '',
+            lastName: data.user.lastName || data.user.name?.split(/\s+/).slice(1).join(' ') || '',
             isVerified: true,
             googleId: data.user.googleId || '',
-            profileComplete: resolveProfileComplete(data.user as unknown as Record<string, unknown>)
+            profileComplete: initialProfileComplete
           },
           access_token: data.token || '',
           session_id: '',
@@ -361,7 +368,23 @@ export function useAuth() {
           const serverSession = await getServerSession();
 
           if (serverSession) {
-            queryClient.setQueryData(['session'], serverSession);
+            queryClient.setQueryData<Session | null>(['session'], (current) => {
+              const currentProfileComplete = resolveProfileComplete(
+                current?.user as unknown as Record<string, unknown>
+              );
+              const serverProfileComplete = resolveProfileComplete(
+                serverSession.user as unknown as Record<string, unknown>
+              );
+              const nextProfileComplete = currentProfileComplete || serverProfileComplete;
+
+              return {
+                ...serverSession,
+                user: {
+                  ...serverSession.user,
+                  profileComplete: nextProfileComplete,
+                },
+              };
+            });
           }
         } catch (refreshError) {
           if (process.env.NODE_ENV === 'development') {
@@ -370,9 +393,12 @@ export function useAuth() {
         }
 
         // Handle redirect based on profile completion
-        const profileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
+        const refreshedSession = queryClient.getQueryData<Session | null>(['session']);
+        const finalProfileComplete =
+          resolveProfileComplete(refreshedSession?.user as unknown as Record<string, unknown>) ||
+          initialProfileComplete;
 
-        if (!profileComplete) {
+        if (!finalProfileComplete) {
           router.push(ROUTES.PROFILE_COMPLETION);
         } else {
           const redirectPath = getRedirectPath(data.user, data.redirectUrl);

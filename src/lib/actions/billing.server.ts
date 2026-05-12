@@ -7,6 +7,7 @@ import { authenticatedApi, publicApi } from './auth.server';
 import { z } from 'zod';
 import { API_ENDPOINTS } from '../config/config';
 import { nowIso as nowIsoTimestamp } from '@/lib/utils/date-time';
+import { buildGatewayOrderId } from '@/lib/utils/gateway-order-id';
 import type {
   BillingPlan,
   Subscription,
@@ -170,13 +171,16 @@ function normalizeInvoiceItems(raw: unknown): Invoice['items'] {
 function normalizeInvoice(raw: RawInvoice): Invoice {
   const items = normalizeInvoiceItems(raw.lineItems);
   const amount = raw.totalAmount !== undefined ? Number(raw.totalAmount) : Number(raw.amount ?? 0);
+  const invoiceId = String(raw.id ?? '');
+  const invoiceNumber = String(raw.invoiceNumber ?? '');
 
   return {
-    id: String(raw.id ?? ''),
+    id: invoiceId,
     userId: String(raw.userId ?? ''),
     clinicId: String(raw.clinicId ?? ''),
     ...(raw.subscriptionId ? { subscriptionId: String(raw.subscriptionId) } : {}),
-    invoiceNumber: String(raw.invoiceNumber ?? ''),
+    invoiceNumber,
+    gatewayOrderId: buildGatewayOrderId(invoiceNumber || invoiceId, invoiceId),
     amount,
     currency: String(raw.currency ?? 'INR'),
     status: String(raw.status ?? 'DRAFT') as Invoice['status'],
@@ -857,11 +861,37 @@ export async function createPaymentIntent(
       ...(Object.keys(body).length > 0 ? { body: JSON.stringify(body) } : {}),
     });
 
+    const response = data as {
+      success?: boolean;
+      invoice?: unknown;
+      paymentIntent?: unknown;
+      message?: string;
+      error?: string;
+      data?: {
+        invoice?: unknown;
+        paymentIntent?: unknown;
+        message?: string;
+        error?: string;
+      };
+    };
+
+    const resolvedInvoice = response.invoice ?? response.data?.invoice;
+    const resolvedPaymentIntent = response.paymentIntent ?? response.data?.paymentIntent;
+    const resolvedMessage = response.message ?? response.data?.message;
+    const resolvedError = response.error ?? response.data?.error;
+
+    if (response.success === false) {
+      return {
+        success: false,
+        error: resolvedError || resolvedMessage || 'Failed to create payment intent',
+      };
+    }
+
     return {
       success: true,
-      invoice: (data as any).invoice,
-      paymentIntent: (data as any).paymentIntent,
-      message: (data as any).message,
+      invoice: resolvedInvoice,
+      paymentIntent: resolvedPaymentIntent,
+      ...(resolvedMessage ? { message: resolvedMessage } : {}),
     };
   } catch (error) {
     return {

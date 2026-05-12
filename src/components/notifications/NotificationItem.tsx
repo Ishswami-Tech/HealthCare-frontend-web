@@ -68,8 +68,12 @@ export function NotificationItem({
       // Redirect to role-based appointments page with ID query param
       router.push(`/${userRole}/appointments?id=${notification.data.appointmentId}`);
     } else if (notification.data?.prescriptionId) {
-      // Redirect to role-based prescriptions page with ID query param
-      router.push(`/${userRole}/prescriptions?id=${notification.data.prescriptionId}`);
+      // Redirect patients to the consolidated Health page; other roles keep their prescriptions page.
+      router.push(
+        userRole === "patient"
+          ? `/patient/health?tab=medicines&id=${notification.data.prescriptionId}`
+          : `/${userRole}/prescriptions?id=${notification.data.prescriptionId}`
+      );
     }
   };
 

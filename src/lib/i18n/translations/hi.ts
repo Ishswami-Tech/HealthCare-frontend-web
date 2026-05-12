@@ -1172,7 +1172,7 @@ export const hi: TranslationKeys = {
         title: "ईमेल पते",
         details: [
           "Vishwamurtiayurveda@gmail.com",
-          "support@Vishwamurtiayurveda.com",
+          "info@viddhakarma.com",
           "emergency@Vishwamurtiayurveda.com"
         ]
       },

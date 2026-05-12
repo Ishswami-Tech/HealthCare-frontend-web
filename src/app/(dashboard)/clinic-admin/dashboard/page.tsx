@@ -20,7 +20,7 @@ import { useDoctors } from "@/hooks/query/useDoctors";
 import { useAssistantDoctorCoverage } from "@/hooks/query/useAppointments";
 import { useMedicineDeskQueue } from "@/hooks/query/usePharmacy";
 import { useQueue } from "@/hooks/query/useQueue";
-import { useRealTimeAppointments } from "@/hooks/realtime/useRealTimeQueries";
+import { useRealTimeAppointments, useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { cn } from "@/lib/utils";
 import {
   getAppointmentDateTimeValue,
@@ -71,6 +71,7 @@ export default function ClinicAdminDashboard() {
   const { data: appointmentsData } = useRealTimeAppointments({
     limit: 100,
   });
+  useWebSocketQuerySync();
   const { data: liveQueueData, isPending: isLoadingQueue } = useQueue(clinicId || undefined, {
     enabled: !!clinicId,
   });

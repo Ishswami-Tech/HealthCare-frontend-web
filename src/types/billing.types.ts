@@ -54,6 +54,7 @@ export interface Invoice {
   clinicId: string;
   subscriptionId?: string;
   invoiceNumber: string;
+  gatewayOrderId?: string;
   amount: number;
   currency: string;
   status: 'DRAFT' | 'OPEN' | 'PAID' | 'VOID' | 'UNCOLLECTIBLE' | 'OVERDUE';

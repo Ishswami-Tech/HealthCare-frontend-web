@@ -255,6 +255,16 @@ export const useUserStatusColor = () => {
 export const useIsProfileComplete = () => {
   return (user: Record<string, unknown> | null): boolean => {
     if (!user) return false;
+
+    if (typeof user.profileComplete === 'boolean') {
+      return user.profileComplete;
+    }
+    if (typeof user.isProfileComplete === 'boolean') {
+      return user.isProfileComplete;
+    }
+    if (typeof user.requiresProfileCompletion === 'boolean') {
+      return !user.requiresProfileCompletion;
+    }
     
     const requiredFields = [
       'firstName',

@@ -13,9 +13,11 @@ import { getProfileCompletionRedirectUrl } from "@/lib/config/profile";
 import { Role } from "@/types/auth.types";
 import { LoadingSpinner } from "@/components/ui/loading";
 import { ROUTES } from "@/lib/config/routes";
+import { useAuthStore } from "@/stores";
 
 export default function ProfileCompletionContent() {
   const { session, isPending } = useAuth();
+  const isProfileComplete = useAuthStore((state) => state.isProfileComplete);
   const router = useRouter();
 
   useEffect(() => {
@@ -24,19 +26,27 @@ export default function ProfileCompletionContent() {
         router.push(ROUTES.LOGIN);
         return;
       }
-      if (session.user.profileComplete) {
+      if (session.user.profileComplete || isProfileComplete) {
         const userRole = session.user.role as Role;
         const dashboardPath = getProfileCompletionRedirectUrl(userRole);
-        router.push(dashboardPath);
+        window.location.replace(dashboardPath);
       }
     }
-  }, [session, isPending, router]);
+  }, [session, isPending, isProfileComplete, router]);
 
   // Show loading while checking auth
   if (isPending) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <LoadingSpinner size="lg" text="Loading profile..." center />
+      </div>
+    );
+  }
+
+  if (session?.user && (session.user.profileComplete || isProfileComplete)) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <LoadingSpinner size="lg" text="Redirecting..." center />
       </div>
     );
   }

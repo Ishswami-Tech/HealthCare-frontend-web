@@ -21,6 +21,8 @@ import { Header } from "@/components/global/Header";
 import { cn } from "@/lib/utils";
 import { sidebarLinksByRole, SidebarLink } from "@/lib/config/sidebarLinks";
 import { useLayoutStore } from "@/stores/layout.store";
+import { useAuthStore } from "@/stores";
+import { PatientQrGateHost } from "@/components/patient/PatientQrGateHost";
 const DashboardShellContext = createContext<boolean>(false);
 
 function resolveDisplayNameAndInitials(user: {
@@ -89,6 +91,7 @@ export function DashboardLayout({
   const { session, isPending } = useAuth();
   const router = useRouter();
   const { user } = session || {};
+  const isProfileComplete = useAuthStore((state) => state.isProfileComplete);
 
   // RBAC hooks
   const rbac = useRBAC();
@@ -192,10 +195,10 @@ export function DashboardLayout({
       return;
     }
     
-    if (user?.profileComplete === false) {
+    if (user?.profileComplete === false && !isProfileComplete) {
       router.replace(ROUTES.PROFILE_COMPLETION);
     }
-  }, [isPending, user, hasAccess, getDefaultRoute, router]);
+  }, [isPending, user, hasAccess, getDefaultRoute, router, isProfileComplete]);
 
   // Shell detection effect (for other store consumers)
   useEffect(() => {
@@ -239,7 +242,7 @@ export function DashboardLayout({
   }
 
   // Profile completeness check
-  if (user?.profileComplete === false) {
+  if (user?.profileComplete === false && !isProfileComplete) {
     return (
       <div className={cn(
         "flex items-center justify-center bg-background",
@@ -296,6 +299,7 @@ export function DashboardLayout({
             </main>
           </div>
         </Sidebar>
+        <PatientQrGateHost />
       </div>
     </DashboardShellContext.Provider>
   );

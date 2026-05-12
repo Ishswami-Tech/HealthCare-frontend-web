@@ -17,6 +17,7 @@ import type {
 
 import { fetchWithAbort, TimeoutError } from '@/lib/utils/fetch-with-abort';
 import { getAccessToken, getSessionId, getClinicId } from '@/lib/utils/token-manager';
+import { normalizeClinicId } from '@/lib/utils/clinic-id';
 import { useAuthStore } from '@/stores/auth.store';
 import { triggerClientAuthRecovery } from '@/lib/utils/auth-recovery';
 import { dedupeRequest } from '@/hooks/core/requestDeduper';
@@ -105,7 +106,7 @@ async function getAuthHeaders(
       const cookieStore = await cookies();
       accessToken = cookieStore.get('access_token')?.value;
       sessionId = cookieStore.get('session_id')?.value;
-      clinicId = cookieStore.get('clinic_id')?.value;
+      clinicId = normalizeClinicId(cookieStore.get('clinic_id')?.value);
     } catch {
       // If cookies() is not available, fall back to empty values
     }
@@ -128,7 +129,7 @@ async function getAuthHeaders(
             ? Buffer.from(padded, 'base64').toString('utf-8')
             : atob(padded);
         const payload = JSON.parse(decoded) as { clinicId?: string; primaryClinicId?: string };
-        clinicId = payload.clinicId || payload.primaryClinicId;
+        clinicId = normalizeClinicId(payload.clinicId || payload.primaryClinicId);
       }
     } catch {
       // Ignore JWT decode issues; request can proceed without clinic header.
@@ -138,7 +139,7 @@ async function getAuthHeaders(
   // Only use static clinic fallback for non-authenticated/public flows.
   // For authenticated requests, forcing a default clinic can leak wrong tenant context.
   if (!clinicId && !requireAuth) {
-    clinicId = APP_CONFIG.CLINIC.ID;
+    clinicId = normalizeClinicId(APP_CONFIG.CLINIC.ID);
   }
 
   // ✅ Enforce authentication for server-side requests only.
@@ -508,6 +509,24 @@ export class ApiClient {
         throw new TimeoutError(ERROR_MESSAGES.TIMEOUT_ERROR);
       }
       
+      const errorCause = (error as { cause?: { name?: unknown; code?: unknown; message?: unknown } })?.cause;
+      const causeName = typeof errorCause?.name === 'string' ? errorCause.name : '';
+      const causeCode = typeof errorCause?.code === 'string' ? errorCause.code : '';
+      const causeMessage = typeof errorCause?.message === 'string' ? errorCause.message : '';
+      const message = error instanceof Error ? error.message.toLowerCase() : '';
+
+      if (
+        error instanceof TypeError &&
+        message.includes('fetch') &&
+        (
+          causeName === 'AbortError' ||
+          causeCode === 'ABORT_ERR' ||
+          /abort|timed out/i.test(causeMessage)
+        )
+      ) {
+        throw new TimeoutError(ERROR_MESSAGES.TIMEOUT_ERROR);
+      }
+
       if (error instanceof TypeError && (error as Error).message.includes('fetch')) {
         throw new NetworkError(ERROR_MESSAGES.NETWORK_ERROR);
       }
@@ -643,7 +662,12 @@ export class ApiClient {
        if (refreshToken) cookieStore.set('refresh_token', refreshToken, { ...cookieOptions, maxAge: 604800 }); // 7d
        if (sessionId) cookieStore.set('session_id', sessionId, { ...cookieOptions, maxAge: 604800 });
        if (user?.role) cookieStore.set('user_role', user.role, { ...cookieOptions, maxAge: 604800 });
-       if (user?.clinicId) cookieStore.set('clinic_id', user.clinicId, { ...cookieOptions, maxAge: 604800 });
+       if (user?.clinicId) {
+         cookieStore.set('clinic_id', normalizeClinicId(user.clinicId), {
+           ...cookieOptions,
+           maxAge: 604800,
+         });
+       }
 
     } else {
       const currentSession = useAuthStore.getState().session;
@@ -663,7 +687,7 @@ export class ApiClient {
           user: {
             ...(currentSession?.user || nextUser),
             ...(user || {}),
-            clinicId: user?.clinicId || currentSession?.user?.clinicId,
+            clinicId: normalizeClinicId(user?.clinicId || currentSession?.user?.clinicId),
           },
         };
 
@@ -1104,37 +1128,6 @@ export class ClinicApiClient extends ApiClient {
     restrictions?: string[];
   }) {
     return this.patch(API_ENDPOINTS.APPOINTMENTS.STATUS(id), data);
-  }
-
-  async proposeVideoAppointment(data: {
-    patientId: string;
-    doctorId: string;
-    clinicId: string;
-    locationId?: string;
-    duration: number;
-    treatmentType: string;
-    proposedSlots: Array<{ date: string; time: string }>;
-    notes?: string | undefined;
-  }) {
-    return this.post(API_ENDPOINTS.APPOINTMENTS.VIDEO_PROPOSE, data);
-  }
-
-  async confirmVideoSlot(appointmentId: string, confirmedSlotIndex: number) {
-    return this.post(API_ENDPOINTS.APPOINTMENTS.VIDEO_CONFIRM_SLOT(appointmentId), {
-      confirmedSlotIndex,
-    });
-  }
-
-  async confirmFinalVideoSlot(
-    appointmentId: string,
-    data: {
-      confirmedSlotIndex?: number;
-      date?: string;
-      time?: string;
-      reason?: string;
-    }
-  ) {
-    return this.post(API_ENDPOINTS.APPOINTMENTS.VIDEO_CONFIRM_FINAL_SLOT(appointmentId), data);
   }
 
   async checkInAppointment(id: string) {

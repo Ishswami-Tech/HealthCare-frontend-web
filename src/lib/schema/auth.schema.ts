@@ -139,7 +139,7 @@ export const profileCompletionSchema = z.object({
   gender: z.enum(['male', 'female', 'other'], {
     message: 'Please select a gender',
   }).optional(),
-  address: z.string().optional(),
+  address: z.string().min(1, 'Address is required'),
   emergencyContactName: z.string().optional(),
   emergencyContactPhone: z.string().optional(),
   emergencyContactRelationship: z.string().optional(),

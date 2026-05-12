@@ -3,14 +3,12 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
-import { useSetProfileComplete, useUpdateUserProfile, useUserProfile } from "@/hooks/query";
-import {
-  getProfileCompletionRedirectUrl,
-  transformApiResponse,
-  type UserProfileData,
-} from "@/lib/config/profile";
+import { useQueryClient } from "@/hooks/core";
+import { useSetProfileComplete, useUpdateUserProfile } from "@/hooks/query";
+import { getProfileCompletionRedirectUrl } from "@/lib/config/profile";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -39,17 +37,49 @@ import { Loader2, User, Phone, MapPin, Calendar, Venus, CalendarIcon } from "luc
 import { Role } from "@/types/auth.types";
 import { ROUTES } from "@/lib/config/routes";
 import { profileCompletionSchema, type SchemaProfileCompletionFormData as ProfileCompletionFormData } from "@/lib/schema";
+import { useAuthStore } from "@/stores";
+import type { Session } from "@/types/auth.types";
 
 interface ProfileCompletionFormProps {
   onComplete?: () => void;
 }
+
+const resolveNameParts = (
+  user:
+    | { firstName?: string | undefined; lastName?: string | undefined; name?: string | undefined }
+    | null
+    | undefined
+) => {
+  const firstName = user?.firstName?.trim() || "";
+  const lastName = user?.lastName?.trim() || "";
+  const fullName = user?.name?.trim() || "";
+
+  if (firstName || lastName) {
+    return {
+      firstName,
+      lastName,
+    };
+  }
+
+  if (fullName) {
+    const [derivedFirstName = "", ...derivedRest] = fullName.split(/\s+/);
+    return {
+      firstName: derivedFirstName,
+      lastName: derivedRest.join(" ").trim(),
+    };
+  }
+
+  return { firstName: "", lastName: "" };
+};
 
 export default function ProfileCompletionForm({
   onComplete,
 }: ProfileCompletionFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { session, refreshSession } = useAuth();
+  const { session } = useAuth();
+  const queryClient = useQueryClient();
+  const setProfileCompletion = useAuthStore((state) => state.setProfileCompletion);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -74,17 +104,6 @@ export default function ProfileCompletionForm({
     return `+${cleaned}`; // Add + prefix as last resort attempt for E.164
   };
 
-  // Fetch existing user profile data
-  const { data: existingProfileResponse, isPending: loadingProfile } = useUserProfile();
-  const existingProfile = (() => {
-    try {
-      if (!session?.isAuthenticated || !existingProfileResponse) return null;
-      return transformApiResponse(existingProfileResponse as Record<string, unknown>);
-    } catch (_error) {
-      return null;
-    }
-  })() as UserProfileData | null;
-
   const form = useForm<ProfileCompletionFormData>({
     resolver: zodResolver(profileCompletionSchema),
     defaultValues: {
@@ -104,88 +123,30 @@ export default function ProfileCompletionForm({
     },
   });
 
-  // Pre-fill form with existing data when available
+  // Pre-fill form from the authenticated session.
   useEffect(() => {
-    if (existingProfile && !isInitialized) {
-      const profile = existingProfile as {
-        firstName?: string;
-        lastName?: string;
-        phone?: string;
-        dateOfBirth?: string;
-        gender?: string;
-        address?: string;
-        emergencyContact?: string;
-        specialization?: string;
-        experience?: string;
-        clinicName?: string;
-        clinicAddress?: string;
-      };
-      let emergencyContactName = "";
-      let emergencyContactRelationship = "";
-
-      if (profile.emergencyContact && typeof profile.emergencyContact === 'object') {
-        const contact = profile.emergencyContact as { name: string; phone: string; relationship: string };
-        emergencyContactName = contact.name || "";
-        emergencyContactRelationship = contact.relationship || "";
-      } else if (typeof profile.emergencyContact === 'string') {
-        const [name, rest] = profile.emergencyContact.split(" (") || ["", ""];
-        const [relationship] = rest?.split("): ") || ["", ""];
-        emergencyContactName = name || "";
-        emergencyContactRelationship = relationship?.replace(")", "") || "";
-      }
-
-      const formData = {
-        firstName: profile.firstName || session?.user?.firstName || "",
-        lastName: profile.lastName || session?.user?.lastName || "",
-        phone: "", // Leave empty - user will enter fresh
-        dateOfBirth: profile.dateOfBirth || "",
-        gender: profile.gender
-          ? (profile.gender.toLowerCase() as
-              | "male"
-              | "female"
-              | "other")
-          : "male",
-        address: profile.address || "",
-        emergencyContactName,
-        emergencyContactPhone: "", // Leave empty - user will enter fresh
-        emergencyContactRelationship,
-        specialization: profile.specialization || "",
-        experience: profile.experience || "",
-        clinicName: profile.clinicName || "",
-        clinicAddress: profile.clinicAddress || "",
-      };
-
-      // Reset form with existing data
-      Object.entries(formData).forEach(([key, value]) => {
-        form.setValue(key as keyof ProfileCompletionFormData, value);
-      });
-
-      setIsInitialized(true);
-    } else if (!loadingProfile && !existingProfile && !isInitialized) {
-      // If no existing profile, pre-fill with session data
-      const sessionData = {
-        firstName: session?.user?.firstName || "",
-        lastName: session?.user?.lastName || "",
-        phone: "",
-        dateOfBirth: "",
-        gender: "male",
-        address: "",
-        emergencyContactName: "",
-        emergencyContactPhone: "",
-        emergencyContactRelationship: "",
-        specialization: "",
-        experience: "",
-        clinicName: "",
-        clinicAddress: "",
-      };
-
-      Object.entries(sessionData).forEach(([key, value]) => {
-        form.setValue(key as keyof ProfileCompletionFormData, value);
-      });
-
-      setIsInitialized(true);
+    if (!session?.user || isInitialized) {
+      return;
     }
-  }, [existingProfile, session, form, loadingProfile, isInitialized]);
+
+    const sessionData: ProfileCompletionFormData = {
+      ...resolveNameParts(session.user),
+      phone: "",
+      dateOfBirth: "",
+      gender: "male" as const,
+      address: "",
+      emergencyContactName: "",
+      emergencyContactPhone: "",
+      emergencyContactRelationship: "",
+      specialization: "",
+      experience: "",
+      clinicName: "",
+      clinicAddress: "",
+    };
+
+    form.reset(sessionData);
+    setIsInitialized(true);
+  }, [session, form, isInitialized]);
 
   /*
   // Update profile mutation
@@ -284,8 +245,22 @@ export default function ProfileCompletionForm({
       id: TOAST_IDS.PROFILE.COMPLETE,
     });
 
-    await refreshSession(true);
     await setProfileCompleteMutation.mutateAsync(true);
+    setProfileCompletion(true, false);
+    queryClient.setQueryData<Session | null>(["session"], (current) => {
+      const source = current || session;
+      if (!source?.user) {
+        return source;
+      }
+
+      return {
+        ...source,
+        user: {
+          ...source.user,
+          profileComplete: true,
+        },
+      };
+    });
 
     setTimeout(() => {
       try {
@@ -293,11 +268,8 @@ export default function ProfileCompletionForm({
           onComplete();
         } else {
           const userRole = session?.user?.role as Role;
-          const finalRedirect = getProfileCompletionRedirectUrl(
-            userRole,
-            redirectUrl
-          );
-          window.location.href = finalRedirect;
+          const finalRedirect = getProfileCompletionRedirectUrl(userRole, redirectUrl);
+          window.location.replace(finalRedirect);
         }
       } catch (_redirectError) {
         showErrorToast(
@@ -428,8 +400,8 @@ export default function ProfileCompletionForm({
   const userRole = session?.user?.role as Role;
   const isDoctor = userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR;
 
-  // Show loading state while fetching profile data
-  if (loadingProfile || !isInitialized) {
+  // Show loading state while initializing session-based defaults
+  if (!isInitialized) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-neutral-950 dark:via-slate-900 dark:to-neutral-950 flex items-center justify-center p-4">
         <div className="flex flex-col items-center">

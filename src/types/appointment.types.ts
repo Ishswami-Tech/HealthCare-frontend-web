@@ -297,9 +297,6 @@ export interface Appointment {
   clinicId?: string;
   locationId?: string;
 
-  // New Fields
-  proposedSlots?: any;
-  confirmedSlotIndex?: number;
   seriesId?: string;
   seriesSequence?: number;
   parentAppointmentId?: string;

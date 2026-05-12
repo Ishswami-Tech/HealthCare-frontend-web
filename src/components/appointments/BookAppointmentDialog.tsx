@@ -1,7 +1,10 @@
-"use client";
+﻿"use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import Link from "next/link";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
+import { load } from "@cashfreepayments/cashfree-js";
 import type {
   AppointmentServiceDefinition,
   AppointmentType,
@@ -9,6 +12,7 @@ import type {
 } from "@/types/appointment.types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PaymentButton } from "@/components/payments/PaymentButton";
@@ -33,12 +37,11 @@ import { Calendar } from "@/components/ui/calendar";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useQueryClient } from "@/hooks/core";
 import { useDoctors } from "@/hooks/query/useDoctors";
-import { usePatients, useQuickRegisterPatient } from "@/hooks/query/usePatients";
+import { usePatient, usePatients, useQuickRegisterPatient } from "@/hooks/query/usePatients";
 import {
   useAppointmentServices,
   useCreateAppointment,
   useDoctorAvailability,
-  useProposeVideoAppointment,
 } from "@/hooks/query/useAppointments";
 import {
   useSubscriptions,
@@ -47,21 +50,29 @@ import {
   useCreateInPersonAppointmentWithSubscription,
 } from "@/hooks/query/useBilling";
 import { useSendAppointmentReminder } from "@/hooks/query/useCommunication";
-import { useActiveLocations, useClinicContext, useMyClinic } from "@/hooks/query/useClinics";
+import { useActiveLocations, useClinicContext, useClinicLocations, useMyClinic } from "@/hooks/query/useClinics";
 import { useWebSocketContext } from "@/app/providers/WebSocketProvider";
 import { useRBAC } from "@/hooks/utils/useRBAC";
 import { getAppointmentStatsQueryKey } from "@/lib/query/appointment-query-keys";
+import { createPaymentIntent, verifyPaymentCallback } from "@/lib/actions/billing.server";
+import { updateUserProfile } from "@/lib/actions/users.server";
 import {
   dismissToast,
   showErrorToast,
+  showInfoToast,
   showSuccessToast,
+  TOAST_IDS,
 } from "@/hooks/utils/use-toast";
 import { Permission } from "@/types/rbac.types";
 import { APP_CONFIG } from "@/lib/config/config";
+import { DEFAULT_PAYMENT_PROVIDER, isPaymentProviderEnabled } from "@/lib/payments/providers";
 import { theme } from "@/lib/utils/theme-utils";
 import { cn } from "@/lib/utils";
 import { formatISODateInIST } from "@/lib/utils/date-time";
 import { format } from "date-fns";
+import { getClinicId } from "@/lib/utils/token-manager";
+import { AppointmentStepWrapper } from "@/components/appointments/AppointmentStepWrapper";
+import { syncAppointmentInCache } from "@/lib/utils/appointment-cache";
 import {
   Activity, Plus, Leaf, Waves, Clock, Search,
   Flame, Heart, Brain, Droplets, Wind, CheckCircle,
@@ -71,7 +82,6 @@ import {
   ChevronDown, ChevronUp,
 } from "lucide-react";
 
-// ─── Types ──────────────────────────────────────────────────────────────────
 
 interface ConsultationVisual {
   icon: React.ReactNode;
@@ -84,6 +94,9 @@ interface BookAppointmentDialogProps {
   locationId?: string;
   clinicName?: string;
   defaultOpen?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
   onBooked?: () => void;
   initialConsultationMode?: "IN_PERSON" | "VIDEO" | undefined;
   initialServiceId?: string;
@@ -91,7 +104,7 @@ interface BookAppointmentDialogProps {
   initialPatientId?: string;
 }
 
-// ─── Consultation catalogue ──────────────────────────────────────────────────
+// ””” Consultation catalogue ””””””””””””””””””””””””””””””””””””””””””””””””””
 
 function getConsultationVisual(treatmentType: TreatmentType): ConsultationVisual {
   const iconClass = "w-5 h-5";
@@ -125,7 +138,7 @@ function getConsultationVisual(treatmentType: TreatmentType): ConsultationVisual
   return visuals[treatmentType] || { icon: <Activity className={iconClass} />, color: theme.badges.blue };
 }
 
-// ─── Slot grouping helper ────────────────────────────────────────────────────
+// ””” Slot grouping helper ””””””””””””””””””””””””””””””””””””””””””””””””””””
 
 function groupSlotsByPeriod(slots: string[]) {
   const morning: string[] = [];
@@ -142,14 +155,25 @@ function groupSlotsByPeriod(slots: string[]) {
   return { morning, afternoon, evening };
 }
 
-// ─── Step indicators ─────────────────────────────────────────────────────────
+// ””” Step indicators ”””””””””””””””””””””””””””””””””””””””””””””””””””””””””
 
-const STEPS = ["Location", "Service", "Doctor", "Date", "Slot", "Confirm"] as const;
-/** Each appointment slot is 3 minutes — 20 bookable slots per hour. */
+const STEP_ORDER = ["mode", "service", "doctor", "date", "slot", "confirm", "success"] as const;
+type WizardStepId = (typeof STEP_ORDER)[number];
+
+const STEP_LABELS: Record<WizardStepId, string> = {
+  mode: "Consultation",
+  service: "Service",
+  doctor: "Doctor",
+  date: "Date",
+  slot: "Time",
+  confirm: "Confirm",
+  success: "Done",
+};
+/** Each appointment slot is 3 minutes ” 20 bookable slots per hour. */
 const IN_PERSON_APPOINTMENT_SLOT_DURATION_MINUTES = 3;
 const VIDEO_APPOINTMENT_SLOT_DURATION_MINUTES = 15;
 
-// ─── Component ──────────────────────────────────────────────────────────────
+// ””” Component ””””””””””””””””””””””””””””””””””””””””””””””””””””””””””””””
 
 /**
  * Helper to get Today in IST (India Standard Time)
@@ -206,11 +230,39 @@ const createTemporaryPatientPassword = (phone: string) => {
   return `Pt@${digits}`;
 };
 
+const AVAILABILITY_TIMEOUT_MS = 15000;
+const withTimeout = async <T,>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  timeoutMessage: string
+): Promise<T> => {
+  let timeoutId: number | undefined;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = window.setTimeout(() => {
+          reject(new Error(timeoutMessage));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId !== undefined) {
+      window.clearTimeout(timeoutId);
+    }
+  }
+};
+
 export function BookAppointmentDialog({
   trigger,
   clinicId,
   locationId,
+  clinicName,
   defaultOpen = false,
+  open,
+  onOpenChange,
+  hideTrigger = false,
   onBooked,
   initialConsultationMode,
   initialServiceId,
@@ -225,7 +277,7 @@ export function BookAppointmentDialog({
   const { hasPermission } = useRBAC();
   const userRole = (session?.user?.role || "").toUpperCase();
   const postBookingRoute = userRole === "RECEPTIONIST" ? "/receptionist/appointments" : "/patient/appointments";
-  const postBookingLabel = userRole === "RECEPTIONIST" ? "View Reception Desk" : "View My Appointments";
+  const postBookingLabel = userRole === "RECEPTIONIST" ? "Go to appointment manager" : "Go to appointments";
   const patientCheckInRoute = "/patient/check-in";
   const { clinicId: contextClinicId } = useClinicContext();
   const { data: myClinic, isPending: myClinicLoading } = useMyClinic();
@@ -233,25 +285,31 @@ export function BookAppointmentDialog({
   const shouldResolvePatientClinic = userRole === "PATIENT" && !hasExplicitClinicId;
   const activeClinicId = clinicId || contextClinicId || session?.user?.clinicId || myClinic?.id || APP_CONFIG.CLINIC.ID;
 
-  // ─── Dialog / Step state ──────────────────────────────────────────────────
-  const [open, setOpen] = useState(defaultOpen);
-  // If locationId AND initialConsultationMode provided as props OR it is a VIDEO context, skip step 1
-  const [step, setStep] = useState(( (locationId && initialConsultationMode) || initialConsultationMode === "VIDEO" ) ? 2 : (locationId ? 2 : 1));
+  // ””” Dialog / Step state ””””””””””””””””””””””””””””””””””””””””””””””””””
+  const [internalOpen, setInternalOpen] = useState(defaultOpen);
+  const isControlledOpen = typeof open === "boolean";
+  const dialogOpen = isControlledOpen ? open : internalOpen;
+  const handleOpenChange = onOpenChange || setInternalOpen;
+  const [step, setStep] = useState(1);
   const [serviceFilter, setServiceFilter] = useState("All");
+  const [stepDirection, setStepDirection] = useState<"forward" | "backward">("forward");
+  const autoSelectionToastIds = useRef<Set<string>>(new Set());
+  const lastAutoSelectedLocationIdRef = useRef("");
+  const lastAutoSelectedDoctorIdRef = useRef("");
 
-  // ─── Selections ───────────────────────────────────────────────────────────
+  // ”” Selections ”””””””””””””””””””””””””””””””””””””””””””””””””””””””””””
   const [selectedLocationId, setSelectedLocationId] = useState(locationId || "");
   const [consultationMode, setConsultationMode] = useState<"IN_PERSON" | "VIDEO" | "">(initialConsultationMode || "IN_PERSON");
   const [selectedServiceId, setSelectedServiceId] = useState(initialServiceId || "");
   const [selectedDoctorId, setSelectedDoctorId] = useState(initialDoctorId || "");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(getTodayIST());
   const [selectedSlot, setSelectedSlot] = useState("");
-  const [selectedVideoSlots, setSelectedVideoSlots] = useState<string[]>([]);
   const [chiefComplaint, setChiefComplaint] = useState("");
   const [urgency, setUrgency] = useState("Normal");
   const [bookedAppointmentId, setBookedAppointmentId] = useState("");
   const [requiresVideoPayment, setRequiresVideoPayment] = useState(false);
   const [videoPaymentCompleted, setVideoPaymentCompleted] = useState(false);
+  const [acceptedVideoPaymentPolicy, setAcceptedVideoPaymentPolicy] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState(initialPatientId || "");
   const [patientSearch, setPatientSearch] = useState("");
   const [showQuickCreatePatient, setShowQuickCreatePatient] = useState(false);
@@ -276,18 +334,190 @@ export function BookAppointmentDialog({
     allergies: "",
     currentMedications: "",
   });
+  const previousConsultationModeRef = useRef(consultationMode);
+  const previousLocationIdRef = useRef(selectedLocationId);
+  const previousServiceIdRef = useRef(selectedServiceId);
+  const previousDoctorIdRef = useRef(selectedDoctorId);
+  const previousDateRef = useRef<Date | undefined>(selectedDate);
   const isPrivilegedScheduler = ["RECEPTIONIST", "DOCTOR", "CLINIC_ADMIN", "SUPER_ADMIN"].includes(userRole);
   const targetPatientId = isPrivilegedScheduler ? selectedPatientId : session?.user?.id || "";
-  const shouldLoadLocations = open && consultationMode !== "VIDEO" && (!shouldResolvePatientClinic || !myClinicLoading);
-  const shouldLoadServices = open;
-  const shouldLoadDoctors = open && step >= 3 && !!activeClinicId && (consultationMode === "VIDEO" || !!selectedLocationId);
-  const shouldLoadPatients = open && isPrivilegedScheduler && !!activeClinicId;
+  const shouldLoadLocations = dialogOpen && consultationMode !== "VIDEO" && (!shouldResolvePatientClinic || !myClinicLoading);
+  const shouldLoadServices = dialogOpen;
+  const shouldLoadDoctors = dialogOpen && !!activeClinicId && (consultationMode === "VIDEO" || !!selectedLocationId);
+  const shouldLoadPatients = dialogOpen && isPrivilegedScheduler && !!activeClinicId;
   const quickRegisterPatientMutation = useQuickRegisterPatient();
+  const resolveAppointmentId = useCallback((appointment: unknown) => {
+    if (!appointment || typeof appointment !== "object") {
+      return "";
+    }
 
-  // ─── Queries ─────────────────────────────────────────────────────────────
-  const { data: locations = [], isPending: locationsLoading, isFetching: locationsFetching } = useActiveLocations(activeClinicId, {
-    enabled: shouldLoadLocations,
-  });
+    const record = appointment as Record<string, unknown>;
+    return String(record.appointmentId || record.id || "");
+  }, []);
+  const launchVideoPayment = useCallback(
+    async (appointmentId: string) => {
+      const paymentResponse = await createPaymentIntent({
+        appointmentId,
+        appointmentType: "VIDEO_CALL",
+      });
+
+      if (!paymentResponse.success || !paymentResponse.paymentIntent) {
+        throw new Error(
+          paymentResponse.error || paymentResponse.message || "Failed to create payment intent"
+        );
+      }
+
+      const paymentIntent = paymentResponse.paymentIntent as Record<string, unknown>;
+      const metadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
+      const providerResponse = (paymentIntent?.providerResponse as Record<string, unknown>) || {};
+      const providerResponseMeta =
+        (providerResponse?.order_meta as Record<string, unknown>) ||
+        (providerResponse?.orderMeta as Record<string, unknown>) ||
+        {};
+      const providerFromIntent =
+        typeof paymentIntent?.provider === "string"
+          ? paymentIntent.provider.toLowerCase()
+          : undefined;
+      const usedProvider =
+        providerFromIntent && isPaymentProviderEnabled(providerFromIntent)
+          ? providerFromIntent
+          : DEFAULT_PAYMENT_PROVIDER;
+
+      if (!isPaymentProviderEnabled(usedProvider)) {
+        throw new Error(`Payment provider '${usedProvider}' is not enabled`);
+      }
+
+      if (usedProvider !== "cashfree") {
+        throw new Error(`Provider '${usedProvider}' is enabled but SDK handler is not implemented yet`);
+      }
+
+      const cashfreeMode =
+        process.env.NEXT_PUBLIC_CASHFREE_MODE === "production"
+          ? "production"
+          : process.env.NEXT_PUBLIC_CASHFREE_MODE === "sandbox"
+            ? "sandbox"
+            : process.env.NODE_ENV === "production"
+              ? "production"
+              : "sandbox";
+
+      const orderId =
+        (paymentIntent?.orderId as string) ||
+        (paymentIntent?.paymentId as string) ||
+        (paymentIntent?.id as string) ||
+        (providerResponse?.order_id as string) ||
+        (providerResponse?.orderId as string) ||
+        (metadata?.orderId as string) ||
+        (providerResponseMeta?.order_id as string);
+      const paymentSessionId =
+        (paymentIntent?.paymentSessionId as string) ||
+        (metadata?.paymentSessionId as string) ||
+        (providerResponse?.payment_session_id as string) ||
+        (providerResponse?.paymentSessionId as string);
+      const redirectUrl =
+        (paymentIntent?.redirectUrl as string) ||
+        (metadata?.redirectUrl as string) ||
+        (providerResponseMeta?.payment_link as string) ||
+        (providerResponse?.payment_link as string);
+      const resolvedClinicId =
+        activeClinicId ||
+        (paymentIntent?.clinicId as string) ||
+        (metadata?.clinicId as string) ||
+        (await getClinicId()) ||
+        APP_CONFIG.CLINIC.ID;
+
+      if (!orderId) {
+        throw new Error("Order ID not received from server");
+      }
+
+      if (!resolvedClinicId) {
+        throw new Error("Clinic context is required for payment verification");
+      }
+
+      const cashfree = await load({ mode: cashfreeMode });
+      if (!cashfree) {
+        if (redirectUrl) {
+          window.location.href = redirectUrl;
+          return;
+        }
+        throw new Error("Cashfree SDK is not available");
+      }
+
+      if (!paymentSessionId) {
+        if (redirectUrl) {
+          window.location.href = redirectUrl;
+          return;
+        }
+        throw new Error("Cashfree payment session is missing");
+      }
+
+      const result = await cashfree.checkout({
+        paymentSessionId,
+        orderId,
+        redirectTarget: "_self",
+      });
+
+      if (result?.error?.message) {
+        throw new Error(result.error.message);
+      }
+
+      const verifyResponse = await verifyPaymentCallback({
+        clinicId: resolvedClinicId,
+        paymentId: orderId,
+        orderId,
+        provider: usedProvider as typeof DEFAULT_PAYMENT_PROVIDER,
+      });
+
+      if (!verifyResponse.success) {
+        throw new Error(verifyResponse.error || verifyResponse.message || "Payment verification failed");
+      }
+
+      const billingQueryKeys = [
+        ["invoices"],
+        ["clinic-invoices"],
+        ["payments"],
+        ["clinic-payments"],
+        ["subscriptions"],
+        ["clinic-subscriptions"],
+        ["active-subscription"],
+        ["clinic-ledger"],
+        ["billing-analytics"],
+      ] as const;
+
+      billingQueryKeys.forEach((queryKey) => {
+        queryClient.invalidateQueries({ queryKey, exact: false });
+      });
+      syncAppointmentInCache(queryClient, { id: appointmentId, status: "CONFIRMED" }, {
+        appointmentStatus: "CONFIRMED",
+        queryKeys: [
+          ["myAppointments"],
+          ["appointments"],
+          ["userUpcomingAppointments"],
+          ["appointment", appointmentId],
+          ["video-appointments"],
+          ["video-appointment", appointmentId],
+        ],
+      });
+      queryClient.invalidateQueries({ queryKey: ["myAppointments"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["appointments"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["appointment", appointmentId], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["video-appointments"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["video-appointment", appointmentId], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["userUpcomingAppointments"], exact: false });
+
+      setRequiresVideoPayment(false);
+      setVideoPaymentCompleted(true);
+      onBooked?.();
+      showSuccessToast("Payment verified.", { id: TOAST_IDS.PAYMENT.SUCCESS });
+    },
+    [activeClinicId, onBooked]
+  );
+
+  // ””” Queries ”””””””””””””””””””””””””””””””””””””””””””””””””””””””””””””
+  const { data: activeLocations = [], isPending: locationsLoading, isFetching: locationsFetching } = useActiveLocations(
+    activeClinicId,
+    shouldLoadLocations ? { enabled: true } : undefined
+  );
+  const { data: allLocations = [] } = useClinicLocations(activeClinicId);
   const { data: appointmentServices = [], isPending: servicesLoading } = useAppointmentServices(shouldLoadServices);
   const { data: doctorsData, isPending: doctorsLoading } = useDoctors(
     activeClinicId,
@@ -296,23 +526,24 @@ export function BookAppointmentDialog({
       : {
           locationId: selectedLocationId,
         },
-    {
-      enabled: shouldLoadDoctors,
-    }
+    shouldLoadDoctors ? { enabled: true } : undefined
   );
   // Only RECEPTIONIST needs the full patient list to select a patient.
-  // Patients book for themselves — calling this admin endpoint as a PATIENT
+  // Patients book for themselves ” calling this admin endpoint as a PATIENT
   // returns 403 Forbidden. Pass an empty clinicId to disable the query.
   const { data: patientsData = [] } = usePatients(
     isPrivilegedScheduler ? activeClinicId : "",
     { limit: 200, isActive: true },
-    { enabled: shouldLoadPatients }
+    shouldLoadPatients ? { enabled: true } : undefined
+  );
+  const { data: currentPatientProfile } = usePatient(
+    activeClinicId,
+    userRole === "PATIENT" ? session?.user?.id || "" : ""
   );
 
   const dateString = useMemo(() => (selectedDate ? formatDateIST(selectedDate) : ""), [selectedDate]);
   const shouldLoadAvailability =
-    open &&
-    step >= 4 &&
+    dialogOpen &&
     !!activeClinicId &&
     !!selectedDoctorId &&
     !!dateString &&
@@ -320,7 +551,7 @@ export function BookAppointmentDialog({
   const availabilityRefetchIntervalMs =
     consultationMode === "VIDEO"
       ? 5000
-      : step >= 4 && !isConnected
+      : step >= 3 && !isConnected
         ? 10000
         : undefined;
   const availabilityQueryKey = useMemo(
@@ -333,6 +564,59 @@ export function BookAppointmentDialog({
       consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON",
     ],
     [activeClinicId, selectedDoctorId, dateString, selectedLocationId, consultationMode]
+  );
+  const locations = activeLocations.length > 0 ? activeLocations : allLocations;
+  const hasOnlyInactiveLocations = activeLocations.length === 0 && allLocations.length > 0;
+  const clinicVideoCallWindow = useMemo(() => {
+    const normalizeWindowTime = (value: unknown): string | null => {
+      if (typeof value !== "string") return null;
+      const trimmed = value.trim();
+      return /^([01]\d|2[0-3]):([0-5]\d)$/.test(trimmed) ? trimmed : null;
+    };
+
+    const clinicSettings = (myClinic?.settings as unknown) as Record<string, unknown> | undefined;
+    const appointmentSettings = clinicSettings?.appointmentSettings;
+    if (!appointmentSettings || typeof appointmentSettings !== "object" || Array.isArray(appointmentSettings)) {
+      return null;
+    }
+
+    const windowValue = (appointmentSettings as Record<string, unknown>).videoCallWindow;
+    if (!windowValue || typeof windowValue !== "object" || Array.isArray(windowValue)) {
+      return null;
+    }
+
+    const start = normalizeWindowTime((windowValue as Record<string, unknown>).start);
+    const end = normalizeWindowTime((windowValue as Record<string, unknown>).end);
+    if (!start || !end) {
+      return null;
+    }
+
+    return { start, end };
+  }, [myClinic]);
+  const isSlotWithinClinicVideoWindow = useCallback(
+    (slot: string) => {
+      if (consultationMode !== "VIDEO" || !clinicVideoCallWindow) {
+        return true;
+      }
+
+      const parseMinutes = (value: string) => {
+        const [hoursRaw, minutesRaw] = value.split(":");
+        const hours = Number(hoursRaw);
+        const minutes = Number(minutesRaw);
+        if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+        return hours * 60 + minutes;
+      };
+
+      const slotStart = parseMinutes(slot);
+      const windowStart = parseMinutes(clinicVideoCallWindow.start);
+      const windowEnd = parseMinutes(clinicVideoCallWindow.end);
+      if (slotStart === null || windowStart === null || windowEnd === null) {
+        return true;
+      }
+
+      return slotStart >= windowStart && slotStart + VIDEO_APPOINTMENT_SLOT_DURATION_MINUTES <= windowEnd;
+    },
+    [clinicVideoCallWindow, consultationMode]
   );
 
   const {
@@ -347,16 +631,13 @@ export function BookAppointmentDialog({
     consultationMode === "VIDEO" ? undefined : selectedLocationId,
     consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON",
     {
-      enabled: shouldLoadAvailability,
-      ...(availabilityRefetchIntervalMs
-      ? { refetchIntervalMs: availabilityRefetchIntervalMs }
-        : {}),
+      ...(shouldLoadAvailability ? { enabled: true } : {}),
+      ...(availabilityRefetchIntervalMs ? { refetchIntervalMs: availabilityRefetchIntervalMs } : {}),
     }
   );
   const showAvailabilityLoader = shouldLoadAvailability && availabilityLoading && !availability && !availabilityError;
 
   const { mutateAsync: createAppointment, isPending: isBooking } = useCreateAppointment(activeClinicId);
-  const { mutateAsync: proposeVideoAppointment, isPending: isProposingVideoAppointment } = useProposeVideoAppointment();
   const {
     mutateAsync: checkSubscriptionCoverage,
     isPending: isCheckingSubscriptionCoverage,
@@ -370,14 +651,14 @@ export function BookAppointmentDialog({
     isCheckingSubscriptionCoverage ||
     isCreatingSubscriptionAppointment;
   const { mutate: sendReminder } = useSendAppointmentReminder();
-  const shouldLoadSubscriptions = open && step >= 6 && !!targetPatientId;
+  const shouldLoadSubscriptions = dialogOpen && !!targetPatientId && consultationMode === "IN_PERSON";
   const { data: subscriptionsData = [] } = useSubscriptions(targetPatientId, shouldLoadSubscriptions);
   const {
     data: backendActiveSubscription,
     isPending: backendActiveSubscriptionLoading,
   } = useActiveSubscription(targetPatientId, activeClinicId, shouldLoadSubscriptions);
 
-  // ─── Derived ─────────────────────────────────────────────────────────────
+  // ””” Derived ”””””””””””””””””””””””””””””””””””””””””””””””””””””””””””””
   const modeAppointmentType: AppointmentType =
     consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON";
   const visibleServices = useMemo(() => {
@@ -468,6 +749,18 @@ export function BookAppointmentDialog({
       (recentlyCreatedPatient?.id === selectedPatientId ? recentlyCreatedPatient : null),
     [patientsList, selectedPatientId, recentlyCreatedPatient]
   );
+  const resolvedBookingPatientId = useMemo(() => {
+    if (isPrivilegedScheduler) {
+      return selectedPatientId;
+    }
+
+    const patientRecordId =
+      (currentPatientProfile as any)?.patient?.id ||
+      (currentPatientProfile as any)?.patientId ||
+      (currentPatientProfile as any)?.id;
+
+    return patientRecordId || "";
+  }, [currentPatientProfile, isPrivilegedScheduler, selectedPatientId]);
 
   const activeSubscription = useMemo(() => {
     const candidates = (subscriptionsData as any[])
@@ -493,41 +786,179 @@ export function BookAppointmentDialog({
   const isSubscriptionGateLoading = isPatientInPersonBooking && backendActiveSubscriptionLoading;
   const needsSubscriptionPlan = isPatientInPersonBooking && !isSubscriptionGateLoading && !activeSubscription;
 
-  const slots = useMemo(() => {
-    if (Array.isArray((availability as any)?.availableSlots)) return (availability as any).availableSlots;
-    if (Array.isArray((availability as any)?.data?.availableSlots)) return (availability as any).data.availableSlots;
-    if (Array.isArray((availability as any)?.data?.data?.availableSlots)) return (availability as any).data.data.availableSlots;
-    return [];
-  }, [availability]);
+  const activeSteps = useMemo(() => {
+    const hasMultipleDoctors = doctorsLoading || doctorsList.length !== 1;
+
+    return STEP_ORDER.filter((stepId) => {
+      if (stepId === "doctor") {
+        return hasMultipleDoctors;
+      }
+
+      return true;
+    });
+  }, [doctorsList.length, doctorsLoading]);
+
+  const currentStepIndex = Math.max(0, Math.min(step - 1, Math.max(activeSteps.length - 1, 0)));
+  const currentStepId = activeSteps[currentStepIndex] ?? "success";
+  const isSuccessStep = currentStepId === "success";
+  const visibleStepCount = activeSteps.length || 1;
+  const progressValue = visibleStepCount <= 1 ? 100 : (currentStepIndex / (visibleStepCount - 1)) * 100;
+  const previousStepIdRef = useRef<WizardStepId>(currentStepId);
+
+  const goToStep = useCallback((nextStepId: WizardStepId) => {
+    const nextIndex = activeSteps.indexOf(nextStepId);
+    if (nextIndex === -1) return;
+    setStepDirection((previous) => (nextIndex >= currentStepIndex ? "forward" : "backward"));
+    setStep(nextIndex + 1);
+  }, [activeSteps, currentStepIndex]);
+
+  const stepTitle = useMemo(() => {
+    if (currentStepId === "success") {
+      return consultationMode === "VIDEO" && requiresVideoPayment && !videoPaymentCompleted
+        ? "Complete Payment"
+        : "Booking Complete!";
+    }
+
+    if (currentStepId === "mode") {
+      return consultationMode === "VIDEO" ? "Consultation Mode" : "Location & Mode";
+    }
+
+    return STEP_LABELS[currentStepId];
+  }, [consultationMode, currentStepId, requiresVideoPayment, videoPaymentCompleted]);
+
+  useEffect(() => {
+    if (!dialogOpen) return;
+    if (step > activeSteps.length) {
+      setStep(activeSteps.length || 1);
+    }
+  }, [activeSteps.length, dialogOpen, step]);
+
+  useEffect(() => {
+    if (!dialogOpen) {
+      previousStepIdRef.current = currentStepId;
+      return;
+    }
+
+    const previousStepId = previousStepIdRef.current;
+    if (previousStepId === currentStepId) {
+      return;
+    }
+
+    const currentVisibleIndex = activeSteps.indexOf(currentStepId);
+    if (currentVisibleIndex !== -1) {
+      setStep(currentVisibleIndex + 1);
+      previousStepIdRef.current = currentStepId;
+      return;
+    }
+
+    const previousOrderIndex = STEP_ORDER.indexOf(previousStepId);
+    const fallbackStep =
+      activeSteps.find((stepId) => STEP_ORDER.indexOf(stepId) > previousOrderIndex) ||
+      activeSteps[activeSteps.length - 1];
+
+    if (fallbackStep) {
+      setStep(activeSteps.indexOf(fallbackStep) + 1);
+    }
+    previousStepIdRef.current = fallbackStep || currentStepId;
+  }, [activeSteps, currentStepId, dialogOpen]);
+
   const extractAvailabilitySlots = useCallback((source: unknown) => {
+    const normalizeSlotValue = (slot: unknown): string | null => {
+      if (typeof slot === "string") {
+        const trimmed = slot.trim();
+        return trimmed ? trimmed : null;
+      }
+
+      if (!slot || typeof slot !== "object") {
+        return null;
+      }
+
+      const record = slot as Record<string, unknown>;
+      const availabilityFlag =
+        record.isAvailable ?? record.available ?? record.is_available ?? true;
+      if (availabilityFlag === false) {
+        return null;
+      }
+
+      const candidateValues = [
+        record.time,
+        record.startTime,
+        record.slotTime,
+        record.start,
+      ];
+
+      for (const candidate of candidateValues) {
+        if (typeof candidate !== "string") {
+          continue;
+        }
+
+        const trimmed = candidate.trim();
+        if (trimmed) {
+          return trimmed;
+        }
+      }
+
+      return null;
+    };
+
+    const collectSlots = (value: unknown): string[] => {
+      if (!value) {
+        return [];
+      }
+
+      if (Array.isArray(value)) {
+        return value
+          .map(normalizeSlotValue)
+          .filter((slot): slot is string => !!slot);
+      }
+
+      if (typeof value !== "object") {
+        return [];
+      }
+
+      const record = value as {
+        availableSlots?: unknown;
+        slots?: unknown;
+        data?: unknown;
+      };
+
+      const collected = [
+        ...collectSlots(record.availableSlots),
+        ...collectSlots(record.slots),
+      ];
+
+      if (record.data && typeof record.data === "object") {
+        const nested = record.data as {
+          availableSlots?: unknown;
+          slots?: unknown;
+          data?: unknown;
+        };
+        collected.push(...collectSlots(nested.availableSlots));
+        collected.push(...collectSlots(nested.slots));
+        if (nested.data && typeof nested.data === "object") {
+          const nestedDeep = nested.data as {
+            availableSlots?: unknown;
+            slots?: unknown;
+          };
+          collected.push(...collectSlots(nestedDeep.availableSlots));
+          collected.push(...collectSlots(nestedDeep.slots));
+        }
+      }
+
+      return Array.from(new Set(collected));
+    };
+
     if (Array.isArray(source)) {
-      return source.filter((slot): slot is string => typeof slot === "string");
+      return collectSlots(source);
     }
     if (!source || typeof source !== "object") {
       return [];
     }
 
-    const record = source as {
-      availableSlots?: unknown;
-      data?: unknown;
-    };
-    if (Array.isArray(record.availableSlots)) {
-      return record.availableSlots.filter((slot): slot is string => typeof slot === "string");
-    }
-    if (record.data && typeof record.data === "object") {
-      const nested = record.data as { availableSlots?: unknown; data?: unknown };
-      if (Array.isArray(nested.availableSlots)) {
-        return nested.availableSlots.filter((slot): slot is string => typeof slot === "string");
-      }
-      if (nested.data && typeof nested.data === "object") {
-        const nestedDeep = nested.data as { availableSlots?: unknown };
-        if (Array.isArray(nestedDeep.availableSlots)) {
-          return nestedDeep.availableSlots.filter((slot): slot is string => typeof slot === "string");
-        }
-      }
-    }
-    return [];
+    return collectSlots(source);
   }, []);
+
+  const slots = useMemo(() => extractAvailabilitySlots(availability), [availability, extractAvailabilitySlots]);
 
   const restrictions = useMemo(() => {
     const r =
@@ -553,8 +984,19 @@ export function BookAppointmentDialog({
   }, [consultationMode, restrictions]);
 
   const effectiveSlots = useMemo(
-    () => (consultationBlocked ? [] : (slots as string[])),
-    [consultationBlocked, slots]
+    () => {
+      if (consultationBlocked) {
+        return [];
+      }
+
+      const baseSlots = slots as string[];
+      if (consultationMode !== "VIDEO" || !clinicVideoCallWindow) {
+        return baseSlots;
+      }
+
+      return baseSlots.filter(isSlotWithinClinicVideoWindow);
+    },
+    [clinicVideoCallWindow, consultationBlocked, consultationMode, isSlotWithinClinicVideoWindow, slots]
   );
   const validateLatestAvailability = useCallback(async () => {
     const refreshed = await refetchAvailability({ cancelRefetch: true });
@@ -578,7 +1020,7 @@ export function BookAppointmentDialog({
   ]);
 
   useEffect(() => {
-    if (!open || step < 4 || !isConnected || !selectedDoctorId || !dateString) {
+    if (!dialogOpen || !isConnected || !selectedDoctorId || !dateString) {
       return;
     }
 
@@ -641,7 +1083,7 @@ export function BookAppointmentDialog({
     consultationMode,
     dateString,
     isConnected,
-    open,
+    dialogOpen,
     queryClient,
     selectedDoctorId,
     selectedLocationId,
@@ -650,18 +1092,16 @@ export function BookAppointmentDialog({
   ]);
 
   useEffect(() => {
-    if (consultationMode === "VIDEO" && selectedVideoSlots.length > 0) {
-      const filteredSlots = selectedVideoSlots.filter((slot) => effectiveSlots.includes(slot));
-      if (filteredSlots.length !== selectedVideoSlots.length) {
-        setSelectedVideoSlots(filteredSlots);
-      }
-    }
-    if (consultationMode !== "VIDEO" && selectedSlot && !effectiveSlots.includes(selectedSlot)) {
+    if (selectedSlot && !effectiveSlots.includes(selectedSlot)) {
       setSelectedSlot("");
     }
-  }, [consultationMode, effectiveSlots, selectedSlot, selectedVideoSlots]);
+  }, [effectiveSlots, selectedSlot]);
 
   const slotGroups = useMemo(() => groupSlotsByPeriod(effectiveSlots as string[]), [effectiveSlots]);
+  const selectedSlotLabel = useMemo(() => {
+    if (!selectedSlot) return "";
+    return `${selectedSlot} · ${appointmentDurationMinutes} min`;
+  }, [appointmentDurationMinutes, selectedSlot]);
   const liveSyncMode =
     connectionStatus === "connected"
       ? "live"
@@ -689,11 +1129,14 @@ export function BookAppointmentDialog({
   const showLiveSyncBanner = APP_CONFIG.ENVIRONMENT === "development";
 
   useEffect(() => {
-    if (!open) {
+    if (!dialogOpen) {
+      lastAutoSelectedLocationIdRef.current = "";
+      lastAutoSelectedDoctorIdRef.current = "";
+      autoSelectionToastIds.current.clear();
       return;
     }
   }, [
-    open,
+    dialogOpen,
     activeClinicId,
     consultationMode,
     connectionStatus,
@@ -705,52 +1148,49 @@ export function BookAppointmentDialog({
     selectedLocationId,
     selectedServiceId,
     selectedSlot,
-    selectedVideoSlots,
     step,
   ]);
 
   useEffect(() => {
-    if (open) {
-      // Only reset if we're coming back after a completed booking (step 7 = success)
-      // or if it's the very first open (step hasn't been set yet beyond initial)
-      if (step === 7) {
-        // After a completed booking, reset for a fresh booking
-        setStep(( (locationId && initialConsultationMode) || initialConsultationMode === "VIDEO" ) ? 2 : (locationId ? 2 : 1));
-        setSelectedLocationId(locationId || "");
-        setConsultationMode(initialConsultationMode || "IN_PERSON");
-        setSelectedServiceId(initialServiceId || "");
-        setSelectedDoctorId(initialDoctorId || "");
-        setSelectedPatientId(initialPatientId || "");
-        setSelectedDate(getTodayIST());
-        setSelectedSlot("");
-        setSelectedVideoSlots([]);
-        setChiefComplaint("");
-        setUrgency("Normal");
-        setBookedAppointmentId("");
-        setRequiresVideoPayment(false);
-        setVideoPaymentCompleted(false);
-        setSelectedPatientId(initialPatientId || "");
-        setPatientSearch("");
-        setShowQuickCreatePatient(false);
-        setRecentlyCreatedPatient(null);
-        setNewPatient({
-          firstName: "",
-          lastName: "",
-          phone: "",
-          email: "",
-          dateOfBirth: "",
-          gender: "",
-          address: "",
-          emergencyContact: "",
-          emergencyPhone: "",
-          medicalHistory: "",
-          allergies: "",
-          currentMedications: "",
-        });
-      }
-      // Otherwise, keep all existing state (user resumes from where they left off)
+    if (dialogOpen) {
+      return;
     }
-  }, [open]);
+
+    // Reset the wizard only after the dialog closes so success/payment screens
+    // remain mounted long enough for Cashfree auto-start to fire.
+    setStep(1);
+    setSelectedLocationId(locationId || "");
+    setConsultationMode(initialConsultationMode || "IN_PERSON");
+    setSelectedServiceId(initialServiceId || "");
+    setSelectedDoctorId(initialDoctorId || "");
+    setSelectedPatientId(initialPatientId || "");
+    setSelectedDate(getTodayIST());
+    setSelectedSlot("");
+    setChiefComplaint("");
+    setUrgency("Normal");
+    setBookedAppointmentId("");
+    setRequiresVideoPayment(false);
+    setVideoPaymentCompleted(false);
+    setAcceptedVideoPaymentPolicy(false);
+    setSelectedPatientId(initialPatientId || "");
+    setPatientSearch("");
+    setShowQuickCreatePatient(false);
+    setRecentlyCreatedPatient(null);
+    setNewPatient({
+      firstName: "",
+      lastName: "",
+      phone: "",
+      email: "",
+      dateOfBirth: "",
+      gender: "",
+      address: "",
+      emergencyContact: "",
+      emergencyPhone: "",
+      medicalHistory: "",
+      allergies: "",
+      currentMedications: "",
+    });
+  }, [initialConsultationMode, initialDoctorId, initialPatientId, initialServiceId, locationId, dialogOpen]);
 
   useEffect(() => {
     if (
@@ -761,11 +1201,133 @@ export function BookAppointmentDialog({
     }
   }, [selectedServiceId, visibleServices]);
 
-  // ─── Book appointment ─────────────────────────────────────────────────────
-  const handleBook = useCallback(async () => {
-    if (!selectedService || !selectedDoctorId || !selectedDate || !targetPatientId) return;
+  useEffect(() => {
+    if (previousConsultationModeRef.current === consultationMode) {
+      return;
+    }
 
-    const patientBillingRoute = "/patient/billing";
+    previousConsultationModeRef.current = consultationMode;
+
+    if (consultationMode === "VIDEO") {
+      setSelectedLocationId("");
+    }
+    setSelectedDoctorId("");
+    setSelectedDate(getTodayIST());
+    setSelectedSlot("");
+  }, [consultationMode]);
+
+  useEffect(() => {
+    if (previousLocationIdRef.current === selectedLocationId) {
+      return;
+    }
+
+    previousLocationIdRef.current = selectedLocationId;
+    setSelectedDoctorId("");
+    setSelectedDate(getTodayIST());
+    setSelectedSlot("");
+  }, [selectedLocationId]);
+
+  useEffect(() => {
+    if (previousDoctorIdRef.current === selectedDoctorId) {
+      return;
+    }
+
+    previousDoctorIdRef.current = selectedDoctorId;
+    setSelectedDate(getTodayIST());
+    setSelectedSlot("");
+  }, [selectedDoctorId]);
+
+  useEffect(() => {
+    if ((previousDateRef.current?.getTime() || 0) === (selectedDate?.getTime() || 0)) {
+      return;
+    }
+
+    previousDateRef.current = selectedDate;
+    setSelectedSlot("");
+  }, [selectedDate]);
+
+  useEffect(() => {
+    if (previousServiceIdRef.current === selectedServiceId) {
+      return;
+    }
+
+    previousServiceIdRef.current = selectedServiceId;
+    setSelectedDoctorId("");
+    setSelectedDate(getTodayIST());
+    setSelectedSlot("");
+  }, [selectedServiceId]);
+
+  useEffect(() => {
+    if (!dialogOpen) {
+      return;
+    }
+
+    if (consultationMode === "VIDEO") {
+      return;
+    }
+
+    if (selectedLocationId || locations.length !== 1) {
+      return;
+    }
+
+    const [singleLocation] = locations;
+    if (!singleLocation) {
+      return;
+    }
+
+    if (lastAutoSelectedLocationIdRef.current === singleLocation.id) {
+      return;
+    }
+
+    setSelectedLocationId(singleLocation.id);
+    lastAutoSelectedLocationIdRef.current = singleLocation.id;
+    const toastId = `${TOAST_IDS.APPOINTMENT.BOOKING}-location`;
+    if (!autoSelectionToastIds.current.has(toastId)) {
+      autoSelectionToastIds.current.add(toastId);
+      showInfoToast(
+        `Auto-selected ${singleLocation.name || "the only available location"}`,
+        {
+          id: toastId,
+          description: "Only one clinic location is available for this booking.",
+        }
+      );
+    }
+  }, [consultationMode, dialogOpen, locations, selectedLocationId]);
+
+  useEffect(() => {
+    if (!dialogOpen || selectedDoctorId || doctorsLoading || doctorsList.length !== 1) {
+      return;
+    }
+
+    const [singleDoctor] = doctorsList;
+    if (!singleDoctor) {
+      return;
+    }
+
+    if (lastAutoSelectedDoctorIdRef.current === singleDoctor.id) {
+      return;
+    }
+
+    setSelectedDoctorId(singleDoctor.id);
+    lastAutoSelectedDoctorIdRef.current = singleDoctor.id;
+    const toastId = `${TOAST_IDS.APPOINTMENT.BOOKING}-doctor`;
+    if (!autoSelectionToastIds.current.has(toastId)) {
+      autoSelectionToastIds.current.add(toastId);
+      showInfoToast(
+        `Auto-selected ${singleDoctor.name || "the only available doctor"}`,
+        {
+          id: toastId,
+          description: "Only one doctor matches the current selection.",
+        }
+      );
+    }
+  }, [dialogOpen, doctorsLoading, doctorsList, selectedDoctorId]);
+
+  // ””” Book appointment ”””””””””””””””””””””””””””””””””””””””””””””””””””””
+  const handleBook = useCallback(async () => {
+    if (!selectedService || !selectedDoctorId || !selectedDate) return;
+
+    const patientBillingRoute = "/patient/payments";
     const redirectToBillingTab = (
       tab: "plans" | "subscriptions" | "payments",
       message: string
@@ -794,61 +1356,133 @@ export function BookAppointmentDialog({
     };
 
     try {
+      let bookingPatientId = resolvedBookingPatientId;
+      if (userRole === "PATIENT" && !bookingPatientId) {
+        const profileUpdatePayload = {
+          ...(session?.user?.firstName ? { firstName: session.user.firstName } : {}),
+          ...(session?.user?.lastName ? { lastName: session.user.lastName } : {}),
+          ...(session?.user?.phone ? { phone: session.user.phone } : {}),
+          ...(session?.user?.address ? { address: session.user.address } : {}),
+        };
+
+        if (Object.keys(profileUpdatePayload).length > 0) {
+          const profileUpdateResult = await updateUserProfile(profileUpdatePayload);
+          if (!profileUpdateResult.success) {
+            throw new Error(
+              profileUpdateResult.error || "Patient profile is incomplete. Please complete your profile first."
+            );
+          }
+        }
+
+        const refreshedProfile = (await queryClient.fetchQuery({
+          queryKey: ["patient", activeClinicId, session?.user?.id || ""],
+          queryFn: async () => await (await import("@/lib/actions/patients.server")).getPatientById(activeClinicId, session?.user?.id || ""),
+        })) as Record<string, unknown> | undefined;
+
+        bookingPatientId =
+          (refreshedProfile as any)?.patient?.id ||
+          (refreshedProfile as any)?.patientId ||
+          (refreshedProfile as any)?.id ||
+          "";
+      }
+
+      if (!bookingPatientId) {
+        throw new Error("Patient record not found for your account. Please complete your patient profile first.");
+      }
+
       const finalAppointmentType: AppointmentType =
         consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON";
       const selectedDateString = formatDateIST(selectedDate);
-      const freshSlots = await validateLatestAvailability();
+      const freshSlots = await withTimeout(
+        validateLatestAvailability(),
+        AVAILABILITY_TIMEOUT_MS,
+        "Checking availability is taking longer than expected. Please try again."
+      );
 
       if (finalAppointmentType === "VIDEO_CALL") {
-        if (selectedVideoSlots.length !== 3) {
-          showErrorToast("Please select exactly 3 preferred video slots.");
+        if (!selectedSlot) {
+          showErrorToast("Please select a video time slot.");
           return;
         }
 
-        const stillAvailableSlots = selectedVideoSlots.filter((slot) => freshSlots.includes(slot));
-        if (stillAvailableSlots.length !== selectedVideoSlots.length) {
-          setSelectedVideoSlots(stillAvailableSlots);
-        }
-        if (stillAvailableSlots.length !== 3) {
-          showErrorToast("One or more preferred video slots are no longer available. Please select fresh slots.");
+        if (!freshSlots.includes(selectedSlot)) {
+          setSelectedSlot("");
+          showErrorToast("That video slot is no longer available. Please select a fresh slot.");
           return;
         }
 
-        const proposedAppointment = await proposeVideoAppointment({
-          patientId: targetPatientId,
-          doctorId: selectedDoctorId,
+        if (!isSlotWithinClinicVideoWindow(selectedSlot)) {
+          showErrorToast(
+            clinicVideoCallWindow
+              ? `Selected slot is outside the clinic video hours (${clinicVideoCallWindow.start} - ${clinicVideoCallWindow.end}). Please choose another time.`
+              : "Selected slot is outside the clinic video hours. Please choose another time."
+          );
+          return;
+        }
+
+        console.info("[BookAppointmentDialog] Creating video appointment", {
           clinicId: activeClinicId,
-          ...(selectedLocationId ? { locationId: selectedLocationId } : {}),
-          duration: appointmentDurationMinutes,
-          treatmentType: selectedService?.treatmentType || selectedServiceId,
-          proposedSlots: stillAvailableSlots.map((time) => ({
-            date: selectedDateString,
-            time,
-          })),
-          ...(chiefComplaint ? { notes: chiefComplaint } : {}),
+          doctorId: selectedDoctorId,
+          date: selectedDateString,
+          slot: selectedSlot,
+          patientId: bookingPatientId,
         });
 
-        setBookedAppointmentId(proposedAppointment.id);
+        const createdAppointment = await createAppointment({
+          patientId: bookingPatientId,
+          doctorId: selectedDoctorId,
+          ...(selectedLocationId ? { locationId: selectedLocationId } : {}),
+          date: selectedDateString,
+          time: selectedSlot,
+          duration: appointmentDurationMinutes,
+          type: finalAppointmentType,
+          ...(chiefComplaint ? { notes: chiefComplaint } : {}),
+          priority: "NORMAL",
+        });
+
+        console.info("[BookAppointmentDialog] Video appointment create response received", {
+          hasResult: Boolean(createdAppointment),
+          appointmentId: resolveAppointmentId(createdAppointment),
+        });
+
+        const createdAppointmentId = resolveAppointmentId(createdAppointment);
+        if (!createdAppointmentId) {
+          throw new Error("Failed to create video appointment; no appointment ID was returned.");
+        }
+
+        setBookedAppointmentId(createdAppointmentId);
+        syncAppointmentInCache(queryClient, createdAppointment as unknown as Record<string, unknown>, {
+          queryKeys: [
+            ["myAppointments"],
+            ["appointments"],
+            ["userUpcomingAppointments"],
+            ["appointment", createdAppointmentId],
+            ["video-appointments"],
+            ["video-appointment", createdAppointmentId],
+          ],
+        });
         queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
         queryClient.invalidateQueries({ queryKey: ["appointments"] });
         queryClient.invalidateQueries({ queryKey: ["userUpcomingAppointments"] });
         queryClient.invalidateQueries({ queryKey: getAppointmentStatsQueryKey(activeClinicId), exact: false });
-        queryClient.invalidateQueries({ queryKey: ["appointment", proposedAppointment.id] });
+        queryClient.invalidateQueries({ queryKey: ["appointment", createdAppointmentId] });
         if (shouldCollectVideoPayment) {
           setRequiresVideoPayment(true);
           setVideoPaymentCompleted(false);
-          setStep(7);
+          setAcceptedVideoPaymentPolicy(false);
+          setStep(activeSteps.length || 1);
+          showInfoToast("Appointment created. Accept the policy and use the payment button to complete booking.");
           return;
         }
 
         onBooked?.();
         showSuccessToast(
-          `Video appointment requested with ${selectedDoctor?.name || 'doctor'}` +
+          `Video appointment booked with ${selectedDoctor?.name || 'doctor'}` +
           (selectedDate ? ` for ${format(selectedDate, 'd MMM yyyy')}` : '') +
-          ' — awaiting doctor confirmation.',
+          (shouldCollectVideoPayment ? ' and awaiting payment completion.' : ' and is booked.'),
           { id: 'booking-success' }
         );
-        setStep(7);
+        setStep(activeSteps.length || 1);
         return;
       }
 
@@ -911,7 +1545,6 @@ export function BookAppointmentDialog({
           "APPT-" + Date.now();
       } else {
         const payload = {
-          clinicId: activeClinicId,
           doctorId: selectedDoctorId,
           locationId: selectedLocationId,
           date: formatDateIST(appointmentDate),
@@ -924,12 +1557,25 @@ export function BookAppointmentDialog({
           patientId: targetPatientId,
         };
 
-        const appointment = await createAppointment(payload);
+        console.info("[BookAppointmentDialog] Creating appointment", {
+          clinicId: activeClinicId,
+          doctorId: selectedDoctorId,
+          date: formatDateIST(appointmentDate),
+          slot: selectedSlot,
+          patientId: targetPatientId,
+        });
 
-        if (!appointment?.id) {
+        const appointment = await createAppointment(payload);
+        console.info("[BookAppointmentDialog] Appointment create response received", {
+          hasResult: Boolean(appointment),
+          appointmentId: resolveAppointmentId(appointment),
+        });
+        const appointmentId = resolveAppointmentId(appointment);
+
+        if (!appointmentId) {
           throw new Error("Failed to create appointment; check console for details.");
         }
-        apptId = appointment.id;
+        apptId = appointmentId;
       }
 
       setBookedAppointmentId(apptId);
@@ -949,7 +1595,7 @@ export function BookAppointmentDialog({
         '.',
         { id: 'booking-success' }
       );
-      setStep(7); // step 7 = success/QR screen
+      setStep(activeSteps.length || 1); // success/QR screen
     } catch (err: any) {
       const errorMessage =
         typeof err?.message === "string" ? err.message : "Failed to book appointment. Please try again.";
@@ -992,11 +1638,7 @@ export function BookAppointmentDialog({
 
       if (lowerErrorMessage.includes("time slot is no longer available")) {
         queryClient.invalidateQueries({ queryKey: availabilityQueryKey, exact: true });
-        if (consultationMode === "VIDEO") {
-          setSelectedVideoSlots([]);
-        } else {
-          setSelectedSlot("");
-        }
+        setSelectedSlot("");
       }
 
       showErrorToast(errorMessage);
@@ -1006,15 +1648,13 @@ export function BookAppointmentDialog({
     selectedDoctorId,
     selectedDate,
     selectedSlot,
-    selectedVideoSlots,
-    targetPatientId,
+    resolvedBookingPatientId,
     chiefComplaint,
     urgency,
     activeClinicId,
     selectedLocationId,
     appointmentDurationMinutes,
     createAppointment,
-    proposeVideoAppointment,
     checkSubscriptionCoverage,
     createSubscriptionAppointment,
     hasPermission,
@@ -1027,27 +1667,54 @@ export function BookAppointmentDialog({
     queryClient,
     availabilityQueryKey,
     validateLatestAvailability,
-  ]);
+    resolveAppointmentId,
+    clinicVideoCallWindow,
+    isSlotWithinClinicVideoWindow,
+    session?.user?.firstName,
+    session?.user?.lastName,
+    session?.user?.phone,
+    session?.user?.address,
+  ]); 
 
-  // ─── Navigation ──────────────────────────────────────────────────────────
+  // ””” Navigation ””””””””””””””””””””””””””””””””””””””””””””””””””””””””””
   const canNext = useMemo(() => {
-    if (step === 1) return !!consultationMode && (consultationMode === "VIDEO" || !!selectedLocationId);
-    if (step === 2) {
+    if (currentStepId === "mode") {
+      return !!consultationMode && (consultationMode === "VIDEO" || !!selectedLocationId || locations.length === 1);
+    }
+    if (currentStepId === "service") {
       return !!selectedServiceId && (!isPrivilegedScheduler || !!selectedPatientId);
     }
-    if (step === 3) return !!selectedDoctorId;
-    if (step === 4) return !!selectedDate;
-    if (step === 5) return consultationMode === "VIDEO" ? selectedVideoSlots.length === 3 : !!selectedSlot;
+    if (currentStepId === "doctor") {
+      return !!selectedDoctorId || doctorsList.length === 1;
+    }
+    if (currentStepId === "date") return !!selectedDate;
+    if (currentStepId === "slot") return !!selectedSlot;
     return true;
-  }, [step, selectedLocationId, consultationMode, selectedServiceId, selectedDoctorId, selectedDate, selectedSlot, selectedVideoSlots, isPrivilegedScheduler, selectedPatientId]);
+  }, [
+    consultationMode,
+    currentStepId,
+    doctorsList.length,
+    isPrivilegedScheduler,
+    locations.length,
+    selectedDate,
+    selectedDoctorId,
+    selectedLocationId,
+    selectedServiceId,
+    selectedSlot,
+    selectedPatientId,
+  ]);
 
-  const TOTAL_STEPS = 6;
-  const goNext = () => {
-    setStep((s) => Math.min(s + 1, TOTAL_STEPS));
-  };
-  const goBack = () => setStep((s) => Math.max(s - 1, 1));
+  const goNext = useCallback(() => {
+    setStepDirection("forward");
+    setStep((s) => Math.min(s + 1, activeSteps.length || 1));
+  }, [activeSteps.length]);
 
-  // ─── QR data ─────────────────────────────────────────────────────────────
+  const goBack = useCallback(() => {
+    setStepDirection("backward");
+    setStep((s) => Math.max(s - 1, 1));
+  }, []);
+
+  // ””” QR data ”””””””””””””””””””””””””””””””””””””””””””””””””””””””””””””
   // const qrData = useMemo(() => {
     // return JSON.stringify({
       // appointmentId: bookedAppointmentId,
@@ -1060,46 +1727,59 @@ export function BookAppointmentDialog({
 
   // const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`;
 
-  // ─── Render helpers ───────────────────────────────────────────────────────
+  // ””” Render helpers ”””””””””””””””””””””””””””””””””””””””””””””””””””””””
 
   const renderStepBar = () => (
-    <div className="flex items-center justify-between px-1">
-      {STEPS.map((label, i) => {
-        const s = i + 1;
-        const done = step > s;
-        const active = step === s;
-        return (
-          <div key={label} className="flex items-center gap-1">
-            <div className="flex flex-col items-center gap-0.5">
-              <div
-                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                  done
-                    ? "bg-primary text-primary-foreground"
-                    : active
-                    ? "bg-primary text-primary-foreground ring-4 ring-primary/20"
-                    : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {done ? <Check className="w-3.5 h-3.5" /> : s}
+    <div className="px-1">
+      <div className="mb-2 h-1 w-full overflow-hidden rounded-full bg-muted/60">
+        <div
+          className="h-full rounded-full bg-primary transition-all duration-300"
+          style={{ width: `${progressValue}%` }}
+        />
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        {activeSteps.map((stepId, i) => {
+          const s = i + 1;
+          const done = step > s;
+          const active = step === s;
+          return (
+            <button
+              key={stepId}
+              type="button"
+              onClick={() => goToStep(stepId)}
+              className="flex items-center gap-1"
+            >
+              <div className="flex flex-col items-center gap-0.5">
+                <div
+                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                    done
+                      ? "bg-primary text-primary-foreground"
+                      : active
+                        ? "bg-primary text-primary-foreground ring-4 ring-primary/20"
+                        : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {done ? <Check className="w-3.5 h-3.5" /> : s}
+                </div>
+                <span
+                  className={`text-[9px] font-semibold uppercase tracking-wider hidden sm:block ${
+                    active ? "text-primary" : done ? "text-primary/60" : "text-muted-foreground"
+                  }`}
+                >
+                  {STEP_LABELS[stepId]}
+                </span>
               </div>
-              <span
-                className={`text-[9px] font-semibold uppercase tracking-wider hidden sm:block ${
-                  active ? "text-primary" : done ? "text-primary/60" : "text-muted-foreground"
-                }`}
-              >
-                {label}
-              </span>
-            </div>
-            {i < STEPS.length - 1 && (
-              <div className={`h-0.5 w-4 sm:w-8 rounded-full mx-1 ${done ? "bg-primary" : "bg-muted"}`} />
-            )}
-          </div>
-        );
-      })}
+              {i < activeSteps.length - 1 && (
+                <div className={`h-0.5 w-4 sm:w-8 rounded-full mx-1 ${done ? "bg-primary" : "bg-muted"}`} />
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 
-  // ─── Step 1: Location + Mode ─────────────────────────────────────────────
+  // ””” Step 1: Location + Mode ”””””””””””””””””””””””””””””””””””””””””””””
   const renderStep1 = () => (
     <div className="flex flex-col gap-5">
       {consultationMode === "VIDEO" ? (
@@ -1120,18 +1800,36 @@ export function BookAppointmentDialog({
               Loading locations...
             </div>
           ) : (locations as any[]).length === 0 ? (
-            <div className="text-center py-6 border border-dashed rounded-xl text-muted-foreground text-sm">
-              <Building className="w-7 h-7 mx-auto mb-2 opacity-30" />
-              No active locations found for this clinic.
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+              <div className="flex items-start gap-3">
+                <Building className="mt-0.5 h-5 w-5 shrink-0" />
+                <div className="space-y-1">
+                  <p className="font-semibold">Clinic unavailable</p>
+                  <p className="text-xs text-amber-800/90 dark:text-amber-200/90">
+                    {clinicName ? `${clinicName} has no active locations configured yet.` : "No active locations are configured for this clinic yet."}
+                  </p>
+                  <p className="text-xs text-amber-800/80 dark:text-amber-200/80">
+                    Please contact the clinic or try again later.
+                  </p>
+                  <Button type="button" variant="outline" className="mt-2 h-9 rounded-lg" onClick={() => handleOpenChange(false)}>
+                    Close
+                  </Button>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="space-y-2">
+              {hasOnlyInactiveLocations && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  No active locations are configured yet. Showing all clinic locations so booking can continue.
+                </div>
+              )}
               {(locations as any[]).map((loc) => (
                 <button
                   key={loc.id}
                   onClick={() => {
                     setSelectedLocationId(loc.id);
-                    if (consultationMode) setTimeout(goNext, 150);
+                    setTimeout(goNext, 150);
                   }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
                     selectedLocationId === loc.id
@@ -1150,6 +1848,9 @@ export function BookAppointmentDialog({
                     </p>
                     {loc.address && loc.name && (
                       <p className="text-xs text-muted-foreground truncate">{loc.address}</p>
+                    )}
+                    {loc.isActive === false && (
+                      <p className="mt-1 text-[11px] font-medium text-amber-700">Inactive location</p>
                     )}
                   </div>
                   {selectedLocationId === loc.id && (
@@ -1174,7 +1875,7 @@ export function BookAppointmentDialog({
               key={value}
               onClick={() => {
                 setConsultationMode(value);
-                if (value === "VIDEO" || selectedLocationId) setTimeout(goNext, 150);
+                setTimeout(goNext, 150);
               }}
               className={`flex flex-col items-center gap-2 px-4 py-4 rounded-xl border transition-all ${
                 consultationMode === value
@@ -1607,7 +2308,7 @@ export function BookAppointmentDialog({
               key={t.treatmentType}
               onClick={() => {
                 setSelectedServiceId(t.treatmentType);
-                setTimeout(goNext, 100);
+                setTimeout(goNext, 150);
               }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
                 selectedServiceId === t.treatmentType
@@ -1647,9 +2348,24 @@ export function BookAppointmentDialog({
           ))}
         </div>
       ) : doctorsList.length === 0 ? (
-        <div className="text-center py-10 text-muted-foreground border border-dashed rounded-xl">
-          <User className="w-8 h-8 mx-auto mb-2 opacity-30" />
-          <p className="text-sm">No doctors available</p>
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+          <div className="flex items-start gap-3">
+            <User className="mt-0.5 h-5 w-5 shrink-0" />
+            <div className="space-y-1">
+              <p className="font-semibold">No doctors available</p>
+              <p className="text-xs text-amber-800/90 dark:text-amber-200/90">
+                {selectedLocationId
+                  ? "This location does not currently have any bookable doctors for the selected mode."
+                  : "Please select a location to see available doctors."}
+              </p>
+              <p className="text-xs text-amber-800/80 dark:text-amber-200/80">
+                Try another location or contact the clinic for help.
+              </p>
+              <Button type="button" variant="outline" className="mt-2 h-9 rounded-lg" onClick={goBack}>
+                Back
+              </Button>
+            </div>
+          </div>
         </div>
       ) : (
         <div className="space-y-2">
@@ -1659,7 +2375,7 @@ export function BookAppointmentDialog({
               onClick={() => {
                 setSelectedDoctorId(doctor.id);
                 setSelectedSlot("");
-                setTimeout(goNext, 100);
+                setTimeout(goNext, 150);
               }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
                 selectedDoctorId === doctor.id
@@ -1696,17 +2412,19 @@ export function BookAppointmentDialog({
     <div className="flex flex-col gap-3">
       <p className="text-sm text-muted-foreground">Pick your preferred appointment date</p>
       <div className="flex justify-center w-full max-w-sm mx-auto">
-        <Calendar
-          mode="single"
-          selected={selectedDate}
-          onSelect={(d) => {
-            setSelectedDate(d);
-            setSelectedSlot("");
-            if (d) setTimeout(goNext, 150);
-          }}
-          disabled={(date) => {
-            // Enforce Indian Standard Time (IST) exactly for calculating disabled "past" days
-            const todayIST = getTodayIST();
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={(d) => {
+              setSelectedDate(d);
+              setSelectedSlot("");
+              if (d) {
+                setTimeout(goNext, 150);
+              }
+            }}
+            disabled={(date) => {
+              // Enforce Indian Standard Time (IST) exactly for calculating disabled "past" days
+              const todayIST = getTodayIST();
             // Testing mode: allow any non-past booking date.
             return date < todayIST;
           }}
@@ -1726,7 +2444,7 @@ export function BookAppointmentDialog({
   const renderStep4 = () => {
     const periods = [
       { key: "morning" as const, label: "Morning", icon: <Sun className="w-4 h-4" />, range: "Before 12pm", slots: slotGroups.morning },
-      { key: "afternoon" as const, label: "Afternoon", icon: <CloudSun className="w-4 h-4" />, range: "12pm – 5pm", slots: slotGroups.afternoon },
+      { key: "afternoon" as const, label: "Afternoon", icon: <CloudSun className="w-4 h-4" />, range: "12pm “ 5pm", slots: slotGroups.afternoon },
       { key: "evening" as const, label: "Evening", icon: <Moon className="w-4 h-4" />, range: "After 5pm", slots: slotGroups.evening },
     ];
     const visiblePeriods = periods.filter((period) => period.slots.length > 0);
@@ -1738,14 +2456,14 @@ export function BookAppointmentDialog({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-foreground">
-                  Select 3 slots
+                  Select 1 slot
                 </p>
                 <p className="text-[11px] text-muted-foreground">
-                  15 min each. Doctor confirms one.
+                  15 min call within clinic video hours.
                 </p>
               </div>
               <div className="shrink-0 rounded-full bg-primary/12 text-primary px-2.5 py-1 text-[11px] font-bold border border-primary/15">
-                {selectedVideoSlots.length}/3
+                {selectedSlot ? "1/1" : "0/1"}
               </div>
             </div>
 
@@ -1772,44 +2490,42 @@ export function BookAppointmentDialog({
               <span className="inline-flex items-center gap-1 font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 px-2 py-1 rounded-full border border-blue-200/70 dark:border-blue-900">
                 <Video className="w-3 h-3" /> Video
               </span>
+              <span className="inline-flex items-center gap-1 font-medium bg-slate-50 text-slate-700 dark:bg-slate-950/40 dark:text-slate-300 px-2 py-1 rounded-full border border-slate-200/70 dark:border-slate-800">
+                <Clock className="w-3 h-3" />
+                {clinicVideoCallWindow ? `Hours ${clinicVideoCallWindow.start}-${clinicVideoCallWindow.end}` : "Hours loading"}
+              </span>
               <span className="inline-flex items-center gap-1 font-medium bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300 px-2 py-1 rounded-full border border-violet-200/70 dark:border-violet-900">
                 <CalendarIcon className="w-3 h-3" /> {selectedDate ? format(selectedDate, "d MMM") : ""}
               </span>
               <span className="inline-flex items-center gap-1 font-medium bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 px-2 py-1 rounded-full border border-amber-200/70 dark:border-amber-900">
                 <Clock className="w-3 h-3" /> {appointmentDurationMinutes} min
               </span>
+              {selectedSlot ? (
+                <span className="inline-flex items-center gap-1 font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 px-2 py-1 rounded-full border border-emerald-200/70 dark:border-emerald-900">
+                  <CheckCircle className="w-3 h-3" /> Selected {selectedSlot}
+                </span>
+              ) : null}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
-              {[0, 1, 2].map((index) => {
-                const slot = selectedVideoSlots[index];
-                return (
-                  <div
-                    key={index}
-                    className={`rounded-lg border px-2 py-2 text-center sm:text-center flex items-center justify-between sm:block ${
-                      slot
-                        ? "border-emerald-200 bg-emerald-50/80 dark:border-emerald-900 dark:bg-emerald-950/30"
-                        : "border-dashed border-slate-200 bg-white/70 dark:border-slate-800 dark:bg-slate-950/30"
-                    }`}
-                  >
-                    <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-                      Slot {index + 1}
-                    </p>
-                    <p className={`mt-0 sm:mt-1 text-xs font-semibold ${slot ? "text-foreground" : "text-muted-foreground"}`}>
-                      {slot || "Not selected"}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
+            {selectedSlot ? (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 dark:border-emerald-900 dark:bg-emerald-950/30 px-3 py-2">
+                <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-200">
+                  <CheckCircle className="w-4 h-4" />
+                  <span className="text-sm font-semibold">Selected slot: {selectedSlot}</span>
+                </div>
+                <p className="mt-1 text-[11px] text-emerald-700 dark:text-emerald-300">
+                  {selectedDate ? format(selectedDate, "d MMM yyyy") : ""} · {appointmentDurationMinutes} min video call
+                </p>
+              </div>
+            ) : null}
 
-            {selectedVideoSlots.length > 0 && (
+            {selectedSlot && (
               <button
                 type="button"
-                onClick={() => setSelectedVideoSlots([])}
+                onClick={() => setSelectedSlot("")}
                 className="text-[11px] font-semibold text-primary hover:underline"
               >
-                Clear selected slots
+                Clear selected slot
               </button>
             )}
           </div>
@@ -1853,37 +2569,25 @@ export function BookAppointmentDialog({
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {period.slots.map((slot) => {
-                      const isSelected = selectedVideoSlots.includes(slot);
-                      const selectionLimitReached = !isSelected && selectedVideoSlots.length >= 3;
+                      const isSelected = selectedSlot === slot;
 
                       return (
                         <button
                           key={slot}
+                          type="button"
+                          aria-pressed={isSelected}
                           onClick={() => {
-                            setSelectedVideoSlots((current) => {
-                              if (current.includes(slot)) {
-                                return current.filter((currentSlot) => currentSlot !== slot);
-                              }
-
-                              if (current.length >= 3) {
-                                return current;
-                              }
-
-                              return [...current, slot];
-                            });
+                            setSelectedSlot(slot);
                           }}
-                          disabled={selectionLimitReached}
                           className={`py-2 px-2 rounded-lg border transition-all text-center flex flex-col items-center gap-0.5 ${
                             isSelected
-                              ? "bg-emerald-500 text-white border-emerald-500 shadow-sm ring-2 ring-emerald-500/20"
-                              : selectionLimitReached
-                                ? "bg-slate-100/80 border-slate-200 text-slate-400 dark:bg-slate-900/60 dark:border-slate-800 dark:text-slate-500 opacity-70 cursor-not-allowed"
-                                : "bg-card border-border hover:border-primary/40 hover:bg-primary/5"
+                              ? "bg-primary text-primary-foreground border-primary shadow-md ring-2 ring-primary/30 scale-[1.01]"
+                              : "bg-card border-border hover:border-primary/40 hover:bg-primary/5"
                           }`}
                         >
                           <span className="text-xs font-semibold">{slot}</span>
-                          <span className={`text-[9px] font-medium ${isSelected ? "text-white/80" : "text-muted-foreground"}`}>
-                            {isSelected ? `Choice ${selectedVideoSlots.indexOf(slot) + 1}` : `${appointmentDurationMinutes} min`}
+                          <span className={`text-[9px] font-medium ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                            {isSelected ? `Selected ¢ ${appointmentDurationMinutes} min` : `${appointmentDurationMinutes} min`}
                           </span>
                         </button>
                       );
@@ -1922,13 +2626,18 @@ export function BookAppointmentDialog({
               <span className="text-[11px] text-muted-foreground">{liveSyncDescription}</span>
             </div>
           ) : null}
-          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full">
               <Clock className="w-3 h-3" /> {appointmentDurationMinutes} min per slot
             </span>
             <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full">
               20 slots / hour
             </span>
+            {selectedSlot ? (
+              <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full">
+                <CheckCircle className="w-3 h-3" /> {selectedSlotLabel}
+              </span>
+            ) : null}
           </div>
         </div>
 
@@ -1975,7 +2684,6 @@ export function BookAppointmentDialog({
                       key={slot}
                       onClick={() => {
                         setSelectedSlot(slot);
-                        setTimeout(goNext, 150);
                       }}
                       className={`py-2 px-2 rounded-xl border transition-all text-center flex flex-col items-center gap-0.5 ${
                         selectedSlot === slot
@@ -2012,10 +2720,8 @@ export function BookAppointmentDialog({
           { label: "Service", value: selectedService?.label, sub: selectedService?.category },
           { label: "Doctor", value: selectedDoctor?.name, sub: selectedDoctor?.specialization || "General Physician" },
           { label: "Date", value: selectedDate ? format(selectedDate, "EEEE, d MMMM yyyy") : "" },
-          consultationMode === "VIDEO"
-            ? { label: "Slots", value: `${selectedVideoSlots.length} selected`, sub: selectedVideoSlots.join(", ") }
-            : { label: "Time", value: selectedSlot },
-          { label: "Duration", value: `${appointmentDurationMinutes} min${consultationMode === "VIDEO" ? " each" : ""}` },
+          { label: "Time", value: selectedSlot },
+          { label: "Duration", value: `${appointmentDurationMinutes} min` },
         ].map(({ label, value, sub }) => (
           <div key={label} className="flex items-center justify-between px-4 py-3 gap-4">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider w-16 shrink-0">{label}</span>
@@ -2027,6 +2733,17 @@ export function BookAppointmentDialog({
         ))}
       </div>
 
+      {consultationMode === "VIDEO" && (
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-950/30 p-4">
+          <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Video Hours</p>
+          <p className="mt-1 text-xs text-slate-700 dark:text-slate-300">
+            {clinicVideoCallWindow
+              ? `This clinic accepts video appointments only between ${clinicVideoCallWindow.start} and ${clinicVideoCallWindow.end}.`
+              : "This clinic accepts video appointments only within the configured video window."}
+          </p>
+        </div>
+      )}
+
       {consultationMode === "VIDEO" && shouldCollectVideoPayment && (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30 p-4 space-y-2">
           <div className="flex items-center justify-between gap-3">
@@ -2034,7 +2751,7 @@ export function BookAppointmentDialog({
             <p className="text-lg font-bold text-foreground">INR {videoPaymentAmount.toFixed(0)}</p>
           </div>
           <p className="text-xs text-emerald-700 dark:text-emerald-300">
-            Submit the request first, then pay to unlock doctor confirmation.
+            Select your time, accept the booking terms, then pay to book the video appointment.
           </p>
         </div>
       )}
@@ -2068,10 +2785,10 @@ export function BookAppointmentDialog({
             }`}
           >
             {isSubscriptionGateLoading
-              ? "We’re checking your plan before booking this in-person appointment."
+              ? "We™re checking your plan before booking this in-person appointment."
               : needsSubscriptionPlan
               ? "You need an active plan for this clinic to continue."
-              : "We’ll verify your plan before confirming this appointment."}
+              : "We™ll verify your plan before confirming this appointment."}
           </p>
         </div>
       )}
@@ -2098,9 +2815,9 @@ export function BookAppointmentDialog({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Low">🟢 Low — Routine checkup</SelectItem>
-              <SelectItem value="Normal">🟡 Normal — Regular visit</SelectItem>
-              <SelectItem value="High">🔴 High — Urgent care needed</SelectItem>
+              <SelectItem value="Low"> Low - Routine checkup</SelectItem>
+              <SelectItem value="Normal"> Normal - Regular visit</SelectItem>
+              <SelectItem value="High"> High - Urgent care needed</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -2117,16 +2834,16 @@ export function BookAppointmentDialog({
       <div className="text-center">
         <h3 className="text-lg font-bold">
           {consultationMode === "VIDEO" && requiresVideoPayment && !videoPaymentCompleted
-            ? "Pay to Continue"
+            ? "Complete Payment"
             : consultationMode === "VIDEO"
-            ? "Video Appointment Request Sent"
+            ? "Congratulations! Appointment confirmed"
             : "Appointment Booked!"}
         </h3>
         <p className="text-sm text-muted-foreground mt-1">
           {consultationMode === "VIDEO" && requiresVideoPayment && !videoPaymentCompleted
-            ? "Your preferred slots are saved. Pay below so the doctor can review and confirm one of them."
+            ? "Your selected time is saved. Pay below to book the video appointment."
             : consultationMode === "VIDEO"
-            ? "Your 3 preferred slots were sent to the doctor. One of them will be confirmed."
+            ? "Your payment is complete and the appointment is confirmed."
             : "Your appointment has been booked successfully."}
         </p>
       </div>
@@ -2137,15 +2854,20 @@ export function BookAppointmentDialog({
             <Video className="w-4 h-4" />
             {requiresVideoPayment && !videoPaymentCompleted
               ? "Payment required"
-              : "Video Slot Proposal Submitted"}
+              : "Video Appointment Ready"}
           </div>
           <p className="text-xs text-muted-foreground text-center">
             {requiresVideoPayment && !videoPaymentCompleted
-              ? "The doctor can review your selected slots after payment is completed."
-              : "The doctor will review your selected slots and confirm one. You can track the status from your appointments page."}
+              ? "Complete payment to finish booking this appointment."
+              : "Your video appointment is booked. You can track the status from your appointments page."}
           </p>
           <div className="w-full rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 p-3 text-center text-sm text-blue-700 dark:text-blue-300">
-            Preferred slots: {selectedVideoSlots.join(", ")}
+            Selected slot: {selectedSlot || "None"}
+          </div>
+          <div className="w-full rounded-xl border border-slate-200 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-950/30 p-3 text-center text-xs text-slate-700 dark:text-slate-300">
+            {clinicVideoCallWindow
+              ? `Video hours: ${clinicVideoCallWindow.start} - ${clinicVideoCallWindow.end}`
+              : "Video hours are configured at the clinic level."}
           </div>
           {requiresVideoPayment && !videoPaymentCompleted && bookedAppointmentId ? (
             <div className="w-full rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30 p-4 space-y-3">
@@ -2157,20 +2879,53 @@ export function BookAppointmentDialog({
                   INR {videoPaymentAmount.toFixed(0)}
                 </p>
               </div>
+              <div className="rounded-xl border border-amber-200 bg-white/80 dark:border-amber-900 dark:bg-amber-950/20 p-3">
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="video-payment-policy"
+                    checked={acceptedVideoPaymentPolicy}
+                    onCheckedChange={(checked) => setAcceptedVideoPaymentPolicy(checked === true)}
+                    className="mt-0.5"
+                  />
+                  <div className="space-y-1">
+                    <Label
+                      htmlFor="video-payment-policy"
+                      className="text-sm font-semibold leading-snug text-foreground"
+                    >
+                      I accept the video appointment terms and privacy policy
+                    </Label>
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      Video appointment payments are non-refundable. If you miss the appointment, you must rebook a new slot.
+                    </p>
+                    <p className="text-[11px] leading-relaxed text-muted-foreground">
+                      Read our{" "}
+                      <Link href="/terms" prefetch={false} className="font-medium text-primary underline underline-offset-4">
+                        Terms
+                      </Link>{" "}
+                      and{" "}
+                      <Link href="/privacy" prefetch={false} className="font-medium text-primary underline underline-offset-4">
+                        Privacy Policy
+                      </Link>
+                      .
+                    </p>
+                  </div>
+                </div>
+              </div>
               <PaymentButton
                 appointmentId={bookedAppointmentId}
                 appointmentType="VIDEO_CALL"
+                clinicId={activeClinicId}
                 amount={videoPaymentAmount}
                 description={selectedService?.label || "Video consultation"}
                 className="w-full"
-                autoStart
+                disabled={!acceptedVideoPaymentPolicy}
                 onSuccess={() => {
                   setRequiresVideoPayment(false);
                   setVideoPaymentCompleted(true);
-                  onBooked?.();
+                  setAcceptedVideoPaymentPolicy(false);
                 }}
               >
-                Pay now
+                {acceptedVideoPaymentPolicy ? "Pay now" : "Accept policy to pay"}
               </PaymentButton>
             </div>
           ) : null}
@@ -2211,15 +2966,15 @@ export function BookAppointmentDialog({
             <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 p-3 text-xs text-emerald-900 dark:text-emerald-100 space-y-2">
               <div className="flex items-start gap-2">
                 <span className="mt-0.5 font-bold">1.</span>
-                <span>Submit the request with your preferred slots.</span>
+                <span>Select your time and continue to payment.</span>
               </div>
               <div className="flex items-start gap-2">
                 <span className="mt-0.5 font-bold">2.</span>
-                <span>Complete payment for this video appointment.</span>
+                <span>Complete payment to book the appointment.</span>
               </div>
               <div className="flex items-start gap-2">
                 <span className="mt-0.5 font-bold">3.</span>
-                <span>The doctor can then confirm one of your proposed slots.</span>
+                <span>The appointment is booked automatically after payment.</span>
               </div>
             </div>
           )}
@@ -2232,7 +2987,7 @@ export function BookAppointmentDialog({
           selectedService?.label,
           selectedDoctor?.name,
           selectedDate ? format(selectedDate, "d MMM") : "",
-          consultationMode === "VIDEO" ? `${selectedVideoSlots.length} video slots` : selectedSlot,
+          selectedSlot,
         ].map((v, i) => v ? (
           <span key={i} className="px-3 py-1 bg-primary/10 text-primary text-xs font-semibold rounded-full">
             {v}
@@ -2245,7 +3000,7 @@ export function BookAppointmentDialog({
           <Button
             className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 text-white font-semibold shadow-glow-subtle transition-all active:scale-95"
             onClick={() => {
-              setOpen(false);
+              handleOpenChange(false);
               if (pathname !== patientCheckInRoute) {
                 router.push(patientCheckInRoute);
               }
@@ -2264,7 +3019,7 @@ export function BookAppointmentDialog({
                 : "bg-primary hover:bg-primary/90 text-white shadow-glow-subtle hover:shadow-glow-medium"
             }`}
             onClick={() => {
-              setOpen(false);
+              handleOpenChange(false);
               if (pathname !== postBookingRoute) {
                 router.push(postBookingRoute);
               }
@@ -2277,40 +3032,58 @@ export function BookAppointmentDialog({
     </div>
   );
 
-  // ─── Main render ──────────────────────────────────────────────────────────
+  // ””” Main render ””””””””””””””””””””””””””””””””””””””””””””””””””””””””””
 
-  const stepContent = [
-    renderStep1,        // 1: Location + Mode
-    renderStep2_Service, // 2: Service
-    renderStep2,        // 3: Doctor
-    renderStep3,        // 4: Date
-    renderStep4,        // 5: Slot
-    renderStep5,        // 6: Confirm
-    renderStep6,        // 7: Success + QR
-  ][step - 1];
-
-  const stepTitle = [
-    "Location & Mode",
-    "Select Service",
-    "Select Doctor",
-    "Select Date",
-    "Select Time Slot",
-    "Confirm Appointment",
-    consultationMode === "VIDEO" && requiresVideoPayment && !videoPaymentCompleted
-      ? "Complete Payment"
-      : "Booking Complete! 🎉",
-  ][step - 1];
+  const stepContent = useMemo(() => {
+    switch (currentStepId) {
+      case "mode":
+        return <AppointmentStepWrapper className="min-h-full">{renderStep1()}</AppointmentStepWrapper>;
+      case "service":
+        return <AppointmentStepWrapper className="min-h-full">{renderStep2_Service()}</AppointmentStepWrapper>;
+      case "doctor":
+        return <AppointmentStepWrapper className="min-h-full">{renderStep2()}</AppointmentStepWrapper>;
+      case "date":
+        return <AppointmentStepWrapper className="min-h-full">{renderStep3()}</AppointmentStepWrapper>;
+      case "slot":
+        return <AppointmentStepWrapper className="min-h-full">{renderStep4()}</AppointmentStepWrapper>;
+      case "confirm":
+        return <AppointmentStepWrapper className="min-h-full">{renderStep5()}</AppointmentStepWrapper>;
+      case "success":
+      default:
+        return <AppointmentStepWrapper className="min-h-full">{renderStep6()}</AppointmentStepWrapper>;
+    }
+  }, [
+    activeSteps.length,
+    availability,
+    availabilityError,
+    bookedAppointmentId,
+    consultationMode,
+    currentStepId,
+    doctorsLoading,
+    locationsLoading,
+    requiresVideoPayment,
+    selectedDate,
+    selectedDoctorId,
+    selectedLocationId,
+    selectedServiceId,
+    selectedSlot,
+    servicesLoading,
+    showAvailabilityLoader,
+    videoPaymentCompleted,
+  ]);
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button className="flex items-center gap-2 rounded-xl border-0 bg-emerald-600 px-6 py-6 font-semibold text-white shadow-glow-subtle transition-all hover:bg-emerald-700 hover:shadow-glow-medium transform hover:-translate-y-0.5 active:scale-95 focus-visible:ring-2 focus-visible:ring-emerald-500/30">
-            <Plus className="w-5 h-5" />
-            Book Appointment
-          </Button>
-        )}
-      </DialogTrigger>
+    <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
+      {!hideTrigger && (
+        <DialogTrigger asChild>
+          {trigger || (
+            <Button className="flex items-center gap-2 rounded-xl border-0 bg-emerald-600 px-6 py-6 font-semibold text-white shadow-glow-subtle transition-all hover:bg-emerald-700 hover:shadow-glow-medium transform hover:-translate-y-0.5 active:scale-95 focus-visible:ring-2 focus-visible:ring-emerald-500/30">
+              <Plus className="w-5 h-5" />
+              Book Appointment
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
 
       <DialogContent className="
         top-0 left-0 h-[100dvh] w-[100vw] max-w-none translate-x-0 translate-y-0
@@ -2324,12 +3097,12 @@ export function BookAppointmentDialog({
           <DialogHeader className="text-left w-full min-w-0">
             <DialogTitle className="text-base sm:text-lg font-bold truncate">{stepTitle}</DialogTitle>
             <DialogDescription className="sr-only">
-              Book an in-person or video appointment by selecting location, service, doctor, date, and slot.
+              Book an in-person or video appointment by selecting location, service, doctor, date, and time.
             </DialogDescription>
           </DialogHeader>
 
-          {/* Step bar — hide on success screen */}
-          {step < 7 && (
+          {/* Step bar ” hide on success screen */}
+          {!isSuccessStep && (
             <div className="mt-3 overflow-x-auto">
               {renderStepBar()}
             </div>
@@ -2338,22 +3111,33 @@ export function BookAppointmentDialog({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-4">
-          {stepContent?.()}
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={currentStepId}
+              initial={{ opacity: 0, x: stepDirection === "forward" ? 20 : -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: stepDirection === "forward" ? -20 : 20 }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
+              className="h-full"
+            >
+              {stepContent}
+            </motion.div>
+          </AnimatePresence>
         </div>
 
-        {/* Footer — hide on success screen */}
-        {step < 7 && (
+        {/* Footer ” hide on success screen */}
+        {!isSuccessStep && (
           <div className="px-4 sm:px-6 py-4 border-t bg-background flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:gap-4 shrink-0">
             <Button
               variant="outline"
-              onClick={step > 1 ? goBack : () => setOpen(false)}
+              onClick={step > 1 ? goBack : () => handleOpenChange(false)}
               className="h-11 w-full px-6 rounded-xl border-border/50 transition-all active:scale-95 gap-2 sm:w-auto"
             >
               <ChevronLeft className="w-4 h-4" /> {step > 1 ? "Back" : "Cancel"}
             </Button>
             <div className="hidden flex-1 sm:block" />
 
-            {step < 6 ? (
+            {currentStepId !== "confirm" ? (
               <Button
                 onClick={goNext}
                 disabled={!canNext}
@@ -2366,15 +3150,15 @@ export function BookAppointmentDialog({
                 onClick={handleBook}
                 disabled={
                   consultationMode === "VIDEO"
-                    ? isProposingVideoAppointment
+                    ? isBooking
                     : isCreatingInPersonAppointment || isSubscriptionGateLoading
                 }
                 className="h-11 w-full px-8 rounded-xl font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2 sm:w-auto"
               >
-                {(consultationMode === "VIDEO" ? isProposingVideoAppointment : isCreatingInPersonAppointment || isSubscriptionGateLoading) ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> {consultationMode === "VIDEO" ? "Preparing request..." : "Checking plan..."}</>
+                {(consultationMode === "VIDEO" ? isBooking : isCreatingInPersonAppointment || isSubscriptionGateLoading) ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> {consultationMode === "VIDEO" ? "Preparing Cashfree checkout..." : "Checking plan..."}</>
                 ) : (
-                  <><Check className="w-4 h-4" /> {consultationMode === "VIDEO" ? (shouldCollectVideoPayment ? `Send request • Pay INR ${videoPaymentAmount.toFixed(0)}` : "Send video request") : needsSubscriptionPlan ? "Choose plan to continue" : "Confirm & Book"}</>
+                  <><Check className="w-4 h-4" /> {consultationMode === "VIDEO" ? (shouldCollectVideoPayment ? `Create appointment and pay INR ${videoPaymentAmount.toFixed(0)}` : "Book video appointment") : needsSubscriptionPlan ? "Choose plan to continue" : "Confirm & Book"}</>
                 )}
               </Button>
             )}

@@ -156,25 +156,13 @@ function mergeRealtimeAppointmentPayload(payload: unknown, appointment: Appointm
       return item;
     }
 
-    return {
+      return {
       ...itemRecord,
       ...appointment,
       id: (appointment as any).id || itemRecord.id,
       appointmentId: (appointment as any).appointmentId || itemRecord.appointmentId || itemRecord.id,
       status: (appointment as any).status || itemRecord.status,
       rawStatus: (appointment as any).rawStatus || (appointment as any).status || itemRecord.rawStatus || itemRecord.status,
-      confirmedSlotIndex:
-        (appointment as any).confirmedSlotIndex ??
-        (appointment as any).confirmed_slot_index ??
-        itemRecord.confirmedSlotIndex ??
-        itemRecord.confirmed_slot_index ??
-        null,
-      confirmed_slot_index:
-        (appointment as any).confirmed_slot_index ??
-        (appointment as any).confirmedSlotIndex ??
-        itemRecord.confirmed_slot_index ??
-        itemRecord.confirmedSlotIndex ??
-        null,
       updatedAt: (appointment as any).updatedAt || (appointment as any).updated_at || itemRecord.updatedAt || nowIso(),
     };
   };
@@ -737,6 +725,8 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         'billing.invoice.paid',
         'billing.invoice.pdf_generated',
         'billing.invoice.sent_whatsapp',
+        'billing.appointment.booked',
+        'billing.appointment.cancelled',
         'billing.payment.created',
         'billing.payment.updated',
         'billing.payout.pending',
@@ -1069,7 +1059,10 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
       addNotification(notification);
     });
 
-    unsubscribeCallbacks.push(unsubscribeNotification, unsubscribeSystemUpdate);
+    unsubscribeCallbacks.push(
+      unsubscribeNotification,
+      unsubscribeSystemUpdate
+    );
 
     // Store unsubscribe callbacks
     subscriptionsRef.current = unsubscribeCallbacks;

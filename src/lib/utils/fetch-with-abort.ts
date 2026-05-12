@@ -97,7 +97,16 @@ export async function fetchWithAbort(
   } catch (error) {
     clearTimeout(timeoutId);
 
-    if (error instanceof Error && error.name === 'AbortError') {
+    const errorLike = error as { name?: unknown; cause?: { name?: unknown; message?: unknown } } | null;
+    const causeName = errorLike?.cause?.name;
+    const causeMessage = typeof errorLike?.cause?.message === 'string' ? errorLike.cause.message : '';
+
+    if (
+      controller.signal.aborted ||
+      (error instanceof Error && error.name === 'AbortError') ||
+      causeName === 'AbortError' ||
+      /abort|timed out/i.test(causeMessage)
+    ) {
       throw new TimeoutError(`Request to ${url} timed out after ${timeout}ms`);
     }
 

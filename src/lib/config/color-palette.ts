@@ -34,14 +34,14 @@ export interface VideoTileTone {
 }
 
 const AVATAR_TONE_PALETTE: readonly AvatarTone[] = [
-  { backgroundClass: "bg-[#4285F4]", textClass: "text-white" },
-  { backgroundClass: "bg-[#EA4335]", textClass: "text-white" },
-  { backgroundClass: "bg-[#34A853]", textClass: "text-white" },
-  { backgroundClass: "bg-[#FBBC04]", textClass: "text-meet-black" },
-  { backgroundClass: "bg-[#8AB4F8]", textClass: "text-meet-black" },
-  { backgroundClass: "bg-[#A142F4]", textClass: "text-white" },
-  { backgroundClass: "bg-[#00ACC1]", textClass: "text-white" },
-  { backgroundClass: "bg-[#F06292]", textClass: "text-white" },
+  { backgroundClass: "bg-[#E3F2FD]", textClass: "text-[#1565C0]" }, // Light Blue
+  { backgroundClass: "bg-[#FCE4EC]", textClass: "text-[#C2185B]" }, // Light Pink
+  { backgroundClass: "bg-[#E8F5E9]", textClass: "text-[#2E7D32]" }, // Light Green
+  { backgroundClass: "bg-[#FFFDE7]", textClass: "text-[#FBC02D]" }, // Light Yellow
+  { backgroundClass: "bg-[#F3E5F5]", textClass: "text-[#7B1FA2]" }, // Light Purple
+  { backgroundClass: "bg-[#E0F7FA]", textClass: "text-[#00838F]" }, // Light Cyan
+  { backgroundClass: "bg-[#FFF3E0]", textClass: "text-[#E65100]" }, // Light Orange
+  { backgroundClass: "bg-[#F1F3F4]", textClass: "text-[#5F6368]" }, // Google Meet Style Grey
 ] as const;
 
 function hashSeed(seed: string) {

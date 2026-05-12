@@ -22,6 +22,7 @@ import {
   verifyPaymentCallback,
 } from "@/lib/actions/billing.server";
 import { getClinicId } from "@/lib/utils/token-manager";
+import { syncAppointmentInCache } from "@/lib/utils/appointment-cache";
 
 const BILLING_QUERY_KEYS = [
   ["invoices"],
@@ -34,6 +35,9 @@ const BILLING_QUERY_KEYS = [
   ["clinic-ledger"],
   ["billing-analytics"],
 ] as const;
+
+const CASHFREE_LOAD_TIMEOUT_MS = 10000;
+const CASHFREE_CHECKOUT_TIMEOUT_MS = 15000;
 
 interface PaymentButtonProps {
   invoiceId?: string;
@@ -48,6 +52,7 @@ interface PaymentButtonProps {
   /** Optional: force provider (cashfree only). */
   provider?: PaymentProvider;
   autoStart?: boolean;
+  disabled?: boolean;
   onSuccess?: (paymentId: string) => void;
   onError?: (error: string) => void;
   className?: string;
@@ -66,6 +71,7 @@ export function PaymentButton({
   provider,
   appointmentType,
   autoStart = false,
+  disabled = false,
   onSuccess,
   onError,
   className,
@@ -190,6 +196,19 @@ export function PaymentButton({
       paymentId: orderId,
       clinicId: resolvedClinicId,
     });
+    if (appointmentId) {
+      syncAppointmentInCache(queryClient, { id: appointmentId, status: "CONFIRMED" }, {
+        appointmentStatus: "CONFIRMED",
+        queryKeys: [
+          ["myAppointments"],
+          ["appointments"],
+          ["userUpcomingAppointments"],
+          ["appointment", appointmentId],
+          ["video-appointments"],
+          ["video-appointment", appointmentId],
+        ],
+      });
+    }
     invalidateSuccessfulPaymentQueries();
     showSuccessToast("Payment verified.", {
       id: TOAST_IDS.PAYMENT.SUCCESS,
@@ -197,21 +216,72 @@ export function PaymentButton({
     onSuccess?.(orderId);
   };
 
+  const resolveCashfreeCheckoutUrl = (paymentIntent: Record<string, unknown>, metadata: Record<string, unknown>) => {
+    const providerResponse = (paymentIntent?.providerResponse as Record<string, unknown>) || {};
+    const providerResponseMeta =
+      (providerResponse?.order_meta as Record<string, unknown>) ||
+      (providerResponse?.orderMeta as Record<string, unknown>) ||
+      {};
+
+    return (
+      (paymentIntent?.paymentLink as string) ||
+      (providerResponse?.payment_link as string) ||
+      (providerResponse?.paymentLink as string) ||
+      (providerResponseMeta?.payment_link as string) ||
+      (metadata?.paymentLink as string) ||
+      ""
+    );
+  };
+
+  const withTimeout = async <T,>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    timeoutMessage: string
+  ): Promise<T> => {
+    let timeoutId: number | undefined;
+    try {
+      return await Promise.race([
+        promise,
+        new Promise<T>((_, reject) => {
+          timeoutId = window.setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+        }),
+      ]);
+    } finally {
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
+      }
+    }
+  };
+
   const handleCashfreePayment = async (
     paymentIntent: Record<string, unknown>,
     usedProvider: PaymentProvider
   ) => {
     const metadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
+    const providerResponse = (paymentIntent?.providerResponse as Record<string, unknown>) || {};
+    const providerResponseMeta =
+      (providerResponse?.order_meta as Record<string, unknown>) ||
+      (providerResponse?.orderMeta as Record<string, unknown>) ||
+      {};
+    const checkoutUrl = resolveCashfreeCheckoutUrl(paymentIntent, metadata);
     const orderId =
       (paymentIntent?.orderId as string) ||
       (paymentIntent?.paymentId as string) ||
-      (paymentIntent?.id as string);
+      (paymentIntent?.id as string) ||
+      (providerResponse?.order_id as string) ||
+      (providerResponse?.orderId as string) ||
+      (metadata?.orderId as string) ||
+      (providerResponseMeta?.order_id as string);
     const paymentSessionId =
       (paymentIntent?.paymentSessionId as string) ||
-      (metadata?.paymentSessionId as string);
+      (metadata?.paymentSessionId as string) ||
+      (providerResponse?.payment_session_id as string) ||
+      (providerResponse?.paymentSessionId as string);
     const redirectUrl =
       (paymentIntent?.redirectUrl as string) ||
-      (metadata?.redirectUrl as string);
+      (metadata?.redirectUrl as string) ||
+      (providerResponseMeta?.payment_link as string) ||
+      (providerResponse?.payment_link as string);
     const resolvedClinicId =
       clinicId ||
       (paymentIntent?.clinicId as string) ||
@@ -227,49 +297,50 @@ export function PaymentButton({
       throw new Error("Clinic context is required for payment verification");
     }
 
+    console.info("[PaymentButton] Cashfree checkout diagnostics", {
+      usedProvider,
+      cashfreeMode,
+      orderId,
+      hasPaymentSessionId: Boolean(paymentSessionId),
+      hasCheckoutUrl: Boolean(checkoutUrl),
+      hasRedirectUrl: Boolean(redirectUrl),
+      resolvedClinicId,
+    });
+
     try {
-      const cashfree = await load({
-        mode: cashfreeMode,
-      });
+      const cashfree = await withTimeout(
+        load({
+          mode: cashfreeMode,
+        }),
+        CASHFREE_LOAD_TIMEOUT_MS,
+        `Cashfree SDK load timed out in ${cashfreeMode} mode`
+      );
 
       if (!cashfree) {
-        if (redirectUrl) {
-          window.location.href = redirectUrl;
+        if (checkoutUrl) {
+          window.location.href = checkoutUrl;
           return;
         }
-        throw new Error("Cashfree SDK is not available");
+        throw new Error(`Cashfree SDK is not available in ${cashfreeMode} mode`);
       }
 
       if (!paymentSessionId) {
-        if (redirectUrl) {
-          window.location.href = redirectUrl;
+        if (checkoutUrl) {
+          window.location.href = checkoutUrl;
           return;
         }
-        throw new Error("Cashfree payment session is missing");
+        throw new Error("Cashfree payment session is missing and no hosted checkout link was returned");
       }
 
-      let fallbackRedirectTriggered = false;
-      const checkoutFallbackTimer =
-        redirectUrl
-          ? window.setTimeout(() => {
-              fallbackRedirectTriggered = true;
-              window.location.href = redirectUrl;
-            }, 1800)
-          : null;
-
-      const result = await cashfree.checkout({
-        paymentSessionId,
-        orderId,
-        redirectTarget: "_self",
-      });
-
-      if (checkoutFallbackTimer !== null) {
-        window.clearTimeout(checkoutFallbackTimer);
-      }
-
-      if (fallbackRedirectTriggered) {
-        return;
-      }
+      const result = await withTimeout(
+        cashfree.checkout({
+          paymentSessionId,
+          orderId,
+          redirectTarget: "_self",
+        }),
+        CASHFREE_CHECKOUT_TIMEOUT_MS,
+        "Cashfree checkout timed out"
+      );
 
       if (result?.error?.message) {
         throw new Error(result.error.message);
@@ -277,26 +348,41 @@ export function PaymentButton({
 
       if (result?.redirectUrl) {
         window.location.href = result.redirectUrl;
-      } else if (result?.redirect) {
         return;
-      } else {
-        await finalizeSuccessfulPayment(usedProvider, orderId, resolvedClinicId);
       }
-    } catch (error) {
-      try {
-        if (redirectUrl) {
-          window.location.href = redirectUrl;
-          return;
-        }
 
-        await finalizeSuccessfulPayment(usedProvider, orderId, resolvedClinicId);
-      } catch {
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Payment was not completed. Please try again.";
-        showErrorToast(message, { id: TOAST_IDS.PAYMENT.ERROR });
-        onError?.(message);
+      if (result?.redirect) {
+        return;
+      }
+
+      if (checkoutUrl) {
+        window.location.href = checkoutUrl;
+        return;
+      }
+
+      await finalizeSuccessfulPayment(usedProvider, orderId, resolvedClinicId);
+      return;
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Payment was not completed. Please try again.";
+
+      console.error("[PaymentButton] Cashfree checkout failed", {
+        error: message,
+        orderId,
+        checkoutUrl,
+        redirectUrl,
+        cashfreeMode,
+        usedProvider,
+      });
+
+      showErrorToast(message, { id: TOAST_IDS.PAYMENT.ERROR });
+      onError?.(message);
+
+      if (checkoutUrl) {
+        window.location.href = checkoutUrl;
+        return;
       }
     } finally {
       setIsProcessing(false);
@@ -335,19 +421,19 @@ export function PaymentButton({
   };
 
   useEffect(() => {
-    if (!autoStart || hasAutoStartedRef.current || isProcessing) {
+    if (!autoStart || disabled || hasAutoStartedRef.current || isProcessing) {
       return;
     }
 
     hasAutoStartedRef.current = true;
     void handlePayment();
-  }, [autoStart, isProcessing]);
+  }, [autoStart, disabled, isProcessing]);
 
   return (
     <Button
       type="button"
       onClick={handlePayment}
-      disabled={isProcessing}
+      disabled={isProcessing || disabled}
       className={className}
     >
       {isProcessing ? (

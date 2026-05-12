@@ -74,6 +74,7 @@ export const TOAST_IDS = {
     END: 'video-end',
     ERROR: 'video-error',
     PERMISSION: 'video-permission',
+    PROVIDER_SETTINGS: 'video-provider-settings',
   },
   PAYMENT: {
     SUCCESS: 'payment-success',
