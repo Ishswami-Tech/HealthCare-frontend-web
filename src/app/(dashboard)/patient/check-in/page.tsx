@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, Info, Loader2, QrCode, Clock, Stethoscope } from "lucide-react";
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { useMyAppointments } from "@/hooks/query/useAppointments";
 import {
   DashboardPageHeader as PatientPageHeader,
   DashboardPageShell as PatientPageShell,
@@ -35,6 +36,7 @@ import {
 } from "@/hooks/query/useAppointments";
 import { formatTimeInIST } from "@/lib/utils/date-time";
 import { theme } from "@/lib/utils/theme-utils";
+import { normalizeAppointmentStatus } from "@/lib/utils/appointmentUtils";
 
 type CheckInCoordinates = { lat: number; lng: number };
 
@@ -62,6 +64,7 @@ function getCurrentCoordinates(): Promise<CheckInCoordinates> {
 
 export default function PatientCheckInPage() {
   const router = useRouter();
+  const { data: appointmentsData, isPending: isAppointmentsPending } = useMyAppointments();
   const [isProcessing, setIsProcessing] = useState(false);
   const [successData, setSuccessData] = useState<QrCheckInAppointment | null>(null);
   const [manualCode, setManualCode] = useState("");
@@ -70,6 +73,24 @@ export default function PatientCheckInPage() {
   const [pendingCoordinates, setPendingCoordinates] = useState<CheckInCoordinates | null>(null);
   const [selectingAppointment, setSelectingAppointment] = useState(false);
   const scanLocationQrAndCheckInMutation = useScanLocationQrAndCheckIn();
+  const hasEligibleAppointment = useMemo(() => {
+    const appointments = Array.isArray((appointmentsData as any)?.appointments)
+      ? (appointmentsData as any).appointments
+      : Array.isArray(appointmentsData)
+        ? appointmentsData
+        : [];
+
+    return appointments.some((appointment: any) => {
+      const status = normalizeAppointmentStatus(appointment?.status);
+      const type = String(appointment?.type || appointment?.appointmentType || "").toUpperCase();
+      return (
+        type === "IN_PERSON" &&
+        status !== "CANCELLED" &&
+        status !== "COMPLETED" &&
+        status !== "NO_SHOW"
+      );
+    });
+  }, [appointmentsData]);
 
   const handleManualCheckIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -225,6 +246,37 @@ export default function PatientCheckInPage() {
           </Button>
         </motion.div>
       </div>
+    );
+  }
+
+  if (!isAppointmentsPending && !hasEligibleAppointment) {
+    return (
+      <DashboardLayout title="Location Check-In">
+        <PatientPageShell className="max-w-xl mx-auto">
+          <PatientPageHeader
+            eyebrow="LOCATION CHECK-IN"
+            title="Book an appointment first"
+            description="You can only scan the clinic QR after you have a valid appointment."
+          />
+
+          <div className="rounded-2xl border bg-card p-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <Info className={`mt-0.5 h-5 w-5 ${theme.iconColors.blue}`} />
+              <div className="space-y-2">
+                <p className="text-sm font-medium">
+                  No eligible appointment is available for check-in right now.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Please book an appointment first. Once you arrive at the clinic, you can open this page again to scan the QR code.
+                </p>
+                <Button onClick={() => router.push("/patient/appointments?openBooking=1")}>
+                  Book appointment
+                </Button>
+              </div>
+            </div>
+          </div>
+        </PatientPageShell>
+      </DashboardLayout>
     );
   }
 

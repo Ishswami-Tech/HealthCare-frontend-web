@@ -20,8 +20,8 @@ export default function AssistantDoctorAppointmentsPage() {
         },
         {
           label: "Open video consultations",
-          href: "/video-appointments",
-          description: "Check video visits and join the consultation room from one place.",
+          href: "/assistant-doctor/appointments",
+          description: "Check video visits and join the consultation room from the appointments workspace.",
         },
       ]}
     />

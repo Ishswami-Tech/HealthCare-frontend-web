@@ -20,8 +20,8 @@ export default function AssistantDoctorProfilePage() {
         },
         {
           label: "Open video consultations",
-          href: "/video-appointments",
-          description: "Check the video visit list when availability affects consultations.",
+          href: "/assistant-doctor/appointments",
+          description: "Check the appointments workspace when availability affects consultations.",
         },
       ]}
     />

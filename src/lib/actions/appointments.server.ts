@@ -30,10 +30,8 @@ import {
   createAppointmentSchema, 
   updateAppointmentSchema, 
   completeAppointmentSchema, 
-  proposeVideoSlotsSchema,
   updateAppointmentStatusSchema,
   rescheduleAppointmentSchema,
-  confirmVideoFinalSlotSchema,
   rejectVideoProposalSchema
 } from '@/lib/schema/appointments.schema';
 
@@ -189,7 +187,7 @@ export async function startConsultation(
     revalidatePath(`/dashboard/appointments/${id}`);
     revalidatePath('/doctor/dashboard');
     revalidatePath('/doctor/appointments');
-    revalidatePath('/doctor/video');
+    revalidatePath('/doctor/appointments');
     revalidatePath('/patient/appointments');
     revalidateCache('appointments');
     revalidateCache('myAppointments');
@@ -281,6 +279,9 @@ export async function cancelAppointment(id: string, reason?: string) {
 
     await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.DELETE(id), {
       method: 'DELETE',
+      body: JSON.stringify({
+        reason: reason || 'Cancelled by user',
+      }),
     });
 
     const { ipAddress, userAgent } = await getClientInfo();
@@ -336,15 +337,37 @@ export async function createAppointment(data: CreateAppointmentData): Promise<{
     const payload = {
       ...restPayload,
       appointmentDate,
-      // Prefer explicit clinic selection from booking flow, then session clinic fallback.
       clinicId: validatedData.clinicId || session.user.clinicId || APP_CONFIG.CLINIC.ID,
     };
 
-    const { data: appointment } = await authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.CREATE, {
+    const { data: response } = await authenticatedApi<{
+      success?: boolean;
+      data?: Appointment;
+      appointment?: Appointment;
+      message?: string;
+      error?: string;
+      code?: string;
+    }>(API_ENDPOINTS.APPOINTMENTS.CREATE, {
       method: 'POST',
       body: JSON.stringify(payload),
       ...(payload.clinicId ? { headers: { 'X-Clinic-ID': payload.clinicId } } : {}),
     });
+
+    const appointment = (response?.data || response?.appointment || response) as Appointment | undefined;
+    if (!response || response.success === false) {
+      const errorResult: { success: false; error: string; code?: string } = {
+        success: false,
+        error: response?.message || response?.error || 'Failed to create appointment',
+      };
+      if (response?.code) {
+        errorResult.code = response.code;
+      }
+      return errorResult;
+    }
+
+    if (!appointment || typeof appointment !== 'object') {
+      return { success: false, error: 'No appointment returned' };
+    }
 
     const { ipAddress, userAgent } = await getClientInfo();
     await auditLog({
@@ -1188,86 +1211,3 @@ export async function getUserUpcomingAppointments() {
   }
 }
 
-// ===== VIDEO APPOINTMENT SCHEDULING =====
-
-/**
- * Propose video appointment
- */
-export async function proposeVideoAppointment(data: any) {
-  try {
-    const validatedData = proposeVideoSlotsSchema.parse(data);
-    const { data: appointment } = await authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.VIDEO_PROPOSE, {
-      method: 'POST',
-      body: JSON.stringify(validatedData),
-      ...(validatedData.clinicId ? { headers: { 'X-Clinic-ID': validatedData.clinicId } } : {}),
-    });
-    revalidateCache('appointments');
-    revalidateCache('video-appointments');
-    return { success: true, appointment };
-  } catch (error) {
-    logger.error('Failed to propose video appointment', error instanceof Error ? error : new Error(String(error)));
-    return { success: false, error: error instanceof Error ? error.message : 'Failed to propose video appointment' };
-  }
-}
-
-/**
- * Confirm video slot
- */
-export async function confirmVideoSlot(appointmentId: string, confirmedSlotIndex: number) {
-  try {
-    const { data: appointment } = await authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.VIDEO_CONFIRM_SLOT(appointmentId), {
-      method: 'POST',
-      body: JSON.stringify({ confirmedSlotIndex })
-    });
-    revalidateCache('appointments');
-    revalidateCache('video-appointments');
-    revalidateCache('myAppointments');
-    revalidatePath('/patient/dashboard');
-    revalidatePath('/patient/appointments');
-    revalidatePath('/doctor/video');
-    return { success: true, appointment };
-  } catch (error) {
-    logger.error('Failed to confirm video slot', error instanceof Error ? error : new Error(String(error)));
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to confirm video slot',
-    };
-  }
-}
-
-/**
- * Confirm final video slot
- */
-export async function confirmFinalVideoSlot(
-  appointmentId: string,
-  data: {
-    confirmedSlotIndex?: number;
-    date?: string;
-    time?: string;
-    reason?: string;
-  }
-) {
-  try {
-    const validatedData = confirmVideoFinalSlotSchema.parse(data);
-    const { data: appointment } = await authenticatedApi<Appointment>(
-      API_ENDPOINTS.APPOINTMENTS.VIDEO_CONFIRM_FINAL_SLOT(appointmentId),
-      {
-        method: 'POST',
-        body: JSON.stringify(validatedData),
-      }
-    );
-    revalidateCache('appointments');
-    revalidateCache('video-appointments');
-    revalidateCache('myAppointments');
-    revalidatePath('/doctor/video');
-    revalidatePath('/patient/dashboard');
-    revalidatePath('/patient/appointments');
-    return { success: true, appointment };
-  } catch (error) {
-    logger.error('Failed to confirm final video slot', error instanceof Error ? error : new Error(String(error)));
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to confirm final video slot',
-    };
-  }
-}

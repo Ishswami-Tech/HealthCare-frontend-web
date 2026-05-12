@@ -9,6 +9,7 @@ import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useDoctors } from "@/hooks/query/useDoctors";
 import { useAssistantDoctorCoverage } from "@/hooks/query/useAppointments";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { ShieldCheck, Users, Activity, ArrowRight } from "lucide-react";
 
 type DoctorListItem = {
@@ -23,6 +24,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 export default function AssistantDoctorCoveragePage() {
   const router = useRouter();
   const { session } = useAuth();
+  useWebSocketQuerySync();
   const user = session?.user;
   const clinicId = user?.clinicId || "";
   const userId = user?.id || "";

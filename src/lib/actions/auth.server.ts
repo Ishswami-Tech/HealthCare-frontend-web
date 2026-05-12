@@ -23,6 +23,7 @@ import { isApiError } from '@/lib/utils/error-handler';
 import { fetchWithAbort } from '@/lib/utils/fetch-with-abort';
 import { revalidateTag } from 'next/cache';
 import { clinicApiClient } from '@/lib/api/client';
+import { normalizeClinicId } from '@/lib/utils/clinic-id';
 
 export async function revalidateCache(tag: string) {
   try {
@@ -53,27 +54,18 @@ if ((APP_CONFIG.IS_DEVELOPMENT || APP_CONFIG.FEATURES.DEBUG) && !hasLoggedEnviro
 
 async function checkApiConnection(): Promise<boolean> {
   try {
-    const endpoints = ['/health', '/health/api-health', '/health/api', '/'];
+    const healthBaseUrl = APP_CONFIG.API.HEALTH_BASE_URL || API_URL;
+    const endpoint = '/health';
+    const response = await fetchWithAbort(`${healthBaseUrl}${endpoint}`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+      cache: 'no-store',
+      timeout: 5000,
+    });
 
-    for (const endpoint of endpoints) {
-      try {
-        const response = await fetchWithAbort(`${API_URL}${endpoint}`, {
-          method: 'GET',
-          headers: { 'Accept': 'application/json' },
-          cache: 'no-store',
-          timeout: 3000,
-        });
-
-        if (response.ok) {
-          logger.info(`API connection successful via ${endpoint}`, { endpoint });
-          return true;
-        }
-      } catch (endpointError: unknown) {
-        logger.warn(`Failed to connect to ${endpoint}`, { 
-          endpoint, 
-          error: endpointError instanceof Error ? endpointError.message : String(endpointError) 
-        });
-      }
+    if (response.ok) {
+      logger.info('API connection successful via /health', { endpoint });
+      return true;
     }
 
     if (APP_CONFIG.IS_DEVELOPMENT) {
@@ -178,6 +170,134 @@ function resolveProfileComplete(userData: Record<string, unknown> | undefined): 
     return !userData.requiresProfileCompletion;
   }
   return calculateProfileCompletion(userData as any);
+}
+
+function resolveProfileCompleteFromPayload(
+  payload: Record<string, unknown> | null | undefined
+): boolean | undefined {
+  if (!payload) {
+    return undefined;
+  }
+
+  if (typeof payload['profileComplete'] === 'boolean') {
+    return payload['profileComplete'] as boolean;
+  }
+
+  if (typeof payload['isProfileComplete'] === 'boolean') {
+    return payload['isProfileComplete'] as boolean;
+  }
+
+  if (typeof payload['requiresProfileCompletion'] === 'boolean') {
+    return !(payload['requiresProfileCompletion'] as boolean);
+  }
+
+  const nestedUser = payload['user'];
+  if (nestedUser && typeof nestedUser === 'object') {
+    return resolveProfileComplete(nestedUser as Record<string, unknown>);
+  }
+
+  return undefined;
+}
+
+async function fetchAuthoritativeProfileComplete(
+  accessToken: string,
+  sessionId?: string
+): Promise<boolean | undefined> {
+  try {
+    const response = await fetchWithAbort(`${API_URL}/profile/completion/status`, {
+      method: 'GET',
+      cache: 'no-store',
+      timeout: 3000,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        ...(sessionId ? { 'X-Session-ID': sessionId } : {}),
+      },
+    });
+
+    if (!response.ok) return undefined;
+
+    const payload = (await response.json()) as {
+      isComplete?: boolean;
+      data?: { isComplete?: boolean };
+    };
+
+    if (typeof payload.isComplete === 'boolean') return payload.isComplete;
+    if (typeof payload.data?.isComplete === 'boolean') return payload.data.isComplete;
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function extractSessionIdFromToken(token: string): string | undefined {
+  const payload = parseJwtPayload(token);
+  if (!payload) {
+    return undefined;
+  }
+
+  const directSessionId = payload['sessionId'];
+  if (typeof directSessionId === 'string' && directSessionId.trim()) {
+    return directSessionId;
+  }
+
+  const legacySessionId = payload['session_id'];
+  if (typeof legacySessionId === 'string' && legacySessionId.trim()) {
+    return legacySessionId;
+  }
+
+  const subject = payload['sub'];
+  if (typeof subject === 'string' && subject.trim()) {
+    return subject;
+  }
+
+  return undefined;
+}
+
+function extractNamePartsFromPayload(
+  payload: Record<string, unknown> | null | undefined
+): { firstName: string; lastName: string; name: string } {
+  const empty = { firstName: '', lastName: '', name: '' };
+  if (!payload) {
+    return empty;
+  }
+
+  const firstNameCandidates = [
+    payload['firstName'],
+    payload['given_name'],
+    payload['givenName'],
+  ];
+  const lastNameCandidates = [
+    payload['lastName'],
+    payload['family_name'],
+    payload['familyName'],
+  ];
+  const nameCandidates = [payload['name'], payload['fullName']];
+
+  let firstName =
+    firstNameCandidates.find(
+      (value): value is string => typeof value === 'string' && value.trim().length > 0
+    )?.trim() || '';
+  let lastName =
+    lastNameCandidates.find(
+      (value): value is string => typeof value === 'string' && value.trim().length > 0
+    )?.trim() || '';
+  let name =
+    nameCandidates.find(
+      (value): value is string => typeof value === 'string' && value.trim().length > 0
+    )?.trim() || '';
+
+  if (!name && (firstName || lastName)) {
+    name = `${firstName} ${lastName}`.trim();
+  }
+
+  if ((!firstName || !lastName) && name) {
+    const [derivedFirstName = '', ...derivedRest] = name.split(/\s+/);
+    const derivedLastName = derivedRest.join(' ').trim();
+    firstName = firstName || derivedFirstName;
+    lastName = lastName || derivedLastName;
+  }
+
+  return { firstName, lastName, name };
 }
 
 function extractErrorStatus(error: unknown): number | undefined {
@@ -311,8 +431,11 @@ export async function getServerSession(): Promise<Session | null> {
     const sessionId = cookieStore.get('session_id')?.value;
     const userRole = cookieStore.get('user_role')?.value;
     const profileCompleteCookie = cookieStore.get('profile_complete')?.value;
+    const firstNameCookie = cookieStore.get('first_name')?.value?.trim() || '';
+    const lastNameCookie = cookieStore.get('last_name')?.value?.trim() || '';
+    const nameCookie = cookieStore.get('user_name')?.value?.trim() || '';
     const profileComplete = profileCompleteCookie === 'true';
-    const cookieClinicId = cookieStore.get('clinic_id')?.value;
+    const cookieClinicId = normalizeClinicId(cookieStore.get('clinic_id')?.value);
 
     if (process.env.NODE_ENV === 'development') {
       const now = Date.now();
@@ -363,11 +486,14 @@ export async function getServerSession(): Promise<Session | null> {
       }
       return null;
     }
+
+    let authoritativeProfileComplete = profileComplete;
     
     try {
       const payload = parseJwtPayload(accessToken);
-      const payloadClinicId = extractClinicIdFromPayload(payload);
-      const resolvedClinicId = payloadClinicId || cookieClinicId;
+      const tokenProfileComplete = resolveProfileCompleteFromPayload(payload);
+      const payloadClinicId = normalizeClinicId(extractClinicIdFromPayload(payload));
+      const resolvedClinicId = payloadClinicId || normalizeClinicId(cookieClinicId);
 
       if (payloadClinicId && payloadClinicId !== cookieClinicId) {
         cookieStore.set({
@@ -382,9 +508,7 @@ export async function getServerSession(): Promise<Session | null> {
           id: '',
           email: '',
           role: userRole as Role,
-          firstName: '',
-          lastName: '',
-          name: '',
+          ...extractNamePartsFromPayload(payload),
           isVerified: true,
           profileComplete: profileComplete,
           clinicId: resolvedClinicId
@@ -403,12 +527,36 @@ export async function getServerSession(): Promise<Session | null> {
         session.user.id = String(tokenPayload['sub'] || '');
         session.user.email = String(tokenPayload['email'] || '');
         session.user.role = (tokenPayload['role'] as Role) || (userRole as Role);
+        const tokenNameParts = extractNamePartsFromPayload(tokenPayload);
+        session.user.firstName = session.user.firstName || tokenNameParts.firstName || firstNameCookie;
+        session.user.lastName = session.user.lastName || tokenNameParts.lastName || lastNameCookie;
+        session.user.name = session.user.name || tokenNameParts.name || nameCookie;
         if (!session.user.clinicId) {
           session.user.clinicId =
             payloadClinicId || cookieClinicId;
         }
 
         if (session.user.id && session.user.email && session.user.role) {
+          if (tokenProfileComplete === true) {
+            authoritativeProfileComplete = true;
+            cookieStore.set({
+              name: 'profile_complete',
+              value: 'true',
+              ...sessionOptions,
+            });
+          } else if (!authoritativeProfileComplete) {
+            const backendProfileComplete = await fetchAuthoritativeProfileComplete(accessToken, sessionId);
+            if (backendProfileComplete === true) {
+              authoritativeProfileComplete = true;
+              cookieStore.set({
+                name: 'profile_complete',
+                value: 'true',
+                ...sessionOptions,
+              });
+            }
+          }
+
+          session.user.profileComplete = authoritativeProfileComplete;
           return session;
         }
       } catch (jwtError: unknown) {
@@ -438,21 +586,35 @@ export async function getServerSession(): Promise<Session | null> {
       }
 
       const userData = await response.json();
+      const resolvedFromUserData = resolveProfileComplete(userData);
+      if (!resolvedFromUserData) {
+        const backendProfileComplete = await fetchAuthoritativeProfileComplete(accessToken, sessionId);
+        if (backendProfileComplete === true) {
+          authoritativeProfileComplete = true;
+          cookieStore.set({
+            name: 'profile_complete',
+            value: 'true',
+            ...sessionOptions,
+          });
+        }
+      } else {
+        authoritativeProfileComplete = true;
+      }
 
       return {
         user: {
           id: userData.id,
           email: userData.email,
           role: userData.role || userRole as Role,
-          firstName: userData.firstName || userData.first_name || '',
-          lastName: userData.lastName || userData.last_name || '',
-          name: userData.name || `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
+          firstName: userData.firstName || userData.first_name || firstNameCookie || '',
+          lastName: userData.lastName || userData.last_name || lastNameCookie || '',
+          name: userData.name || `${userData.firstName || userData.first_name || ''} ${userData.lastName || userData.last_name || ''}`.trim(),
           phone: userData.phone || '',
           dateOfBirth: userData.dateOfBirth || userData.date_of_birth || null,
           gender: userData.gender || '',
           address: userData.address || '',
           isVerified: userData.isVerified || true,
-          profileComplete: resolveProfileComplete(userData) || profileComplete,
+          profileComplete: authoritativeProfileComplete || resolvedFromUserData || profileComplete,
           clinicId: userData.clinicId || userData.primaryClinicId
         },
         access_token: accessToken,
@@ -565,7 +727,9 @@ export async function setSession(data: {
 
     if (currentSessionId && currentUserRole) {
        const tokenPayload = accessTokenValue ? parseJwtPayload(accessTokenValue) : null;
-       const tokenClinicId = extractClinicIdFromPayload(tokenPayload) || cookieStore.get('clinic_id')?.value;
+       const tokenClinicId = normalizeClinicId(
+         extractClinicIdFromPayload(tokenPayload) || cookieStore.get('clinic_id')?.value
+       );
 
        if (accessTokenValue) {
           cookieStore.set({
@@ -639,7 +803,7 @@ export async function setSession(data: {
       address: data.user.address || '',
       isVerified: data.user.isVerified || false,
       profileComplete: resolveProfileComplete(data.user as unknown as Record<string, unknown>),
-      clinicId: data.user.clinicId
+      clinicId: normalizeClinicId(data.user.clinicId)
     },
     isAuthenticated: true
   };
@@ -678,10 +842,12 @@ export async function setSession(data: {
     ...sessionOptions,
   });
 
-  if (data.user.clinicId) {
+  const normalizedClinicId = normalizeClinicId(data.user.clinicId);
+
+  if (normalizedClinicId) {
     cookieStore.set({
       name: 'clinic_id',
-      value: data.user.clinicId,
+      value: normalizedClinicId,
       ...sessionOptions,
     });
   }
@@ -728,6 +894,24 @@ export async function clearSession() {
 
   cookieStore.set({
     name: 'profile_complete',
+    value: '',
+    ...expiredOptions,
+  });
+
+  cookieStore.set({
+    name: 'first_name',
+    value: '',
+    ...expiredOptions,
+  });
+
+  cookieStore.set({
+    name: 'last_name',
+    value: '',
+    ...expiredOptions,
+  });
+
+  cookieStore.set({
+    name: 'user_name',
     value: '',
     ...expiredOptions,
   });
@@ -793,15 +977,9 @@ export async function login(data: { email: string; password?: string; otp?: stri
     const cookieStore = await cookies();
     let profileComplete = resolveProfileComplete(normalizedResult.user as Record<string, unknown>);
 
-    const hasExplicitProfileFlags =
-      normalizedResult.user &&
-      typeof normalizedResult.user === 'object' &&
-      ('profileComplete' in normalizedResult.user ||
-        'isProfileComplete' in normalizedResult.user ||
-        'requiresProfileCompletion' in normalizedResult.user);
-
-    // If login payload doesn't carry profile flags, fetch authoritative profile once.
-    if (!hasExplicitProfileFlags && normalizedResult.access_token) {
+    // If the login payload does not clearly indicate completion, ask the backend
+    // once for the authoritative profile status before writing cookies.
+    if (profileComplete !== true && normalizedResult.access_token) {
       try {
         const profileResponse = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.USERS.PROFILE}`, {
           method: 'GET',
@@ -818,6 +996,16 @@ export async function login(data: { email: string; password?: string; otp?: stri
         }
       } catch (error) {
         logger.warn('[login] Could not fetch profile completion status from profile API', { error });
+      }
+    }
+
+    if (profileComplete !== true && normalizedResult.access_token) {
+      const authoritativeProfileComplete = await fetchAuthoritativeProfileComplete(
+        normalizedResult.access_token,
+        sessionId
+      );
+      if (typeof authoritativeProfileComplete === 'boolean') {
+        profileComplete = authoritativeProfileComplete;
       }
     }
 
@@ -881,10 +1069,12 @@ export async function login(data: { email: string; password?: string; otp?: stri
       maxAge: 60 * 60 * 24 * 7,
     });
 
-    if (normalizedResult.user?.clinicId) {
+    const normalizedResultClinicId = normalizeClinicId(normalizedResult.user?.clinicId);
+
+    if (normalizedResultClinicId) {
        cookieStore.set({
         name: 'clinic_id',
-        value: normalizedResult.user.clinicId,
+        value: normalizedResultClinicId,
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
@@ -907,7 +1097,7 @@ export async function login(data: { email: string; password?: string; otp?: stri
         address: normalizedResult.user.address || '',
         isVerified: normalizedResult.user.isVerified || false,
         profileComplete,
-        clinicId: normalizedResult.user.clinicId
+        clinicId: normalizeClinicId(normalizedResult.user.clinicId)
       },
       access_token: normalizedResult.access_token,
       refresh_token: normalizedResult.refresh_token || '',
@@ -1236,6 +1426,9 @@ async function setAuthCookies(data: {
     role?: Role;
     profileComplete?: boolean;
     clinicId?: string;
+    firstName?: string;
+    lastName?: string;
+    name?: string;
   };
 }) {
   const cookieStore = await cookies();
@@ -1276,10 +1469,40 @@ async function setAuthCookies(data: {
     });
   }
 
-  if (data.user?.clinicId) {
+  const normalizedClinicId = normalizeClinicId(data.user?.clinicId);
+
+  if (normalizedClinicId) {
     cookieStore.set({
       name: 'clinic_id',
-      value: data.user.clinicId,
+      value: normalizedClinicId,
+      ...sessionOptions,
+    });
+  }
+
+  const firstName = typeof data.user?.firstName === 'string' ? data.user.firstName.trim() : '';
+  const lastName = typeof data.user?.lastName === 'string' ? data.user.lastName.trim() : '';
+  const name = typeof data.user?.name === 'string' ? data.user.name.trim() : '';
+
+  if (firstName) {
+    cookieStore.set({
+      name: 'first_name',
+      value: firstName,
+      ...sessionOptions,
+    });
+  }
+
+  if (lastName) {
+    cookieStore.set({
+      name: 'last_name',
+      value: lastName,
+      ...sessionOptions,
+    });
+  }
+
+  if (name) {
+    cookieStore.set({
+      name: 'user_name',
+      value: name,
       ...sessionOptions,
     });
   }
@@ -1323,15 +1546,24 @@ export async function authenticatedApi<T = unknown>(
     ) {
       try {
         const cookieStore = await cookies();
-        cookieStore.set({
-          name: 'profile_complete',
-          value: 'false',
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          path: '/',
-          maxAge: 60 * 60 * 24 * 7,
-        });
+        const accessToken = cookieStore.get('access_token')?.value;
+        const sessionId = cookieStore.get('session_id')?.value;
+        const authoritativeProfileComplete =
+          accessToken
+            ? await fetchAuthoritativeProfileComplete(accessToken, sessionId)
+            : undefined;
+
+        if (authoritativeProfileComplete === true) {
+          cookieStore.set({
+            name: 'profile_complete',
+            value: 'true',
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
+            maxAge: 60 * 60 * 24 * 7,
+          });
+        }
       } catch {
         // no-op: preserve original 403 handling
       }
@@ -1410,18 +1642,32 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
 
     const responseData = response.data as Record<string, any>;
     const resultData = responseData.data || responseData;
+    const accessToken = resultData.access_token || resultData.accessToken;
+    const refreshToken = resultData.refresh_token || resultData.refreshToken;
+    const sessionId =
+      resultData.session_id ||
+      resultData.sessionId ||
+      (typeof accessToken === 'string' ? extractSessionIdFromToken(accessToken) : undefined);
+    const resolvedUserFirstName = resultData.user?.firstName || '';
+    const resolvedUserLastName = resultData.user?.lastName || '';
+    const resolvedUserName =
+      resultData.user?.name ||
+      `${resolvedUserFirstName} ${resolvedUserLastName}`.trim();
     const result = {
       ...resultData,
-      access_token: resultData.access_token || resultData.accessToken,
-      refresh_token: resultData.refresh_token || resultData.refreshToken,
-      session_id: resultData.session_id || resultData.sessionId,
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      session_id: sessionId,
       user: {
         ...resultData.user,
+        firstName: resolvedUserFirstName,
+        lastName: resolvedUserLastName,
+        name: resolvedUserName,
         clinicId: resultData.user?.clinicId || resultData.user?.primaryClinicId,
       },
     };
 
-    if (!result?.access_token || !result?.session_id || !result?.user) {
+    if (!result?.access_token || !result?.user) {
       logger.error('Missing required data in Google login response', new Error('Missing required fields'));
       throw new Error('Invalid response from server: Missing required fields');
     }
@@ -1429,6 +1675,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
     const firstName = result.user.firstName || '';
     const lastName = result.user.lastName || '';
     const name = result.user.name || `${firstName} ${lastName}`.trim();
+    let profileComplete = resolveProfileComplete(result.user as Record<string, unknown>);
 
     if (!firstName || !lastName) {
       try {
@@ -1452,16 +1699,38 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
         const profileData = profileResponse.data as Record<string, any> | undefined;
         if (profileData) {
            result.user = {
-             ...result.user,
-             firstName: profileData.firstName || firstName,
-             lastName: profileData.lastName || lastName,
-             name: profileData.name || name,
-           };
+              ...result.user,
+              firstName: profileData.firstName || firstName,
+              lastName: profileData.lastName || lastName,
+              name: profileData.name || name,
+            };
+            profileComplete = resolveProfileComplete(profileData as Record<string, unknown>);
         }
       } catch (profileError: unknown) {
         logger.error('Error fetching user profile', profileError instanceof Error ? profileError : new Error(String(profileError)));
       }
     }
+
+    if (!profileComplete) {
+      try {
+        const authoritativeProfileComplete = await fetchAuthoritativeProfileComplete(
+          result.access_token,
+          result.session_id
+        );
+        if (typeof authoritativeProfileComplete === 'boolean') {
+          profileComplete = authoritativeProfileComplete;
+        }
+      } catch (profileStatusError: unknown) {
+        logger.warn('Unable to verify Google profile completion status', {
+          error: profileStatusError instanceof Error ? profileStatusError.message : String(profileStatusError),
+        });
+      }
+    }
+
+    result.user = {
+      ...result.user,
+      profileComplete,
+    };
 
     await setAuthCookies(result);
 

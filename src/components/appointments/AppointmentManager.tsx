@@ -53,6 +53,7 @@ import {
   getVideoAppointmentJoinBlockedReason,
   isVideoAppointmentPaymentCompleted,
   isVideoAppointmentJoinable,
+  isTerminalAppointment,
   normalizeAppointmentStatus,
   normalizePatientAppointment,
   getReceptionistAppointmentTimeLabel,
@@ -86,6 +87,34 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string;
   CANCELLED:   { label: "Cancelled",   color: "text-red-700 dark:text-red-300",     dot: "bg-red-500",   bg: "bg-red-50 dark:bg-red-950/30 border-red-100 dark:border-red-900" },
   NO_SHOW:     { label: "No Show",     color: "text-orange-700 dark:text-orange-300",dot: "bg-orange-400",bg: "bg-orange-50 dark:bg-orange-950/30 border-orange-100 dark:border-orange-900" },
 };
+
+function getPaginationWindow(currentPage: number, totalPages: number): Array<number | "ellipsis"> {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  const visible = new Set<number>([1, totalPages, currentPage]);
+  for (const offset of [-1, 1]) {
+    const page = currentPage + offset;
+    if (page > 1 && page < totalPages) {
+      visible.add(page);
+    }
+  }
+
+  return Array.from({ length: totalPages }, (_, index) => index + 1).reduce<Array<number | "ellipsis">>((pages, page) => {
+    if (!visible.has(page)) {
+      return pages;
+    }
+
+    const previous = pages[pages.length - 1];
+    if (typeof previous === "number" && page - previous > 1) {
+      pages.push("ellipsis");
+    }
+
+    pages.push(page);
+    return pages;
+  }, []);
+}
 
 interface AppointmentManagerProps {
   filterType?: "VIDEO_CALL" | "IN_PERSON";
@@ -137,7 +166,7 @@ export default function AppointmentManager({
   const [rejectReason, setRejectReason] = useState("");
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 8;
+  const ITEMS_PER_PAGE = 5;
 
   // ─── Data Fetching ────────────────────────────────────────────────────────
   
@@ -199,12 +228,11 @@ export default function AppointmentManager({
         const normalized = normalizePatientAppointment(appointment);
         const viewState = getAppointmentViewState(appointment);
         const paymentDisplay = getAppointmentPaymentDisplayState(appointment);
+        const isTerminalStatus = isTerminalAppointment(appointment);
         const displayStatus =
-          viewState.awaitingDoctorSlotConfirmation
+          viewState.isVideo && !paymentDisplay.paymentCompleted && !isTerminalStatus
             ? "SCHEDULED"
-            : viewState.isVideo && !paymentDisplay.paymentCompleted
-            ? "SCHEDULED"
-            : normalized.status;
+            : viewState.normalizedStatus;
         return {
           ...appointment,
           status: displayStatus,
@@ -271,6 +299,10 @@ export default function AppointmentManager({
   useEffect(() => {
     setCurrentPage((previousPage) => Math.min(previousPage, totalPages));
   }, [totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, searchQuery, dateFilter.start, dateFilter.end, filterType, isAdminView]);
 
   // Stats
   const stats = useMemo(() => {
@@ -426,11 +458,11 @@ export default function AppointmentManager({
     cardHover: string;
     className?: string;
   }) => (
-    <div className={`rounded-2xl border ${cardBorder} bg-card p-4 flex items-center gap-3 transition-all ${cardHover} hover:shadow-sm ${className || ""}`}>
-      <div className={`rounded-xl ${iconBg} p-2.5 border ${iconBorder} ${iconColor}`}>{icon}</div>
+    <div className={`flex items-center gap-3 rounded-2xl border ${cardBorder} bg-card p-3 transition-all ${cardHover} hover:shadow-sm sm:p-4 ${className || ""}`}>
+      <div className={`rounded-xl ${iconBg} border p-2 ${iconBorder} ${iconColor}`}>{icon}</div>
       <div>
-        <p className="text-2xl font-extrabold text-foreground tracking-tight">{value}</p>
-        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{label}</p>
+        <p className="text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">{value}</p>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
       </div>
     </div>
   );
@@ -461,7 +493,7 @@ export default function AppointmentManager({
     const isCancelled = effectiveStatus === "CANCELLED" || effectiveStatus === "NO_SHOW";
     const isConfirmed = effectiveStatus === "CONFIRMED";
     return (
-      <div className={`rounded-2xl border overflow-hidden transition-all duration-200 hover:shadow-md ${
+      <div className={`overflow-hidden rounded-2xl border transition-all duration-200 hover:shadow-md ${
         isCancelled
           ? "bg-red-50 border-red-200 dark:bg-red-950/25 dark:border-red-900/50 hover:border-red-300"
           : isConfirmed
@@ -470,7 +502,7 @@ export default function AppointmentManager({
       }`}>
         {/* Card header */}
         <div
-          className="p-4 cursor-pointer"
+          className="cursor-pointer p-3 sm:p-4"
           onClick={() => {
             setExpandedCard(isExpanded ? null : apt.id);
             setSelectedAppointment(isExpanded ? null : apt as AppointmentWithRelations);
@@ -485,20 +517,20 @@ export default function AppointmentManager({
           role="button"
           tabIndex={0}
         >
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-center gap-3 min-w-0">
               {/* Avatar */}
-              <div className="w-10 h-10 rounded-full bg-emerald-100 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-900/70 flex items-center justify-center shrink-0 text-sm font-bold text-emerald-700 dark:text-emerald-300">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-100 text-sm font-bold text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/40 dark:text-emerald-300 sm:h-10 sm:w-10">
                 {doctorName.charAt(0)}
               </div>
               <div className="min-w-0">
-                <p className="font-semibold text-sm truncate">{doctorName}</p>
-                <p className="text-xs opacity-60 truncate">{apt.location?.name || "—"}</p>
+                <p className="truncate text-sm font-semibold leading-tight">{doctorName}</p>
+                <p className="truncate text-xs leading-tight opacity-60">{apt.location?.name || "—"}</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs font-semibold shadow-sm">
+            <div className="flex flex-wrap items-center gap-2 shrink-0 self-start sm:self-auto">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-1 text-[11px] font-semibold shadow-sm">
                 {apt.type === "VIDEO_CALL" ? <Video className="w-3.5 h-3.5" /> : <Stethoscope className="w-3.5 h-3.5" />}
                 {apt.type === "VIDEO_CALL"
                   ? "Video"
@@ -507,7 +539,7 @@ export default function AppointmentManager({
                     : apt.type.replace(/_/g, " ")}
               </span>
               {/* Status badge */}
-              <span className={`inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs font-semibold shadow-sm ${cfg.color}`}>
+              <span className={`inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-1 text-[11px] font-semibold shadow-sm ${cfg.color}`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
                 {statusLabel}
               </span>
@@ -516,7 +548,7 @@ export default function AppointmentManager({
           </div>
 
           {/* Date/time row */}
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs opacity-70">
+          <div className="mt-2.5 flex flex-wrap items-center gap-2.5 text-[11px] opacity-70">
             <span className="flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5" />
               {formatDate(normalizedDate)}
@@ -536,24 +568,24 @@ export default function AppointmentManager({
 
         {/* Expanded body */}
         {isExpanded && (
-          <div className="px-4 pb-4 pt-0 border-t border-border/60 mt-0">
-            <div className="pt-3 space-y-3">
+          <div className="mt-0 border-t border-border/60 px-3 pb-3 pt-0 sm:px-4 sm:pb-4">
+            <div className="space-y-3 pt-2.5">
               {/* Details grid */}
-              <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="grid grid-cols-2 gap-2.5 text-xs">
                 {(apt as any).chiefComplaint && (
-                  <div className="col-span-2 rounded-lg bg-background/70 p-2.5 ring-1 ring-border/40">
+                  <div className="col-span-2 rounded-lg bg-background/70 p-2 ring-1 ring-border/40">
                     <p className="font-semibold mb-0.5 opacity-60">Chief Complaint</p>
                     <p className="font-medium">{(apt as any).chiefComplaint}</p>
                   </div>
                 )}
                 {(apt as any).urgency && (
-                  <div className="rounded-lg bg-background/70 p-2.5 ring-1 ring-border/40">
+                  <div className="rounded-lg bg-background/70 p-2 ring-1 ring-border/40">
                     <p className="font-semibold mb-0.5 opacity-60">Urgency</p>
                     <p className="font-medium capitalize">{(apt as any).urgency.toLowerCase()}</p>
                   </div>
                 )}
                 {apt.type && (
-                  <div className="rounded-lg bg-background/70 p-2.5 ring-1 ring-border/40">
+                  <div className="rounded-lg bg-background/70 p-2 ring-1 ring-border/40">
                     <p className="font-semibold mb-0.5 opacity-60">Type</p>
                     <p className="font-medium">
                       {apt.type === "VIDEO_CALL"
@@ -567,11 +599,11 @@ export default function AppointmentManager({
               </div>
 
               {/* Actions — unified to avoid duplicate buttons */}
-              <div className="flex flex-wrap gap-3 mt-4">
+              <div className="mt-3 flex flex-wrap gap-2.5">
                 {effectiveStatus === "SCHEDULED" && (
                   <Button
                     variant="outline"
-                    className="h-10 px-5 rounded-lg border-border/50 bg-background/50 text-sm hover:bg-accent/50 transition-all active:scale-95 flex-1 sm:flex-none"
+                    className="h-9 flex-1 rounded-lg border-border/50 bg-background/50 px-4 text-sm transition-all active:scale-95 hover:bg-accent/50 sm:flex-none"
                     onClick={() => {
                       setSelectedAppointment(apt as AppointmentWithRelations);
                       setRescheduleData({
@@ -587,7 +619,7 @@ export default function AppointmentManager({
                 )}
                 {effectiveStatus === "SCHEDULED" && apt.type !== "VIDEO_CALL" && (
                   <Button
-                    className="h-10 px-6 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm shadow-sm transition-all active:scale-95 flex-1"
+                    className="h-9 flex-1 rounded-lg bg-emerald-600 px-4 text-sm text-white shadow-sm transition-all active:scale-95 hover:bg-emerald-700"
                     onClick={() => {
                       window.location.href = checkInRoute;
                     }}
@@ -599,7 +631,7 @@ export default function AppointmentManager({
                 {effectiveStatus === "SCHEDULED" && (
                   <Button
                     variant="outline"
-                    className="h-10 px-5 rounded-lg border-red-200/50 bg-red-50/30 text-red-600 hover:bg-red-100/50 hover:text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-400 text-sm transition-all active:scale-95 flex-1 sm:flex-none"
+                    className="h-9 flex-1 rounded-lg border-red-200/50 bg-red-50/30 px-4 text-sm text-red-600 transition-all active:scale-95 hover:bg-red-100/50 hover:text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-400 sm:flex-none"
                     onClick={() => handleCancelAppointment(getEffectiveAppointmentId(apt))}
                     disabled={cancellingAppointment}
                   >
@@ -610,7 +642,7 @@ export default function AppointmentManager({
                 {apt.type === "VIDEO_CALL" &&
                   isVideoAppointmentJoinable(apt) && (
                   <Button
-                    className="h-10 px-6 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm shadow-sm transition-all active:scale-95 flex-1"
+                    className="h-9 flex-1 rounded-lg bg-primary px-4 text-sm text-white shadow-sm transition-all active:scale-95 hover:bg-primary/90"
                     onClick={() => void handleJoinVideo(apt)}
                   >
                     <Video className="w-4 h-4 mr-2" />
@@ -618,12 +650,13 @@ export default function AppointmentManager({
                   </Button>
                 )}
                 {apt.type === "VIDEO_CALL" &&
+                  !isTerminalAppointment(apt) &&
                   !isVideoAppointmentPaymentCompleted(apt) && (
                   <PaymentButton
                     appointmentId={getEffectiveAppointmentId(apt)}
                     amount={apt.invoice?.amount || 500}
                     appointmentType="VIDEO_CALL"
-                    className="h-10 px-6 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm shadow-sm transition-all active:scale-95 flex-1"
+                    className="h-9 flex-1 rounded-lg bg-blue-600 px-4 text-sm text-white shadow-sm transition-all active:scale-95 hover:bg-blue-700"
                     onSuccess={() => {
                       void refetch();
                       setCurrentPage(1);
@@ -633,14 +666,6 @@ export default function AppointmentManager({
                     Complete Payment
                   </PaymentButton>
                 )}
-                {apt.type === "VIDEO_CALL" &&
-                  isVideoAppointmentPaymentCompleted(apt) &&
-                  viewState.awaitingDoctorSlotConfirmation && (
-                    <Badge className="h-10 px-4 rounded-lg border-amber-200 bg-amber-50 text-amber-700 text-sm font-semibold flex items-center">
-                      <Clock className="w-4 h-4 mr-2" />
-                      Awaiting Doctor Confirmation
-                    </Badge>
-                  )}
               </div>
             </div>
           </div>
@@ -662,11 +687,11 @@ export default function AppointmentManager({
   }
 
   return (
-    <Card className="max-w-6xl mx-auto bg-card rounded-xl border border-border sm:rounded-2xl shadow-sm overflow-hidden">
-      <CardHeader className="pb-2">
+    <Card className="mx-auto max-w-6xl overflow-hidden rounded-xl border border-border bg-card shadow-sm sm:rounded-2xl">
+      <CardHeader className="pb-1.5 sm:pb-2">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <CardTitle className="text-xl font-bold flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+          <CardTitle className="flex items-center gap-2 text-lg font-bold sm:text-xl">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 sm:h-8 sm:w-8">
                <Calendar className="w-5 h-5 text-emerald-600" />
             </div>
             Current Appointments
@@ -687,9 +712,9 @@ export default function AppointmentManager({
                 {...(propPatientId ? { initialPatientId: propPatientId } : {})}
                 trigger={
                 <Button
-                  className="w-full sm:w-auto gap-2 rounded-xl border-0 bg-emerald-600 px-6 font-bold h-10 text-white shadow-md transition-all active:scale-95 hover:bg-emerald-700 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-emerald-500/30"
+                  className="h-9 w-full gap-2 rounded-xl border-0 bg-emerald-600 px-4 text-sm font-bold text-white shadow-md transition-all active:scale-95 hover:bg-emerald-700 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-emerald-500/30 sm:w-auto sm:px-5"
                 >
-                  <CalendarPlus className="h-5 w-5" />
+                  <CalendarPlus className="h-4 w-4" />
                   Book Appointment
                 </Button>
                 }
@@ -699,23 +724,23 @@ export default function AppointmentManager({
             <Button
               variant="outline"
               onClick={() => refetch()}
-              className="h-10 w-full gap-2 rounded-xl border-sky-200 bg-sky-50 px-4 py-2 text-sky-700 hover:bg-sky-100 hover:text-sky-800 transition-all shadow-sm dark:border-sky-900/70 dark:bg-sky-950/25 dark:text-sky-300 dark:hover:bg-sky-950/45 sm:w-auto"
+              className="h-9 w-full gap-2 rounded-xl border-sky-200 bg-sky-50 px-4 py-2 text-sm text-sky-700 transition-all shadow-sm hover:bg-sky-100 hover:text-sky-800 dark:border-sky-900/70 dark:bg-sky-950/25 dark:text-sky-300 dark:hover:bg-sky-950/45 sm:w-auto"
               disabled={appointmentsFetching}
               title="Refresh Appointments"
             >
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/60 dark:text-sky-200">
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/60 dark:text-sky-200">
                 <RefreshCw className={`w-3.5 h-3.5 ${appointmentsFetching ? "animate-spin" : ""}`} />
               </span>
-              <span className="text-sm font-medium">Refresh</span>
+              <span className="font-medium">Refresh</span>
             </Button>
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-4 sm:space-y-5">
 
       {/* Stats */}
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4 lg:gap-6">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4 lg:gap-4">
           <StatCard
             label="Total"
             value={stats.total}
@@ -763,7 +788,7 @@ export default function AppointmentManager({
       </div>
 
       {/* Search and Filters (REPLICATING DASHBOARD EXACTLY) */}
-      <div className="space-y-4 mb-8">
+      <div className="mb-6 space-y-3.5 sm:mb-8 sm:space-y-4">
         {/* 1. Search Bar */}
         <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -775,7 +800,7 @@ export default function AppointmentManager({
           />
         </div>
 
-        <div className="bg-card border border-border/60 p-1 sm:p-1.5 h-12 sm:h-14 rounded-xl sm:rounded-2xl max-w-full flex gap-1 sm:gap-1.5 overflow-x-auto scrollbar-hide shadow-sm">
+        <div className="flex h-11 max-w-full gap-1 overflow-x-auto rounded-xl border border-border/60 bg-card p-1 shadow-sm sm:h-12 sm:gap-1.5 sm:rounded-2xl sm:p-1.5 scrollbar-hide">
           {(["ALL", "SCHEDULED", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as StatusFilter[]).map(s => {
             const isActive = statusFilter === s;
             const labelMap: Record<string, string> = {
@@ -792,7 +817,7 @@ export default function AppointmentManager({
                 key={s}
                 onClick={() => setStatusFilter(s)}
                 className={cn(
-                  "rounded-lg sm:rounded-xl px-3 sm:px-6 h-full font-semibold text-[11px] sm:text-sm transition-all whitespace-nowrap",
+                  "h-full whitespace-nowrap rounded-lg px-3 text-[11px] font-semibold transition-all sm:rounded-xl sm:px-5 sm:text-sm",
                   isActive
                     ? "bg-emerald-600 text-white shadow-sm"
                     : "text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50"
@@ -805,18 +830,18 @@ export default function AppointmentManager({
         </div>
 
         {/* 3. Default View Label */}
-        <p className="text-[13px] text-muted-foreground/80 px-1">
-           Default view is showing scheduled appointments first.
+        <p className="px-1 text-[13px] text-muted-foreground/80">
+          Default view shows all appointments, newest first.
         </p>
 
         {/* 4. Date Range Pickers (From date, To date) */}
-        <div className="flex flex-wrap items-center gap-3 mt-2">
+        <div className="mt-2 flex flex-wrap items-center gap-2.5 sm:gap-3">
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 className={cn(
-                  "h-10 w-44 justify-start text-left text-sm font-normal rounded-lg border-border bg-background",
+                  "h-9 w-full justify-start rounded-lg border-border bg-background text-left text-sm font-normal sm:w-44",
                   !dateFilter.start && "text-muted-foreground"
                 )}
               >
@@ -839,7 +864,7 @@ export default function AppointmentManager({
               <Button
                 variant="outline"
                 className={cn(
-                  "h-10 w-44 justify-start text-left text-sm font-normal rounded-lg border-border bg-background",
+                  "h-9 w-full justify-start rounded-lg border-border bg-background text-left text-sm font-normal sm:w-44",
                   !dateFilter.end && "text-muted-foreground"
                 )}
               >
@@ -867,10 +892,10 @@ export default function AppointmentManager({
               size="sm"
               onClick={() => {
                 setDateFilter({ start: "", end: "" });
-                setStatusFilter("SCHEDULED");
+              setStatusFilter("ALL");
                 setSearchQuery("");
               }}
-              className="text-primary hover:bg-primary/5 h-9"
+              className="h-8 text-primary hover:bg-primary/5"
             >
               Clear Filters
             </Button>
@@ -880,7 +905,7 @@ export default function AppointmentManager({
 
       {/* Appointments list */}
       {filteredAppointments.length === 0 ? (
-        <div className="text-center py-16 border-2 border-dashed rounded-2xl bg-muted/20">
+        <div className="rounded-2xl border-2 border-dashed bg-muted/20 py-12 text-center">
           <Calendar className="w-12 h-12 mx-auto mb-3 text-muted-foreground/40" />
           <p className="font-semibold text-muted-foreground">
             {allAppointments.length === 0 ? "No appointments yet" : "No appointments match your filters"}
@@ -890,7 +915,7 @@ export default function AppointmentManager({
               ? "Book your first appointment to get started"
               : "Try adjusting the status filter or search query"}
           </p>
-          {allAppointments.length === 0 && (
+          {allAppointments.length === 0 && !hideBookButton && (
             <BookAppointmentDialog
               defaultOpen={autoOpenBookDialog}
               {...(defaultConsultationMode ? { initialConsultationMode: defaultConsultationMode } : {})}
@@ -906,11 +931,10 @@ export default function AppointmentManager({
           )}
         </div>
       ) : (
-        <div className="space-y-3">
-          {/* Pagination info */}
+        <div className="space-y-2.5 sm:space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground font-medium">
-              Showing {filteredAppointments.length === 0 ? 0 : (safeCurrentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(safeCurrentPage * ITEMS_PER_PAGE, filteredAppointments.length)} of {filteredAppointments.length} appointments
+            <p className="text-xs font-medium text-muted-foreground">
+              Showing {filteredAppointments.length === 0 ? 0 : (safeCurrentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(safeCurrentPage * ITEMS_PER_PAGE, filteredAppointments.length)} of {filteredAppointments.length}
             </p>
           </div>
           {filteredAppointments
@@ -918,40 +942,47 @@ export default function AppointmentManager({
             .map((apt) => (
               <AppointmentCard key={apt.id} apt={apt} />
             ))}
-          {/* Pagination controls */}
           {filteredAppointments.length > ITEMS_PER_PAGE && (
-            <div className="flex items-center justify-center gap-2 pt-4">
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-3 sm:pt-4">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={safeCurrentPage === 1}
-                className="h-9 px-4 rounded-lg border-border/60 text-sm"
+                className="h-8 rounded-lg border-border/60 px-3 text-sm sm:h-9 sm:px-4"
               >
-                ← Prev
+                Prev
               </Button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  className={cn(
-                    "w-9 h-9 rounded-lg text-sm font-semibold transition-all",
-                    page === safeCurrentPage
-                      ? "bg-emerald-600 text-white shadow-sm"
-                      : "border border-border/60 text-muted-foreground hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200"
-                  )}
-                >
-                  {page}
-                </button>
-              ))}
+              <span className="hidden rounded-full border border-border/60 px-3 py-1 text-xs font-medium text-muted-foreground sm:inline-flex">
+                Page {safeCurrentPage} of {totalPages}
+              </span>
+              {getPaginationWindow(safeCurrentPage, totalPages).map((page, index) =>
+                page === "ellipsis" ? (
+                  <span key={`ellipsis-${index}`} className="px-1 text-sm text-muted-foreground">...
+                  </span>
+                ) : (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={cn(
+                      "h-8 w-8 rounded-lg text-sm font-semibold transition-all sm:h-9 sm:w-9",
+                      page === safeCurrentPage
+                        ? "bg-emerald-600 text-white shadow-sm"
+                        : "border border-border/60 text-muted-foreground hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200"
+                    )}
+                  >
+                    {page}
+                  </button>
+                )
+              )}
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={safeCurrentPage === totalPages}
-                className="h-9 px-4 rounded-lg border-border/60 text-sm"
+                className="h-8 rounded-lg border-border/60 px-3 text-sm sm:h-9 sm:px-4"
               >
-                Next →
+                Next
               </Button>
             </div>
           )}

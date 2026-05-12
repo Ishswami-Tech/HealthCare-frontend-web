@@ -69,10 +69,25 @@ export default function TermsOfServicePage() {
               </p>
             </section>
 
+            <section className="space-y-3">
+              <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                 <FileWarning className="h-5 w-5 text-blue-600" />
+                 4. Video Appointments and Payments
+              </h2>
+              <p className="text-gray-600 leading-relaxed">
+                Video appointment fees are non-refundable once payment is completed. If you miss your scheduled video appointment, you must book a new available slot to be seen again.
+              </p>
+              <ul className="list-disc list-inside text-gray-600 space-y-2 ml-2">
+                  <li>Payment confirms the selected video slot for the scheduled time.</li>
+                  <li>Missed appointments are not carried forward automatically.</li>
+                  <li>Any rebooking is subject to the clinic&apos;s live availability.</li>
+              </ul>
+            </section>
+
              <section className="space-y-3">
               <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
                  <Scale className="h-5 w-5 text-blue-600" />
-                 4. Limitation of Liability
+                 5. Limitation of Liability
               </h2>
               <p className="text-gray-600 leading-relaxed">
                 To the maximum extent permitted by law, HealthCare App shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits or revenues, whether incurred directly or indirectly, or any loss of data, use, goodwill, or other intangible losses.
@@ -82,7 +97,7 @@ export default function TermsOfServicePage() {
             <section className="bg-blue-50 rounded-xl p-6 mt-8">
                 <h3 className="font-semibold text-blue-900 mb-2">Legal Contact</h3>
                 <p className="text-blue-800 text-sm">
-                    If you have any questions about these Terms of Service, please contact our legal team at <a href="mailto:legal@healthcareapp.com" className="underline hover:text-blue-600">legal@healthcareapp.com</a>.
+                    If you have any questions about these Terms of Service, please contact us at <a href="mailto:info@viddhakarma.com" className="underline hover:text-blue-600">info@viddhakarma.com</a>.
                 </p>
             </section>
           </CardContent>

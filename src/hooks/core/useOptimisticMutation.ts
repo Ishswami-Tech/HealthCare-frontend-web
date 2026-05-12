@@ -54,12 +54,15 @@ export function useOptimisticMutation<TData, TVariables, TError = Error>(
   const queryClient = useQueryClient();
   const [isPending, startTransition] = useTransition();
   const queryKeySignature = JSON.stringify(options.queryKey);
+  const normalizeArrayState = useCallback((value: unknown): TData[] => {
+    return Array.isArray(value) ? (value as TData[]) : [];
+  }, []);
   
   // ✅ OPTIMIZED: Memoize current data to prevent unnecessary re-renders
   // Get current data from query cache (updates when query data changes)
   const currentData = useMemo(
-    () => queryClient.getQueryData<TData[]>(options.queryKey) || [],
-    [queryClient, queryKeySignature]
+    () => normalizeArrayState(queryClient.getQueryData(options.queryKey)),
+    [normalizeArrayState, queryClient, queryKeySignature]
   );
   
   // Optimistic state with useOptimistic
@@ -73,9 +76,8 @@ export function useOptimisticMutation<TData, TVariables, TError = Error>(
   
   // Mutation with optimistic updates
   const wrappedMutationFn = useCallback(
-    (variables: TVariables) =>
-      dedupeRequest("mutation", [options.queryKey, variables], () => options.mutationFn(variables)),
-    [options.mutationFn, options.queryKey]
+    (variables: TVariables) => options.mutationFn(variables),
+    [options.mutationFn]
   );
 
   const mutation = useMutation({
@@ -85,7 +87,7 @@ export function useOptimisticMutation<TData, TVariables, TError = Error>(
       await queryClient.cancelQueries({ queryKey: options.queryKey });
       
       // Snapshot previous value
-      const previous = queryClient.getQueryData<TData[]>(options.queryKey) || [];
+      const previous = normalizeArrayState(queryClient.getQueryData(options.queryKey));
       
       // Optimistically update
       startTransition(() => {
@@ -93,8 +95,8 @@ export function useOptimisticMutation<TData, TVariables, TError = Error>(
       });
       
       // Update query cache optimistically
-      queryClient.setQueryData<TData[]>(options.queryKey, (old = []) => 
-        options.optimisticUpdate(old, variables)
+      queryClient.setQueryData<TData[]>(options.queryKey, (old) => 
+        options.optimisticUpdate(normalizeArrayState(old), variables)
       );
       
       return { previous };
@@ -105,7 +107,7 @@ export function useOptimisticMutation<TData, TVariables, TError = Error>(
       if (context && typeof context === 'object' && 'previous' in context && (context as { previous?: unknown }).previous) {
         queryClient.setQueryData(options.queryKey, (context as { previous: TData[] }).previous);
       } else if (options.rollback) {
-        const current = queryClient.getQueryData<TData[]>(options.queryKey) || [];
+        const current = normalizeArrayState(queryClient.getQueryData(options.queryKey));
         queryClient.setQueryData(options.queryKey, options.rollback(current, error));
       }
       // Caller's onError (if provided)
@@ -116,17 +118,18 @@ export function useOptimisticMutation<TData, TVariables, TError = Error>(
     // Merge internal onSuccess with caller's onSuccess
     onSuccess: async (data: TData, variables: TVariables, context: unknown) => {
       // Internal: update cache with real data
-      queryClient.setQueryData<TData[]>(options.queryKey, (old = []) => {
-        const index = old.findIndex((item: any) =>
+      queryClient.setQueryData<TData[]>(options.queryKey, (old) => {
+        const safeOld = normalizeArrayState(old);
+        const index = safeOld.findIndex((item: any) =>
           (item as any).id === (data as any).id ||
           (item as any).tempId
         );
         if (index >= 0) {
-          const updated = [...old];
+          const updated = [...safeOld];
           updated[index] = data;
           return updated;
         }
-        return [...old, data];
+        return [...safeOld, data];
       });
       // Internal: invalidate to ensure fresh data from server
       void queryClient.invalidateQueries({ queryKey: options.queryKey, exact: false });

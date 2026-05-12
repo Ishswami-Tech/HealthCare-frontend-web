@@ -4,7 +4,12 @@ import { authenticatedApi, getServerSession } from './auth.server';
 import { API_ENDPOINTS } from '../config/config';
 import { isApiError } from '@/lib/utils/error-handler';
 import { normalizeVideoSessionAppointmentId } from '@/lib/utils/video-session-route';
-import type { BackgroundPreset, VirtualBackgroundSettings } from '@/types/video.types';
+import type {
+  BackgroundPreset,
+  VirtualBackgroundSettings,
+  VideoProviderSettingResponse,
+  VideoProviderType,
+} from '@/types/video.types';
 
 // ===== VIDEO TOKEN MANAGEMENT =====
 
@@ -82,6 +87,28 @@ export async function getConsultationStatus(appointmentId: string) {
     if (
       isApiError(error) &&
       (error.statusCode === 404 || error.code === 'DATABASE_RECORD_NOT_FOUND')
+    ) {
+      return null;
+    }
+
+    if (
+      isApiError(error) &&
+      (error.statusCode === 403 || error.code === 'FORBIDDEN' || error.code === 'AUTH_INSUFFICIENT_PERMISSIONS')
+    ) {
+      return null;
+    }
+
+    const errorMessage =
+      isApiError(error)
+        ? String(error.message || '')
+        : error instanceof Error
+          ? error.message
+          : String(error || '');
+
+    if (
+      errorMessage.includes('Payment is required before joining this video appointment') ||
+      errorMessage.includes('Payment required before joining this video appointment') ||
+      errorMessage.includes('payment required before joining this video appointment')
     ) {
       return null;
     }
@@ -182,8 +209,13 @@ export async function manageParticipant(data: {
  * Get participants for appointment
  */
 export async function getParticipants(appointmentId: string) {
-  const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.PARTICIPANTS.GET(appointmentId), {});
-  return response;
+  try {
+    const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.PARTICIPANTS.GET(appointmentId), {});
+    return response;
+  } catch (error) {
+    void error;
+    return [] as unknown[];
+  }
 }
 
 // ===== ANALYTICS =====
@@ -203,6 +235,27 @@ export async function getConsultationAnalytics(appointmentId: string) {
  */
 export async function getVideoHealth() {
   const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.HEALTH, {});
+  return response;
+}
+
+// ===== VIDEO PROVIDER SETTINGS =====
+
+export async function getGlobalVideoProviderSetting() {
+  const { data: response } = await authenticatedApi<VideoProviderSettingResponse>(
+    API_ENDPOINTS.VIDEO.ADMIN.GET_PROVIDER_SETTINGS,
+    {}
+  );
+  return response;
+}
+
+export async function updateGlobalVideoProviderSetting(provider: VideoProviderType) {
+  const { data: response } = await authenticatedApi<VideoProviderSettingResponse>(
+    API_ENDPOINTS.VIDEO.ADMIN.UPDATE_PROVIDER_SETTINGS,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ provider }),
+    }
+  );
   return response;
 }
 
@@ -303,16 +356,21 @@ export async function getChatMessages(
     before?: string;
   }
 ) {
-  const consultationId = await getConsultationId(appointmentId);
-  const params = new URLSearchParams();
-  if (filters?.limit) params.append('limit', filters.limit.toString());
-  if (filters?.before) params.append('before', filters.before);
+  try {
+    const consultationId = await getConsultationId(appointmentId);
+    const params = new URLSearchParams();
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    if (filters?.before) params.append('before', filters.before);
 
-  const endpoint = `${API_ENDPOINTS.VIDEO.CHAT.GET(consultationId)}${params.toString() ? `?${params.toString()}` : ''}`;
-  const { data: response } = await authenticatedApi(endpoint, {});
-  // Backend returns ChatMessage[] directly, wrap for consistency
-  const messages = Array.isArray(response) ? response as ChatMessage[] : (response as { messages?: ChatMessage[] })?.messages || [];
-  return { messages };
+    const endpoint = `${API_ENDPOINTS.VIDEO.CHAT.GET(consultationId)}${params.toString() ? `?${params.toString()}` : ''}`;
+    const { data: response } = await authenticatedApi(endpoint, {});
+    // Backend returns ChatMessage[] directly, wrap for consistency
+    const messages = Array.isArray(response) ? response as ChatMessage[] : (response as { messages?: ChatMessage[] })?.messages || [];
+    return { messages };
+  } catch (error) {
+    void error;
+    return { messages: [] as ChatMessage[] };
+  }
 }
 
 /**
@@ -421,14 +479,22 @@ export async function leaveWaitingRoom(appointmentId: string) {
  * Get waiting room queue (doctor only)
  */
 export async function getWaitingRoomQueue(appointmentId: string) {
-  const consultationId = await getConsultationId(appointmentId);
-  const { data: response } = await authenticatedApi(
-    API_ENDPOINTS.VIDEO.WAITING_ROOM.GET_QUEUE(consultationId), {}
-  );
-  return response as {
-    queue: WaitingRoomParticipant[];
-    totalWaiting: number;
-  };
+  try {
+    const consultationId = await getConsultationId(appointmentId);
+    const { data: response } = await authenticatedApi(
+      API_ENDPOINTS.VIDEO.WAITING_ROOM.GET_QUEUE(consultationId), {}
+    );
+    return response as {
+      queue: WaitingRoomParticipant[];
+      totalWaiting: number;
+    };
+  } catch (error) {
+    void error;
+    return {
+      queue: [] as WaitingRoomParticipant[],
+      totalWaiting: 0,
+    };
+  }
 }
 
 /**
@@ -565,16 +631,21 @@ export async function getMedicalNotes(
     limit?: number;
   }
 ) {
-  const consultationId = await getConsultationId(appointmentId);
-  const params = new URLSearchParams();
-  if (filters?.noteType) params.append('noteType', filters.noteType);
-  if (filters?.limit) params.append('limit', filters.limit.toString());
+  try {
+    const consultationId = await getConsultationId(appointmentId);
+    const params = new URLSearchParams();
+    if (filters?.noteType) params.append('noteType', filters.noteType);
+    if (filters?.limit) params.append('limit', filters.limit.toString());
 
-  const endpoint = `${API_ENDPOINTS.VIDEO.NOTES.GET(consultationId)}${params.toString() ? `?${params.toString()}` : ''}`;
-  const { data: response } = await authenticatedApi(endpoint, {});
-  // Backend returns MedicalNote[] directly, wrap for consistency
-  const notes = Array.isArray(response) ? response as MedicalNote[] : (response as { notes?: MedicalNote[] })?.notes || [];
-  return { notes };
+    const endpoint = `${API_ENDPOINTS.VIDEO.NOTES.GET(consultationId)}${params.toString() ? `?${params.toString()}` : ''}`;
+    const { data: response } = await authenticatedApi(endpoint, {});
+    // Backend returns MedicalNote[] directly, wrap for consistency
+    const notes = Array.isArray(response) ? response as MedicalNote[] : (response as { notes?: MedicalNote[] })?.notes || [];
+    return { notes };
+  } catch (error) {
+    void error;
+    return { notes: [] as MedicalNote[] };
+  }
 }
 
 /**
@@ -869,54 +940,62 @@ export async function getTranscription(
     query?: string;
   }
 ) {
-  const consultationId = await getConsultationId(appointmentId);
-  if (filters?.query) {
-    // Use search endpoint
-    const params = new URLSearchParams({ q: filters.query });
-    const endpoint = `${API_ENDPOINTS.VIDEO.TRANSCRIPTION.SEARCH(consultationId)}?${params.toString()}`;
-    const { data: response } = await authenticatedApi(endpoint);
-    return response as {
-      segments: TranscriptionSegment[];
-      matches: number;
-    };
-  } else {
-    // Use get endpoint
-    const { data: response } = await authenticatedApi(
-      API_ENDPOINTS.VIDEO.TRANSCRIPTION.GET(consultationId)
-    );
-    // Backend returns Transcription[] directly, need to map to segments
-    if (Array.isArray(response)) {
-      const transcriptions = response as Array<{
-        id: string;
-        consultationId: string;
-        transcript: string;
-        language: string;
-        confidence?: number;
-        speakerId?: string;
-        startTime?: number;
-        endTime?: number;
-        createdAt: string;
-        updatedAt: string;
-      }>;
-      return {
-        segments: transcriptions.map((t) => ({
-          id: t.id,
-          consultationId: t.consultationId,
-          speaker: t.speakerId || 'unknown',
-          speakerRole: 'unknown',
-          text: t.transcript,
-          startTime: t.startTime || 0,
-          endTime: t.endTime || 0,
-          confidence: t.confidence || 0.9,
-          timestamp: t.createdAt,
-        })),
-        fullText: transcriptions.map(t => t.transcript).join(' '),
+  try {
+    const consultationId = await getConsultationId(appointmentId);
+    if (filters?.query) {
+      // Use search endpoint
+      const params = new URLSearchParams({ q: filters.query });
+      const endpoint = `${API_ENDPOINTS.VIDEO.TRANSCRIPTION.SEARCH(consultationId)}?${params.toString()}`;
+      const { data: response } = await authenticatedApi(endpoint);
+      return response as {
+        segments: TranscriptionSegment[];
+        matches: number;
+      };
+    } else {
+      // Use get endpoint
+      const { data: response } = await authenticatedApi(
+        API_ENDPOINTS.VIDEO.TRANSCRIPTION.GET(consultationId)
+      );
+      // Backend returns Transcription[] directly, need to map to segments
+      if (Array.isArray(response)) {
+        const transcriptions = response as Array<{
+          id: string;
+          consultationId: string;
+          transcript: string;
+          language: string;
+          confidence?: number;
+          speakerId?: string;
+          startTime?: number;
+          endTime?: number;
+          createdAt: string;
+          updatedAt: string;
+        }>;
+        return {
+          segments: transcriptions.map((t) => ({
+            id: t.id,
+            consultationId: t.consultationId,
+            speaker: t.speakerId || 'unknown',
+            speakerRole: 'unknown',
+            text: t.transcript,
+            startTime: t.startTime || 0,
+            endTime: t.endTime || 0,
+            confidence: t.confidence || 0.9,
+            timestamp: t.createdAt,
+          })),
+          fullText: transcriptions.map(t => t.transcript).join(' '),
+        };
+      }
+      // Fallback to expected structure
+      return response as {
+        segments: TranscriptionSegment[];
+        fullText: string;
       };
     }
-    // Fallback to expected structure
-    return response as {
-      segments: TranscriptionSegment[];
-      fullText: string;
+  } catch (error) {
+    void error;
+    return {
+      segments: [],
+      fullText: '',
     };
   }
 }

@@ -6,16 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useCurrentClinicId } from "@/hooks/query/useClinics";
-import { useAppointments, useConfirmVideoSlot, useStartAppointment, useCompleteAppointment } from "@/hooks/query/useAppointments";
+import { useAppointments, useStartAppointment, useCompleteAppointment } from "@/hooks/query/useAppointments";
 import { useQueue } from "@/hooks/query/useQueue";
 import { AppointmentWithRelations, AppointmentStatus } from "@/types/appointment.types";
 import type { CanonicalQueueEntry } from "@/types/queue.types";
@@ -25,7 +18,6 @@ import {
   getAppointmentViewState,
   formatAppointmentTime,
   getVideoSessionDecision,
-  isPaidVideoAppointmentAwaitingDoctorConfirmation,
   shouldShowAppointmentOnDoctorDashboard,
 } from "@/lib/utils/appointmentUtils";
 import {
@@ -87,8 +79,6 @@ interface TransformedAppointment {
   paymentCompleted: boolean;
   paymentPending: boolean;
   checkedInAt: string | null;
-  proposedSlots?: { date: string; time: string }[];
-  confirmedSlotIndex?: number | null;
 }
 
 const getPaymentBadgeClasses = (paymentStatus: string) => {
@@ -189,7 +179,6 @@ export default function DoctorDashboard() {
   const [skipMedicineSelected, setSkipMedicineSelected] = useState(false);
   const [consultTick, setConsultTick] = useState(() => Date.now());
   const [consultStartOverrides, setConsultStartOverrides] = useState<Record<string, string>>({});
-  const [pendingVideoSlotSelections, setPendingVideoSlotSelections] = useState<Record<string, number>>({});
 
   // Enable real-time WebSocket sync
   useWebSocketQuerySync();
@@ -211,8 +200,6 @@ export default function DoctorDashboard() {
   );
   const startAppointmentMutation = useStartAppointment();
   const completeAppointmentMutation = useCompleteAppointment();
-  const confirmVideoSlotMutation = useConfirmVideoSlot();
-  const [resolvedVideoSlotConfirmations, setResolvedVideoSlotConfirmations] = useState<Record<string, boolean>>({});
 
   // Calculate real stats from fetched data
   const appointmentsArray = useMemo(() => {
@@ -361,14 +348,6 @@ export default function DoctorDashboard() {
     setSkipMedicineSelected(false);
   }, [currentInPersonConsult?.id]);
 
-  const awaitingSlotReviewAppointments = useMemo(
-    () =>
-      visibleAppointmentsArray.filter((appointment: AppointmentWithRelations) =>
-        isPaidVideoAppointmentAwaitingDoctorConfirmation(appointment as any)
-      ),
-    [visibleAppointmentsArray]
-  );
-
   // Full appointment timeline from real data (sorted by time)
   const appointmentTimeline = useMemo(() => {
     return [...visibleAppointmentsArray]
@@ -395,10 +374,7 @@ export default function DoctorDashboard() {
               : "UPCOMING";
         
         let displayStatus = apt.status as string;
-        if (viewState.awaitingDoctorSlotConfirmation) {
-          displayStatus = "SCHEDULED (AWAITING SLOT CONFIRMATION)";
-        }
-        else if (apt.status === "IN_PROGRESS") displayStatus = "IN PROGRESS";
+        if (apt.status === "IN_PROGRESS") displayStatus = "IN PROGRESS";
 
         return {
           id: apt.id,
@@ -420,8 +396,6 @@ export default function DoctorDashboard() {
           paymentCompleted: paymentDisplay.paymentCompleted,
           paymentPending: paymentDisplay.paymentPending,
           checkedInAt: apt.checkedInAt ? new Date(apt.checkedInAt).toISOString() : null,
-          proposedSlots: (apt as any).proposedSlots,
-          confirmedSlotIndex: (apt as any).confirmedSlotIndex,
         };
       });
   }, [visibleAppointmentsArray]);
@@ -472,10 +446,9 @@ export default function DoctorDashboard() {
       }).length,
       nextAppointment: appointmentTimeline.find(
         (a: TransformedAppointment) =>
-          a.statusEnum === "SCHEDULED" ||
-          a.statusEnum === "CONFIRMED" ||
-          a.statusEnum === "IN_PROGRESS" ||
-          isPaidVideoAppointmentAwaitingDoctorConfirmation(a)
+        a.statusEnum === "SCHEDULED" ||
+        a.statusEnum === "CONFIRMED" ||
+          a.statusEnum === "IN_PROGRESS"
       ),
     };
   }, [appointmentTimeline, visibleAppointmentsArray]);
@@ -552,26 +525,11 @@ export default function DoctorDashboard() {
     await refetchAppointments();
   };
 
-  const formatProposedSlot = (slot?: { date: string; time: string }) => {
-    if (!slot) return "Slot";
-    const dateLabel = slot.date
-      ? formatDateInIST(new Date(`${slot.date}T00:00:00`), {
-          day: "2-digit",
-          month: "short",
-        })
-      : "";
-    const timeLabel = slot.time ? formatAppointmentTime(slot.time) : "";
-    return `${dateLabel ? `${dateLabel} · ` : ""}${timeLabel || slot.time}`;
-  };
-
   const columns: ColumnDef<TransformedAppointment>[] = [
     {
       accessorKey: "patientName",
       header: "Patient",
       cell: ({ row }) => {
-        const awaitingConfirmation = isPaidVideoAppointmentAwaitingDoctorConfirmation(row.original);
-        const proposedSlots = Array.isArray(row.original.proposedSlots) ? row.original.proposedSlots : [];
-
         return (
           <div className="flex items-center gap-3">
             <div className={`w-9 h-9 ${row.original.isVideo ? 'bg-indigo-100/80 text-indigo-600' : 'bg-blue-100/80 text-blue-600'} rounded-full flex items-center justify-center shrink-0`}>
@@ -590,11 +548,6 @@ export default function DoctorDashboard() {
                 <span>{row.original.type}</span>
                 <span className="text-muted-foreground">•</span>
                 <span>{row.original.duration}</span>
-                {awaitingConfirmation && proposedSlots[0] && (
-                  <span className="text-amber-600 font-medium ml-1">
-                    (Prop: {proposedSlots[0].time})
-                  </span>
-                )}
               </div>
               {row.original.isVideo && (
                 <div className="mt-1">
@@ -653,12 +606,10 @@ export default function DoctorDashboard() {
       header: "Status",
       cell: ({ row }) => {
         const stat = row.original.statusEnum;
-        const awaitingConfirmation = isPaidVideoAppointmentAwaitingDoctorConfirmation(row.original);
         let colorClasses = "bg-muted border-border text-muted-foreground";
         if (stat === "IN_PROGRESS") colorClasses = "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300";
         else if (stat === "CONFIRMED") colorClasses = "bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300";
         else if (stat === "COMPLETED") colorClasses = "bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-300";
-        else if (awaitingConfirmation) colorClasses = "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300";
         
         return (
           <Badge variant="outline" className={`font-semibold text-[10px] uppercase tracking-wider ${colorClasses}`}>
@@ -672,32 +623,34 @@ export default function DoctorDashboard() {
       header: "Actions",
       cell: ({ row }) => {
         const appointment = row.original;
-        const appointmentId = String(appointment.id || "");
-        const awaitingConfirmation = isPaidVideoAppointmentAwaitingDoctorConfirmation(appointment) && !resolvedVideoSlotConfirmations[appointmentId];
-        const proposedSlots = Array.isArray(appointment.proposedSlots) ? appointment.proposedSlots : [];
         const paymentReady = !appointment.isVideo || appointment.paymentCompleted;
         const videoSessionDecision = appointment.isVideo ? getVideoSessionDecision(appointment) : null;
         return (
           <div className="flex gap-2">
             {appointment.statusEnum === "CONFIRMED" && appointment.isVideo && videoSessionDecision?.canJoin && (
-              <Button
-                size="sm"
-                className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-                disabled={startAppointmentMutation.isPending || !paymentReady}
-                onClick={async () => {
-                  await startConsultationForAppointment(appointment.id, appointment.doctorId, {
-                    openVideoAfterStart: true,
-                  });
-                }}
-                title={!paymentReady ? "Video request is waiting for payment" : undefined}
-              >
-                {startAppointmentMutation.isPending ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <Play className="w-3 h-3 fill-current" />
-                )}
-                Join Session
-              </Button>
+              <div className="flex flex-col items-start gap-1.5">
+                <Button
+                  size="sm"
+                  className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                  disabled={startAppointmentMutation.isPending || !paymentReady}
+                  onClick={async () => {
+                    await startConsultationForAppointment(appointment.id, appointment.doctorId, {
+                      openVideoAfterStart: true,
+                    });
+                  }}
+                  title={!paymentReady ? "Video request is waiting for payment" : undefined}
+                >
+                  {startAppointmentMutation.isPending ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Play className="w-3 h-3 fill-current" />
+                  )}
+                  Join Session
+                </Button>
+                <p className="text-[11px] text-muted-foreground">
+                  Join opens 5 minutes before your visit and stays open for 3 hours after start.
+                </p>
+              </div>
             )}
             {appointment.statusEnum === "CONFIRMED" && !appointment.isVideo && appointment.checkedInAt && (
               <Button
@@ -707,7 +660,7 @@ export default function DoctorDashboard() {
                 onClick={async () => {
                   await startConsultationForAppointment(appointment.id, appointment.doctorId);
                   if (appointment.isVideo) {
-                    router.push("/doctor/video");
+                    router.push("/doctor/appointments");
                   }
                 }}
                 title={!paymentReady ? "Video request is waiting for payment" : undefined}
@@ -739,105 +692,6 @@ export default function DoctorDashboard() {
               >
                 Payment pending
               </Badge>
-            )}
-            {awaitingConfirmation && proposedSlots.length > 0 && (
-              <div className="flex items-center gap-2">
-                <Select
-                  value={String(pendingVideoSlotSelections[appointment.id] ?? 0)}
-                  onValueChange={(value: string) =>
-                    setPendingVideoSlotSelections((current) => ({
-                      ...current,
-                      [appointment.id]: Number(value),
-                    }))
-                  }
-                >
-                  <SelectTrigger className="h-8 w-[190px] rounded-md text-xs">
-                    <SelectValue placeholder="Choose slot" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {proposedSlots.map((slot, index) => (
-                      <SelectItem key={`${appointment.id}-${index}`} value={String(index)}>
-                        {formatProposedSlot(slot)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  size="sm"
-                  className="h-8 gap-1.5 bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
-                  disabled={confirmVideoSlotMutation.isPending}
-                  onClick={async () => {
-                    try {
-                      const refreshedResult = await refetchAppointments();
-                      const refreshedAppointments = Array.isArray((refreshedResult as any)?.data)
-                        ? (refreshedResult as any).data
-                        : Array.isArray((refreshedResult as any)?.appointments)
-                          ? (refreshedResult as any).appointments
-                          : [];
-                      const refreshedAppointment = refreshedAppointments.find((item: any) => String(item?.appointmentId || item?.id || "") === appointmentId);
-
-                      if (
-                        refreshedAppointment &&
-                        !getAppointmentViewState(refreshedAppointment).awaitingDoctorSlotConfirmation
-                      ) {
-                        setResolvedVideoSlotConfirmations((current) => ({ ...current, [appointmentId]: true }));
-                        showSuccessToast("Slot is already confirmed. Refreshing the list.", { id: TOAST_IDS.APPOINTMENT.UPDATE });
-                        await refetchAppointments();
-                        setPendingVideoSlotSelections((current) => {
-                          const next = { ...current };
-                          delete next[appointmentId];
-                          return next;
-                        });
-                        return;
-                      }
-
-                      await confirmVideoSlotMutation.mutateAsync({
-                        appointmentId,
-                        confirmedSlotIndex: pendingVideoSlotSelections[appointmentId] ?? 0,
-                      });
-                      showSuccessToast("Slot confirmed successfully", { id: TOAST_IDS.APPOINTMENT.UPDATE });
-                      setResolvedVideoSlotConfirmations((current) => ({ ...current, [appointmentId]: true }));
-                      setPendingVideoSlotSelections((current) => {
-                        const next = { ...current };
-                        delete next[appointmentId];
-                        return next;
-                      });
-                    } catch (error) {
-                      const message = error instanceof Error ? error.message : String(error);
-                      if (message.includes("not awaiting doctor slot confirmation")) {
-                        setResolvedVideoSlotConfirmations((current) => ({ ...current, [appointmentId]: true }));
-                        showSuccessToast("Slot is already confirmed. Refreshing the list.", { id: TOAST_IDS.APPOINTMENT.UPDATE });
-                        setPendingVideoSlotSelections((current) => {
-                          const next = { ...current };
-                          delete next[appointmentId];
-                          return next;
-                        });
-                        return;
-                      }
-                      if (message.toLowerCase().includes("slot is no longer available")) {
-                        showErrorToast(
-                          "That proposed slot is no longer available. Please choose a different proposed slot and try again.",
-                          { id: TOAST_IDS.APPOINTMENT.UPDATE }
-                        );
-                        setPendingVideoSlotSelections((current) => {
-                          const next = { ...current };
-                          delete next[appointmentId];
-                          return next;
-                        });
-                        return;
-                      }
-                      showErrorToast(error, { id: TOAST_IDS.APPOINTMENT.UPDATE });
-                    }
-                  }}
-                >
-                  {confirmVideoSlotMutation.isPending ? (
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                  ) : (
-                    <CheckCircle className="w-3 h-3" />
-                  )}
-                  Confirm slot
-                </Button>
-              </div>
             )}
             {appointment.statusEnum === "IN_PROGRESS" && (
               <div className="flex gap-2">
@@ -1028,8 +882,8 @@ export default function DoctorDashboard() {
         }
         actions={[
           {
-            label: "Video Visits",
-            href: "/doctor/video",
+            label: "Appointments",
+            href: "/doctor/appointments",
             icon: <Video className="h-4 w-4" />,
           },
           {
@@ -1331,54 +1185,6 @@ export default function DoctorDashboard() {
             </CardContent>
           </Card>
 
-          {awaitingSlotReviewAppointments.length > 0 && (
-            <Card className="overflow-hidden border-l-4 border-l-amber-400 shadow-sm">
-              <div className="border-b border-border bg-amber-50/80 p-3 dark:bg-amber-950/20">
-                <h3 className="flex items-center gap-2 font-bold text-foreground">
-                  <AlertCircle className="h-4 w-4 text-amber-600" />
-                  Awaiting Slot Review
-                </h3>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Video bookings are paid and waiting for your confirmation of one proposed slot.
-                </p>
-              </div>
-              <CardContent className="space-y-3 p-3">
-                <div className="text-2xl font-bold text-amber-700 dark:text-amber-300">
-                  {awaitingSlotReviewAppointments.length}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {awaitingSlotReviewAppointments.length === 1
-                    ? "Request awaiting your review"
-                    : "Requests awaiting your review"}
-                </p>
-                <div className="space-y-2">
-                  {awaitingSlotReviewAppointments.slice(0, 3).map((appointment: AppointmentWithRelations) => (
-                    <div
-                      key={appointment.id}
-                      className="rounded-xl border border-amber-200 bg-white/90 px-3 py-2 text-sm shadow-sm dark:border-amber-900/40 dark:bg-card/80"
-                    >
-                      <div className="font-semibold text-foreground">
-                        {getAppointmentPatientName(appointment)}
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {getAppointmentDateTimeValue(appointment)
-                          ? formatDateInIST(getAppointmentDateTimeValue(appointment) as Date, {
-                              day: "numeric",
-                              month: "short",
-                            })
-                          : "Date TBD"}
-                        {" · "}
-                        {Array.isArray((appointment as any).proposedSlots)
-                          ? `${(appointment as any).proposedSlots.length} proposed slots`
-                          : "3 proposed slots"}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Scheduled Today Table */}
           <Card className="overflow-hidden border-l-4 border-l-blue-400 shadow-sm">
             <CardHeader className="border-b border-border bg-muted/40 px-4 pb-3 pt-4">
@@ -1431,12 +1237,12 @@ export default function DoctorDashboard() {
                 <Button
                   variant="outline"
                   className="w-full justify-start h-12 border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100 dark:hover:bg-amber-500/20"
-                  onClick={() => router.push("/doctor/video")}
+                  onClick={() => router.push("/doctor/appointments")}
                 >
                   <div className="w-8 h-8 rounded bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-200 flex items-center justify-center mr-3 transition-colors">
                     <Video className="w-4 h-4" />
                   </div>
-                  Video Visits
+                  Appointments
                 </Button>
                 <Button
                   variant="outline"

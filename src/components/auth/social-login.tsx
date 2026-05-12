@@ -3,15 +3,11 @@
 import { useAuth } from "@/hooks/auth/useAuth";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { showSuccessToast, showErrorToast, showLoadingToast, dismissToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 
 // Google client ID from environment variable
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
-// Constants
-// ✅ Using actual URL (route groups don't appear in URLs)
-const DEFAULT_REDIRECT_URL = "/patient/dashboard";
 const GOOGLE_GSI_SCRIPT_ID = "google-gsi-client-script";
 
 let googleScriptPromise: Promise<void> | null = null;
@@ -155,7 +151,6 @@ export function SocialLogin({
   onLoadingStateChange,
   showDivider = true,
 }: SocialLoginProps & { showDivider?: boolean }) {
-  const router = useRouter();
   const { googleLogin, isGoogleLoggingIn } = useAuth();
   const googleButtonRef = useRef<HTMLDivElement>(null);
   const isMountedRef = useRef(true);
@@ -186,16 +181,7 @@ export function SocialLogin({
           id: toastId,
         });
 
-        // Handle redirection
-        const searchParams = new URLSearchParams(window.location.search);
-        const callbackUrl = searchParams.get("callbackUrl");
-        const redirectUrl =
-          callbackUrl && !callbackUrl.includes("/auth/")
-            ? callbackUrl
-            : DEFAULT_REDIRECT_URL;
-
         onSuccess?.();
-        router.push(redirectUrl);
       } catch (error) {
         dismissToast(toastId);
         
@@ -209,7 +195,7 @@ export function SocialLogin({
         });
       }
     },
-    [googleLogin, router, onSuccess, onError]
+    [googleLogin, onSuccess, onError]
   );
 
   useEffect(() => {

@@ -87,11 +87,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_FIREBASE_VAPID_KEY: z.string().optional(),
   
   // Video Configuration
-  NEXT_PUBLIC_OPENVIDU_SERVER_URL: z.string().optional(),
   NEXT_PUBLIC_VIDEO_NO_SHOW_ENABLED: z.string().optional(),
-  NEXT_PUBLIC_JITSI_DOMAIN: z.string().optional(),
-  NEXT_PUBLIC_JITSI_BASE_URL: z.string().optional(),
-  NEXT_PUBLIC_JITSI_WS_URL: z.string().optional(),
   
   // App Domain Configuration
   NEXT_PUBLIC_MAIN_DOMAIN: z.string().optional(),
@@ -165,44 +161,6 @@ const envDefaults = {
 } as const;
 
 const currentEnvDefaults = envDefaults[currentEnvironment];
-
-function deriveOpenViduServerUrl(): string {
-  const candidates = [
-    env.NEXT_PUBLIC_OPENVIDU_SERVER_URL,
-    env.NEXT_PUBLIC_BACKEND_URL,
-    env.NEXT_PUBLIC_API_URL,
-    env.NEXT_PUBLIC_API_BASE_URL,
-    currentEnvDefaults.apiUrl,
-  ].filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
-
-  for (const candidate of candidates) {
-    const raw = candidate.trim();
-    try {
-      const parsed = new URL(/^[a-z]+:\/\//i.test(raw) ? raw : `https://${raw}`);
-      const hostname = parsed.hostname.replace(
-        /^backend-service-v1(?!-video)(?=\.)/,
-        'backend-service-v1-video'
-      );
-      const normalizedHost = hostname !== parsed.hostname ? hostname : parsed.hostname;
-      const port = parsed.port.length > 0 ? `:${parsed.port}` : '';
-
-      if (hostname !== parsed.hostname) {
-        return `${parsed.protocol}//${normalizedHost}${port}`;
-      }
-
-      if (parsed.hostname.includes('openvidu') || parsed.hostname.includes('-video')) {
-        return `${parsed.protocol}//${normalizedHost}${port}`;
-      }
-    } catch {
-      const normalized = raw.replace(/\/+$/, '');
-      if (normalized.includes('backend-service-v1.') && !normalized.includes('backend-service-v1-video.')) {
-        return normalized.replace('backend-service-v1.', 'backend-service-v1-video.');
-      }
-    }
-  }
-
-  return '';
-}
 
 function normalizeWebSocketBaseUrl(rawUrl: string | undefined): string {
   if (!rawUrl || !rawUrl.trim()) {
@@ -356,18 +314,10 @@ export const APP_CONFIG = {
   },
   
   // ============================================
-  // VIDEO CONFIGURATION (OpenVidu + Jitsi)
+  // VIDEO CONFIGURATION
   // ============================================
   VIDEO: {
-    // ⚠️ SECURITY: Video server URLs must come from environment variables
-    OPENVIDU_URL: env.NEXT_PUBLIC_OPENVIDU_SERVER_URL || deriveOpenViduServerUrl(),
     NO_SHOW_ENABLED: isVideoNoShowEnabled(),
-    // Jitsi Configuration (Fallback Video Provider)
-    JITSI: {
-      DOMAIN: env.NEXT_PUBLIC_JITSI_DOMAIN || '',
-      BASE_URL: env.NEXT_PUBLIC_JITSI_BASE_URL || '',
-      WS_URL: env.NEXT_PUBLIC_JITSI_WS_URL || '',
-    },
   },
   
   // ============================================
@@ -479,10 +429,7 @@ export const API_ENDPOINTS = {
     CANCEL: (id: string) => `/appointments/${id}/status`,
     CONFIRM: (id: string) => `/appointments/${id}/status`,
     STATUS: (id: string) => `/appointments/${id}/status`, // Consolidated endpoint
-    VIDEO_PROPOSE: '/appointments/video/propose',
     VIDEO_REJECT_PROPOSAL: (id: string) => `/appointments/${id}/video/reject`,
-    VIDEO_CONFIRM_SLOT: (id: string) => `/appointments/${id}/video/confirm-slot`,
-    VIDEO_CONFIRM_FINAL_SLOT: (id: string) => `/appointments/${id}/video/confirm-final-slot`,
     CHECK_IN: (id: string) => `/appointments/${id}/check-in`,
     FORCE_CHECK_IN: (id: string) => `/appointments/${id}/force-check-in`,
     SCAN_QR: '/appointments/check-in/scan-qr',
@@ -899,6 +846,8 @@ export const API_ENDPOINTS = {
     ADMIN: {
       LIST_SESSIONS: '/video/admin/sessions',
       TERMINATE_SESSION: (sessionId: string) => `/video/admin/sessions/${sessionId}/terminate`,
+      GET_PROVIDER_SETTINGS: '/video/admin/provider-settings',
+      UPDATE_PROVIDER_SETTINGS: '/video/admin/provider-settings',
     },
   },
   

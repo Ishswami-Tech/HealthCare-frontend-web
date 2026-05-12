@@ -33,6 +33,10 @@ export const ROUTES = {
   SHARED_SETTINGS: '/settings',
   SHARED_PROFILE: '/profile',
   HOME: '/',
+  PATIENT_HOME: '/patient/dashboard',
+  PATIENT_APPOINTMENTS: '/patient/appointments',
+  PATIENT_HEALTH: '/patient/health',
+  PATIENT_PAYMENTS: '/patient/payments',
 };
 
 export const ROLE_DASHBOARDS = {
@@ -153,13 +157,6 @@ export function getProtectedRouteRoles(path: string): string[] {
 
   if (path.startsWith('/pharmacy')) return [
     Role.PHARMACIST, Role.CLINIC_ADMIN, Role.SUPER_ADMIN,
-  ];
-
-  if (path.startsWith('/video-appointments')) return [
-    Role.THERAPIST, Role.COUNSELOR,
-    Role.DOCTOR, Role.ASSISTANT_DOCTOR,
-    Role.NURSE, Role.RECEPTIONIST,
-    Role.PATIENT, Role.SUPER_ADMIN, Role.CLINIC_ADMIN,
   ];
 
   return [];

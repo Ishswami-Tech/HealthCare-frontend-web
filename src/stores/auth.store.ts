@@ -10,6 +10,7 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { Session, User } from '@/types/auth.types';
+import { normalizeClinicId } from '@/lib/utils/clinic-id';
 
 function isSameUser(a: User | null | undefined, b: User | null | undefined): boolean {
   if (a === b) return true;
@@ -39,6 +40,17 @@ function isSameSession(a: Session | null, b: Session | null): boolean {
     a.isAuthenticated === b.isAuthenticated &&
     isSameUser(a.user, b.user)
   );
+}
+
+function normalizeAuthUser(user: User | null | undefined): User | null {
+  if (!user) {
+    return null;
+  }
+
+  return {
+    ...user,
+    clinicId: normalizeClinicId(user.clinicId || null) || user.clinicId,
+  };
 }
 
 export interface AuthState {
@@ -87,29 +99,46 @@ export const useAuthStore = create<AuthState>()(
       ...initialState,
 
       setSession: (session) => {
-        if (isSameSession((useAuthStore.getState() as AuthState).session, session)) {
+        const normalizedSession = session
+          ? {
+              ...session,
+              user: normalizeAuthUser(session.user) || session.user,
+            }
+          : session;
+
+        if (isSameSession((useAuthStore.getState() as AuthState).session, normalizedSession)) {
           return;
         }
         set((state) => {
-          state.session = session;
-          state.user = session?.user || null;
-          state.isAuthenticated = !!session?.isAuthenticated;
-          state.isProfileComplete = session?.user?.profileComplete || false;
-          state.requiresProfileCompletion = !session?.user?.profileComplete;
+          const nextProfileComplete =
+            typeof normalizedSession?.user?.profileComplete === 'boolean'
+              ? normalizedSession.user.profileComplete
+              : state.isProfileComplete;
+          state.session = normalizedSession;
+          state.user = normalizedSession?.user || null;
+          state.isAuthenticated = !!normalizedSession?.isAuthenticated;
+          state.isProfileComplete = nextProfileComplete;
+          state.requiresProfileCompletion = !nextProfileComplete;
           state.error = null;
         });
       },
 
       setUser: (user) => {
-        if (isSameUser((useAuthStore.getState() as AuthState).user, user)) {
+        const normalizedUser = normalizeAuthUser(user);
+
+        if (isSameUser((useAuthStore.getState() as AuthState).user, normalizedUser)) {
           return;
         }
         set((state) => {
-          state.user = user;
-          state.isAuthenticated = !!user;
-          state.isProfileComplete = user?.profileComplete || false;
-          state.requiresProfileCompletion = !user?.profileComplete;
-          if (!user) {
+          const nextProfileComplete =
+            typeof normalizedUser?.profileComplete === 'boolean'
+              ? normalizedUser.profileComplete
+              : state.isProfileComplete;
+          state.user = normalizedUser;
+          state.isAuthenticated = !!normalizedUser;
+          state.isProfileComplete = nextProfileComplete;
+          state.requiresProfileCompletion = !nextProfileComplete;
+          if (!normalizedUser) {
             state.session = null;
           }
         });

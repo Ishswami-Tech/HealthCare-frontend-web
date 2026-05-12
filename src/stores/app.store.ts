@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import { Session } from "@/types/auth.types";
+import { normalizeClinicId } from "@/lib/utils/clinic-id";
 
 // Global App State Types
 export interface User {
@@ -161,6 +162,17 @@ const initialState = {
   cacheInvalidation: {},
 };
 
+function normalizePersistedClinic(clinic: Clinic | null | undefined): Clinic | null {
+  if (!clinic) {
+    return null;
+  }
+
+  return {
+    ...clinic,
+    id: normalizeClinicId(clinic.id),
+  };
+}
+
 export const useAppStore = create<AppState>()(
   devtools(
     persist(
@@ -193,7 +205,9 @@ export const useAppStore = create<AppState>()(
         // Clinic Actions
         setCurrentClinic: (clinic) =>
           set((state) => {
-            state.currentClinic = clinic;
+            state.currentClinic = clinic
+              ? { ...clinic, id: normalizeClinicId(clinic.id) }
+              : null;
           }),
 
         addClinic: (clinic) =>
@@ -339,10 +353,29 @@ export const useAppStore = create<AppState>()(
       })),
       {
         name: 'healthcare-app-store',
+        version: 2,
+        migrate: (persistedState) => {
+          const state = persistedState as Partial<AppState> | undefined;
+
+          if (!state) {
+            return {} as Partial<AppState>;
+          }
+
+          return {
+            ...state,
+            currentClinic: normalizePersistedClinic(state.currentClinic),
+            clinics: Array.isArray(state.clinics)
+              ? state.clinics.map(clinic => ({
+                  ...clinic,
+                  id: normalizeClinicId(clinic.id),
+                }))
+              : [],
+          } as Partial<AppState>;
+        },
         partialize: (state) => ({
           user: state.user,
           isAuthenticated: state.isAuthenticated,
-          currentClinic: state.currentClinic,
+          currentClinic: normalizePersistedClinic(state.currentClinic),
           clinics: state.clinics,
           theme: state.theme,
           language: state.language,

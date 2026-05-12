@@ -300,17 +300,17 @@
 
   /* Google Meet UI Utilities */
   .meet-control-button {
-    @apply h-10 w-10 sm:h-12 sm:w-12 rounded-full flex items-center justify-center transition-all duration-200 border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300;
+    @apply h-10 w-10 sm:h-12 sm:w-12 rounded-full flex items-center justify-center transition-colors duration-150 border border-[#3c4043] bg-[#3c4043] text-white shadow-none hover:bg-[#4a4d51] hover:border-[#4a4d51];
   }
   .dark .meet-control-button {
-    @apply border-[#5f6368] bg-[#3c4043] text-white shadow-none hover:bg-[#4a4d51] hover:border-[#6c7075];
+    @apply border-[#3c4043] bg-[#3c4043] text-white shadow-none hover:bg-[#4a4d51] hover:border-[#4a4d51];
   }
   
   .meet-control-button-active {
-    @apply bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-800;
+    @apply bg-[#4a4d51] text-white hover:bg-[#5f6368] hover:text-white;
   }
   .dark .meet-control-button-active {
-    @apply bg-[#3c4043] text-white hover:bg-[#4a4d51] hover:text-white;
+    @apply bg-[#4a4d51] text-white hover:bg-[#5f6368] hover:text-white;
   }
   
   .meet-control-button-danger {
@@ -328,21 +328,21 @@
   }
 
   .meet-info-button {
-    @apply h-10 w-10 flex items-center justify-center rounded-full transition-all bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-800;
+    @apply h-10 w-10 flex items-center justify-center rounded-full transition-colors bg-transparent text-white hover:bg-[#303134] hover:text-white;
   }
   .dark .meet-info-button {
-    @apply bg-transparent text-white hover:bg-white/10 hover:text-white;
+    @apply bg-transparent text-white hover:bg-[#303134] hover:text-white;
   }
 
   .meet-info-button-active {
-    @apply bg-blue-500/10 text-[#1a73e8] ring-1 ring-blue-500/20;
+    @apply bg-[#303134] text-[#8ab4f8] ring-1 ring-[#5f6368]/40;
   }
   .dark .meet-info-button-active {
-    @apply bg-[#8ab4f8]/15 text-[#8ab4f8] ring-1 ring-[#8ab4f8]/20;
+    @apply bg-[#303134] text-[#8ab4f8] ring-1 ring-[#5f6368]/40;
   }
 
   .leave-call-button {
-    @apply h-10 w-14 sm:h-12 sm:w-16 bg-[#ea4335] text-white rounded-[24px] flex items-center justify-center shadow-md shadow-red-500/20 hover:bg-[#d93025] hover:shadow-lg hover:shadow-red-500/25 transition-all;
+    @apply h-10 w-14 sm:h-12 sm:w-16 bg-[#ea4335] text-white rounded-[24px] flex items-center justify-center shadow-none hover:bg-[#d93025] transition-colors;
   }
   .dark .leave-call-button {
     @apply bg-[#ea4335] text-white hover:bg-[#d93025];
@@ -1301,20 +1301,20 @@ html {
   }
 
   .leave-call-button {
-    @apply rounded-full w-14 h-10 flex items-center justify-center bg-[#ea4335] text-white transition-colors duration-200 cursor-pointer;
+    @apply rounded-full w-14 h-10 flex items-center justify-center bg-[#ea4335] text-white transition-colors duration-150 cursor-pointer;
   }
   .leave-call-button:hover {
-    @apply bg-[#eb5346];
+    @apply bg-[#d93025];
   }
 
   .call-info-button {
-    @apply rounded-full w-12 h-12 flex items-center justify-center bg-slate-100 border border-slate-200 text-slate-700 transition-colors duration-200 cursor-pointer;
+    @apply rounded-full w-12 h-12 flex items-center justify-center bg-transparent border border-transparent text-white transition-colors duration-150 cursor-pointer;
   }
   .call-info-button:hover {
-    @apply bg-slate-200 border-slate-300;
+    @apply bg-[#303134];
   }
   .call-info-button[data-active="true"] {
-    @apply bg-blue-500/10 text-[#1a73e8] border-blue-500/20;
+    @apply bg-[#303134] text-[#8ab4f8] border-transparent;
   }
 }
 
@@ -1675,4 +1675,27 @@ html5-qrcode {
   }
 }
 
+/* ============================================================================
+   UTILITY CLASSES FOR VIDEO CALL
+   ============================================================================ */
 
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #dadce0;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #bdc1c6;
+}

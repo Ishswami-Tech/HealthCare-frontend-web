@@ -59,23 +59,11 @@ function splitHref(href: string): { pathname: string; searchParams: URLSearchPar
 }
 
 function normalizeSidebarPath(pathname: string): string {
-  const videoAliases = new Set([
-    "/video-appointments",
-    "/super-admin/video",
-    "/clinic-admin/video",
-    "/doctor/video",
-    "/assistant-doctor/video",
-    "/receptionist/video",
-    "/therapist/video",
-    "/counselor/video",
-    "/patient/video",
-  ]);
+  const aliasMap: Record<string, string> = {
+    "/patient/check-in": "/patient/appointments",
+  };
 
-  if (videoAliases.has(pathname)) {
-    return "/video-appointments";
-  }
-
-  return pathname;
+  return aliasMap[pathname] || pathname;
 }
 
 function isSidebarLinkActive(currentPathname: string, currentSearch: URLSearchParams, href: string): boolean {
@@ -237,7 +225,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                   isActive={isActive}
                   tooltip={link.title}
                   className={cn(
-                    "relative transition-all duration-200 overflow-hidden hover:-translate-y-0.5 hover:shadow-sm",
+                    "relative h-11 px-3 text-sm transition-all duration-200 overflow-hidden hover:-translate-y-0.5 hover:shadow-sm sm:h-10",
                     isActive
                       ? activeNavClass
                       : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-200",
@@ -252,7 +240,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                   }}
                   >
                   {isLogout ? (
-                    <button className={cn("flex items-center gap-2 w-full text-destructive hover:text-destructive/80", !open && "justify-center")}>
+                    <button className={cn("flex h-full items-center gap-2 w-full text-destructive hover:text-destructive/80", !open && "justify-center")}>
                       <span className="size-4 flex items-center justify-center shrink-0">
                         <Icon className="size-4" />
                       </span>
@@ -272,7 +260,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                     <Link
                       href={link.href}
                       prefetch={false}
-                      className={cn("relative flex items-center gap-2 w-full", !open && "justify-center")}
+                    className={cn("relative flex h-full items-center gap-2 w-full", !open && "justify-center")}
                     >
                       {isActive && (
                         <span
@@ -310,7 +298,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
               <SidebarMenuButton 
                 asChild 
               className={cn(
-                "relative h-auto p-2 transition-all duration-200 overflow-hidden hover:-translate-y-0.5 hover:shadow-sm",
+                "relative h-11 p-2 transition-all duration-200 overflow-hidden hover:-translate-y-0.5 hover:shadow-sm sm:h-auto",
                 isProfileActive
                   ? activeNavClass
                   : "hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-200",
@@ -321,7 +309,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
               <Link
                 href={profileRoute}
                 prefetch={false}
-                className={cn("relative flex items-center gap-3 w-full", !open && "justify-center")}
+                className={cn("relative flex h-full items-center gap-3 w-full", !open && "justify-center")}
               >
                 {isProfileActive && (
                   <span className="absolute -top-1 left-1/2 size-2 -translate-x-1/2 rounded-full bg-primary" aria-hidden="true" />

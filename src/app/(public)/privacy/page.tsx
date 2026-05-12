@@ -85,10 +85,20 @@ export default function PrivacyPolicyPage() {
               </p>
             </section>
 
+            <section className="space-y-3">
+              <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                 <FileText className="h-5 w-5 text-blue-600" />
+                 5. Appointment and Billing Notices
+              </h2>
+              <p className="text-gray-600 leading-relaxed">
+                We use your appointment and payment information to manage bookings, confirm visits, and send service notices. For video appointments, refund and missed-slot rules are governed by our Terms of Service, including the requirement to rebook if you miss your scheduled slot.
+              </p>
+            </section>
+
             <section className="bg-blue-50 rounded-xl p-6 mt-8">
                 <h3 className="font-semibold text-blue-900 mb-2">Contact Us</h3>
                 <p className="text-blue-800 text-sm">
-                    If you have any questions about this Privacy Policy, please contact us at <a href="mailto:privacy@healthcareapp.com" className="underline hover:text-blue-600">privacy@healthcareapp.com</a>.
+                    If you have any questions about this Privacy Policy, please contact us at <a href="mailto:info@viddhakarma.com" className="underline hover:text-blue-600">info@viddhakarma.com</a>.
                 </p>
             </section>
           </CardContent>

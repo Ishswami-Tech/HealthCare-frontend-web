@@ -8,6 +8,7 @@ import {
   useAssistantDoctorCoverage,
   useUpdateAssistantDoctorCoverage,
 } from "@/hooks/query/useAppointments";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,7 @@ import {
 } from "@/components/dashboard/DashboardPageShell";
 import { OperatingWindowsEditor } from "@/components/dashboard/OperatingWindowsEditor";
 import { AlertTriangle, Loader2, Save, Plus, Stethoscope, Trash2, Video, Ban } from "lucide-react";
+import { showErrorToast } from "@/hooks/utils/use-toast";
 import type {
   Clinic,
   ClinicDoctorConsultationControl,
@@ -45,7 +47,7 @@ type DoctorListItem = {
 };
 type AssistantCoverageState = Record<string, AssistantDoctorCoverageAssignment>;
 type ClinicForm = { name: string; address: string; city: string; state: string; country: string; zipCode: string; phone: string; email: string; website: string; description: string; timezone: string; currency: string; language: string; operatingHours: string };
-type SettingsForm = { appointmentDuration: number; maxAdvanceBooking: number; minAdvanceBooking: number; cancellationWindow: number; noShowWindowMinutes: number; noShowFee: number; cancellationFee: number; allowRescheduling: boolean; allowCancellation: boolean; autoConfirmation: boolean; walkInAllowed: boolean; emailNotifications: boolean; smsNotifications: boolean; pushNotifications: boolean; appointmentReminders: boolean; cancellationAlerts: boolean; paymentMethodsText: string; autoBilling: boolean; clinicPaused: boolean; pauseReason: string; generalConsultationEnabled: boolean; videoConsultationEnabled: boolean; emergencyOnly: boolean };
+type SettingsForm = { appointmentDuration: number; maxAdvanceBooking: number; minAdvanceBooking: number; cancellationWindow: number; videoCallWindowStart: string; videoCallWindowEnd: string; noShowWindowMinutes: number; noShowFee: number; cancellationFee: number; allowRescheduling: boolean; allowCancellation: boolean; autoConfirmation: boolean; walkInAllowed: boolean; emailNotifications: boolean; smsNotifications: boolean; pushNotifications: boolean; appointmentReminders: boolean; cancellationAlerts: boolean; paymentMethodsText: string; autoBilling: boolean; clinicPaused: boolean; pauseReason: string; generalConsultationEnabled: boolean; videoConsultationEnabled: boolean; emergencyOnly: boolean };
 
 const DAYS: ClinicOperatingDayKey[] = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
 const DAY_LABEL: Record<ClinicOperatingDayKey, string> = { monday:"Monday", tuesday:"Tuesday", wednesday:"Wednesday", thursday:"Thursday", friday:"Friday", saturday:"Saturday", sunday:"Sunday" };
@@ -69,6 +71,18 @@ const NOTIFY_CARD_CLASS = `${COMPACT_CARD_PADDING} border-violet-200 bg-violet-5
 const BILLING_CARD_CLASS = `${COMPACT_CARD_PADDING} border-teal-200 bg-teal-50/70 shadow-sm dark:border-teal-900/70 dark:bg-teal-950/20`;
 const DOCTOR_CARD_CLASS = `${COMPACT_CARD_PADDING} border-blue-200 bg-blue-50/70 shadow-sm dark:border-blue-900/70 dark:bg-blue-950/20`;
 const ASSISTANT_CARD_CLASS = `${COMPACT_CARD_PADDING} border-fuchsia-200 bg-fuchsia-50/70 shadow-sm dark:border-fuchsia-900/70 dark:bg-fuchsia-950/20`;
+const timeToMinutes = (value: string) => {
+  const [hoursPart = "0", minutesPart = "0"] = value.split(":");
+  const hours = Number(hoursPart);
+  const minutes = Number(minutesPart);
+  return (Number.isFinite(hours) ? hours : 0) * 60 + (Number.isFinite(minutes) ? minutes : 0);
+};
+const formatMinutes = (value: number) => {
+  const normalized = ((value % 1440) + 1440) % 1440;
+  const hours = Math.floor(normalized / 60).toString().padStart(2, "0");
+  const minutes = (normalized % 60).toString().padStart(2, "0");
+  return `${hours}:${minutes}`;
+};
 
 function SettingField({
   label,
@@ -157,6 +171,7 @@ function omitAssistantCoverage(value: unknown): Record<string, unknown> {
 
 export default function ClinicAdminSettingsPage() {
   useAuth();
+  useWebSocketQuerySync();
   const { data: clinicData, isPending } = useCurrentClinic();
   const updateClinic = useUpdateClinic();
   const { data: assistantCoverageData = [] } = useAssistantDoctorCoverage();
@@ -182,10 +197,36 @@ export default function ClinicAdminSettingsPage() {
 
   const [ready, setReady] = useState(false);
   const [clinicForm, setClinicForm] = useState<ClinicForm>({ name:"",address:"",city:"",state:"",country:"India",zipCode:"",phone:"",email:"",website:"",description:"",timezone:"Asia/Kolkata",currency:"INR",language:"en",operatingHours:"Mon-Sun multi-session OPD" });
-  const [settings, setSettings] = useState<SettingsForm>({ appointmentDuration:30,maxAdvanceBooking:30,minAdvanceBooking:2,cancellationWindow:24,noShowWindowMinutes:15,noShowFee:0,cancellationFee:0,allowRescheduling:true,allowCancellation:true,autoConfirmation:true,walkInAllowed:true,emailNotifications:true,smsNotifications:true,pushNotifications:false,appointmentReminders:true,cancellationAlerts:true,paymentMethodsText:"Cash, Card, UPI",autoBilling:false,clinicPaused:false,pauseReason:"",generalConsultationEnabled:true,videoConsultationEnabled:true,emergencyOnly:false });
+  const [settings, setSettings] = useState<SettingsForm>({ appointmentDuration:30,maxAdvanceBooking:30,minAdvanceBooking:2,cancellationWindow:24,videoCallWindowStart:"10:00",videoCallWindowEnd:"14:00",noShowWindowMinutes:15,noShowFee:0,cancellationFee:0,allowRescheduling:true,allowCancellation:true,autoConfirmation:true,walkInAllowed:true,emailNotifications:true,smsNotifications:true,pushNotifications:false,appointmentReminders:true,cancellationAlerts:true,paymentMethodsText:"Cash, Card, UPI",autoBilling:false,clinicPaused:false,pauseReason:"",generalConsultationEnabled:true,videoConsultationEnabled:true,emergencyOnly:false });
   const [sessions, setSessions] = useState<Record<ClinicOperatingDayKey, ClinicOperatingSession[]>>(defaultSessions());
   const [doctorCtrl, setDoctorCtrl] = useState<Record<string, ClinicDoctorConsultationControl>>({});
   const [assistantCoverage, setAssistantCoverage] = useState<AssistantCoverageState>({});
+  const videoCallPreview = useMemo(() => {
+    const start = settings.videoCallWindowStart.trim();
+    const end = settings.videoCallWindowEnd.trim();
+    const startMinutes = timeToMinutes(start);
+    const endMinutes = timeToMinutes(end);
+    const slotDuration = Math.max(1, settings.appointmentDuration);
+    const validTimes =
+      /^([01]\d|2[0-3]):([0-5]\d)$/.test(start) && /^([01]\d|2[0-3]):([0-5]\d)$/.test(end) && startMinutes < endMinutes;
+    const totalMinutes = validTimes ? endMinutes - startMinutes : 0;
+    const slotCount = validTimes ? Math.floor(totalMinutes / slotDuration) : 0;
+
+    return {
+      valid: validTimes && slotCount > 0,
+      slotCount,
+      start,
+      end,
+      slotDuration,
+      label: validTimes
+        ? `${formatMinutes(startMinutes)} to ${formatMinutes(endMinutes)}`
+        : "Enter a valid same-day time window",
+      note:
+        validTimes && slotCount > 0
+          ? `${slotCount} ${slotCount === 1 ? "slot" : "slots"} of ${slotDuration} minutes fit inside this window.`
+          : "The end time must be after the start time and the window must be long enough for one video slot.",
+    };
+  }, [settings.appointmentDuration, settings.videoCallWindowEnd, settings.videoCallWindowStart]);
 
   useEffect(() => {
     if (!clinic || ready) return;
@@ -202,7 +243,7 @@ export default function ClinicAdminSettingsPage() {
     const mapped: Record<string, ClinicDoctorConsultationControl> = {};
     Object.entries(docMap).forEach(([id,v]) => { if (isRecord(v)) mapped[id] = { isPaused: Boolean(v.isPaused ?? v.paused ?? false), pauseReason: typeof v.pauseReason==="string"?v.pauseReason:"", generalConsultationEnabled: Boolean(v.generalConsultationEnabled ?? true), videoConsultationEnabled: Boolean(v.videoConsultationEnabled ?? true), emergencyOnly: Boolean(v.emergencyOnly ?? false) }; });
     setClinicForm({ name: clinic.name||"", address: clinic.address||"", city: (clinic as any).city||"", state: (clinic as any).state||"", country: (clinic as any).country||"India", zipCode: (clinic as any).zipCode||"", phone: clinic.phone||"", email: clinic.email||"", website: clinic.website||"", description: clinic.description||"", timezone: clinic.timezone||"Asia/Kolkata", currency: clinic.currency||"INR", language: clinic.language||"en", operatingHours: clinic.operatingHours||"Mon-Sun multi-session OPD" });
-    setSettings({ appointmentDuration: toNumber(appt.appointmentDuration,30), maxAdvanceBooking: toNumber(appt.maxAdvanceBooking,30), minAdvanceBooking: toNumber(appt.minAdvanceBooking,2), cancellationWindow: toNumber(appt.cancellationWindow,24), noShowWindowMinutes: toNumber(appt.noShowWindowMinutes,15), noShowFee: toNumber(policy.noShowFee,0), cancellationFee: toNumber(policy.cancellationFee,0), allowRescheduling: typeof appt.allowRescheduling==="boolean"?appt.allowRescheduling:true, allowCancellation: typeof appt.allowCancellation==="boolean"?appt.allowCancellation:true, autoConfirmation: typeof appt.autoConfirmation==="boolean"?appt.autoConfirmation:true, walkInAllowed: typeof appt.walkInAllowed==="boolean"?appt.walkInAllowed:true, emailNotifications: typeof notif.email==="boolean"?notif.email:typeof notifSet.emailNotifications==="boolean"?notifSet.emailNotifications:true, smsNotifications: typeof notif.sms==="boolean"?notif.sms:typeof notifSet.smsNotifications==="boolean"?notifSet.smsNotifications:true, pushNotifications: typeof notif.push==="boolean"?notif.push:typeof notifSet.pushNotifications==="boolean"?notifSet.pushNotifications:false, appointmentReminders: typeof notifSet.appointmentReminders==="boolean"?notifSet.appointmentReminders:true, cancellationAlerts: typeof notifSet.cancellationAlerts==="boolean"?notifSet.cancellationAlerts:true, paymentMethodsText: Array.isArray(pay.paymentMethods)?pay.paymentMethods.join(", "):"Cash, Card, UPI", autoBilling: typeof pay.autoBilling==="boolean"?pay.autoBilling:false, clinicPaused: Boolean(opd.isOpdPaused ?? opd.clinicPaused ?? false), pauseReason: typeof opd.pauseReason==="string"?opd.pauseReason:"", generalConsultationEnabled: Boolean(opd.generalConsultationEnabled ?? true), videoConsultationEnabled: Boolean(opd.videoConsultationEnabled ?? true), emergencyOnly: Boolean(opd.emergencyOnly ?? false) });
+    setSettings({ appointmentDuration: toNumber(appt.appointmentDuration,30), maxAdvanceBooking: toNumber(appt.maxAdvanceBooking,30), minAdvanceBooking: toNumber(appt.minAdvanceBooking,2), cancellationWindow: toNumber(appt.cancellationWindow,24), videoCallWindowStart: normalizeTime(isRecord(appt.videoCallWindow) ? appt.videoCallWindow.start : undefined, "10:00"), videoCallWindowEnd: normalizeTime(isRecord(appt.videoCallWindow) ? appt.videoCallWindow.end : undefined, "14:00"), noShowWindowMinutes: toNumber(appt.noShowWindowMinutes,15), noShowFee: toNumber(policy.noShowFee,0), cancellationFee: toNumber(policy.cancellationFee,0), allowRescheduling: typeof appt.allowRescheduling==="boolean"?appt.allowRescheduling:true, allowCancellation: typeof appt.allowCancellation==="boolean"?appt.allowCancellation:true, autoConfirmation: typeof appt.autoConfirmation==="boolean"?appt.autoConfirmation:true, walkInAllowed: typeof appt.walkInAllowed==="boolean"?appt.walkInAllowed:true, emailNotifications: typeof notif.email==="boolean"?notif.email:typeof notifSet.emailNotifications==="boolean"?notifSet.emailNotifications:true, smsNotifications: typeof notif.sms==="boolean"?notif.sms:typeof notifSet.smsNotifications==="boolean"?notifSet.smsNotifications:true, pushNotifications: typeof notif.push==="boolean"?notif.push:typeof notifSet.pushNotifications==="boolean"?notifSet.pushNotifications:false, appointmentReminders: typeof notifSet.appointmentReminders==="boolean"?notifSet.appointmentReminders:true, cancellationAlerts: typeof notifSet.cancellationAlerts==="boolean"?notifSet.cancellationAlerts:true, paymentMethodsText: Array.isArray(pay.paymentMethods)?pay.paymentMethods.join(", "):"Cash, Card, UPI", autoBilling: typeof pay.autoBilling==="boolean"?pay.autoBilling:false, clinicPaused: Boolean(opd.isOpdPaused ?? opd.clinicPaused ?? false), pauseReason: typeof opd.pauseReason==="string"?opd.pauseReason:"", generalConsultationEnabled: Boolean(opd.generalConsultationEnabled ?? true), videoConsultationEnabled: Boolean(opd.videoConsultationEnabled ?? true), emergencyOnly: Boolean(opd.emergencyOnly ?? false) });
     setSessions(parsed); setDoctorCtrl(mapped); setReady(true);
   }, [clinic, ready]);
 
@@ -235,6 +276,10 @@ export default function ClinicAdminSettingsPage() {
 
   const save = async () => {
     if (!clinic?.id) return;
+    if (!videoCallPreview.valid) {
+      showErrorToast(videoCallPreview.note);
+      return;
+    }
     const base = isRecord(clinic.settings) ? clinic.settings : {};
     const appt = omitAssistantCoverage(base.appointmentSettings);
     const notif = isRecord(base.notifications) ? base.notifications : {};
@@ -246,7 +291,7 @@ export default function ClinicAdminSettingsPage() {
       name: clinicForm.name.trim(), address: clinicForm.address.trim(), city: clinicForm.city.trim(), state: clinicForm.state.trim(), country: clinicForm.country.trim(), zipCode: clinicForm.zipCode.trim(), phone: clinicForm.phone.trim(), email: clinicForm.email.trim(), website: clinicForm.website.trim(), description: clinicForm.description.trim(), timezone: clinicForm.timezone.trim() || "Asia/Kolkata", currency: clinicForm.currency.trim() || "INR", language: clinicForm.language.trim() || "en", operatingHours: clinicForm.operatingHours.trim(),
       settings: {
         ...base,
-        appointmentSettings: { ...appt, appointmentDuration: settings.appointmentDuration, maxAdvanceBooking: settings.maxAdvanceBooking, minAdvanceBooking: settings.minAdvanceBooking, cancellationWindow: settings.cancellationWindow, noShowWindowMinutes: settings.noShowWindowMinutes, allowRescheduling: settings.allowRescheduling, allowCancellation: settings.allowCancellation, autoConfirmation: settings.autoConfirmation, walkInAllowed: settings.walkInAllowed, operatingWindowsByDay: sessions, dailyOperatingWindow: sessions.monday[0] || { start:"11:00", end:"14:00" }, opdControls: { isOpdPaused: settings.clinicPaused, pauseReason: settings.pauseReason.trim(), generalConsultationEnabled: settings.generalConsultationEnabled, videoConsultationEnabled: settings.videoConsultationEnabled, emergencyOnly: settings.emergencyOnly }, doctorConsultationControls: doctorCtrl },
+        appointmentSettings: { ...appt, appointmentDuration: settings.appointmentDuration, maxAdvanceBooking: settings.maxAdvanceBooking, minAdvanceBooking: settings.minAdvanceBooking, cancellationWindow: settings.cancellationWindow, videoCallWindow: { start: settings.videoCallWindowStart, end: settings.videoCallWindowEnd }, noShowWindowMinutes: settings.noShowWindowMinutes, allowRescheduling: settings.allowRescheduling, allowCancellation: settings.allowCancellation, autoConfirmation: settings.autoConfirmation, walkInAllowed: settings.walkInAllowed, operatingWindowsByDay: sessions, dailyOperatingWindow: sessions.monday[0] || { start:"11:00", end:"14:00" }, opdControls: { isOpdPaused: settings.clinicPaused, pauseReason: settings.pauseReason.trim(), generalConsultationEnabled: settings.generalConsultationEnabled, videoConsultationEnabled: settings.videoConsultationEnabled, emergencyOnly: settings.emergencyOnly }, doctorConsultationControls: doctorCtrl },
         notificationSettings: { ...notifSet, appointmentReminders: settings.appointmentReminders, cancellationAlerts: settings.cancellationAlerts, emailNotifications: settings.emailNotifications, smsNotifications: settings.smsNotifications, pushNotifications: settings.pushNotifications },
         notifications: { ...notif, email: settings.emailNotifications, sms: settings.smsNotifications, push: settings.pushNotifications },
         paymentSettings: { ...pay, currency: clinicForm.currency.trim() || "INR", paymentMethods, autoBilling: settings.autoBilling },
@@ -430,6 +475,44 @@ export default function ClinicAdminSettingsPage() {
                 <SettingField label="Cancellation Window (hours)">
                   <Input className={FORM_INPUT_CLASS} type="number" value={settings.cancellationWindow} onChange={(e) => setSF("cancellationWindow", toNumber(e.target.value, 24))} />
                 </SettingField>
+                <SettingField label="Video Call Start">
+                  <TimeInput value={settings.videoCallWindowStart} onChange={(value) => setSF("videoCallWindowStart", value)} label="Video call start time" />
+                </SettingField>
+                <SettingField label="Video Call End">
+                  <TimeInput value={settings.videoCallWindowEnd} onChange={(value) => setSF("videoCallWindowEnd", value)} label="Video call end time" />
+                </SettingField>
+              </div>
+              <div
+                className={`rounded-xl border px-4 py-3 ${
+                  videoCallPreview.valid
+                    ? "border-sky-200 bg-sky-50/70 dark:border-sky-900/70 dark:bg-sky-950/20"
+                    : "border-amber-200 bg-amber-50/70 dark:border-amber-900/70 dark:bg-amber-950/20"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold">Video Call Window Preview</p>
+                  <span
+                    className={`text-xs font-semibold ${
+                      videoCallPreview.valid
+                        ? "text-sky-700 dark:text-sky-300"
+                        : "text-amber-700 dark:text-amber-300"
+                    }`}
+                  >
+                    {videoCallPreview.valid ? `${videoCallPreview.slotCount} slots fit` : "Needs adjustment"}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {videoCallPreview.label} · {videoCallPreview.slotDuration} minute video slots
+                </p>
+                <p
+                  className={`mt-1 text-xs ${
+                    videoCallPreview.valid
+                      ? "text-sky-700 dark:text-sky-300"
+                      : "text-amber-700 dark:text-amber-300"
+                  }`}
+                >
+                  {videoCallPreview.note}
+                </p>
               </div>
               <div className="grid gap-2">
                 <ToggleRow label="Allow Rescheduling" checked={settings.allowRescheduling} onCheckedChange={(value) => setSF("allowRescheduling", value)} />

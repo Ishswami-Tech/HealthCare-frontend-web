@@ -51,6 +51,8 @@ export interface NormalizedPatientAppointment {
 
 const IN_PERSON_DEFAULT_DURATION_MINUTES = 3;
 const VIDEO_DEFAULT_DURATION_MINUTES = 15;
+const VIDEO_JOIN_EARLY_WINDOW_MINUTES = 5;
+const VIDEO_JOIN_LATE_WINDOW_MINUTES = 180;
 
 const COMPLETED_PAYMENT_STATUSES = new Set(['COMPLETED', 'SUCCESS', 'PAID', 'CAPTURED']);
 const PENDING_PAYMENT_STATUSES = new Set([
@@ -74,11 +76,12 @@ export function normalizeAppointmentStatus(value: unknown): string {
     case 'PENDING':
     case 'AWAITING_PAYMENT':
     case 'PENDING_PAYMENT':
-    case 'AWAITING_SLOT_CONFIRMATION':
     case 'FOLLOW_UP_SCHEDULED':
     case 'RESCHEDULED':
     case 'WAITING':
       return 'SCHEDULED';
+    case 'PAID':
+      return 'CONFIRMED';
     case 'ACTIVE':
     case 'STARTED':
       return 'IN_PROGRESS';
@@ -152,6 +155,37 @@ function getPersonNameCandidates(person: any): string[] {
   ]
     .map(normalizeNameCandidate)
     .filter((value) => value && !/^unknown\s+(doctor|patient)$/i.test(value));
+}
+
+function getVideoJoinWindow(appointment: any): { start: Date | null; end: Date | null } {
+  const startSource =
+    getAppointmentDateTimeValue(appointment) ||
+    appointment?.startTime ||
+    appointment?.appointmentDate ||
+    appointment?.scheduledFor ||
+    appointment?.createdAt ||
+    null;
+
+  const start = startSource ? new Date(startSource) : null;
+  if (!start || Number.isNaN(start.getTime())) {
+    return { start: null, end: null };
+  }
+
+  const explicitEndSource = appointment?.endTime || appointment?.scheduledEndTime || null;
+  const explicitEnd = explicitEndSource ? new Date(explicitEndSource) : null;
+  const fallbackEnd = new Date(start.getTime() + VIDEO_JOIN_LATE_WINDOW_MINUTES * 60_000);
+  const end = explicitEnd && !Number.isNaN(explicitEnd.getTime()) ? explicitEnd : fallbackEnd;
+  return { start, end };
+}
+
+function isWithinVideoJoinWindow(appointment: any, now = new Date()): boolean {
+  const window = getVideoJoinWindow(appointment);
+  if (!window.start || !window.end) {
+    return true;
+  }
+
+  const earlyJoinTime = new Date(window.start.getTime() - VIDEO_JOIN_EARLY_WINDOW_MINUTES * 60_000);
+  return now >= earlyJoinTime && now <= window.end;
 }
 
 function getDoctorNameCandidates(appointment: any): string[] {
@@ -253,6 +287,21 @@ function normalizeStatusToken(value: unknown): string {
   return normalizePaymentStatusValue(value);
 }
 
+function getAppointmentStatusWithPaymentFallback(appointment: any): string {
+  const type = String(appointment?.type || appointment?.appointmentType || '').toUpperCase();
+  const normalizedStatus = normalizeAppointmentStatus(appointment?.status);
+
+  if (
+    type === 'VIDEO_CALL' &&
+    normalizedStatus === 'SCHEDULED' &&
+    isVideoAppointmentPaymentCompleted(appointment)
+  ) {
+    return 'CONFIRMED';
+  }
+
+  return normalizedStatus;
+}
+
 export function getAppointmentPaymentStatus(appointment: any): string {
   if (getPaymentCompletionFlags(appointment).some(Boolean)) {
     return 'PAID';
@@ -304,13 +353,13 @@ export function isVideoAppointmentJoinable(appointment: any): boolean {
   const normalizedStatus = viewState.normalizedStatus.toUpperCase();
   const joinableStatuses = new Set(['SCHEDULED', 'CONFIRMED', 'QUEUED', 'IN_PROGRESS']);
 
-  if (normalizedStatus === 'NO_SHOW' && !isVideoNoShowEnforced()) {
-    // Test-only bypass: treat video no-show as joinable when enforcement is disabled.
-  } else if (!joinableStatuses.has(normalizedStatus)) {
+  if (isTerminalAppointment(appointment)) {
     return false;
   }
 
-  if (normalizedStatus !== 'IN_PROGRESS' && !viewState.hasConfirmedSlot) {
+  if (normalizedStatus === 'NO_SHOW' && !isVideoNoShowEnforced()) {
+    // Test-only bypass: treat video no-show as joinable when enforcement is disabled.
+  } else if (!joinableStatuses.has(normalizedStatus)) {
     return false;
   }
 
@@ -320,10 +369,6 @@ export function isVideoAppointmentJoinable(appointment: any): boolean {
 export function getVideoAppointmentJoinBlockedReason(appointment: any): string {
   const viewState = getAppointmentViewState(appointment);
   const normalizedStatus = viewState.normalizedStatus.toUpperCase();
-
-  if (viewState.awaitingDoctorSlotConfirmation) {
-    return 'This video appointment is still waiting for doctor slot confirmation.';
-  }
 
   if (['CANCELLED', 'COMPLETED'].includes(normalizedStatus)) {
     return 'This video appointment is no longer available.';
@@ -335,10 +380,6 @@ export function getVideoAppointmentJoinBlockedReason(appointment: any): string {
 
   if (!viewState.paymentCompleted) {
     return 'Payment is required before joining this video appointment.';
-  }
-
-  if (normalizedStatus !== 'IN_PROGRESS' && !viewState.hasConfirmedSlot) {
-    return 'This video appointment is waiting for slot confirmation.';
   }
 
   return 'This video appointment is not ready to join yet.';
@@ -390,7 +431,7 @@ export function getAppointmentLocationName(appointment: any): string {
 
 export function normalizePatientAppointment(appointment: any): NormalizedPatientAppointment {
   const dateTime = getAppointmentDateTimeValue(appointment);
-  const normalizedStatus = normalizeAppointmentStatus(appointment?.status);
+  const normalizedStatus = getAppointmentStatusWithPaymentFallback(appointment);
   const normalizedTime =
     (typeof appointment?.time === 'string' && appointment.time
       ? formatTimeValueInIST(appointment.time)
@@ -457,45 +498,21 @@ export function getAppointmentStatusDisplayName(status: string): string {
 }
 
 export function isAwaitingDoctorSlotConfirmation(appointment: any): boolean {
-  const type = String(appointment?.type || appointment?.appointmentType || '').toUpperCase();
-  if (type !== 'VIDEO_CALL') return false;
-  if (!isVideoAppointmentPaymentCompleted(appointment)) return false;
-
-  const hasProposedSlots =
-    Array.isArray(appointment?.proposedSlots) && appointment.proposedSlots.length > 0;
-  const confirmedSlotIndex = appointment?.confirmedSlotIndex;
-  const hasConfirmedSlot =
-    confirmedSlotIndex !== null &&
-    confirmedSlotIndex !== undefined &&
-    confirmedSlotIndex !== '' &&
-    !Number.isNaN(Number(confirmedSlotIndex));
-
-  const status = normalizeAppointmentStatus(appointment?.status);
-  const paymentStatus = getAppointmentPaymentStatus(appointment);
-  const paymentCompleted = paymentStatus === 'COMPLETED' || paymentStatus === 'SUCCESS' || paymentStatus === 'PAID';
-
-  return paymentCompleted && (status === 'SCHEDULED' || status === 'PENDING') && hasProposedSlots && !hasConfirmedSlot;
+  return false;
 }
 
 export function getAppointmentStatusBadgeLabel(appointment: any): string {
-  const normalizedStatus = normalizeAppointmentStatus(appointment?.status);
+  const normalizedStatus = getAppointmentStatusWithPaymentFallback(appointment);
 
-  if (normalizedStatus === 'COMPLETED' || normalizedStatus === 'CANCELLED' || normalizedStatus === 'NO_SHOW') {
+  if (
+    normalizedStatus === 'COMPLETED' ||
+    normalizedStatus === 'CANCELLED' ||
+    normalizedStatus === 'NO_SHOW'
+  ) {
     return getAppointmentStatusDisplayName(normalizedStatus);
   }
 
-  if (isAwaitingDoctorSlotConfirmation(appointment)) {
-    return 'Awaiting Doctor Review';
-  }
-
-  if (
-    String(appointment?.type || appointment?.appointmentType || '').toUpperCase() === 'VIDEO_CALL' &&
-    hasConfirmedSlot(appointment)
-  ) {
-    return 'Confirmed';
-  }
-
-  return getAppointmentStatusDisplayName(String(appointment?.status || ''));
+  return getAppointmentStatusDisplayName(normalizedStatus);
 }
 
 export type AppointmentWorkflowState =
@@ -514,12 +531,9 @@ export type AppointmentViewState = {
   workflowState: AppointmentWorkflowState;
   paymentStatus: string;
   paymentCompleted: boolean;
-  awaitingDoctorSlotConfirmation: boolean;
   awaitingPayment: boolean;
   isVideo: boolean;
   isScheduledLike: boolean;
-  hasProposedSlots: boolean;
-  hasConfirmedSlot: boolean;
   displayStatusLabel: string;
   showInDoctorWorkspace: boolean;
   showInPatientWorkspace: boolean;
@@ -541,53 +555,48 @@ function isCancelledLike(status: string): boolean {
   return ['CANCELLED', 'NO_SHOW'].includes(status);
 }
 
+export function isTerminalAppointmentStatus(status: unknown): boolean {
+  const normalized = normalizeAppointmentStatus(status);
+  return ['COMPLETED', 'CANCELLED', 'NO_SHOW', 'VOID', 'REJECTED', 'EXPIRED'].includes(normalized);
+}
+
+export function isTerminalAppointment(appointment: any): boolean {
+  if (!appointment || typeof appointment !== 'object') {
+    return false;
+  }
+
+  if (isTerminalAppointmentStatus(appointment?.status)) {
+    return true;
+  }
+
+  return Boolean(
+    appointment?.completedAt ||
+      appointment?.completed_at ||
+      appointment?.cancelledAt ||
+      appointment?.cancelled_at ||
+      appointment?.closedAt ||
+      appointment?.closed_at
+  );
+}
+
 function isActiveLike(status: string): boolean {
   return ['SCHEDULED', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED'].includes(status);
-}
-
-function hasProposedSlots(appointment: any): boolean {
-  const proposedSlots = appointment?.proposedSlots ?? appointment?.proposed_slots;
-  return Array.isArray(proposedSlots) && proposedSlots.length > 0;
-}
-
-function hasConfirmedSlot(appointment: any): boolean {
-  const confirmedSlotIndex = appointment?.confirmedSlotIndex ?? appointment?.confirmed_slot_index;
-  const normalizedStatus = normalizeAppointmentStatus(appointment?.status);
-  return (
-    (confirmedSlotIndex !== null &&
-      confirmedSlotIndex !== undefined &&
-      confirmedSlotIndex !== '' &&
-      !Number.isNaN(Number(confirmedSlotIndex))) ||
-    normalizedStatus === 'CONFIRMED'
-  );
 }
 
 export function getAppointmentViewState(appointment: any): AppointmentViewState {
   const type = String(appointment?.type || appointment?.appointmentType || '').toUpperCase();
   const paymentStatus = getAppointmentPaymentStatus(appointment);
   const paymentCompleted = isVideoAppointmentPaymentCompleted(appointment);
-  const proposedSlots = hasProposedSlots(appointment);
-  const confirmedSlot = hasConfirmedSlot(appointment);
   const rawStatus = normalizeAppointmentStatus(appointment?.status);
-  const status =
-    type === 'VIDEO_CALL' &&
-    confirmedSlot &&
-    paymentCompleted &&
-    (rawStatus === 'SCHEDULED' || rawStatus === 'PENDING' || rawStatus === 'AWAITING_SLOT_CONFIRMATION')
-      ? 'CONFIRMED'
-      : rawStatus;
-  const awaitingDoctorSlotConfirmation =
-    type === 'VIDEO_CALL' &&
-    paymentCompleted &&
-    (rawStatus === 'SCHEDULED' || rawStatus === 'PENDING') &&
-    proposedSlots &&
-    !confirmedSlot;
+  const terminalStatus = isTerminalAppointment(appointment)
+    ? (appointment?.completedAt || appointment?.completed_at ? 'COMPLETED' : 'CANCELLED')
+    : null;
+  const status = terminalStatus || getAppointmentStatusWithPaymentFallback(appointment);
   const awaitingPayment = isAppointmentAwaitingPayment(appointment);
   const isVideo = type === 'VIDEO_CALL';
   const isScheduledLike = status === 'SCHEDULED' || status === 'CONFIRMED';
-  const workflowState: AppointmentWorkflowState = awaitingDoctorSlotConfirmation
-    ? 'awaiting_doctor_slot_confirmation'
-    : status === 'IN_PROGRESS'
+  const workflowState: AppointmentWorkflowState =
+    status === 'IN_PROGRESS'
       ? 'in_progress'
       : status === 'COMPLETED'
         ? 'completed'
@@ -598,12 +607,9 @@ export function getAppointmentViewState(appointment: any): AppointmentViewState 
             : status === 'CONFIRMED'
               ? 'confirmed'
               : 'scheduled';
-  const displayStatusLabel = awaitingDoctorSlotConfirmation
-    ? 'Awaiting Doctor Review'
-    : getAppointmentStatusBadgeLabel(appointment);
+  const displayStatusLabel = getAppointmentStatusBadgeLabel(appointment);
   const isDashboardVisibleStatus =
     isActiveLike(status) ||
-    awaitingDoctorSlotConfirmation ||
     status === 'AWAITING_PAYMENT' ||
     status === 'PENDING_PAYMENT';
 
@@ -614,16 +620,13 @@ export function getAppointmentViewState(appointment: any): AppointmentViewState 
     workflowState,
     paymentStatus,
     paymentCompleted,
-    awaitingDoctorSlotConfirmation,
     awaitingPayment,
     isVideo,
     isScheduledLike,
-    hasProposedSlots: proposedSlots,
-    hasConfirmedSlot: confirmedSlot,
     displayStatusLabel,
     showInDoctorWorkspace:
       !isCancelledLike(status) && isDashboardVisibleStatus,
-    showInPatientWorkspace: !isCancelledLike(status) && (isActiveLike(status) || awaitingDoctorSlotConfirmation),
+    showInPatientWorkspace: !isCancelledLike(status) && isActiveLike(status),
     showInReceptionWorkspace: !isCancelledLike(status) && isDashboardVisibleStatus,
   };
 }
@@ -644,24 +647,9 @@ export function shouldShowAppointmentOnReceptionDashboard(appointment: any): boo
   return shouldShowAppointmentOnReceptionistDashboard(appointment);
 }
 
-export function isPaidVideoAppointmentAwaitingDoctorConfirmation(appointment: any): boolean {
-  return getAppointmentViewState(appointment).awaitingDoctorSlotConfirmation;
-}
-
 export function getVideoSessionDecision(appointment: any): VideoSessionDecision {
   const viewState = getAppointmentViewState(appointment);
   const status = viewState.normalizedStatus.toUpperCase();
-
-  if (viewState.awaitingDoctorSlotConfirmation) {
-    return {
-      status,
-      action: 'blocked',
-      label: 'Awaiting Doctor Review',
-      blockedReason: 'This appointment is still waiting for doctor slot confirmation.',
-      shouldCallConsultationStart: false,
-      canJoin: false,
-    };
-  }
 
   if (status === 'CANCELLED' || status === 'COMPLETED') {
     return {
@@ -699,6 +687,18 @@ export function getVideoSessionDecision(appointment: any): VideoSessionDecision 
     };
   }
 
+  if (!isWithinVideoJoinWindow(appointment)) {
+    return {
+      status,
+      action: 'blocked',
+      label: status === 'IN_PROGRESS' ? 'Resume Video Call' : 'Join Session',
+      blockedReason:
+        'Join opens 5 minutes before your visit and stays open for 3 hours after start.',
+      shouldCallConsultationStart: false,
+      canJoin: false,
+    };
+  }
+
   if (status === 'IN_PROGRESS') {
     return {
       status,
@@ -710,7 +710,7 @@ export function getVideoSessionDecision(appointment: any): VideoSessionDecision 
     };
   }
 
-  if (viewState.hasConfirmedSlot || status === 'SCHEDULED' || status === 'CONFIRMED' || status === 'QUEUED') {
+  if (status === 'SCHEDULED' || status === 'CONFIRMED' || status === 'QUEUED') {
     return {
       status,
       action: 'join',
@@ -725,7 +725,8 @@ export function getVideoSessionDecision(appointment: any): VideoSessionDecision 
     status,
     action: 'blocked',
     label: getAppointmentStatusDisplayName(status),
-    blockedReason: 'This video appointment is not ready to join yet.',
+    blockedReason:
+      'Join opens 5 minutes before your visit and stays open for 3 hours after start.',
     shouldCallConsultationStart: false,
     canJoin: false,
   };

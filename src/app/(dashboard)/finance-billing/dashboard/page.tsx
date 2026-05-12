@@ -15,6 +15,7 @@ import {
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import type { Invoice, Payment, BillingAnalytics } from "@/types/billing.types";
 import { formatDateInIST } from "@/lib/utils/date-time";
+import { buildGatewayOrderId } from "@/lib/utils/gateway-order-id";
 import {
   DollarSign,
   FileText,
@@ -266,6 +267,9 @@ export default function FinanceBillingDashboard() {
                       <div>
                         <p className="text-sm font-medium">
                           {inv.invoiceNumber ?? `INV-${inv.id.slice(0, 8).toUpperCase()}`}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Order Id: {inv.gatewayOrderId || buildGatewayOrderId(inv.invoiceNumber ?? "", inv.id)}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {inv.patientName ?? "Patient"}

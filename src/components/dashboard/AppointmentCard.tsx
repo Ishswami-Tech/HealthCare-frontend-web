@@ -23,8 +23,8 @@ import {
   getAppointmentStatusColor, 
   formatAppointmentDate, 
   getAppointmentViewState,
+  getAppointmentStatusDisplayName,
   isVideoAppointmentJoinable,
-  normalizeAppointmentStatus,
   getReceptionistAppointmentTimeLabel,
 } from "@/lib/utils/appointmentUtils";
 import { getAvatarTone } from "@/lib/utils/avatar-colors";
@@ -69,12 +69,12 @@ function AppointmentCardComponent({
   const { t } = useTranslation();
   const viewState = getAppointmentViewState(appointment);
   const normalizedType = String(appointment.type || "").toUpperCase();
-  const normalizedStatus = normalizeAppointmentStatus(appointment.status);
+  const normalizedStatus = viewState.normalizedStatus;
+  const statusLabel = getAppointmentStatusDisplayName(normalizedStatus);
   const displayTime = getReceptionistAppointmentTimeLabel(appointment as Record<string, unknown>);
   const canShowJoin =
     Boolean(onJoin) &&
     (normalizedType === "VIDEO" || normalizedType === "VIDEO_CALL") &&
-    !viewState.awaitingDoctorSlotConfirmation &&
     isVideoAppointmentJoinable(appointment);
 
   const getStatusIcon = (status: string) => {
@@ -127,10 +127,10 @@ function AppointmentCardComponent({
               {displayTime}
             </div>
           </div>
-          <Badge className={cn("text-xs", getAppointmentStatusColor(appointment.status))}>
-            {getStatusIcon(appointment.status)}
+          <Badge className={cn("text-xs", getAppointmentStatusColor(normalizedStatus))}>
+            {getStatusIcon(normalizedStatus.toLowerCase())}
             <span className="ml-1">
-              {t(`appointments.${appointment.status}`)}
+              {statusLabel}
             </span>
           </Badge>
         </div>

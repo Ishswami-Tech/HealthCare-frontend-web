@@ -11,6 +11,7 @@ import {
   BillingAnalytics,
   ClinicLedgerResponse,
 } from "@/types/billing.types";
+import { buildGatewayOrderId } from "@/lib/utils/gateway-order-id";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,7 @@ import { InvoiceForm } from "./InvoiceForm";
 import { PaymentHistory } from "./PaymentHistory";
 import { PatientBillingAnalytics } from "./PatientBillingAnalytics";
 import { useAuth } from "@/hooks/auth/useAuth";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import {
   useCreateSubscription,
@@ -98,6 +100,7 @@ export function RoleBasedBillingDashboard({
   const { session } = useAuth();
   const clinicId = useCurrentClinicId();
   const userRole = (session?.user?.role as Role) || Role.PATIENT;
+  useWebSocketQuerySync();
 
   const isAdmin = [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.FINANCE_BILLING].includes(userRole);
   const isReceptionist = userRole === Role.RECEPTIONIST;
@@ -374,6 +377,11 @@ export function RoleBasedBillingDashboard({
           <div className="flex flex-col">
             <span className="font-semibold text-foreground">
               {row.original.invoiceNumber || `#${row.original.id.slice(-8).toUpperCase()}`}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              Order Id:{" "}
+              {row.original.gatewayOrderId ||
+                buildGatewayOrderId(row.original.invoiceNumber, row.original.id)}
             </span>
             <span className="text-xs text-muted-foreground">
               Due:{" "}
@@ -985,6 +993,13 @@ export function RoleBasedBillingDashboard({
                 ? `Invoice ${selectedInvoice.invoiceNumber}`
                 : "Invoice Details"}
             </DialogTitle>
+            {selectedInvoice ? (
+              <p className="text-xs text-muted-foreground">
+                Order Id:{" "}
+                {selectedInvoice.gatewayOrderId ||
+                  buildGatewayOrderId(selectedInvoice.invoiceNumber, selectedInvoice.id)}
+              </p>
+            ) : null}
           </DialogHeader>
           {selectedInvoice && (
             <div className="space-y-6">

@@ -23,8 +23,9 @@ function getAppointmentsRouteByRole(role?: string): string {
     case Role.COUNSELOR:
       return "/counselor/appointments";
     case Role.CLINIC_ADMIN:
+      return "/clinic-admin/dashboard";
     case Role.SUPER_ADMIN:
-      return "/video-appointments";
+      return "/super-admin/dashboard";
     default:
       return "/patient/appointments";
   }

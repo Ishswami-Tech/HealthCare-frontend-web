@@ -17,9 +17,14 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinics, useUpdateClinic } from "@/hooks/query/useClinics";
+import {
+  useGlobalVideoProviderSetting,
+  useUpdateGlobalVideoProviderSetting,
+} from "@/hooks/query/useVideoProviderSettings";
 import { Loader2, Bell, Globe, Palette, Save, Shield } from "lucide-react";
 import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import type { ClinicWithRelations } from "@/types/clinic.types";
+import type { VideoProviderType } from "@/types/video.types";
 
 type SystemSettingsState = {
   siteName: string;
@@ -55,7 +60,7 @@ type NotificationSettingsState = {
 const defaultSystemSettings: SystemSettingsState = {
   siteName: "Ayurveda Healthcare System",
   siteDescription: "Comprehensive healthcare management platform",
-  supportEmail: "support@healthcareapp.com",
+  supportEmail: "info@viddhakarma.com",
   maintenanceMode: false,
   registrationEnabled: true,
   emailNotifications: true,
@@ -83,14 +88,29 @@ const defaultNotificationSettings: NotificationSettingsState = {
   emergencyAlerts: true,
 };
 
+const defaultVideoProvider: VideoProviderType = "daily";
+
+function normalizeVideoProvider(value: unknown): VideoProviderType | null {
+  const provider = String(value || "").trim().toLowerCase();
+  if (provider === "cloudflare" || provider === "daily" || provider === "google-meet") {
+    return provider;
+  }
+  return null;
+}
+
 export default function SuperAdminSettings() {
   useAuth();
   const { data: clinicsData, isPending: clinicsLoading } = useClinics();
+  const { data: globalVideoProviderSettings } = useGlobalVideoProviderSetting();
   const updateClinic = useUpdateClinic();
+  const updateGlobalVideoProvider = useUpdateGlobalVideoProviderSetting();
   const [selectedClinicId, setSelectedClinicId] = useState<string>("");
   const [systemSettings, setSystemSettings] = useState<SystemSettingsState>(defaultSystemSettings);
   const [securitySettings, setSecuritySettings] = useState<SecuritySettingsState>(defaultSecuritySettings);
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettingsState>(defaultNotificationSettings);
+  const [globalVideoProvider, setGlobalVideoProvider] = useState<VideoProviderType>(defaultVideoProvider);
+  const [clinicUsesVideoOverride, setClinicUsesVideoOverride] = useState<boolean>(false);
+  const [clinicVideoProvider, setClinicVideoProvider] = useState<VideoProviderType>(defaultVideoProvider);
 
   const clinics = useMemo(() => {
     const data = clinicsData as any;
@@ -124,6 +144,21 @@ export default function SuperAdminSettings() {
       setSelectedClinicId(clinics[0].id);
     }
   }, [clinics, selectedClinicId]);
+
+  useEffect(() => {
+    const configuredProvider = normalizeVideoProvider(globalVideoProviderSettings?.provider);
+    if (configuredProvider) {
+      setGlobalVideoProvider(configuredProvider);
+      if (!clinicUsesVideoOverride) {
+        setClinicVideoProvider(configuredProvider);
+      }
+    } else {
+      setGlobalVideoProvider(defaultVideoProvider);
+      if (!clinicUsesVideoOverride) {
+        setClinicVideoProvider(defaultVideoProvider);
+      }
+    }
+  }, [clinicUsesVideoOverride, globalVideoProviderSettings?.provider]);
 
   useEffect(() => {
     const settings = (selectedClinic as any)?.settings;
@@ -167,7 +202,24 @@ export default function SuperAdminSettings() {
       weeklyReports: settings.weeklyReports ?? true,
       emergencyAlerts: settings.emergencyAlerts ?? true,
     });
-  }, [selectedClinic]);
+
+    const configuredProvider = normalizeVideoProvider(
+      settings.videoSettings?.provider || settings.videoProvider || null
+    );
+    if (configuredProvider) {
+      setClinicUsesVideoOverride(true);
+      setClinicVideoProvider(configuredProvider);
+    } else {
+      setClinicUsesVideoOverride(false);
+      setClinicVideoProvider(globalVideoProvider);
+    }
+  }, [globalVideoProvider, selectedClinic]);
+
+  useEffect(() => {
+    if (!clinicUsesVideoOverride) {
+      setClinicVideoProvider(globalVideoProvider);
+    }
+  }, [globalVideoProvider, clinicUsesVideoOverride]);
 
   const save = async () => {
     if (!selectedClinic?.id) {
@@ -226,15 +278,35 @@ export default function SuperAdminSettings() {
       appointmentReminders: notificationSettings.appointmentReminders,
     };
 
+    const clinicSettingsPayload = clinicUsesVideoOverride
+      ? {
+          ...payload,
+          videoSettings: {
+            provider: clinicVideoProvider,
+          },
+        }
+      : payload;
+
     try {
       await updateClinic.mutateAsync({
         id: selectedClinic.id,
-        data: { settings: payload },
+        data: { settings: clinicSettingsPayload },
       });
       showSuccessToast("Clinic settings saved", { id: TOAST_IDS.GLOBAL.SUCCESS });
     } catch (error) {
       showErrorToast(
         error instanceof Error ? error.message : "Failed to save settings",
+        { id: TOAST_IDS.GLOBAL.ERROR }
+      );
+    }
+  };
+
+  const saveGlobalVideoProvider = async () => {
+    try {
+      await updateGlobalVideoProvider.mutateAsync(globalVideoProvider);
+    } catch (error) {
+      showErrorToast(
+        error instanceof Error ? error.message : "Failed to save global video provider",
         { id: TOAST_IDS.GLOBAL.ERROR }
       );
     }
@@ -254,7 +326,7 @@ export default function SuperAdminSettings() {
         <div>
           <h1 className="text-3xl font-bold">System Settings</h1>
           <p className="text-sm text-muted-foreground">
-            Manage clinic-level defaults and operational controls from one place.
+            Manage global defaults, clinic overrides, and operational controls from one place.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -276,6 +348,47 @@ export default function SuperAdminSettings() {
           </Button>
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5" />
+            Global Video Provider
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto] md:items-end">
+            <div className="space-y-2">
+              <Label htmlFor="globalVideoProvider">Default provider for all clinics</Label>
+              <Select value={globalVideoProvider} onValueChange={value => setGlobalVideoProvider(value as VideoProviderType)}>
+                <SelectTrigger id="globalVideoProvider">
+                  <SelectValue placeholder="Select global provider" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cloudflare">Cloudflare Realtime</SelectItem>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="google-meet">Google Meet</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">
+                Clinics without an override will use this provider.
+              </p>
+            </div>
+            <Button
+              className="flex items-center gap-2"
+              onClick={saveGlobalVideoProvider}
+              disabled={updateGlobalVideoProvider.isPending}
+            >
+              {updateGlobalVideoProvider.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              Save Global Provider
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="general" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
@@ -333,6 +446,43 @@ export default function SuperAdminSettings() {
                   <Label htmlFor="defaultLanguage">Default Language</Label>
                   <Input id="defaultLanguage" value={systemSettings.defaultLanguage} onChange={e => updateSystemSetting("defaultLanguage", e.target.value)} />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="clinicVideoProvider">Clinic Video Provider</Label>
+                <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+                  <div>
+                    <p className="font-medium">Override global provider</p>
+                    <p className="text-sm text-muted-foreground">
+                      When disabled, this clinic uses the global provider above.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={clinicUsesVideoOverride}
+                    onCheckedChange={checked => setClinicUsesVideoOverride(checked)}
+                  />
+                </div>
+                <Select
+                  value={clinicVideoProvider}
+                  onValueChange={(value) => {
+                    setClinicUsesVideoOverride(true);
+                    setClinicVideoProvider(value as VideoProviderType);
+                  }}
+                  disabled={!clinicUsesVideoOverride}
+                >
+                  <SelectTrigger id="clinicVideoProvider">
+                    <SelectValue placeholder="Select clinic provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cloudflare">Cloudflare Realtime</SelectItem>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="google-meet">Google Meet</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-muted-foreground">
+                  {clinicUsesVideoOverride
+                    ? "This clinic overrides the global provider."
+                    : `This clinic inherits the global provider (${globalVideoProvider}).`}
+                </p>
               </div>
               <div className="space-y-4">
                 {[

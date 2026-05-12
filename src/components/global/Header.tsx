@@ -50,6 +50,7 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
   // ─── Zustand Store State ───────────────────────────────────────────────────
   const displayUser = useLayoutStore((state) => state.displayUser);
   const pageTitle = useLayoutStore((state) => state.pageTitle);
+  const normalizedRole = displayUser?.role?.toUpperCase().replace(/\s+/g, "_") || "";
 
   React.useEffect(() => {
     setMounted(true);
@@ -65,6 +66,10 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
   };
 
   const handleSettingsClick = () => {
+    if (normalizedRole === "PATIENT") {
+      router.push("/patient/profile");
+      return;
+    }
     if (displayUser?.role) {
       const rolePath = displayUser.role.toLowerCase().replace(/_/g, "-");
       // Some roles might have specific settings, others use shared
@@ -167,12 +172,14 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
                       <div className="p-1 space-y-1">
                         <DropdownMenuItem onClick={handleProfileClick} className="rounded-xl cursor-pointer py-2 focus:bg-primary/5">
                           <User className="mr-3 h-4 w-4 text-primary" />
-                          <span>My Profile</span>
+                          <span>{normalizedRole === "PATIENT" ? "Profile" : "My Profile"}</span>
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleSettingsClick} className="rounded-xl cursor-pointer py-2 focus:bg-primary/5">
-                          <Settings className="mr-3 h-4 w-4 text-primary" />
-                          <span>Settings</span>
-                        </DropdownMenuItem>
+                        {normalizedRole !== "PATIENT" && (
+                          <DropdownMenuItem onClick={handleSettingsClick} className="rounded-xl cursor-pointer py-2 focus:bg-primary/5">
+                            <Settings className="mr-3 h-4 w-4 text-primary" />
+                            <span>Settings</span>
+                          </DropdownMenuItem>
+                        )}
                       </div>
                       
                       <DropdownMenuSeparator className="opacity-50" />

@@ -63,6 +63,24 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.7,
     },
     {
+      url: `${baseUrl}/patient/appointments`,
+      lastModified: currentDate,
+      changeFrequency: 'daily' as const,
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/patient/health`,
+      lastModified: currentDate,
+      changeFrequency: 'daily' as const,
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/patient/payments`,
+      lastModified: currentDate,
+      changeFrequency: 'daily' as const,
+      priority: 0.7,
+    },
+    {
       url: `${baseUrl}/doctor/dashboard`,
       lastModified: currentDate,
       changeFrequency: 'daily' as const,

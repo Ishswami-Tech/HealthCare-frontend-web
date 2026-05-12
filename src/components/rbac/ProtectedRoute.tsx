@@ -10,6 +10,7 @@ import { ROUTES } from "@/lib/config/routes";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Lock, ArrowLeft } from "lucide-react";
+import { useAuthStore } from "@/stores";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -38,6 +39,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   showUnauthorized = true,
 }) => {
   const { user, isAuthenticated, isPending } = useAuth();
+  const isProfileComplete = useAuthStore((state) => state.isProfileComplete);
   const rbac = useRBAC();
   const { getDefaultRoute } = useRoleBasedNavigation();
   const router = useRouter();
@@ -66,7 +68,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     }
 
     // 2. Role-based Redirect
-    if (user.profileComplete === false) {
+    if (user.profileComplete === false && !isProfileComplete) {
       const profileCompletionPath = `${ROUTES.PROFILE_COMPLETION}?redirect=${encodeURIComponent(pathname || "/")}`;
       router.replace(profileCompletionPath);
       return;
@@ -93,9 +95,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       }
     }
   }, [
-    isPending, 
-    isAuthenticated, 
-    user, 
+    isPending,
+    isAuthenticated,
+    user,
+    isProfileComplete,
     pathname,
     allowedRoles, 
     hasAccess, 
@@ -119,7 +122,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   const userRole = user?.role as Role;
 
-  if (user.profileComplete === false) {
+  if (user.profileComplete === false && !isProfileComplete) {
     return null;
   }
 

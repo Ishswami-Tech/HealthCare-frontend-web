@@ -25,6 +25,7 @@ import {
   isProtectedRoute,
 } from '@/lib/config/routes';
 import { DEFAULT_LANGUAGE, LANGUAGE_COOKIE_NAME } from '@/lib/i18n/config';
+import { buildConnectSrcSources, buildOriginConnectSrc, normalizeOrigin } from './lib/config/csp';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -51,69 +52,37 @@ function resolveProfileCompletionFromUserData(userData: Record<string, unknown> 
   return undefined;
 }
 
-function normalizeOrigin(input: string | undefined): string {
-  if (!input || !input.trim()) {
-    return '';
-  }
-
-  const trimmed = input.trim();
-  const isLocalhostLike = /^(localhost|127\.0\.0\.1|\[::1\]|::1)(:\d+)?(\/.*)?$/i.test(trimmed);
-
-  try {
-    const normalized = /^[a-z]+:\/\//i.test(trimmed)
-      ? trimmed
-      : isLocalhostLike
-        ? `http://${trimmed}`
-        : `https://${trimmed}`;
-    const parsed = new URL(normalized);
-    return `${parsed.protocol}//${parsed.host}`;
-  } catch {
-    return trimmed.replace(/\/+$/, '');
-  }
-}
-
-function buildConnectSrcSources(rawUrl: string | undefined): string[] {
-  const origin = normalizeOrigin(rawUrl);
-  if (!origin) {
-    return [];
-  }
+async function fetchBackendProfileCompletion(
+  accessToken: string,
+  sessionId?: string
+): Promise<boolean | undefined> {
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL;
+  if (!apiBase) return undefined;
 
   try {
-    const parsed = new URL(origin);
-    const base = `${parsed.protocol}//${parsed.host}`;
-    const websocketScheme = parsed.protocol === 'https:' ? 'wss' : 'ws';
-    return [base, `${websocketScheme}://${parsed.host}`];
+    const response = await fetch(new URL('/api/v1/profile/completion/status', apiBase), {
+      method: 'GET',
+      cache: 'no-store',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        ...(sessionId ? { 'X-Session-ID': sessionId } : {}),
+      },
+    });
+
+    if (!response.ok) return undefined;
+
+    const payload = (await response.json()) as {
+      isComplete?: boolean;
+      data?: { isComplete?: boolean };
+    };
+
+    if (typeof payload.isComplete === 'boolean') return payload.isComplete;
+    if (typeof payload.data?.isComplete === 'boolean') return payload.data.isComplete;
+    return undefined;
   } catch {
-    return [origin];
+    return undefined;
   }
 }
-
-function buildOpenViduConnectSrcSources(rawUrl: string | undefined): string[] {
-  const sources = new Set(buildConnectSrcSources(rawUrl));
-  const origin = normalizeOrigin(rawUrl);
-
-  if (!origin) {
-    return [...sources];
-  }
-
-  try {
-    const parsed = new URL(origin);
-    const openViduPort = parsed.port || '4443';
-    const websocketScheme = parsed.protocol === 'https:' ? 'wss' : 'ws';
-
-    sources.add(`${parsed.protocol}//${parsed.host}`);
-    sources.add(`${websocketScheme}://${parsed.hostname}:${openViduPort}`);
-
-    if (!parsed.port) {
-      sources.add(`https://${parsed.hostname}:${openViduPort}`);
-    }
-  } catch {
-    // Fall back to the normalized origin only.
-  }
-
-  return [...sources];
-}
-
 
 /**
  * Extract user data from JWT token
@@ -209,6 +178,7 @@ export default async function proxy(request: NextRequest) {
                       request.cookies.get('next-auth.session-token')?.value;
   
   const hasValidToken = accessToken || legacyToken;
+  const sessionId = request.cookies.get('session_id')?.value;
   
   // Extract user data from JWT token (including role)
   const userData = accessToken ? extractUserDataFromToken(accessToken) : null;
@@ -288,8 +258,25 @@ export default async function proxy(request: NextRequest) {
   // Cookie is httpOnly and only set server-side in this app.
   const profileComplete =
     profileCompleteFromCookie || profileCompleteFromUserData === true;
+
+  let authoritativeProfileComplete = profileComplete;
+  if (!authoritativeProfileComplete && accessToken) {
+    const backendProfileComplete = await fetchBackendProfileCompletion(accessToken, sessionId);
+    if (backendProfileComplete === true) {
+      authoritativeProfileComplete = true;
+      response.cookies.set('profile_complete', 'true', {
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7,
+        sameSite: 'lax',
+      });
+    }
+  }
   
-  const shouldRedirectToProfile = shouldRedirectToProfileCompletion(!!hasValidToken, profileComplete, pathname);
+  const shouldRedirectToProfile = shouldRedirectToProfileCompletion(
+    !!hasValidToken,
+    authoritativeProfileComplete,
+    pathname
+  );
 
   if (shouldRedirectToProfile) {
     const profileCompletionUrl = new URL(ROUTES.PROFILE_COMPLETION, request.url);
@@ -335,27 +322,16 @@ export default async function proxy(request: NextRequest) {
     normalizeOrigin(process.env.NEXT_PUBLIC_WEBSOCKET_URL) ||
     apiHost;
   const appHost = normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL);
-  const openViduHost =
-    normalizeOrigin(process.env.NEXT_PUBLIC_OPENVIDU_SERVER_URL) ||
-    normalizeOrigin(process.env.OPENVIDU_URL);
   
   // Build connect-src dynamically from environment
-  const connectSources = [
-    "'self'",
-    ...buildConnectSrcSources(appHost || undefined),
-    ...buildConnectSrcSources(apiHost || undefined),
-    ...buildConnectSrcSources(wsHost || undefined),
-    ...buildOpenViduConnectSrcSources(openViduHost || undefined),
-    'https://*.cashfree.com',
-    'https://api.cashfree.com',
-    'https://sandbox.cashfree.com',
-    'https://payments.cashfree.com',
-    'https://payments-test.cashfree.com',
-    'https://sdk.cashfree.com',
-    'https://*.googleapis.com',
-    'ws://localhost:*',
-    'http://localhost:*',
-  ].filter(Boolean).join(' ');
+  const connectSources = Array.from(
+    new Set([
+      ...buildConnectSrcSources(undefined),
+      ...buildOriginConnectSrc(appHost || undefined),
+      ...buildOriginConnectSrc(apiHost || undefined),
+      ...buildOriginConnectSrc(wsHost || undefined),
+    ])
+  ).join(' ');
   
   // Strict Content Security Policy
   const csp = `

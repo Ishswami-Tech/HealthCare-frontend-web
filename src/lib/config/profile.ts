@@ -124,6 +124,10 @@ export function shouldRedirectToProfileCompletion(
 export function calculateProfileCompletion(userData: UserProfileData): boolean {
   if (!userData) return false;
 
+  if (typeof userData.profileComplete === 'boolean') {
+    return userData.profileComplete;
+  }
+
   // Essential required fields for all users
   const requiredFields = [
     'firstName',
@@ -151,6 +155,9 @@ export function getProfileCompletionStatus(
 ): boolean {
   // If we have user data, calculate completion status
   if (userData) {
+    if (typeof userData.profileComplete === 'boolean') {
+      return userData.profileComplete;
+    }
     return calculateProfileCompletion(userData);
   }
   

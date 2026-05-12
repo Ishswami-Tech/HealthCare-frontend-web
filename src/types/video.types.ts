@@ -4,7 +4,13 @@
  * Used by both server actions (`video.server.ts`) and client components.
  */
 
-// ─── Session (Super Admin monitoring) ────────────────────────────────────────
+export type VideoProviderType = 'cloudflare' | 'daily' | 'google-meet';
+
+export interface VideoProviderSettingResponse {
+  provider: VideoProviderType;
+  source: 'database' | 'env';
+  updatedAt?: string | null;
+}
 
 export interface VideoSessionParticipant {
   userId: string;
@@ -28,8 +34,7 @@ export interface ListAllVideoSessionsResponse {
   total: number;
 }
 
-// ─── Consultation recording ───────────────────────────────────────────────────
-
+// Consultation recording
 export interface VideoRecording {
   id: string;
   sessionId: string;
@@ -38,8 +43,7 @@ export interface VideoRecording {
   createdAt: string;
 }
 
-// â”€â”€â”€ Virtual Background â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
+// Virtual Background
 export interface VirtualBackgroundSettings {
   consultationId: string;
   userId: string;

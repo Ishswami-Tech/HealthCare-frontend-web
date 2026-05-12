@@ -4,6 +4,7 @@ import { authenticatedApi } from './auth.server';
 import { cookies } from 'next/headers';
 import type { TherapistAppointment, TherapistPatient, TherapistSession } from '@/types/medical-records.types';
 import { nowIso } from '@/lib/utils/date-time';
+import { normalizeClinicId } from '@/lib/utils/clinic-id';
 
 // ===== THERAPIST SERVER ACTIONS =====
 // Therapists are doctors with the THERAPIST role.
@@ -14,7 +15,7 @@ import { nowIso } from '@/lib/utils/date-time';
 async function getClinicId(): Promise<string> {
   try {
     const cookieStore = await cookies();
-    return cookieStore.get('clinic_id')?.value || '';
+    return normalizeClinicId(cookieStore.get('clinic_id')?.value);
   } catch {
     return '';
   }

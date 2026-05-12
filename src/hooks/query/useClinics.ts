@@ -7,6 +7,7 @@ import { useAppStore } from '@/stores';
 import { useAuthStore } from '@/stores/auth.store';
 import { Permission } from '@/types/rbac.types';
 import { APP_CONFIG } from '@/lib/config/config';
+import { normalizeClinicId } from '@/lib/utils/clinic-id';
 import {
   CreateClinicData,
   UpdateClinicData,
@@ -193,7 +194,15 @@ export const useUpdateClinic = () => {
       toastId: TOAST_IDS.CLINIC.UPDATE,
       loadingMessage: 'Updating clinic...',
       successMessage: 'Clinic updated successfully',
-      invalidateQueries: [['clinics'], ['clinic'], ['myClinic'], ['current-clinic']],
+      invalidateQueries: [
+        ['clinics'],
+        ['clinic'],
+        ['myClinic'],
+        ['current-clinic'],
+        ['doctorAvailability'],
+        ['appointments'],
+        ['video-appointments'],
+      ],
     }
   );
 };
@@ -254,7 +263,18 @@ export const useClinicLocations = (clinicId: string) => {
       if (!result) {
         throw new Error('Failed to fetch clinic locations');
       }
-      return result;
+      if (Array.isArray(result)) {
+        return result;
+      }
+      const wrappedResult = result as {
+        locations?: ClinicLocation[];
+        data?: ClinicLocation[];
+      };
+      return (
+        wrappedResult.locations ||
+        wrappedResult.data ||
+        []
+      );
     },
     {
       enabled: !!clinicId,
@@ -608,7 +628,12 @@ export const useActiveLocations = (clinicId: string, options?: {
       if (!result) {
         throw new Error('Failed to fetch active locations');
       }
-      return result.filter((location) => location?.isActive !== false);
+      const locations = Array.isArray(result)
+        ? result
+        : ((result as { locations?: ClinicLocation[]; data?: ClinicLocation[] })?.locations ||
+            (result as { locations?: ClinicLocation[]; data?: ClinicLocation[] })?.data ||
+            []);
+      return locations.filter((location) => location?.isActive !== false);
     },
     {
       enabled: !!clinicId && (options?.enabled ?? true),
@@ -738,14 +763,13 @@ export const useCurrentClinicId = () => {
   const currentClinic = useAppStore(state => state.currentClinic);
   const sessionUser = useAuthStore(state => state.session?.user as { clinicId?: string; clinic?: { id?: string } } | undefined);
   
-  const clinicId =
+  return normalizeClinicId(
     currentClinic?.id ||
-    sessionUser?.clinicId ||
-    sessionUser?.clinic?.id ||
-    APP_CONFIG.CLINIC.ID ||
-    "";
-  
-  return clinicId;
+      sessionUser?.clinicId ||
+      sessionUser?.clinic?.id ||
+      APP_CONFIG.CLINIC.ID ||
+      ""
+  );
 };
 
 // ✅ Current Clinic Hook

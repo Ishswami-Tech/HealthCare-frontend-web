@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import { buildConnectSrcSources, buildOriginConnectSrc } from './src/lib/config/csp';
 
 const isProduction = process.env.NODE_ENV === 'production';
 const appUrl = process.env.NEXT_PUBLIC_APP_URL;
@@ -19,6 +20,14 @@ const configuredServerActionOrigins = (
   .filter(Boolean);
 
 const serverActionOrigins = [...new Set([appOrigin, 'localhost:3000', ...configuredServerActionOrigins])];
+const connectSrc = Array.from(
+  new Set([
+    ...buildConnectSrcSources(undefined),
+    ...buildOriginConnectSrc(process.env.NEXT_PUBLIC_APP_URL),
+    ...buildOriginConnectSrc(process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL),
+    ...buildOriginConnectSrc(process.env.NEXT_PUBLIC_WEBSOCKET_URL),
+  ])
+).join(' ');
 
 const nextConfig: NextConfig = {
   /* =====================================================
@@ -97,8 +106,8 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: "form-action 'self' https://*.cashfree.com https://sandbox.cashfree.com https://api.cashfree.com https://payments.cashfree.com https://payments-test.cashfree.com;"
-          }
+            value: `connect-src ${connectSrc}; form-action 'self' https://*.cashfree.com https://sandbox.cashfree.com https://api.cashfree.com https://payments.cashfree.com https://payments-test.cashfree.com;`,
+          },
         ].filter((header) => header.key !== 'Strict-Transport-Security' || isProduction),
       },
     ];

@@ -47,31 +47,6 @@ export const completeAppointmentSchema = z.object({
   followUpNotes: z.string().max(1000).optional(),
 });
 
-export const proposeVideoSlotsSchema = z.object({
-  patientId: z.string().uuid(),
-  doctorId: z.string().uuid(),
-  clinicId: z.string().min(1),
-  locationId: z.string().uuid().optional(),
-  duration: z.number().min(3).max(120),
-  treatmentType: z.string().min(1).max(100),
-  proposedSlots: z.array(z.object({
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    time: z.string().regex(/^\d{1,2}:\d{2}$/),
-  })).min(3).max(3),
-  notes: z.string().max(1000).optional(),
-});
-
-export const confirmVideoFinalSlotSchema = z
-  .object({
-    confirmedSlotIndex: z.number().int().min(0).optional(),
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).optional(),
-    reason: z.string().max(1000).optional(),
-  })
-  .refine((value) => value.confirmedSlotIndex !== undefined || (value.date && value.time), {
-    message: 'Provide either a slot index or a custom date and time',
-  });
-
 export const rescheduleAppointmentSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format (YYYY-MM-DD)'),
   time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Invalid time format (HH:MM)'),
@@ -93,7 +68,6 @@ export const updateAppointmentStatusSchema = z.object({
     'PENDING',
     'RESCHEDULED',
     'FOLLOW_UP_SCHEDULED',
-    'AWAITING_SLOT_CONFIRMATION',
   ]),
   reason: z.string().optional(),
   notes: z.string().optional(),

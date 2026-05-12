@@ -1234,7 +1234,7 @@ export const en: TranslationKeys = {
         title: "Email Addresses",
         details: [
           "Vishwamurtiayurveda@gmail.com",
-          "support@Vishwamurtiayurveda.com",
+          "info@viddhakarma.com",
           "emergency@Vishwamurtiayurveda.com"
         ]
       },

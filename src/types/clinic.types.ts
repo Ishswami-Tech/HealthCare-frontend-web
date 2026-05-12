@@ -107,6 +107,10 @@ export interface ClinicSettings {
     allowRescheduling: boolean;
     allowCancellation: boolean;
     cancellationWindow: number; // hours
+    videoCallWindow?: {
+      start: string;
+      end: string;
+    };
   };
   paymentSettings: {
     currency: string;
@@ -117,6 +121,9 @@ export interface ClinicSettings {
     twoFactorAuth: boolean;
     sessionTimeout: number; // minutes
     maxLoginAttempts: number;
+  };
+  videoSettings?: {
+    provider: 'cloudflare' | 'daily' | 'google-meet';
   };
 }
 

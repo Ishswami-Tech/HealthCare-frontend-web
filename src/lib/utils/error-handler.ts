@@ -4,7 +4,7 @@
  * Use this for all API error handling
  */
 
-import { ERROR_MESSAGES } from '@/lib/config/config';
+import { APP_CONFIG, ERROR_MESSAGES } from '@/lib/config/config';
 
 export interface ApiErrorResponse {
   message?: string;
@@ -22,9 +22,17 @@ function extractNestedMessage(value: unknown): string {
   if (Array.isArray(value)) return value.filter(Boolean).join(', ');
   if (typeof value === 'object') {
     const payload = value as Record<string, unknown>;
-    const nested = payload.message || payload.error || payload.details;
+    const nested =
+      payload.message ||
+      payload.error ||
+      payload.details ||
+      payload.metadata ||
+      payload.cause;
     if (typeof nested === 'string') return nested;
     if (Array.isArray(nested)) return nested.filter(Boolean).join(', ');
+    if (nested && typeof nested === 'object') {
+      return extractNestedMessage(nested);
+    }
   }
   return '';
 }
@@ -55,6 +63,21 @@ function extractBackendErrorMessage(error: ApiErrorResponse): string {
     const extracted = extractNestedMessage(candidate);
     if (extracted) return extracted;
   }
+
+  if (error && typeof error === 'object') {
+    const payload = error as Record<string, unknown>;
+    const nestedCandidates = [
+      payload.metadata,
+      payload.details,
+      payload.cause,
+      payload.originalError,
+    ];
+    for (const candidate of nestedCandidates) {
+      const extracted = extractNestedMessage(candidate);
+      if (extracted) return extracted;
+    }
+  }
+
   return '';
 }
 
@@ -253,6 +276,46 @@ export async function handleApiError(
   
   const backendMessage = responseData ? extractBackendErrorMessage(responseData) : '';
   const backendErrorCode = responseData ? extractBackendErrorCode(responseData) : undefined;
+
+  if (APP_CONFIG.IS_DEVELOPMENT && responseData) {
+    const payload = responseData as Record<string, unknown>;
+    const debugCandidates = [
+      payload.details,
+      payload.metadata,
+      payload.cause,
+      payload.originalError,
+      payload.reason,
+    ];
+    let debugMessage = '';
+    for (const candidate of debugCandidates) {
+      if (typeof candidate === 'string' && candidate.trim()) {
+        debugMessage = candidate.trim();
+        break;
+      }
+      if (candidate && typeof candidate === 'object') {
+        const nested = candidate as Record<string, unknown>;
+        const explicit =
+          nested.originalError ||
+          nested.cause ||
+          nested.reason ||
+          nested.message ||
+          nested.error ||
+          nested.details;
+        if (typeof explicit === 'string' && explicit.trim()) {
+          debugMessage = explicit.trim();
+          break;
+        }
+        const extracted = extractNestedMessage(candidate);
+        if (extracted) {
+          debugMessage = extracted;
+          break;
+        }
+      }
+    }
+    if (debugMessage) {
+      return debugMessage;
+    }
+  }
 
   return getErrorMessageForStatus(response.status, backendMessage, backendErrorCode);
 }

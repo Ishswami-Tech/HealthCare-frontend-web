@@ -68,13 +68,13 @@ export default function LoginPage() {
   }, [showOTPInput]);
 
   useEffect(() => {
-    if (session?.user) {
+    if (session?.user && successPhase === "none" && !isSocialLoginLoading) {
       router.replace(getRedirectPath(session.user));
     }
-  }, [getRedirectPath, router, session]);
+  }, [getRedirectPath, isSocialLoginLoading, router, session, successPhase]);
 
   useEffect(() => {
-    if (!sessionExpired || session?.user || isRestoringSession) {
+    if (!sessionExpired || session?.user || isRestoringSession || isSocialLoginLoading || successPhase !== "none") {
       return;
     }
 
@@ -101,7 +101,7 @@ export default function LoginPage() {
     return () => {
       cancelled = true;
     };
-  }, [getRedirectPath, isRestoringSession, refreshSession, router, session?.user, sessionExpired]);
+  }, [getRedirectPath, isRestoringSession, isSocialLoginLoading, refreshSession, router, session?.user, sessionExpired, successPhase]);
 
   // Login Mutation
   const loginMutation = useCallback(
@@ -303,7 +303,7 @@ export default function LoginPage() {
                         </label>
                         </div>
                     </FormItem>
-                    )}
+                    )}    
                 />
 
                 <Link

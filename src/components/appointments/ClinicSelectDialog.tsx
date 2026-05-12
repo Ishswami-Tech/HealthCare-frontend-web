@@ -36,7 +36,18 @@ export function ClinicSelectDialog({ trigger }: ClinicSelectDialogProps) {
     
 const isLoading = clinicsLoading || myClinicLoading || defaultClinicLoading;
 
-  const { data: locations, isPending: locationsLoading } = useClinicLocations(selectedClinicId || "");
+  const { data: locationsData, isPending: locationsLoading } = useClinicLocations(selectedClinicId || "");
+  const locationSource = (locationsData ?? {}) as {
+    locations?: unknown;
+    data?: unknown;
+  };
+  const locations = Array.isArray(locationsData)
+    ? locationsData
+    : Array.isArray(locationSource.locations)
+      ? ((locationSource.locations as any[]) || [])
+      : Array.isArray(locationSource.data)
+        ? ((locationSource.data as any[]) || [])
+        : [];
 
   useEffect(() => {
     if (!selectedClinicId && clinics && clinics.length === 1 && clinics[0]) {
@@ -127,7 +138,7 @@ const isLoading = clinicsLoading || myClinicLoading || defaultClinicLoading;
                     <div className="flex items-center justify-center py-12">
                       <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
                     </div>
-                  ) : !locations || locations.length === 0 ? (
+                  ) : locations.length === 0 ? (
                     <div className="text-center py-12 space-y-3">
                       <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto">
                          <MapPin className="w-6 h-6 text-muted-foreground" />
