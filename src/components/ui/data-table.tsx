@@ -28,6 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { Inbox } from "lucide-react";
 
 type DataTableProps<TData, TValue> = {
   columns: ColumnDef<TData, TValue>[];
@@ -84,7 +85,7 @@ export function DataTable<TData, TValue>({
   return (
     <div className={cn("min-w-0 space-y-4", className)}>
       {toolbar}
-      <div className="w-full rounded-xl border border-border bg-card">
+      <div className="w-full overflow-hidden rounded-xl border border-border/80 bg-card/95 shadow-sm ring-1 ring-border/30">
         <Table
           className={cn(compact ? "min-w-0" : "min-w-[720px]", scrollable && "min-w-[860px] lg:min-w-0", tableClassName)}
           compact={compact}
@@ -116,8 +117,13 @@ export function DataTable<TData, TValue>({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  {emptyMessage}
+                <TableCell colSpan={columns.length} className="h-36 text-center">
+                  <div className="flex flex-col items-center justify-center gap-3 px-4 py-8 text-muted-foreground">
+                    <div className="flex size-11 items-center justify-center rounded-xl border border-border/70 bg-muted/50">
+                      <Inbox className="size-5" />
+                    </div>
+                    <span className="text-sm font-medium">{emptyMessage}</span>
+                  </div>
                 </TableCell>
               </TableRow>
             )}
@@ -127,7 +133,7 @@ export function DataTable<TData, TValue>({
 
       <div
         className={cn(
-          "flex flex-col gap-3 text-sm text-muted-foreground sm:gap-4",
+          "flex flex-col gap-3 rounded-xl border border-border/70 bg-card/75 px-3 py-3 text-sm text-muted-foreground shadow-xs sm:gap-4 sm:px-4",
           compact
             ? "sm:flex-row sm:items-center sm:justify-between"
             : "sm:flex-row sm:items-center sm:justify-between"

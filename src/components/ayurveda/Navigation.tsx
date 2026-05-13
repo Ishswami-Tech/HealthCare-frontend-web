@@ -181,25 +181,25 @@ const Navigation = () => {
   return (
     <>
       {/* Top Trust Bar */}
-      <div className="bg-gradient-to-r from-primary to-emerald-600 dark:from-primary/90 dark:to-emerald-700 text-primary-foreground py-2 px-4 relative z-40">
-        <div className="container mx-auto max-w-7xl flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs md:text-sm gap-2 sm:gap-0">
+      <div className="relative z-40 border-b border-primary/15 bg-primary/[0.96] px-4 py-2.5 text-primary-foreground">
+        <div className="container mx-auto flex max-w-7xl flex-col gap-2 text-xs sm:flex-row sm:items-center sm:justify-between md:text-sm">
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             <Badge
               variant="secondary"
-              className="bg-white/20 text-white border-white/30 text-xs"
+              className="border-white/20 bg-white/15 px-2.5 py-1 text-[11px] font-semibold text-white shadow-none"
             >
-              <div className="w-2 h-2 bg-destructive rounded-full animate-pulse mr-1"></div>
+              <div className="mr-1.5 h-1.5 w-1.5 rounded-full bg-emerald-300"></div>
               {t("navigation.livePatients")}
             </Badge>
-            <span className="hidden sm:inline text-xs">
+            <span className="hidden text-xs text-white/85 sm:inline">
               {t("navigation.livesTransformed")}
             </span>
-            <span className="hidden lg:inline text-xs">
+            <span className="hidden text-xs text-white/85 lg:inline">
               {t("navigation.rating")}
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-            <div className="flex items-center space-x-1 sm:space-x-2">
+            <div className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5">
               <Phone className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="font-semibold text-xs sm:text-sm">
                 {t("navigation.phoneNumber")}
@@ -211,7 +211,7 @@ const Navigation = () => {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="flex items-center space-x-1 sm:space-x-2 h-7 sm:h-8 px-2 sm:px-3 hover:bg-white/20 dark:hover:bg-gray-700/50 transition-colors duration-200 z-50 relative"
+                  className="relative z-50 flex h-8 items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 text-white hover:bg-white/20 sm:h-9"
                 >
                   <Globe className="w-3 h-3 sm:w-4 sm:h-4" />
                   <span className="text-xs font-semibold">
@@ -269,33 +269,16 @@ const Navigation = () => {
       {/* Main Navigation */}
       <motion.nav
         className={cn(
-          "sticky top-0 z-50 transition-all duration-300",
+          "sticky top-0 z-50 border-b border-border/70 transition-all duration-300",
           isScrolled
-            ? "backdrop-blur-md shadow-lg border-b border-border"
-            : "backdrop-blur-sm"
+            ? "bg-background/95 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.35)] backdrop-blur-xl"
+            : "bg-background/88 backdrop-blur-xl"
         )}
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.5, ease: [0.0, 0.0, 0.2, 1] }}
         style={{ zIndex: 40 }}
       >
-        {/* Background Elements - Same as Hero */}
-        <div className="absolute inset-0 z-0">
-          {/* Base Background */}
-          <div className="absolute inset-0 bg-background" />
-
-          {/* Elegant Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-br from-background via-background/95 to-muted/20 dark:from-background dark:via-background/95 dark:to-muted/30" />
-
-          {/* Secondary Gradient for Depth */}
-          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-primary/3 to-secondary/8 dark:via-primary/5 dark:to-secondary/12" />
-
-          {/* Subtle Geometric Pattern */}
-          <div className="absolute inset-0 opacity-[0.01] dark:opacity-[0.04]">
-            <div className="w-full h-full bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23000000%22%20fill-opacity%3D%220.1%22%3E%3Cpath%20d%3D%22M30%2030c0-8.284-6.716-15-15-15s-15%206.716-15%2015%206.716%2015%2015%2015%2015-6.716%2015-15zm0%200c0%208.284%206.716%2015%2015%2015s15-6.716%2015-15-6.716-15-15-15-15%206.716-15%2015z%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')]" />
-          </div>
-        </div>
-
         {/* Navigation Content */}
         <div className="container mx-auto px-4 relative z-10">
           <div className="flex items-center justify-between h-16 md:h-20 min-h-16 max-w-7xl mx-auto">
@@ -305,7 +288,7 @@ const Navigation = () => {
                 href="/"
                 className="flex items-center space-x-2 sm:space-x-3 touch-manipulation"
               >
-                  <motion.div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center overflow-hidden flex-shrink-0 rounded-2xl border border-border/60 bg-card/90 dark:bg-slate-950/80 shadow-sm">
+                  <motion.div className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm sm:h-16 sm:w-16">
                     <img
                       src="/assets/logo/logowithoutbackground.png"
                       alt={t("navigation.clinicName")}
@@ -318,10 +301,10 @@ const Navigation = () => {
                     />
                   </motion.div>
                   <div className="hidden sm:block min-w-0">
-                    <h1 className="font-playfair text-base sm:text-lg lg:text-lg font-bold text-gray-900 dark:text-white leading-tight truncate">
+                    <h1 className="truncate font-playfair text-base font-bold leading-tight text-foreground sm:text-lg">
                       {t("navigation.clinicName")}
                     </h1>
-                    <p className="text-[10px] sm:text-xs lg:text-xs text-primary dark:text-primary mt-1 truncate">
+                    <p className="mt-1 truncate text-[10px] font-medium uppercase tracking-[0.18em] text-primary sm:text-xs">
                       {t("navigation.clinicSubtitle")}
                     </p>
                   </div>
@@ -344,7 +327,7 @@ const Navigation = () => {
                 >
                   {item.hasDropdown ? (
                     <div
-                      className="relative rounded-lg transition-all duration-200 hover:bg-primary/10 dark:hover:bg-primary/20 px-2 py-1"
+                      className="relative rounded-full px-3 py-2 transition-colors duration-200 hover:bg-primary/10"
                       onMouseEnter={handleMouseEnter}
                       onMouseLeave={handleMouseLeave}
                       role="button"
@@ -359,7 +342,7 @@ const Navigation = () => {
                       <Link
                         href={item.href}
                         className={cn(
-                          "text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary font-medium transition-colors duration-200 relative group text-sm lg:text-sm xl:text-sm whitespace-nowrap flex items-center space-x-1",
+                          "group relative flex items-center gap-1 whitespace-nowrap text-sm font-medium text-muted-foreground transition-colors duration-200 hover:text-primary",
                           (pathname === item.href ||
                             item.subItems?.some(
                               (subItem) => pathname === subItem.href
@@ -371,7 +354,6 @@ const Navigation = () => {
                         <motion.div
                           animate={{
                             rotate: isTreatmentsDropdownOpen ? 90 : 0,
-                            scale: isTreatmentsDropdownOpen ? 1.1 : 1,
                           }}
                           transition={{
                             duration: 0.2,
@@ -381,7 +363,7 @@ const Navigation = () => {
                           <ChevronRight className="w-3 h-3" />
                         </motion.div>
                         <motion.span
-                          className="absolute -bottom-1 left-0 h-0.5 bg-primary dark:bg-primary"
+                          className="absolute -bottom-2 left-0 h-0.5 bg-primary"
                           initial={{ width: 0 }}
                           whileHover={{ width: "100%" }}
                           animate={{
@@ -411,7 +393,7 @@ const Navigation = () => {
                               duration: 0.2,
                               ease: [0.0, 0.0, 0.2, 1],
                             }}
-                            className="absolute top-full left-0 mt-2 w-48 bg-card dark:bg-gray-800 rounded-lg shadow-lg border border-border dark:border-gray-700 overflow-hidden z-50"
+                            className="absolute left-0 top-full z-50 mt-3 w-56 overflow-hidden rounded-2xl border border-border/80 bg-popover/98 p-2 shadow-2xl backdrop-blur-xl"
                             onMouseEnter={handleMouseEnter}
                             onMouseLeave={handleMouseLeave}
                           >
@@ -429,9 +411,9 @@ const Navigation = () => {
                                 <Link
                                   href={subItem.href}
                                   className={cn(
-                                    "block px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors duration-200 border-b border-gray-100 dark:border-gray-700 last:border-b-0",
+                                    "block rounded-xl px-3 py-3 text-sm text-muted-foreground transition-colors duration-200 hover:bg-primary/10 hover:text-primary",
                                     pathname === subItem.href &&
-                                      "bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary"
+                                      "bg-primary/10 text-primary"
                                   )}
                                 >
                                   <div className="flex items-center space-x-2">
@@ -449,14 +431,14 @@ const Navigation = () => {
                     <Link
                       href={item.href}
                       className={cn(
-                        "text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary font-medium transition-colors duration-200 relative group text-sm lg:text-sm xl:text-sm whitespace-nowrap",
+                        "group relative whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium text-muted-foreground transition-colors duration-200 hover:bg-primary/10 hover:text-primary",
                         pathname === item.href &&
-                          "text-primary dark:text-primary"
+                          "bg-primary/10 text-primary"
                       )}
                     >
                       {item.name}
                       <motion.span
-                        className="absolute -bottom-1 left-0 h-0.5 bg-primary dark:bg-primary"
+                        className="absolute -bottom-2 left-3 h-0.5 bg-primary"
                         initial={{ width: 0 }}
                         whileHover={{ width: "100%" }}
                         animate={{ width: pathname === item.href ? "100%" : 0 }}
@@ -537,7 +519,7 @@ const Navigation = () => {
               <Button
                 type="button"
                 size="sm"
-                className="hidden lg:flex bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm px-3 sm:px-4 shadow-lg"
+                className="hidden rounded-full bg-primary px-4 text-xs text-primary-foreground shadow-[0_16px_30px_-20px_rgba(15,118,110,0.8)] hover:bg-primary/90 sm:text-sm lg:flex"
                 onClick={() => (window.location.href = "tel:9860370961")}
               >
                 <Phone className="w-3 h-3 mr-1" />
@@ -548,7 +530,7 @@ const Navigation = () => {
               <Button
                 type="button"
                 size="sm"
-                className="lg:hidden bg-primary hover:bg-primary/90 text-primary-foreground text-xs px-3 py-2 h-8 shadow-lg touch-manipulation"
+                className="h-9 rounded-full bg-primary px-3 text-xs text-primary-foreground shadow-[0_16px_30px_-20px_rgba(15,118,110,0.8)] hover:bg-primary/90 lg:hidden"
                 onClick={() => (window.location.href = "tel:9860370961")}
               >
                 <Phone className="w-3 h-3 mr-1" />
@@ -565,19 +547,19 @@ const Navigation = () => {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="lg:hidden h-10 w-10 p-0 touch-manipulation hover:bg-primary/10 dark:hover:bg-primary/20"
+                    className="h-10 w-10 rounded-full p-0 touch-manipulation hover:bg-primary/10 lg:hidden"
                     aria-label="Toggle mobile menu"
                   >
-                    <Menu className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+                    <Menu className="h-4 w-4 text-foreground" />
                   </Button>
                 </SheetTrigger>
 
                 <SheetContent
                   side="left"
-                  className="w-80 p-0 bg-card dark:bg-gray-900 border-r border-border dark:border-gray-700"
+                  className="w-80 border-r border-border bg-background p-0"
                 >
-                  <SheetHeader className="p-8 pb-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-primary/10 to-emerald-50 dark:from-primary/20 dark:to-emerald-900/20">
-                    <SheetTitle className="text-left text-xl font-bold text-primary dark:text-primary leading-tight tracking-wide flex items-center space-x-3">
+                  <SheetHeader className="border-b border-border bg-muted/30 p-6 pb-5">
+                    <SheetTitle className="flex items-center gap-3 text-left text-lg font-bold leading-tight text-foreground">
                       <div className="w-9 h-9 flex items-center justify-center overflow-hidden flex-shrink-0 rounded-xl border border-border/60 bg-card/90 dark:bg-slate-950/80 shadow-sm">
                         <img
                           src="/assets/logo/logowithoutbackground.png"
@@ -592,7 +574,7 @@ const Navigation = () => {
                       </div>
                       <span>{t("navigation.clinicName")}</span>
                     </SheetTitle>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 font-medium">
+                    <p className="mt-2 text-sm font-medium text-muted-foreground">
                       Navigate to your destination
                     </p>
                   </SheetHeader>

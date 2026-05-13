@@ -49,9 +49,9 @@ const ComprehensiveCTA = () => {
       subtitle: t("comprehensiveCTA.engagementLevels.urgent.subtitle"),
       description: t("comprehensiveCTA.engagementLevels.urgent.description"),
       icon: Zap,
-      color: "from-orange-500 to-red-600",
+      color: "from-primary to-primary/80",
       bgColor:
-        "from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20",
+        "from-primary/[0.06] to-primary/[0.10]",
       actions: [
         {
           label: t(
@@ -87,9 +87,9 @@ const ComprehensiveCTA = () => {
       subtitle: t("comprehensiveCTA.engagementLevels.moderate.subtitle"),
       description: t("comprehensiveCTA.engagementLevels.moderate.description"),
       icon: Heart,
-      color: "from-blue-500 to-cyan-600",
+      color: "from-primary/90 to-emerald-700",
       bgColor:
-        "from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20",
+        "from-emerald-500/[0.06] to-emerald-500/[0.10]",
       actions: [
         {
           label: t(
@@ -129,9 +129,9 @@ const ComprehensiveCTA = () => {
         "comprehensiveCTA.engagementLevels.preventive.description"
       ),
       icon: Brain,
-      color: "from-green-500 to-emerald-600",
+      color: "from-slate-600 to-slate-800",
       bgColor:
-        "from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20",
+        "from-slate-500/[0.06] to-slate-500/[0.10]",
       actions: [
         {
           label: t(
@@ -173,7 +173,7 @@ const ComprehensiveCTA = () => {
         "comprehensiveCTA.contactChannels.channels.whatsapp.description"
       ),
       icon: MessageCircle,
-      color: "bg-green-500",
+      color: "bg-primary",
       onClick: () => window.location.href = "tel:+917972548944",
     },
     {
@@ -183,7 +183,7 @@ const ComprehensiveCTA = () => {
         "comprehensiveCTA.contactChannels.channels.helpline.description"
       ),
       icon: Phone,
-      color: "bg-blue-500",
+      color: "bg-primary/90",
       onClick: () => window.location.href = "tel:+917972548944",
     },
     {
@@ -193,7 +193,7 @@ const ComprehensiveCTA = () => {
         "comprehensiveCTA.contactChannels.channels.emergency.description"
       ),
       icon: Shield,
-      color: "bg-red-500",
+      color: "bg-destructive",
       onClick: () => window.location.href = "tel:+917972548944",
     },
     {
@@ -203,7 +203,7 @@ const ComprehensiveCTA = () => {
         "comprehensiveCTA.contactChannels.channels.video.description"
       ),
       icon: Video,
-      color: "bg-purple-500",
+      color: "bg-slate-700",
       onClick: handleBookConsultation,
     },
   ];
@@ -217,9 +217,9 @@ const ComprehensiveCTA = () => {
   ];
 
   return (
-    <div className="space-y-20">
+    <div className="space-y-16 sm:space-y-20">
       {/* Multi-Level Engagement Strategy */}
-      <section className="py-20 bg-background">
+      <section className="bg-background py-16 sm:py-20">
         <div className="container mx-auto px-4">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
@@ -313,7 +313,7 @@ const ComprehensiveCTA = () => {
       </section>
 
       {/* Omnichannel Contact */}
-      <section className="py-20 bg-background">
+      <section className="bg-base-200/55 py-16 sm:py-20">
         <div className="container mx-auto px-4">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
@@ -419,7 +419,7 @@ const ComprehensiveCTA = () => {
       </section>
 
       {/* Ultimate Value Proposition */}
-      <section className="py-20 bg-primary">
+      <section className="bg-primary py-16 sm:py-20">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center text-primary-foreground">
             <h2 className="text-3xl md:text-4xl font-playfair font-bold mb-6">
@@ -527,7 +527,7 @@ const ComprehensiveCTA = () => {
       </section>
 
       {/* Newsletter Signup */}
-      <section className="py-20 bg-muted/50">
+      <section className="bg-background py-16 sm:py-20">
         <div className="container mx-auto px-4">
           <div className="max-w-2xl mx-auto text-center">
             <h3 className="text-2xl font-bold text-foreground mb-4">

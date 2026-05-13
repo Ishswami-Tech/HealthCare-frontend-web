@@ -195,82 +195,73 @@ export default function TreatmentsPage() {
           <CompactThemeSwitcher />
         </div>
         {/* Hero Section */}
-        <section className="relative py-20 sm:py-24 md:py-28 lg:py-32 overflow-hidden">
-          {/* Enhanced Background with Multiple Layers */}
-          <div className="absolute inset-0 bg-gradient-to-br from-background via-background/98 to-muted/30"></div>
-          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-primary/5 to-secondary/10"></div>
-          <div className="absolute inset-0 bg-gradient-to-bl from-accent/3 via-transparent to-primary/5"></div>
-
-          {/* Animated Floating Elements */}
-          <div className="absolute top-16 left-8 w-24 h-24 bg-gradient-to-r from-primary/25 to-primary/35 rounded-full blur-xl animate-pulse"></div>
-          <div className="absolute top-32 right-16 w-40 h-40 bg-gradient-to-r from-secondary/20 to-secondary/30 rounded-full blur-2xl animate-pulse delay-1000"></div>
-          <div className="absolute bottom-24 left-1/3 w-32 h-32 bg-gradient-to-r from-accent/15 to-accent/25 rounded-full blur-xl animate-pulse delay-2000"></div>
-          <div className="absolute top-1/2 right-1/4 w-20 h-20 bg-gradient-to-r from-primary/20 to-accent/20 rounded-full blur-lg animate-pulse delay-3000"></div>
-
-          {/* Geometric Patterns */}
-          <div className="absolute top-20 right-10 w-16 h-16 border border-primary/20 rotate-45 animate-spin-slow"></div>
-          <div className="absolute bottom-32 left-16 w-12 h-12 border border-secondary/20 rotate-12 animate-pulse"></div>
-
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <div className="max-w-5xl mx-auto text-center">
-              <Badge className="bg-gradient-to-r from-orange-100 to-red-100 dark:from-orange-900/50 dark:to-red-900/50 text-orange-800 dark:text-orange-100 border-orange-200 dark:border-orange-700/60 glass interactive mb-8 px-6 py-3 text-sm font-medium">
-                <Heart className="w-4 h-4 mr-2" />
-                {t("treatments.title")}
-              </Badge>
-
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-playfair font-bold text-foreground mb-8 gradient-text leading-tight">
-                {t("treatments.subtitle")}
-              </h1>
-
-              <p className="text-lg sm:text-xl text-muted-foreground mb-10 leading-relaxed max-w-4xl mx-auto">
-                {t("treatments.description")}
-              </p>
-
-              <div className="flex flex-wrap justify-center gap-4 mb-10">
-                <Badge className="bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/30 dark:to-emerald-900/30 text-green-800 dark:text-green-100 border-green-200 dark:border-green-700/50 glass interactive px-4 py-2">
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  {t("stats.livesTransformed")}
+        <section className="relative overflow-hidden border-b border-border/70 bg-[linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--muted)/0.34)_100%)] py-16 sm:py-20 lg:py-24">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.10),transparent_34%),radial-gradient(circle_at_bottom_right,hsl(var(--secondary)/0.08),transparent_32%)]" />
+          <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
+              <div>
+                <Badge className="mb-6 border-primary/20 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary shadow-none">
+                  <Heart className="mr-2 h-4 w-4" />
+                  {t("treatments.title")}
                 </Badge>
-                <Badge className="bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-900/30 dark:to-cyan-900/30 text-blue-800 dark:text-blue-100 border-blue-200 dark:border-blue-700/50 glass interactive px-4 py-2">
-                  <Award className="w-4 h-4 mr-2" />
-                  {t("common.governmentCertified")}
-                </Badge>
-                <Badge className="bg-gradient-to-r from-purple-100 to-violet-100 dark:from-purple-900/30 dark:to-violet-900/30 text-purple-800 dark:text-purple-100 border-purple-200 dark:border-purple-700/50 glass interactive px-4 py-2">
-                  <Star className="w-4 h-4 mr-2" />
-                  {t("navigation.rating")}
-                </Badge>
+
+                <h1 className="max-w-5xl font-playfair text-4xl font-bold leading-tight text-foreground sm:text-5xl lg:text-6xl">
+                  {t("treatments.subtitle")}
+                </h1>
+
+                <p className="mt-6 max-w-4xl text-base leading-8 text-muted-foreground sm:text-lg lg:text-xl">
+                  {t("treatments.description")}
+                </p>
+
+                <div className="mt-8 flex flex-wrap gap-3">
+                  <div className="inline-flex items-center rounded-full border border-border/70 bg-card px-4 py-2 text-sm font-medium shadow-sm">
+                    <CheckCircle className="mr-2 h-4 w-4 text-primary" />
+                    {t("stats.livesTransformed")}
+                  </div>
+                  <div className="inline-flex items-center rounded-full border border-border/70 bg-card px-4 py-2 text-sm font-medium shadow-sm">
+                    <Award className="mr-2 h-4 w-4 text-primary" />
+                    {t("common.governmentCertified")}
+                  </div>
+                  <div className="inline-flex items-center rounded-full border border-border/70 bg-card px-4 py-2 text-sm font-medium shadow-sm">
+                    <Star className="mr-2 h-4 w-4 text-primary" />
+                    {t("navigation.rating")}
+                  </div>
+                </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center max-w-2xl mx-auto">
-                <Button
-                  size="lg"
-                  className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 dark:from-orange-600 dark:to-red-700 dark:hover:from-orange-700 dark:hover:to-red-800 text-white text-base sm:text-lg px-6 sm:px-10 py-3 sm:py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300 w-full sm:w-auto"
-                >
-                  {t("common.bookAppointment")}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="border-2 border-primary/30 text-primary hover:bg-primary/10 text-base sm:text-lg px-6 sm:px-10 py-3 sm:py-4 interactive w-full sm:w-auto"
-                >
-                  {t("navigation.treatments")}
-                </Button>
-              </div>
+              <Card className="border-border/70 bg-card/96 shadow-[0_28px_90px_-56px_rgba(15,23,42,0.45)]">
+                <CardContent className="p-6 sm:p-7">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
+                    {t("treatments.labels.mainTreatments")}
+                  </p>
+                  <p className="mt-4 text-base leading-7 text-muted-foreground">
+                    {t("treatments.labels.mainTreatmentsDescription")}
+                  </p>
+                  <div className="mt-6 flex flex-col gap-3 sm:flex-row lg:flex-col">
+                    <Button size="lg" className="w-full">
+                      {t("common.bookAppointment")}
+                    </Button>
+                    <Button variant="outline" size="lg" className="w-full">
+                      {t("navigation.treatments")}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </section>
 
         {/* Main Treatments */}
         <LazySection fallback={<SectionSkeleton />}>
-          <section className="py-16 sm:py-20 md:py-24 bg-gradient-to-b from-background to-muted/20">
+          <section className="py-16 sm:py-20 md:py-24">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="max-w-7xl mx-auto">
                 <div className="text-center mb-20">
-                  <Badge className="bg-gradient-to-r from-primary/10 to-secondary/10 dark:from-primary/20 dark:to-secondary/20 text-primary dark:text-primary/90 border-primary/20 dark:border-primary/30 glass interactive mb-6 px-4 py-2">
+                  <Badge className="mb-6 border-primary/20 bg-primary/10 px-4 py-2 text-primary shadow-none">
                     <Award className="w-4 h-4 mr-2" />
                     {t("treatments.labels.mainTreatments")}
                   </Badge>
-                  <h2 className="text-3xl md:text-4xl lg:text-4xl xl:text-5xl font-playfair font-bold text-foreground dark:text-foreground/95 mb-6 gradient-text">
+                  <h2 className="mb-6 font-playfair text-3xl font-bold text-foreground md:text-4xl xl:text-5xl">
                     {t("treatments.labels.mainTreatmentsTitle")}
                   </h2>
                   <p className="text-lg text-muted-foreground dark:text-muted-foreground/90 max-w-3xl mx-auto leading-relaxed">
@@ -286,7 +277,7 @@ export default function TreatmentsPage() {
                     return (
                       <Card
                         key={treatment.id}
-                        className="bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-hidden glass card-hover group hover:shadow-3xl transition-all duration-500"
+                        className="group overflow-hidden border border-border/70 bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
                       >
                         <CardContent className="p-0">
                           <div
@@ -320,16 +311,16 @@ export default function TreatmentsPage() {
                               </div>
 
                               <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
-                                <div className="text-center bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl p-3 sm:p-4 glass">
-                                  <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground gradient-text">
+                                  <div className="rounded-2xl border border-border/70 bg-background/70 p-3 text-center sm:p-4">
+                                  <div className="text-xl font-bold text-foreground sm:text-2xl lg:text-3xl">
                                     {treatment.successRate}%
                                   </div>
                                   <div className="text-xs sm:text-sm text-muted-foreground font-medium">
                                     {t("treatments.labels.successRate")}
                                   </div>
                                 </div>
-                                <div className="text-center bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl p-3 sm:p-4 glass">
-                                  <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground gradient-text">
+                                <div className="rounded-2xl border border-border/70 bg-background/70 p-3 text-center sm:p-4">
+                                  <div className="text-xl font-bold text-foreground sm:text-2xl lg:text-3xl">
                                     {treatment.sessions}
                                   </div>
                                   <div className="text-xs sm:text-sm text-muted-foreground font-medium">
@@ -344,7 +335,7 @@ export default function TreatmentsPage() {
                                 !isEven ? "lg:col-start-1" : ""
                               }`}
                             >
-                              <h3 className="text-xl sm:text-2xl md:text-3xl font-playfair font-bold text-foreground mb-3 gradient-text">
+                              <h3 className="mb-3 font-playfair text-xl font-bold text-foreground sm:text-2xl md:text-3xl">
                                 {treatment.title}
                               </h3>
                               <p className="text-base sm:text-lg text-primary font-playfair font-semibold mb-4">
@@ -406,15 +397,15 @@ export default function TreatmentsPage() {
 
         {/* Specialized Programs */}
         <LazySection fallback={<SectionSkeleton />}>
-          <section className="py-16 sm:py-20 md:py-24 bg-gradient-to-br from-muted/30 to-primary/10 dark:from-muted/50 dark:to-primary/20">
+          <section className="border-y border-border/70 bg-muted/25 py-16 sm:py-20 md:py-24">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="max-w-7xl mx-auto">
                 <div className="text-center mb-20">
-                  <Badge className="bg-gradient-to-r from-secondary/10 to-accent/10 dark:from-secondary/20 dark:to-accent/20 text-secondary dark:text-secondary/90 border-secondary/20 dark:border-secondary/30 glass interactive mb-6 px-4 py-2">
+                  <Badge className="mb-6 border-primary/20 bg-primary/10 px-4 py-2 text-primary shadow-none">
                     <Users className="w-4 h-4 mr-2" />
                     {t("treatments.labels.specializedCare")}
                   </Badge>
-                  <h2 className="text-3xl md:text-4xl lg:text-4xl xl:text-5xl font-playfair font-bold text-foreground mb-6 gradient-text">
+                  <h2 className="mb-6 font-playfair text-3xl font-bold text-foreground md:text-4xl xl:text-5xl">
                     {t("treatments.labels.specializedProgramsTitle")}
                   </h2>
                   <p className="text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed">
@@ -429,7 +420,7 @@ export default function TreatmentsPage() {
                     return (
                       <Card
                         key={index}
-                        className="hover:shadow-lg transition-all duration-300 border border-border/20 dark:border-border/30 bg-card dark:bg-card/90 glass card-hover"
+                        className="border border-border/70 bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
                       >
                         <CardHeader>
                           <div className="flex items-center space-x-3 sm:space-x-4 mb-4">
@@ -439,10 +430,10 @@ export default function TreatmentsPage() {
                               <IconComponent className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-white" />
                             </div>
                             <div>
-                              <h3 className="text-lg md:text-xl font-playfair font-bold text-foreground dark:text-foreground/95 gradient-text">
+                              <h3 className="font-playfair text-lg font-bold text-foreground md:text-xl">
                                 {program.title}
                               </h3>
-                              <Badge className="bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary/90 border-primary/20 dark:border-primary/30 mt-2">
+                              <Badge className="mt-2 border-primary/20 bg-primary/10 text-primary shadow-none">
                                 {program.successRate}%{" "}
                                 {t("treatments.labels.successRate")}
                               </Badge>
@@ -450,7 +441,7 @@ export default function TreatmentsPage() {
                           </div>
                         </CardHeader>
                         <CardContent>
-                          <p className="text-muted-foreground dark:text-muted-foreground/90 mb-6 leading-relaxed">
+                          <p className="mb-6 leading-relaxed text-muted-foreground">
                             {program.description}
                           </p>
 
@@ -460,8 +451,8 @@ export default function TreatmentsPage() {
                                 key={serviceIndex}
                                 className="flex items-center space-x-2"
                               >
-                                <CheckCircle className="w-4 h-4 text-green-500 dark:text-green-400" />
-                                <span className="text-muted-foreground dark:text-muted-foreground/90">
+                                <CheckCircle className="h-4 w-4 text-primary" />
+                                <span className="text-muted-foreground">
                                   {service}
                                 </span>
                               </div>
@@ -489,11 +480,11 @@ export default function TreatmentsPage() {
           <section className="py-12 sm:py-16 md:py-20 bg-background">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="max-w-6xl mx-auto">
-                <div className="text-center mb-16">
-                  <h2 className="text-2xl md:text-3xl font-playfair font-bold text-foreground dark:text-foreground/95 mb-4 gradient-text">
+                <div className="mb-16 text-center">
+                  <h2 className="mb-4 font-playfair text-2xl font-bold text-foreground md:text-3xl">
                     {t("treatments.labels.combinationPackagesTitle")}
                   </h2>
-                  <p className="text-base text-muted-foreground dark:text-muted-foreground/90">
+                  <p className="text-base text-muted-foreground">
                     {t("treatments.labels.combinationPackagesDescription")}
                   </p>
                 </div>
@@ -502,14 +493,14 @@ export default function TreatmentsPage() {
                   {treatmentPackages.map((pkg, index) => (
                     <Card
                       key={index}
-                      className="hover:shadow-xl transition-all duration-300 border border-border/20 dark:border-border/30 bg-gradient-to-br from-card to-muted/50 dark:from-card/90 dark:to-muted/60 glass card-hover"
+                      className="border border-border/70 bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
                     >
                       <CardHeader>
                         <div className="flex items-center justify-between mb-4">
-                          <h3 className="text-lg md:text-xl font-playfair font-bold text-foreground dark:text-foreground/95 gradient-text">
+                          <h3 className="font-playfair text-lg font-bold text-foreground md:text-xl">
                             {pkg.name}
                           </h3>
-                          <Badge className="bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary/90 border-primary/20 dark:border-primary/30">
+                          <Badge className="border-primary/20 bg-primary/10 text-primary shadow-none">
                             {pkg.popularity}% {t("common.chooseThis")}
                           </Badge>
                         </div>
@@ -517,29 +508,29 @@ export default function TreatmentsPage() {
                       <CardContent>
                         <div className="space-y-4">
                           <div>
-                            <h4 className="text-base font-playfair font-semibold text-foreground dark:text-foreground/95 mb-2">
+                            <h4 className="mb-2 font-playfair text-base font-semibold text-foreground">
                               {t("treatments.labels.treatmentsIncluded")}
                             </h4>
-                            <p className="text-muted-foreground dark:text-muted-foreground/90">
+                            <p className="text-muted-foreground">
                               {pkg.treatments}
                             </p>
                           </div>
 
                           <div>
-                            <h4 className="text-base font-playfair font-semibold text-foreground dark:text-foreground/95 mb-2">
+                            <h4 className="mb-2 font-playfair text-base font-semibold text-foreground">
                               {t("treatments.labels.transformationPromise")}
                             </h4>
-                            <p className="text-muted-foreground dark:text-muted-foreground/90 font-medium">
+                            <p className="font-medium text-muted-foreground">
                               {pkg.promise}
                             </p>
                           </div>
 
                           <div className="pt-4">
                             <div className="flex items-center justify-between mb-2">
-                              <span className="text-sm font-medium text-muted-foreground dark:text-muted-foreground/90">
+                              <span className="text-sm font-medium text-muted-foreground">
                                 {t("treatments.labels.popularity")}
                               </span>
-                              <span className="text-sm font-bold text-primary dark:text-primary/90">
+                              <span className="text-sm font-bold text-primary">
                                 {pkg.popularity}%
                               </span>
                             </div>
@@ -564,7 +555,7 @@ export default function TreatmentsPage() {
 
         {/* Call to Action */}
         <LazySection fallback={<SectionSkeleton />}>
-          <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-r from-primary to-primary/80">
+          <section className="border-y border-primary/20 bg-primary/[0.96] py-12 sm:py-16 md:py-20">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="max-w-4xl mx-auto text-center text-white">
                 <h2 className="text-2xl md:text-3xl font-playfair font-bold mb-6 text-white">
@@ -612,7 +603,7 @@ export default function TreatmentsPage() {
 
         {/* Comprehensive Services Catalog */}
         <LazySection fallback={<SectionSkeleton />}>
-          <section className="py-12 sm:py-16 md:py-20 bg-muted/50 dark:bg-muted/70">
+          <section className="bg-muted/25 py-12 sm:py-16 md:py-20">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <Suspense fallback={<SectionSkeleton />}>
                 <ServicesCatalog

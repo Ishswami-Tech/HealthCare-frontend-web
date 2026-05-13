@@ -28,9 +28,9 @@ export function DashboardStatusBar({
   useWebSocketStatus();
 
   const positionClasses = {
-    top: 'border-b bg-white/80 backdrop-blur-sm',
-    bottom: 'border-t bg-white/80 backdrop-blur-sm',
-    floating: 'rounded-lg border shadow-sm bg-white/90 backdrop-blur-sm'
+    top: 'border-b border-border/70 bg-background/85 backdrop-blur-xl',
+    bottom: 'border-t border-border/70 bg-background/85 backdrop-blur-xl',
+    floating: 'rounded-2xl border border-border/80 bg-card/95 shadow-lg ring-1 ring-border/25 backdrop-blur-xl'
   };
 
   if (variant === 'minimal') {
@@ -57,7 +57,7 @@ export function DashboardStatusBar({
       )}>
         <div className="flex items-center gap-3">
           <LiveActivityIndicator />
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-muted-foreground">
             {(user as any)?.firstName || user?.name || 'User'} • {currentClinic?.name || 'No Clinic'}
           </div>
         </div>
@@ -84,7 +84,7 @@ export function DashboardStatusBar({
           <SessionStatusIndicator />
         </div>
 
-        <div className="text-sm text-gray-600">
+        <div className="text-sm text-muted-foreground">
           <span className="font-medium">{(user as any)?.firstName || user?.name || 'User'} {(user as any)?.lastName || ''}</span>
           {currentClinic && (
             <>
@@ -128,14 +128,14 @@ export function DashboardHeader({
       )}
       
       {(title || subtitle || children) && (
-        <div className="px-6 py-4 border-b bg-gray-50/50">
+        <div className="border-b border-border/70 bg-muted/25 px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
               {title && (
-                <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+                <h1 className="text-2xl font-bold text-foreground">{title}</h1>
               )}
               {subtitle && (
-                <p className="text-sm text-gray-600 mt-1">{subtitle}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
               )}
             </div>
             {children && (

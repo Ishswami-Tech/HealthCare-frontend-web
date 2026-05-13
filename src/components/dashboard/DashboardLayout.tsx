@@ -206,10 +206,13 @@ export function DashboardLayout({
   if (isPending || (!user && !session)) {
     return (
       <div className={cn(
-        "flex items-center justify-center bg-background",
+        "flex items-center justify-center bg-background px-4",
         isInsideShell ? "h-[400px] w-full" : "min-h-screen"
       )}>
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <div className="flex items-center gap-3 rounded-2xl border border-border/80 bg-card/95 px-5 py-4 shadow-sm ring-1 ring-border/30">
+          <Loader2 className="size-5 animate-spin text-primary" />
+          <span className="text-sm font-medium text-muted-foreground">Preparing your workspace...</span>
+        </div>
       </div>
     );
   }
@@ -220,8 +223,10 @@ export function DashboardLayout({
         "flex items-center justify-center bg-background p-6",
         isInsideShell ? "h-[400px] w-full" : "min-h-screen"
       )}>
-        <div className="max-w-md w-full text-center space-y-6">
-          <Shield className="mx-auto h-12 w-12 text-red-500" />
+        <div className="w-full max-w-md space-y-6 rounded-2xl border border-border/80 bg-card/95 p-6 text-center shadow-sm ring-1 ring-border/30">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-destructive/10">
+            <Shield className="size-7 text-destructive" />
+          </div>
           <h2 className="text-2xl font-bold">Access Denied</h2>
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
@@ -242,11 +247,13 @@ export function DashboardLayout({
   if (user?.profileComplete === false) {
     return (
       <div className={cn(
-        "flex items-center justify-center bg-background",
+        "flex items-center justify-center bg-background px-4",
         isInsideShell ? "h-[400px] w-full" : "min-h-screen"
       )}>
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-        <p className="ml-2">Redirecting to profile completion...</p>
+        <div className="flex items-center gap-3 rounded-2xl border border-border/80 bg-card/95 px-5 py-4 shadow-sm ring-1 ring-border/30">
+          <Loader2 className="size-5 animate-spin text-primary" />
+          <span className="text-sm font-medium text-muted-foreground">Redirecting to profile completion...</span>
+        </div>
       </div>
     );
   }
@@ -281,10 +288,10 @@ export function DashboardLayout({
             role: String(userDisplayData?.role || ""),
           }}
         >
-          <div className="flex flex-col h-full bg-background overflow-hidden text-neutral-900 dark:text-neutral-50">
-            <Header className="bg-transparent border-b border-muted transition-none" />
+          <div className="flex h-full flex-col overflow-hidden bg-background text-neutral-900 dark:text-neutral-50">
+            <Header className="border-b border-border/70 bg-background/85 transition-none backdrop-blur-xl" />
             <main className="flex-1 overflow-auto">
-              <div className="p-4 md:p-8 max-w-6xl mx-auto">
+              <div className="mx-auto w-full max-w-7xl p-4 sm:p-5 md:p-7 lg:p-8">
                 {showPermissionWarnings && title.toLowerCase().includes("appointment") && !appointmentPermissions.canViewAppointments && (
                   <Alert className="mb-4 bg-yellow-50 border-yellow-200">
                     <AlertTriangle className="h-4 w-4 text-yellow-600" />

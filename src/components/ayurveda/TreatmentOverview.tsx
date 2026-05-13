@@ -25,9 +25,9 @@ const TreatmentOverview = () => {
       title: t("treatments.panchakarma.title"),
       subtitle: t("treatments.panchakarma.subtitle"),
       icon: Droplets,
-      color: "from-blue-500 to-cyan-600",
+      color: "from-primary to-primary/80",
       bgColor:
-        "from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20",
+        "from-primary/[0.06] to-primary/[0.10]",
       description: t("treatments.panchakarma.description"),
       features: [
         t("treatments.panchakarma.features.0"),
@@ -50,9 +50,9 @@ const TreatmentOverview = () => {
       title: t("treatments.agnikarma.title"),
       subtitle: t("treatments.agnikarma.subtitle"),
       icon: Flame,
-      color: "from-orange-500 to-red-600",
+      color: "from-primary/90 to-emerald-700",
       bgColor:
-        "from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20",
+        "from-emerald-500/[0.06] to-emerald-500/[0.10]",
       description: t("treatments.agnikarma.description"),
       features: [
         t("treatments.agnikarma.features.0"),
@@ -75,9 +75,9 @@ const TreatmentOverview = () => {
       title: t("treatments.viddhakarma.title"),
       subtitle: t("treatments.viddhakarma.subtitle"),
       icon: Zap,
-      color: "from-purple-500 to-indigo-600",
+      color: "from-slate-600 to-slate-800",
       bgColor:
-        "from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20",
+        "from-slate-500/[0.06] to-slate-500/[0.10]",
       description: t("treatments.viddhakarma.description"),
       features: [
         t("treatments.viddhakarma.features.0"),
@@ -98,29 +98,29 @@ const TreatmentOverview = () => {
   ];
 
   return (
-    <section className="py-20 bg-background">
+    <section className="bg-background py-16 sm:py-20">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-16">
-          <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
+        <div className="mb-12 text-center sm:mb-14">
+          <Badge className="mb-4 border-primary/20 bg-primary/10 px-4 py-1.5 text-primary">
             <Heart className="w-4 h-4 mr-2" />
             {t("treatments.title")}
           </Badge>
-          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
+          <h2 className="mb-4 text-3xl font-bold tracking-tight text-foreground md:text-4xl">
             {t("treatments.subtitle")}
           </h2>
-          <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+          <p className="mx-auto max-w-3xl text-base leading-7 text-muted-foreground sm:text-lg">
             {t("treatments.description")}
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8 mb-16">
+        <div className="mb-14 grid gap-5 lg:grid-cols-3">
           {treatments.map((treatment) => {
             const IconComponent = treatment.icon;
 
             return (
               <Card
                 key={treatment.id}
-                className="group hover:shadow-2xl transition-all duration-300 border-0 overflow-hidden bg-card"
+                className="group overflow-hidden border-border/80 bg-card/95 shadow-sm ring-1 ring-border/25 transition-all duration-200 hover:-translate-y-1 hover:border-primary/35 hover:shadow-xl"
               >
                 <CardHeader
                   className={`bg-gradient-to-br ${treatment.bgColor} relative overflow-hidden`}
@@ -144,13 +144,13 @@ const TreatmentOverview = () => {
                 </CardHeader>
 
                 <CardContent className="p-6">
-                  <p className="text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
+                  <p className="mb-6 leading-7 text-muted-foreground">
                     {treatment.description}
                   </p>
 
                   {/* Key Features */}
                   <div className="mb-6">
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-3">
+                    <h4 className="mb-3 font-semibold text-foreground">
                       {t("treatments.labels.keyBenefits")}
                     </h4>
                     <div className="grid grid-cols-2 gap-2">
@@ -159,8 +159,8 @@ const TreatmentOverview = () => {
                           key={index}
                           className="flex items-center space-x-2"
                         >
-                          <CheckCircle className="w-4 h-4 text-green-500 dark:text-green-400 flex-shrink-0" />
-                          <span className="text-sm text-gray-600 dark:text-gray-300">
+                          <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" />
+                          <span className="text-sm text-muted-foreground">
                             {feature}
                           </span>
                         </div>
@@ -170,7 +170,7 @@ const TreatmentOverview = () => {
 
                   {/* Conditions Treated */}
                   <div className="mb-6">
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-3">
+                    <h4 className="mb-3 font-semibold text-foreground">
                       {t("treatments.labels.treats")}
                     </h4>
                     <div className="flex flex-wrap gap-2">
@@ -187,7 +187,7 @@ const TreatmentOverview = () => {
                         ))}
                       <Badge
                         variant="outline"
-                        className="text-xs text-gray-500 dark:text-gray-400"
+                        className="text-xs text-muted-foreground"
                       >
                         +{treatment.conditions.length - 2}{" "}
                         {t("treatments.labels.more")}
@@ -196,26 +196,26 @@ const TreatmentOverview = () => {
                   </div>
 
                   {/* Stats */}
-                  <div className="grid grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+                  <div className="mb-6 grid grid-cols-2 gap-4 rounded-2xl border border-border/70 bg-muted/30 p-4">
                     <div className="text-center">
                       <div className="flex items-center justify-center space-x-1 mb-1">
-                        <Star className="w-4 h-4 text-yellow-500" />
-                        <span className="font-bold text-lg text-gray-900">
+                        <Star className="w-4 h-4 text-amber-500" />
+                        <span className="text-lg font-bold text-foreground">
                           {treatment.successRate}%
                         </span>
                       </div>
-                      <span className="text-xs text-gray-600">
+                      <span className="text-xs text-muted-foreground">
                         {t("treatments.labels.successRate")}
                       </span>
                     </div>
                     <div className="text-center">
                       <div className="flex items-center justify-center space-x-1 mb-1">
-                        <Clock className="w-4 h-4 text-blue-500" />
-                        <span className="font-bold text-lg text-gray-900">
+                        <Clock className="w-4 h-4 text-primary" />
+                        <span className="text-lg font-bold text-foreground">
                           {treatment.duration}
                         </span>
                       </div>
-                      <span className="text-xs text-gray-600">
+                      <span className="text-xs text-muted-foreground">
                         {t("treatments.labels.duration")}
                       </span>
                     </div>
@@ -233,7 +233,7 @@ const TreatmentOverview = () => {
                     </Link>
                     <Button
                       variant="outline"
-                      className="w-full border-gray-300 text-gray-700 hover:bg-gray-50"
+                      className="w-full"
                     >
                       {t("treatments.labels.bookConsultation")}
                     </Button>
@@ -246,18 +246,18 @@ const TreatmentOverview = () => {
 
         {/* Call to Action */}
         <div className="text-center">
-          <div className="bg-gradient-to-r from-orange-500 to-red-600 rounded-2xl p-8 text-white">
+          <div className="rounded-2xl bg-primary p-8 text-primary-foreground">
             <h3 className="text-2xl font-playfair font-bold mb-4">
               {t("treatments.cta.title")}
             </h3>
-            <p className="text-orange-100 mb-6 max-w-2xl mx-auto">
+            <p className="mb-6 max-w-2xl mx-auto text-primary-foreground/85">
               {t("treatments.cta.subtitle")}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 size="lg"
                 variant="secondary"
-                className="bg-white text-orange-600 hover:bg-orange-50"
+                className="bg-background text-primary hover:bg-muted"
               >
                 {t("treatments.cta.assessmentButton")}
               </Button>

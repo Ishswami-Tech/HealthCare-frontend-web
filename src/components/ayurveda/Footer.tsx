@@ -48,14 +48,14 @@ const Footer = () => {
   ];
 
   return (
-    <footer className="bg-background text-foreground">
+    <footer className="border-t border-border/70 bg-[linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--muted)/0.34)_100%)] text-foreground">
       {/* Main Footer */}
-      <div className="container mx-auto px-4 py-16">
-        <div className="grid lg:grid-cols-4 md:grid-cols-2 gap-8">
+      <div className="container mx-auto px-4 py-16 sm:px-6 lg:px-8">
+        <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr_0.8fr_1fr]">
           {/* Company Info */}
           <div className="lg:col-span-1">
             <div className="flex items-center space-x-3 mb-6">
-              <div className="w-16 h-16 flex items-center justify-center overflow-hidden rounded-2xl border border-border/60 bg-card/90 dark:bg-slate-950/80 shadow-sm">
+              <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm">
                 <img
                   src="/assets/logo/logowithoutbackground.png"
                   alt={t("clinic.name")}
@@ -68,60 +68,62 @@ const Footer = () => {
                 />
               </div>
               <div>
-                <h3 className="font-playfair text-xl font-bold">
+                <h3 className="font-playfair text-xl font-bold tracking-tight">
                   {t("clinic.name")}
                 </h3>
-                <p className="text-primary text-sm">{t("footer.tagline")}</p>
+                <p className="mt-1 text-sm font-medium text-primary">
+                  {t("footer.tagline")}
+                </p>
               </div>
             </div>
 
-            <p className="text-muted-foreground mb-6 leading-relaxed">
+            <p className="mb-6 max-w-sm leading-7 text-muted-foreground">
               {t("footer.description")}
             </p>
 
             {/* Trust Badges */}
-            <div className="space-y-2 mb-6">
-              <Badge className="bg-primary text-primary-foreground border-primary">
+            <div className="mb-6 flex flex-wrap gap-2">
+              <Badge className="border-primary/20 bg-primary/10 text-primary shadow-none">
                 <CheckCircle className="w-3 h-3 mr-1" />
                 {t("stats.certifications.governmentCertified.title")}
               </Badge>
-              <Badge className="bg-primary text-primary-foreground border-primary">
+              <Badge className="border-primary/20 bg-primary/10 text-primary shadow-none">
                 <Award className="w-3 h-3 mr-1" />
                 {t("stats.certifications.iso9001.title")}
               </Badge>
-              <Badge className="bg-primary text-primary-foreground border-primary">
+              <Badge className="border-primary/20 bg-primary/10 text-primary shadow-none">
                 <Star className="w-3 h-3 mr-1" />
                 {t("stats.patientRating")}
               </Badge>
             </div>
 
             {/* Social Links */}
-            <div className="flex space-x-4">
+            <div className="flex gap-3">
               <Button
                 size="sm"
                 variant="outline"
-                className="rounded-full w-10 h-10 p-0 border-border text-muted-foreground hover:text-foreground hover:border-primary"
+                className="h-10 w-10 rounded-full border-border bg-background/70 p-0 text-muted-foreground hover:border-primary hover:text-foreground"
               >
                 <Facebook className="w-4 h-4" />
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                className="rounded-full w-10 h-10 p-0 border-border text-muted-foreground hover:text-foreground hover:border-primary"
+                className="h-10 w-10 rounded-full border-border bg-background/70 p-0 text-muted-foreground hover:border-primary hover:text-foreground"
               >
                 <Instagram className="w-4 h-4" />
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                className="rounded-full w-10 h-10 p-0 border-border text-muted-foreground hover:text-foreground hover:border-primary"
+                className="h-10 w-10 rounded-full border-border bg-background/70 p-0 text-muted-foreground hover:border-primary hover:text-foreground"
               >
                 <Youtube className="w-4 h-4" />
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                className="rounded-full w-10 h-10 p-0 border-border text-muted-foreground hover:text-foreground hover:border-primary"
+                className="h-10 w-10 rounded-full border-border bg-background/70 p-0 text-muted-foreground hover:border-primary hover:text-foreground"
               >
                 <Twitter className="w-4 h-4" />
               </Button>
@@ -130,7 +132,7 @@ const Footer = () => {
 
           {/* Quick Links */}
           <div>
-            <h4 className="font-semibold text-lg mb-6 text-primary">
+            <h4 className="mb-6 text-sm font-semibold uppercase tracking-[0.18em] text-primary">
               {t("footer.quickLinks.title")}
             </h4>
             <ul className="space-y-3">
@@ -146,7 +148,7 @@ const Footer = () => {
               ))}
             </ul>
 
-            <h4 className="font-semibold text-lg mb-4 mt-8 text-orange-400">
+            <h4 className="mb-4 mt-8 text-sm font-semibold uppercase tracking-[0.18em] text-primary">
               {t("footer.services.title")}
             </h4>
             <ul className="space-y-3">
@@ -165,7 +167,7 @@ const Footer = () => {
 
           {/* Conditions Treated */}
           <div>
-            <h4 className="font-semibold text-lg mb-6 text-primary">
+            <h4 className="mb-6 text-sm font-semibold uppercase tracking-[0.18em] text-primary">
               {t("footer.conditions.title")}
             </h4>
             <ul className="space-y-3">
@@ -183,11 +185,11 @@ const Footer = () => {
 
           {/* Contact Info */}
           <div>
-            <h4 className="font-semibold text-lg mb-6 text-primary">
+            <h4 className="mb-6 text-sm font-semibold uppercase tracking-[0.18em] text-primary">
               {t("footer.contact.title")}
             </h4>
 
-            <div className="space-y-4">
+            <div className="space-y-4 rounded-3xl border border-border/70 bg-card/80 p-5 shadow-sm">
               <div className="flex items-start space-x-3">
                 <MapPin className="w-5 h-5 text-primary shrink-0 mt-1" />
                 <div>
@@ -221,7 +223,7 @@ const Footer = () => {
             </div>
 
             {/* Emergency Contact */}
-            <div className="mt-6 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+            <div className="mt-6 rounded-2xl border border-destructive/20 bg-destructive/10 p-4">
               <h5 className="font-semibold text-destructive mb-2">
                 {t("footer.emergency.title")}
               </h5>
@@ -238,8 +240,8 @@ const Footer = () => {
       </div>
 
       {/* Bottom Footer */}
-      <div className="border-t border-border">
-        <div className="container mx-auto px-4 py-6">
+      <div className="border-t border-border/70">
+        <div className="container mx-auto px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
             <div className="text-muted-foreground text-sm">
               {t("footer.copyright")}

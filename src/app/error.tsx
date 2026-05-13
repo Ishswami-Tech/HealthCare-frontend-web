@@ -20,16 +20,16 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-red-50 via-white to-orange-50 flex items-center justify-center px-4">
-      <div className="max-w-md w-full text-center">
+    <div className="flex min-h-screen items-center justify-center bg-base-200 px-4 py-10">
+      <div className="w-full max-w-md rounded-[1.75rem] border border-border/80 bg-card/95 p-6 text-center shadow-xl ring-1 ring-border/30 sm:p-8">
         <div className="mb-8">
-          <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+          <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-2xl bg-destructive/10">
             <AlertTriangle className="w-8 h-8 text-red-600" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="mb-2 text-3xl font-bold text-foreground">
             Something went wrong
           </h1>
-          <p className="text-gray-600 mb-8">
+          <p className="mb-8 text-muted-foreground">
             {sanitizeErrorMessage(error) || ERROR_MESSAGES.UNKNOWN_ERROR}
           </p>
         </div>
@@ -51,25 +51,25 @@ export default function Error({
         </div>
 
         {process.env.NODE_ENV === "development" && (
-          <div className="mt-8 p-4 bg-gray-100 rounded-lg text-left">
-            <h3 className="font-semibold text-sm text-gray-900 mb-2">
+          <div className="mt-8 rounded-2xl border border-border/80 bg-muted/35 p-4 text-left">
+            <h3 className="mb-2 text-sm font-semibold text-foreground">
               Error Details (Development Only):
             </h3>
-            <pre className="text-xs text-gray-600 overflow-auto">
+            <pre className="overflow-auto text-xs text-muted-foreground">
               {error.message}
             </pre>
             {error.digest && (
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="mt-2 text-xs text-muted-foreground">
                 Error ID: {error.digest}
               </p>
             )}
           </div>
         )}
 
-        <div className="mt-12 text-sm text-gray-500">
+        <div className="mt-10 text-sm text-muted-foreground">
           <p>
             Need help? Contact our{" "}
-            <Link href="/contact" className="text-blue-600 hover:underline">
+            <Link href="/contact" className="text-primary hover:underline">
               support team
             </Link>
           </p>

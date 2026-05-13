@@ -88,11 +88,13 @@ export interface PageLoadingProps {
 export function PageLoading({ text = "Loading...", className }: PageLoadingProps) {
   return (
     <div className={cn(
-      "flex flex-col items-center justify-center min-h-[50vh] gap-4",
+      "flex min-h-[50vh] flex-col items-center justify-center gap-4 px-4",
       className
     )}>
-      <Spinner className="size-10 text-primary" />
-      <p className="text-sm text-muted-foreground">{text}</p>
+      <div className="flex size-16 items-center justify-center rounded-2xl border border-border/80 bg-card/95 shadow-sm ring-1 ring-border/30">
+        <Spinner className="size-9 text-primary" />
+      </div>
+      <p className="text-sm font-medium text-muted-foreground">{text}</p>
     </div>
   );
 }
@@ -190,8 +192,8 @@ export function ErrorState({
   className,
 }: ErrorStateProps) {
   return (
-    <div className={cn("flex flex-col items-center justify-center p-8 text-center", className)}>
-      <div className="size-16 bg-destructive/10 rounded-full flex items-center justify-center mb-4">
+    <div className={cn("flex flex-col items-center justify-center rounded-2xl border border-border/80 bg-card/95 p-8 text-center shadow-sm ring-1 ring-border/30", className)}>
+      <div className="mb-4 flex size-16 items-center justify-center rounded-2xl bg-destructive/10">
         <XCircle className="size-8 text-destructive" />
       </div>
       <h3 className="text-lg font-semibold mb-2">{title}</h3>
@@ -208,8 +210,8 @@ export function ErrorState({
 
 export function NetworkErrorState({ onRetry, className }: { onRetry?: () => void; className?: string }) {
   return (
-    <div className={cn("flex flex-col items-center justify-center p-8 text-center", className)}>
-      <div className="size-16 bg-orange-100 dark:bg-orange-900/20 rounded-full flex items-center justify-center mb-4">
+    <div className={cn("flex flex-col items-center justify-center rounded-2xl border border-border/80 bg-card/95 p-8 text-center shadow-sm ring-1 ring-border/30", className)}>
+      <div className="mb-4 flex size-16 items-center justify-center rounded-2xl bg-orange-100 dark:bg-orange-900/20">
         <WifiOff className="size-8 text-orange-600" />
       </div>
       <h3 className="text-lg font-semibold mb-2">Connection Error</h3>
@@ -242,8 +244,8 @@ export function EmptyState({
   className,
 }: EmptyStateProps) {
   return (
-    <div className={cn("flex flex-col items-center justify-center p-8 text-center", className)}>
-      <div className="size-16 bg-muted rounded-full flex items-center justify-center mb-4">
+    <div className={cn("flex flex-col items-center justify-center rounded-2xl border border-border/80 bg-card/95 p-8 text-center shadow-sm ring-1 ring-border/30", className)}>
+      <div className="mb-4 flex size-16 items-center justify-center rounded-2xl bg-muted">
         <Icon className="size-8 text-muted-foreground" />
       </div>
       <h3 className="text-lg font-semibold mb-2">{title}</h3>

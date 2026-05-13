@@ -107,36 +107,30 @@ const TestimonialsSection = () => {
   const current = testimonials[currentTestimonial] || testimonials[0]!;
 
   return (
-    <section className="py-20 bg-gradient-to-br from-background to-muted/50">
+    <section className="bg-base-200/55 py-16 sm:py-20">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-16">
-          <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
+        <div className="mb-12 text-center sm:mb-14">
+          <Badge className="mb-4 border-primary/20 bg-primary/10 px-4 py-1.5 text-primary">
             <Heart className="w-4 h-4 mr-2" />
             {t("testimonials.title")}
           </Badge>
-          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
+          <h2 className="mb-4 text-3xl font-bold tracking-tight text-foreground md:text-4xl">
             {t("testimonials.subtitle")}
           </h2>
-          <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+          <p className="mx-auto max-w-3xl text-base leading-7 text-muted-foreground sm:text-lg">
             {t("testimonials.description")}
           </p>
         </div>
 
         {/* Main Testimonial */}
         <div className="max-w-4xl mx-auto mb-12">
-          <Card className="bg-card shadow-2xl border-0 overflow-hidden glass card-hover animate-fade-in-up">
+          <Card className="overflow-hidden border-border/80 bg-card/95 shadow-xl ring-1 ring-border/30 animate-fade-in-up">
             <CardContent className="p-0">
               <div className="grid lg:grid-cols-2">
                 {/* Left Side - Patient Info */}
-                <div className={`p-8 bg-gradient-to-br ${
-                  currentTestimonial === 0 ? 'from-violet-600 to-indigo-800' :
-                  currentTestimonial === 1 ? 'from-teal-600 to-cyan-800' :
-                  currentTestimonial === 2 ? 'from-emerald-600 to-green-800' :
-                  currentTestimonial === 3 ? 'from-amber-600 to-orange-800' :
-                  'from-red-600 to-rose-800'
-                } text-white`}>
+                <div className="bg-primary p-6 text-primary-foreground sm:p-8">
                   <div className="flex items-center space-x-4 mb-6">
-                    <div className="w-20 h-20 bg-primary-foreground/20 rounded-full flex items-center justify-center interactive">
+                    <div className="w-20 h-20 bg-primary-foreground/15 rounded-full flex items-center justify-center interactive">
                       <span className="text-2xl font-bold">
                         {current.name.charAt(0)}
                       </span>
@@ -189,7 +183,7 @@ const TestimonialsSection = () => {
                 </div>
 
                 {/* Right Side - Testimonial */}
-                <div className="p-8 flex flex-col justify-center">
+                <div className="flex flex-col justify-center p-6 sm:p-8">
                   <Quote className="w-12 h-12 text-primary/60 mb-6 animate-pulse-soft" />
                   <blockquote className="text-lg text-card-foreground leading-relaxed mb-6 italic">
                     &quot;{current.quote}&quot;
@@ -248,32 +242,32 @@ const TestimonialsSection = () => {
 
         {/* Quick Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto animate-fade-in-up">
-          <div className="text-center glass p-4 rounded-lg interactive">
-            <div className="text-2xl font-bold text-primary mb-1 gradient-text">
+          <div className="rounded-2xl border border-border/70 bg-card/95 p-4 text-center shadow-sm">
+            <div className="mb-1 text-2xl font-bold text-foreground">
               4,200+
             </div>
             <div className="text-sm text-muted-foreground">
               {t("testimonials.stats.patientReviews")}
             </div>
           </div>
-          <div className="text-center glass p-4 rounded-lg interactive">
-            <div className="text-2xl font-bold text-primary mb-1 gradient-text">
+          <div className="rounded-2xl border border-border/70 bg-card/95 p-4 text-center shadow-sm">
+            <div className="mb-1 text-2xl font-bold text-foreground">
               4.9★
             </div>
             <div className="text-sm text-muted-foreground">
               {t("testimonials.stats.averageRating")}
             </div>
           </div>
-          <div className="text-center glass p-4 rounded-lg interactive">
-            <div className="text-2xl font-bold text-primary mb-1 gradient-text">
+          <div className="rounded-2xl border border-border/70 bg-card/95 p-4 text-center shadow-sm">
+            <div className="mb-1 text-2xl font-bold text-foreground">
               95%
             </div>
             <div className="text-sm text-muted-foreground">
               {t("testimonials.stats.successRate")}
             </div>
           </div>
-          <div className="text-center glass p-4 rounded-lg interactive">
-            <div className="text-2xl font-bold text-primary mb-1 gradient-text">
+          <div className="rounded-2xl border border-border/70 bg-card/95 p-4 text-center shadow-sm">
+            <div className="mb-1 text-2xl font-bold text-foreground">
               100%
             </div>
             <div className="text-sm text-muted-foreground">

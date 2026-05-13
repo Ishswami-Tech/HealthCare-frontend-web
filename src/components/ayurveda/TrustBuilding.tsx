@@ -113,20 +113,20 @@ const TrustBuilding = () => {
   ];
 
   return (
-    <div className="space-y-20">
+    <div className="space-y-16 sm:space-y-20">
       {/* FAQ Section */}
-      <section className="py-20 bg-gradient-to-br from-background via-background/95 to-muted/20 dark:from-background dark:via-background/95 dark:to-muted/30">
+      <section className="bg-background py-16 sm:py-20">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-16">
-              <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
+            <div className="mb-12 text-center sm:mb-14">
+              <Badge className="mb-4 border-primary/20 bg-primary/10 px-4 py-1.5 text-primary">
                 <Shield className="w-4 h-4 mr-2" />
                 {t("trust.title")}
               </Badge>
-              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
+              <h2 className="mb-4 text-3xl font-bold tracking-tight text-foreground md:text-4xl">
                 {t("trust.faq.title")}
               </h2>
-              <p className="text-lg text-muted-foreground">
+              <p className="text-base leading-7 text-muted-foreground sm:text-lg">
                 {t("trust.faq.subtitle")}
               </p>
             </div>
@@ -139,10 +139,10 @@ const TrustBuilding = () => {
                 return (
                   <Card
                     key={index}
-                    className="bg-card/80 dark:bg-card/90 shadow-lg border border-border/50 overflow-hidden backdrop-blur-sm"
+                    className="overflow-hidden border-border/80 bg-card/95 shadow-sm ring-1 ring-border/25"
                   >
                     <CardHeader
-                      className="cursor-pointer hover:bg-muted/50 dark:hover:bg-muted/30 transition-colors duration-200"
+                      className="cursor-pointer transition-colors duration-200 hover:bg-muted/40"
                       onClick={() => setOpenFaq(isOpen ? null : index)}
                     >
                       <div className="flex items-center justify-between">
@@ -150,14 +150,14 @@ const TrustBuilding = () => {
                           <div
                             className={`w-12 h-12 bg-gradient-to-r ${
                               index === 0
-                                ? "from-pink-600 to-rose-800"
+                                ? "from-primary to-primary/80"
                                 : index === 1
-                                ? "from-yellow-500 to-amber-700"
+                                ? "from-primary/90 to-emerald-700"
                                 : index === 2
-                                ? "from-indigo-600 to-blue-800"
+                                ? "from-slate-600 to-slate-800"
                                 : index === 3
-                                ? "from-red-600 to-pink-800"
-                                : "from-green-600 to-teal-800"
+                                ? "from-amber-500 to-amber-600"
+                                : "from-primary to-emerald-700"
                             } rounded-full flex items-center justify-center`}
                           >
                             <IconComponent className="w-6 h-6 text-white" />
@@ -191,18 +191,18 @@ const TrustBuilding = () => {
       </section>
 
       {/* Guarantee Matrix */}
-      <section className="py-20 bg-gradient-to-br from-background via-background/95 to-muted/10 dark:from-background dark:via-background/95 dark:to-muted/20">
+      <section className="bg-base-200/55 py-16 sm:py-20">
         <div className="container mx-auto px-4">
           <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-16">
-              <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
+            <div className="mb-12 text-center sm:mb-14">
+              <Badge className="mb-4 border-primary/20 bg-primary/10 px-4 py-1.5 text-primary">
                 <Target className="w-4 h-4 mr-2" />
                 Comprehensive Guarantee Matrix
               </Badge>
-              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
+              <h2 className="mb-4 text-3xl font-bold tracking-tight text-foreground md:text-4xl">
                 Our Promise to You - Guaranteed Results
               </h2>
-              <p className="text-lg text-muted-foreground">
+              <p className="text-base leading-7 text-muted-foreground sm:text-lg">
                 Measurable outcomes with specific timelines for every condition
               </p>
             </div>
@@ -210,7 +210,7 @@ const TrustBuilding = () => {
             <div className="overflow-x-auto">
               <div className="min-w-full">
                 {/* Table Header */}
-                <div className="grid grid-cols-5 gap-4 p-4 bg-gradient-to-r from-primary to-primary/80 dark:from-primary dark:to-primary/90 text-primary-foreground rounded-t-lg font-semibold">
+                <div className="grid grid-cols-5 gap-4 rounded-t-2xl bg-primary p-4 font-semibold text-primary-foreground">
                   <div>Condition</div>
                   <div className="text-center">Our Guarantee</div>
                   <div className="text-center">Timeframe</div>
@@ -223,7 +223,7 @@ const TrustBuilding = () => {
                   {guarantees.map((item, index) => (
                     <Card
                       key={index}
-                      className="hover:shadow-md transition-shadow duration-300 rounded-none border-x border-b border-border bg-card/80 dark:bg-card/90 backdrop-blur-sm"
+                      className="rounded-none border-x border-b border-border/80 bg-card/95 shadow-none transition-shadow duration-300 hover:shadow-md"
                     >
                       <CardContent className="p-4">
                         <div className="grid grid-cols-5 gap-4 items-center">
@@ -262,10 +262,10 @@ const TrustBuilding = () => {
 
             {/* Instant Results Challenge */}
             <div className="mt-12">
-              <Card className="bg-gradient-to-r from-orange-50/80 to-yellow-50/80 dark:from-orange-900/20 dark:to-yellow-900/20 border-orange-200 dark:border-orange-800 shadow-xl backdrop-blur-sm">
+              <Card className="border-border/80 bg-card/95 shadow-xl">
                 <CardContent className="p-8">
                   <div className="text-center">
-                    <div className="w-16 h-16 bg-gradient-to-r from-orange-600 to-yellow-700 dark:from-orange-500 dark:to-yellow-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-r from-primary to-primary/80">
                       <TrendingUp className="w-8 h-8 text-white" />
                     </div>
                     <h3 className="text-2xl font-bold text-foreground mb-4">
@@ -302,7 +302,7 @@ const TrustBuilding = () => {
       </section>
 
       {/* Certifications */}
-      <section className="py-20 bg-gradient-to-br from-muted/30 to-background dark:from-muted/50 dark:to-background">
+      <section className="bg-muted/25 py-20">
         <div className="container mx-auto px-4">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
@@ -332,12 +332,12 @@ const TrustBuilding = () => {
                       <div
                         className={`w-16 h-16 bg-gradient-to-r ${
                           index === 0
-                            ? "from-cyan-600 to-sky-800 dark:from-cyan-500 dark:to-sky-700"
+                            ? "from-primary to-primary/80"
                             : index === 1
-                            ? "from-lime-600 to-green-900 dark:from-lime-500 dark:to-green-800"
+                            ? "from-primary/90 to-emerald-700"
                             : index === 2
-                            ? "from-orange-600 to-amber-800 dark:from-orange-500 dark:to-amber-700"
-                            : "from-slate-700 to-zinc-900 dark:from-slate-600 dark:to-zinc-800"
+                            ? "from-amber-500 to-amber-600"
+                            : "from-slate-600 to-slate-800"
                         } rounded-full flex items-center justify-center mx-auto mb-6`}
                       >
                         <IconComponent className="w-8 h-8 text-white" />

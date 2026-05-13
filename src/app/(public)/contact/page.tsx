@@ -1,6 +1,6 @@
 "use client";
-import { nowIso } from '@/lib/utils/date-time';
 
+import { nowIso } from "@/lib/utils/date-time";
 import React, { useState, Suspense } from "react";
 import { useTranslation } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
@@ -43,7 +43,11 @@ import {
   useSubmitContactForm,
   useSubmitConsultationBooking,
 } from "@/hooks/query/useCommunication";
-import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import {
+  showSuccessToast,
+  showErrorToast,
+  TOAST_IDS,
+} from "@/hooks/utils/use-toast";
 import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 
 export default function ContactPage() {
@@ -85,13 +89,11 @@ export default function ContactPage() {
     }));
   };
 
-  // Validate email format
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
-  // Validate phone number (basic validation)
   const validatePhone = (phone: string) => {
     const phoneRegex = /^[\d\s\-\+\(\)]+$/;
     return phoneRegex.test(phone) && phone.replace(/\D/g, "").length >= 10;
@@ -100,7 +102,6 @@ export default function ContactPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation
     if (!formData.name.trim()) {
       showErrorToast(
         t("contact.form.validation.nameRequired") || "Name is required",
@@ -127,7 +128,6 @@ export default function ContactPage() {
       return;
     }
 
-    // Submit using React Query mutation
     submitContactFormMutation.mutate(
       {
         name: formData.name,
@@ -139,7 +139,6 @@ export default function ContactPage() {
       },
       {
         onSuccess: () => {
-          // Reset form
           setFormData({
             name: "",
             email: "",
@@ -148,7 +147,6 @@ export default function ContactPage() {
             message: "",
           });
 
-          // ✅ Use centralized toast manager
           showSuccessToast(
             t("contact.form.success.title") || "Message Sent Successfully!",
             {
@@ -160,12 +158,14 @@ export default function ContactPage() {
           );
         },
         onError: (error: any) => {
-          // ✅ Use centralized error handler
-          showErrorToast(sanitizeErrorMessage(error) || "Failed to send message", {
-            id: TOAST_IDS.CONTACT.SUBMIT,
-            description:
-              t("contact.form.error.title") || "Failed to send message",
-          });
+          showErrorToast(
+            sanitizeErrorMessage(error) || "Failed to send message",
+            {
+              id: TOAST_IDS.CONTACT.SUBMIT,
+              description:
+                t("contact.form.error.title") || "Failed to send message",
+            }
+          );
         },
       }
     );
@@ -196,18 +196,20 @@ export default function ContactPage() {
       return;
     }
 
-    // Submit using React Query mutation
     submitConsultationBookingMutation.mutate(
       {
         name: bookingData.name,
         phone: bookingData.phone,
-        ...(bookingData.preferredDate && { preferredDate: bookingData.preferredDate }),
-        ...(bookingData.preferredTime && { preferredTime: bookingData.preferredTime }),
+        ...(bookingData.preferredDate && {
+          preferredDate: bookingData.preferredDate,
+        }),
+        ...(bookingData.preferredTime && {
+          preferredTime: bookingData.preferredTime,
+        }),
         ...(bookingData.reason && { reason: bookingData.reason }),
       },
       {
         onSuccess: () => {
-          // Reset booking form
           setBookingData({
             name: "",
             phone: "",
@@ -215,7 +217,6 @@ export default function ContactPage() {
             preferredTime: "",
             reason: "",
           });
-
           setIsBookingDialogOpen(false);
 
           showSuccessToast(
@@ -246,19 +247,16 @@ export default function ContactPage() {
   };
 
   const handleWhatsAppSupport = () => {
-    // Extract phone number from translation (first phone number)
     const firstPhoneNumber =
       t("contact.contactInfo.phoneNumbers.details.0") || "9860370961";
     const firstPhone = firstPhoneNumber.replace(/\D/g, "") || "9860370961";
     const whatsappNumber = firstPhone.startsWith("91")
       ? firstPhone
       : `91${firstPhone}`;
-    const whatsappUrl = `https://wa.me/${whatsappNumber}`;
-    window.open(whatsappUrl, "_blank");
+    window.open(`https://wa.me/${whatsappNumber}`, "_blank");
   };
 
   const handleEmergencyCall = () => {
-    // Extract phone number from translation (first phone number)
     const firstPhoneNumber =
       t("contact.contactInfo.phoneNumbers.details.0") || "9860370961";
     const firstPhone = firstPhoneNumber.replace(/\D/g, "") || "9860370961";
@@ -337,420 +335,297 @@ export default function ContactPage() {
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 dark:from-background dark:via-background dark:to-muted/30 relative overflow-hidden">
-        {/* Advanced Animated Background Elements */}
-        <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          {/* Primary floating orbs */}
-          <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-r from-primary/10 to-primary/5 dark:from-primary/20 dark:to-primary/10 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-r from-secondary/10 to-secondary/5 dark:from-secondary/20 dark:to-secondary/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[32rem] h-[32rem] bg-gradient-to-r from-accent/5 to-accent/3 dark:from-accent/10 dark:to-accent/8 rounded-full blur-3xl animate-pulse delay-500"></div>
-
-          {/* Secondary floating elements */}
-          <div className="absolute top-1/3 right-1/3 w-16 h-16 bg-gradient-to-r from-accent/20 to-accent/10 dark:from-accent/30 dark:to-accent/20 rounded-full animate-bounce-slow"></div>
-          <div className="absolute bottom-1/4 left-1/4 w-12 h-12 bg-gradient-to-r from-primary/15 to-primary/10 dark:from-primary/25 dark:to-primary/15 rounded-full animate-bounce-slow delay-700"></div>
-
-          {/* Geometric patterns */}
-          <div className="absolute top-20 left-20 w-32 h-32 border border-primary/10 dark:border-primary/20 rounded-full animate-spin-slow"></div>
-          <div className="absolute bottom-20 right-20 w-24 h-24 border border-secondary/10 dark:border-secondary/20 rounded-full animate-spin-slow delay-1000"></div>
-
-          {/* Grid pattern overlay */}
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:50px_50px] dark:bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)]"></div>
-        </div>
-
-        {/* Language Switcher & Theme Switcher */}
-        <div className="fixed top-3 right-3 sm:top-4 sm:right-4 z-50 flex gap-2">
+      <div className="min-h-screen bg-background text-foreground">
+        <div className="fixed right-3 top-3 z-50 flex gap-2 sm:right-4 sm:top-4">
           <LanguageSwitcher variant="compact" />
           <CompactThemeSwitcher />
         </div>
 
-        {/* Hero Section */}
-        <section className="relative py-8 sm:py-12 md:py-16 overflow-hidden">
-          {/* Section-specific background overlay */}
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 dark:from-primary/10 dark:via-transparent dark:to-secondary/10"></div>
-
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <div className="max-w-6xl mx-auto text-center">
-              <div className="animate-fade-in-down">
-                <div className="relative inline-block">
-                  <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-full blur-xl animate-pulse"></div>
-                  <Badge className="relative bg-gradient-to-r from-primary/20 to-primary/15 dark:from-primary/30 dark:to-primary/20 text-primary dark:text-primary-foreground border-primary/40 dark:border-primary/50 glass shadow-lg hover:shadow-xl transition-all duration-300 px-6 py-3 text-sm font-semibold hover:scale-105 hover:-translate-y-1">
-                    <Heart className="w-5 h-5 mr-2 animate-pulse" />
-                    {t("contact.badge")}
-                  </Badge>
-                </div>
-              </div>
-
-              <div className="animate-fade-in-up delay-200">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-secondary/20 to-accent/20 rounded-2xl blur-2xl animate-pulse"></div>
-                  <h1 className="relative text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-playfair font-bold text-foreground mb-4 gradient-text leading-tight drop-shadow-lg">
-                    {t("contact.title")}
-                  </h1>
-                </div>
-              </div>
-
-              <div className="animate-fade-in-up delay-400">
-                <p className="text-base sm:text-lg lg:text-xl text-muted-foreground mb-6 leading-relaxed max-w-3xl mx-auto drop-shadow-sm">
+        <section className="relative overflow-hidden border-b border-border/70 bg-[linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--muted)/0.34)_100%)] py-16 sm:py-20 lg:py-24">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.10),transparent_34%),radial-gradient(circle_at_bottom_right,hsl(var(--secondary)/0.08),transparent_32%)]" />
+          <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1.25fr_0.75fr] lg:items-end">
+              <div>
+                <Badge className="mb-6 border-primary/20 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary shadow-none">
+                  <Heart className="mr-2 h-4 w-4" />
+                  {t("contact.badge")}
+                </Badge>
+                <h1 className="max-w-5xl font-playfair text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
+                  {t("contact.title")}
+                </h1>
+                <p className="mt-6 max-w-4xl text-base leading-8 text-muted-foreground sm:text-lg lg:text-xl">
                   {t("contact.subtitle")}
                 </p>
-              </div>
-
-              <div className="animate-fade-in-up delay-600">
-                <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
-                  <Badge className="bg-gradient-to-r from-emerald-100 to-emerald-50 dark:from-emerald-900/50 dark:to-emerald-800/40 text-emerald-800 dark:text-emerald-100 border-emerald-200 dark:border-emerald-700/60 glass interactive hover:scale-105 transition-all duration-300 px-3 py-2 shadow-sm hover:shadow-md dark:shadow-emerald-900/20">
-                    <CheckCircle className="w-4 h-4 mr-2" />
+                <div className="mt-8 flex flex-wrap gap-3">
+                  <div className="inline-flex items-center rounded-full border border-border/70 bg-card px-4 py-2 text-sm font-medium shadow-sm">
+                    <CheckCircle className="mr-2 h-4 w-4 text-primary" />
                     {t("contact.badges.support24x7")}
-                  </Badge>
-                  <Badge className="bg-gradient-to-r from-blue-100 to-blue-50 dark:from-blue-900/50 dark:to-blue-800/40 text-blue-800 dark:text-blue-100 border-blue-200 dark:border-blue-700/60 glass interactive hover:scale-105 transition-all duration-300 px-3 py-2 shadow-sm hover:shadow-md dark:shadow-blue-900/20">
-                    <Star className="w-4 h-4 mr-2" />
+                  </div>
+                  <div className="inline-flex items-center rounded-full border border-border/70 bg-card px-4 py-2 text-sm font-medium shadow-sm">
+                    <Star className="mr-2 h-4 w-4 text-primary" />
                     {t("contact.badges.patientRating")}
-                  </Badge>
-                  <Badge className="bg-gradient-to-r from-purple-100 to-purple-50 dark:from-purple-900/50 dark:to-purple-800/40 text-purple-800 dark:text-purple-100 border-purple-200 dark:border-purple-700/60 glass interactive hover:scale-105 transition-all duration-300 px-3 py-2 shadow-sm hover:shadow-md dark:shadow-purple-900/20">
-                    <User className="w-4 h-4 mr-2" />
+                  </div>
+                  <div className="inline-flex items-center rounded-full border border-border/70 bg-card px-4 py-2 text-sm font-medium shadow-sm">
+                    <User className="mr-2 h-4 w-4 text-primary" />
                     {t("contact.badges.expertConsultation")}
-                  </Badge>
+                  </div>
                 </div>
               </div>
+
+              <Card className="border-border/70 bg-card/96 shadow-[0_28px_90px_-56px_rgba(15,23,42,0.45)]">
+                <CardContent className="p-6">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
+                    {t("contact.quickActions.title")}
+                  </p>
+                  <div className="mt-5 space-y-3">
+                    {quickActions.map((action) => {
+                      const Icon = action.icon;
+                      return (
+                        <button
+                          key={action.title}
+                          type="button"
+                          onClick={action.onClick}
+                          className="flex w-full items-center gap-4 rounded-2xl border border-border/70 bg-muted/25 p-4 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/25 hover:bg-muted/40"
+                        >
+                          <div
+                            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${action.colorScheme.gradient}`}
+                          >
+                            <Icon className="h-5 w-5 text-white" />
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold text-foreground">
+                              {action.title}
+                            </div>
+                            <div className="mt-1 text-sm text-muted-foreground">
+                              {action.description}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </section>
 
-        {/* Quick Actions */}
         <LazySection fallback={<SectionSkeleton />}>
-          <section className="relative py-8 sm:py-12 md:py-16 bg-gradient-to-br from-muted/30 via-background to-primary/5 dark:from-muted/40 dark:via-background dark:to-primary/10 overflow-hidden">
+          <section className="py-16 sm:py-20">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="max-w-7xl mx-auto">
-                <div className="text-center mb-8 animate-fade-in-up">
-                  <h2 className="text-2xl sm:text-3xl font-playfair font-bold text-foreground mb-3 gradient-text">
-                    {t("contact.quickActions.title")}
-                  </h2>
-                  <p className="text-base text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-                    {t("contact.quickActions.subtitle")}
-                  </p>
-                </div>
+              <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1.08fr_0.92fr]">
+                <Card className="border-border/70 bg-card shadow-sm">
+                  <CardHeader className="p-6 pb-2 sm:p-8 sm:pb-2">
+                    <CardTitle className="font-playfair text-2xl font-bold">
+                      {t("contact.form.title")}
+                    </CardTitle>
+                    <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                      {t("contact.form.subtitle")}
+                    </p>
+                  </CardHeader>
+                  <CardContent className="p-6 pt-4 sm:p-8 sm:pt-5">
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                      <div className="grid gap-5 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <label className="block text-sm font-semibold text-foreground">
+                            {t("contact.form.fields.fullName")}
+                          </label>
+                          <Input
+                            name="name"
+                            value={formData.name}
+                            onChange={handleInputChange}
+                            placeholder={t("contact.form.placeholders.fullName")}
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="block text-sm font-semibold text-foreground">
+                            {t("contact.form.fields.phoneNumber")}
+                          </label>
+                          <Input
+                            name="phone"
+                            value={formData.phone}
+                            onChange={handleInputChange}
+                            placeholder={t(
+                              "contact.form.placeholders.phoneNumber"
+                            )}
+                            required
+                          />
+                        </div>
+                      </div>
 
-                <div className="grid md:grid-cols-3 gap-4 lg:gap-6">
-                  {quickActions.map((action, index) => {
-                    const IconComponent = action.icon;
+                      <div className="space-y-2">
+                        <label className="block text-sm font-semibold text-foreground">
+                          {t("contact.form.fields.emailAddress")}
+                        </label>
+                        <Input
+                          name="email"
+                          type="email"
+                          value={formData.email}
+                          onChange={handleInputChange}
+                          placeholder={t(
+                            "contact.form.placeholders.emailAddress"
+                          )}
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-sm font-semibold text-foreground">
+                          {t("contact.form.fields.healthCondition")}
+                        </label>
+                        <Input
+                          name="condition"
+                          value={formData.condition}
+                          onChange={handleInputChange}
+                          placeholder={t(
+                            "contact.form.placeholders.healthCondition"
+                          )}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-sm font-semibold text-foreground">
+                          {t("contact.form.fields.message")}
+                        </label>
+                        <Textarea
+                          name="message"
+                          value={formData.message}
+                          onChange={handleInputChange}
+                          placeholder={t("contact.form.placeholders.message")}
+                          rows={5}
+                          className="resize-none"
+                        />
+                      </div>
+
+                      <Button
+                        type="submit"
+                        disabled={submitContactFormMutation.isPending}
+                        className="w-full"
+                      >
+                        {submitContactFormMutation.isPending ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            {t("contact.form.submitting") || "Sending..."}
+                          </>
+                        ) : (
+                          <>
+                            <Send className="mr-2 h-4 w-4" />
+                            {t("contact.form.submitButton")}
+                          </>
+                        )}
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+
+                <div className="space-y-4">
+                  {contactInfo.map((info) => {
+                    const Icon = info.icon;
 
                     return (
-                      <div
-                        key={index}
-                        className="animate-fade-in-up"
-                        style={{ animationDelay: `${index * 150}ms` }}
+                      <Card
+                        key={info.title}
+                        className="border-border/70 bg-card shadow-sm"
                       >
-                        <Card className="group text-center hover:shadow-xl dark:hover:shadow-2xl transition-all duration-300 border-0 bg-gradient-to-br from-card/90 to-muted/30 dark:from-card/95 dark:to-muted/40 glass backdrop-blur-sm hover:scale-110 hover:-translate-y-3 relative overflow-hidden">
-                          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 dark:from-primary/10 dark:to-secondary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                          <CardContent className="p-4 lg:p-6">
-                            <div className="relative mb-4">
-                              <div
-                                className={`w-14 h-14 bg-gradient-to-r ${action.colorScheme.gradient} rounded-xl flex items-center justify-center mx-auto shadow-md group-hover:shadow-lg transition-all duration-300 group-hover:scale-110`}
-                              >
-                                <IconComponent className="w-7 h-7 text-white" />
-                              </div>
-                              <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                            </div>
-                            <h3 className="text-lg font-bold text-foreground mb-3 gradient-text">
-                              {action.title}
-                            </h3>
-                            <p className="text-muted-foreground mb-4 leading-relaxed">
-                              {action.description}
-                            </p>
-                            <Button
-                              onClick={action.onClick}
-                              className={`bg-gradient-to-r ${action.colorScheme.gradient} hover:${action.colorScheme.hover} text-white w-full py-2 text-sm font-semibold rounded-xl shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105`}
-                            >
-                              {action.action}
-                            </Button>
-                          </CardContent>
-                        </Card>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </section>
-        </LazySection>
-
-        {/* Contact Form & Info */}
-        <LazySection fallback={<SectionSkeleton />}>
-          <section className="relative py-8 sm:py-12 md:py-16 bg-gradient-to-br from-background via-muted/20 to-secondary/5 dark:from-background dark:via-muted/30 dark:to-secondary/10 overflow-hidden">
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="max-w-7xl mx-auto">
-                <div className="grid lg:grid-cols-2 gap-6 lg:gap-12">
-                  {/* Contact Form */}
-                  <div className="animate-fade-in-left">
-                    <Card className="bg-gradient-to-br from-card/80 to-muted/20 dark:from-card/90 dark:to-muted/30 border-primary/20 dark:border-primary/30 shadow-lg dark:shadow-xl glass backdrop-blur-sm">
-                      <CardHeader className="p-4 pb-3">
-                        <CardTitle className="text-xl font-playfair font-bold text-foreground gradient-text mb-2">
-                          {t("contact.form.title")}
-                        </CardTitle>
-                        <p className="text-sm text-muted-foreground leading-relaxed">
-                          {t("contact.form.subtitle")}
-                        </p>
-                      </CardHeader>
-                      <CardContent className="p-4 pt-0">
-                        <form onSubmit={handleSubmit} className="space-y-3">
-                          <div className="grid md:grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                              <label className="block text-xs font-semibold text-foreground">
-                                {t("contact.form.fields.fullName")}
-                              </label>
-                              <Input
-                                name="name"
-                                value={formData.name}
-                                onChange={handleInputChange}
-                                placeholder={t(
-                                  "contact.form.placeholders.fullName"
-                                )}
-                                required
-                                className="h-9 rounded-lg border-border/50 dark:border-border/60 focus:border-primary transition-colors duration-300"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="block text-xs font-semibold text-foreground">
-                                {t("contact.form.fields.phoneNumber")}
-                              </label>
-                              <Input
-                                name="phone"
-                                value={formData.phone}
-                                onChange={handleInputChange}
-                                placeholder={t(
-                                  "contact.form.placeholders.phoneNumber"
-                                )}
-                                required
-                                className="h-9 rounded-lg border-border/50 dark:border-border/60 focus:border-primary transition-colors duration-300"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="space-y-2">
-                            <label className="block text-sm font-semibold text-foreground">
-                              {t("contact.form.fields.emailAddress")}
-                            </label>
-                            <Input
-                              name="email"
-                              type="email"
-                              value={formData.email}
-                              onChange={handleInputChange}
-                              placeholder={t(
-                                "contact.form.placeholders.emailAddress"
-                              )}
-                              required
-                              className="h-9 rounded-lg border-border/50 dark:border-border/60 focus:border-primary transition-colors duration-300"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <label className="block text-sm font-semibold text-foreground">
-                              {t("contact.form.fields.healthCondition")}
-                            </label>
-                            <Input
-                              name="condition"
-                              value={formData.condition}
-                              onChange={handleInputChange}
-                              placeholder={t(
-                                "contact.form.placeholders.healthCondition"
-                              )}
-                              className="h-9 rounded-lg border-border/50 dark:border-border/60 focus:border-primary transition-colors duration-300"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <label className="block text-sm font-semibold text-foreground">
-                              {t("contact.form.fields.message")}
-                            </label>
-                            <Textarea
-                              name="message"
-                              value={formData.message}
-                              onChange={handleInputChange}
-                              placeholder={t(
-                                "contact.form.placeholders.message"
-                              )}
-                              rows={4}
-                              className="rounded-lg border-border/50 dark:border-border/60 focus:border-primary transition-colors duration-300 resize-none"
-                            />
-                          </div>
-
-                          <Button
-                            type="submit"
-                            disabled={submitContactFormMutation.isPending}
-                            className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground py-2 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 hover:scale-[1.02] font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                        <CardContent className="flex gap-4 p-5">
+                          <div
+                            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${info.colorScheme.gradient}`}
                           >
-                            {submitContactFormMutation.isPending ? (
-                              <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                {t("contact.form.submitting") || "Sending..."}
-                              </>
-                            ) : (
-                              <>
-                                <Send className="w-4 h-4 mr-2" />
-                                {t("contact.form.submitButton")}
-                              </>
-                            )}
-                          </Button>
-                        </form>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Contact Information */}
-                  <div className="space-y-4 animate-fade-in-right">
-                    {contactInfo.map((info, index) => {
-                      const IconComponent = info.icon;
-
-                      return (
-                        <div
-                          key={index}
-                          className="animate-fade-in-up"
-                          style={{ animationDelay: `${index * 150}ms` }}
-                        >
-                          <Card className="group bg-gradient-to-br from-card/80 to-muted/20 dark:from-card/90 dark:to-muted/30 border-primary/20 dark:border-primary/30 shadow-md glass backdrop-blur-sm hover:shadow-lg dark:hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
-                            <CardContent className="p-4">
-                              <div className="flex items-start space-x-4">
-                                <div className="relative">
-                                  <div
-                                    className={`w-10 h-10 bg-gradient-to-r ${info.colorScheme.gradient} rounded-xl flex items-center justify-center flex-shrink-0 shadow-md group-hover:shadow-lg transition-all duration-300 group-hover:scale-110`}
-                                  >
-                                    <IconComponent className="w-5 h-5 text-white" />
-                                  </div>
-                                  <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                                </div>
-                                <div className="flex-1">
-                                  <h3 className="text-base font-bold text-foreground mb-2 gradient-text">
-                                    {info.title}
-                                  </h3>
-                                  <div className="space-y-1">
-                                    {(Array.isArray(info.details)
-                                      ? info.details
-                                      : [info.details]
-                                    ).map(
-                                      (detail: string, detailIndex: number) => (
-                                        <p
-                                          key={detailIndex}
-                                          className="text-muted-foreground leading-relaxed"
-                                        >
-                                          {detail}
-                                        </p>
-                                      )
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </div>
-                      );
-                    })}
-
-                    {/* Emergency Notice */}
-                    <div
-                      className="animate-fade-in-up"
-                      style={{
-                        animationDelay: `${contactInfo.length * 150}ms`,
-                      }}
-                    >
-                      <Card className="group bg-gradient-to-br from-destructive/10 to-destructive/5 dark:from-destructive/20 dark:to-destructive/10 border-destructive/30 dark:border-destructive/40 shadow-md glass backdrop-blur-sm hover:shadow-lg dark:hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
-                        <CardContent className="p-4">
-                          <div className="flex items-start space-x-4">
-                            <div className="relative">
-                              <div className="w-10 h-10 bg-gradient-to-r from-destructive to-destructive/80 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md group-hover:shadow-lg transition-all duration-300 group-hover:scale-110">
-                                <Phone className="w-5 h-5 text-white" />
-                              </div>
-                              <div className="absolute inset-0 bg-gradient-to-r from-destructive/30 to-destructive/20 rounded-xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                            </div>
-                            <div className="flex-1">
-                              <h3 className="text-base font-bold text-destructive mb-2 gradient-text">
-                                {t("contact.emergency.title")}
-                              </h3>
-                              <p className="text-destructive/80 mb-3 leading-relaxed">
-                                {t("contact.emergency.description")}
-                              </p>
-                              <Button
-                                onClick={handleEmergencyCall}
-                                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground py-2 px-3 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105 font-semibold text-xs"
-                              >
-                                <Phone className="w-4 h-4 mr-2" />
-                                {t("contact.emergency.action")}
-                              </Button>
+                            <Icon className="h-5 w-5 text-white" />
+                          </div>
+                          <div>
+                            <h3 className="text-base font-semibold text-foreground">
+                              {info.title}
+                            </h3>
+                            <div className="mt-2 space-y-1 text-sm leading-6 text-muted-foreground">
+                              {info.details.map((detail) => (
+                                <p key={detail}>{detail}</p>
+                              ))}
                             </div>
                           </div>
                         </CardContent>
                       </Card>
-                    </div>
-                  </div>
+                    );
+                  })}
+
+                  <Card className="border-destructive/25 bg-destructive/[0.06] shadow-sm">
+                    <CardContent className="flex gap-4 p-5">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-destructive text-destructive-foreground">
+                        <Phone className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-base font-semibold text-destructive">
+                          {t("contact.emergency.title")}
+                        </h3>
+                        <p className="mt-2 text-sm leading-6 text-destructive/85">
+                          {t("contact.emergency.description")}
+                        </p>
+                        <Button
+                          onClick={handleEmergencyCall}
+                          className="mt-4 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          <Phone className="mr-2 h-4 w-4" />
+                          {t("contact.emergency.action")}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               </div>
             </div>
           </section>
         </LazySection>
 
-        {/* Google Maps Section */}
         <LazySection fallback={<SectionSkeleton />}>
-          <section className="relative py-8 sm:py-12 md:py-16 bg-gradient-to-br from-muted/20 via-background to-primary/5 dark:from-muted/30 dark:via-background dark:to-primary/10 overflow-hidden">
+          <section className="border-t border-border/70 bg-muted/25 py-16 sm:py-20">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="text-center mb-8 animate-fade-in-up">
-                <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-3 gradient-text">
-                  {t("contact.visitClinic.title")}
-                </h2>
-                <p className="text-base text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-                  {t("contact.visitClinic.description")}
-                </p>
-              </div>
+              <div className="mx-auto max-w-7xl">
+                <div className="max-w-3xl">
+                  <h2 className="font-playfair text-3xl font-bold sm:text-4xl">
+                    {t("contact.visitClinic.title")}
+                  </h2>
+                  <p className="mt-4 text-base leading-8 text-muted-foreground sm:text-lg">
+                    {t("contact.visitClinic.description")}
+                  </p>
+                </div>
 
-              <div className="max-w-7xl mx-auto">
-                <div className="grid lg:grid-cols-2 gap-6 lg:gap-12 items-start">
-                  {/* Map */}
-                  <div className="animate-fade-in-left">
-                    <div className="relative">
-                      <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 dark:from-primary/20 dark:to-secondary/20 rounded-2xl blur-xl"></div>
-                      <div className="relative bg-gradient-to-br from-card/80 to-muted/20 dark:from-card/90 dark:to-muted/30 border-primary/20 dark:border-primary/30 shadow-lg dark:shadow-xl glass backdrop-blur-sm rounded-2xl p-2">
-                        <Suspense fallback={<SectionSkeleton />}>
-                          <GoogleMaps
-                            address="Moraya Ganapati Mandir Road, Gandhi Peth, Chinchwad Gaon, Chinchwad, Pimpri-Chinchwad, Maharashtra, India"
-                            latitude={18.6298}
-                            longitude={73.7997}
-                            zoom={15}
-                            height="350px"
-                            showInfoWindow={true}
-                            clinicName={clinicName}
-                            clinicPhone="9860370961, 7709399925"
-                            clinicHours="Mon-Fri: 11:45 AM – 11:30 PM"
-                          />
-                        </Suspense>
-                      </div>
-                    </div>
+                <div className="mt-10 grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+                  <div className="overflow-hidden rounded-3xl border border-border/70 bg-card p-2 shadow-sm">
+                    <Suspense fallback={<SectionSkeleton />}>
+                      <GoogleMaps
+                        address="Moraya Ganapati Mandir Road, Gandhi Peth, Chinchwad Gaon, Chinchwad, Pimpri-Chinchwad, Maharashtra, India"
+                        latitude={18.6298}
+                        longitude={73.7997}
+                        zoom={15}
+                        height="380px"
+                        showInfoWindow={true}
+                        clinicName={clinicName}
+                        clinicPhone="9860370961, 7709399925"
+                        clinicHours="Mon-Fri: 11:45 AM - 11:30 PM"
+                      />
+                    </Suspense>
                   </div>
 
-                  {/* Contact Info */}
-                  <div className="animate-fade-in-right">
-                    <div className="relative">
-                      <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 dark:from-primary/20 dark:to-secondary/20 rounded-2xl blur-xl"></div>
-                      <div className="relative">
-                        <ClinicInfo
-                          variant="card"
-                          showDoctor={false}
-                          showTimings={true}
-                          showContact={true}
-                        />
-                      </div>
-                    </div>
-                  </div>
+                  <ClinicInfo
+                    variant="card"
+                    showDoctor={false}
+                    showTimings={true}
+                    showContact={true}
+                  />
                 </div>
               </div>
             </div>
           </section>
         </LazySection>
 
-        {/* Booking Consultation Dialog */}
         <Dialog
           open={isBookingDialogOpen}
           onOpenChange={setIsBookingDialogOpen}
         >
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle className="text-xl font-playfair font-bold gradient-text">
+              <DialogTitle className="font-playfair text-xl font-bold">
                 {t("contact.booking.title") || "Book a Consultation"}
               </DialogTitle>
               <DialogDescription>
@@ -772,7 +647,6 @@ export default function ContactPage() {
                     "Enter your full name"
                   }
                   required
-                  className="h-9 rounded-lg"
                 />
               </div>
 
@@ -790,7 +664,6 @@ export default function ContactPage() {
                     "Enter your phone number"
                   }
                   required
-                  className="h-9 rounded-lg"
                 />
               </div>
 
@@ -805,7 +678,6 @@ export default function ContactPage() {
                     value={bookingData.preferredDate}
                     onChange={handleBookingInputChange}
                     min={nowIso().split("T")[0]}
-                    className="h-9 rounded-lg"
                   />
                 </div>
 
@@ -818,7 +690,6 @@ export default function ContactPage() {
                     type="time"
                     value={bookingData.preferredTime}
                     onChange={handleBookingInputChange}
-                    className="h-9 rounded-lg"
                   />
                 </div>
               </div>
@@ -836,7 +707,7 @@ export default function ContactPage() {
                     "Briefly describe your reason for consultation"
                   }
                   rows={3}
-                  className="rounded-lg resize-none"
+                  className="resize-none"
                 />
               </div>
 
@@ -845,15 +716,11 @@ export default function ContactPage() {
                   type="button"
                   variant="outline"
                   onClick={() => setIsBookingDialogOpen(false)}
-                  className="rounded-lg"
                 >
                   {t("contact.booking.cancel") || "Cancel"}
                 </Button>
-                <Button
-                  type="submit"
-                  className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground rounded-lg"
-                >
-                  <Calendar className="w-4 h-4 mr-2" />
+                <Button type="submit">
+                  <Calendar className="mr-2 h-4 w-4" />
                   {t("contact.booking.submit") || "Request Consultation"}
                 </Button>
               </DialogFooter>

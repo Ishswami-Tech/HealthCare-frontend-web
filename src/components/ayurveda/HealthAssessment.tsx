@@ -127,7 +127,7 @@ const HealthAssessment = () => {
     const results = getResults();
 
     return (
-      <section className="py-20 bg-background">
+      <section className="bg-base-200/55 py-16 sm:py-20">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-12">
@@ -143,7 +143,7 @@ const HealthAssessment = () => {
               </p>
             </div>
 
-            <Card className="bg-card border-border shadow-xl">
+            <Card className="border-border/80 bg-card/95 shadow-xl ring-1 ring-border/30">
               <CardHeader>
                 <CardTitle className="text-2xl text-center text-card-foreground">
                   📊 {t("healthAssessment.results.cardTitle")}
@@ -240,7 +240,7 @@ const HealthAssessment = () => {
   // Early return if no current question (shouldn't happen but TypeScript safety)
   if (!currentQuestion) {
     return (
-      <section className="py-20 bg-background">
+      <section className="bg-base-200/55 py-16 sm:py-20">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center">
             <p className="text-lg text-muted-foreground">
@@ -253,18 +253,18 @@ const HealthAssessment = () => {
   }
 
   return (
-    <section className="py-20 bg-background">
+    <section className="bg-base-200/55 py-16 sm:py-20">
       <div className="container mx-auto px-4">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
+          <div className="mb-10 text-center sm:mb-12">
+            <Badge className="mb-4 border-primary/20 bg-primary/10 px-4 py-1.5 text-primary">
               <Brain className="w-4 h-4 mr-2" />
               {t("healthAssessment.main.interactiveAssessment")}
             </Badge>
-            <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
+            <h2 className="mb-4 text-3xl font-bold tracking-tight text-foreground md:text-4xl">
               {t("healthAssessment.main.title")}
             </h2>
-            <p className="text-lg text-muted-foreground mb-8">
+            <p className="mb-8 text-base leading-7 text-muted-foreground sm:text-lg">
               {t("healthAssessment.main.subtitle")}
             </p>
 
@@ -283,10 +283,10 @@ const HealthAssessment = () => {
             </div>
           </div>
 
-          <Card className="bg-card shadow-xl border-0">
+          <Card className="border-border/80 bg-card/95 shadow-xl ring-1 ring-border/30">
             <CardHeader>
               <div className="flex items-center space-x-3 mb-4">
-                <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-primary">
                   <span className="text-primary-foreground font-bold">
                     {currentStep + 1}
                   </span>
@@ -310,7 +310,7 @@ const HealthAssessment = () => {
                   <Button
                     key={index}
                     variant="outline"
-                    className={`w-full justify-start text-left p-4 h-auto ${
+                    className={`h-auto w-full justify-start rounded-xl p-4 text-left ${
                       answers[currentQuestion.id] === option
                         ? "border-primary bg-primary/10 text-primary"
                         : "border-border hover:border-primary/50 hover:bg-primary/5"
@@ -335,7 +335,7 @@ const HealthAssessment = () => {
                 ))}
               </div>
 
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                   <Clock className="w-4 h-4" />
                   <span>
@@ -359,20 +359,20 @@ const HealthAssessment = () => {
           </Card>
 
           {/* Trust Indicators */}
-          <div className="flex flex-wrap justify-center gap-6 mt-12 text-sm text-muted-foreground">
-            <div className="flex items-center space-x-2">
+          <div className="mt-10 flex flex-wrap justify-center gap-3 text-sm text-muted-foreground">
+            <div className="flex items-center space-x-2 rounded-full border border-border/70 bg-card/80 px-3 py-2">
               <Star className="w-4 h-4 text-primary" />
               <span>
                 {t("healthAssessment.trustIndicators.usedByPatients")}
               </span>
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 rounded-full border border-border/70 bg-card/80 px-3 py-2">
               <CheckCircle className="w-4 h-4 text-primary" />
               <span>
                 {t("healthAssessment.trustIndicators.scientificallyValidated")}
               </span>
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 rounded-full border border-border/70 bg-card/80 px-3 py-2">
               <Target className="w-4 h-4 text-primary" />
               <span>{t("healthAssessment.trustIndicators.accuracyRate")}</span>
             </div>

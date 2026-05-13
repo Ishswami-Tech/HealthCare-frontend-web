@@ -317,11 +317,11 @@ export default function Sidebar({ links, user, children }: SidebarProps) {
   return (
     <>
       <SidebarProvider open={open} onOpenChange={setOpen}>
-        <div className={cn("flex h-screen w-full bg-neutral-100 dark:bg-neutral-900 overflow-hidden")}>
+      <div className={cn("flex h-screen w-full overflow-hidden bg-base-200 dark:bg-background")}>
           <SidebarComponent
             collapsible="icon"
             className={cn(
-              "border-none bg-neutral-100 dark:bg-neutral-900 text-sidebar-foreground transition-all duration-300 ease-in-out"
+              "border-none bg-sidebar/95 text-sidebar-foreground transition-all duration-300 ease-in-out"
             )}
             onMouseEnter={() => setOpen(true)}
             onMouseLeave={() => setOpen(false)}
@@ -333,8 +333,8 @@ export default function Sidebar({ links, user, children }: SidebarProps) {
             />
           </SidebarComponent>
 
-          <div className="flex flex-1 overflow-hidden">
-             <div className="flex flex-1 flex-col h-full w-full overflow-hidden rounded-tl-3xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 shadow-xl">
+          <div className="flex flex-1 overflow-hidden p-2 pl-0 sm:p-3 sm:pl-0">
+             <div className="flex h-full w-full flex-1 flex-col overflow-hidden rounded-[1.5rem] border border-border/80 bg-background shadow-xl ring-1 ring-border/25">
                 {children}
              </div>
           </div>

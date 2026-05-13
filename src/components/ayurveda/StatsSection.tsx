@@ -31,28 +31,28 @@ const StatsSection = () => {
       number: "5000+",
       label: t("stats.livesTransformed"),
       description: t("stats.patientsSuccessfullyTreated"),
-      color: "from-primary to-teal-500",
+      color: "from-primary to-primary/80",
     },
     {
       icon: Clock,
       number: "20+",
       label: t("stats.yearsLegacy"),
       description: t("stats.authenticAyurvedicPractice"),
-      color: "from-emerald-500 to-green-600",
+      color: "from-primary/90 to-emerald-700",
     },
     {
       icon: Star,
       number: "4.9",
       label: t("stats.patientRating"),
       description: t("stats.basedOnReviews"),
-      color: "from-amber-400 to-orange-500",
+      color: "from-amber-500 to-amber-600",
     },
     {
       icon: Award,
       number: "95%",
       label: t("stats.successRate"),
       description: t("stats.chronicConditions"),
-      color: "from-sky-500 to-cyan-600",
+      color: "from-slate-600 to-slate-800",
     },
   ];
 
@@ -80,10 +80,8 @@ const StatsSection = () => {
   ];
 
   return (
-    <section className="relative z-0 overflow-hidden bg-gradient-to-b from-background via-muted/25 to-background py-16 sm:py-20">
+    <section className="relative z-0 overflow-hidden bg-background py-16 sm:py-20">
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
-      <div className="absolute -left-32 top-20 h-72 w-72 rounded-full bg-primary/10 blur-3xl" />
-      <div className="absolute -right-36 bottom-20 h-80 w-80 rounded-full bg-emerald-300/10 blur-3xl" />
       <div className="container mx-auto px-4">
         <div className="relative mx-auto mb-12 max-w-3xl text-center sm:mb-14">
           <Badge className="mb-4 rounded-full border border-primary/25 bg-primary/10 px-4 py-1.5 text-primary shadow-sm animate-fade-in-down">
@@ -105,7 +103,7 @@ const StatsSection = () => {
             return (
               <StaggerItem key={index}>
                 <HoverAnimation type="lift">
-                  <Card className="group h-full overflow-hidden rounded-2xl border border-border/80 bg-card/85 shadow-sm backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-primary/35 hover:shadow-xl hover:shadow-primary/10">
+                  <Card className="group h-full overflow-hidden rounded-2xl border border-border/80 bg-card/95 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/35 hover:shadow-xl hover:shadow-primary/10">
                     <CardContent className="relative flex h-full flex-col items-center p-6 text-center">
                       <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                       <div
@@ -123,11 +121,11 @@ const StatsSection = () => {
                             />
                           </>
                         ) : stat.number.includes(".") ? (
-                          <span className="bg-gradient-to-r from-primary via-emerald-400 to-teal-500 bg-clip-text text-transparent">
+                          <span className="text-foreground">
                             {stat.number}
                           </span>
                         ) : stat.number.includes("%") ? (
-                          <span className="bg-gradient-to-r from-primary via-emerald-400 to-teal-500 bg-clip-text text-transparent">
+                          <span className="text-foreground">
                             <CounterAnimation
                               from={0}
                               to={parseInt(stat.number.replace(/[^\d]/g, ""))}
@@ -135,7 +133,7 @@ const StatsSection = () => {
                             />
                           </span>
                         ) : (
-                          <span className="bg-gradient-to-r from-primary via-emerald-400 to-teal-500 bg-clip-text text-transparent">
+                          <span className="text-foreground">
                             {stat.number}
                           </span>
                         )}
@@ -194,16 +192,16 @@ const StatsSection = () => {
             return (
               <StaggerItem key={index}>
                 <HoverAnimation type="lift">
-                  <div className="group h-full rounded-2xl border border-border/80 bg-card/80 p-6 text-center shadow-sm backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-primary/35 hover:shadow-lg hover:shadow-primary/10">
+                  <div className="group h-full rounded-2xl border border-border/80 bg-card/95 p-6 text-center shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/35 hover:shadow-lg hover:shadow-primary/10">
                     <div
                       className={`w-12 h-12 bg-gradient-to-r ${
                         index === 0
-                          ? "from-primary to-teal-500"
+                          ? "from-primary to-primary/80"
                           : index === 1
-                          ? "from-emerald-500 to-green-600"
+                          ? "from-primary/90 to-emerald-700"
                           : index === 2
-                          ? "from-amber-400 to-orange-500"
-                          : "from-sky-500 to-cyan-600"
+                          ? "from-amber-500 to-amber-600"
+                          : "from-slate-600 to-slate-800"
                       } rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-md shadow-primary/10 transition-transform duration-300 group-hover:scale-105`}
                     >
                       <IconComponent className="w-6 h-6 text-white" />

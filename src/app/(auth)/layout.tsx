@@ -13,6 +13,8 @@ import { getDashboardByRole } from "@/lib/config/routes";
 import { Role } from "@/types/auth.types";
 import { PageLoading } from "@/components/ui/loading";
 import { StatusFooter } from "@/components/status/StatusFooter";
+import { Badge } from "@/components/ui/badge";
+import { HeartPulse, ShieldCheck, Stethoscope } from "lucide-react";
 
 export default function AuthLayout({
   children,
@@ -37,63 +39,65 @@ export default function AuthLayout({
   }
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left side - Decorative */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-indigo-600 to-blue-500">
-        <div className="absolute inset-0 bg-black opacity-10" />
-        <div className="relative z-10 flex flex-col justify-center px-12 xl:px-16 text-white">
-          <h1 className="text-3xl xl:text-4xl font-bold mb-6">Welcome to HealthCare App</h1>
-          <p className="text-lg xl:text-xl">
-            Your comprehensive healthcare management solution. Connect withdoctors, manage appointments, and access your medical recordssecurely.
-          </p>
-          <div className="mt-12 space-y-8">
-            <div className="flex items-start space-x-4">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-semibold">✓</span>
-                </div>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold">Secure & Private</h3>
-                <p className="text-blue-100">
-                  Your health data is protected with enterprise-grade security
+    <div className="min-h-screen bg-base-200">
+      <div className="mx-auto grid min-h-screen w-full max-w-7xl lg:grid-cols-[1.05fr_0.95fr]">
+        <aside className="relative hidden overflow-hidden border-r border-border/70 bg-card/80 lg:flex">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(117,224,192,0.22),_transparent_38%),radial-gradient(circle_at_bottom_right,_rgba(14,116,144,0.14),_transparent_32%)]" />
+          <div className="relative flex w-full flex-col justify-between p-10 xl:p-14">
+            <div className="space-y-6">
+              <Badge variant="outline" className="border-primary/25 bg-primary/10 px-3 py-1 text-primary">
+                Ish Swami Tech
+              </Badge>
+              <div className="max-w-xl space-y-4">
+                <h1 className="text-4xl font-bold leading-tight tracking-tight text-foreground xl:text-5xl">
+                  Secure care workflows with a calmer sign-in experience.
+                </h1>
+                <p className="text-base leading-7 text-muted-foreground xl:text-lg">
+                  Access appointments, records, billing, and coordinated care tools through one polished, role-aware system.
                 </p>
               </div>
             </div>
-            <div className="flex items-start space-x-4">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-semibold">✓</span>
+
+            <div className="grid gap-4">
+              {[
+                {
+                  icon: ShieldCheck,
+                  title: "Protected sessions",
+                  copy: "Authentication and route access stay aligned with the app's RBAC model.",
+                },
+                {
+                  icon: HeartPulse,
+                  title: "Patient-centered operations",
+                  copy: "Every role lands in a focused workspace built for healthcare tasks.",
+                },
+                {
+                  icon: Stethoscope,
+                  title: "Clinical continuity",
+                  copy: "Consultations, queues, prescriptions, and billing remain connected.",
+                },
+              ].map(({ icon: Icon, title, copy }) => (
+                <div key={title} className="flex gap-4 rounded-2xl border border-border/80 bg-background/80 p-4 shadow-sm ring-1 ring-border/20">
+                  <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
+                    <Icon className="size-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">{copy}</p>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold">24/7 Access</h3>
-                <p className="text-blue-100">
-                  Access your health information anytime, anywhere
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start space-x-4">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-semibold">✓</span>
-                </div>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold">Expert Care</h3>
-                <p className="text-blue-100">
-                  Connect with qualified healthcare professionals
-                </p>
-              </div>
+              ))}
             </div>
           </div>
-        </div>
-      </div>
+        </aside>
 
-      {/* Right side - Auth forms */}
-      <div className="flex-1 flex flex-col justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-20 xl:px-24">
-        <div className="mx-auto w-full max-w-sm lg:w-96 flex-1 flex flex-col justify-center">{children}</div>
-        <StatusFooter />
+        <section className="flex min-h-screen flex-col justify-center px-4 py-8 sm:px-6 lg:px-10 xl:px-16">
+          <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center">
+            <div className="rounded-[1.75rem] border border-border/80 bg-background/95 p-4 shadow-xl ring-1 ring-border/30 sm:p-6">
+              {children}
+            </div>
+          </div>
+          <StatusFooter />
+        </section>
       </div>
     </div>
   );

@@ -114,305 +114,130 @@ export default function AboutPage() {
       colorScheme: getIconColorScheme("Star"),
     },
     {
-      number: "4.9★",
+      number: "4.9",
       label: t("about.achievements.patientRating"),
       icon: Award,
       colorScheme: getIconColorScheme("Award"),
     },
   ];
 
+  const storyParagraphs = [
+    t("about.story.paragraphs.p1"),
+    t("about.story.paragraphs.p2"),
+    t("about.story.paragraphs.p3"),
+    t("about.story.paragraphs.p4"),
+  ];
+
   return (
     <PageTransition>
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 dark:from-background dark:via-background dark:to-muted/30 relative overflow-hidden">
-        {/* Advanced Animated Background Elements */}
-        <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          {/* Floating Orbs */}
-          <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-r from-primary/10 to-primary/5 dark:from-primary/20 dark:to-primary/10 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-r from-secondary/10 to-secondary/5 dark:from-secondary/20 dark:to-secondary/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[32rem] h-[32rem] bg-gradient-to-r from-accent/5 to-accent/3 dark:from-accent/10 dark:to-accent/8 rounded-full blur-3xl animate-pulse delay-500"></div>
-
-          {/* Geometric Patterns */}
-          <div className="absolute top-20 left-20 w-32 h-32 border border-primary/10 dark:border-primary/20 rotate-45 animate-spin-slow"></div>
-          <div className="absolute bottom-20 right-20 w-24 h-24 border border-secondary/10 dark:border-secondary/20 rotate-12 animate-spin-slow-reverse"></div>
-          <div className="absolute top-1/3 right-1/3 w-16 h-16 bg-gradient-to-r from-accent/20 to-accent/10 dark:from-accent/30 dark:to-accent/20 rounded-full animate-bounce-slow"></div>
-
-          {/* Grid Pattern */}
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:50px_50px] dark:bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)]"></div>
-        </div>
-
-        {/* Language Switcher & Theme Switcher */}
-        <div className="fixed top-3 right-3 sm:top-4 sm:right-4 z-50 flex gap-2">
+      <div className="min-h-screen bg-background text-foreground">
+        <div className="fixed right-3 top-3 z-50 flex gap-2 sm:right-4 sm:top-4">
           <LanguageSwitcher variant="compact" />
           <CompactThemeSwitcher />
         </div>
 
-        {/* Hero Section */}
-        <section className="relative py-8 sm:py-12 md:py-16 lg:py-20 overflow-hidden">
-          {/* Hero Background Effects */}
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 dark:from-primary/10 dark:via-transparent dark:to-secondary/10"></div>
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent dark:from-primary/20"></div>
-
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <div className="max-w-7xl mx-auto text-center">
-              {/* Floating Badge */}
-              <div className="animate-fade-in-down mb-8">
-                <div className="inline-block relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-full blur-xl animate-pulse"></div>
-                  <Badge className="relative bg-gradient-to-r from-primary/20 to-primary/15 dark:from-primary/30 dark:to-primary/20 text-primary dark:text-primary-foreground border-primary/40 dark:border-primary/50 glass shadow-lg hover:shadow-xl transition-all duration-300 px-6 py-3 text-sm font-semibold hover:scale-105 hover:-translate-y-1">
-                    <Heart className="w-5 h-5 mr-3 animate-pulse" />
-                    {t("about.hero.badge")}
-                  </Badge>
-                </div>
-              </div>
-
-              {/* Main Title with Glow Effect */}
-              <div className="animate-fade-in-up delay-200 mb-8">
-                <div className="relative inline-block">
-                  <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-secondary/20 to-accent/20 rounded-2xl blur-2xl animate-pulse"></div>
-                  <h1 className="relative text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-playfair font-bold text-foreground gradient-text leading-tight">
-                    {t("about.hero.title")}
-                  </h1>
-                </div>
-              </div>
-
-              {/* Subtitle with Enhanced Typography */}
-              <div className="animate-fade-in-up delay-400 mb-16">
-                <p className="text-lg sm:text-xl lg:text-2xl text-muted-foreground leading-relaxed max-w-4xl mx-auto font-light">
+        <section className="relative overflow-hidden border-b border-border/70 bg-[linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--muted)/0.34)_100%)] py-16 sm:py-20 lg:py-24">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.10),transparent_34%),radial-gradient(circle_at_bottom_right,hsl(var(--secondary)/0.08),transparent_32%)]" />
+          <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1.35fr_0.85fr] lg:items-end">
+              <div className="max-w-4xl">
+                <Badge className="mb-6 border-primary/20 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary shadow-none">
+                  <Heart className="mr-2 h-4 w-4" />
+                  {t("about.hero.badge")}
+                </Badge>
+                <h1 className="max-w-5xl font-playfair text-4xl font-bold leading-tight text-foreground sm:text-5xl lg:text-6xl">
+                  {t("about.hero.title")}
+                </h1>
+                <p className="mt-6 max-w-4xl text-base leading-8 text-muted-foreground sm:text-lg lg:text-xl">
                   {t("about.hero.subtitle")}
                 </p>
               </div>
 
-              {/* Enhanced Certification Badges */}
-              <div className="animate-fade-in-up delay-600">
-                <div className="flex flex-wrap justify-center gap-6 sm:gap-8">
-                  <div className="group relative">
-                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/20 to-emerald-600/20 rounded-2xl blur-lg group-hover:blur-xl transition-all duration-500"></div>
-                    <Badge className="relative bg-gradient-to-r from-emerald-100 to-emerald-50 dark:from-emerald-900/50 dark:to-emerald-800/40 text-emerald-800 dark:text-emerald-100 border-emerald-300 dark:border-emerald-600/60 glass interactive hover:scale-110 hover:-translate-y-2 transition-all duration-300 px-6 py-3 shadow-lg hover:shadow-xl dark:shadow-emerald-900/30 text-sm font-semibold">
-                      <CheckCircle className="w-5 h-5 mr-3 group-hover:scale-110 transition-transform duration-300" />
+              <Card className="border-border/70 bg-card/96 shadow-[0_28px_90px_-56px_rgba(15,23,42,0.45)]">
+                <CardContent className="p-6 sm:p-7">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
+                    {t("about.mission.title")}
+                  </p>
+                  <p className="mt-4 text-base leading-7 text-muted-foreground">
+                    {t("about.mission.description")}
+                  </p>
+                  <div className="mt-6 grid gap-3">
+                    <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-muted/35 px-4 py-3 text-sm font-medium">
+                      <CheckCircle className="h-4 w-4 text-primary" />
                       {t("about.hero.certifications.governmentCertified")}
-                    </Badge>
-                  </div>
-                  <div className="group relative">
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-400/20 to-blue-600/20 rounded-2xl blur-lg group-hover:blur-xl transition-all duration-500"></div>
-                    <Badge className="relative bg-gradient-to-r from-blue-100 to-blue-50 dark:from-blue-900/50 dark:to-blue-800/40 text-blue-800 dark:text-blue-100 border-blue-300 dark:border-blue-600/60 glass interactive hover:scale-110 hover:-translate-y-2 transition-all duration-300 px-6 py-3 shadow-lg hover:shadow-xl dark:shadow-blue-900/30 text-sm font-semibold">
-                      <Shield className="w-5 h-5 mr-3 group-hover:scale-110 transition-transform duration-300" />
+                    </div>
+                    <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-muted/35 px-4 py-3 text-sm font-medium">
+                      <Shield className="h-4 w-4 text-primary" />
                       {t("about.hero.certifications.iso9001")}
-                    </Badge>
-                  </div>
-                  <div className="group relative">
-                    <div className="absolute inset-0 bg-gradient-to-r from-purple-400/20 to-purple-600/20 rounded-2xl blur-lg group-hover:blur-xl transition-all duration-500"></div>
-                    <Badge className="relative bg-gradient-to-r from-purple-100 to-purple-50 dark:from-purple-900/50 dark:to-purple-800/40 text-purple-800 dark:text-purple-100 border-purple-300 dark:border-purple-600/60 glass interactive hover:scale-110 hover:-translate-y-2 transition-all duration-300 px-6 py-3 shadow-lg hover:shadow-xl dark:shadow-purple-900/30 text-sm font-semibold">
-                      <Award className="w-5 h-5 mr-3 group-hover:scale-110 transition-transform duration-300" />
+                    </div>
+                    <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-muted/35 px-4 py-3 text-sm font-medium">
+                      <Award className="h-4 w-4 text-primary" />
                       {t("about.hero.certifications.teachingHospital")}
-                    </Badge>
+                    </div>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </section>
 
-        {/* Our Story Section */}
         <LazySection fallback={<SectionSkeleton />}>
-          <section className="relative py-8 sm:py-12 md:py-16 bg-gradient-to-br from-muted/30 via-background to-primary/5 dark:from-muted/40 dark:via-background dark:to-primary/10 overflow-hidden">
-            {/* Section Background Effects */}
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent dark:from-primary/10"></div>
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-secondary/5 via-transparent to-transparent dark:from-secondary/10"></div>
-
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-              <div className="max-w-8xl mx-auto">
-                <div className="grid lg:grid-cols-2 gap-16 lg:gap-20 items-center">
-                  {/* Story Content */}
-                  <div className="space-y-10">
-                    <div className="animate-fade-in-left">
-                      <div className="relative inline-block">
-                        <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-2xl blur-xl"></div>
-                        <h2 className="relative text-3xl sm:text-4xl md:text-4xl lg:text-4xl font-playfair font-bold text-foreground mb-4 gradient-text">
-                          {t("about.story.title")}
-                        </h2>
-                      </div>
-                    </div>
-
-                    <div className="space-y-8 text-muted-foreground leading-relaxed animate-fade-in-left delay-200">
-                      <div className="group relative">
-                        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl blur-lg group-hover:blur-xl transition-all duration-500"></div>
-                        <div className="relative p-6 rounded-2xl bg-gradient-to-br from-card/60 to-muted/40 dark:from-card/70 dark:to-muted/50 border border-border/30 dark:border-border/40 glass hover:shadow-lg dark:hover:shadow-xl transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1">
-                          <div className="flex items-start space-x-4">
-                            <div className="w-10 h-10 bg-gradient-to-r from-primary to-primary/80 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
-                              <span className="text-2xl">🌱</span>
-                            </div>
-                            <p className="text-base font-light leading-relaxed">
-                              {t("about.story.paragraphs.p1")}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="group relative">
-                        <div className="absolute inset-0 bg-gradient-to-r from-secondary/10 to-accent/10 rounded-3xl blur-lg group-hover:blur-xl transition-all duration-500"></div>
-                        <div className="relative p-6 rounded-2xl bg-gradient-to-br from-card/60 to-muted/40 dark:from-card/70 dark:to-muted/50 border border-border/30 dark:border-border/40 glass hover:shadow-lg dark:hover:shadow-xl transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1">
-                          <div className="flex items-start space-x-4">
-                            <div className="w-12 h-12 bg-gradient-to-r from-secondary to-secondary/80 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
-                              <span className="text-2xl">🏥</span>
-                            </div>
-                            <p className="text-base font-light leading-relaxed">
-                              {t("about.story.paragraphs.p2")}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="group relative">
-                        <div className="absolute inset-0 bg-gradient-to-r from-accent/10 to-primary/10 rounded-3xl blur-lg group-hover:blur-xl transition-all duration-500"></div>
-                        <div className="relative p-6 rounded-2xl bg-gradient-to-br from-card/60 to-muted/40 dark:from-card/70 dark:to-muted/50 border border-border/30 dark:border-border/40 glass hover:shadow-lg dark:hover:shadow-xl transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1">
-                          <div className="flex items-start space-x-4">
-                            <div className="w-12 h-12 bg-gradient-to-r from-accent to-accent/80 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
-                              <span className="text-2xl">💎</span>
-                            </div>
-                            <p className="text-base font-light leading-relaxed">
-                              {t("about.story.paragraphs.p3")}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="group relative">
-                        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 rounded-3xl blur-lg group-hover:blur-xl transition-all duration-500"></div>
-                        <div className="relative p-6 rounded-2xl bg-gradient-to-br from-card/60 to-muted/40 dark:from-card/70 dark:to-muted/50 border border-border/30 dark:border-border/40 glass hover:shadow-lg dark:hover:shadow-xl transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1">
-                          <div className="flex items-start space-x-4">
-                            <div className="w-12 h-12 bg-gradient-to-r from-primary via-secondary to-accent rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
-                              <span className="text-2xl">🏆</span>
-                            </div>
-                            <p className="text-base font-light leading-relaxed">
-                              {t("about.story.paragraphs.p4")}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Mission & Achievements Card */}
-                  <div className="relative animate-fade-in-right">
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary/15 to-secondary/15 dark:from-primary/25 dark:to-secondary/25 rounded-2xl blur-2xl"></div>
-                    <Card className="relative bg-gradient-to-br from-card/90 to-muted/30 dark:from-card/95 dark:to-muted/40 border-primary/30 dark:border-primary/40 shadow-lg dark:shadow-xl glass backdrop-blur-sm hover:shadow-xl dark:hover:shadow-2xl transition-all duration-300 hover:scale-[1.02]">
-                      <CardContent className="p-6 lg:p-8">
-                        <div className="text-center">
-                          {/* Enhanced Mission Icon */}
-                          <div className="relative mb-6">
-                            <div className="absolute inset-0 bg-gradient-to-r from-primary/30 to-secondary/30 rounded-full blur-2xl animate-pulse"></div>
-                            <div className="relative w-32 h-32 bg-gradient-to-r from-primary via-primary/90 to-secondary rounded-full flex items-center justify-center mx-auto shadow-lg animate-pulse border-4 border-background/50">
-                              <span className="text-4xl">🕉️</span>
-                            </div>
-                            <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-full blur-xl"></div>
-                          </div>
-
-                          {/* Mission Title */}
-                          <h3 className="text-2xl font-bold text-foreground mb-4 gradient-text">
-                            {t("about.mission.title")}
-                          </h3>
-
-                          {/* Mission Description */}
-                          <p className="text-lg text-muted-foreground mb-8 leading-relaxed font-light">
-                            {t("about.mission.description")}
-                          </p>
-
-                          {/* Enhanced Achievements Grid */}
-                          <div className="grid grid-cols-2 gap-4">
-                            {achievements.map((achievement, index) => {
-                              const IconComponent = achievement.icon;
-                              return (
-                                <div key={index} className="group relative">
-                                  <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl blur-lg group-hover:blur-xl transition-all duration-500"></div>
-                                  <div className="relative text-center glass p-4 rounded-xl interactive hover:scale-110 hover:-translate-y-2 transition-all duration-300 bg-gradient-to-br from-background/60 to-muted/40 dark:from-background/70 dark:to-muted/50 border border-border/30 dark:border-border/40 shadow-lg hover:shadow-xl">
-                                    <div className="flex items-center justify-center space-x-3 mb-3">
-                                      <IconComponent
-                                        className={`w-6 h-6 ${achievement.colorScheme.text} group-hover:scale-125 transition-transform duration-300`}
-                                      />
-                                      <span
-                                        className={`font-bold text-2xl ${achievement.colorScheme.text} gradient-text`}
-                                      >
-                                        {achievement.number}
-                                      </span>
-                                    </div>
-                                    <span className="text-sm text-muted-foreground font-semibold">
-                                      {achievement.label}
-                                    </span>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-        </LazySection>
-
-        {/* Our Values Section */}
-        <LazySection fallback={<SectionSkeleton />}>
-          <section className="relative py-8 sm:py-12 md:py-16 bg-gradient-to-br from-background via-muted/20 to-secondary/5 dark:from-background dark:via-muted/30 dark:to-secondary/10 overflow-hidden">
-            {/* Section Background Effects */}
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent dark:from-primary/10"></div>
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-secondary/5 via-transparent to-transparent dark:from-secondary/10"></div>
-
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-              <div className="max-w-8xl mx-auto">
-                <div className="text-center mb-12 animate-fade-in-up">
-                  <div className="relative inline-block">
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-2xl blur-xl"></div>
-                    <h2 className="relative text-3xl sm:text-4xl font-playfair font-bold text-foreground mb-4 gradient-text">
-                      {t("about.coreValues.title")}
+          <section className="py-16 sm:py-20">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1.15fr_0.85fr]">
+                <div>
+                  <div className="max-w-3xl">
+                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
+                      {t("about.story.title")}
+                    </p>
+                    <h2 className="mt-4 font-playfair text-3xl font-bold leading-tight sm:text-4xl">
+                      {t("about.story.title")}
                     </h2>
                   </div>
-                  <p className="text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed font-light">
-                    {t("about.coreValues.subtitle")}
-                  </p>
+                  <div className="mt-8 grid gap-4">
+                    {storyParagraphs.map((paragraph, index) => (
+                      <Card
+                        key={`${paragraph}-${index}`}
+                        className="border-border/70 bg-card shadow-sm transition-transform duration-300 hover:-translate-y-0.5"
+                      >
+                        <CardContent className="flex gap-4 p-5 sm:p-6">
+                          <div className="mt-1 h-9 w-9 shrink-0 rounded-full border border-primary/20 bg-primary/10 text-center text-sm font-semibold leading-9 text-primary">
+                            {index + 1}
+                          </div>
+                          <p className="text-sm leading-7 text-muted-foreground sm:text-base">
+                            {paragraph}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
-                  {values.map((value, index) => {
-                    const IconComponent = value.icon;
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+                  {achievements.map((achievement) => {
+                    const Icon = achievement.icon;
 
                     return (
-                      <div
-                        key={index}
-                        className="animate-fade-in-up"
-                        style={{ animationDelay: `${index * 150}ms` }}
+                      <Card
+                        key={achievement.label}
+                        className="border-border/70 bg-card shadow-sm"
                       >
-                        <Card className="group text-center hover:shadow-xl dark:hover:shadow-2xl transition-all duration-300 border-0 bg-gradient-to-br from-card/90 to-muted/30 dark:from-card/95 dark:to-muted/40 glass backdrop-blur-sm hover:scale-110 hover:-translate-y-3 relative overflow-hidden">
-                          {/* Card Background Effect */}
-                          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 dark:from-primary/10 dark:to-secondary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-
-                          <CardContent className="relative p-6 lg:p-8">
-                            <div className="relative mb-6">
-                              {/* Icon Glow Effect */}
-                              <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-
-                              <div
-                                className={`relative w-20 h-20 bg-gradient-to-r ${value.colorScheme.gradient} rounded-2xl flex items-center justify-center mx-auto shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-125 group-hover:rotate-6`}
-                              >
-                                <IconComponent className="w-10 h-10 text-white group-hover:scale-110 transition-transform duration-300" />
-                              </div>
+                        <CardContent className="flex items-center gap-4 p-5">
+                          <div
+                            className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${achievement.colorScheme.gradient}`}
+                          >
+                            <Icon className="h-5 w-5 text-white" />
+                          </div>
+                          <div>
+                            <div className="text-2xl font-bold text-foreground">
+                              {achievement.number}
                             </div>
-
-                            <h3 className="text-xl font-bold text-foreground mb-4 gradient-text group-hover:scale-105 transition-transform duration-300">
-                              {value.title}
-                            </h3>
-
-                            <p className="text-muted-foreground leading-relaxed text-base font-light group-hover:text-foreground/80 transition-colors duration-300">
-                              {value.description}
-                            </p>
-
-                            {/* Decorative Element */}
-                            <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-16 h-1 bg-gradient-to-r from-primary to-secondary rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                          </CardContent>
-                        </Card>
-                      </div>
+                            <div className="text-sm text-muted-foreground">
+                              {achievement.label}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
                     );
                   })}
                 </div>
@@ -421,167 +246,141 @@ export default function AboutPage() {
           </section>
         </LazySection>
 
-        {/* Journey Timeline Section */}
         <LazySection fallback={<SectionSkeleton />}>
-          <section className="relative py-8 sm:py-12 md:py-16 bg-gradient-to-br from-muted/20 via-background to-primary/5 dark:from-muted/30 dark:via-background dark:to-primary/10 overflow-hidden">
-            {/* Section Background Effects */}
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_left,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent dark:from-primary/10"></div>
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_right,_var(--tw-gradient-stops))] from-secondary/5 via-transparent to-transparent dark:from-secondary/10"></div>
+          <section className="border-y border-border/70 bg-muted/25 py-16 sm:py-20">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="mx-auto max-w-7xl">
+                <div className="max-w-3xl">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
+                    {t("about.coreValues.title")}
+                  </p>
+                  <h2 className="mt-4 font-playfair text-3xl font-bold sm:text-4xl">
+                    {t("about.coreValues.title")}
+                  </h2>
+                  <p className="mt-4 text-base leading-8 text-muted-foreground sm:text-lg">
+                    {t("about.coreValues.subtitle")}
+                  </p>
+                </div>
 
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-              <div className="max-w-7xl mx-auto">
-                <div className="text-center mb-12 animate-fade-in-up">
-                  <div className="relative inline-block">
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-2xl blur-xl"></div>
-                    <h2 className="relative text-3xl sm:text-4xl font-playfair font-bold text-foreground mb-4 gradient-text">
-                      {t("about.milestones.title")}
-                    </h2>
-                  </div>
-                  <p className="text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed font-light">
+                <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+                  {values.map((value) => {
+                    const Icon = value.icon;
+
+                    return (
+                      <Card
+                        key={value.title}
+                        className="h-full border-border/70 bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
+                      >
+                        <CardContent className="p-6">
+                          <div
+                            className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${value.colorScheme.gradient}`}
+                          >
+                            <Icon className="h-5 w-5 text-white" />
+                          </div>
+                          <h3 className="mt-5 text-lg font-semibold text-foreground">
+                            {value.title}
+                          </h3>
+                          <p className="mt-3 text-sm leading-7 text-muted-foreground">
+                            {value.description}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </section>
+        </LazySection>
+
+        <LazySection fallback={<SectionSkeleton />}>
+          <section className="py-16 sm:py-20">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="mx-auto max-w-7xl">
+                <div className="max-w-3xl">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
+                    {t("about.milestones.title")}
+                  </p>
+                  <h2 className="mt-4 font-playfair text-3xl font-bold sm:text-4xl">
+                    {t("about.milestones.title")}
+                  </h2>
+                  <p className="mt-4 text-base leading-8 text-muted-foreground sm:text-lg">
                     {t("about.milestones.subtitle")}
                   </p>
                 </div>
 
-                <div className="relative">
-                  {/* Enhanced Timeline Line */}
-                  <div className="absolute left-12 top-0 bottom-0 w-1 bg-gradient-to-b from-primary via-secondary to-accent opacity-40 dark:opacity-60 rounded-full"></div>
-                  <div className="absolute left-12 top-0 bottom-0 w-1 bg-gradient-to-b from-primary/20 via-secondary/20 to-accent/20 blur-sm"></div>
-
-                  <div className="space-y-12">
-                    {milestones.map((milestone, index) => (
-                      <div
-                        key={index}
-                        className="relative flex items-start space-x-12 animate-fade-in-up"
-                        style={{ animationDelay: `${index * 150}ms` }}
-                      >
-                        {/* Enhanced Timeline Node */}
-                        <div className="flex-shrink-0 relative z-10">
-                          <div className="absolute inset-0 bg-gradient-to-r from-primary/30 to-secondary/30 rounded-full blur-xl animate-pulse"></div>
-                          <div className="relative w-16 h-16 bg-gradient-to-r from-primary via-primary/90 to-secondary rounded-full flex items-center justify-center shadow-lg hover:scale-125 transition-all duration-300 border-4 border-background/50 group">
-                            <span className="text-white font-bold text-sm group-hover:scale-110 transition-transform duration-300">
-                              {milestone.year}
-                            </span>
+                <div className="mt-10 grid gap-4 lg:grid-cols-2">
+                  {milestones.map((milestone) => (
+                    <Card
+                      key={milestone.year}
+                      className="border-border/70 bg-card shadow-sm transition-transform duration-300 hover:-translate-y-0.5"
+                    >
+                      <CardContent className="p-6">
+                        <div className="flex items-start gap-4">
+                          <div className="min-w-16 rounded-2xl border border-primary/20 bg-primary/10 px-3 py-2 text-center text-sm font-bold text-primary">
+                            {milestone.year}
                           </div>
-                          <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-full blur-lg"></div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-foreground">
+                              {milestone.event}
+                            </h3>
+                            <p className="mt-2 text-sm leading-7 text-muted-foreground sm:text-base">
+                              {milestone.description}
+                            </p>
+                          </div>
                         </div>
-
-                        {/* Enhanced Timeline Card */}
-                        <div className="flex-1 min-w-0">
-                          <Card className="group bg-gradient-to-br from-card/90 to-muted/30 dark:from-card/95 dark:to-muted/40 border-primary/30 dark:border-primary/40 glass backdrop-blur-sm hover:shadow-xl dark:hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] hover:-translate-y-2 relative overflow-hidden">
-                            {/* Card Background Effect */}
-                            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-secondary/5 dark:from-primary/10 dark:to-secondary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-
-                            <CardContent className="relative p-6">
-                              <div className="flex items-center space-x-4 mb-6">
-                                <div className="w-3 h-3 bg-gradient-to-r from-primary to-secondary rounded-full animate-pulse"></div>
-                                <h3 className="text-2xl font-bold text-foreground gradient-text group-hover:scale-105 transition-transform duration-300">
-                                  {milestone.event}
-                                </h3>
-                              </div>
-                              <p className="text-muted-foreground leading-relaxed text-lg font-light group-hover:text-foreground/80 transition-colors duration-300">
-                                {milestone.description}
-                              </p>
-
-                              {/* Decorative Element */}
-                              <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-secondary rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                            </CardContent>
-                          </Card>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
               </div>
             </div>
           </section>
         </LazySection>
 
-        {/* Call to Action Section */}
         <LazySection fallback={<SectionSkeleton />}>
-          <section className="relative py-12 sm:py-16 md:py-20 lg:py-24 bg-gradient-to-br from-orange-500 via-orange-400 to-orange-300 dark:from-orange-600 dark:via-orange-500 dark:to-orange-400 overflow-hidden">
-            {/* Advanced Background Effects */}
-            <div className="absolute inset-0 bg-gradient-to-r from-orange-400/20 to-orange-300/20 dark:from-orange-500/30 dark:to-orange-400/30"></div>
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white/15 via-transparent to-transparent"></div>
-            <div className="absolute inset-0">
-              <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-transparent via-white/8 to-transparent"></div>
-            </div>
-            {/* Subtle Floating Elements */}
-            <div className="absolute top-20 left-20 w-40 h-40 bg-white/5 rounded-full blur-2xl animate-pulse"></div>
-            <div className="absolute bottom-20 right-20 w-32 h-32 bg-white/5 rounded-full blur-2xl animate-pulse delay-1000"></div>
-            <div className="absolute top-1/2 left-1/4 w-24 h-24 bg-white/3 rounded-full blur-xl animate-pulse delay-500"></div>
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-              <div className="max-w-7xl mx-auto text-center text-white">
-                <div className="animate-fade-in-up">
-                  <h2 className="text-3xl sm:text-4xl md:text-5xl font-playfair font-bold mb-6 text-white drop-shadow-lg">
+          <section className="border-y border-border/70 bg-primary/[0.96] py-16 text-primary-foreground sm:py-20">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="mx-auto flex max-w-7xl flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+                <div className="max-w-3xl">
+                  <h2 className="font-playfair text-3xl font-bold sm:text-4xl">
                     {t("about.legacy.title")}
                   </h2>
-                </div>
-
-                <div className="animate-fade-in-up delay-200">
-                  <p className="text-lg sm:text-xl text-white/90 mb-12 leading-relaxed max-w-4xl mx-auto font-light">
+                  <p className="mt-4 text-base leading-8 text-primary-foreground/85 sm:text-lg">
                     {t("about.legacy.description")}
                   </p>
                 </div>
-
-                <div className="animate-fade-in-up delay-400">
-                  <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center mb-12">
-                    <Button
-                      size="lg"
-                      className="bg-orange-600 text-white hover:bg-orange-700 text-base px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 font-semibold"
-                    >
-                      {t("navigation.bookConsultation")}
-                    </Button>
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      className="border-2 border-white text-white hover:bg-white hover:text-orange-600 text-base px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 font-semibold"
-                    >
-                      Free Health Assessment
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="animate-fade-in-up delay-600">
-                  <div className="flex flex-wrap justify-center gap-4 text-white/90">
-                    <div className="flex items-center space-x-3 bg-green-400 dark:bg-green-500 rounded-full px-6 py-3 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105">
-                      <CheckCircle className="w-6 h-6 text-green-700 dark:text-green-800" />
-                      <span className="font-semibold text-white text-base">
-                        Government Certified
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-3 bg-blue-400 dark:bg-blue-500 rounded-full px-6 py-3 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105">
-                      <Shield className="w-6 h-6 text-blue-700 dark:text-blue-800" />
-                      <span className="font-semibold text-white text-base">
-                        ISO 9001:2015
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-3 bg-pink-400 dark:bg-pink-500 rounded-full px-6 py-3 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105">
-                      <Award className="w-6 h-6 text-pink-700 dark:text-pink-800" />
-                      <span className="font-semibold text-white text-base">
-                        Teaching Hospital
-                      </span>
-                    </div>
-                  </div>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <Button
+                    size="lg"
+                    className="bg-white text-primary hover:bg-white/90"
+                  >
+                    {t("navigation.bookConsultation")}
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="border-white/35 bg-transparent text-white hover:bg-white/10 hover:text-white"
+                  >
+                    Free Health Assessment
+                  </Button>
                 </div>
               </div>
             </div>
           </section>
         </LazySection>
 
-        {/* Clinic Information Section */}
         <LazySection fallback={<SectionSkeleton />}>
-          <section className="relative py-8 sm:py-12 md:py-16 bg-gradient-to-br from-background via-muted/10 to-primary/5 dark:from-background dark:via-muted/20 dark:to-primary/10">
+          <section className="bg-muted/20 py-16 sm:py-20">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="animate-fade-in-up">
-                <Suspense fallback={<SectionSkeleton />}>
-                  <ClinicInfo
-                    variant="full"
-                    showDoctor={true}
-                    showTimings={true}
-                    showContact={true}
-                  />
-                </Suspense>
-              </div>
+              <Suspense fallback={<SectionSkeleton />}>
+                <ClinicInfo
+                  variant="full"
+                  showDoctor={true}
+                  showTimings={true}
+                  showContact={true}
+                />
+              </Suspense>
             </div>
           </section>
         </LazySection>

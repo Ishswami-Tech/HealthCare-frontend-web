@@ -80,10 +80,10 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
 
   return (
     <header className={cn(
-      "sticky top-0 z-40 w-full transition-all duration-200 border-b border-border/10 bg-primary/90 backdrop-blur-md",
+      "sticky top-0 z-40 w-full border-b border-border/70 bg-background/88 backdrop-blur-xl transition-all duration-200",
       className
     )}>
-      <div className="flex h-12 md:h-14 items-center px-3 md:px-5 gap-3 max-w-6xl mx-auto">
+      <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-3 sm:px-4 md:h-16 md:px-6">
         {/* Left side content (title, breadcrumbs, etc) */}
         <div className="flex-1 flex items-center min-w-0">
           {showSidebarTrigger && (
@@ -95,7 +95,7 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
               key={pageTitle}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              className="text-sm md:text-base font-bold tracking-tight text-foreground truncate pl-1 border-l-2 border-primary/50 ml-1"
+              className="ml-1 truncate border-l-2 border-primary/50 pl-2 text-sm font-bold tracking-tight text-foreground md:text-base"
             >
               {pageTitle}
             </motion.h1>
@@ -115,7 +115,7 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
               <div className="hidden sm:block h-4 w-px bg-border/40 mx-2" />
 
               {/* 2. Utility Cluster */}
-              <div className="flex items-center gap-1 p-0.5 bg-muted/30 dark:bg-muted/10 rounded-full border border-border/50 backdrop-blur-md shadow-sm">
+              <div className="flex items-center gap-1 rounded-full border border-border/70 bg-card/90 p-1 shadow-sm ring-1 ring-border/20">
                 <NotificationBell className="h-7 w-7 rounded-full hover:bg-muted/50 transition-colors" />
                 
                 <div className="h-4 w-px bg-border/40 mx-0.5" />
@@ -150,7 +150,7 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
                         )}
                       </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-64 p-2 mt-2 mr-4 rounded-2xl shadow-2xl border border-border" align="end">
+                    <DropdownMenuContent className="mt-2 w-64 rounded-2xl border border-border/80 p-2 shadow-xl" align="end">
                       <DropdownMenuLabel className="font-normal p-3">
                         <div className="flex flex-col gap-1">
                           <p className="text-sm font-bold leading-none">{displayUser.name}</p>

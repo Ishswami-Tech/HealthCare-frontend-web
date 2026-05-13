@@ -177,58 +177,58 @@ export default function ViddhaKarmaPage() {
         </div>
 
         {/* Hero Section */}
-        <section className="relative py-16 sm:py-20 md:py-24 lg:py-28 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-background via-background/98 to-muted/30"></div>
-          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-purple-500/5 to-indigo-500/10"></div>
-          <div className="absolute inset-0 bg-gradient-to-bl from-purple-400/3 via-transparent to-indigo-400/5"></div>
-          <div className="absolute top-20 left-8 w-20 h-20 bg-gradient-to-r from-purple-400/20 to-indigo-400/20 rounded-full blur-xl animate-pulse"></div>
-          <div className="absolute top-32 right-16 w-32 h-32 bg-gradient-to-r from-indigo-400/15 to-purple-400/15 rounded-full blur-2xl animate-pulse delay-1000"></div>
-          <div className="absolute bottom-24 left-1/3 w-24 h-24 bg-gradient-to-r from-purple-300/10 to-indigo-300/10 rounded-full blur-xl animate-pulse delay-2000"></div>
-          <div className="absolute top-1/2 right-1/4 w-16 h-16 bg-gradient-to-r from-purple-500/20 to-indigo-500/20 rounded-full blur-lg animate-pulse delay-3000"></div>
-          <div className="absolute top-16 right-8 w-12 h-12 border border-purple-400/20 rotate-45 animate-spin-slow"></div>
-          <div className="absolute bottom-32 left-12 w-8 h-8 border border-indigo-400/20 rotate-12 animate-pulse"></div>
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <div className="max-w-5xl mx-auto text-center">
-              <Badge className="bg-gradient-to-r from-purple-100 to-indigo-100 dark:from-purple-900/50 dark:to-indigo-900/50 text-purple-800 dark:text-purple-100 border-purple-200 dark:border-purple-700/60 glass interactive mb-8 px-6 py-3 text-sm font-medium">
-                <Zap className="w-4 h-4 mr-2" />
-                {t("viddhakarma.badge")}
-              </Badge>
-              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-5xl xl:text-6xl font-playfair font-bold text-foreground mb-8 gradient-text leading-tight">
-                {t("viddhakarma.title")}
-              </h1>
-              <p className="text-xl sm:text-2xl text-muted-foreground mb-10 leading-relaxed max-w-4xl mx-auto">
-                {t("viddhakarma.subtitle")}
-              </p>
-              <div className="flex flex-wrap justify-center gap-4 mb-10">
-                <Badge className="bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/50 dark:to-emerald-900/50 text-green-800 dark:text-green-100 border-green-200 dark:border-green-700/60 glass interactive px-4 py-2">
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  89% {t("common.success")}{" "}
-                  {t("agnikarma.comparison.successRate")}
+        <section className="relative overflow-hidden border-b border-border/70 bg-[linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--muted)/0.34)_100%)] py-16 sm:py-20 lg:py-24">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.10),transparent_34%),radial-gradient(circle_at_bottom_right,hsl(var(--secondary)/0.08),transparent_32%)]" />
+          <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
+              <div>
+                <Badge className="mb-6 border-primary/20 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary shadow-none">
+                  <Zap className="mr-2 h-4 w-4" />
+                  {t("viddhakarma.badge")}
                 </Badge>
-                <Badge className="bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-900/50 dark:to-cyan-900/50 text-blue-800 dark:text-blue-100 border-blue-200 dark:border-blue-700/60 glass interactive px-4 py-2">
-                  <Target className="w-4 h-4 mr-2" />
-                  107 Marma Points
-                </Badge>
-                <Badge className="bg-gradient-to-r from-purple-100 to-violet-100 dark:from-purple-900/50 dark:to-violet-900/50 text-purple-800 dark:text-purple-100 border-purple-200 dark:border-purple-700/60 glass interactive px-4 py-2">
-                  <Shield className="w-4 h-4 mr-2" />
-                  {t("common.scientificallyValidated")}
-                </Badge>
+                <h1 className="max-w-5xl font-playfair text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
+                  {t("viddhakarma.title")}
+                </h1>
+                <p className="mt-6 max-w-4xl text-base leading-8 text-muted-foreground sm:text-lg lg:text-xl">
+                  {t("viddhakarma.subtitle")}
+                </p>
+                <div className="mt-8 flex flex-wrap gap-3">
+                  <div className="inline-flex items-center rounded-full border border-border/70 bg-card px-4 py-2 text-sm font-medium shadow-sm">
+                    <CheckCircle className="mr-2 h-4 w-4 text-primary" />
+                    89% {t("common.success")}{" "}
+                    {t("agnikarma.comparison.successRate")}
+                  </div>
+                  <div className="inline-flex items-center rounded-full border border-border/70 bg-card px-4 py-2 text-sm font-medium shadow-sm">
+                    <Target className="mr-2 h-4 w-4 text-primary" />
+                    107 Marma Points
+                  </div>
+                  <div className="inline-flex items-center rounded-full border border-border/70 bg-card px-4 py-2 text-sm font-medium shadow-sm">
+                    <Shield className="mr-2 h-4 w-4 text-primary" />
+                    {t("common.scientificallyValidated")}
+                  </div>
+                </div>
               </div>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button
-                  size="lg"
-                  className="bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 dark:from-purple-600 dark:to-indigo-700 dark:hover:from-purple-700 dark:hover:to-indigo-800 text-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300"
-                >
-                  {t("viddhakarma.cta.bookConsultation")}
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="border-2 border-primary/30 text-primary hover:bg-primary/10 text-lg px-10 py-4 interactive"
-                >
-                  {t("viddhakarma.cta.freeAssessment")}
-                </Button>
-              </div>
+
+              <Card className="border-border/70 bg-card/96 shadow-[0_28px_90px_-56px_rgba(15,23,42,0.45)]">
+                <CardContent className="p-6 sm:p-7">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
+                    Advanced therapy
+                  </p>
+                  <p className="mt-4 text-base leading-7 text-muted-foreground">
+                    A more precise, premium entry into the treatment story,
+                    with outcomes and next actions presented in one quiet,
+                    credible frame.
+                  </p>
+                  <div className="mt-6 flex flex-col gap-3">
+                    <Button size="lg" className="w-full">
+                      {t("viddhakarma.cta.bookConsultation")}
+                    </Button>
+                    <Button variant="outline" size="lg" className="w-full">
+                      {t("viddhakarma.cta.freeAssessment")}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </section>

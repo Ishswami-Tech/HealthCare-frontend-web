@@ -30,15 +30,15 @@ function ErrorFallback({
   resetErrorBoundary: () => void;
 }) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex items-center justify-center px-4">
-      <div className="max-w-md w-full text-center">
-        <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+    <div className="flex min-h-screen items-center justify-center bg-base-200 px-4 py-10">
+      <div className="w-full max-w-md rounded-[1.75rem] border border-border/80 bg-card/95 p-6 text-center shadow-xl ring-1 ring-border/30 sm:p-8">
+        <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-2xl bg-destructive/10">
           <AlertTriangle className="w-8 h-8 text-red-600" />
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+        <h1 className="mb-2 text-2xl font-bold text-foreground">
           Application Error
         </h1>
-        <p className="text-gray-600 mb-6">
+        <p className="mb-6 text-muted-foreground">
           {error ? sanitizeErrorMessage(error) : ERROR_MESSAGES.UNKNOWN_ERROR}
         </p>
         <Button onClick={resetErrorBoundary} className="w-full">
@@ -46,11 +46,11 @@ function ErrorFallback({
           Try Again
         </Button>
         {process.env.NODE_ENV === "development" && (
-          <div className="mt-6 p-4 bg-gray-100 rounded-lg text-left">
-            <h3 className="font-semibold text-sm text-gray-900 mb-2">
+          <div className="mt-6 rounded-2xl border border-border/80 bg-muted/35 p-4 text-left">
+            <h3 className="mb-2 text-sm font-semibold text-foreground">
               Error Details:
             </h3>
-            <pre className="text-xs text-gray-600 overflow-auto whitespace-pre-wrap">
+            <pre className="overflow-auto whitespace-pre-wrap text-xs text-muted-foreground">
               {error?.message || "Unknown error"}
             </pre>
           </div>
@@ -62,7 +62,7 @@ function ErrorFallback({
 
 function AppProviderFallback() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-blue-950/20 dark:via-background dark:to-indigo-950/20 flex items-center justify-center">
+    <div className="flex min-h-screen items-center justify-center bg-base-200 px-4">
       <LoadingSpinner size="lg" text="Initializing..." center />
     </div>
   );

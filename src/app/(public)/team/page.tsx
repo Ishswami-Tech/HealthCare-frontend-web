@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense } from "react";
 import { useTranslation } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,13 +15,9 @@ import {
   Heart,
   Brain,
   Shield,
-  Sparkles,
-  Zap,
   Crown,
-  Diamond,
   Flame,
   Stethoscope,
-  Microscope,
   BookOpen,
 } from "lucide-react";
 
@@ -35,13 +31,11 @@ import { getIconColorScheme } from "@/lib/config/color-palette";
 
 export default function TeamPage() {
   const { t } = useTranslation();
-  const [hoveredCard, setHoveredCard] = useState<number | null>(null);
 
-  // Sample videos for demonstration
   const sampleVideos = [
     {
       id: "1",
-      videoId: "dQw4w9WgXcQ", // Sample YouTube video ID
+      videoId: "dQw4w9WgXcQ",
       title: t("team.videos.panchakarma.title"),
       description: t("team.videos.panchakarma.description"),
     },
@@ -65,46 +59,36 @@ export default function TeamPage() {
       title: t("team.teamMembers.drDeshmukh.title"),
       specialization: t("team.teamMembers.drDeshmukh.specialization"),
       experience: t("team.teamMembers.drDeshmukh.experience"),
-      image: "/api/placeholder/150/150",
       credentials: t("team.teamMembers.drDeshmukh.credentials"),
       achievements: t("team.teamMembers.drDeshmukh.achievements"),
       colorScheme: getIconColorScheme("Brain"),
       icon: Brain,
-      gradient: "from-purple-500 to-indigo-600",
-      accent: "purple",
     },
     {
       name: t("team.teamMembers.vaidyaKrishnamurthy.name"),
       title: t("team.teamMembers.vaidyaKrishnamurthy.title"),
       specialization: t("team.teamMembers.vaidyaKrishnamurthy.specialization"),
       experience: t("team.teamMembers.vaidyaKrishnamurthy.experience"),
-      image: "/api/placeholder/150/150",
       credentials: t("team.teamMembers.vaidyaKrishnamurthy.credentials"),
       achievements: t("team.teamMembers.vaidyaKrishnamurthy.achievements"),
       colorScheme: getIconColorScheme("Flame"),
       icon: Flame,
-      gradient: "from-orange-500 to-red-600",
-      accent: "orange",
     },
     {
       name: t("team.teamMembers.drPriyaSharma.name"),
       title: t("team.teamMembers.drPriyaSharma.title"),
       specialization: t("team.teamMembers.drPriyaSharma.specialization"),
       experience: t("team.teamMembers.drPriyaSharma.experience"),
-      image: "/api/placeholder/150/150",
       credentials: t("team.teamMembers.drPriyaSharma.credentials"),
       achievements: t("team.teamMembers.drPriyaSharma.achievements"),
       colorScheme: getIconColorScheme("Heart"),
       icon: Heart,
-      gradient: "from-pink-500 to-rose-600",
-      accent: "pink",
     },
     {
       name: "Dr. Sunita Patel",
       title: "Women's Health & Fertility Expert",
       specialization: "Reproductive Health Specialist",
       experience: "15+ years",
-      image: "/api/placeholder/150/150",
       credentials: ["BAMS", "Fertility Specialist", "Hormonal Balance Expert"],
       achievements: [
         "500+ successful pregnancies",
@@ -113,8 +97,6 @@ export default function TeamPage() {
       ],
       colorScheme: getIconColorScheme("Stethoscope"),
       icon: Stethoscope,
-      gradient: "from-emerald-500 to-teal-600",
-      accent: "emerald",
     },
   ];
 
@@ -151,7 +133,6 @@ export default function TeamPage() {
       label: t("team.teamStats.experience.label"),
       icon: Crown,
       colorScheme: getIconColorScheme("Crown"),
-      gradient: "from-yellow-500 to-orange-500",
       description: "Decades of combined expertise",
     },
     {
@@ -159,7 +140,6 @@ export default function TeamPage() {
       label: t("team.teamStats.patients.label"),
       icon: Users,
       colorScheme: getIconColorScheme("Users"),
-      gradient: "from-blue-500 to-cyan-500",
       description: "Lives transformed through healing",
     },
     {
@@ -167,7 +147,6 @@ export default function TeamPage() {
       label: t("team.teamStats.publications.label"),
       icon: BookOpen,
       colorScheme: getIconColorScheme("BookOpen"),
-      gradient: "from-green-500 to-emerald-500",
       description: "Research contributions to Ayurveda",
     },
     {
@@ -175,180 +154,122 @@ export default function TeamPage() {
       label: t("team.teamStats.conferences.label"),
       icon: Globe,
       colorScheme: getIconColorScheme("Globe"),
-      gradient: "from-purple-500 to-violet-500",
       description: "International recognition",
     },
   ];
 
+  const renderList = (value: string | string[]) =>
+    Array.isArray(value) ? value.join(" | ") : value;
+
   return (
     <PageTransition>
-      <div className="min-h-screen overflow-hidden">
-        {/* Ultra-Advanced Background Elements */}
-        <div className="fixed inset-0 -z-10 overflow-hidden">
-          {/* Dynamic floating orbs with enhanced effects */}
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-orange-400/30 to-red-400/30 rounded-full blur-3xl animate-pulse shadow-2xl shadow-orange-500/20"></div>
-          <div className="absolute top-3/4 right-1/4 w-80 h-80 bg-gradient-to-r from-blue-400/30 to-purple-400/30 rounded-full blur-3xl animate-pulse shadow-2xl shadow-blue-500/20 animation-delay-2000"></div>
-          <div className="absolute bottom-1/4 left-1/3 w-64 h-64 bg-gradient-to-r from-green-400/30 to-teal-400/30 rounded-full blur-3xl animate-pulse shadow-2xl shadow-green-500/20 animation-delay-4000"></div>
-          <div className="absolute top-1/2 right-1/3 w-72 h-72 bg-gradient-to-r from-pink-400/25 to-rose-400/25 rounded-full blur-3xl animate-pulse shadow-2xl shadow-pink-500/20 animation-delay-6000"></div>
-
-          {/* Enhanced geometric patterns */}
-          <div className="absolute top-0 left-0 w-full h-full opacity-10">
-            <div className="absolute top-20 left-20 w-32 h-32 border-2 border-orange-400/40 rotate-45 animate-spin shadow-lg shadow-orange-500/30 animation-duration-20s"></div>
-            <div className="absolute top-40 right-32 w-24 h-24 border-2 border-blue-400/40 rotate-12 animate-spin shadow-lg shadow-blue-500/30 animation-duration-15s animation-reverse"></div>
-            <div className="absolute bottom-32 left-1/3 w-40 h-40 border-2 border-green-400/40 rotate-45 animate-spin shadow-lg shadow-green-500/30 animation-duration-25s"></div>
-            <div className="absolute top-1/2 right-1/4 w-28 h-28 border-2 border-purple-400/40 rotate-12 animate-spin shadow-lg shadow-purple-500/30 animation-duration-18s animation-reverse"></div>
-          </div>
-
-          {/* Animated grid overlay with enhanced effects */}
-          <div className="absolute inset-0 bg-grid-pattern opacity-10 animate-pulse"></div>
-
-          {/* Floating particles */}
-          <div className="absolute inset-0">
-            {[...Array(20)].map((_, i) => (
-              <div
-                key={i}
-                className="absolute w-2 h-2 bg-gradient-to-r from-orange-400 to-red-400 rounded-full opacity-60 animate-bounce"
-                style={{
-                  left: `${20 + i * 4}%`,
-                  top: `${10 + i * 3}%`,
-                }}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Language & Theme Switchers */}
-        <div className="fixed top-3 right-3 sm:top-4 sm:right-4 z-50 flex gap-2">
+      <div className="min-h-screen bg-background text-foreground">
+        <div className="fixed right-3 top-3 z-50 flex gap-2 sm:right-4 sm:top-4">
           <LanguageSwitcher variant="compact" />
           <CompactThemeSwitcher />
         </div>
 
-        {/* Ultra-Enhanced Hero Section */}
-        <LazySection fallback={<SectionSkeleton />}>
-          <section className="relative py-12 sm:py-16 md:py-20 bg-gradient-to-br from-background via-background/95 to-muted/30 overflow-hidden">
-            {/* Hero background effects */}
-            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-red-500/5"></div>
-            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-96 h-96 bg-gradient-to-r from-orange-400/10 to-red-400/10 rounded-full blur-3xl"></div>
-
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-              <div className="max-w-6xl mx-auto text-center">
-                <div className="mb-8 animate-fade-in-down">
-                  <Badge className="bg-gradient-to-r from-orange-100 to-red-100 dark:from-orange-900/50 dark:to-red-900/50 text-orange-800 dark:text-orange-100 border-orange-200 dark:border-orange-700/60 px-6 py-3 text-sm font-semibold backdrop-blur-sm glass shadow-md shadow-orange-500/20">
-                    <Sparkles className="w-5 h-5 mr-3 animate-pulse" />
-                    {t("team.badge")}
-                    <Sparkles className="w-5 h-5 ml-3 animate-pulse" />
-                  </Badge>
-                </div>
-
-                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-playfair font-bold text-foreground mb-6 leading-tight animate-fade-in-up">
-                  <span className="bg-gradient-to-r from-orange-600 via-red-600 to-pink-600 bg-clip-text text-transparent drop-shadow-2xl relative">
-                    {t("team.title")}
-                    <div className="absolute -inset-1 bg-gradient-to-r from-orange-600/20 via-red-600/20 to-pink-600/20 blur-xl -z-10"></div>
-                  </span>
+        <section className="relative overflow-hidden border-b border-border/70 bg-[linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--muted)/0.34)_100%)] py-16 sm:py-20 lg:py-24">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.10),transparent_34%),radial-gradient(circle_at_bottom_right,hsl(var(--secondary)/0.08),transparent_32%)]" />
+          <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
+              <div>
+                <Badge className="mb-6 border-primary/20 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary shadow-none">
+                  <Users className="mr-2 h-4 w-4" />
+                  {t("team.badge")}
+                </Badge>
+                <h1 className="max-w-5xl font-playfair text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
+                  {t("team.title")}
                 </h1>
-
-                <p className="text-lg md:text-xl lg:text-2xl text-muted-foreground mb-12 leading-relaxed max-w-4xl mx-auto drop-shadow-sm animate-fade-in-up animation-delay-200">
+                <p className="mt-6 max-w-4xl text-base leading-8 text-muted-foreground sm:text-lg lg:text-xl">
                   {t("team.description")}
                 </p>
-
-                <div className="flex flex-wrap justify-center gap-4 mb-12 animate-fade-in-up animation-delay-400">
-                  <Badge className="bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/50 dark:to-emerald-900/50 text-green-800 dark:text-green-100 border-green-200 dark:border-green-700/60 px-4 py-2 text-sm font-semibold shadow-md shadow-green-500/30 hover:shadow-green-500/50 transition-all duration-300 hover:scale-105">
-                    <Shield className="w-5 h-5 mr-3" />
+                <div className="mt-8 flex flex-wrap gap-3">
+                  <div className="inline-flex items-center rounded-full border border-border/70 bg-card px-4 py-2 text-sm font-medium shadow-sm">
+                    <Shield className="mr-2 h-4 w-4 text-primary" />
                     Government Certified
-                  </Badge>
-                  <Badge className="bg-gradient-to-r from-purple-100 to-violet-100 dark:from-purple-900/50 dark:to-violet-900/50 text-purple-800 dark:text-purple-100 border-purple-200 dark:border-purple-700/60 px-4 py-2 text-sm font-semibold shadow-md shadow-purple-500/30 hover:shadow-purple-500/50 transition-all duration-300 hover:scale-105">
-                    <Microscope className="w-5 h-5 mr-3" />
+                  </div>
+                  <div className="inline-flex items-center rounded-full border border-border/70 bg-card px-4 py-2 text-sm font-medium shadow-sm">
+                    <BookOpen className="mr-2 h-4 w-4 text-primary" />
                     Published Researchers
-                  </Badge>
-                  <Badge className="bg-gradient-to-r from-orange-100 to-red-100 dark:from-orange-900/50 dark:to-red-900/50 text-orange-800 dark:text-orange-100 border-orange-200 dark:border-orange-700/60 px-4 py-2 text-sm font-semibold shadow-md shadow-orange-500/30 hover:shadow-orange-500/50 transition-all duration-300 hover:scale-105">
-                    <Crown className="w-5 h-5 mr-3" />
+                  </div>
+                  <div className="inline-flex items-center rounded-full border border-border/70 bg-card px-4 py-2 text-sm font-medium shadow-sm">
+                    <Award className="mr-2 h-4 w-4 text-primary" />
                     Certified Teachers
-                  </Badge>
-                </div>
-
-                {/* Floating action buttons */}
-                <div className="flex flex-col sm:flex-row gap-3 justify-center animate-fade-in-up animation-delay-600">
-                  <Button
-                    size="lg"
-                    className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white text-base px-6 py-3 rounded-lg font-semibold shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 transition-all duration-300 hover:scale-105"
-                  >
-                    <Zap className="w-5 h-5 mr-3" />
-                    Meet Our Team
-                  </Button>
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="border-2 border-orange-500/50 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 text-base px-6 py-3 rounded-lg font-semibold backdrop-blur-sm transition-all duration-300 hover:scale-105"
-                  >
-                    <Users className="w-5 h-5 mr-3" />
-                    View Expertise
-                  </Button>
+                  </div>
                 </div>
               </div>
+
+              <Card className="border-border/70 bg-card/96 shadow-[0_28px_90px_-56px_rgba(15,23,42,0.45)]">
+                <CardContent className="p-6 sm:p-7">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
+                    Clinical leadership
+                  </p>
+                  <p className="mt-4 text-base leading-7 text-muted-foreground">
+                    Senior practitioners, focused specialists, and advisory
+                    voices working together across patient care, education,
+                    and treatment quality.
+                  </p>
+                  <div className="mt-6 grid gap-3">
+                    {teamStats.slice(0, 3).map((stat) => (
+                      <div
+                        key={stat.label}
+                        className="flex items-center justify-between rounded-2xl border border-border/70 bg-muted/35 px-4 py-3"
+                      >
+                        <span className="text-sm text-muted-foreground">
+                          {stat.label}
+                        </span>
+                        <span className="text-sm font-bold text-foreground">
+                          {stat.number}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-          </section>
-        </LazySection>
+          </div>
+        </section>
 
-        {/* Ultra-Enhanced Team Stats */}
         <LazySection fallback={<SectionSkeleton />}>
-          <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-muted/30 via-background to-muted/20 relative overflow-hidden">
-            {/* Section background effects */}
-            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/3 via-transparent to-red-500/3"></div>
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-blue-400/5 to-purple-400/5 rounded-full blur-3xl"></div>
-
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-              <div className="max-w-7xl mx-auto">
-                <div className="text-center mb-12 lg:mb-16">
-                  <h2 className="text-2xl md:text-3xl lg:text-4xl font-playfair font-bold text-foreground mb-4 gradient-text">
+          <section className="py-16 sm:py-20">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="mx-auto max-w-7xl">
+                <div className="max-w-3xl">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
+                    Team strength
+                  </p>
+                  <h2 className="mt-4 font-playfair text-3xl font-bold sm:text-4xl">
                     Our Excellence in Numbers
                   </h2>
-                  <p className="text-base md:text-lg text-muted-foreground max-w-3xl mx-auto">
-                    Quantifying our impact and expertise in Ayurvedic healing
+                  <p className="mt-4 text-base leading-8 text-muted-foreground sm:text-lg">
+                    Quantifying the depth of experience behind the care model.
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-                  {teamStats.map((stat, index) => {
-                    const IconComponent = stat.icon;
-
+                <div className="mt-10 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                  {teamStats.map((stat) => {
+                    const Icon = stat.icon;
                     return (
                       <Card
-                        key={index}
-                        className="group text-center hover:shadow-xl dark:hover:shadow-2xl transition-all duration-300 border-0 bg-gradient-to-br from-card/90 to-muted/30 dark:from-card/95 dark:to-muted/40 glass backdrop-blur-sm hover:scale-110 hover:-translate-y-4 relative overflow-hidden"
-                        onMouseEnter={() => setHoveredCard(index)}
-                        onMouseLeave={() => setHoveredCard(null)}
+                        key={stat.label}
+                        className="border-border/70 bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
                       >
-                        {/* Glowing border effect */}
-                        <div
-                          className={`absolute inset-0 bg-gradient-to-r ${stat.gradient} opacity-0 group-hover:opacity-20 transition-opacity duration-500 rounded-xl blur-sm`}
-                        ></div>
-
-                        <CardContent className="p-4 lg:p-6 relative z-10">
+                        <CardContent className="p-6">
                           <div
-                            className={`w-16 h-16 lg:w-20 lg:h-20 bg-gradient-to-r ${stat.gradient} rounded-3xl flex items-center justify-center mx-auto mb-4 interactive transition-all duration-300 group-hover:scale-110 group-hover:rotate-12 shadow-md shadow-blue-500/30 group-hover:shadow-blue-500/50`}
+                            className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${stat.colorScheme.gradient}`}
                           >
-                            <IconComponent className="w-8 h-8 lg:w-10 lg:h-10 text-white drop-shadow-lg" />
+                            <Icon className="h-5 w-5 text-white" />
                           </div>
-                          <div className="text-3xl lg:text-4xl font-bold text-foreground mb-2 gradient-text group-hover:scale-110 transition-transform duration-300">
+                          <div className="mt-5 text-3xl font-bold text-foreground">
                             {stat.number}
                           </div>
-                          <div className="text-xs lg:text-sm text-muted-foreground font-semibold mb-2">
+                          <div className="mt-1 text-sm font-medium text-foreground">
                             {stat.label}
                           </div>
-                          <div className="text-xs text-muted-foreground/70 leading-relaxed">
+                          <p className="mt-3 text-sm leading-7 text-muted-foreground">
                             {stat.description}
-                          </div>
-
-                          {/* Animated progress bar */}
-                          <div className="mt-3 w-full bg-muted/30 rounded-full h-1 overflow-hidden">
-                            <div
-                              className={`h-full bg-gradient-to-r ${
-                                stat.gradient
-                              } rounded-full transition-all duration-1000 ease-out ${
-                                hoveredCard === index ? "w-full" : "w-0"
-                              }`}
-                            ></div>
-                          </div>
+                          </p>
                         </CardContent>
                       </Card>
                     );
@@ -359,98 +280,76 @@ export default function TeamPage() {
           </section>
         </LazySection>
 
-        {/* Ultra-Enhanced Chief Medical Officers */}
         <LazySection fallback={<SectionSkeleton />}>
-          <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-background via-muted/20 to-background relative overflow-hidden">
-            {/* Section background effects */}
-            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/3 via-transparent to-red-500/3"></div>
-            <div className="absolute top-1/4 right-1/4 w-80 h-80 bg-gradient-to-r from-purple-400/5 to-pink-400/5 rounded-full blur-3xl"></div>
-
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-              <div className="max-w-8xl mx-auto">
-                <div className="text-center mb-16 lg:mb-20">
-                  <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-bold text-foreground mb-6 gradient-text">
+          <section className="border-y border-border/70 bg-muted/25 py-16 sm:py-20">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="mx-auto max-w-7xl">
+                <div className="max-w-3xl">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
+                    Medical leadership
+                  </p>
+                  <h2 className="mt-4 font-playfair text-3xl font-bold sm:text-4xl">
                     Chief Medical Officers
                   </h2>
-                  <p className="text-lg md:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">
+                  <p className="mt-4 text-base leading-8 text-muted-foreground sm:text-lg">
                     Leading experts in their respective specializations,
-                    bringing decades of combined experience
+                    bringing decades of combined experience.
                   </p>
                 </div>
 
-                <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
-                  {chiefMedicalOfficers.map((doctor, index) => {
-                    const IconComponent = doctor.icon;
-
+                <div className="mt-10 grid gap-6 lg:grid-cols-2">
+                  {chiefMedicalOfficers.map((doctor) => {
+                    const Icon = doctor.icon;
                     return (
                       <Card
-                        key={index}
-                        className="group hover:shadow-xl dark:hover:shadow-2xl transition-all duration-300 border-0 bg-gradient-to-br from-card/90 to-muted/30 dark:from-card/95 dark:to-muted/40 glass backdrop-blur-sm hover:scale-105 relative overflow-hidden"
-                        onMouseEnter={() => setHoveredCard(index + 10)}
-                        onMouseLeave={() => setHoveredCard(null)}
+                        key={doctor.name}
+                        className="overflow-hidden border-border/70 bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
                       >
-                        {/* Glowing border effect */}
-                        <div
-                          className={`absolute inset-0 bg-gradient-to-r ${doctor.gradient} opacity-0 group-hover:opacity-20 transition-opacity duration-500 rounded-xl blur-sm`}
-                        ></div>
-
-                        <CardContent className="p-0 relative z-10">
-                          <div className="grid md:grid-cols-3">
+                        <CardContent className="grid gap-0 p-0 md:grid-cols-[180px_1fr]">
+                          <div className="flex flex-col items-center justify-center border-b border-border/70 bg-muted/35 p-6 md:border-b-0 md:border-r">
                             <div
-                              className={`bg-gradient-to-br ${doctor.gradient} text-white p-8 lg:p-10 flex flex-col justify-center items-center relative overflow-hidden`}
+                              className={`flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br ${doctor.colorScheme.gradient}`}
                             >
-                              <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
-                              <div className="absolute top-4 right-4">
-                                <Diamond className="w-6 h-6 text-white/30 animate-pulse" />
+                              <Icon className="h-9 w-9 text-white" />
+                            </div>
+                            <div className="mt-5 text-center">
+                              <div className="text-lg font-bold text-foreground">
+                                {doctor.experience}
                               </div>
-
-                              <div className="w-28 h-28 lg:w-32 lg:h-32 bg-white/20 rounded-3xl flex items-center justify-center mb-8 interactive backdrop-blur-sm border border-white/30 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 shadow-lg shadow-white/20">
-                                <IconComponent className="w-16 h-16 lg:w-18 lg:h-18 text-white drop-shadow-lg" />
-                              </div>
-
-                              <div className="text-center relative z-10">
-                                <div className="text-xl lg:text-2xl font-bold mb-2 group-hover:scale-110 transition-transform duration-300">
-                                  {doctor.experience}
-                                </div>
-                                <div className="text-sm lg:text-base opacity-90 font-medium">
-                                  Experience
-                                </div>
+                              <div className="text-sm text-muted-foreground">
+                                Experience
                               </div>
                             </div>
+                          </div>
 
-                            <div className="md:col-span-2 p-8 lg:p-10">
-                              <div className="mb-6">
-                                <h3 className="text-2xl lg:text-3xl font-bold text-foreground mb-4 gradient-text group-hover:scale-105 transition-transform duration-300">
-                                  {doctor.name}
-                                </h3>
-                                <p className="text-muted-foreground mb-4 font-semibold text-lg">
-                                  {doctor.title}
+                          <div className="p-6">
+                            <h3 className="font-playfair text-2xl font-bold text-foreground">
+                              {doctor.name}
+                            </h3>
+                            <p className="mt-2 text-base font-medium text-muted-foreground">
+                              {doctor.title}
+                            </p>
+                            <Badge className="mt-4 border-primary/20 bg-primary/10 text-primary shadow-none">
+                              {doctor.specialization}
+                            </Badge>
+                            <div className="mt-5 grid gap-4">
+                              <div className="rounded-2xl border border-border/70 bg-muted/25 p-4">
+                                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                                  <CheckCircle className="h-4 w-4 text-primary" />
+                                  Credentials
+                                </div>
+                                <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                                  {renderList(doctor.credentials)}
                                 </p>
-                                <Badge className="bg-gradient-to-r from-orange-500/20 to-red-500/20 text-orange-600 dark:text-orange-400 border-orange-200/50 dark:border-orange-800/50 backdrop-blur-sm px-4 py-2 text-sm font-semibold">
-                                  {doctor.specialization}
-                                </Badge>
                               </div>
-
-                              <div className="space-y-6">
-                                <div className="group/credential">
-                                  <h4 className="font-bold text-foreground mb-4 flex items-center text-lg">
-                                    <CheckCircle className="w-5 h-5 mr-3 text-green-500 group-hover/credential:scale-110 transition-transform duration-300" />
-                                    Credentials:
-                                  </h4>
-                                  <p className="text-sm text-muted-foreground leading-relaxed bg-muted/30 p-4 rounded-xl backdrop-blur-sm border border-muted/50">
-                                    {doctor.credentials}
-                                  </p>
+                              <div className="rounded-2xl border border-border/70 bg-muted/25 p-4">
+                                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                                  <Star className="h-4 w-4 text-primary" />
+                                  Key Achievements
                                 </div>
-
-                                <div className="group/achievement">
-                                  <h4 className="font-bold text-foreground mb-4 flex items-center text-lg">
-                                    <Star className="w-5 h-5 mr-3 text-yellow-500 group-hover/achievement:scale-110 transition-transform duration-300" />
-                                    Key Achievements:
-                                  </h4>
-                                  <p className="text-sm text-muted-foreground leading-relaxed bg-muted/30 p-4 rounded-xl backdrop-blur-sm border border-muted/50">
-                                    {doctor.achievements}
-                                  </p>
-                                </div>
+                                <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                                  {renderList(doctor.achievements)}
+                                </p>
                               </div>
                             </div>
                           </div>
@@ -464,59 +363,50 @@ export default function TeamPage() {
           </section>
         </LazySection>
 
-        {/* Ultra-Enhanced Medical Advisory Board */}
         <LazySection fallback={<SectionSkeleton />}>
-          <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-muted/30 via-background to-muted/20 relative overflow-hidden">
-            {/* Section background effects */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/3 via-transparent to-purple-500/3"></div>
-            <div className="absolute bottom-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-indigo-400/5 to-purple-400/5 rounded-full blur-3xl"></div>
-
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-              <div className="max-w-8xl mx-auto">
-                <div className="text-center mb-16 lg:mb-20">
-                  <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-bold text-foreground mb-6 gradient-text">
+          <section className="py-16 sm:py-20">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="mx-auto max-w-7xl">
+                <div className="max-w-3xl">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
+                    Advisory board
+                  </p>
+                  <h2 className="mt-4 font-playfair text-3xl font-bold sm:text-4xl">
                     {t("team.advisoryBoard.title")}
                   </h2>
-                  <p className="text-lg md:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">
+                  <p className="mt-4 text-base leading-8 text-muted-foreground sm:text-lg">
                     {t("team.advisoryBoard.subtitle")}
                   </p>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-8 lg:gap-10">
-                  {advisoryBoard.map((advisor, index) => (
+                <div className="mt-10 grid gap-5 md:grid-cols-2">
+                  {advisoryBoard.map((advisor) => (
                     <Card
-                      key={index}
-                      className="group hover:shadow-xl dark:hover:shadow-2xl transition-all duration-300 border-0 bg-gradient-to-br from-card/90 to-muted/30 dark:from-card/95 dark:to-muted/40 glass backdrop-blur-sm hover:scale-105 relative overflow-hidden"
-                      onMouseEnter={() => setHoveredCard(index + 20)}
-                      onMouseLeave={() => setHoveredCard(null)}
+                      key={advisor.name}
+                      className="border-border/70 bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
                     >
-                      {/* Glowing border effect */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 opacity-0 group-hover:opacity-20 transition-opacity duration-500 rounded-xl blur-sm"></div>
-
-                      <CardHeader className="pb-4 relative z-10">
-                        <div className="flex items-center space-x-4">
-                          <div className="w-16 h-16 lg:w-20 lg:h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-3xl flex items-center justify-center interactive group-hover:scale-110 group-hover:rotate-12 transition-all duration-300 shadow-md shadow-blue-500/30 group-hover:shadow-blue-500/50">
-                            <User className="w-8 h-8 lg:w-10 lg:h-10 text-white drop-shadow-lg" />
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start gap-4">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+                            <User className="h-5 w-5" />
                           </div>
-                          <div className="flex-1">
-                            <CardTitle className="text-lg lg:text-xl text-foreground mb-2 group-hover:scale-105 transition-transform duration-300">
+                          <div>
+                            <CardTitle className="text-xl text-foreground">
                               {advisor.name}
                             </CardTitle>
-                            <p className="text-muted-foreground mb-2 font-semibold text-base">
+                            <p className="mt-1 text-sm font-medium text-muted-foreground">
                               {advisor.title}
                             </p>
-                            <Badge className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-600 dark:text-blue-400 border-blue-200/50 dark:border-blue-800/50 backdrop-blur-sm px-3 py-1 text-xs font-semibold">
+                            <Badge className="mt-3 border-primary/20 bg-primary/10 text-primary shadow-none">
                               {advisor.role}
                             </Badge>
                           </div>
                         </div>
                       </CardHeader>
-                      <CardContent className="pt-0 relative z-10">
-                        <div className="bg-muted/30 p-4 rounded-xl backdrop-blur-sm border border-muted/50 group-hover:bg-muted/40 transition-colors duration-300">
-                          <p className="text-muted-foreground leading-relaxed text-sm">
-                            {advisor.expertise}
-                          </p>
-                        </div>
+                      <CardContent>
+                        <p className="rounded-2xl border border-border/70 bg-muted/25 p-4 text-sm leading-7 text-muted-foreground">
+                          {advisor.expertise}
+                        </p>
                       </CardContent>
                     </Card>
                   ))}
@@ -526,132 +416,63 @@ export default function TeamPage() {
           </section>
         </LazySection>
 
-        {/* Ultra-Enhanced Call to Action */}
         <LazySection fallback={<SectionSkeleton />}>
-          <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-r from-orange-600 via-red-600 to-pink-600 relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-orange-600/95 via-red-600/95 to-pink-600/95"></div>
-            <div className="absolute inset-0 bg-grid-pattern opacity-15"></div>
-
-            {/* Enhanced background effects */}
-            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-white/10 to-white/5 rounded-full blur-3xl animate-pulse"></div>
-            <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-gradient-to-r from-white/8 to-white/3 rounded-full blur-3xl animate-pulse animation-delay-2000"></div>
-
-            {/* Floating particles */}
-            <div className="absolute inset-0">
-              {[...Array(15)].map((_, i) => (
-                <div
-                  key={i}
-                  className="absolute w-3 h-3 bg-white/20 rounded-full animate-bounce"
-                  style={{
-                    left: `${15 + i * 5}%`,
-                    top: `${20 + i * 4}%`,
-                  }}
-                />
-              ))}
-            </div>
-
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-              <div className="max-w-6xl mx-auto text-center text-white">
-                <div className="mb-8">
-                  <Badge className="bg-white/20 text-white border-white/30 px-6 py-3 text-base font-semibold backdrop-blur-sm mb-6">
-                    <Sparkles className="w-5 h-5 mr-3 animate-pulse" />
-                    Ready to Transform Your Health?
-                    <Sparkles className="w-5 h-5 ml-3 animate-pulse" />
-                  </Badge>
+          <section className="border-y border-primary/20 bg-primary/[0.96] py-16 text-primary-foreground sm:py-20">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="mx-auto flex max-w-7xl flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+                <div className="max-w-3xl">
+                  <h2 className="font-playfair text-3xl font-bold sm:text-4xl">
+                    {t("team.cta.title")}
+                  </h2>
+                  <p className="mt-4 text-base leading-8 text-primary-foreground/85 sm:text-lg">
+                    {t("team.cta.subtitle")}
+                  </p>
+                  <p className="mt-3 text-sm leading-7 text-primary-foreground/75 sm:text-base">
+                    {t("team.cta.description")}
+                  </p>
                 </div>
-
-                <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-bold mb-6 drop-shadow-2xl leading-tight">
-                  {t("team.cta.title")}
-                </h2>
-                <p className="text-lg md:text-xl lg:text-2xl text-white/95 mb-6 leading-relaxed drop-shadow-lg max-w-4xl mx-auto">
-                  {t("team.cta.subtitle")}
-                </p>
-                <p className="text-base md:text-lg text-white/85 mb-12 max-w-4xl mx-auto leading-relaxed">
-                  {t("team.cta.description")}
-                </p>
-
-                <div className="flex flex-col sm:flex-row gap-4 lg:gap-6 justify-center mb-12">
-                  <Button
-                    size="lg"
-                    className="bg-white text-orange-600 hover:bg-orange-50 text-lg px-8 py-4 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 border-2 border-white/20"
-                  >
-                    <Zap className="w-6 h-6 mr-4" />
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <Button size="lg" className="bg-white text-primary hover:bg-white/90">
                     {t("team.cta.bookConsultation")}
                   </Button>
                   <Button
                     size="lg"
                     variant="outline"
-                    className="border-3 border-white text-white hover:bg-white/15 text-lg px-8 py-4 rounded-xl font-bold backdrop-blur-sm transition-all duration-300 hover:scale-105 bg-white/5"
+                    className="border-white/35 bg-transparent text-white hover:bg-white/10 hover:text-white"
                   >
-                    <Users className="w-6 h-6 mr-4" />
                     {t("team.cta.scheduleMeeting")}
                   </Button>
-                </div>
-
-                <div className="flex flex-wrap justify-center gap-6 lg:gap-8 text-white/95">
-                  <div className="flex items-center space-x-3 group">
-                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                      <Users className="w-6 h-6" />
-                    </div>
-                    <span className="font-semibold text-base">
-                      {t("team.cta.features.experience")}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-3 group">
-                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                      <Award className="w-6 h-6" />
-                    </div>
-                    <span className="font-semibold text-base">
-                      {t("team.cta.features.research")}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-3 group">
-                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                      <Globe className="w-6 h-6" />
-                    </div>
-                    <span className="font-semibold text-base">
-                      {t("team.cta.features.recognition")}
-                    </span>
-                  </div>
                 </div>
               </div>
             </div>
           </section>
         </LazySection>
 
-        {/* Ultra-Enhanced Treatment Demonstration Videos */}
         <LazySection fallback={<SectionSkeleton />}>
-          <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-background via-muted/20 to-background relative overflow-hidden">
-            {/* Section background effects */}
-            <div className="absolute inset-0 bg-gradient-to-br from-green-500/3 via-transparent to-teal-500/3"></div>
-            <div className="absolute top-1/2 right-1/3 w-96 h-96 bg-gradient-to-r from-emerald-400/5 to-teal-400/5 rounded-full blur-3xl"></div>
-
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-              <div className="max-w-8xl mx-auto">
-                <div className="text-center mb-16 lg:mb-20">
-                  <Badge className="bg-gradient-to-r from-green-500/20 to-teal-500/20 text-green-600 dark:text-green-400 border-green-200/50 dark:border-green-800/50 px-4 py-2 text-sm font-semibold backdrop-blur-sm mb-6">
-                    <Sparkles className="w-5 h-5 mr-3 animate-pulse" />
-                    Treatment Demonstrations
-                    <Sparkles className="w-5 h-5 ml-3 animate-pulse" />
-                  </Badge>
-
-                  <h2 className="text-2xl md:text-3xl lg:text-4xl font-playfair font-bold text-foreground mb-4 gradient-text">
+          <section className="bg-muted/25 py-16 sm:py-20">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="mx-auto max-w-7xl">
+                <div className="max-w-3xl">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
+                    Treatment demonstrations
+                  </p>
+                  <h2 className="mt-4 font-playfair text-3xl font-bold sm:text-4xl">
                     {t("team.videos.title")}
                   </h2>
-                  <p className="text-lg md:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">
+                  <p className="mt-4 text-base leading-8 text-muted-foreground sm:text-lg">
                     {t("team.videos.subtitle")}
                   </p>
                 </div>
 
-                <Suspense fallback={<SectionSkeleton />}>
-                  <div className="relative">
+                <div className="mt-10">
+                  <Suspense fallback={<SectionSkeleton />}>
                     <YouTubeVideoGrid
                       videos={sampleVideos}
                       columns={3}
                       aspectRatio="16:9"
                     />
-                  </div>
-                </Suspense>
+                  </Suspense>
+                </div>
               </div>
             </div>
           </section>

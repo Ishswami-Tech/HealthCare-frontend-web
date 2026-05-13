@@ -6,6 +6,8 @@ import { formatTimeInIST } from "@/lib/utils/date-time";
 import { CheckCircle2, AlertTriangle, RefreshCw, Loader2, Activity, XCircle, Clock, Server, Database, Wifi, HardDrive, Video, Zap, Rocket, GitBranch } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { useState, useEffect } from "react";
 
 // --- Types ---
@@ -31,33 +33,33 @@ function StatusServiceRow({ service }: { service: ServiceStatus }) {
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="group relative overflow-hidden rounded-xl border border-border bg-card/50 dark:bg-slate-950/40 p-4 transition-all hover:border-border hover:bg-card/80 dark:hover:bg-slate-900/60 shadow-sm"
+      className="group relative overflow-hidden rounded-2xl border border-border/70 bg-card p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-lg"
     >
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         {/* Icon & Name */}
         <div className="flex items-center gap-4">
           <div className={cn(
-            "relative flex h-10 w-10 items-center justify-center rounded-lg border transition-colors shadow-sm",
-            "bg-muted/50 dark:bg-slate-900/80 border-border dark:border-slate-800",
-            isHealthy && "text-emerald-500 dark:text-emerald-500",
-            isWarning && "text-amber-500 dark:text-amber-500",
-            isError && "text-red-500 dark:text-red-500",
-            isLoading && "text-blue-500 dark:text-blue-500"
+            "relative flex h-11 w-11 items-center justify-center rounded-2xl border transition-colors shadow-sm",
+            "border-border/70 bg-muted/45",
+            isHealthy && "text-emerald-600 dark:text-emerald-400",
+            isWarning && "text-amber-600 dark:text-amber-400",
+            isError && "text-red-600 dark:text-red-400",
+            isLoading && "text-sky-600 dark:text-sky-400"
           )}>
             <service.icon className="h-5 w-5" />
-            {isHealthy && <div className="absolute top-1 right-1 h-1 w-1 rounded-full bg-emerald-500 shadow-[0_0_8px_2px_rgba(16,185,129,0.4)]" />}
+            {isHealthy && <div className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-emerald-500" />}
           </div>
           <div>
-            <h3 className="font-semibold text-sm sm:text-base text-foreground dark:text-slate-100">{service.name}</h3>
+            <h3 className="text-sm font-semibold text-foreground sm:text-base">{service.name}</h3>
             {service.error ? (
-               <p className="text-xs text-red-500 dark:text-red-400 mt-0.5 max-w-[200px] truncate">{service.error}</p>
+               <p className="mt-0.5 max-w-[240px] truncate text-xs text-red-600 dark:text-red-400">{service.error}</p>
             ) : (
                <div className="flex flex-col gap-0.5 mt-0.5">
-                  <p className="text-xs text-muted-foreground dark:text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                       {service.endpoint === '/health' ? 'Health Check Protocol' : 'Service Monitor'}
                   </p>
                   {service.lastChecked && (
-                      <p className="text-[10px] text-muted-foreground/70 dark:text-slate-600">
+                      <p className="text-[10px] text-muted-foreground/80">
                           Last checked: {formatTimeInIST(service.lastChecked)}
                       </p>
                   )}
@@ -67,18 +69,18 @@ function StatusServiceRow({ service }: { service: ServiceStatus }) {
         </div>
 
         {/* Right Side: Latency & Status */}
-        <div className="flex items-center gap-6">
+        <div className="flex flex-wrap items-center gap-4 sm:justify-end">
 
              {/* Latency - Small & Clean */}
              {service.responseTime && service.responseTime > 0 && (
                  <div className="text-right hidden sm:block">
                     <span className={cn(
-                        "block text-sm font-bold font-mono tracking-tight",
+                        "block font-mono text-sm font-bold tracking-tight",
                         isHealthy ? "text-emerald-600 dark:text-emerald-400" : isWarning ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"
                     )}>
                         {Math.round(service.responseTime)}ms
                     </span>
-                    <span className="text-[10px] text-muted-foreground dark:text-slate-600 uppercase font-semibold">Latency</span>
+                    <span className="text-[10px] font-semibold uppercase text-muted-foreground">Latency</span>
                  </div>
              )}
 
@@ -97,11 +99,11 @@ function StatusPill({ status }: { status: string }) {
 
    return (
       <div className={cn(
-        "flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold tracking-wide border transition-all min-w-[140px] justify-center",
+        "flex min-w-[132px] items-center justify-center gap-2 rounded-full border px-4 py-1.5 text-xs font-semibold tracking-wide transition-all",
         isHealthy && "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 dark:bg-emerald-500/5",
         isWarning && "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400 dark:bg-amber-500/5",
         isError && "border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400 dark:bg-red-500/5",
-        isLoading && "border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400 dark:bg-blue-500/5"
+        isLoading && "border-sky-500/20 bg-sky-500/10 text-sky-600 dark:text-sky-400 dark:bg-sky-500/5"
      )}>
         {isLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
         {isHealthy && <CheckCircle2 className="h-3.5 w-3.5" />}
@@ -240,108 +242,205 @@ export default function StatusPage() {
   const healthyServices = services.filter(s => s.status === 'active').length;
   const totalServices = services.length;
   const healthPercentage = totalServices > 0 ? Math.round((healthyServices / totalServices) * 100) : 0;
+  const latestCheckLabel = lastUpdate ? formatTimeInIST(lastUpdate) : "Pending first check";
 
   const isHealthy = healthPercentage === 100;
   const isDegraded = healthPercentage < 100 && healthPercentage > 60;
   // const isError = healthPercentage <= 60; // Unused
 
-  const glowColor = isHealthy ? "rgba(16, 185, 129, 0.15)" : isDegraded ? "rgba(245, 158, 11, 0.15)" : "rgba(239, 68, 68, 0.15)";
   // Backend server uptime from health status
   const systemUptime = healthStatus?.uptime || 0;
   // Next.js app uptime (client-side tracking)
   const frontendUptime = appUptime;
 
   return (
-    <div className="min-h-screen bg-background dark:bg-[#050911] text-foreground dark:text-slate-50 font-sans selection:bg-emerald-500/30 overflow-hidden relative transition-colors duration-300">
-
-      {/* Ambient Background Glow */}
-      <div
-        className="fixed top-[-20%] left-[20%] w-[60%] h-[60%] rounded-full blur-[150px] opacity-40 pointer-events-none transition-colors duration-1000 dark:opacity-40 opacity-0"
-        style={{ background: glowColor }}
-      />
-
-      {/* Main Content (Header removed to avoid double-header issue) */}
-      <div className="container mx-auto max-w-4xl px-6 py-6 relative z-10">
-          <div className="flex justify-between items-center mb-8">
-              <h1 className="text-2xl font-bold flex items-center gap-2">
-                  <Activity className="h-6 w-6 text-primary" />
-                  System Status
+    <div className="min-h-screen bg-background text-foreground">
+      <section className="relative overflow-hidden border-b border-border/70 bg-[linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--muted)/0.34)_100%)] py-16 sm:py-20 lg:py-24">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.10),transparent_34%),radial-gradient(circle_at_bottom_right,hsl(var(--secondary)/0.08),transparent_32%)]" />
+        <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1.25fr_0.75fr] lg:items-end">
+            <div>
+              <Badge className="mb-6 border-primary/20 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary shadow-none">
+                <Activity className="mr-2 h-4 w-4" />
+                Live service health
+              </Badge>
+              <h1 className="max-w-5xl font-playfair text-4xl font-bold leading-tight text-foreground sm:text-5xl lg:text-6xl">
+                System status with clear, current operational visibility
               </h1>
+              <p className="mt-6 max-w-4xl text-base leading-8 text-muted-foreground sm:text-lg lg:text-xl">
+                Track platform readiness, response health, uptime, and core service availability in one lightweight status view.
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Button
+                  onClick={() => {
+                    void refetch();
+                  }}
+                  disabled={isFetching}
+                  className="w-full gap-2 sm:w-auto"
+                >
+                  <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
+                  {isFetching ? "Refreshing" : "Refresh status"}
+                </Button>
+                <div className="rounded-full border border-border/70 bg-background/80 px-4 py-2 text-sm text-muted-foreground shadow-sm">
+                  Last checked: <span className="font-medium text-foreground">{latestCheckLabel}</span>
+                </div>
+              </div>
+            </div>
+
+            <Card className="border-border/70 bg-card/96 shadow-[0_28px_90px_-56px_rgba(15,23,42,0.45)]">
+              <CardContent className="p-6 sm:p-7">
+                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
+                  Overall health
+                </p>
+                <div className="mt-5 flex flex-col gap-4">
+                  <div className="flex items-end justify-between gap-4">
+                    <span className="text-5xl font-black tracking-tight text-foreground">
+                      {healthPercentage}%
+                    </span>
+                    <span className={cn(
+                      "rounded-full border px-3 py-1 text-sm font-semibold",
+                      isHealthy ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" :
+                      isDegraded ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300" :
+                      "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300"
+                    )}>
+                      {isHealthy ? "Operational" : isDegraded ? "Degraded" : "Attention needed"}
+                    </span>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                    <div className="rounded-2xl border border-border/70 bg-muted/30 px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        Healthy services
+                      </p>
+                      <p className="mt-2 text-2xl font-bold text-foreground">
+                        {healthyServices}/{totalServices}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-border/70 bg-muted/30 px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        Monitoring scope
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-foreground">
+                        Infrastructure, delivery, build pipeline, and communication services.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      <section className="py-16 sm:py-20">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <Card className="border-border/70 bg-card shadow-sm">
+                <CardContent className="p-5">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                      <Server className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        Backend uptime
+                      </p>
+                      <div className="mt-1 text-xl font-bold text-foreground">
+                        <FormatUptime seconds={systemUptime} />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/70 bg-card shadow-sm">
+                <CardContent className="p-5">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                      <Clock className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        App uptime
+                      </p>
+                      <div className="mt-1 text-xl font-bold text-foreground">
+                        <FormatUptime seconds={frontendUptime} />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/70 bg-card shadow-sm">
+                <CardContent className="p-5">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                      <Activity className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        Services tracked
+                      </p>
+                      <p className="mt-1 text-xl font-bold text-foreground">
+                        {totalServices}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/70 bg-card shadow-sm">
+                <CardContent className="p-5">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                      <RefreshCw className={cn("h-5 w-5", isFetching && "animate-spin")} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        Check state
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-foreground">
+                        {isFetching ? "Refreshing now" : latestCheckLabel}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="mt-12 flex flex-col gap-4 border-b border-border/70 pb-6 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
+                  Service monitor
+                </p>
+                <h2 className="mt-3 font-playfair text-3xl font-bold text-foreground sm:text-4xl">
+                  Core platform services
+                </h2>
+                <p className="mt-3 max-w-3xl text-sm leading-7 text-muted-foreground sm:text-base">
+                  Each item shows availability, last check timing, and latency where the service provides it.
+                </p>
+              </div>
               <Button
                 variant="outline"
-                size="sm"
                 onClick={() => {
                   void refetch();
                 }}
                 disabled={isFetching}
-                className="gap-2"
+                className="w-full gap-2 sm:w-auto"
               >
-                 <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
-                 Refresh
+                <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
+                Refresh
               </Button>
+            </div>
+
+            <div className="mt-6 space-y-4">
+              {services.map((service) => (
+                <StatusServiceRow key={service.name} service={service} />
+              ))}
+            </div>
           </div>
-
-        {/* Metrics Banner */}
-        <div className="mb-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="col-span-1 md:col-span-2 relative overflow-hidden rounded-3xl border border-border dark:border-white/10 bg-card/50 dark:bg-white/[0.02] p-8 backdrop-blur-md shadow-sm">
-                <div className="absolute top-0 right-0 p-32 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 blur-3xl rounded-full pointer-events-none" />
-
-                <h2 className="text-sm font-semibold text-muted-foreground dark:text-slate-500 uppercase tracking-widest mb-1">Overall Health</h2>
-                <div className="flex flex-col sm:flex-row sm:items-baseline gap-4 mt-2">
-                    <span className="text-4xl sm:text-5xl lg:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-foreground to-muted-foreground dark:from-white dark:to-slate-400">
-                        {healthPercentage}%
-                    </span>
-                    <span className={cn(
-                        "text-sm sm:text-lg font-bold px-3 py-1 rounded-full border w-fit",
-                        isHealthy ? "border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10" :
-                        isDegraded ? "border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10" :
-                        "border-red-500/30 text-red-600 dark:text-red-400 bg-red-500/10"
-                    )}>
-                        {isHealthy ? "Fully Operational" : isDegraded ? "Partially Degraded" : "System Outage"}
-                    </span>
-                </div>
-                <div className="mt-8 flex items-center gap-3 text-sm text-muted-foreground dark:text-slate-400">
-                   <Activity className="h-4 w-4" />
-                   <span>Monitoring {services.length} core services, infrastructure, build and deployment</span>
-                </div>
-            </div>
-
-            <div className="col-span-1 rounded-3xl border border-border dark:border-white/10 bg-card/50 dark:bg-white/[0.02] p-6 backdrop-blur-md flex flex-col justify-center gap-6 shadow-sm">
-                 {/* Backend Server Uptime */}
-                 <div className="text-center">
-                    <div className="flex items-center justify-center gap-2 mb-1">
-                        <Server className="h-3 w-3 text-muted-foreground" />
-                        <h2 className="text-xs font-semibold text-muted-foreground dark:text-slate-500 uppercase tracking-widest">Backend Server</h2>
-                    </div>
-                    <div className="text-2xl font-bold font-mono text-foreground dark:text-slate-200">
-                        <FormatUptime seconds={systemUptime} />
-                    </div>
-                 </div>
-
-                 <div className="h-px bg-border dark:bg-white/5 w-full" />
-
-                 {/* Frontend App Uptime */}
-                 <div className="text-center">
-                    <div className="flex items-center justify-center gap-2 mb-1">
-                        <Clock className="h-3 w-3 text-muted-foreground" />
-                        <h2 className="text-xs font-semibold text-muted-foreground dark:text-slate-500 uppercase tracking-widest">App Uptime</h2>
-                    </div>
-                    <div className="text-xl font-bold font-mono text-foreground dark:text-slate-300">
-                        <FormatUptime seconds={frontendUptime} />
-                    </div>
-                 </div>
-            </div>
         </div>
-
-        {/* Services List */}
-        <div className="space-y-4">
-           {services.map((service) => (
-              <StatusServiceRow key={service.name} service={service} />
-           ))}
-        </div>
-
-      </div>
+      </section>
     </div>
   );
 }
-

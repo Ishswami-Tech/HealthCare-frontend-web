@@ -12,7 +12,7 @@ export default function ProfileCompleteLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen items-center justify-center bg-gray-50">
+    <div className="min-h-screen bg-base-200">
       {children}
     </div>
   );
