@@ -118,7 +118,7 @@ export const hi: TranslationKeys = {
     address: 'मोरया गणपति मंदिर रोड, गांधी पेठ, चिंचवड गांव, चिंचवड, पिंपरी-चिंचवड, महाराष्ट्र, भारत',
     phone: '9860370961, 7709399925',
     whatsapp: '9860370961',
-    email: 'Vishwamurtiayurveda@gmail.com',
+    email: 'drchandrakumardeshmukh@gmail.com',
     mondayToFriday: 'सोमवार - शुक्रवार: सुबह 11:45 - रात 11:30',
     weekends: 'शनिवार और रविवार',
     closed: 'बंद',
@@ -1171,9 +1171,9 @@ export const hi: TranslationKeys = {
       emailAddresses: {
         title: "ईमेल पते",
         details: [
-          "Vishwamurtiayurveda@gmail.com",
+          "drchandrakumardeshmukh@gmail.com",
           "info@viddhakarma.com",
-          "emergency@Vishwamurtiayurveda.com"
+          "emergency@drchandrakumardeshmukh.com"
         ]
       },
       location: {
@@ -1219,7 +1219,7 @@ export const hi: TranslationKeys = {
      description: 'हमारे विशेषज्ञ चिकित्सकों के साथ पारंपरिक आयुर्वेदिक उपचार की शक्ति का अनुभव करें। हम आपकी पूर्ण कल्याण यात्रा के लिए प्रामाणिक, व्यक्तिगत देखभाल प्रदान करने के लिए प्रतिबद्ध हैं।',
      address: 'मोरया गणपति मंदिर रोड, गांधी पेठ, चिंचवड गांव, चिंचवड, पिंपरी-चिंचवड, महाराष्ट्र, भारत',
      phone: '9860370961, 7709399925',
-     email: 'Vishwamurtiayurveda@gmail.com',
+     email: 'drchandrakumardeshmukh@gmail.com',
      workingHours: 'सोमवार - शुक्रवार: सुबह 11:45 - रात 11:30',
      ourServices: 'हमारी सेवाएं',
      medicalDisclaimer: 'सरकारी प्रमाणित ISO 9001:2015 4.9/5 रेटिंग',
@@ -1251,7 +1251,7 @@ export const hi: TranslationKeys = {
        address: 'मोरया गणपति मंदिर रोड, गांधी पेठ, चिंचवड गांव, चिंचवड, पिंपरी-चिंचवड, महाराष्ट्र, भारत',
        phone: '9860370961, 7709399925',
        emergency: '24/7 आपातकालीन सहायता',
-       email: 'Vishwamurtiayurveda@gmail.com',
+       email: 'drchandrakumardeshmukh@gmail.com',
        hours: 'सोमवार - शुक्रवार: सुबह 11:45 - रात 11:30'
      },
      emergency: {

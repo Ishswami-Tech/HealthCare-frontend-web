@@ -10,9 +10,9 @@ import { Metadata } from 'next';
 // ============================================================================
 
 export const baseSEO = {
-  siteName: 'Shree Vishwamruti Ayurvedic Chikitsalya',
+  siteName: 'Dr.Chandrakumar Deshmukh',
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://www.viddhakarma.com',
-  defaultTitle: 'Shree Vishwamruti Ayurvedic Chikitsalya - Ayurvedic Clinic in Chinchwad, Pune',
+  defaultTitle: 'Dr.Chandrakumar Deshmukh - Ayurvedic Clinic in Chinchwad, Pune',
   defaultDescription: 'Experience authentic Ayurvedic healing in Chinchwad, Pune with Panchakarma, Agnikarma, and Viddha Karma treatments. Book consultation, manage appointments, and access trusted care.',
   keywords: [
     'Ayurveda',
@@ -124,8 +124,8 @@ export function generateMetadata({
       title: fullTitle,
       description,
       images: [imageUrl],
-      creator: '@Vishwamurtiayurveda',
-      site: '@Vishwamurtiayurveda',
+      creator: '@drchandrakumardeshmukh',
+      site: '@drchandrakumardeshmukh',
     },
 
     // Additional metadata
@@ -204,7 +204,7 @@ export const pageSEO = {
   },
   
   about: {
-    title: 'About Us - Shree Vishwamruti Ayurvedic Chikitsalya',
+    title: 'About Us - Dr.Chandrakumar Deshmukh',
     description: '20+ years of authentic Ayurvedic healing excellence in Chinchwad, Pune. Government certified, ISO accredited, and trusted by thousands of families.',
     keywords: ['Ayurvedic hospital Pune', 'authentic Ayurveda', 'government certified Ayurveda'],
   },
@@ -242,10 +242,10 @@ export const generateOrganizationSchema = () => ({
     availableLanguage: ['English', 'Hindi', 'Marathi'],
   },
   sameAs: [
-    'https://www.facebook.com/Vishwamurtiayurveda',
-    'https://www.instagram.com/Vishwamurtiayurveda',
-    'https://www.youtube.com/Vishwamurtiayurveda',
-    'https://www.linkedin.com/company/Vishwamurtiayurveda',
+    'https://www.facebook.com/drchandrakumardeshmukh',
+    'https://www.instagram.com/drchandrakumardeshmukh',
+    'https://www.youtube.com/drchandrakumardeshmukh',
+    'https://www.linkedin.com/company/drchandrakumardeshmukh',
   ],
   medicalSpecialty: 'Ayurveda',
   availableService: [
@@ -274,7 +274,7 @@ export const generateLocalBusinessSchema = () => ({
   name: baseSEO.siteName,
   image: `${baseSEO.siteUrl}/assets/og/og-image.png`,
   telephone: '+91-9860370961',
-  email: 'Vishwamurtiayurveda@gmail.com',
+  email: 'drchandrakumardeshmukh@gmail.com',
   url: baseSEO.siteUrl,
   address: {
     '@type': 'PostalAddress',

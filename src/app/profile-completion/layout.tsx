@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Complete Your Profile | Shree Vishwamruti Ayurvedic Chikitsalya",
-  description: "Complete your profile to get started with Shree Vishwamruti Ayurvedic Chikitsalya.",
+  title: "Complete Your Profile | Dr.Chandrakumar Deshmukh",
+  description: "Complete your profile to get started with Dr.Chandrakumar Deshmukh.",
   robots: { index: false, follow: false },
 };
 

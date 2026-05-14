@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | Shree Vishwamruti Ayurvedic Chikitsalya",
+  title: "Privacy Policy | Dr.Chandrakumar Deshmukh",
   description:
-    "Learn how Shree Vishwamruti Ayurvedic Chikitsalya collects, uses, and protects your personal health information in compliance with HIPAA and Indian data protection laws.",
+    "Learn how Dr.Chandrakumar Deshmukh collects, uses, and protects your personal health information in compliance with HIPAA and Indian data protection laws.",
   openGraph: {
-    title: "Privacy Policy | Shree Vishwamruti Ayurvedic Chikitsalya",
+    title: "Privacy Policy | Dr.Chandrakumar Deshmukh",
     description:
-      "How Shree Vishwamruti Ayurvedic Chikitsalya handles and protects your personal health data.",
-    siteName: "Shree Vishwamruti Ayurvedic Chikitsalya",
+      "How Dr.Chandrakumar Deshmukh handles and protects your personal health data.",
+    siteName: "Dr.Chandrakumar Deshmukh",
   },
   robots: { index: true, follow: true },
 };
