@@ -41,8 +41,19 @@ import {
 } from "@daily-co/daily-react";
 import Daily from "@daily-co/daily-js";
 import type { DailyCall, DailyMeetingState } from "@daily-co/daily-js";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { showInfoToast } from "@/hooks/utils/use-toast";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { showInfoToast, showErrorToast } from "@/hooks/utils/use-toast";
+import { useCompleteAppointment } from "@/hooks/query/useAppointments";
 import { cn } from "@/lib/utils";
 import { getAvatarTone } from "@/lib/config/color-palette";
 import type { VideoRoomAccess } from "@/components/video/VideoAppointmentRoomWorkspace";
@@ -108,12 +119,18 @@ function getOrCreateCallObject(): DailyCall {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function getMeetingStateLabel(state: DailyMeetingState | null) {
   switch (state) {
-    case "joined-meeting": return "Live";
-    case "joining-meeting": return "Connecting";
-    case "loading": return "Loading";
-    case "left-meeting": return "Left";
-    case "error": return "Error";
-    default: return "Connecting";
+    case "joined-meeting":
+      return "Live";
+    case "joining-meeting":
+      return "Connecting";
+    case "loading":
+      return "Loading";
+    case "left-meeting":
+      return "Left";
+    case "error":
+      return "Error";
+    default:
+      return "Connecting";
   }
 }
 
@@ -125,7 +142,15 @@ function formatTimestamp(value: unknown): string {
 }
 
 function getInitials(label: string): string {
-  return label.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "U";
+  return (
+    label
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0])
+      .join("")
+      .toUpperCase() || "U"
+  );
 }
 
 function resolveParticipantName(
@@ -145,7 +170,9 @@ function resolveParticipantName(
     fromData ||
     (rawUserName && !generic.includes(rawUserName) ? rawUserName : undefined) ||
     remoteNameFallback ||
-    (waitingForName && (!rawUserName || generic.includes(rawUserName)) ? waitingForName : undefined) ||
+    (waitingForName && (!rawUserName || generic.includes(rawUserName))
+      ? waitingForName
+      : undefined) ||
     "User"
   );
 }
@@ -173,8 +200,30 @@ function getTileBgColor(name: string | undefined): string {
   return TILE_BG_COLORS[Math.abs(hash) % TILE_BG_COLORS.length] ?? "#1a237e";
 }
 
+// ─── Doctor role detection ────────────────────────────────────────────────────
+export const DOCTOR_ROLES = new Set([
+  "DOCTOR",
+  "ASSISTANT_DOCTOR",
+  "THERAPIST",
+  "COUNSELOR",
+]);
+
+export function isDoctorRole(role: string | undefined): boolean {
+  return DOCTOR_ROLES.has(
+    String(role || "")
+      .toUpperCase()
+      .trim(),
+  );
+}
+
 // ─── Shared loading screen (used across all video states) ────────────────────
-function VideoLoadingScreen({ message = "Getting ready…", sub = "" }: { message?: string; sub?: string }) {
+function VideoLoadingScreen({
+  message = "Getting ready…",
+  sub = "",
+}: {
+  message?: string;
+  sub?: string;
+}) {
   return (
     <div className="flex h-full w-full min-h-[100dvh] items-center justify-center bg-[#111315] px-6 text-center text-white">
       <div className="space-y-4 max-w-xs w-full">
@@ -205,7 +254,9 @@ function DeviceSelect({
 }) {
   return (
     <div className="space-y-1.5">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#9aa0a6]">{label}</p>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#9aa0a6]">
+        {label}
+      </p>
       <div className="relative">
         <select
           value={currentDeviceId}
@@ -221,7 +272,13 @@ function DeviceSelect({
         </select>
         <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#9aa0a6]">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M2.5 4.5L6 8L9.5 4.5"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         </div>
       </div>
@@ -244,7 +301,11 @@ function DeviceChevronMenu({
   devices: Array<{ device: MediaDeviceInfo; selected: boolean; state: string }>;
   currentDeviceId: string;
   onChange: (id: string) => void;
-  extraDevices?: Array<{ device: MediaDeviceInfo; selected: boolean; state: string }>;
+  extraDevices?: Array<{
+    device: MediaDeviceInfo;
+    selected: boolean;
+    state: string;
+  }>;
   extraLabel?: string;
   extraCurrentId?: string;
   extraOnChange?: (id: string) => void;
@@ -263,7 +324,13 @@ function DeviceChevronMenu({
           className="flex h-7 w-7 items-center justify-center rounded-full bg-[#3c4043] text-[#e8eaed] hover:bg-[#5f6368] transition-all shrink-0 focus:outline-none"
         >
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-            <path d="M2 6.5L5 3.5L8 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M2 6.5L5 3.5L8 6.5"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         </motion.button>
       </PopoverTrigger>
@@ -277,16 +344,23 @@ function DeviceChevronMenu({
         <div className="space-y-2">
           {/* Primary device list */}
           <div>
-            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9aa0a6] px-2">{label}</p>
+            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9aa0a6] px-2">
+              {label}
+            </p>
             <div className="space-y-0.5">
               {devices.length === 0 ? (
-                <div className="px-2 py-1.5 text-[12px] text-[#5f6368]">No devices found</div>
+                <div className="px-2 py-1.5 text-[12px] text-[#5f6368]">
+                  No devices found
+                </div>
               ) : (
                 devices.map((d) => (
                   <button
                     key={d.device.deviceId}
                     type="button"
-                    onClick={() => { onChange(d.device.deviceId); setOpen(false); }}
+                    onClick={() => {
+                      onChange(d.device.deviceId);
+                      setOpen(false);
+                    }}
                     className={cn(
                       "flex w-full items-center gap-2 rounded-lg px-2 py-2 text-[12px] transition-colors text-left",
                       d.device.deviceId === currentDeviceId
@@ -294,10 +368,27 @@ function DeviceChevronMenu({
                         : "text-white hover:bg-white/8",
                     )}
                   >
-                    <svg className={cn("h-3 w-3 shrink-0", d.device.deviceId === currentDeviceId ? "opacity-100" : "opacity-0")} viewBox="0 0 14 14" fill="none">
-                      <path d="M2 7L5.5 10.5L12 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    <svg
+                      className={cn(
+                        "h-3 w-3 shrink-0",
+                        d.device.deviceId === currentDeviceId
+                          ? "opacity-100"
+                          : "opacity-0",
+                      )}
+                      viewBox="0 0 14 14"
+                      fill="none"
+                    >
+                      <path
+                        d="M2 7L5.5 10.5L12 3.5"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
                     </svg>
-                    <span className="truncate min-w-0">{d.device.label || "Default"}</span>
+                    <span className="truncate min-w-0">
+                      {d.device.label || "Default"}
+                    </span>
                   </button>
                 ))
               )}
@@ -309,13 +400,18 @@ function DeviceChevronMenu({
             <>
               <div className="border-t border-white/10" />
               <div>
-                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9aa0a6] px-2">{extraLabel}</p>
+                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9aa0a6] px-2">
+                  {extraLabel}
+                </p>
                 <div className="space-y-0.5">
                   {extraDevices.map((d) => (
                     <button
                       key={d.device.deviceId}
                       type="button"
-                      onClick={() => { extraOnChange(d.device.deviceId); setOpen(false); }}
+                      onClick={() => {
+                        extraOnChange(d.device.deviceId);
+                        setOpen(false);
+                      }}
                       className={cn(
                         "flex w-full items-center gap-2 rounded-lg px-2 py-2 text-[12px] transition-colors text-left",
                         d.device.deviceId === (extraCurrentId || "")
@@ -323,10 +419,27 @@ function DeviceChevronMenu({
                           : "text-white hover:bg-white/8",
                       )}
                     >
-                      <svg className={cn("h-3 w-3 shrink-0", d.device.deviceId === (extraCurrentId || "") ? "opacity-100" : "opacity-0")} viewBox="0 0 14 14" fill="none">
-                        <path d="M2 7L5.5 10.5L12 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      <svg
+                        className={cn(
+                          "h-3 w-3 shrink-0",
+                          d.device.deviceId === (extraCurrentId || "")
+                            ? "opacity-100"
+                            : "opacity-0",
+                        )}
+                        viewBox="0 0 14 14"
+                        fill="none"
+                      >
+                        <path
+                          d="M2 7L5.5 10.5L12 3.5"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
-                      <span className="truncate min-w-0">{d.device.label || "Default"}</span>
+                      <span className="truncate min-w-0">
+                        {d.device.label || "Default"}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -366,7 +479,9 @@ function MicGroup({
         className={cn(
           "flex items-center justify-center rounded-full transition-all shrink-0 focus:outline-none",
           size,
-          isOn ? "bg-[#3c4043] text-[#e8eaed] hover:bg-[#5f6368]" : "bg-[#ea4335] text-white hover:bg-[#d93025]",
+          isOn
+            ? "bg-[#3c4043] text-[#e8eaed] hover:bg-[#5f6368]"
+            : "bg-[#ea4335] text-white hover:bg-[#d93025]",
         )}
       >
         {isOn ? <Mic className={iconSize} /> : <MicOff className={iconSize} />}
@@ -412,10 +527,16 @@ function CameraGroup({
         className={cn(
           "flex items-center justify-center rounded-full transition-all shrink-0 focus:outline-none",
           size,
-          isOn ? "bg-[#3c4043] text-[#e8eaed] hover:bg-[#5f6368]" : "bg-[#ea4335] text-white hover:bg-[#d93025]",
+          isOn
+            ? "bg-[#3c4043] text-[#e8eaed] hover:bg-[#5f6368]"
+            : "bg-[#ea4335] text-white hover:bg-[#d93025]",
         )}
       >
-        {isOn ? <Video className={iconSize} /> : <VideoOff className={iconSize} />}
+        {isOn ? (
+          <Video className={iconSize} />
+        ) : (
+          <VideoOff className={iconSize} />
+        )}
       </motion.button>
       <DeviceChevronMenu
         label="Camera"
@@ -426,7 +547,6 @@ function CameraGroup({
     </div>
   );
 }
-
 
 // ─── ScreenShareMenu ──────────────────────────────────────────────────────────
 function ScreenShareMenu({
@@ -474,7 +594,10 @@ function ScreenShareMenu({
       >
         <button
           type="button"
-          onClick={() => { setOpen(false); onStartShare(); }}
+          onClick={() => {
+            setOpen(false);
+            onStartShare();
+          }}
           className="flex w-full items-center gap-3 rounded-xl px-4 py-3.5 text-[14px] font-medium text-white hover:bg-white/10 transition-colors"
         >
           <MonitorUp className="h-5 w-5 text-[#9aa0a6]" />
@@ -482,7 +605,10 @@ function ScreenShareMenu({
         </button>
         <button
           type="button"
-          onClick={() => { setOpen(false); onStopShare(); }}
+          onClick={() => {
+            setOpen(false);
+            onStopShare();
+          }}
           className="flex w-full items-center gap-3 rounded-xl px-4 py-3.5 text-[14px] font-medium text-white hover:bg-white/10 transition-colors"
         >
           <MonitorX className="h-5 w-5 text-[#9aa0a6]" />
@@ -505,32 +631,52 @@ const ToolbarBtn = React.forwardRef<
     small?: boolean;
     onClick?: () => void;
   }
->(({ icon: Icon, label, active = false, danger = false, wide = false, small = false, onClick, ...rest }, ref) => (
-  <motion.button
-    ref={ref}
-    type="button"
-    whileHover={{ scale: 1.06 }}
-    whileTap={{ scale: 0.94 }}
-    onClick={onClick}
-    aria-label={label}
-    title={label}
-    className={cn(
-      "flex items-center justify-center rounded-full transition-all shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
-      wide
-        ? small ? "h-11 w-20 sm:h-14 sm:w-24" : "h-14 w-24"
-        : small ? "h-11 w-11 sm:h-14 sm:w-14" : "h-14 w-14",
-      danger
-        ? "bg-[#ea4335] text-white hover:bg-[#d93025]"
-        : active
-          ? "bg-[#8ab4f8]/20 text-[#8ab4f8] border-2 border-[#8ab4f8]/40 hover:bg-[#8ab4f8]/30"
-          : "bg-[#3c4043] text-[#e8eaed] hover:bg-[#5f6368]",
-    )}
-    {...rest}
-  >
-    <Icon className={cn("shrink-0", small ? "h-5 w-5 sm:h-6 sm:w-6" : "h-6 w-6")} />
-    <span className="sr-only">{label}</span>
-  </motion.button>
-));
+>(
+  (
+    {
+      icon: Icon,
+      label,
+      active = false,
+      danger = false,
+      wide = false,
+      small = false,
+      onClick,
+      ...rest
+    },
+    ref,
+  ) => (
+    <motion.button
+      ref={ref}
+      type="button"
+      whileHover={{ scale: 1.06 }}
+      whileTap={{ scale: 0.94 }}
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className={cn(
+        "flex items-center justify-center rounded-full transition-all shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
+        wide
+          ? small
+            ? "h-11 w-20 sm:h-14 sm:w-24"
+            : "h-14 w-24"
+          : small
+            ? "h-11 w-11 sm:h-14 sm:w-14"
+            : "h-14 w-14",
+        danger
+          ? "bg-[#ea4335] text-white hover:bg-[#d93025]"
+          : active
+            ? "bg-[#8ab4f8]/20 text-[#8ab4f8] border-2 border-[#8ab4f8]/40 hover:bg-[#8ab4f8]/30"
+            : "bg-[#3c4043] text-[#e8eaed] hover:bg-[#5f6368]",
+      )}
+      {...rest}
+    >
+      <Icon
+        className={cn("shrink-0", small ? "h-5 w-5 sm:h-6 sm:w-6" : "h-6 w-6")}
+      />
+      <span className="sr-only">{label}</span>
+    </motion.button>
+  ),
+);
 ToolbarBtn.displayName = "ToolbarBtn";
 
 // ─── ParticipantTile ──────────────────────────────────────────────────────────
@@ -549,15 +695,18 @@ function ParticipantTile({
   waitingForName?: string | undefined;
   isActiveSpeaker?: boolean | undefined;
 }) {
-  const [userName, videoState, audioState, userData] = useParticipantProperty(sessionId, [
-    "user_name",
-    "tracks.video.state",
-    "tracks.audio.state",
-    "userData",
-  ]);
+  const [userName, videoState, audioState, userData] = useParticipantProperty(
+    sessionId,
+    ["user_name", "tracks.video.state", "tracks.audio.state", "userData"],
+  );
 
   const rawName = String(userName || "").trim();
-  const resolved = resolveParticipantName(rawName, userData, remoteNameFallback, waitingForName);
+  const resolved = resolveParticipantName(
+    rawName,
+    userData,
+    remoteNameFallback,
+    waitingForName,
+  );
   const label = isLocal ? (localName ? `${localName} (You)` : "You") : resolved;
   const videoOn = videoState === "playable";
   const audioOn = audioState === "playable";
@@ -588,7 +737,8 @@ function ParticipantTile({
           <div
             className="absolute inset-0 opacity-15"
             style={{
-              background: "radial-gradient(circle at 50% 40%, rgba(255,255,255,0.8) 0%, transparent 60%)",
+              background:
+                "radial-gradient(circle at 50% 40%, rgba(255,255,255,0.8) 0%, transparent 60%)",
               filter: "blur(28px)",
             }}
           />
@@ -604,7 +754,11 @@ function ParticipantTile({
               className="absolute inset-0 rounded-2xl"
               style={{ border: "2px solid #8ab4f8" }}
               animate={{ opacity: [0.4, 0.9, 0.4] }}
-              transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+              transition={{
+                duration: 1.4,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
             />
           )}
         </div>
@@ -618,7 +772,12 @@ function ParticipantTile({
               key={i}
               className="w-[3px] rounded-full bg-[#8ab4f8]"
               animate={{ scaleY: [0.3, 1, 0.3] }}
-              transition={{ duration: 0.7, repeat: Infinity, delay: i * 0.18, ease: "easeInOut" }}
+              transition={{
+                duration: 0.7,
+                repeat: Infinity,
+                delay: i * 0.18,
+                ease: "easeInOut",
+              }}
               style={{ transformOrigin: "bottom", height: "12px" }}
             />
           ))}
@@ -628,7 +787,9 @@ function ParticipantTile({
       {/* Name tag — bottom-left, always visible */}
       <div className="absolute bottom-2 left-2 flex items-center gap-1 rounded-md bg-black/70 backdrop-blur-sm px-2 py-1 border border-white/10 max-w-[calc(100%-1rem)]">
         {!audioOn && <MicOff className="h-2.5 w-2.5 text-[#ea4335] shrink-0" />}
-        <span className="truncate text-[10px] sm:text-[11px] font-medium text-white leading-none">{label}</span>
+        <span className="truncate text-[10px] sm:text-[11px] font-medium text-white leading-none">
+          {label}
+        </span>
       </div>
     </div>
   );
@@ -648,21 +809,38 @@ function ScreenShareTile({
   isLocal?: boolean | undefined;
   onStopShare?: (() => void) | undefined;
 }) {
-  const [userName, userData] = useParticipantProperty(sessionId, ["user_name", "userData"]);
+  const [userName, userData] = useParticipantProperty(sessionId, [
+    "user_name",
+    "userData",
+  ]);
   const rawName = String(userName || "").trim();
-  const label = resolveParticipantName(rawName, userData, remoteNameFallback, waitingForName);
+  const label = resolveParticipantName(
+    rawName,
+    userData,
+    remoteNameFallback,
+    waitingForName,
+  );
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-2xl bg-[#1e1f20] ring-1 ring-white/5">
-      <DailyVideo sessionId={sessionId} type="screenVideo" fit="contain" className="h-full w-full" />
+      <DailyVideo
+        sessionId={sessionId}
+        type="screenVideo"
+        fit="contain"
+        className="h-full w-full"
+      />
 
       {/* You are presenting banner */}
       {isLocal && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <div className="rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 px-8 py-6 text-center max-w-sm pointer-events-auto">
             <MonitorUp className="mx-auto mb-3 h-10 w-10 text-[#8ab4f8]" />
-            <p className="text-[18px] font-semibold text-white mb-1">You are presenting</p>
-            <p className="text-[13px] text-[#9aa0a6] mb-4">Others can see your screen</p>
+            <p className="text-[18px] font-semibold text-white mb-1">
+              You are presenting
+            </p>
+            <p className="text-[13px] text-[#9aa0a6] mb-4">
+              Others can see your screen
+            </p>
             {onStopShare && (
               <button
                 type="button"
@@ -679,7 +857,9 @@ function ScreenShareTile({
 
       <div className="absolute bottom-3 left-3 flex items-center gap-2 rounded-lg bg-black/70 backdrop-blur-sm px-2.5 py-1.5 border border-white/10">
         <ScreenShare className="h-3.5 w-3.5 text-[#8ab4f8]" />
-        <span className="text-[12px] font-medium text-white">{label}&apos;s screen</span>
+        <span className="text-[12px] font-medium text-white">
+          {label}&apos;s screen
+        </span>
       </div>
     </div>
   );
@@ -707,7 +887,12 @@ function SidebarParticipantRow({
     "userData",
   ]);
   const rawName = String(userName || "").trim();
-  const resolved = resolveParticipantName(rawName, userData, remoteNameFallback, waitingForName);
+  const resolved = resolveParticipantName(
+    rawName,
+    userData,
+    remoteNameFallback,
+    waitingForName,
+  );
   const label = isLocal ? `${localName} (You)` : resolved;
   const isMuted = audioState !== "playable";
   const bgColor = getTileBgColor(label);
@@ -739,7 +924,12 @@ function SidebarParticipantRow({
                   key={i}
                   className="w-0.5 rounded-full bg-[#8ab4f8]"
                   animate={{ height: ["30%", "100%", "30%"] }}
-                  transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15, ease: "easeInOut" }}
+                  transition={{
+                    duration: 0.6,
+                    repeat: Infinity,
+                    delay: i * 0.15,
+                    ease: "easeInOut",
+                  }}
                 />
               ))}
             </div>
@@ -788,7 +978,8 @@ function MeetingSidebar({
   onSendMessage: (msg: DailyAppMessage) => void;
   activeSpeakerId: string | null;
 }) {
-  const { waitingParticipants, grantAccess, denyAccess } = useWaitingParticipants();
+  const { waitingParticipants, grantAccess, denyAccess } =
+    useWaitingParticipants();
   const participantIds = useParticipantIds();
   const [draft, setDraft] = React.useState("");
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
@@ -797,7 +988,8 @@ function MeetingSidebar({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [sentMessages]);
 
-  const panelTitle = activePanel === "chat" ? "In-call messages" : "Participants";
+  const panelTitle =
+    activePanel === "chat" ? "In-call messages" : "Participants";
 
   return (
     <div className="flex h-full flex-col bg-[#1e1f20] text-white border-l border-white/10">
@@ -820,7 +1012,8 @@ function MeetingSidebar({
           <>
             {/* Disclaimer */}
             <div className="mx-4 mt-4 shrink-0 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-[12px] text-[#9aa0a6] text-center leading-relaxed">
-              Messages are only visible to people in this call and are deleted when the call ends.
+              Messages are only visible to people in this call and are deleted
+              when the call ends.
             </div>
 
             {/* Messages list */}
@@ -829,8 +1022,12 @@ function MeetingSidebar({
                 <div className="flex h-full items-center justify-center pt-8">
                   <div className="text-center space-y-2">
                     <MessageSquare className="mx-auto h-10 w-10 text-[#3c4043]" />
-                    <p className="text-[13px] text-[#5f6368]">No messages yet</p>
-                    <p className="text-[11px] text-[#3c4043]">Say hello to everyone!</p>
+                    <p className="text-[13px] text-[#5f6368]">
+                      No messages yet
+                    </p>
+                    <p className="text-[11px] text-[#3c4043]">
+                      Say hello to everyone!
+                    </p>
                   </div>
                 </div>
               )}
@@ -841,11 +1038,17 @@ function MeetingSidebar({
                   ? "You"
                   : rawSender && !["Participant", "Guest"].includes(rawSender)
                     ? rawSender
-                    : (waitingForName || "Participant");
+                    : waitingForName || "Participant";
                 const bgColor = getTileBgColor(isMe ? displayName : senderName);
 
                 return (
-                  <div key={i} className={cn("flex gap-2.5", isMe ? "flex-row-reverse" : "flex-row")}>
+                  <div
+                    key={i}
+                    className={cn(
+                      "flex gap-2.5",
+                      isMe ? "flex-row-reverse" : "flex-row",
+                    )}
+                  >
                     {!isMe && (
                       <div
                         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-white/15 text-[11px] font-bold text-white self-end mb-1 shadow-md"
@@ -854,11 +1057,20 @@ function MeetingSidebar({
                         {getInitials(senderName)}
                       </div>
                     )}
-                    <div className={cn("flex flex-col max-w-[78%]", isMe ? "items-end" : "items-start")}>
+                    <div
+                      className={cn(
+                        "flex flex-col max-w-[78%]",
+                        isMe ? "items-end" : "items-start",
+                      )}
+                    >
                       {!isMe && (
                         <div className="flex items-center gap-2 mb-1 px-1">
-                          <span className="text-[11px] font-semibold text-[#e8eaed]">{senderName}</span>
-                          <span className="text-[10px] text-[#5f6368]">{formatTimestamp(msg.sentAt)}</span>
+                          <span className="text-[11px] font-semibold text-[#e8eaed]">
+                            {senderName}
+                          </span>
+                          <span className="text-[10px] text-[#5f6368]">
+                            {formatTimestamp(msg.sentAt)}
+                          </span>
                         </div>
                       )}
                       <div
@@ -872,7 +1084,9 @@ function MeetingSidebar({
                         {msg.text}
                       </div>
                       {isMe && (
-                        <span className="mt-1 px-1 text-[10px] text-[#5f6368]">{formatTimestamp(msg.sentAt)}</span>
+                        <span className="mt-1 px-1 text-[10px] text-[#5f6368]">
+                          {formatTimestamp(msg.sentAt)}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -929,7 +1143,7 @@ function MeetingSidebar({
                     const pName =
                       rawName && !["Participant", "Guest"].includes(rawName)
                         ? rawName
-                        : (waitingForName || "Participant");
+                        : waitingForName || "Participant";
                     const bgColor = getTileBgColor(pName);
                     return (
                       <div
@@ -942,7 +1156,9 @@ function MeetingSidebar({
                         >
                           {getInitials(pName)}
                         </div>
-                        <span className="flex-1 text-[13px] font-medium text-white truncate">{pName}</span>
+                        <span className="flex-1 text-[13px] font-medium text-white truncate">
+                          {pName}
+                        </span>
                         <div className="flex gap-1.5 shrink-0">
                           <button
                             onClick={() => denyAccess(p.id)}
@@ -988,74 +1204,122 @@ function MeetingSidebar({
   );
 }
 
-// ─── EndCallMenu — leave meeting vs end appointment ──────────────────────────
-function EndCallMenu({
+// ─── EndCallModal — leave meeting vs complete & end appointment ───────────────
+function EndCallModal({
   onLeave,
+  appointmentId,
+  isDoctor,
   small,
 }: {
   onLeave: () => void;
+  appointmentId: string;
+  isDoctor: boolean;
   small?: boolean;
 }) {
   const [open, setOpen] = React.useState(false);
+  const [isCompleting, setIsCompleting] = React.useState(false);
+  const { mutateAsync: completeAppointment } = useCompleteAppointment();
   const btnSize = small ? "h-11 w-20" : "h-14 w-24";
   const iconSize = small ? "h-5 w-5" : "h-6 w-6";
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <motion.button
-          type="button"
-          whileHover={{ scale: 1.06 }}
-          whileTap={{ scale: 0.94 }}
-          aria-label="End call options"
-          className={cn(
-            "flex items-center justify-center rounded-full bg-[#ea4335] text-white hover:bg-[#d93025] transition-all shrink-0 focus:outline-none",
-            btnSize,
-          )}
-        >
-          <PhoneOff className={iconSize} />
-        </motion.button>
-      </PopoverTrigger>
-      <PopoverContent
-        side="top"
-        sideOffset={12}
-        align="center"
-        className="!w-auto rounded-2xl border border-[#3c4043] bg-[#202124] p-2 text-white shadow-2xl z-[200]"
-        style={{ width: "240px" }}
+    <>
+      {/* Trigger button — red PhoneOff */}
+      <motion.button
+        type="button"
+        whileHover={{ scale: 1.06 }}
+        whileTap={{ scale: 0.94 }}
+        aria-label="End call options"
+        onClick={() => setOpen(true)}
+        className={cn(
+          "flex items-center justify-center rounded-full bg-[#ea4335] text-white hover:bg-[#d93025] transition-all shrink-0 focus:outline-none",
+          btnSize,
+        )}
       >
-        {/* Leave meeting — just disconnect, appointment stays */}
-        <button
-          type="button"
-          onClick={() => { setOpen(false); onLeave(); }}
-          className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-[14px] font-medium text-white hover:bg-white/10 transition-colors"
-        >
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#fbbc05]/15">
-            <PhoneOff className="h-4 w-4 text-[#fbbc05]" />
-          </div>
-          <div className="text-left">
-            <p className="text-[13px] font-semibold text-white">Leave meeting</p>
-            <p className="text-[11px] text-[#9aa0a6]">Others can continue</p>
-          </div>
-        </button>
+        <PhoneOff className={iconSize} />
+      </motion.button>
 
-        <div className="my-1 border-t border-white/10" />
+      {/* Modal */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="rounded-2xl border border-[#3c4043] bg-[#202124] p-6 text-white shadow-2xl max-w-sm w-full">
+          <DialogHeader>
+            <DialogTitle className="text-[16px] font-semibold text-white">
+              Leave call
+            </DialogTitle>
+          </DialogHeader>
 
-        {/* End appointment — leave + mark appointment done */}
-        <button
-          type="button"
-          onClick={() => { setOpen(false); onLeave(); }}
-          className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-[14px] font-medium text-white hover:bg-[#ea4335]/15 transition-colors"
-        >
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#ea4335]/15">
-            <PhoneOff className="h-4 w-4 text-[#ea4335]" />
+          <div className="mt-4 space-y-2">
+            {/* Leave Meeting — no API call */}
+            <button
+              type="button"
+              disabled={isCompleting}
+              onClick={() => {
+                setOpen(false);
+                onLeave();
+              }}
+              className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-[14px] font-medium text-white hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#fbbc05]/15">
+                <PhoneOff className="h-4 w-4 text-[#fbbc05]" />
+              </div>
+              <div className="text-left">
+                <p className="text-[13px] font-semibold text-white">
+                  Leave Meeting
+                </p>
+                <p className="text-[11px] text-[#9aa0a6]">
+                  Others can continue
+                </p>
+              </div>
+            </button>
+
+            {/* Complete & End Appointment — only for doctors */}
+            {isDoctor && (
+              <>
+                <div className="border-t border-white/10" />
+                <button
+                  type="button"
+                  disabled={isCompleting}
+                  onClick={async () => {
+                    setIsCompleting(true);
+                    try {
+                      await completeAppointment({
+                        id: appointmentId,
+                        data: {},
+                      });
+                      onLeave();
+                    } catch {
+                      showErrorToast(
+                        "Could not mark appointment as complete. You have been removed from the call.",
+                      );
+                      onLeave();
+                    } finally {
+                      setIsCompleting(false);
+                    }
+                  }}
+                  className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-[14px] font-medium text-white hover:bg-[#ea4335]/15 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#ea4335]/15">
+                    {isCompleting ? (
+                      <Loader2 className="h-4 w-4 text-[#ea4335] animate-spin" />
+                    ) : (
+                      <PhoneOff className="h-4 w-4 text-[#ea4335]" />
+                    )}
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[13px] font-semibold text-[#ea4335]">
+                      Complete &amp; End Appointment
+                    </p>
+                    <p className="text-[11px] text-[#9aa0a6]">
+                      Mark as complete &amp; close
+                    </p>
+                  </div>
+                </button>
+              </>
+            )}
           </div>
-          <div className="text-left">
-            <p className="text-[13px] font-semibold text-[#ea4335]">End appointment</p>
-            <p className="text-[11px] text-[#9aa0a6]">Close for everyone</p>
-          </div>
-        </button>
-      </PopoverContent>
-    </Popover>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -1102,7 +1366,9 @@ function GridLayout({
 
   // Tiled: equal grid for everyone
   if (forceTiled) {
-    const all = activeSessionId ? [activeSessionId, ...secondaryIds] : secondaryIds;
+    const all = activeSessionId
+      ? [activeSessionId, ...secondaryIds]
+      : secondaryIds;
     const cols = all.length <= 2 ? "grid-cols-2" : "grid-cols-2 md:grid-cols-3";
     return (
       <div className={`grid flex-1 gap-1.5 sm:gap-2 min-h-0 ${cols}`}>
@@ -1122,7 +1388,9 @@ function GridLayout({
 
   // Auto 2-person: side by side on md+, stacked on mobile
   if (total === 2 && !forceSpotlight) {
-    const all = activeSessionId ? [activeSessionId, ...secondaryIds] : secondaryIds;
+    const all = activeSessionId
+      ? [activeSessionId, ...secondaryIds]
+      : secondaryIds;
     return (
       <div className="flex flex-col md:flex-row flex-1 gap-1.5 md:gap-3 min-h-0">
         {all.map((id) => (
@@ -1156,7 +1424,10 @@ function GridLayout({
       </div>
       <div className="flex w-[90px] sm:w-[140px] lg:w-[168px] shrink-0 flex-col gap-1.5 sm:gap-2 overflow-y-auto">
         {secondaryIds.map((id) => (
-          <div key={id} className="aspect-video w-full shrink-0 overflow-hidden rounded-xl">
+          <div
+            key={id}
+            className="aspect-video w-full shrink-0 overflow-hidden rounded-xl"
+          >
             <ParticipantTile
               sessionId={id}
               isLocal={id === localSessionId}
@@ -1177,6 +1448,7 @@ function DailyCallSurfaceContent({
   appointmentId,
   appointmentTitle,
   activePanel,
+  viewerRole,
   onLeave,
   displayName,
   remoteNameFallback,
@@ -1189,7 +1461,10 @@ function DailyCallSurfaceContent({
   const participantCounts = useParticipantCounts();
   const activeSpeakerId = useActiveSpeakerId({ ignoreLocal: false });
   const localSessionId = useLocalSessionId();
-  const remoteParticipantIds = useParticipantIds({ filter: "remote", sort: "user_name" });
+  const remoteParticipantIds = useParticipantIds({
+    filter: "remote",
+    sort: "user_name",
+  });
   const devices = useDevices();
   const screenShare = useScreenShare();
 
@@ -1200,19 +1475,22 @@ function DailyCallSurfaceContent({
   const [now, setNow] = React.useState(() => new Date());
   const hasJoinedRef = React.useRef(false);
 
-  const [localVideoState, localAudioState] = useParticipantProperty(localSessionId, [
-    "tracks.video.state",
-    "tracks.audio.state",
-  ]);
+  const [localVideoState, localAudioState] = useParticipantProperty(
+    localSessionId,
+    ["tracks.video.state", "tracks.audio.state"],
+  );
   const isLocalVideoOn = localVideoState === "playable";
   const isLocalAudioOn = localAudioState === "playable";
 
-  const isPatient = String(userData?.viewerRole || "").toLowerCase().includes("patient");
+  const isPatient = String(viewerRole || "")
+    .toLowerCase()
+    .includes("patient");
+  const isDoctor = isDoctorRole(viewerRole);
   const waitingForName =
     remoteNameFallback ||
     (isPatient
-      ? (userData?.doctorName as string || "Doctor")
-      : (userData?.patientName as string || "Patient"));
+      ? (userData?.doctorName as string) || "Doctor"
+      : (userData?.patientName as string) || "Patient");
 
   const [sentMessages, setSentMessages] = React.useState<DailyAppMessage[]>([]);
   const [unreadCount, setUnreadCount] = React.useState(0);
@@ -1231,12 +1509,15 @@ function DailyCallSurfaceContent({
     if (activePanelRef.current !== "chat") {
       setUnreadCount((n) => n + 1);
       showInfoToast(`New message from ${msg.senderName || "Participant"}`, {
-        description: msg.text.length > 50 ? `${msg.text.slice(0, 50)}…` : msg.text,
+        description:
+          msg.text.length > 50 ? `${msg.text.slice(0, 50)}…` : msg.text,
       });
     }
   }, []);
 
-  const sendAppMessage = useAppMessage<DailyAppMessage>({ onAppMessage: handleAppMessage });
+  const sendAppMessage = useAppMessage<DailyAppMessage>({
+    onAppMessage: handleAppMessage,
+  });
 
   const handleSendMessage = React.useCallback(
     (msg: DailyAppMessage) => {
@@ -1270,7 +1551,11 @@ function DailyCallSurfaceContent({
       } catch (err) {
         if (!cancelled) {
           hasJoinedRef.current = false;
-          setJoinError(err instanceof Error ? err.message : `Unable to join: ${JSON.stringify(err)}`);
+          setJoinError(
+            err instanceof Error
+              ? err.message
+              : `Unable to join: ${JSON.stringify(err)}`,
+          );
         }
       }
     };
@@ -1279,7 +1564,11 @@ function DailyCallSurfaceContent({
     return () => {
       cancelled = true;
       hasJoinedRef.current = false;
-      try { void daily.leave(); } catch { /* ignore */ }
+      try {
+        void daily.leave();
+      } catch {
+        /* ignore */
+      }
     };
   }, [access.meetingUrl, daily, displayName, userData]);
 
@@ -1293,21 +1582,31 @@ function DailyCallSurfaceContent({
     if (activePanel) setSettingsOpen(false);
   }, [activePanel]);
 
-  const renderedState = meetingState ? getMeetingStateLabel(meetingState) : "Connecting";
-  const errorMessage = joinError || String((dailyError as { message?: unknown } | null)?.message || "");
+  const renderedState = meetingState
+    ? getMeetingStateLabel(meetingState)
+    : "Connecting";
+  const errorMessage =
+    joinError ||
+    String((dailyError as { message?: unknown } | null)?.message || "");
   const isJoined = meetingState === "joined-meeting";
 
-  const activeSessionId = activeSpeakerId || remoteParticipantIds[0] || localSessionId || "";
+  const activeSessionId =
+    activeSpeakerId || remoteParticipantIds[0] || localSessionId || "";
   const secondaryIds = Array.from(
     new Set([
-      ...remoteParticipantIds.filter((id) => id !== activeSessionId).slice(0, 5),
+      ...remoteParticipantIds
+        .filter((id) => id !== activeSessionId)
+        .slice(0, 5),
       ...(localSessionId ? [localSessionId] : []),
     ]),
   ).filter((id) => id !== activeSessionId);
 
   const hasScreenShare = screenShare.screens.length > 0;
   const isLocalSharing = screenShare.isSharingScreen;
-  const clockLabel = now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const clockLabel = now.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
   const sessionLabel = appointmentId.slice(-8).toUpperCase();
 
   const handleTogglePanel = (panel: MeetPanel) => {
@@ -1329,7 +1628,11 @@ function DailyCallSurfaceContent({
       {!isJoined ? (
         <VideoLoadingScreen
           message="Joining consultation"
-          sub={meetingState === "joining-meeting" ? "Connecting to the secure video room…" : "Initialising your video session…"}
+          sub={
+            meetingState === "joining-meeting"
+              ? "Connecting to the secure video room…"
+              : "Initialising your video session…"
+          }
         />
       ) : (
         <>
@@ -1343,9 +1646,16 @@ function DailyCallSurfaceContent({
                 <div className="flex items-center gap-2 rounded-xl bg-black/60 backdrop-blur-md px-2.5 py-1.5 border border-white/10 pointer-events-auto min-w-0 max-w-[60%]">
                   <div
                     className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white border border-white/20"
-                    style={{ backgroundColor: getTileBgColor(appointmentTitle) }}
+                    style={{
+                      backgroundColor: getTileBgColor(appointmentTitle),
+                    }}
                   >
-                    {appointmentTitle.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "V"}
+                    {appointmentTitle
+                      .split(" ")
+                      .slice(0, 2)
+                      .map((w) => w[0])
+                      .join("")
+                      .toUpperCase() || "V"}
                   </div>
                   <div className="min-w-0">
                     <p className="truncate text-[12px] font-semibold text-white">
@@ -1375,7 +1685,9 @@ function DailyCallSurfaceContent({
                         : "bg-white/10 text-[#9aa0a6] border-white/10",
                     )}
                   >
-                    {isJoined && <span className="h-1.5 w-1.5 rounded-full bg-[#34a853] animate-pulse shrink-0" />}
+                    {isJoined && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#34a853] animate-pulse shrink-0" />
+                    )}
                     <span>{renderedState}</span>
                   </div>
                 </div>
@@ -1391,7 +1703,9 @@ function DailyCallSurfaceContent({
                           sessionId={screenShare.screens[0].session_id}
                           remoteNameFallback={waitingForName}
                           waitingForName={waitingForName}
-                          isLocal={screenShare.screens[0].session_id === localSessionId}
+                          isLocal={
+                            screenShare.screens[0].session_id === localSessionId
+                          }
                           onStopShare={() => screenShare.stopScreenShare()}
                         />
                       )}
@@ -1399,7 +1713,10 @@ function DailyCallSurfaceContent({
                     {secondaryIds.length > 0 && (
                       <div className="flex w-[140px] sm:w-[168px] shrink-0 flex-col gap-2 overflow-y-auto">
                         {secondaryIds.map((id) => (
-                          <div key={id} className="aspect-video w-full shrink-0 overflow-hidden rounded-xl">
+                          <div
+                            key={id}
+                            className="aspect-video w-full shrink-0 overflow-hidden rounded-xl"
+                          >
                             <ParticipantTile
                               sessionId={id}
                               isLocal={id === localSessionId}
@@ -1429,8 +1746,12 @@ function DailyCallSurfaceContent({
               {remoteParticipantIds.length === 0 && !hasScreenShare && (
                 <div className="absolute top-16 inset-x-0 flex justify-center z-10 pointer-events-none px-4">
                   <div className="rounded-2xl bg-black/70 backdrop-blur-md border border-white/10 px-4 py-3 text-center max-w-[80vw] sm:max-w-xs">
-                    <p className="text-[13px] sm:text-[14px] font-medium text-white">Waiting for {waitingForName}…</p>
-                    <p className="mt-0.5 text-[11px] text-[#9aa0a6]">You&apos;re the only one here right now.</p>
+                    <p className="text-[13px] sm:text-[14px] font-medium text-white">
+                      Waiting for {waitingForName}…
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-[#9aa0a6]">
+                      You&apos;re the only one here right now.
+                    </p>
                   </div>
                 </div>
               )}
@@ -1522,7 +1843,12 @@ function DailyCallSurfaceContent({
 
               {/* End call */}
               {onLeave && (
-                <EndCallMenu onLeave={onLeave} small />
+                <EndCallModal
+                  onLeave={onLeave}
+                  appointmentId={appointmentId}
+                  isDoctor={isDoctor}
+                  small
+                />
               )}
 
               {/* More menu — separate state from desktop settings */}
@@ -1567,21 +1893,33 @@ function DailyCallSurfaceContent({
                     }}
                     className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-[14px] font-medium text-white hover:bg-white/10 transition-colors"
                   >
-                    <MonitorUp className={cn("h-5 w-5 shrink-0", isLocalSharing ? "text-[#8ab4f8]" : "text-[#9aa0a6]")} />
-                    <span>{isLocalSharing ? "Stop presenting" : "Present screen"}</span>
+                    <MonitorUp
+                      className={cn(
+                        "h-5 w-5 shrink-0",
+                        isLocalSharing ? "text-[#8ab4f8]" : "text-[#9aa0a6]",
+                      )}
+                    />
+                    <span>
+                      {isLocalSharing ? "Stop presenting" : "Present screen"}
+                    </span>
                   </button>
 
                   {/* People */}
                   <button
                     type="button"
-                    onClick={() => { setMobileMenuOpen(false); handleTogglePanel("people"); }}
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      handleTogglePanel("people");
+                    }}
                     className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-[14px] font-medium text-white hover:bg-white/10 transition-colors"
                   >
                     <Users className="h-5 w-5 shrink-0 text-[#9aa0a6]" />
                     <span className="flex-1 text-left">Participants</span>
                     {participantCounts.present > 0 && (
                       <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#8ab4f8] text-[9px] font-bold text-[#202124]">
-                        {participantCounts.present > 9 ? "9+" : participantCounts.present}
+                        {participantCounts.present > 9
+                          ? "9+"
+                          : participantCounts.present}
                       </span>
                     )}
                   </button>
@@ -1589,7 +1927,10 @@ function DailyCallSurfaceContent({
                   {/* Chat */}
                   <button
                     type="button"
-                    onClick={() => { setMobileMenuOpen(false); handleTogglePanel("chat"); }}
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      handleTogglePanel("chat");
+                    }}
                     className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-[14px] font-medium text-white hover:bg-white/10 transition-colors"
                   >
                     <MessageSquare className="h-5 w-5 shrink-0 text-[#9aa0a6]" />
@@ -1604,26 +1945,55 @@ function DailyCallSurfaceContent({
                   <div className="my-1 border-t border-white/10" />
 
                   {/* Layout */}
-                  <p className="px-4 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9aa0a6]">Layout</p>
-                  {([ 
-                    { id: "auto" as VideoLayout, label: "Auto", icon: LayoutGrid },
-                    { id: "spotlight" as VideoLayout, label: "Spotlight", icon: Maximize2 },
-                    { id: "tiled" as VideoLayout, label: "Tiled", icon: LayoutPanelLeft },
-                  ]).map(({ id, label, icon: Icon }) => (
+                  <p className="px-4 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9aa0a6]">
+                    Layout
+                  </p>
+                  {[
+                    {
+                      id: "auto" as VideoLayout,
+                      label: "Auto",
+                      icon: LayoutGrid,
+                    },
+                    {
+                      id: "spotlight" as VideoLayout,
+                      label: "Spotlight",
+                      icon: Maximize2,
+                    },
+                    {
+                      id: "tiled" as VideoLayout,
+                      label: "Tiled",
+                      icon: LayoutPanelLeft,
+                    },
+                  ].map(({ id, label, icon: Icon }) => (
                     <button
                       key={id}
                       type="button"
-                      onClick={() => { setLayout(id); setMobileMenuOpen(false); }}
+                      onClick={() => {
+                        setLayout(id);
+                        setMobileMenuOpen(false);
+                      }}
                       className={cn(
                         "flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-[13px] font-medium transition-colors",
-                        layout === id ? "bg-[#8ab4f8]/15 text-[#8ab4f8]" : "text-white hover:bg-white/10",
+                        layout === id
+                          ? "bg-[#8ab4f8]/15 text-[#8ab4f8]"
+                          : "text-white hover:bg-white/10",
                       )}
                     >
                       <Icon className="h-4 w-4 shrink-0" />
                       <span className="flex-1 text-left">{label}</span>
                       {layout === id && (
-                        <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 14 14" fill="none">
-                          <path d="M2 7L5.5 10.5L12 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        <svg
+                          className="h-3.5 w-3.5 shrink-0"
+                          viewBox="0 0 14 14"
+                          fill="none"
+                        >
+                          <path
+                            d="M2 7L5.5 10.5L12 3.5"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
                         </svg>
                       )}
                     </button>
@@ -1636,9 +2006,13 @@ function DailyCallSurfaceContent({
             <div className="hidden md:flex items-center justify-between gap-3 px-4 py-4 max-w-5xl mx-auto">
               {/* Left: clock + session */}
               <div className="hidden lg:flex items-center gap-3 min-w-0 flex-1">
-                <span className="text-[14px] font-semibold text-white tabular-nums">{clockLabel}</span>
+                <span className="text-[14px] font-semibold text-white tabular-nums">
+                  {clockLabel}
+                </span>
                 <span className="text-white/20 select-none">|</span>
-                <span className="text-[12px] text-[#9aa0a6] font-mono">{sessionLabel}</span>
+                <span className="text-[12px] text-[#9aa0a6] font-mono">
+                  {sessionLabel}
+                </span>
               </div>
 
               {/* Center: media controls */}
@@ -1655,12 +2029,20 @@ function DailyCallSurfaceContent({
                 />
                 <ScreenShareMenu
                   isSharingScreen={isLocalSharing}
-                  onStartShare={() => { void screenShare.startScreenShare(); }}
-                  onStopShare={() => { void screenShare.stopScreenShare(); }}
+                  onStartShare={() => {
+                    void screenShare.startScreenShare();
+                  }}
+                  onStopShare={() => {
+                    void screenShare.stopScreenShare();
+                  }}
                 />
                 <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
                   <PopoverTrigger asChild>
-                    <ToolbarBtn icon={MoreVertical} label="More options" active={settingsOpen} />
+                    <ToolbarBtn
+                      icon={MoreVertical}
+                      label="More options"
+                      active={settingsOpen}
+                    />
                   </PopoverTrigger>
                   <PopoverContent
                     side="top"
@@ -1671,24 +2053,34 @@ function DailyCallSurfaceContent({
                     <div className="space-y-1">
                       <button
                         type="button"
-                        onClick={() => { setSettingsOpen(false); handleTogglePanel("people"); }}
+                        onClick={() => {
+                          setSettingsOpen(false);
+                          handleTogglePanel("people");
+                        }}
                         className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-[14px] font-medium text-white hover:bg-white/10 transition-colors"
                       >
                         <Users className="h-5 w-5 shrink-0 text-[#9aa0a6]" />
                         <span className="flex-1 text-left">Participants</span>
                         {participantCounts.present > 0 && (
                           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#8ab4f8] text-[9px] font-bold text-[#202124]">
-                            {participantCounts.present > 9 ? "9+" : participantCounts.present}
+                            {participantCounts.present > 9
+                              ? "9+"
+                              : participantCounts.present}
                           </span>
                         )}
                       </button>
                       <button
                         type="button"
-                        onClick={() => { setSettingsOpen(false); handleTogglePanel("chat"); }}
+                        onClick={() => {
+                          setSettingsOpen(false);
+                          handleTogglePanel("chat");
+                        }}
                         className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-[14px] font-medium text-white hover:bg-white/10 transition-colors"
                       >
                         <MessageSquare className="h-5 w-5 shrink-0 text-[#9aa0a6]" />
-                        <span className="flex-1 text-left">In-call messages</span>
+                        <span className="flex-1 text-left">
+                          In-call messages
+                        </span>
                         {unreadCount > 0 && (
                           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#ea4335] text-[9px] font-bold text-white">
                             {unreadCount > 9 ? "9+" : unreadCount}
@@ -1698,26 +2090,55 @@ function DailyCallSurfaceContent({
 
                       <div className="my-1 border-t border-white/10" />
 
-                      <p className="px-4 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9aa0a6]">Layout</p>
-                      {([
-                        { id: "auto" as VideoLayout, label: "Auto", icon: LayoutGrid },
-                        { id: "spotlight" as VideoLayout, label: "Spotlight", icon: Maximize2 },
-                        { id: "tiled" as VideoLayout, label: "Tiled", icon: LayoutPanelLeft },
-                      ]).map(({ id, label, icon: Icon }) => (
+                      <p className="px-4 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9aa0a6]">
+                        Layout
+                      </p>
+                      {[
+                        {
+                          id: "auto" as VideoLayout,
+                          label: "Auto",
+                          icon: LayoutGrid,
+                        },
+                        {
+                          id: "spotlight" as VideoLayout,
+                          label: "Spotlight",
+                          icon: Maximize2,
+                        },
+                        {
+                          id: "tiled" as VideoLayout,
+                          label: "Tiled",
+                          icon: LayoutPanelLeft,
+                        },
+                      ].map(({ id, label, icon: Icon }) => (
                         <button
                           key={id}
                           type="button"
-                          onClick={() => { setLayout(id); setSettingsOpen(false); }}
+                          onClick={() => {
+                            setLayout(id);
+                            setSettingsOpen(false);
+                          }}
                           className={cn(
                             "flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-[13px] font-medium transition-colors",
-                            layout === id ? "bg-[#8ab4f8]/15 text-[#8ab4f8]" : "text-white hover:bg-white/10",
+                            layout === id
+                              ? "bg-[#8ab4f8]/15 text-[#8ab4f8]"
+                              : "text-white hover:bg-white/10",
                           )}
                         >
                           <Icon className="h-4 w-4 shrink-0" />
                           <span className="flex-1 text-left">{label}</span>
                           {layout === id && (
-                            <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 14 14" fill="none">
-                              <path d="M2 7L5.5 10.5L12 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            <svg
+                              className="h-3.5 w-3.5 shrink-0"
+                              viewBox="0 0 14 14"
+                              fill="none"
+                            >
+                              <path
+                                d="M2 7L5.5 10.5L12 3.5"
+                                stroke="currentColor"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
                             </svg>
                           )}
                         </button>
@@ -1726,7 +2147,11 @@ function DailyCallSurfaceContent({
                   </PopoverContent>
                 </Popover>
                 {onLeave && (
-                  <EndCallMenu onLeave={onLeave} />
+                  <EndCallModal
+                    onLeave={onLeave}
+                    appointmentId={appointmentId}
+                    isDoctor={isDoctor}
+                  />
                 )}
               </div>
 
@@ -1746,7 +2171,9 @@ function DailyCallSurfaceContent({
                   <Users className="h-6 w-6" />
                   {participantCounts.present > 0 && (
                     <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#8ab4f8] text-[9px] font-bold text-[#202124] border-2 border-[#202124]">
-                      {participantCounts.present > 9 ? "9+" : participantCounts.present}
+                      {participantCounts.present > 9
+                        ? "9+"
+                        : participantCounts.present}
                     </span>
                   )}
                 </button>
@@ -1779,7 +2206,9 @@ function DailyCallSurfaceContent({
 
 // ─── DailyCallSurface (public export) ────────────────────────────────────────
 function DailyCallSurface(props: DailyInAppCallProps) {
-  const [callObject, setCallObject] = React.useState<DailyCall | null | false>(null);
+  const [callObject, setCallObject] = React.useState<DailyCall | null | false>(
+    null,
+  );
 
   React.useEffect(() => {
     let co: DailyCall | null = null;
@@ -1799,14 +2228,21 @@ function DailyCallSurface(props: DailyInAppCallProps) {
             void co.leave();
             co.destroy();
           }
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
         sharedDailyCallObject = null;
       }
     };
   }, []);
 
   if (callObject === null) {
-    return <VideoLoadingScreen message="Initialising video engine…" sub="Loading the Daily call object in your browser." />;
+    return (
+      <VideoLoadingScreen
+        message="Initialising video engine…"
+        sub="Loading the Daily call object in your browser."
+      />
+    );
   }
 
   if (callObject === false) {
