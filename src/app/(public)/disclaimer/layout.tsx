@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Disclaimer | Shree Vishwamruti Ayurvedic Chikitsalya",
+  title: "Disclaimer | Dr.Chandrakumar Deshmukh",
   description:
-    "Read the medical and legal disclaimer for Shree Vishwamruti Ayurvedic Chikitsalya. Understand the limitations of the information provided on our platform.",
+    "Read the medical and legal disclaimer for Dr.Chandrakumar Deshmukh. Understand the limitations of the information provided on our platform.",
   openGraph: {
-    title: "Disclaimer | Shree Vishwamruti Ayurvedic Chikitsalya",
+    title: "Disclaimer | Dr.Chandrakumar Deshmukh",
     description:
-      "Medical and legal disclaimer for Shree Vishwamruti Ayurvedic Chikitsalya.",
-    siteName: "Shree Vishwamruti Ayurvedic Chikitsalya",
+      "Medical and legal disclaimer for Dr.Chandrakumar Deshmukh.",
+    siteName: "Dr.Chandrakumar Deshmukh",
   },
   robots: { index: true, follow: true },
 };

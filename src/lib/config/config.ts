@@ -281,7 +281,7 @@ export const APP_CONFIG = {
   CLINIC: {
     // ✅ Trim clinic ID to prevent whitespace issues
     ID: env.NEXT_PUBLIC_CLINIC_ID?.trim() || 'CL0002',
-    APP_NAME: env.NEXT_PUBLIC_APP_NAME || 'Shree Vishwamruti Ayurvedic Chikitsalya',
+    APP_NAME: env.NEXT_PUBLIC_APP_NAME || 'Dr.Chandrakumar Deshmukh',
   },
   
   // ============================================

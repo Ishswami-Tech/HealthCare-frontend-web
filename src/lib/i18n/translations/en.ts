@@ -90,7 +90,7 @@ export const en: TranslationKeys = {
   },
   navigation: {
     logo: 'Shree',
-    clinicName: 'Shree Vishwamruti Ayurvedic Chikitsalya',
+    clinicName: 'Dr.Chandrakumar Deshmukh',
     clinicSubtitle: 'Traditional Healing, Modern Care',
     livePatients: 'Live Patients',
     livesTransformed: 'Lives Transformed',
@@ -759,11 +759,11 @@ export const en: TranslationKeys = {
     about: 'Expert in treating neurological conditions through traditional Ayurvedic methods',
   },
   clinic: {
-    name: 'Shree Vishwamruti Ayurvedic Chikitsalya',
+    name: 'Dr.Chandrakumar Deshmukh',
     address: 'Moraya Ganapati Mandir Road, Gandhi Peth, Chinchwad Gaon, Chinchwad, Pimpri-Chinchwad, Maharashtra, India',
     phone: '+91 9860370961, +91 79 7254 8944',
     whatsapp: '9860370961',
-    email: 'Vishwamurtiayurveda@gmail.com',
+    email: 'drchandrakumardeshmukh@gmail.com',
     timings: 'Clinic Timings',
     mondayToFriday: 'Chinchwad - 12 pm to 6 pm (day OPD), 10 pm to 11.45 pm (night OPD)',
     weekends: 'Saturday & Sunday',
@@ -921,7 +921,7 @@ export const en: TranslationKeys = {
   // Landing Page Content
   landing: {
     // Header/Navigation
-    brandName: 'Shree Vishwamruti Ayurvedic Chikitsalya',
+    brandName: 'Dr.Chandrakumar Deshmukh',
     welcome: 'Welcome',
     loginButton: 'Login',
     getStartedButton: 'Get Started',
@@ -982,7 +982,7 @@ export const en: TranslationKeys = {
     twitter: 'Twitter',
     facebook: 'Facebook',
     linkedin: 'LinkedIn',
-    copyright: '© 2024 Shree Vishwamruti Ayurvedic Chikitsalya. All rights reserved.',
+    copyright: '© 2024 Dr.Chandrakumar Deshmukh. All rights reserved.',
 
     // Toast Messages
     loginRequired: 'Please login to access the dashboard',
@@ -1233,9 +1233,9 @@ export const en: TranslationKeys = {
       emailAddresses: {
         title: "Email Addresses",
         details: [
-          "Vishwamurtiayurveda@gmail.com",
+          "drchandrakumardeshmukh@gmail.com",
           "info@viddhakarma.com",
-          "emergency@Vishwamurtiayurveda.com"
+          "emergency@drchandrakumardeshmukh.com"
         ]
       },
       location: {
@@ -1276,12 +1276,12 @@ export const en: TranslationKeys = {
   },
   footer: {
     logo: 'Shree',
-    clinicName: 'Shree Vishwamruti Ayurvedic Chikitsalya',
+    clinicName: 'Dr.Chandrakumar Deshmukh',
     tagline: 'Authentic Ayurvedic Care',
     description: 'Experience the power of traditional Ayurvedic healing with our expert practitioners. We are committed to providing authentic, personalized care for your complete wellness journey.',
     address: 'Moraya Ganapati Mandir Road, Gandhi Peth, Chinchwad Gaon, Chinchwad, Pimpri-Chinchwad, Maharashtra, India',
     phone: '+91 9860370961, +91 79 7254 8944',
-    email: 'Vishwamurtiayurveda@gmail.com',
+    email: 'drchandrakumardeshmukh@gmail.com',
     workingHours: 'Chinchwad - 12 pm to 6 pm (day OPD), 10 pm to 11.45 pm (night OPD) | Pune - 7-9 pm (only night) | Dehu - Every Wednesday (10 am to 2 pm) | Nanded - Alternate weekend (Saturday & Sunday)',
     ourServices: 'Our Services',
     medicalDisclaimer: 'Government CertifiedISO 9001:20154.9/5 Rating',
@@ -1313,7 +1313,7 @@ export const en: TranslationKeys = {
       address: 'Moraya Ganapati Mandir Road, Gandhi Peth, Chinchwad Gaon, Chinchwad, Pimpri-Chinchwad, Maharashtra, India',
       phone: '+91 9860370961, +91 79 7254 8944',
       emergency: '24/7 Emergency Support',
-      email: 'Vishwamurtiayurveda@gmail.com',
+      email: 'drchandrakumardeshmukh@gmail.com',
       hours: 'Chinchwad - 12 pm to 6 pm (day OPD), 10 pm to 11.45 pm (night OPD) | Pune - 7-9 pm (only night) | Dehu - Every Wednesday (10 am to 2 pm) | Nanded - Alternate weekend (Saturday & Sunday)'
     },
     emergency: {
@@ -2348,7 +2348,7 @@ export const en: TranslationKeys = {
   },
   about: {
     hero: {
-      badge: "About Shree Vishwamruti Ayurvedic Chikitsalya",
+      badge: "About Dr.Chandrakumar Deshmukh",
       title: "20+ Years of Authentic Healing",
       subtitle: "Where ancient Ayurvedic wisdom meets modern healthcare excellence. Our journey of transformation, one life at a time.",
       certifications: {
@@ -2360,8 +2360,8 @@ export const en: TranslationKeys = {
     story: {
       title: "Our Story",
       paragraphs: {
-        p1: "Founded in 2003 with a sacred mission to preserve and practice authentic Ayurveda, Shree Vishwamruti Ayurvedic Chikitsalya has been a beacon of hope for thousands seeking natural healing and complete wellness.",
-        p2: "Our founder, Dr. Vishwamurti, envisioned a place where the timeless wisdom of Ayurveda could be practiced in its purest form while embracing the benefits of modern healthcare infrastructure and scientific validation.",
+        p1: "Founded in 2003 with a sacred mission to preserve and practice authentic Ayurveda, Dr.Chandrakumar Deshmukh has been a beacon of hope for thousands seeking natural healing and complete wellness.",
+        p2: "Our founder, Dr.Chandrakumar Deshmukh, envisioned a place where the timeless wisdom of Ayurveda could be practiced in its purest form while embracing the benefits of modern healthcare infrastructure and scientific validation.",
         p3: "Over two decades, we have grown from a small clinic to a renowned Ayurvedic hospital, treating complex chronic conditions that conventional medicine often struggles to address. Our success lies in treating the root cause, not just symptoms.",
         p4: "Today, we stand proud as a government-certified, ISO-accredited institution that has transformed over 5000 lives through authentic Panchakarma, Agnikarma, Viddha Karma, and comprehensive Ayurvedic treatments."
       }
@@ -2401,7 +2401,7 @@ export const en: TranslationKeys = {
       subtitle: "Key milestones that shaped our legacy of healing excellence",
       "2003": {
         event: "Foundation Established",
-        description: "Shree Vishwamruti Ayurvedic Chikitsalya was founded with a vision to provide authentic Ayurvedic healing to the community."
+        description: "Dr.Chandrakumar Deshmukh was founded with a vision to provide authentic Ayurvedic healing to the community."
       },
       "2008": {
         event: "Government Recognition",
