@@ -69,30 +69,32 @@
 }
 
 :root {
-  --background: oklch(0.982 0.008 150);      /* Ultra-light emerald canvas — cards float above */
+  --background: oklch(
+    0.982 0.008 150
+  ); /* Ultra-light emerald canvas — cards float above */
   --foreground: oklch(0.15 0 0);
-  --card: oklch(1 0 0);                      /* Pure White cards — pop off canvas */
+  --card: oklch(1 0 0); /* Pure White cards — pop off canvas */
   --card-foreground: oklch(0.15 0 0);
-  --popover: oklch(1 0 0);                   /* Pure White popovers */
+  --popover: oklch(1 0 0); /* Pure White popovers */
   --popover-foreground: oklch(0.15 0 0);
-  --primary: oklch(0.62 0.16 150);           /* Emerald Green */
+  --primary: oklch(0.62 0.16 150); /* Emerald Green */
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.975 0.005 150);       /* Very light emerald tint */
+  --secondary: oklch(0.975 0.005 150); /* Very light emerald tint */
   --secondary-foreground: oklch(0.2 0 0);
-  --muted: oklch(0.975 0.005 150);           /* Very light emerald tint */
+  --muted: oklch(0.975 0.005 150); /* Very light emerald tint */
   --muted-foreground: oklch(0.55 0 0);
   --accent: oklch(0.975 0.005 150);
   --accent-foreground: oklch(0.2 0 0);
   --destructive: oklch(0.57 0.2 27);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.90 0.005 150);           /* Faintly emerald-tinted border */
+  --border: oklch(0.9 0.005 150); /* Faintly emerald-tinted border */
   --input: oklch(0.92 0.004 150);
-  --ring: oklch(0.62 0.16 150);              /* Emerald focus ring */
+  --ring: oklch(0.62 0.16 150); /* Emerald focus ring */
   --chart-1: oklch(0.45 0.15 260);
   --chart-2: oklch(0.65 0.15 200);
   --chart-3: oklch(0.75 0.15 150);
   --chart-4: oklch(0.85 0.15 100);
-  --chart-5: oklch(0.90 0.15 50);
+  --chart-5: oklch(0.9 0.15 50);
   --sidebar: oklch(0.978 0.007 150);
   --sidebar-foreground: oklch(0.15 0 0);
   --sidebar-primary: oklch(0.2 0 0);
@@ -103,33 +105,35 @@
   --sidebar-ring: oklch(0.62 0.16 150);
   --font-sans: ui-sans-serif, system-ui, sans-serif;
   --font-serif: ui-serif, Georgia, Cambria, Times New Roman, Times, serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    Liberation Mono, Courier New, monospace;
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono,
+    Courier New, monospace;
   --radius: 0.75rem;
 
   /* Base surface scale for page-canvas / shell / divider hierarchy */
-  --base-100: oklch(0.984 0 0);   /* near-white — card surface */
-  --base-200: oklch(0.948 0 0);   /* page canvas — visibly grey vs card */
-  --base-300: oklch(0.908 0 0);   /* dividers / strong border */
+  --base-100: oklch(0.984 0 0); /* near-white — card surface */
+  --base-200: oklch(0.948 0 0); /* page canvas — visibly grey vs card */
+  --base-300: oklch(0.908 0 0); /* dividers / strong border */
 
   /* Shadows — increased from 5% to 10-12% for light mode visibility */
   --shadow-x: 0px;
   --shadow-y: 4px;
   --shadow-blur: 10px;
   --shadow-spread: 0px;
-  --shadow-opacity: 0.10;
+  --shadow-opacity: 0.1;
   --shadow-color: #000000;
   --shadow-2xs: 0px 1px 4px 0px hsl(0 0% 0% / 0.06);
   --shadow-xs: 0px 2px 6px 0px hsl(0 0% 0% / 0.07);
-  --shadow-sm: 0px 1px 3px 0px hsl(0 0% 0% / 0.10),
-    0px 2px 8px -1px hsl(0 0% 0% / 0.07);
-  --shadow: 0px 2px 8px 0px hsl(0 0% 0% / 0.10),
-    0px 4px 12px -2px hsl(0 0% 0% / 0.08);
-  --shadow-md: 0px 4px 14px -2px hsl(0 0% 0% / 0.12),
-    0px 2px 6px -2px hsl(0 0% 0% / 0.08);
-  --shadow-lg: 0px 8px 20px -4px hsl(0 0% 0% / 0.12),
-    0px 4px 8px -4px hsl(0 0% 0% / 0.08);
-  --shadow-xl: 0px 12px 28px -6px hsl(0 0% 0% / 0.12),
+  --shadow-sm:
+    0px 1px 3px 0px hsl(0 0% 0% / 0.1), 0px 2px 8px -1px hsl(0 0% 0% / 0.07);
+  --shadow:
+    0px 2px 8px 0px hsl(0 0% 0% / 0.1), 0px 4px 12px -2px hsl(0 0% 0% / 0.08);
+  --shadow-md:
+    0px 4px 14px -2px hsl(0 0% 0% / 0.12), 0px 2px 6px -2px hsl(0 0% 0% / 0.08);
+  --shadow-lg:
+    0px 8px 20px -4px hsl(0 0% 0% / 0.12), 0px 4px 8px -4px hsl(0 0% 0% / 0.08);
+  --shadow-xl:
+    0px 12px 28px -6px hsl(0 0% 0% / 0.12),
     0px 6px 12px -6px hsl(0 0% 0% / 0.08);
   --shadow-2xl: 0px 20px 40px -8px hsl(0 0% 0% / 0.16);
   --tracking-normal: 0px;
@@ -146,13 +150,13 @@
 }
 
 .dark {
-  --background: oklch(0.12 0 0);            /* Deep premium slate */
+  --background: oklch(0.12 0 0); /* Deep premium slate */
   --foreground: oklch(0.95 0 0);
-  --card: oklch(0.15 0 0);                   /* Slightly elevated slate */
+  --card: oklch(0.15 0 0); /* Slightly elevated slate */
   --card-foreground: oklch(0.95 0 0);
-  --popover: oklch(0.15 0 0);               /* Slightly elevated slate */
+  --popover: oklch(0.15 0 0); /* Slightly elevated slate */
   --popover-foreground: oklch(0.95 0 0);
-  --primary: oklch(0.62 0.16 150);           /* Emerald Green — consistent branding */
+  --primary: oklch(0.62 0.16 150); /* Emerald Green — consistent branding */
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.2 0 0);
   --secondary-foreground: oklch(0.95 0 0);
@@ -164,12 +168,12 @@
   --destructive-foreground: oklch(0.12 0 0);
   --border: oklch(0.25 0 0);
   --input: oklch(0.2 0 0);
-  --ring: oklch(0.62 0.16 150);              /* Emerald focus ring */
+  --ring: oklch(0.62 0.16 150); /* Emerald focus ring */
   --chart-1: oklch(0.65 0.15 260);
   --chart-2: oklch(0.65 0.15 200);
   --chart-3: oklch(0.75 0.15 150);
   --chart-4: oklch(0.85 0.15 100);
-  --chart-5: oklch(0.90 0.15 50);
+  --chart-5: oklch(0.9 0.15 50);
   --sidebar: oklch(0.14 0 0);
   --sidebar-foreground: oklch(0.95 0 0);
   --sidebar-primary: oklch(0.62 0.16 150);
@@ -180,14 +184,15 @@
   --sidebar-ring: oklch(0.62 0.16 150);
   --font-sans: ui-sans-serif, system-ui, sans-serif;
   --font-serif: ui-serif, Georgia, Cambria, Times New Roman, Times, serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    Liberation Mono, Courier New, monospace;
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono,
+    Courier New, monospace;
   --radius: 0.75rem;
 
   /* Base surface scale — dark mode */
-  --base-100: oklch(0.220 0 0);   /* elevated card surface */
-  --base-200: oklch(0.178 0 0);   /* page canvas */
-  --base-300: oklch(0.148 0 0);   /* deep / strong dividers */
+  --base-100: oklch(0.22 0 0); /* elevated card surface */
+  --base-200: oklch(0.178 0 0); /* page canvas */
+  --base-300: oklch(0.148 0 0); /* deep / strong dividers */
 
   --shadow-x: 0px;
   --shadow-y: 4px;
@@ -196,30 +201,35 @@
   --shadow-opacity: 0.35;
   --shadow-color: #000000;
   --shadow-2xs: 0px 1px 4px 0px hsl(0 0% 0% / 0.25);
-  --shadow-xs: 0px 2px 6px 0px hsl(0 0% 0% / 0.30);
-  --shadow-sm: 0px 1px 3px 0px hsl(0 0% 0% / 0.35),
-    0px 2px 8px -1px hsl(0 0% 0% / 0.30);
-  --shadow: 0px 2px 8px 0px hsl(0 0% 0% / 0.35),
-    0px 4px 12px -2px hsl(0 0% 0% / 0.30);
-  --shadow-md: 0px 4px 14px -2px hsl(0 0% 0% / 0.40),
-    0px 2px 6px -2px hsl(0 0% 0% / 0.30);
-  --shadow-lg: 0px 8px 20px -4px hsl(0 0% 0% / 0.45),
-    0px 4px 8px -4px hsl(0 0% 0% / 0.30);
-  --shadow-xl: 0px 12px 28px -6px hsl(0 0% 0% / 0.50),
-    0px 6px 12px -6px hsl(0 0% 0% / 0.35);
-  --shadow-2xl: 0px 20px 40px -8px hsl(0 0% 0% / 0.60);
+  --shadow-xs: 0px 2px 6px 0px hsl(0 0% 0% / 0.3);
+  --shadow-sm:
+    0px 1px 3px 0px hsl(0 0% 0% / 0.35), 0px 2px 8px -1px hsl(0 0% 0% / 0.3);
+  --shadow:
+    0px 2px 8px 0px hsl(0 0% 0% / 0.35), 0px 4px 12px -2px hsl(0 0% 0% / 0.3);
+  --shadow-md:
+    0px 4px 14px -2px hsl(0 0% 0% / 0.4), 0px 2px 6px -2px hsl(0 0% 0% / 0.3);
+  --shadow-lg:
+    0px 8px 20px -4px hsl(0 0% 0% / 0.45), 0px 4px 8px -4px hsl(0 0% 0% / 0.3);
+  --shadow-xl:
+    0px 12px 28px -6px hsl(0 0% 0% / 0.5), 0px 6px 12px -6px hsl(0 0% 0% / 0.35);
+  --shadow-2xl: 0px 20px 40px -8px hsl(0 0% 0% / 0.6);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    transition: background-color 0.3s ease, border-color 0.3s ease,
-      color 0.3s ease, opacity 0.3s ease;
+    transition:
+      background-color 0.3s ease,
+      border-color 0.3s ease,
+      color 0.3s ease,
+      opacity 0.3s ease;
   }
 
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: clip;
@@ -281,21 +291,28 @@
 
   /* Minimalistic shadows */
   .shadow-minimal {
-    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
+    box-shadow:
+      0 1px 3px 0 rgb(0 0 0 / 0.05),
+      0 1px 2px -1px rgb(0 0 0 / 0.05);
   }
 
   .shadow-minimal-lg {
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05),
+    box-shadow:
+      0 4px 6px -1px rgb(0 0 0 / 0.05),
       0 2px 4px -2px rgb(0 0 0 / 0.05);
   }
 
   /* Dark mode shadows */
   .dark .shadow-minimal {
-    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+    box-shadow:
+      0 1px 3px 0 rgb(0 0 0 / 0.3),
+      0 1px 2px -1px rgb(0 0 0 / 0.3);
   }
 
   .dark .shadow-minimal-lg {
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+    box-shadow:
+      0 4px 6px -1px rgb(0 0 0 / 0.3),
+      0 2px 4px -2px rgb(0 0 0 / 0.3);
   }
 
   /* Google Meet UI Utilities */
@@ -305,21 +322,21 @@
   .dark .meet-control-button {
     @apply border-[#3c4043] bg-[#3c4043] text-white shadow-none hover:bg-[#4a4d51] hover:border-[#4a4d51];
   }
-  
+
   .meet-control-button-active {
     @apply bg-[#4a4d51] text-white hover:bg-[#5f6368] hover:text-white;
   }
   .dark .meet-control-button-active {
     @apply bg-[#4a4d51] text-white hover:bg-[#5f6368] hover:text-white;
   }
-  
+
   .meet-control-button-danger {
     @apply bg-[#ea4335] text-white border-[#ea4335] hover:bg-[#d93025] hover:border-[#d93025];
   }
   .dark .meet-control-button-danger {
     @apply bg-[#ea4335] text-white border-[#ea4335] hover:bg-[#d93025] hover:border-[#d93025];
   }
-  
+
   .meet-control-button-blue {
     @apply bg-[#1a73e8] text-white border-[#1a73e8] hover:bg-[#1558b0] hover:border-[#1558b0];
   }
@@ -1441,6 +1458,7 @@ html {
   margin-right: 0 !important;
   display: flex !important;
   align-items: center !important;
+  position: relative !important;
 }
 
 .PhoneInputCountrySelect {
@@ -1464,6 +1482,12 @@ html {
   box-shadow: none !important;
   height: 100% !important;
   padding: 0 !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Dark mode text color for phone input */
+.dark .PhoneInputInput {
+  color: hsl(var(--foreground)) !important;
 }
 
 /* Force remove outline in all states */
@@ -1479,15 +1503,30 @@ html {
   @apply ring-2 ring-ring ring-offset-2 ring-offset-background border-transparent;
 }
 
+/* Country icon styling */
 .PhoneInputCountryIcon {
   width: 1.5em;
   height: 1em;
   box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.1);
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.dark .PhoneInputCountryIcon {
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .PhoneInputCountryIcon--border {
-  /* background-color: rgba(0, 0, 0, 0.1); */
-  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.1), inset 0px 0px 0px 1px rgba(0, 0, 0, 0.1);
+  box-shadow:
+    0px 1px 2px rgba(0, 0, 0, 0.1),
+    inset 0px 0px 0px 1px rgba(0, 0, 0, 0.1);
+}
+
+.dark .PhoneInputCountryIcon--border {
+  box-shadow:
+    0px 1px 2px rgba(0, 0, 0, 0.3),
+    inset 0px 0px 0px 1px rgba(255, 255, 255, 0.1);
 }
 
 /* ============================================================================
@@ -1507,6 +1546,22 @@ input[type="tel"].PhoneInputInput {
   z-index: 1 !important;
   flex: 1 !important;
   min-width: 0 !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Dark mode input text color */
+.dark input[type="tel"].PhoneInputInput {
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Placeholder styling for light mode */
+.PhoneInputInput::placeholder {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+/* Placeholder styling for dark mode */
+.dark .PhoneInputInput::placeholder {
+  color: hsl(var(--muted-foreground)) !important;
 }
 
 /* Remove borders in all states */
@@ -1528,6 +1583,91 @@ input[type="tel"].PhoneInputInput:active {
   border: 0 !important;
   outline: 0 !important;
   cursor: text !important;
+}
+
+/* Country selector button styling */
+.PhoneInputCountry button {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.25rem !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.dark .PhoneInputCountry button {
+  color: hsl(var(--foreground)) !important;
+}
+
+.PhoneInputCountry button:hover {
+  opacity: 0.7 !important;
+}
+
+/* Country select dropdown styling */
+.PhoneInputCountrySelect:focus {
+  outline: none !important;
+}
+
+/* Ensure country selector is visible and accessible */
+.phone-input-container {
+  position: relative !important;
+  z-index: 1 !important;
+  overflow: visible !important;
+}
+
+/* FormItem should not clip phone input dropdown */
+.form-item {
+  overflow: visible !important;
+}
+
+/* Fix country dropdown z-index and positioning */
+.PhoneInputCountrySelect {
+  z-index: 50 !important;
+}
+
+/* Country select menu - ensure it appears above all other elements */
+.PhoneInputCountrySelectMenu {
+  position: absolute !important;
+  z-index: 9999 !important;
+  top: 100% !important;
+  left: 0 !important;
+  background: var(--background) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 0.5rem !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+  max-height: 300px !important;
+  overflow-y: auto !important;
+  margin-top: 4px !important;
+}
+
+.dark .PhoneInputCountrySelectMenu {
+  background: var(--card) !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Country select options */
+.PhoneInputCountrySelectOption {
+  padding: 8px 12px !important;
+  cursor: pointer !important;
+  transition: background-color 0.2s ease !important;
+  color: var(--foreground) !important;
+}
+
+.PhoneInputCountrySelectOption:hover {
+  background-color: var(--muted) !important;
+}
+
+.PhoneInputCountrySelectOption.selected {
+  background-color: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+}
+
+/* Ensure the country button is clickable */
+.PhoneInputCountry button {
+  z-index: 10 !important;
+  position: relative !important;
 }
 
 /* ============================================================================
@@ -1673,29 +1813,4 @@ html5-qrcode {
     font-size: 2rem;
     line-height: 1.15;
   }
-}
-
-/* ============================================================================
-   UTILITY CLASSES FOR VIDEO CALL
-   ============================================================================ */
-
-.safe-area-bottom {
-  padding-bottom: env(safe-area-inset-bottom, 16px);
-}
-
-.custom-scrollbar::-webkit-scrollbar {
-  width: 5px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #dadce0;
-  border-radius: 10px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #bdc1c6;
 }

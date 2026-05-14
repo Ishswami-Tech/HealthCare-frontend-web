@@ -71,6 +71,7 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'backend-service-v1.Viddhakarma.in' },
       { protocol: 'https', hostname: 'Viddhakarma.in' },
       { protocol: 'https', hostname: 'ui-avatars.com' },
+      { protocol: 'https', hostname: 'flagcdn.com' },
       { protocol: 'http', hostname: 'localhost' },
     ],
   },
