@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "@/components/ui/loader";
+import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import {
   TestTube2,
   FileText,
@@ -17,6 +18,7 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { useLabTechnicianResults } from "@/hooks/query/useLabTechnician";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { formatDateTimeInIST } from "@/lib/utils/date-time";
+import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
 
 export default function LabTechnicianDashboard() {
   const { session } = useAuth();
@@ -147,50 +149,43 @@ export default function LabTechnicianDashboard() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Tests</CardTitle>
-            <Clock className="h-4 w-4 text-orange-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{stats.pendingTests}</div>
-            <p className="text-xs text-muted-foreground">Awaiting processing</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed Today</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.completedToday}</div>
-            <p className="text-xs text-muted-foreground">Results reported</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Patients</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalPatients}</div>
-            <p className="text-xs text-muted-foreground">Unique patients today</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg. Processing</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.avgProcessingTime} min</div>
-            <p className="text-xs text-muted-foreground">Per test average</p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+        <DashboardMetricCard
+          label="Pending Tests"
+          value={stats.pendingTests}
+          subtext="Awaiting processing"
+          accentClassName="border-orange-200 bg-orange-50 dark:border-orange-500/20 dark:bg-orange-500/10"
+          valueClassName="mt-1 text-2xl font-bold text-orange-600"
+          labelClassName="text-orange-600"
+          compact
+        />
+        <DashboardMetricCard
+          label="Completed Today"
+          value={stats.completedToday}
+          subtext="Results reported"
+          accentClassName="border-green-200 bg-green-50 dark:border-green-500/20 dark:bg-green-500/10"
+          valueClassName="mt-1 text-2xl font-bold text-green-600"
+          labelClassName="text-green-600"
+          compact
+        />
+        <DashboardMetricCard
+          label="Total Patients"
+          value={stats.totalPatients}
+          subtext="Unique patients today"
+          accentClassName="border-slate-200 bg-slate-50 dark:border-slate-500/20 dark:bg-slate-500/10"
+          valueClassName="mt-1 text-2xl font-bold"
+          labelClassName="text-slate-600"
+          compact
+        />
+        <DashboardMetricCard
+          label="Avg. Processing"
+          value={`${stats.avgProcessingTime} min`}
+          subtext="Per test average"
+          accentClassName="border-indigo-200 bg-indigo-50 dark:border-indigo-500/20 dark:bg-indigo-500/10"
+          valueClassName="mt-1 text-2xl font-bold text-indigo-600"
+          labelClassName="text-indigo-600"
+          compact
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -204,10 +199,15 @@ export default function LabTechnicianDashboard() {
           </CardHeader>
           <CardContent>
             {pendingTests.length === 0 ? (
-              <div className="text-center py-12 bg-slate-50 border border-dashed rounded-lg">
-                <Clock className="w-12 h-12 mx-auto text-muted-foreground opacity-20 mb-4" />
-                <p className="text-muted-foreground">No pending lab tests</p>
-              </div>
+              <Empty className="min-h-[220px] border-border/70 bg-muted/20">
+                <EmptyContent>
+                  <EmptyMedia variant="icon">
+                    <Clock className="h-5 w-5" />
+                  </EmptyMedia>
+                  <EmptyTitle>No pending lab tests</EmptyTitle>
+                  <EmptyDescription>Tests waiting for processing will appear here.</EmptyDescription>
+                </EmptyContent>
+              </Empty>
             ) : (
               <div className="space-y-4">
                 {pendingTests.map((test) => (
@@ -248,10 +248,15 @@ export default function LabTechnicianDashboard() {
           </CardHeader>
           <CardContent>
             {recentResults.length === 0 ? (
-              <div className="text-center py-12 bg-slate-50 border border-dashed rounded-lg">
-                <FileText className="w-12 h-12 mx-auto text-muted-foreground opacity-20 mb-4" />
-                <p className="text-muted-foreground">No recent lab reports</p>
-              </div>
+              <Empty className="min-h-[220px] border-border/70 bg-muted/20">
+                <EmptyContent>
+                  <EmptyMedia variant="icon">
+                    <FileText className="h-5 w-5" />
+                  </EmptyMedia>
+                  <EmptyTitle>No recent lab reports</EmptyTitle>
+                  <EmptyDescription>Reported results will appear here once finalized.</EmptyDescription>
+                </EmptyContent>
+              </Empty>
             ) : (
               <div className="space-y-4">
                 {recentResults.map((result) => (

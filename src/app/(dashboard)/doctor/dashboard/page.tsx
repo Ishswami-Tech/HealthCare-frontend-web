@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useCurrentClinicId } from "@/hooks/query/useClinics";
 import { useAppointments, useStartAppointment, useCompleteAppointment } from "@/hooks/query/useAppointments";
@@ -80,22 +82,6 @@ interface TransformedAppointment {
   paymentPending: boolean;
   checkedInAt: string | null;
 }
-
-const getPaymentBadgeClasses = (paymentStatus: string) => {
-  switch (paymentStatus) {
-    case "PAID":
-      return "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300";
-    case "PENDING":
-    case "OVERDUE":
-      return "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300";
-    case "FAILED":
-    case "VOID":
-    case "UNCOLLECTIBLE":
-      return "bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300";
-    default:
-      return "bg-muted border-border text-muted-foreground";
-  }
-};
 
 const getDisplayDoctorName = (name?: string | null) => {
   const cleaned = String(name || "")
@@ -428,22 +414,6 @@ export default function DoctorDashboard() {
       checkedInPatients: todayApts.filter((apt: AppointmentWithRelations) => Boolean((apt as any).checkedInAt)).length,
       completedToday: todayApts.filter((apt: AppointmentWithRelations) => apt.status === "COMPLETED").length,
       totalPatients: new Set(appointmentsArray.map((apt: AppointmentWithRelations) => apt.patientId)).size,
-      awaitingPayments: appointmentsArray.filter((apt: AppointmentWithRelations) => {
-        const dateTime = getAppointmentDateTimeValue(apt);
-      const aptDate =
-        (dateTime
-            ? formatDateInIST(dateTime, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA")
-            : "") ||
-          apt.date ||
-          (apt as unknown as Record<string, unknown>).appointmentDate?.toString().split("T")?.[0] ||
-          "";
-        const viewState = getAppointmentViewState(apt);
-        return (
-          aptDate === todayStr &&
-          viewState.isVideo &&
-          !viewState.paymentCompleted
-        );
-      }).length,
       nextAppointment: appointmentTimeline.find(
         (a: TransformedAppointment) =>
         a.statusEnum === "SCHEDULED" ||
@@ -479,6 +449,11 @@ export default function DoctorDashboard() {
     doctorId: string,
     options?: { openVideoAfterStart?: boolean }
   ) => {
+    if (options?.openVideoAfterStart) {
+      router.push(buildVideoSessionRoute(appointmentId));
+      return;
+    }
+
     const startedAt = new Date().toISOString();
     await startAppointmentMutation.mutateAsync({
       appointmentId,
@@ -488,9 +463,6 @@ export default function DoctorDashboard() {
       ...prev,
       [appointmentId]: startedAt,
     }));
-    if (options?.openVideoAfterStart) {
-      router.push(buildVideoSessionRoute(appointmentId));
-    }
     await refetchAppointments();
   };
 
@@ -549,20 +521,6 @@ export default function DoctorDashboard() {
                 <span className="text-muted-foreground">•</span>
                 <span>{row.original.duration}</span>
               </div>
-              {row.original.isVideo && (
-                <div className="mt-1">
-                  <Badge
-                    variant="outline"
-                    className={`text-[10px] font-semibold uppercase tracking-wider ${getPaymentBadgeClasses(
-                      row.original.paymentCompleted ? "PAID" : row.original.paymentStatus
-                    )}`}
-                  >
-                    {row.original.paymentCompleted
-                      ? "Payment verified"
-                      : "Payment pending"}
-                  </Badge>
-                </div>
-              )}
             </div>
           </div>
         );
@@ -623,7 +581,6 @@ export default function DoctorDashboard() {
       header: "Actions",
       cell: ({ row }) => {
         const appointment = row.original;
-        const paymentReady = !appointment.isVideo || appointment.paymentCompleted;
         const videoSessionDecision = appointment.isVideo ? getVideoSessionDecision(appointment) : null;
         return (
           <div className="flex gap-2">
@@ -632,19 +589,9 @@ export default function DoctorDashboard() {
                 <Button
                   size="sm"
                   className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-                  disabled={startAppointmentMutation.isPending || !paymentReady}
-                  onClick={async () => {
-                    await startConsultationForAppointment(appointment.id, appointment.doctorId, {
-                      openVideoAfterStart: true,
-                    });
-                  }}
-                  title={!paymentReady ? "Video request is waiting for payment" : undefined}
+                  onClick={() => router.push(buildVideoSessionRoute(appointment.id))}
                 >
-                  {startAppointmentMutation.isPending ? (
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                  ) : (
-                    <Play className="w-3 h-3 fill-current" />
-                  )}
+                  <Play className="w-3 h-3 fill-current" />
                   Join Session
                 </Button>
                 <p className="text-[11px] text-muted-foreground">
@@ -652,18 +599,14 @@ export default function DoctorDashboard() {
                 </p>
               </div>
             )}
-            {appointment.statusEnum === "CONFIRMED" && !appointment.isVideo && appointment.checkedInAt && (
+            {appointment.statusEnum === "CONFIRMED" && !appointment.isVideo && (
               <Button
                 size="sm"
                 className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-                disabled={startAppointmentMutation.isPending || !paymentReady}
+                disabled={startAppointmentMutation.isPending}
                 onClick={async () => {
                   await startConsultationForAppointment(appointment.id, appointment.doctorId);
-                  if (appointment.isVideo) {
-                    router.push("/doctor/appointments");
-                  }
                 }}
-                title={!paymentReady ? "Video request is waiting for payment" : undefined}
               >
                 {startAppointmentMutation.isPending ? (
                   <Loader2 className="w-3 h-3 animate-spin" />
@@ -672,26 +615,6 @@ export default function DoctorDashboard() {
                 )}
                 Start
               </Button>
-            )}
-            {appointment.statusEnum === "CONFIRMED" && !appointment.isVideo && !appointment.checkedInAt && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 border-border bg-card text-muted-foreground shadow-sm"
-                disabled
-                title="Patient must be checked in before consultation can start"
-              >
-                <Play className="w-3 h-3 fill-current" />
-                Waiting check-in
-              </Button>
-            )}
-            {appointment.statusEnum === "CONFIRMED" && appointment.isVideo && !appointment.paymentCompleted && (
-              <Badge
-                variant="outline"
-                className="h-8 rounded-md border-amber-200 bg-amber-50 px-2 text-[10px] font-semibold uppercase tracking-wider text-amber-700"
-              >
-                Payment pending
-              </Badge>
             )}
             {appointment.statusEnum === "IN_PROGRESS" && (
               <div className="flex gap-2">
@@ -921,32 +844,43 @@ export default function DoctorDashboard() {
             </div>
           </div>
 
-          <div className="mt-2.5 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
-            <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 shadow-sm dark:border-blue-500/20 dark:bg-blue-500/10">
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">Today</div>
-              <div className="mt-1 text-lg font-bold leading-none text-blue-900 dark:text-blue-100">{stats.todayAppointments}</div>
-              <div className="mt-1 text-[11px] text-blue-700/80 dark:text-blue-200/80">Appointments</div>
-            </div>
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 shadow-sm dark:border-emerald-500/20 dark:bg-emerald-500/10">
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Waiting</div>
-              <div className="mt-1 text-lg font-bold leading-none text-emerald-900 dark:text-emerald-100">{stats.checkedInPatients}</div>
-              <div className="mt-1 text-[11px] text-emerald-700/80 dark:text-emerald-200/80">Checked-in</div>
-            </div>
-            <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-1.5 shadow-sm dark:border-green-500/20 dark:bg-green-500/10">
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-green-700 dark:text-green-300">Done</div>
-              <div className="mt-1 text-lg font-bold leading-none text-green-900 dark:text-green-100">{stats.completedToday}</div>
-              <div className="mt-1 text-[11px] text-green-700/80 dark:text-green-200/80">Consulted</div>
-            </div>
-            <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 shadow-sm dark:border-indigo-500/20 dark:bg-indigo-500/10">
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300">Patients</div>
-              <div className="mt-1 text-lg font-bold leading-none text-indigo-900 dark:text-indigo-100">{stats.totalPatients}</div>
-              <div className="mt-1 text-[11px] text-indigo-700/80 dark:text-indigo-200/80">Lifetime</div>
-            </div>
-            <div className="col-span-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 shadow-sm sm:col-span-4 xl:col-span-1 dark:border-amber-500/20 dark:bg-amber-500/10">
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">Video</div>
-              <div className="mt-1 text-lg font-bold leading-none text-amber-900 dark:text-amber-100">{stats.awaitingPayments}</div>
-              <div className="mt-1 text-[11px] text-amber-700/80 dark:text-amber-200/80">Payments pending</div>
-            </div>
+          <div className="mt-2.5 grid grid-cols-2 gap-2 xl:grid-cols-4">
+            <DashboardMetricCard
+              label="Today"
+              value={stats.todayAppointments}
+              subtext="Appointments"
+              accentClassName="border-blue-200 bg-blue-50 dark:border-blue-500/20 dark:bg-blue-500/10"
+              valueClassName="mt-1 text-lg font-bold leading-none text-blue-900 dark:text-blue-100"
+              labelClassName="text-blue-700 dark:text-blue-300"
+              compact
+            />
+            <DashboardMetricCard
+              label="Waiting"
+              value={stats.checkedInPatients}
+              subtext="Checked-in"
+              accentClassName="border-emerald-200 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10"
+              valueClassName="mt-1 text-lg font-bold leading-none text-emerald-900 dark:text-emerald-100"
+              labelClassName="text-emerald-700 dark:text-emerald-300"
+              compact
+            />
+            <DashboardMetricCard
+              label="Done"
+              value={stats.completedToday}
+              subtext="Consulted"
+              accentClassName="border-green-200 bg-green-50 dark:border-green-500/20 dark:bg-green-500/10"
+              valueClassName="mt-1 text-lg font-bold leading-none text-green-900 dark:text-green-100"
+              labelClassName="text-green-700 dark:text-green-300"
+              compact
+            />
+            <DashboardMetricCard
+              label="Patients"
+              value={stats.totalPatients}
+              subtext="Lifetime"
+              accentClassName="border-indigo-200 bg-indigo-50 dark:border-indigo-500/20 dark:bg-indigo-500/10"
+              valueClassName="mt-1 text-lg font-bold leading-none text-indigo-900 dark:text-indigo-100"
+              labelClassName="text-indigo-700 dark:text-indigo-300"
+              compact
+            />
           </div>
         </CardContent>
       </Card>
@@ -1003,7 +937,7 @@ export default function DoctorDashboard() {
                   </div>
                 </div>
 
-                  <div className="flex min-w-[180px] flex-col gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100">
+                  <div className="flex w-full min-w-0 flex-col gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100 sm:min-w-[180px]">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300">
                     Consultation timer
                   </div>
@@ -1028,11 +962,11 @@ export default function DoctorDashboard() {
                 />
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
                 <Button
                   onClick={handleStartConsultation}
                   disabled={!canStartConsultation || startAppointmentMutation.isPending}
-                  className="bg-emerald-600 text-white hover:bg-emerald-700"
+                  className="w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto"
                 >
                   {startAppointmentMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
                   Start Consultation
@@ -1041,6 +975,7 @@ export default function DoctorDashboard() {
                   variant="outline"
                   onClick={openPrescriptionForConsult}
                   disabled={!currentInPersonConsult || !isConsultInProgress || isPrescriptionModalOpen}
+                  className="w-full sm:w-auto"
                 >
                   <Pill className="mr-2 h-4 w-4" />
                   Add Prescription
@@ -1049,7 +984,7 @@ export default function DoctorDashboard() {
                   variant={skipMedicineSelected ? "default" : "outline"}
                   onClick={() => setSkipMedicineSelected(true)}
                   disabled={!currentInPersonConsult || !isConsultInProgress}
-                  className={skipMedicineSelected ? "bg-amber-600 text-white hover:bg-amber-700" : undefined}
+                  className={`w-full sm:w-auto ${skipMedicineSelected ? "bg-amber-600 text-white hover:bg-amber-700" : ""}`}
                 >
                   <AlertCircle className="mr-2 h-4 w-4" />
                   Skip Medicine
@@ -1058,6 +993,7 @@ export default function DoctorDashboard() {
                   variant="outline"
                   onClick={handleCompleteWithoutMedicine}
                   disabled={!currentInPersonConsult || !isConsultInProgress || !skipMedicineSelected || completeAppointmentMutation.isPending}
+                  className="w-full sm:w-auto"
                 >
                   {completeAppointmentMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
                   Complete Appointment
@@ -1073,9 +1009,19 @@ export default function DoctorDashboard() {
               </div>
             </>
           ) : (
-            <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
-              No checked-in in-person patient is ready right now.
-            </div>
+            <Empty className="!p-2.5 md:!p-3 gap-1.5">
+              <EmptyContent className="gap-1.5">
+                <EmptyMedia className="mb-0">
+                  <Clock className="h-4 w-4" />
+                </EmptyMedia>
+                <EmptyTitle className="text-sm font-semibold leading-tight">
+                  No checked-in in-person patient is ready right now.
+                </EmptyTitle>
+                <EmptyDescription className="text-[11px] leading-snug">
+                  Reception will move a patient here once check-in is completed and the consult is ready to begin.
+                </EmptyDescription>
+              </EmptyContent>
+            </Empty>
           )}
         </CardContent>
       </Card>

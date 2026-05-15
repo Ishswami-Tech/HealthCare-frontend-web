@@ -337,7 +337,6 @@ export async function createAppointment(data: CreateAppointmentData): Promise<{
     const payload = {
       ...restPayload,
       appointmentDate,
-      clinicId: validatedData.clinicId || session.user.clinicId || APP_CONFIG.CLINIC.ID,
     };
 
     const { data: response } = await authenticatedApi<{
@@ -350,7 +349,9 @@ export async function createAppointment(data: CreateAppointmentData): Promise<{
     }>(API_ENDPOINTS.APPOINTMENTS.CREATE, {
       method: 'POST',
       body: JSON.stringify(payload),
-      ...(payload.clinicId ? { headers: { 'X-Clinic-ID': payload.clinicId } } : {}),
+      headers: {
+        'X-Clinic-ID': session.user.clinicId || APP_CONFIG.CLINIC.ID,
+      },
     });
 
     const appointment = (response?.data || response?.appointment || response) as Appointment | undefined;

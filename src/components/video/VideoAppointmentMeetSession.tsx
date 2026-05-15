@@ -262,8 +262,6 @@ export function VideoAppointmentMeetSession({
     appointmentProvider || null,
     meetingUrl
   ) === "daily";
-  const meetingProviderLabel =
-    isDailyProvider ? "Daily" : appointmentProvider || "backend video api";
   const meetingUrlLabel =
     isDailyProvider
       ? "In-app room available"
@@ -783,8 +781,6 @@ export function VideoAppointmentMeetSession({
 
           {process.env.NODE_ENV === "development" && (
             <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#9aa0a6]">Provider</span>
-              <span className="text-[12px] font-semibold text-white">{meetingProviderLabel}</span>
               <span className="text-white/20">·</span>
               <span className="text-[10px] font-mono text-[#9aa0a6]">{appointmentSessionLabel}</span>
               <span className="text-white/20">·</span>

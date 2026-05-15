@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "@/components/ui/loader";
+import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import {
   Search,
   Users,
@@ -143,13 +144,17 @@ export default function NursePatients() {
         </CardHeader>
         <CardContent>
           {filteredPatients.length === 0 ? (
-            <div className="text-center py-12">
-              <Users className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-              <p className="text-gray-500">No patients found</p>
-              <p className="text-sm text-gray-400 mt-1">
-                Try adjusting your search or filters
-              </p>
-            </div>
+            <Empty>
+              <EmptyContent>
+                <EmptyMedia>
+                  <Users className="h-5 w-5" />
+                </EmptyMedia>
+                <EmptyTitle>No patients found</EmptyTitle>
+                <EmptyDescription>
+                  Try adjusting your search or filters.
+                </EmptyDescription>
+              </EmptyContent>
+            </Empty>
           ) : (
             <div className="space-y-4">
               {filteredPatients.map((patient: any) => (

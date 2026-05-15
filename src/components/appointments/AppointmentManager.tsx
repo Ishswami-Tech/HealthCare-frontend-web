@@ -124,6 +124,8 @@ interface AppointmentManagerProps {
   patientId?: string;
   hideBookButton?: boolean;
   autoOpenBookDialog?: boolean;
+  appointmentsData?: unknown;
+  isAppointmentsPending?: boolean;
 }
 
 function getEffectiveAppointmentId(appointment: AppointmentWithRelations | any): string {
@@ -138,6 +140,8 @@ export default function AppointmentManager({
   patientId: propPatientId,
   hideBookButton = false,
   autoOpenBookDialog = false,
+  appointmentsData: externalAppointmentsData,
+  isAppointmentsPending: externalAppointmentsPending,
 }: AppointmentManagerProps = {}) {
   const { session } = useAuth();
   const user = session?.user;
@@ -198,10 +202,19 @@ export default function AppointmentManager({
   const { mutate: rejectVideoProposal, isPending: rejectingProposal } = useRejectVideoProposal();
   const { mutate: processCheckIn, isPending: processingCheckIn } = useProcessCheckIn();
 
-  const appointmentsFetching = isAdminView ? adminAppointments.isFetching : myPersonalAppointments.isFetching;
-  const isAppointmentsLoading = isAdminView ? adminAppointments.isPending : myPersonalAppointments.isPending;
+  const appointmentsFetching =
+    externalAppointmentsPending ??
+    (isAdminView ? adminAppointments.isFetching : myPersonalAppointments.isFetching);
+  const isAppointmentsLoading =
+    externalAppointmentsPending ??
+    (isAdminView ? adminAppointments.isPending : myPersonalAppointments.isPending);
   const refetch = isAdminView ? adminAppointments.refetch : myPersonalAppointments.refetch;
-  const rawData = isAdminView ? adminAppointments.data : myPersonalAppointments.data;
+  const rawData =
+    externalAppointmentsData !== undefined
+      ? externalAppointmentsData
+      : isAdminView
+        ? adminAppointments.data
+        : myPersonalAppointments.data;
 
   const fetchedAppointments = useMemo((): AppointmentWithRelations[] => {
     let list: AppointmentWithRelations[] = [];

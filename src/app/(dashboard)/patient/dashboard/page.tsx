@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useMyAppointments } from "@/hooks/query/useAppointments";
 import { useCurrentClinicId } from "@/hooks/query/useClinics";
@@ -536,9 +537,17 @@ export default function PatientDashboard() {
                       </div>
                     </div>
                   ) : (
-                    <div className="rounded-2xl border border-dashed border-emerald-200/70 bg-white/60 p-4 text-sm text-muted-foreground shadow-sm dark:border-emerald-900/30 dark:bg-card/60">
-                      No upcoming or in-progress appointments right now
-                    </div>
+                    <Empty>
+                      <EmptyContent>
+                        <EmptyMedia>
+                          <Clock className="h-5 w-5" />
+                        </EmptyMedia>
+                        <EmptyTitle>No upcoming or in-progress appointments right now</EmptyTitle>
+                        <EmptyDescription>
+                          Book a visit to see your next appointment here.
+                        </EmptyDescription>
+                      </EmptyContent>
+                    </Empty>
                   )}
 
                   <div className="rounded-2xl border border-emerald-200/70 bg-white/70 p-3 shadow-sm dark:border-emerald-900/30 dark:bg-card/70">

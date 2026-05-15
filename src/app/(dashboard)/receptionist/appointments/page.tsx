@@ -639,6 +639,8 @@ export default function ReceptionistAppointmentsPage() {
       <div id="appointment-manager">
         <AppointmentManager
           isAdminView={true}
+          appointmentsData={appointmentsData}
+          isAppointmentsPending={isPending}
           {...(clinicId ? { clinicId } : {})}
         />
       </div>

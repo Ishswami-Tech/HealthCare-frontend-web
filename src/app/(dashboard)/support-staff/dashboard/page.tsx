@@ -4,6 +4,8 @@ import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "@/components/ui/loader";
+import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
+import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import {
   MessageSquare,
   Clock,
@@ -105,50 +107,43 @@ export default function SupportStaffDashboard() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Requests</CardTitle>
-            <MessageSquare className="h-4 w-4 text-orange-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{stats.activeRequests}</div>
-            <p className="text-xs text-muted-foreground">Awaiting response</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Resolved Today</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.resolvedToday}</div>
-            <p className="text-xs text-muted-foreground">Issues closed</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Requests</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalRequests}</div>
-            <p className="text-xs text-muted-foreground">This session</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg. Response</CardTitle>
-            <Clock className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats.avgResponseTime}</div>
-            <p className="text-xs text-muted-foreground">First response time</p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+        <DashboardMetricCard
+          label="Active Requests"
+          value={stats.activeRequests}
+          subtext="Awaiting response"
+          accentClassName="border-orange-200 bg-orange-50 dark:border-orange-500/20 dark:bg-orange-500/10"
+          valueClassName="mt-1 text-2xl font-bold text-orange-600"
+          labelClassName="text-orange-700 dark:text-orange-300"
+          compact
+        />
+        <DashboardMetricCard
+          label="Resolved Today"
+          value={stats.resolvedToday}
+          subtext="Issues closed"
+          accentClassName="border-green-200 bg-green-50 dark:border-green-500/20 dark:bg-green-500/10"
+          valueClassName="mt-1 text-2xl font-bold text-green-600"
+          labelClassName="text-green-700 dark:text-green-300"
+          compact
+        />
+        <DashboardMetricCard
+          label="Total Requests"
+          value={stats.totalRequests}
+          subtext="This session"
+          accentClassName="border-slate-200 bg-slate-50 dark:border-slate-500/20 dark:bg-slate-500/10"
+          valueClassName="mt-1 text-2xl font-bold"
+          labelClassName="text-slate-700 dark:text-slate-300"
+          compact
+        />
+        <DashboardMetricCard
+          label="Avg. Response"
+          value={stats.avgResponseTime}
+          subtext="First response time"
+          accentClassName="border-blue-200 bg-blue-50 dark:border-blue-500/20 dark:bg-blue-500/10"
+          valueClassName="mt-1 text-2xl font-bold text-blue-600"
+          labelClassName="text-blue-700 dark:text-blue-300"
+          compact
+        />
       </div>
 
       <Card>
@@ -161,10 +156,15 @@ export default function SupportStaffDashboard() {
         </CardHeader>
         <CardContent>
           {activeRequests.length === 0 ? (
-            <div className="text-center py-12 bg-slate-50 border border-dashed rounded-lg">
-              <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground opacity-20 mb-4" />
-              <p className="text-muted-foreground">No active support requests</p>
-            </div>
+            <Empty className="min-h-[220px] border-border/70 bg-muted/20">
+              <EmptyContent>
+                <EmptyMedia variant="icon">
+                  <MessageSquare className="h-5 w-5" />
+                </EmptyMedia>
+                <EmptyTitle>No active support requests</EmptyTitle>
+                <EmptyDescription>New requests will appear here once users submit them.</EmptyDescription>
+              </EmptyContent>
+            </Empty>
           ) : (
             <div className="space-y-4">
               {activeRequests.map((request) => (

@@ -61,7 +61,7 @@ export function DashboardPageHeader({
           </div>
 
           {actions.length > 0 || actionsSlot ? (
-            <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:pl-4">
+            <div className="flex w-full flex-wrap items-stretch gap-2 sm:w-auto sm:shrink-0 sm:items-center sm:justify-end sm:pl-4">
               {actions.map((action) => {
                 const content = (
                   <>
@@ -77,7 +77,7 @@ export function DashboardPageHeader({
                       asChild
                       variant={action.variant ?? "outline"}
                       disabled={action.disabled}
-                      className="h-9 rounded-lg px-4 text-sm font-semibold sm:h-10"
+                      className="h-9 w-full rounded-lg px-4 text-sm font-semibold sm:h-10 sm:w-auto"
                     >
                       <a href={action.href}>{content}</a>
                     </Button>
@@ -87,13 +87,13 @@ export function DashboardPageHeader({
                 return (
                   <Button
                     key={action.label}
-                    variant={action.variant ?? "outline"}
-                    onClick={action.onClick}
-                    disabled={action.disabled}
-                    className="h-9 rounded-lg px-4 text-sm font-semibold sm:h-10"
-                  >
-                    {content}
-                  </Button>
+                  variant={action.variant ?? "outline"}
+                  onClick={action.onClick}
+                  disabled={action.disabled}
+                  className="h-9 w-full rounded-lg px-4 text-sm font-semibold sm:h-10 sm:w-auto"
+                >
+                  {content}
+                </Button>
                 );
               })}
               {actionsSlot}

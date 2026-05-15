@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
   usePrescriptions,
@@ -258,22 +259,24 @@ export default function PharmacistDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Prescription Queue */}
         <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="flex items-center gap-2">
               <Pill className="w-5 h-5 text-emerald-600" />
               Prescription Queue
             </CardTitle>
-            <Button variant="ghost" size="sm" className="gap-1 text-emerald-600" onClick={() => router.push('/pharmacist/prescriptions')}>
-              See all <ArrowRight className="w-3 h-3" />
-            </Button>
-            <div className="relative w-64">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search patient..."
-                className="pl-8 h-9"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+              <Button variant="ghost" size="sm" className="gap-1 text-emerald-600 sm:w-auto" onClick={() => router.push('/pharmacist/prescriptions')}>
+                See all <ArrowRight className="w-3 h-3" />
+              </Button>
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search patient..."
+                  className="h-9 pl-8"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -309,7 +312,17 @@ export default function PharmacistDashboard() {
                   </div>
                 ))}
                 {stats.lowStockItems === 0 && (
-                  <p className="text-center py-4 text-sm text-muted-foreground">All inventory levels normal</p>
+                  <Empty>
+                    <EmptyContent>
+                      <EmptyMedia>
+                        <AlertTriangle className="h-5 w-5" />
+                      </EmptyMedia>
+                      <EmptyTitle>All inventory levels normal</EmptyTitle>
+                      <EmptyDescription>
+                        Nothing is below the configured low-stock threshold right now.
+                      </EmptyDescription>
+                    </EmptyContent>
+                  </Empty>
                 )}
               </div>
             </CardContent>

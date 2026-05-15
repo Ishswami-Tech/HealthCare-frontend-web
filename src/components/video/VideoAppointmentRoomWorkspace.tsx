@@ -9,6 +9,7 @@ import {
   Mic,
   PlayCircle,
   Shield,
+  Share2,
   Users,
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -99,16 +100,8 @@ type MeetPanel = "chat" | "people";
 
 
 function formatProviderLabel(provider: VideoRoomAccess["provider"]) {
-  switch (provider) {
-    case "cloudflare":
-      return "Cloudflare Realtime";
-    case "daily":
-      return "Daily";
-    case "google-meet":
-      return "Google Meet";
-    default:
-      return "Backend Video API";
-  }
+  void provider;
+  return "Video session";
 }
 
 function safeText(value: unknown, fallback = "-") {
@@ -161,6 +154,7 @@ export function VideoAppointmentRoomWorkspace({
   const [loadError, setLoadError] = React.useState<string | null>(null);
   const [activePanel, setActivePanel] = React.useState<MeetPanel | null>(null);
   const [panelMounted, setPanelMounted] = React.useState(false);
+  const [isInviteMenuOpen, setIsInviteMenuOpen] = React.useState(false);
 
   const appointmentId = String(appointment.appointmentId || appointment.id || "");
   const viewState = getAppointmentViewState(appointment);
@@ -171,6 +165,13 @@ export function VideoAppointmentRoomWorkspace({
   const serviceFee = getVideoAppointmentFee(appointment, appointmentServices as any[]);
   const appointmentTitle = safeText(doctorName || appointment.roomName, "Video appointment");
   const viewerAccessLabel = safeText(viewerRole, "participant");
+  const inviteLink = React.useMemo(() => {
+    if (typeof window === "undefined") {
+      return "";
+    }
+
+    return `${window.location.origin}/meet/${encodeURIComponent(appointmentId)}`;
+  }, [appointmentId]);
 
   const currentUserDisplayName = React.useMemo(() => {
     const role = (viewerRole || "").toLowerCase();
@@ -186,6 +187,41 @@ export function VideoAppointmentRoomWorkspace({
     if (role === "patient") return doctorName || "Doctor";
     return patientName || "Patient";
   }, [viewerRole, doctorName, patientName]);
+
+  const handleShareInvite = React.useCallback(async () => {
+    const url = inviteLink || (typeof window !== "undefined" ? window.location.href : "");
+    if (!url) {
+      showErrorToast("Unable to build the meeting link right now.", { id: TOAST_IDS.GLOBAL.ERROR });
+      return;
+    }
+
+    const shareText = `Join my video appointment: ${url}`;
+
+    try {
+      if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+        await navigator.share({
+          title: "Video appointment invite",
+          text: shareText,
+          url,
+        });
+        showSuccessToast("Invite link shared.", { id: TOAST_IDS.GLOBAL.SUCCESS });
+        setIsInviteMenuOpen(false);
+        return;
+      }
+
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        showSuccessToast("Invite link copied to clipboard.", { id: TOAST_IDS.GLOBAL.SUCCESS });
+        setIsInviteMenuOpen(false);
+        return;
+      }
+
+      showErrorToast("Sharing is not available in this browser.", { id: TOAST_IDS.GLOBAL.ERROR });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to share the invite link.";
+      showErrorToast(message, { id: TOAST_IDS.GLOBAL.ERROR });
+    }
+  }, [inviteLink]);
 
   const dailyRoomUserData = React.useMemo(
     () => ({
@@ -264,10 +300,7 @@ export function VideoAppointmentRoomWorkspace({
         )}
 
         {access.provider === "daily" ? (
-          <motion.div 
-            layout
-            className="relative flex flex-1 min-h-0 overflow-hidden"
-          >
+          <motion.div layout className="relative flex flex-1 min-h-0 overflow-hidden">
             <DailyCallSurface
               access={access}
               appointmentId={appointmentId}
@@ -280,6 +313,40 @@ export function VideoAppointmentRoomWorkspace({
               userData={dailyRoomUserData}
               onOpenPanel={setActivePanel}
             />
+            {process.env.NODE_ENV === "development" && (
+              <div className="absolute bottom-6 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-2">
+                {isInviteMenuOpen && (
+                  <div className="flex items-center gap-2 rounded-full border border-white/10 bg-[#1e1f20]/92 px-2 py-2 shadow-xl backdrop-blur-md">
+                    <Button
+                      variant="outline"
+                      onClick={handleShareInvite}
+                      className="gap-2 rounded-full border-white/10 bg-transparent text-white hover:bg-white/10"
+                    >
+                      <Share2 className="h-4 w-4" />
+                      Share link
+                    </Button>
+                    {onLeave && (
+                      <Button
+                        variant="outline"
+                        onClick={onLeave}
+                        className="gap-2 rounded-full border-white/10 bg-transparent text-white hover:bg-white/10"
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                        Leave room
+                      </Button>
+                    )}
+                  </div>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={() => setIsInviteMenuOpen((value) => !value)}
+                  className="gap-2 rounded-full border-white/10 bg-[#1e1f20]/92 text-white shadow-xl backdrop-blur-md hover:bg-[#2d2e30]"
+                >
+                  <Share2 className="h-4 w-4" />
+                  Invite
+                </Button>
+              </div>
+            )}
           </motion.div>
         ) : (
           <div className="flex min-h-[calc(100dvh-1.5rem)] flex-col gap-4 bg-[#f8f9fa] p-4 text-[#202124]">
@@ -301,9 +368,6 @@ export function VideoAppointmentRoomWorkspace({
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="rounded-full border-[#e8eaed] bg-white px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-[#5f6368] shadow-sm">
-                  {formatProviderLabel(access.provider)}
-                </Badge>
                 <Badge
                   variant={viewState.paymentCompleted ? "default" : "secondary"}
                   className={cn(
@@ -313,6 +377,14 @@ export function VideoAppointmentRoomWorkspace({
                 >
                   {viewState.displayStatusLabel}
                 </Badge>
+                <Button
+                  variant="outline"
+                  onClick={handleShareInvite}
+                  className="gap-2 rounded-full border-[#e8eaed] bg-white text-[#202124] hover:bg-[#f8f9fa]"
+                >
+                  <Share2 className="h-4 w-4" />
+                  Share link
+                </Button>
                 {onLeave && (
                   <Button
                     variant="outline"
@@ -364,10 +436,6 @@ export function VideoAppointmentRoomWorkspace({
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm text-[#202124]">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[#5f6368]">Provider</span>
-                      <span className="font-semibold text-[#202124]">{formatProviderLabel(access.provider)}</span>
-                    </div>
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-[#5f6368]">Duration</span>
                       <span className="font-semibold text-[#202124]">{appointmentDuration ? `${appointmentDuration} min` : "TBD"}</span>

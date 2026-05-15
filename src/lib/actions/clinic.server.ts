@@ -25,6 +25,49 @@ import type {
 // ✅ Input Validation Schemas
 import { createClinicSchema, updateClinicSchema } from '@/lib/schema/clinic.schema';
 
+function normalizeCollectionResponse<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) {
+    return payload as T[];
+  }
+
+  const data = payload as {
+    value?: T[];
+    data?: T[] | { locations?: T[] };
+    locations?: T[];
+    items?: T[];
+    results?: T[];
+  } | null | undefined;
+
+  if (Array.isArray(data?.value)) {
+    return data.value;
+  }
+
+  if (Array.isArray(data?.items)) {
+    return data.items;
+  }
+
+  if (Array.isArray(data?.results)) {
+    return data.results;
+  }
+
+  if (Array.isArray(data?.locations)) {
+    return data.locations;
+  }
+
+  if (Array.isArray(data?.data)) {
+    return data.data;
+  }
+
+  if (data && typeof data.data === 'object' && !Array.isArray(data.data)) {
+    const nested = data.data as { locations?: T[] };
+    if (Array.isArray(nested.locations)) {
+      return nested.locations;
+    }
+  }
+
+  return [];
+}
+
 // ✅ Clinic Management Server Actions
 
 /**
@@ -300,7 +343,7 @@ export async function createClinicLocation(clinicId: string, data: any): Promise
 export async function getClinicLocations(clinicId: string) {
   try {
     const { data } = await authenticatedApi<ClinicLocation[]>(API_ENDPOINTS.CLINIC_LOCATIONS.GET_ALL(clinicId), {});
-    return data || [];
+    return normalizeCollectionResponse<ClinicLocation>(data);
   } catch (error) {
     logger.error('Failed to get clinic locations', error instanceof Error ? error : new Error(String(error)));
     return [];

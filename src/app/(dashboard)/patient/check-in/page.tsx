@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, Info, Loader2, QrCode, Clock, Stethoscope } from "lucide-react";
 import { QRScanner } from "@/components/qr/QRScanner";
 import { Button } from "@/components/ui/button";
+import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import {
   Drawer,
   DrawerClose,
@@ -260,20 +261,20 @@ export default function PatientCheckInPage() {
           />
 
           <div className="rounded-2xl border bg-card p-4 shadow-sm">
-            <div className="flex items-start gap-3">
-              <Info className={`mt-0.5 h-5 w-5 ${theme.iconColors.blue}`} />
-              <div className="space-y-2">
-                <p className="text-sm font-medium">
-                  No eligible appointment is available for check-in right now.
-                </p>
-                <p className="text-sm text-muted-foreground">
+            <Empty>
+              <EmptyContent>
+                <EmptyMedia>
+                  <Info className={`h-5 w-5 ${theme.iconColors.blue}`} />
+                </EmptyMedia>
+                <EmptyTitle>No eligible appointment is available for check-in right now.</EmptyTitle>
+                <EmptyDescription>
                   Please book an appointment first. Once you arrive at the clinic, you can open this page again to scan the QR code.
-                </p>
+                </EmptyDescription>
                 <Button onClick={() => router.push("/patient/appointments?openBooking=1")}>
                   Book appointment
                 </Button>
-              </div>
-            </div>
+              </EmptyContent>
+            </Empty>
           </div>
         </PatientPageShell>
       </DashboardLayout>
