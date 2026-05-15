@@ -162,6 +162,8 @@ export default function PatientAppointments() {
           <AppointmentManager
             hideBookButton
             autoOpenBookDialog={shouldOpenBooking}
+            appointmentsData={appointmentsData}
+            isAppointmentsPending={isPendingAppointments}
             {...(defaultConsultationMode ? { defaultConsultationMode } : {})}
             {...(queryClinicId ? { clinicId: queryClinicId } : {})}
           />

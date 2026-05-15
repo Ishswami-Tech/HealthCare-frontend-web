@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "@/components/ui/loader";
+import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { useCurrentClinicId } from "@/hooks/query/useClinics";
 import {
   useClinicInvoices,
@@ -16,6 +17,7 @@ import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import type { Invoice, Payment, BillingAnalytics } from "@/types/billing.types";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import { buildGatewayOrderId } from "@/lib/utils/gateway-order-id";
+import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
 import {
   DollarSign,
   FileText,
@@ -148,82 +150,52 @@ export default function FinanceBillingDashboard() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card className="border-emerald-100 shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-emerald-600 uppercase tracking-tight flex items-center gap-1">
-              <DollarSign className="w-3 h-3" /> Total Revenue
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold text-emerald-700">
-              {formatCurrency(stats.totalRevenue)}
-            </div>
-            <p className="text-xs text-slate-400 mt-1">All time collected</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-blue-100 shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-blue-600 uppercase tracking-tight flex items-center gap-1">
-              <TrendingUp className="w-3 h-3" /> This Month
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold text-blue-700">
-              {formatCurrency(analyticsData?.monthlyRevenue ?? stats.monthlyRevenue)}
-            </div>
-            <p className="text-xs text-slate-400 mt-1">Current period</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-amber-100 shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-amber-600 uppercase tracking-tight flex items-center gap-1">
-              <Clock className="w-3 h-3" /> Pending
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold text-amber-600">
-              {analyticsData?.pendingInvoices ?? stats.pendingInvoices}
-            </div>
-            <p className="text-xs text-slate-400 mt-1">Awaiting payment</p>
-          </CardContent>
-        </Card>
-
-        <Card className={`shadow-sm ${stats.overdueInvoices > 0 ? "border-red-200" : "border-slate-100"}`}>
-          <CardHeader className="pb-2">
-            <CardTitle
-              className={`text-xs font-medium uppercase tracking-tight flex items-center gap-1 ${
-                stats.overdueInvoices > 0 ? "text-red-600" : "text-slate-500"
-              }`}
-            >
-              <AlertCircle className="w-3 h-3" /> Overdue
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div
-              className={`text-xl font-bold ${
-                stats.overdueInvoices > 0 ? "text-red-600" : "text-slate-900 dark:text-white"
-              }`}
-            >
-              {stats.overdueInvoices}
-            </div>
-            <p className="text-xs text-slate-400 mt-1">Past due date</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-emerald-100 shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-emerald-600 uppercase tracking-tight flex items-center gap-1">
-              <CheckCircle className="w-3 h-3" /> Paid
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold text-emerald-700">{stats.paidInvoices}</div>
-            <p className="text-xs text-slate-400 mt-1">Settled invoices</p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
+        <DashboardMetricCard
+          label="Total Revenue"
+          value={formatCurrency(stats.totalRevenue)}
+          subtext="All time collected"
+          accentClassName="border-emerald-100 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10"
+          valueClassName="mt-1 text-xl font-bold text-emerald-700"
+          labelClassName="text-emerald-600"
+          compact
+        />
+        <DashboardMetricCard
+          label="This Month"
+          value={formatCurrency(analyticsData?.monthlyRevenue ?? stats.monthlyRevenue)}
+          subtext="Current period"
+          accentClassName="border-blue-100 bg-blue-50 dark:border-blue-500/20 dark:bg-blue-500/10"
+          valueClassName="mt-1 text-xl font-bold text-blue-700"
+          labelClassName="text-blue-600"
+          compact
+        />
+        <DashboardMetricCard
+          label="Pending"
+          value={analyticsData?.pendingInvoices ?? stats.pendingInvoices}
+          subtext="Awaiting payment"
+          accentClassName="border-amber-100 bg-amber-50 dark:border-amber-500/20 dark:bg-amber-500/10"
+          valueClassName="mt-1 text-xl font-bold text-amber-600"
+          labelClassName="text-amber-600"
+          compact
+        />
+        <DashboardMetricCard
+          label="Overdue"
+          value={stats.overdueInvoices}
+          subtext="Past due date"
+          accentClassName={stats.overdueInvoices > 0 ? "border-red-200 bg-red-50 dark:border-red-500/20 dark:bg-red-500/10" : "border-slate-100 bg-slate-50 dark:border-slate-500/20 dark:bg-slate-500/10"}
+          valueClassName={`mt-1 text-xl font-bold ${stats.overdueInvoices > 0 ? "text-red-600" : "text-slate-900 dark:text-white"}`}
+          labelClassName={stats.overdueInvoices > 0 ? "text-red-600" : "text-slate-500"}
+          compact
+        />
+        <DashboardMetricCard
+          label="Paid"
+          value={stats.paidInvoices}
+          subtext="Settled invoices"
+          accentClassName="border-emerald-100 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10"
+          valueClassName="mt-1 text-xl font-bold text-emerald-700"
+          labelClassName="text-emerald-600"
+          compact
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -245,11 +217,15 @@ export default function FinanceBillingDashboard() {
           </CardHeader>
           <CardContent>
             {recentInvoices.length === 0 ? (
-              <div className="text-center py-10 text-muted-foreground">
-                <FileText className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">No invoices found</p>
-                <p className="text-xs mt-1">Invoices will appear here once created</p>
-              </div>
+              <Empty className="min-h-[200px] border-border/70 bg-muted/20">
+                <EmptyContent>
+                  <EmptyMedia variant="icon">
+                    <FileText className="h-5 w-5" />
+                  </EmptyMedia>
+                  <EmptyTitle>No invoices found</EmptyTitle>
+                  <EmptyDescription>Invoices will appear here once created.</EmptyDescription>
+                </EmptyContent>
+              </Empty>
             ) : (
               <div className="space-y-2">
                 {recentInvoices.map((inv) => {

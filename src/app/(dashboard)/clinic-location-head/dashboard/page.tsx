@@ -6,10 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "@/components/ui/loader";
+import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useAppointments } from "@/hooks/query/useAppointments";
 import { useQueue, useQueueStats } from "@/hooks/query/useQueue";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
 import { formatISODateInIST, getAppointmentDateTimeValue } from "@/lib/utils/appointmentUtils";
 import {
   Building2,
@@ -149,53 +151,43 @@ export default function ClinicLocationHeadDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-blue-200 bg-blue-50 shadow-sm dark:border-blue-500/20 dark:bg-blue-500/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-tight text-blue-700 dark:text-blue-300">
-              Today
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">{stats.totalToday}</div>
-            <p className="mt-1 text-xs text-blue-700/80 dark:text-blue-200/80">Total appointments</p>
-          </CardContent>
-        </Card>
-        <Card className="border-emerald-200 bg-emerald-50 shadow-sm dark:border-emerald-500/20 dark:bg-emerald-500/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-tight text-emerald-700 dark:text-emerald-300">
-              Queue
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-100">
-              {queueStats ? Number(queueStats.waiting ?? stats.waiting) : stats.waiting}
-            </div>
-            <p className="mt-1 text-xs text-emerald-700/80 dark:text-emerald-200/80">Waiting patients</p>
-          </CardContent>
-        </Card>
-        <Card className="border-indigo-200 bg-indigo-50 shadow-sm dark:border-indigo-500/20 dark:bg-indigo-500/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-tight text-indigo-700 dark:text-indigo-300">
-              In Progress
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-indigo-900 dark:text-indigo-100">{stats.inProgress}</div>
-            <p className="mt-1 text-xs text-indigo-700/80 dark:text-indigo-200/80">Active consultations</p>
-          </CardContent>
-        </Card>
-        <Card className="border-green-200 bg-green-50 shadow-sm dark:border-green-500/20 dark:bg-green-500/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-tight text-green-700 dark:text-green-300">
-              Completed
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-900 dark:text-green-100">{stats.completed}</div>
-            <p className="mt-1 text-xs text-green-700/80 dark:text-green-200/80">Done today</p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+        <DashboardMetricCard
+          label="Today"
+          value={stats.totalToday}
+          subtext="Total appointments"
+          accentClassName="border-blue-200 bg-blue-50 dark:border-blue-500/20 dark:bg-blue-500/10"
+          valueClassName="mt-1 text-2xl font-bold text-blue-900 dark:text-blue-100"
+          labelClassName="text-blue-700 dark:text-blue-300"
+          compact
+        />
+        <DashboardMetricCard
+          label="Queue"
+          value={queueStats ? Number(queueStats.waiting ?? stats.waiting) : stats.waiting}
+          subtext="Waiting patients"
+          accentClassName="border-emerald-200 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10"
+          valueClassName="mt-1 text-2xl font-bold text-emerald-900 dark:text-emerald-100"
+          labelClassName="text-emerald-700 dark:text-emerald-300"
+          compact
+        />
+        <DashboardMetricCard
+          label="In Progress"
+          value={stats.inProgress}
+          subtext="Active consultations"
+          accentClassName="border-indigo-200 bg-indigo-50 dark:border-indigo-500/20 dark:bg-indigo-500/10"
+          valueClassName="mt-1 text-2xl font-bold text-indigo-900 dark:text-indigo-100"
+          labelClassName="text-indigo-700 dark:text-indigo-300"
+          compact
+        />
+        <DashboardMetricCard
+          label="Completed"
+          value={stats.completed}
+          subtext="Done today"
+          accentClassName="border-green-200 bg-green-50 dark:border-green-500/20 dark:bg-green-500/10"
+          valueClassName="mt-1 text-2xl font-bold text-green-900 dark:text-green-100"
+          labelClassName="text-green-700 dark:text-green-300"
+          compact
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -217,10 +209,15 @@ export default function ClinicLocationHeadDashboard() {
           </CardHeader>
           <CardContent>
             {upcomingAppointments.length === 0 ? (
-              <div className="text-center py-10 text-muted-foreground">
-                <Calendar className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">No recent appointments found</p>
-              </div>
+              <Empty className="min-h-[200px] border-border/70 bg-muted/20">
+                <EmptyContent>
+                  <EmptyMedia variant="icon">
+                    <Calendar className="h-5 w-5" />
+                  </EmptyMedia>
+                  <EmptyTitle>No recent appointments found</EmptyTitle>
+                  <EmptyDescription>Scheduled visits for this location will appear here.</EmptyDescription>
+                </EmptyContent>
+              </Empty>
             ) : (
               <div className="space-y-2">
                 {upcomingAppointments.map((apt: Record<string, unknown>, idx: number) => {

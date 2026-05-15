@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
+import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -1160,17 +1161,17 @@ export default function ReceptionistPatients() {
           </div>
 
           {filteredPatients.length === 0 && (
-            <Card>
-              <CardContent className="text-center py-8">
-                <Users className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">
-                  No patients found
-                </h3>
-                <p className="text-muted-foreground">
-                  Try adjusting your search criteria
-                </p>
-              </CardContent>
-            </Card>
+            <Empty>
+              <EmptyContent>
+                <EmptyMedia>
+                  <Users className="h-5 w-5" />
+                </EmptyMedia>
+                <EmptyTitle>No patients found</EmptyTitle>
+                <EmptyDescription>
+                  Try adjusting your search criteria.
+                </EmptyDescription>
+              </EmptyContent>
+            </Empty>
           )}
 
           <Dialog

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataTable } from "@/components/ui/data-table";
+import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useInventory } from "@/hooks/query/usePharmacy";
 import { useClinicContext } from "@/hooks/query/useClinics";
@@ -344,7 +345,17 @@ export default function InventoryPage() {
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground">No low stock medicines right now.</p>
+                  <Empty>
+                    <EmptyContent>
+                      <EmptyMedia>
+                        <AlertTriangle className="h-5 w-5" />
+                      </EmptyMedia>
+                      <EmptyTitle>No low stock medicines right now.</EmptyTitle>
+                      <EmptyDescription>
+                        Inventory levels are currently within the configured threshold.
+                      </EmptyDescription>
+                    </EmptyContent>
+                  </Empty>
                 )}
               </CardContent>
             </Card>
@@ -372,7 +383,17 @@ export default function InventoryPage() {
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground">No expiring medicines in the next 90 days.</p>
+                  <Empty>
+                    <EmptyContent>
+                      <EmptyMedia>
+                        <Calendar className="h-5 w-5" />
+                      </EmptyMedia>
+                      <EmptyTitle>No expiring medicines in the next 90 days.</EmptyTitle>
+                      <EmptyDescription>
+                        Nothing is currently approaching the expiry window.
+                      </EmptyDescription>
+                    </EmptyContent>
+                  </Empty>
                 )}
               </CardContent>
             </Card>
@@ -382,7 +403,7 @@ export default function InventoryPage() {
           <Card>
             <CardContent className="p-4">
               <div className="flex flex-wrap gap-4">
-                <div className="flex-1 min-w-[200px]">
+                <div className="w-full flex-1 min-w-0 sm:min-w-[200px]">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <Input

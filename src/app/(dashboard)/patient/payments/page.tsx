@@ -14,6 +14,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import {
   Dialog,
   DialogContent,
@@ -515,16 +516,18 @@ export default function PatientBillingPage() {
               </CardContent>
             </Card>
           ) : activePlans.length === 0 ? (
-            <Card>
-              <CardContent className="py-10 text-center">
-                <Wallet className="mx-auto mb-3 h-10 w-10 text-muted-foreground/70" />
-                <p className="font-medium">No subscription plans are available right now.</p>
-                <p className="mt-1 text-sm text-muted-foreground">
+            <Empty>
+              <EmptyContent>
+                <EmptyMedia>
+                  <Wallet className="h-5 w-5" />
+                </EmptyMedia>
+                <EmptyTitle>No subscription plans are available right now.</EmptyTitle>
+                <EmptyDescription>
                   Try refreshing or check again later.
-                </p>
+                </EmptyDescription>
                 <Button
                   variant="outline"
-                  className="mt-4"
+                  className="mt-2"
                   onClick={() => {
                     void refetchClinicPlans();
                     void refetchFallbackPlans();
@@ -532,8 +535,8 @@ export default function PatientBillingPage() {
                 >
                   Refresh Plans
                 </Button>
-              </CardContent>
-            </Card>
+              </EmptyContent>
+            </Empty>
           ) : (
             <div className="space-y-4">
               {currentActiveSubscription && (
@@ -646,15 +649,17 @@ export default function PatientBillingPage() {
               </CardContent>
             </Card>
           ) : invoices.length === 0 ? (
-            <Card>
-              <CardContent className="py-10 text-center">
-                <FileText className="mx-auto mb-3 h-10 w-10 text-muted-foreground/70" />
-                <p className="font-medium">No invoices found.</p>
-                <p className="mt-1 text-sm text-muted-foreground">
+            <Empty>
+              <EmptyContent>
+                <EmptyMedia>
+                  <FileText className="h-5 w-5" />
+                </EmptyMedia>
+                <EmptyTitle>No invoices found.</EmptyTitle>
+                <EmptyDescription>
                   Any open or paid invoices will appear here.
-                </p>
-              </CardContent>
-            </Card>
+                </EmptyDescription>
+              </EmptyContent>
+            </Empty>
           ) : (
             <DataTable
               columns={invoiceColumns}
@@ -674,15 +679,17 @@ export default function PatientBillingPage() {
               </CardContent>
             </Card>
           ) : payments.length === 0 ? (
-            <Card>
-              <CardContent className="py-10 text-center">
-                <CreditCard className="mx-auto mb-3 h-10 w-10 text-muted-foreground/70" />
-                <p className="font-medium">No payment history found.</p>
-                <p className="mt-1 text-sm text-muted-foreground">
+            <Empty>
+              <EmptyContent>
+                <EmptyMedia>
+                  <CreditCard className="h-5 w-5" />
+                </EmptyMedia>
+                <EmptyTitle>No payment history found.</EmptyTitle>
+                <EmptyDescription>
                   Completed or pending payments will appear here.
-                </p>
-              </CardContent>
-            </Card>
+                </EmptyDescription>
+              </EmptyContent>
+            </Empty>
           ) : (
             <PaymentHistory payments={payments} compact />
           )}
@@ -697,18 +704,20 @@ export default function PatientBillingPage() {
               </CardContent>
             </Card>
           ) : displayedSubscriptions.length === 0 ? (
-            <Card>
-              <CardContent className="py-10 text-center">
-                <Wallet className="mx-auto mb-3 h-10 w-10 text-muted-foreground/70" />
-                <p className="font-medium">You do not have any subscriptions yet.</p>
-                <p className="mt-1 text-sm text-muted-foreground">
+            <Empty>
+              <EmptyContent>
+                <EmptyMedia>
+                  <Wallet className="h-5 w-5" />
+                </EmptyMedia>
+                <EmptyTitle>You do not have any subscriptions yet.</EmptyTitle>
+                <EmptyDescription>
                   Pick a plan to start using subscription benefits.
-                </p>
-                <Button className="mt-4" onClick={openPlansTab}>
+                </EmptyDescription>
+                <Button className="mt-2" onClick={openPlansTab}>
                   View Plans
                 </Button>
-              </CardContent>
-            </Card>
+              </EmptyContent>
+            </Empty>
           ) : (
             <>
               {activeSubscriptions.length === 0 && endedSubscriptions.length > 0 && (

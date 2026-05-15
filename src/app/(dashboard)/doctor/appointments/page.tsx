@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { DataTable } from "@/components/ui/data-table";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
+import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
 import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
@@ -34,6 +35,7 @@ import { useRealTimeAppointments, useWebSocketQuerySync } from "@/hooks/realtime
 import { showInfoToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import {
   getAppointmentViewState,
+  getAppointmentPatientName,
   getAppointmentDateTimeValue,
   formatDateInIST,
   formatTimeInIST,
@@ -44,7 +46,6 @@ import {
 } from "@/lib/utils/appointmentUtils";
 import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 import {
-  getAppointmentPaymentDisplayState,
   getDisplayAppointmentDuration,
 } from "@/lib/utils/appointmentUtils";
 import {
@@ -58,7 +59,7 @@ import {
   MessageSquare,
   Search,
   Eye,
-  Loader2
+  Loader2,
 } from "lucide-react";
 import type { AppointmentStatus } from "@/types/appointment.types";
 
@@ -103,9 +104,6 @@ interface TransformedAppointment {
   } | null;
   checkedInAt: string | null;
   queuePosition: number | null;
-  paymentStatus: string;
-  paymentCompleted: boolean;
-  paymentPending: boolean;
   diagnosis?: string;
   prescription?: string;
   treatmentPlan?: string;
@@ -163,22 +161,6 @@ function extractAppointments(value: unknown): any[] {
   return [];
 }
 
-const getPaymentBadgeClasses = (paymentStatus: string) => {
-  switch (paymentStatus) {
-    case "PAID":
-      return "bg-emerald-100 text-emerald-800";
-    case "PENDING":
-    case "OVERDUE":
-      return "bg-amber-100 text-amber-800";
-    case "FAILED":
-    case "VOID":
-    case "UNCOLLECTIBLE":
-      return "bg-rose-100 text-rose-800";
-    default:
-      return "bg-gray-100 text-gray-800";
-  }
-};
-
 const WORKFLOW_ACTION_BUTTON_CLASS = "h-9 rounded-xl px-3 gap-2";
 const WORKFLOW_ICON_BUTTON_CLASS = "h-9 w-9 rounded-xl";
 const WORKFLOW_PANEL_CLASS = "rounded-2xl border border-border bg-muted/20 p-4";
@@ -234,7 +216,6 @@ export default function DoctorAppointments() {
     return visibleApps
       .map((app: any): TransformedAppointment => {
         const displayDuration = getDisplayAppointmentDuration(app);
-        const paymentDisplay = getAppointmentPaymentDisplayState(app);
         const viewState = getAppointmentViewState(app);
         const appointmentDateTime = getAppointmentDateTimeValue(app);
 
@@ -243,13 +224,17 @@ export default function DoctorAppointments() {
           appointmentId: app.id,
           patientId: app.patientId || app.patient?.id || app.patient?.userId || "",
           doctorId: app.doctorId || app.doctor?.id || app.doctor?.userId || "",
-          patientName: app.patient?.name || `${app.patient?.firstName || ""} ${app.patient?.lastName || ""}`.trim() || "Unknown Patient",
+          patientName:
+            getAppointmentPatientName(app) ||
+            app.patient?.name ||
+            `${app.patient?.firstName || ""} ${app.patient?.lastName || ""}`.trim() ||
+            "Unknown Patient",
           patientAge: app.patient?.age || (app.patient?.dateOfBirth ? Math.floor((new Date().getTime() - new Date(app.patient.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365)) : null),
           patientGender: app.patient?.gender || "Unknown",
           time: appointmentDateTime
             ? formatTimeInIST(appointmentDateTime, { hour: "2-digit", minute: "2-digit", hour12: true })
             : getReceptionistAppointmentTimeLabel(app as Record<string, unknown>),
-          status: (viewState.isVideo && !viewState.paymentCompleted ? "SCHEDULED" : viewState.normalizedStatus) as AppointmentStatus,
+          status: viewState.normalizedStatus as AppointmentStatus,
           type: app.type || app.appointmentType || "Consultation",
           duration: typeof displayDuration === "number" ? `${displayDuration} min` : "30 min",
           appointmentDate: appointmentDateTime
@@ -266,9 +251,6 @@ export default function DoctorAppointments() {
           vitalSigns: app.vitalSigns || null,
           checkedInAt: app.checkedInAt ? formatTimeInIST(app.checkedInAt) : null,
           queuePosition: app.queuePosition || null,
-          paymentStatus: paymentDisplay.paymentStatus,
-          paymentCompleted: paymentDisplay.paymentCompleted,
-          paymentPending: paymentDisplay.paymentPending,
           diagnosis: typeof app.diagnosis === "string" ? app.diagnosis : "",
           prescription: typeof app.prescription === "string" ? app.prescription : "",
           treatmentPlan: typeof app.treatmentPlan === "string" ? app.treatmentPlan : "",
@@ -301,6 +283,11 @@ export default function DoctorAppointments() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'PENDING':
+      case 'RESCHEDULED':
+      case 'ON_HOLD':
+      case 'AWAITING_SLOT_CONFIRMATION':
+        return 'bg-amber-100 text-amber-800';
       case APPOINTMENT_STATUS.IN_PROGRESS: return 'bg-blue-100 text-blue-800';
       case APPOINTMENT_STATUS.CONFIRMED: return 'bg-green-100 text-green-800';
       case APPOINTMENT_STATUS.SCHEDULED: return 'bg-gray-100 text-gray-800';
@@ -315,6 +302,10 @@ export default function DoctorAppointments() {
 
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
+      PENDING: 'Pending',
+      RESCHEDULED: 'Rescheduled',
+      ON_HOLD: 'On Hold',
+      AWAITING_SLOT_CONFIRMATION: 'Awaiting Slot',
       [APPOINTMENT_STATUS.IN_PROGRESS]: 'In Progress',
       [APPOINTMENT_STATUS.SCHEDULED]: 'Scheduled',
       [APPOINTMENT_STATUS.CONFIRMED]: 'Confirmed',
@@ -324,6 +315,21 @@ export default function DoctorAppointments() {
     };
     return labels[status] || status;
   };
+
+  const completedAppointmentsCount = useMemo(
+    () => appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.COMPLETED).length,
+    [appointments]
+  );
+
+  const pendingAppointmentsCount = useMemo(
+    () =>
+      appointments.filter((a: TransformedAppointment) =>
+        ['PENDING', 'RESCHEDULED', 'ON_HOLD', 'AWAITING_SLOT_CONFIRMATION'].includes(String(a.status))
+      ).length,
+    [appointments]
+  );
+
+  const totalAppointmentsCount = appointments.length;
 
   const appointmentColumns = useMemo<ColumnDef<TransformedAppointment>[]>(
     () => [
@@ -337,7 +343,7 @@ export default function DoctorAppointments() {
               <div className="font-medium text-foreground">{app.patientName}</div>
               <div className="text-xs text-muted-foreground">
                 {app.patientAge ? `${app.patientAge} years` : "Age not set"}
-                {app.patientGender ? ` â€¢ ${app.patientGender}` : ""}
+                {app.patientGender ? `  ${app.patientGender}` : "  Unknown"}
               </div>
             </div>
           );
@@ -352,7 +358,7 @@ export default function DoctorAppointments() {
             <div className="space-y-1">
               <div className="text-sm font-medium text-foreground">{app.type}</div>
               <div className="text-xs text-muted-foreground">
-                {app.time} â€¢ {app.duration}
+                {app.appointmentDate}  {app.time}  {app.duration}
               </div>
             </div>
           );
@@ -367,26 +373,27 @@ export default function DoctorAppointments() {
         },
       },
       {
-        accessorKey: "paymentStatus",
-        header: "Video Payment",
+        accessorKey: "chiefComplaint",
+        header: "Details",
         cell: ({ row }) => {
           const app = row.original;
-          return app.type === "VIDEO_CALL" ? (
-            <Badge className={getPaymentBadgeClasses(app.paymentCompleted ? "PAID" : app.paymentStatus)}>
-              {app.paymentCompleted ? "Payment verified" : "Payment pending"}
-            </Badge>
-          ) : (
-            <span className="text-sm text-muted-foreground">Not applicable</span>
+          return (
+            <div className="min-w-0 space-y-1">
+              <div className="text-sm text-foreground line-clamp-1">{app.chiefComplaint}</div>
+              <div className="text-xs text-muted-foreground">
+                {app.patientPhone || app.patientEmail || "Not available"}
+              </div>
+            </div>
           );
         },
       },
       {
         id: "actions",
-        header: "Actions",
+        header: () => <div className="text-center">Actions</div>,
         cell: ({ row }) => {
           const app = row.original;
           return (
-            <div className="flex items-center justify-end gap-2 whitespace-nowrap">
+            <div className="flex items-center justify-center gap-2 whitespace-nowrap">
               <Button
                 variant="outline"
                 size="sm"
@@ -396,50 +403,37 @@ export default function DoctorAppointments() {
               >
                 <Eye className="w-4 h-4" />
               </Button>
-              {app.status === APPOINTMENT_STATUS.CONFIRMED && app.checkedInAt && (
+              {app.status === APPOINTMENT_STATUS.CONFIRMED && app.type === "VIDEO_CALL" && (
                 <Button
                   size="sm"
                   className={WORKFLOW_ACTION_BUTTON_CLASS}
-                  onClick={() =>
-                    startConsultation(
-                      app.id,
-                      app.doctorId,
-                      app.type === "VIDEO_CALL" ? { openVideoAfterStart: true } : undefined
-                    )
-                  }
-                  disabled={startAppointmentMutation.isPending || (app.type === "VIDEO_CALL" && !app.paymentCompleted)}
-                  title={app.type === "VIDEO_CALL" && !app.paymentCompleted ? "Video request is waiting for payment" : undefined}
+                  onClick={() => router.push(buildVideoSessionRoute(app.id))}
                 >
                   <Play className="mr-1 h-4 w-4" />
-                  {app.type === "VIDEO_CALL" ? "Start video" : "Start"}
+                  Join Session
                 </Button>
               )}
-              {app.status === APPOINTMENT_STATUS.CONFIRMED && !app.checkedInAt && (
+              {app.status === APPOINTMENT_STATUS.CONFIRMED && app.type !== "VIDEO_CALL" && (
                 <Button
                   size="sm"
-                  variant="outline"
                   className={WORKFLOW_ACTION_BUTTON_CLASS}
-                  disabled
-                  title="Patient must be checked in before consultation can start"
+                  onClick={() => startConsultation(app.id, app.doctorId)}
                 >
                   <Play className="mr-1 h-4 w-4" />
-                  Waiting check-in
+                  Start
                 </Button>
               )}
-              {app.status === APPOINTMENT_STATUS.IN_PROGRESS && (
+              {app.status === APPOINTMENT_STATUS.IN_PROGRESS && app.type === "VIDEO_CALL" && (
                 <>
-                  {app.type === "VIDEO_CALL" ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className={WORKFLOW_ACTION_BUTTON_CLASS}
-                      onClick={() => router.push(buildVideoSessionRoute(app.id))}
-                      disabled={!app.paymentCompleted}
-                    >
-                      <Video className="mr-1 h-4 w-4" />
-                      Open video
-                    </Button>
-                  ) : null}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={WORKFLOW_ACTION_BUTTON_CLASS}
+                    onClick={() => router.push(buildVideoSessionRoute(app.id))}
+                  >
+                    <Video className="mr-1 h-4 w-4" />
+                    Open video
+                  </Button>
                   <Button
                     size="sm"
                     className={WORKFLOW_ACTION_BUTTON_CLASS}
@@ -462,7 +456,7 @@ export default function DoctorAppointments() {
         },
       },
     ],
-    [completeAppointmentMutation.isPending, consultationNotes, diagnosis, prescription, startAppointmentMutation.isPending, user?.id]
+    [completeAppointmentMutation.isPending, consultationNotes, diagnosis, prescription, router]
   );
 
   const startConsultation = async (
@@ -640,67 +634,64 @@ export default function DoctorAppointments() {
           />
 
           {/* Stats Overview */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
-            <Card className="border-l-4 border-l-emerald-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Confirmed</CardTitle>
-                <CheckCircle className="h-4 w-4 text-green-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">
-                  {appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.CONFIRMED).length}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-l-4 border-l-blue-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">In Progress</CardTitle>
-                <Play className="h-4 w-4 text-blue-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-600">
-                  {appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.IN_PROGRESS).length}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-l-4 border-l-amber-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Scheduled</CardTitle>
-                <Clock className="h-4 w-4 text-gray-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-gray-600">
-                  {appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.SCHEDULED || a.status === APPOINTMENT_STATUS.CONFIRMED).length}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-l-4 border-l-violet-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Today</CardTitle>
-                <Calendar className="h-4 w-4 text-purple-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-purple-600">
-                  {
-                    appointments.filter((a: TransformedAppointment) =>
-                      a.appointmentDate === formatISODateInIST(new Date())
-                    ).length
-                  }
-                </div>
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+            <DashboardMetricCard
+              label="Pending"
+              value={pendingAppointmentsCount}
+              icon={<Clock className="h-3.5 w-3.5 text-amber-600" />}
+              accentClassName="border-l-amber-400"
+              valueClassName="text-sm font-semibold text-amber-600 sm:text-base"
+              compact
+            />
+            <DashboardMetricCard
+              label="Confirmed"
+              value={appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.CONFIRMED).length}
+              icon={<CheckCircle className="h-3.5 w-3.5 text-green-600" />}
+              accentClassName="border-l-emerald-400"
+              valueClassName="text-sm font-semibold text-green-600 sm:text-base"
+              compact
+            />
+            <DashboardMetricCard
+              label="In Progress"
+              value={appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.IN_PROGRESS).length}
+              icon={<Play className="h-3.5 w-3.5 text-blue-600" />}
+              accentClassName="border-l-blue-400"
+              valueClassName="text-sm font-semibold text-blue-600 sm:text-base"
+              compact
+            />
+            <DashboardMetricCard
+              label="Scheduled"
+              value={appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.SCHEDULED || a.status === APPOINTMENT_STATUS.CONFIRMED).length}
+              icon={<Clock className="h-3.5 w-3.5 text-gray-600" />}
+              accentClassName="border-l-amber-400"
+              valueClassName="text-sm font-semibold text-gray-600 sm:text-base"
+              compact
+            />
+            <DashboardMetricCard
+              label="Completed"
+              value={completedAppointmentsCount}
+              icon={<CheckCircle className="h-3.5 w-3.5 text-purple-600" />}
+              accentClassName="border-l-purple-400"
+              valueClassName="text-sm font-semibold text-purple-600 sm:text-base"
+              compact
+            />
+            <DashboardMetricCard
+              label="Total All"
+              value={totalAppointmentsCount}
+              icon={<Calendar className="h-3.5 w-3.5 text-purple-600" />}
+              accentClassName="border-l-violet-400"
+              valueClassName="text-sm font-semibold text-purple-600 sm:text-base"
+              compact
+            />
           </div>
 
           {/* Search and Filters */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Filter Appointments</CardTitle>
+          <Card className="rounded-2xl border-border/60 shadow-sm">
+            <CardHeader className="px-4 pb-3 pt-4">
+              <CardTitle className="text-base font-semibold">Filter Appointments</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="flex flex-col md:flex-row gap-4">
+            <CardContent className="px-4 pb-4 pt-0">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
                   <Input
@@ -734,36 +725,34 @@ export default function DoctorAppointments() {
           />
 
           <Dialog open={!!selectedAppointment} onOpenChange={(open) => !open && setSelectedAppointment(null)}>
-            <DialogContent className="max-h-[90vh] max-w-6xl overflow-y-auto p-0">
+            <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto p-0">
               {selectedAppointment && (
-                <div className="space-y-5 p-6">
-                  <DialogHeader className="space-y-2">
-                    <DialogTitle className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-4 p-5 sm:p-6">
+                  <DialogHeader className="space-y-2 border-b border-border pb-4">
+                    <DialogTitle className="flex flex-col gap-1 text-left sm:flex-row sm:items-center sm:justify-between">
                       <span>Patient Details: {selectedAppointment.patientName}</span>
                       <span className="text-sm font-normal text-muted-foreground">
-                        {selectedAppointment.type} â€¢ {selectedAppointment.time}
+                        {selectedAppointment.type}  {selectedAppointment.time}
                       </span>
                     </DialogTitle>
                   </DialogHeader>
 
-                  <div className="grid gap-4 rounded-2xl border border-border bg-muted/20 p-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Status</p>
-                      <Badge className={getStatusColor(selectedAppointment.status)}>{getStatusLabel(selectedAppointment.status)}</Badge>
+                  <div className="grid gap-3 rounded-2xl border border-border bg-muted/20 p-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="rounded-xl border border-border/60 bg-background p-3">
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Status</p>
+                      <Badge className={`mt-1 ${getStatusColor(selectedAppointment.status)}`}>{getStatusLabel(selectedAppointment.status)}</Badge>
                     </div>
-                    <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Video Payment</p>
-                      <Badge className={getPaymentBadgeClasses(selectedAppointment.paymentCompleted ? "PAID" : selectedAppointment.paymentStatus)}>
-                        {selectedAppointment.paymentCompleted ? "Payment verified" : "Payment pending"}
-                      </Badge>
+                    <div className="rounded-xl border border-border/60 bg-background p-3">
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Visit Type</p>
+                      <p className="mt-1 text-sm text-foreground">{selectedAppointment.type}</p>
                     </div>
-                    <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Contact</p>
-                      <p className="text-sm text-foreground">{selectedAppointment.patientPhone || selectedAppointment.patientEmail || "Not available"}</p>
+                    <div className="rounded-xl border border-border/60 bg-background p-3">
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Contact</p>
+                      <p className="mt-1 text-sm text-foreground">{selectedAppointment.patientPhone || selectedAppointment.patientEmail || "Not available"}</p>
                     </div>
-                    <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Queue</p>
-                      <p className="text-sm text-foreground">{selectedAppointment.queuePosition ?? "â€”"}</p>
+                    <div className="rounded-xl border border-border/60 bg-background p-3">
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Queue</p>
+                      <p className="mt-1 text-sm text-foreground">{selectedAppointment.queuePosition ?? "-"}</p>
                     </div>
                   </div>
 

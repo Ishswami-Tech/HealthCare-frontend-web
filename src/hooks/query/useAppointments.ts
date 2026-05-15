@@ -349,7 +349,6 @@ export const useCreateAppointment = (clinicId?: string) => {
     }
     const result = await clinicApiClient.createAppointment({
       ...rest,
-      clinicId: resolvedClinicId,
       appointmentDate: toAppointmentDateIso(date, time),
     });
     if (!result.success) {

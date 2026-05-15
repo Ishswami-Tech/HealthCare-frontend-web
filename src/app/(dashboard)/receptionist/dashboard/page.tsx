@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
+import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
+import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useAppointments } from "@/hooks/query/useAppointments";
 import { useClinicContext } from "@/hooks/query/useClinics";
@@ -555,65 +557,69 @@ export default function ReceptionistDashboard() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
         <Link href="/receptionist/appointments" prefetch={false} className="block transition-transform hover:scale-[1.02] active:scale-95">
-          <Card className="border-blue-200 bg-blue-50 shadow-sm transition-colors dark:border-blue-500/20 dark:bg-blue-500/10">
-            <CardContent className="p-3">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-700 dark:text-blue-300">Today</div>
-              <div className="mt-1 text-xl font-bold leading-none text-blue-900 dark:text-blue-100">{stats.total}</div>
-            </CardContent>
-          </Card>
+          <DashboardMetricCard
+            label="Today"
+            value={stats.total}
+            accentClassName="border-blue-200 bg-blue-50 dark:border-blue-500/20 dark:bg-blue-500/10"
+            valueClassName="mt-1 text-xl font-bold leading-none text-blue-900 dark:text-blue-100"
+            labelClassName="text-blue-700 dark:text-blue-300 text-[10px] tracking-[0.18em]"
+            compact
+          />
         </Link>
         <Link href="/receptionist/appointments?status=SCHEDULED" prefetch={false} className="block transition-transform hover:scale-[1.02] active:scale-95">
-          <Card className="border-slate-200 bg-slate-50 shadow-sm transition-colors dark:border-slate-500/20 dark:bg-slate-500/10">
-            <CardContent className="p-3">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-slate-300">Scheduled</div>
-              <div className="mt-1 text-xl font-bold leading-none text-slate-900 dark:text-slate-100">{stats.scheduled}</div>
-            </CardContent>
-          </Card>
+          <DashboardMetricCard
+            label="Scheduled"
+            value={stats.scheduled}
+            accentClassName="border-slate-200 bg-slate-50 dark:border-slate-500/20 dark:bg-slate-500/10"
+            valueClassName="mt-1 text-xl font-bold leading-none text-slate-900 dark:text-slate-100"
+            labelClassName="text-slate-700 dark:text-slate-300 text-[10px] tracking-[0.18em]"
+            compact
+          />
         </Link>
         <Link href="/receptionist/appointments?status=CONFIRMED" prefetch={false} className="block transition-transform hover:scale-[1.02] active:scale-95">
-          <Card className="border-emerald-200 bg-emerald-50 shadow-sm transition-colors dark:border-emerald-500/20 dark:bg-emerald-500/10">
-            <CardContent className="p-3">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Confirmed</div>
-              <div className="mt-1 text-xl font-bold leading-none text-emerald-900 dark:text-emerald-100">{stats.confirmed}</div>
-            </CardContent>
-          </Card>
+          <DashboardMetricCard
+            label="Confirmed"
+            value={stats.confirmed}
+            accentClassName="border-emerald-200 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10"
+            valueClassName="mt-1 text-xl font-bold leading-none text-emerald-900 dark:text-emerald-100"
+            labelClassName="text-emerald-700 dark:text-emerald-300 text-[10px] tracking-[0.18em]"
+            compact
+          />
         </Link>
         <Link href="/receptionist/appointments?status=IN_PROGRESS" prefetch={false} className="block transition-transform hover:scale-[1.02] active:scale-95">
-          <Card className="border-indigo-200 bg-indigo-50 shadow-sm transition-colors dark:border-indigo-500/20 dark:bg-indigo-500/10">
-            <CardContent className="p-3">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-indigo-700 dark:text-indigo-300">In Progress</div>
-              <div className="mt-1 text-xl font-bold leading-none text-indigo-900 dark:text-indigo-100">{stats.inProgress}</div>
-            </CardContent>
-          </Card>
+          <DashboardMetricCard
+            label="In Progress"
+            value={stats.inProgress}
+            accentClassName="border-indigo-200 bg-indigo-50 dark:border-indigo-500/20 dark:bg-indigo-500/10"
+            valueClassName="mt-1 text-xl font-bold leading-none text-indigo-900 dark:text-indigo-100"
+            labelClassName="text-indigo-700 dark:text-indigo-300 text-[10px] tracking-[0.18em]"
+            compact
+          />
         </Link>
-        <Card className="relative overflow-hidden border-emerald-200 bg-emerald-50 shadow-md group dark:border-emerald-500/20 dark:bg-emerald-500/10">
-          <div className="absolute -right-2 -top-2 opacity-10 group-hover:scale-110 transition-transform">
-            <Activity className="w-16 h-16 text-emerald-600" />
-          </div>
-          <CardContent className="relative z-10 p-3">
-            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">
-              Clinic Velocity
-            </div>
-            <div className="mt-1 flex items-baseline gap-1">
-              <div className="text-xl font-bold leading-none text-emerald-900 dark:text-emerald-100">
-                {velocity}
-              </div>
-              <div className="text-[10px] font-medium text-emerald-700/70 dark:text-emerald-200/70">
-                pts/hr
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-amber-200 bg-amber-50 shadow-sm dark:border-amber-500/20 dark:bg-amber-500/10">
-          <CardContent className="p-3">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-300">Med Desk</div>
-            <div className="mt-1 text-xl font-bold leading-none text-amber-900 dark:text-amber-100">
-              {medicineDesk.length}
-            </div>
-          </CardContent>
-        </Card>
+        <DashboardMetricCard
+          label="Clinic Velocity"
+          value={
+            <span className="flex items-baseline gap-1">
+              <span className="text-xl font-bold leading-none text-emerald-900 dark:text-emerald-100">{velocity}</span>
+              <span className="text-[10px] font-medium text-emerald-700/70 dark:text-emerald-200/70">pts/hr</span>
+            </span>
+          }
+          icon={<Activity className="w-4 h-4 text-emerald-600" />}
+          accentClassName="border-emerald-200 bg-emerald-50 shadow-md dark:border-emerald-500/20 dark:bg-emerald-500/10"
+          labelClassName="text-emerald-700 dark:text-emerald-300 text-[10px] tracking-[0.18em]"
+          valueClassName="mt-1"
+          compact
+        />
+        <DashboardMetricCard
+          label="Med Desk"
+          value={medicineDesk.length}
+          accentClassName="border-amber-200 bg-amber-50 dark:border-amber-500/20 dark:bg-amber-500/10"
+          valueClassName="mt-1 text-xl font-bold leading-none text-amber-900 dark:text-amber-100"
+          labelClassName="text-amber-700 dark:text-amber-300 text-[10px] tracking-[0.18em]"
+          compact
+        />
       </div>
 
       <div className="space-y-6">
@@ -818,9 +824,19 @@ export default function ReceptionistDashboard() {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                No active medicine desk handovers right now.
-              </p>
+              <Empty className="gap-1.5 p-3 md:p-4">
+                <EmptyContent className="gap-1.5">
+                  <EmptyMedia className="mb-0">
+                    <Pill className="h-4 w-4" />
+                  </EmptyMedia>
+                  <EmptyTitle className="text-sm font-semibold leading-tight">
+                    No active medicine desk handovers right now.
+                  </EmptyTitle>
+                  <EmptyDescription className="text-[11px] leading-snug">
+                    Prescription handovers will appear here when they are ready for pharmacy dispatch.
+                  </EmptyDescription>
+                </EmptyContent>
+              </Empty>
             )}
           </CardContent>
         </Card>

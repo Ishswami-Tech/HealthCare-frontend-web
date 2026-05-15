@@ -17,6 +17,8 @@ import {
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useTherapistAppointments, useTherapistClients } from "@/hooks/query/useTherapist";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
+import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { usePatientStore } from "@/stores";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import {
@@ -150,68 +152,43 @@ export default function TherapistDashboard() {
       />
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Today&apos;s Sessions
-            </CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats.todayAppointments}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {stats.completedToday} completed
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Completed Today
-            </CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {stats.completedToday}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Procedural sessions finished
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Clients
-            </CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalPatients}</div>
-            <p className="text-xs text-muted-foreground">Under care</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Avg. Session
-            </CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats.avgSessionDuration} min
-            </div>
-            <p className="text-xs text-muted-foreground">Per session</p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+        <DashboardMetricCard
+          label="Today's Sessions"
+          value={stats.todayAppointments}
+          subtext={`${stats.completedToday} completed`}
+          accentClassName="border-blue-200 bg-blue-50 dark:border-blue-500/20 dark:bg-blue-500/10"
+          valueClassName="mt-1 text-2xl font-bold text-blue-900 dark:text-blue-100"
+          labelClassName="text-blue-700 dark:text-blue-300"
+          compact
+        />
+        <DashboardMetricCard
+          label="Completed Today"
+          value={stats.completedToday}
+          subtext="Procedural sessions finished"
+          accentClassName="border-green-200 bg-green-50 dark:border-green-500/20 dark:bg-green-500/10"
+          valueClassName="mt-1 text-2xl font-bold text-green-600"
+          labelClassName="text-green-700 dark:text-green-300"
+          compact
+        />
+        <DashboardMetricCard
+          label="Total Clients"
+          value={stats.totalPatients}
+          subtext="Under care"
+          accentClassName="border-slate-200 bg-slate-50 dark:border-slate-500/20 dark:bg-slate-500/10"
+          valueClassName="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100"
+          labelClassName="text-slate-700 dark:text-slate-300"
+          compact
+        />
+        <DashboardMetricCard
+          label="Avg. Session"
+          value={`${stats.avgSessionDuration} min`}
+          subtext="Per session"
+          accentClassName="border-indigo-200 bg-indigo-50 dark:border-indigo-500/20 dark:bg-indigo-500/10"
+          valueClassName="mt-1 text-2xl font-bold text-indigo-900 dark:text-indigo-100"
+          labelClassName="text-indigo-700 dark:text-indigo-300"
+          compact
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -229,9 +206,17 @@ export default function TherapistDashboard() {
                 <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
               </div>
             ) : recentSessions.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-gray-500">No recent appointments found</p>
-              </div>
+              <Empty>
+                <EmptyContent>
+                  <EmptyMedia>
+                    <Calendar className="h-5 w-5" />
+                  </EmptyMedia>
+                  <EmptyTitle>No recent appointments found</EmptyTitle>
+                  <EmptyDescription>
+                    Recent sessions will appear here once appointments are scheduled for this therapist.
+                  </EmptyDescription>
+                </EmptyContent>
+              </Empty>
             ) : (
               <div className="space-y-4">
                 {recentSessions.map((appointment) => (
@@ -285,9 +270,17 @@ export default function TherapistDashboard() {
                 <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
               </div>
             ) : clientsArray.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-gray-500">No clients found</p>
-              </div>
+              <Empty>
+                <EmptyContent>
+                  <EmptyMedia>
+                    <Users className="h-5 w-5" />
+                  </EmptyMedia>
+                  <EmptyTitle>No clients found</EmptyTitle>
+                  <EmptyDescription>
+                    Assigned clients will appear here once they are linked to this therapist.
+                  </EmptyDescription>
+                </EmptyContent>
+              </Empty>
             ) : (
               <div className="space-y-4">
                 {recentPatients.map((client, index) => (

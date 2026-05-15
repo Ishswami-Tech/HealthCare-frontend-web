@@ -7,6 +7,49 @@ function unsupportedDoctorRoute(feature: string): never {
   throw new Error(`Unsupported doctor backend route: ${feature}`);
 }
 
+function normalizeCollectionResponse<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) {
+    return payload as T[];
+  }
+
+  const data = payload as {
+    value?: T[];
+    data?: T[] | { doctors?: T[] };
+    doctors?: T[];
+    items?: T[];
+    results?: T[];
+  } | null | undefined;
+
+  if (Array.isArray(data?.value)) {
+    return data.value;
+  }
+
+  if (Array.isArray(data?.items)) {
+    return data.items;
+  }
+
+  if (Array.isArray(data?.results)) {
+    return data.results;
+  }
+
+  if (Array.isArray(data?.doctors)) {
+    return data.doctors;
+  }
+
+  if (Array.isArray(data?.data)) {
+    return data.data;
+  }
+
+  if (data && typeof data.data === 'object' && !Array.isArray(data.data)) {
+    const nested = data.data as { doctors?: T[] };
+    if (Array.isArray(nested.doctors)) {
+      return nested.doctors;
+    }
+  }
+
+  return [];
+}
+
 // ===== DOCTORS MANAGEMENT ACTIONS =====
 
 /**
@@ -37,7 +80,7 @@ export async function getDoctors(clinicId: string, filters?: {
   const { data } = await authenticatedApi(endpoint, {
     ...(clinicId ? { headers: { 'X-Clinic-ID': clinicId } } : {}),
   });
-  return data;
+  return normalizeCollectionResponse(data);
 }
 
 /**

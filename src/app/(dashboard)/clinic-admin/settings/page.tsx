@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import {
   Table,
   TableBody,
@@ -586,7 +587,17 @@ export default function ClinicAdminSettingsPage() {
         </CardHeader>
         <CardContent className={`${COMPACT_CARD_CONTENT}`}>
           {doctors.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No doctors found.</p>
+            <Empty>
+              <EmptyContent>
+                <EmptyMedia>
+                  <Stethoscope className="h-5 w-5" />
+                </EmptyMedia>
+                <EmptyTitle>No doctors found.</EmptyTitle>
+                <EmptyDescription>
+                  Add doctors to this clinic to manage their consultation availability here.
+                </EmptyDescription>
+              </EmptyContent>
+            </Empty>
           ) : (
             <div className="overflow-hidden rounded-lg border border-blue-200 bg-white/80 dark:border-blue-900/70 dark:bg-background/40">
               <Table>
@@ -641,7 +652,7 @@ export default function ClinicAdminSettingsPage() {
                           <Switch checked={control.emergencyOnly} onCheckedChange={(value) => updDoc(doctor.id, "emergencyOnly", value)} aria-label={`Emergency only for ${doctor.name}`} />
                         </TableCell>
                         <TableCell className="px-3">
-                          <Input className="h-9 min-w-[180px]" value={control.pauseReason} onChange={(e) => updDoc(doctor.id, "pauseReason", e.target.value)} placeholder="Optional reason" />
+                          <Input className="h-9 w-full min-w-0 md:min-w-[180px]" value={control.pauseReason} onChange={(e) => updDoc(doctor.id, "pauseReason", e.target.value)} placeholder="Optional reason" />
                         </TableCell>
                       </TableRow>
                     );
@@ -660,7 +671,17 @@ export default function ClinicAdminSettingsPage() {
         </CardHeader>
         <CardContent className={`${COMPACT_CARD_CONTENT} grid grid-cols-1 gap-3 xl:grid-cols-2`}>
           {assistantDoctors.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No assistant doctors found.</p>
+            <Empty>
+              <EmptyContent>
+                <EmptyMedia>
+                  <Plus className="h-5 w-5" />
+                </EmptyMedia>
+                <EmptyTitle>No assistant doctors found.</EmptyTitle>
+                <EmptyDescription>
+                  Add assistant doctors to manage their coverage for primary doctors.
+                </EmptyDescription>
+              </EmptyContent>
+            </Empty>
           ) : (
             assistantDoctors.map((assistant) => {
               const coverage = assistantCoverage[assistant.id] || { assistantDoctorId: assistant.id, primaryDoctorIds: [], isActive: false };
@@ -678,7 +699,17 @@ export default function ClinicAdminSettingsPage() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {primaryDoctors.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No primary doctors found.</p>
+                      <Empty>
+                        <EmptyContent>
+                          <EmptyMedia>
+                            <Stethoscope className="h-5 w-5" />
+                          </EmptyMedia>
+                          <EmptyTitle>No primary doctors found.</EmptyTitle>
+                          <EmptyDescription>
+                            Add primary doctors to assign assistant coverage here.
+                          </EmptyDescription>
+                        </EmptyContent>
+                      </Empty>
                     ) : (
                       primaryDoctors.map((doctor) => {
                         const selected = coverage.primaryDoctorIds.includes(doctor.id);

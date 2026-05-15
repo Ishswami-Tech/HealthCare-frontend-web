@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "@/components/ui/loader";
+import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
 import {
   Users,
   Activity,
@@ -153,70 +154,63 @@ export default function NurseDashboard() {
         }
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Patients</CardTitle>
-            <Users className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats.activePatients}</div>
-            <p className="text-xs text-muted-foreground">Assigned to you</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Vitals Recorded</CardTitle>
-            <Activity className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.vitalsRecordedToday}</div>
-            <p className="text-xs text-muted-foreground">Patients updated today</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Vitals Updated</CardTitle>
-            <CheckCircle className="h-4 w-4 text-purple-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-600">{stats.vitalsRecordedToday}</div>
-            <p className="text-xs text-muted-foreground">Patients updated today</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Vitals Needed</CardTitle>
-            <Clock className="h-4 w-4 text-orange-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{stats.vitalsNeeded}</div>
-            <p className="text-xs text-muted-foreground">Patients pending check</p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+        <DashboardMetricCard
+          label="Active Patients"
+          value={stats.activePatients}
+          subtext="Assigned to you"
+          accentClassName="border-blue-200 bg-blue-50 dark:border-blue-500/20 dark:bg-blue-500/10"
+          valueClassName="mt-1 text-2xl font-bold text-blue-600"
+          labelClassName="text-blue-700 dark:text-blue-300"
+          compact
+        />
+        <DashboardMetricCard
+          label="Vitals Recorded"
+          value={stats.vitalsRecordedToday}
+          subtext="Patients updated today"
+          accentClassName="border-green-200 bg-green-50 dark:border-green-500/20 dark:bg-green-500/10"
+          valueClassName="mt-1 text-2xl font-bold text-green-600"
+          labelClassName="text-green-700 dark:text-green-300"
+          compact
+        />
+        <DashboardMetricCard
+          label="Vitals Updated"
+          value={stats.vitalsRecordedToday}
+          subtext="Patients updated today"
+          accentClassName="border-purple-200 bg-purple-50 dark:border-purple-500/20 dark:bg-purple-500/10"
+          valueClassName="mt-1 text-2xl font-bold text-purple-600"
+          labelClassName="text-purple-700 dark:text-purple-300"
+          compact
+        />
+        <DashboardMetricCard
+          label="Vitals Needed"
+          value={stats.vitalsNeeded}
+          subtext="Patients pending check"
+          accentClassName="border-orange-200 bg-orange-50 dark:border-orange-500/20 dark:bg-orange-500/10"
+          valueClassName="mt-1 text-2xl font-bold text-orange-600"
+          labelClassName="text-orange-700 dark:text-orange-300"
+          compact
+        />
       </div>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="flex items-center gap-2">
             <Heart className="w-5 h-5 text-red-600" />
             Patient Care List
           </CardTitle>
-          <div className="flex gap-2">
-            <div className="relative w-64">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <div className="relative w-full sm:w-64">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search patients..."
-                className="pl-8 h-9"
+                className="h-9 pl-8"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-32 h-9">
+              <SelectTrigger className="h-9 w-full sm:w-32">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>

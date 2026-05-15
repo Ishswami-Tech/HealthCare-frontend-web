@@ -506,6 +506,7 @@ export function BookAppointmentDialog({
 
       setRequiresVideoPayment(false);
       setVideoPaymentCompleted(true);
+      setStep(STEP_ORDER.length);
       onBooked?.();
       showSuccessToast("Payment verified.", { id: TOAST_IDS.PAYMENT.SUCCESS });
     },
@@ -541,32 +542,6 @@ export function BookAppointmentDialog({
     userRole === "PATIENT" ? session?.user?.id || "" : ""
   );
 
-  const dateString = useMemo(() => (selectedDate ? formatDateIST(selectedDate) : ""), [selectedDate]);
-  const shouldLoadAvailability =
-    dialogOpen &&
-    !!activeClinicId &&
-    !!selectedDoctorId &&
-    !!dateString &&
-    (consultationMode === "VIDEO" || !!selectedLocationId);
-  const availabilityRefetchIntervalMs =
-    consultationMode === "VIDEO"
-      ? 5000
-      : step >= 3 && !isConnected
-        ? 10000
-        : undefined;
-  const availabilityQueryKey = useMemo(
-    () => [
-      "doctorAvailability",
-      activeClinicId,
-      selectedDoctorId,
-      dateString,
-      consultationMode === "VIDEO" ? undefined : selectedLocationId,
-      consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON",
-    ],
-    [activeClinicId, selectedDoctorId, dateString, selectedLocationId, consultationMode]
-  );
-  const locations = activeLocations.length > 0 ? activeLocations : allLocations;
-  const hasOnlyInactiveLocations = activeLocations.length === 0 && allLocations.length > 0;
   const clinicVideoCallWindow = useMemo(() => {
     const normalizeWindowTime = (value: unknown): string | null => {
       if (typeof value !== "string") return null;
@@ -618,24 +593,6 @@ export function BookAppointmentDialog({
     },
     [clinicVideoCallWindow, consultationMode]
   );
-
-  const {
-    data: availability,
-    isPending: availabilityLoading,
-    error: availabilityError,
-    refetch: refetchAvailability,
-  } = useDoctorAvailability(
-    activeClinicId,
-    selectedDoctorId,
-    dateString,
-    consultationMode === "VIDEO" ? undefined : selectedLocationId,
-    consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON",
-    {
-      ...(shouldLoadAvailability ? { enabled: true } : {}),
-      ...(availabilityRefetchIntervalMs ? { refetchIntervalMs: availabilityRefetchIntervalMs } : {}),
-    }
-  );
-  const showAvailabilityLoader = shouldLoadAvailability && availabilityLoading && !availability && !availabilityError;
 
   const { mutateAsync: createAppointment, isPending: isBooking } = useCreateAppointment(activeClinicId);
   const {
@@ -708,9 +665,80 @@ export function BookAppointmentDialog({
   }, [doctorsData]);
 
   const selectedDoctor = useMemo(
-    () => doctorsList.find((d: any) => d.id === selectedDoctorId),
+    () => {
+      const doctorId = selectedDoctorId || (doctorsList.length === 1 ? doctorsList[0]?.id || "" : "");
+      return doctorsList.find((d: any) => d.id === doctorId);
+    },
     [doctorsList, selectedDoctorId]
   );
+  const resolvedDoctorId = useMemo(() => {
+    if (selectedDoctorId) {
+      return selectedDoctorId;
+    }
+
+    if (doctorsList.length === 1) {
+      return doctorsList[0]?.id || "";
+    }
+
+    return "";
+  }, [doctorsList, selectedDoctorId]);
+
+  const dateString = useMemo(() => (selectedDate ? formatDateIST(selectedDate) : ""), [selectedDate]);
+  const locations = activeLocations.length > 0 ? activeLocations : allLocations;
+  const hasOnlyInactiveLocations = activeLocations.length === 0 && allLocations.length > 0;
+  const resolvedLocationId = useMemo(() => {
+    if (selectedLocationId) {
+      return selectedLocationId;
+    }
+
+    if (consultationMode !== "VIDEO" && locations.length === 1) {
+      return locations[0]?.id || "";
+    }
+
+    return "";
+  }, [consultationMode, locations, selectedLocationId]);
+
+  const availabilityRefetchIntervalMs =
+    consultationMode === "VIDEO"
+      ? 5000
+      : step >= 3 && !isConnected
+        ? 10000
+        : undefined;
+  const availabilityQueryKey = useMemo(
+    () => [
+      "doctorAvailability",
+      activeClinicId,
+      resolvedDoctorId,
+      dateString,
+      consultationMode === "VIDEO" ? undefined : resolvedLocationId,
+      consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON",
+    ],
+    [activeClinicId, resolvedDoctorId, dateString, resolvedLocationId, consultationMode]
+  );
+
+  const shouldLoadAvailability =
+    dialogOpen &&
+    !!activeClinicId &&
+    !!resolvedDoctorId &&
+    !!dateString &&
+    (consultationMode === "VIDEO" || !!resolvedLocationId);
+  const {
+    data: availability,
+    isPending: availabilityLoading,
+    error: availabilityError,
+    refetch: refetchAvailability,
+  } = useDoctorAvailability(
+    activeClinicId,
+    resolvedDoctorId,
+    dateString,
+    consultationMode === "VIDEO" ? undefined : resolvedLocationId,
+    consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON",
+    {
+      ...(shouldLoadAvailability ? { enabled: true } : {}),
+      ...(availabilityRefetchIntervalMs ? { refetchIntervalMs: availabilityRefetchIntervalMs } : {}),
+    }
+  );
+  const showAvailabilityLoader = shouldLoadAvailability && availabilityLoading && !availability && !availabilityError;
   const patientsList: any[] = useMemo(() => {
     const rawPatients = Array.isArray(patientsData)
       ? patientsData
@@ -1015,12 +1043,12 @@ export function BookAppointmentDialog({
     isConnected,
     queryClient,
     refetchAvailability,
-    selectedDoctorId,
+    resolvedDoctorId,
     selectedLocationId,
   ]);
 
   useEffect(() => {
-    if (!dialogOpen || !isConnected || !selectedDoctorId || !dateString) {
+    if (!dialogOpen || !isConnected || !resolvedDoctorId || !dateString) {
       return;
     }
 
@@ -1037,7 +1065,7 @@ export function BookAppointmentDialog({
       }
 
       const eventDoctorId = data.doctorId || data.appointment?.doctorId;
-      if (eventDoctorId && eventDoctorId !== selectedDoctorId) {
+      if (eventDoctorId && eventDoctorId !== resolvedDoctorId) {
         return;
       }
 
@@ -1085,7 +1113,7 @@ export function BookAppointmentDialog({
     isConnected,
     dialogOpen,
     queryClient,
-    selectedDoctorId,
+    resolvedDoctorId,
     selectedLocationId,
     step,
     subscribe,
@@ -1325,7 +1353,27 @@ export function BookAppointmentDialog({
 
   // ””” Book appointment ”””””””””””””””””””””””””””””””””””””””””””””””””””””
   const handleBook = useCallback(async () => {
-    if (!selectedService || !selectedDoctorId || !selectedDate) return;
+    const appointmentDoctorId = resolvedDoctorId || selectedDoctorId;
+    const appointmentLocationId =
+      consultationMode === "VIDEO"
+        ? resolvedLocationId || selectedLocationId
+        : selectedLocationId;
+
+    console.info("[BookAppointmentDialog] Confirm click", {
+      consultationMode,
+      hasService: Boolean(selectedService),
+      doctorId: appointmentDoctorId,
+      locationId: appointmentLocationId || "",
+      selectedDate: selectedDate ? formatDateIST(selectedDate) : "",
+      selectedSlot,
+      shouldCollectVideoPayment,
+      acceptedVideoPaymentPolicy,
+    });
+
+    if (!selectedService || !appointmentDoctorId || !selectedDate) {
+      showErrorToast("Please select a service, doctor, and date before confirming.");
+      return;
+    }
 
     const patientBillingRoute = "/patient/payments";
     const redirectToBillingTab = (
@@ -1422,7 +1470,7 @@ export function BookAppointmentDialog({
 
         console.info("[BookAppointmentDialog] Creating video appointment", {
           clinicId: activeClinicId,
-          doctorId: selectedDoctorId,
+          doctorId: appointmentDoctorId,
           date: selectedDateString,
           slot: selectedSlot,
           patientId: bookingPatientId,
@@ -1430,8 +1478,8 @@ export function BookAppointmentDialog({
 
         const createdAppointment = await createAppointment({
           patientId: bookingPatientId,
-          doctorId: selectedDoctorId,
-          ...(selectedLocationId ? { locationId: selectedLocationId } : {}),
+          doctorId: appointmentDoctorId,
+          ...(appointmentLocationId ? { locationId: appointmentLocationId } : {}),
           date: selectedDateString,
           time: selectedSlot,
           duration: appointmentDurationMinutes,
@@ -1469,9 +1517,9 @@ export function BookAppointmentDialog({
         if (shouldCollectVideoPayment) {
           setRequiresVideoPayment(true);
           setVideoPaymentCompleted(false);
-          setAcceptedVideoPaymentPolicy(false);
-          setStep(activeSteps.length || 1);
-          showInfoToast("Appointment created. Accept the policy and use the payment button to complete booking.");
+          setAcceptedVideoPaymentPolicy(true);
+          showInfoToast("Appointment created. Complete payment in the confirm screen to finish booking.");
+          await launchVideoPayment(createdAppointmentId);
           return;
         }
 
@@ -1530,9 +1578,9 @@ export function BookAppointmentDialog({
         const atomicResult = await createSubscriptionAppointment({
           subscriptionId: activeSubscription.id,
           patientId: targetPatientId,
-          doctorId: selectedDoctorId,
+          doctorId: appointmentDoctorId,
           clinicId: activeClinicId,
-          locationId: selectedLocationId,
+          locationId: appointmentLocationId,
           appointmentDate: appointmentDate.toISOString(),
           duration: appointmentDurationMinutes,
           treatmentType: selectedService.treatmentType,
@@ -1545,8 +1593,8 @@ export function BookAppointmentDialog({
           "APPT-" + Date.now();
       } else {
         const payload = {
-          doctorId: selectedDoctorId,
-          locationId: selectedLocationId,
+          doctorId: appointmentDoctorId,
+          locationId: appointmentLocationId,
           date: formatDateIST(appointmentDate),
           time: selectedSlot,
           type: finalAppointmentType,
@@ -1652,15 +1700,18 @@ export function BookAppointmentDialog({
     chiefComplaint,
     urgency,
     activeClinicId,
-    selectedLocationId,
+    consultationMode,
+    acceptedVideoPaymentPolicy,
     appointmentDurationMinutes,
+    resolvedDoctorId,
+    resolvedLocationId,
+    selectedLocationId,
     createAppointment,
     checkSubscriptionCoverage,
     createSubscriptionAppointment,
     hasPermission,
     sendReminder,
     onBooked,
-    consultationMode,
     userRole,
     activeSubscription,
     router,
@@ -1674,7 +1725,12 @@ export function BookAppointmentDialog({
     session?.user?.lastName,
     session?.user?.phone,
     session?.user?.address,
-  ]); 
+    shouldCollectVideoPayment,
+    selectedService,
+    selectedDoctorId,
+    selectedDate,
+    selectedSlot,
+  ]);
 
   // ””” Navigation ””””””””””””””””””””””””””””””””””””””””””””””””””””””””””
   const canNext = useMemo(() => {
@@ -2492,7 +2548,7 @@ export function BookAppointmentDialog({
               </span>
               <span className="inline-flex items-center gap-1 font-medium bg-slate-50 text-slate-700 dark:bg-slate-950/40 dark:text-slate-300 px-2 py-1 rounded-full border border-slate-200/70 dark:border-slate-800">
                 <Clock className="w-3 h-3" />
-                {clinicVideoCallWindow ? `Hours ${clinicVideoCallWindow.start}-${clinicVideoCallWindow.end}` : "Hours loading"}
+                {clinicVideoCallWindow ? `${clinicVideoCallWindow.start}-${clinicVideoCallWindow.end}` : "Hours loading"}
               </span>
               <span className="inline-flex items-center gap-1 font-medium bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300 px-2 py-1 rounded-full border border-violet-200/70 dark:border-violet-900">
                 <CalendarIcon className="w-3 h-3" /> {selectedDate ? format(selectedDate, "d MMM") : ""}
@@ -2506,6 +2562,12 @@ export function BookAppointmentDialog({
                 </span>
               ) : null}
             </div>
+
+            {clinicVideoCallWindow ? (
+              <p className="text-[11px] text-muted-foreground">
+                Video slots are available only within {clinicVideoCallWindow.start} - {clinicVideoCallWindow.end}.
+              </p>
+            ) : null}
 
             {selectedSlot ? (
               <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 dark:border-emerald-900 dark:bg-emerald-950/30 px-3 py-2">
@@ -2587,7 +2649,7 @@ export function BookAppointmentDialog({
                         >
                           <span className="text-xs font-semibold">{slot}</span>
                           <span className={`text-[9px] font-medium ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-                            {isSelected ? `Selected ¢ ${appointmentDurationMinutes} min` : `${appointmentDurationMinutes} min`}
+                            {isSelected ? `Selected  ${appointmentDurationMinutes} min` : `${appointmentDurationMinutes} min`}
                           </span>
                         </button>
                       );
@@ -2733,17 +2795,6 @@ export function BookAppointmentDialog({
         ))}
       </div>
 
-      {consultationMode === "VIDEO" && (
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-950/30 p-4">
-          <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Video Hours</p>
-          <p className="mt-1 text-xs text-slate-700 dark:text-slate-300">
-            {clinicVideoCallWindow
-              ? `This clinic accepts video appointments only between ${clinicVideoCallWindow.start} and ${clinicVideoCallWindow.end}.`
-              : "This clinic accepts video appointments only within the configured video window."}
-          </p>
-        </div>
-      )}
-
       {consultationMode === "VIDEO" && shouldCollectVideoPayment && (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30 p-4 space-y-2">
           <div className="flex items-center justify-between gap-3">
@@ -2751,8 +2802,59 @@ export function BookAppointmentDialog({
             <p className="text-lg font-bold text-foreground">INR {videoPaymentAmount.toFixed(0)}</p>
           </div>
           <p className="text-xs text-emerald-700 dark:text-emerald-300">
-            Select your time, accept the booking terms, then pay to book the video appointment.
+            Accept the booking terms below, then confirm to create the appointment and open payment.
           </p>
+          <div className="rounded-xl border border-amber-200 bg-white/80 dark:border-amber-900 dark:bg-amber-950/20 p-3">
+            <div className="flex items-start gap-3">
+              <Checkbox
+                id="video-payment-policy"
+                checked={acceptedVideoPaymentPolicy}
+                onCheckedChange={(checked) => setAcceptedVideoPaymentPolicy(checked === true)}
+                className="mt-0.5"
+              />
+              <div className="space-y-1">
+                <Label
+                  htmlFor="video-payment-policy"
+                  className="text-sm font-semibold leading-snug text-foreground"
+                >
+                  I accept the video appointment terms and privacy policy
+                </Label>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  Video appointment payments are non-refundable. If you miss the appointment, you must rebook a new slot.
+                </p>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Read our{" "}
+                  <Link href="/terms" prefetch={false} className="font-medium text-primary underline underline-offset-4">
+                    Terms
+                  </Link>{" "}
+                  and{" "}
+                  <Link href="/privacy" prefetch={false} className="font-medium text-primary underline underline-offset-4">
+                    Privacy Policy
+                  </Link>
+                  .
+                </p>
+              </div>
+            </div>
+          </div>
+          {bookedAppointmentId && requiresVideoPayment && !videoPaymentCompleted ? (
+            <PaymentButton
+              appointmentId={bookedAppointmentId}
+              appointmentType="VIDEO_CALL"
+              clinicId={activeClinicId}
+              amount={videoPaymentAmount}
+              description={selectedService?.label || "Video consultation"}
+              className="w-full"
+              disabled={!acceptedVideoPaymentPolicy}
+              autoStart={acceptedVideoPaymentPolicy}
+              onSuccess={() => {
+                setRequiresVideoPayment(false);
+                setVideoPaymentCompleted(true);
+                setAcceptedVideoPaymentPolicy(false);
+              }}
+            >
+              {acceptedVideoPaymentPolicy ? "Pay now" : "Accept policy to pay"}
+            </PaymentButton>
+          ) : null}
         </div>
       )}
 
@@ -2858,7 +2960,7 @@ export function BookAppointmentDialog({
           </div>
           <p className="text-xs text-muted-foreground text-center">
             {requiresVideoPayment && !videoPaymentCompleted
-              ? "Complete payment to finish booking this appointment."
+              ? "Your appointment is created. Complete payment from the confirm screen to finish booking."
               : "Your video appointment is booked. You can track the status from your appointments page."}
           </p>
           <div className="w-full rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 p-3 text-center text-sm text-blue-700 dark:text-blue-300">
@@ -2869,66 +2971,6 @@ export function BookAppointmentDialog({
               ? `Video hours: ${clinicVideoCallWindow.start} - ${clinicVideoCallWindow.end}`
               : "Video hours are configured at the clinic level."}
           </div>
-          {requiresVideoPayment && !videoPaymentCompleted && bookedAppointmentId ? (
-            <div className="w-full rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30 p-4 space-y-3">
-              <div className="text-center">
-                <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
-                  Video Consultation Fee
-                </p>
-                <p className="mt-1 text-2xl font-bold text-foreground">
-                  INR {videoPaymentAmount.toFixed(0)}
-                </p>
-              </div>
-              <div className="rounded-xl border border-amber-200 bg-white/80 dark:border-amber-900 dark:bg-amber-950/20 p-3">
-                <div className="flex items-start gap-3">
-                  <Checkbox
-                    id="video-payment-policy"
-                    checked={acceptedVideoPaymentPolicy}
-                    onCheckedChange={(checked) => setAcceptedVideoPaymentPolicy(checked === true)}
-                    className="mt-0.5"
-                  />
-                  <div className="space-y-1">
-                    <Label
-                      htmlFor="video-payment-policy"
-                      className="text-sm font-semibold leading-snug text-foreground"
-                    >
-                      I accept the video appointment terms and privacy policy
-                    </Label>
-                    <p className="text-xs leading-relaxed text-muted-foreground">
-                      Video appointment payments are non-refundable. If you miss the appointment, you must rebook a new slot.
-                    </p>
-                    <p className="text-[11px] leading-relaxed text-muted-foreground">
-                      Read our{" "}
-                      <Link href="/terms" prefetch={false} className="font-medium text-primary underline underline-offset-4">
-                        Terms
-                      </Link>{" "}
-                      and{" "}
-                      <Link href="/privacy" prefetch={false} className="font-medium text-primary underline underline-offset-4">
-                        Privacy Policy
-                      </Link>
-                      .
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <PaymentButton
-                appointmentId={bookedAppointmentId}
-                appointmentType="VIDEO_CALL"
-                clinicId={activeClinicId}
-                amount={videoPaymentAmount}
-                description={selectedService?.label || "Video consultation"}
-                className="w-full"
-                disabled={!acceptedVideoPaymentPolicy}
-                onSuccess={() => {
-                  setRequiresVideoPayment(false);
-                  setVideoPaymentCompleted(true);
-                  setAcceptedVideoPaymentPolicy(false);
-                }}
-              >
-                {acceptedVideoPaymentPolicy ? "Pay now" : "Accept policy to pay"}
-              </PaymentButton>
-            </div>
-          ) : null}
         </div>
       ) : (
         <div className="flex flex-col gap-3 p-4 rounded-2xl border bg-card w-full max-w-sm">
@@ -3057,6 +3099,7 @@ export function BookAppointmentDialog({
     availability,
     availabilityError,
     bookedAppointmentId,
+    acceptedVideoPaymentPolicy,
     consultationMode,
     currentStepId,
     doctorsLoading,
@@ -3146,21 +3189,48 @@ export function BookAppointmentDialog({
                 Continue <ArrowRight className="w-4 h-4" />
               </Button>
             ) : (
-              <Button
-                onClick={handleBook}
-                disabled={
+              (() => {
+                const isVideoPaymentPending =
+                  consultationMode === "VIDEO" &&
+                  shouldCollectVideoPayment &&
+                  !!bookedAppointmentId &&
+                  requiresVideoPayment &&
+                  !videoPaymentCompleted;
+                const isVideoConfirmDisabled =
                   consultationMode === "VIDEO"
-                    ? isBooking
-                    : isCreatingInPersonAppointment || isSubscriptionGateLoading
-                }
-                className="h-11 w-full px-8 rounded-xl font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2 sm:w-auto"
-              >
-                {(consultationMode === "VIDEO" ? isBooking : isCreatingInPersonAppointment || isSubscriptionGateLoading) ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> {consultationMode === "VIDEO" ? "Preparing Cashfree checkout..." : "Checking plan..."}</>
-                ) : (
-                  <><Check className="w-4 h-4" /> {consultationMode === "VIDEO" ? (shouldCollectVideoPayment ? `Create appointment and pay INR ${videoPaymentAmount.toFixed(0)}` : "Book video appointment") : needsSubscriptionPlan ? "Choose plan to continue" : "Confirm & Book"}</>
-                )}
-              </Button>
+                    ? shouldCollectVideoPayment
+                      ? !acceptedVideoPaymentPolicy || isBooking || isVideoPaymentPending
+                      : isBooking
+                    : isCreatingInPersonAppointment || isSubscriptionGateLoading;
+                const confirmLabel = isVideoPaymentPending
+                  ? "Payment in progress"
+                  : consultationMode === "VIDEO"
+                    ? shouldCollectVideoPayment
+                      ? `Create appointment and pay INR ${videoPaymentAmount.toFixed(0)}`
+                      : "Book video appointment"
+                    : needsSubscriptionPlan
+                      ? "Choose plan to continue"
+                      : "Confirm & Book";
+
+                return (
+                  <Button
+                    onClick={handleBook}
+                    disabled={isVideoConfirmDisabled}
+                    className="h-11 w-full px-8 rounded-xl font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2 sm:w-auto"
+                  >
+                    {(consultationMode === "VIDEO" ? isBooking : isCreatingInPersonAppointment || isSubscriptionGateLoading) ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        {consultationMode === "VIDEO" ? "Preparing appointment..." : "Checking plan..."}
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" /> {confirmLabel}
+                      </>
+                    )}
+                  </Button>
+                );
+              })()
             )}
           </div>
         )}

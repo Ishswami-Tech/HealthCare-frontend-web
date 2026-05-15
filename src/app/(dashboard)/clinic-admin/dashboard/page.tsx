@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import {
   Table,
   TableBody,
@@ -37,6 +38,7 @@ import {
   resolveQueueDisplayLabel,
 } from "@/lib/queue/queue-adapter";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
 import { formatDateTimeInIST } from "@/lib/utils/date-time";
 import {
   Settings,
@@ -501,26 +503,42 @@ export default function ClinicAdminDashboard() {
           </div>
         </CardHeader>
         <CardContent className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-xl border border-border bg-background px-4 py-3 shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Today</p>
-            <p className="mt-1 text-2xl font-semibold">{stats?.todayAppointments || 0}</p>
-            <p className="text-xs text-muted-foreground">Appointments scheduled today</p>
-          </div>
-          <div className="rounded-xl border border-border bg-background px-4 py-3 shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Live queue</p>
-            <p className="mt-1 text-2xl font-semibold">{queueItems.length}</p>
-            <p className="text-xs text-muted-foreground">Patients currently moving through the clinic</p>
-          </div>
-          <div className="rounded-xl border border-border bg-background px-4 py-3 shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Staff</p>
-            <p className="mt-1 text-2xl font-semibold">{stats?.totalStaff || 0}</p>
-            <p className="text-xs text-muted-foreground">Active users linked to this clinic</p>
-          </div>
-          <div className="rounded-xl border border-border bg-background px-4 py-3 shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Checked in</p>
-            <p className="mt-1 text-2xl font-semibold">{checkedInToday}</p>
-            <p className="text-xs text-muted-foreground">Patients already moved into the flow</p>
-          </div>
+          <DashboardMetricCard
+            label="Today"
+            value={stats?.todayAppointments || 0}
+            subtext="Appointments scheduled today"
+            accentClassName="border-blue-200 bg-blue-50 dark:border-blue-500/20 dark:bg-blue-500/10"
+            valueClassName="mt-1 text-2xl font-semibold text-blue-900 dark:text-blue-100"
+            labelClassName="text-blue-700 dark:text-blue-300"
+            compact
+          />
+          <DashboardMetricCard
+            label="Live queue"
+            value={queueItems.length}
+            subtext="Patients currently moving through the clinic"
+            accentClassName="border-slate-200 bg-slate-50 dark:border-slate-500/20 dark:bg-slate-500/10"
+            valueClassName="mt-1 text-2xl font-semibold text-slate-900 dark:text-slate-100"
+            labelClassName="text-slate-700 dark:text-slate-300"
+            compact
+          />
+          <DashboardMetricCard
+            label="Staff"
+            value={stats?.totalStaff || 0}
+            subtext="Active users linked to this clinic"
+            accentClassName="border-emerald-200 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10"
+            valueClassName="mt-1 text-2xl font-semibold text-emerald-900 dark:text-emerald-100"
+            labelClassName="text-emerald-700 dark:text-emerald-300"
+            compact
+          />
+          <DashboardMetricCard
+            label="Checked in"
+            value={checkedInToday}
+            subtext="Patients already moved into the flow"
+            accentClassName="border-indigo-200 bg-indigo-50 dark:border-indigo-500/20 dark:bg-indigo-500/10"
+            valueClassName="mt-1 text-2xl font-semibold text-indigo-900 dark:text-indigo-100"
+            labelClassName="text-indigo-700 dark:text-indigo-300"
+            compact
+          />
         </CardContent>
       </Card>
 
@@ -703,7 +721,7 @@ export default function ClinicAdminDashboard() {
             <CardDescription className="text-xs">Clinic booking and visit timing rules.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 p-4">
-            <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
               <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
                 <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Duration</div>
                 <div className="mt-1 text-lg font-semibold">{clinicSettingsSnapshot.appointmentDuration}m</div>
@@ -760,7 +778,7 @@ export default function ClinicAdminDashboard() {
             <CardDescription className="text-xs">Schedule coverage and assistant mappings.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 p-4">
-            <div className="grid grid-cols-3 gap-2 text-sm">
+            <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
               <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
                 <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Doctors</div>
                 <div className="mt-1 text-lg font-semibold">{doctorRosterSummary.active}/{doctorRosterSummary.total}</div>
@@ -957,21 +975,20 @@ export default function ClinicAdminDashboard() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-4">
-                <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h4 className="font-semibold">No active queue right now</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Use the runway below to see the next patients who should be checked in.
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="outline" className="border-border bg-background">{pendingCheckIns.length} pending check-ins</Badge>
-                    <Badge variant="outline" className="border-border bg-background">{activeLocationCount} active locations</Badge>
-                  </div>
-                </div>
+                <div className="space-y-4">
+                    <Empty>
+                      <EmptyContent>
+                        <EmptyMedia>
+                          <Users className="h-5 w-5" />
+                        </EmptyMedia>
+                        <EmptyTitle>No active queue right now</EmptyTitle>
+                        <EmptyDescription>
+                          Use the runway below to see the next patients who should be checked in.
+                        </EmptyDescription>
+                    </EmptyContent>
+                  </Empty>
 
-                <div className="overflow-hidden rounded-xl border border-border">
+                  <div className="overflow-hidden rounded-xl border border-border">
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-muted/40 hover:bg-muted/40">
@@ -1076,9 +1093,17 @@ export default function ClinicAdminDashboard() {
                   </Table>
                 </div>
               ) : (
-                <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
-                  No active medicine desk queue right now.
-                </div>
+                <Empty>
+                  <EmptyContent>
+                    <EmptyMedia>
+                      <Activity className="h-5 w-5" />
+                    </EmptyMedia>
+                    <EmptyTitle>No active medicine desk queue right now.</EmptyTitle>
+                    <EmptyDescription>
+                      Prescription handovers will appear here once billing is complete and pharmacy work is ready.
+                    </EmptyDescription>
+                  </EmptyContent>
+                </Empty>
               )}
             </CardContent>
           </Card>
@@ -1096,7 +1121,7 @@ export default function ClinicAdminDashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 p-4">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Active</p>
                   <p className="mt-1 text-xl font-semibold">{activeLocationCount}</p>
@@ -1161,7 +1186,7 @@ export default function ClinicAdminDashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 p-4">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Total</p>
                   <p className="mt-1 text-xl font-semibold">{staffSummary.total}</p>

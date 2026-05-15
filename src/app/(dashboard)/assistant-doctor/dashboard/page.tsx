@@ -11,6 +11,8 @@ import { useQueue } from "@/hooks/query/useQueue";
 import { useDoctors } from "@/hooks/query/useDoctors";
 import { useAssistantDoctorCoverage } from "@/hooks/query/useAppointments";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
+import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { formatDateInIST, formatISODateInIST, getAppointmentDateTimeValue } from "@/lib/utils/appointmentUtils";
 import {
@@ -241,73 +243,61 @@ export default function AssistantDoctorDashboard() {
         }
       />
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card className="border-blue-200 bg-blue-50 shadow-sm dark:border-blue-500/20 dark:bg-blue-500/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-tight text-blue-700 dark:text-blue-300">
-              Today
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">{stats.todayTotal}</div>
-            <p className="mt-1 text-xs text-blue-700/80 dark:text-blue-200/80">Appointments</p>
-          </CardContent>
-        </Card>
-        <Card className="border-amber-200 bg-amber-50 shadow-sm dark:border-amber-500/20 dark:bg-amber-500/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-tight text-amber-700 dark:text-amber-300">
-              To Arrive
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-amber-900 dark:text-amber-100">{stats.pendingArrival}</div>
-            <p className="mt-1 text-xs text-amber-700/80 dark:text-amber-200/80">To see</p>
-          </CardContent>
-        </Card>
-        <Card className="border-emerald-200 bg-emerald-50 shadow-sm dark:border-emerald-500/20 dark:bg-emerald-500/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-tight text-emerald-700 dark:text-emerald-300">
-              Arrived
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-100">{stats.arrived}</div>
-            <p className="mt-1 text-xs text-emerald-700/80 dark:text-emerald-200/80">Ready to work</p>
-          </CardContent>
-        </Card>
-        <Card className="border-indigo-200 bg-indigo-50 shadow-sm dark:border-indigo-500/20 dark:bg-indigo-500/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-tight text-indigo-700 dark:text-indigo-300">
-              In Progress
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-indigo-900 dark:text-indigo-100">{stats.inProgress}</div>
-            <p className="mt-1 text-xs text-indigo-700/80 dark:text-indigo-200/80">Active now</p>
-          </CardContent>
-        </Card>
-        <Card className="border-green-200 bg-green-50 shadow-sm dark:border-green-500/20 dark:bg-green-500/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-tight text-green-700 dark:text-green-300">
-              Completed
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-900 dark:text-green-100">{stats.completed}</div>
-            <p className="mt-1 text-xs text-green-700/80 dark:text-green-200/80">Done today</p>
-          </CardContent>
-        </Card>
-        <Card className="border-slate-200 bg-slate-50 shadow-sm dark:border-slate-500/20 dark:bg-slate-500/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-tight text-slate-700 dark:text-slate-300">
-              Queue
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.queueCount}</div>
-            <p className="mt-1 text-xs text-slate-700/80 dark:text-slate-200/80">Waiting</p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+        <DashboardMetricCard
+          label="Today"
+          value={stats.todayTotal}
+          subtext="Appointments"
+          accentClassName="border-blue-200 bg-blue-50 dark:border-blue-500/20 dark:bg-blue-500/10"
+          valueClassName="mt-1 text-2xl font-bold text-blue-900 dark:text-blue-100"
+          labelClassName="text-blue-700 dark:text-blue-300"
+          compact
+        />
+        <DashboardMetricCard
+          label="To Arrive"
+          value={stats.pendingArrival}
+          subtext="To see"
+          accentClassName="border-amber-200 bg-amber-50 dark:border-amber-500/20 dark:bg-amber-500/10"
+          valueClassName="mt-1 text-2xl font-bold text-amber-900 dark:text-amber-100"
+          labelClassName="text-amber-700 dark:text-amber-300"
+          compact
+        />
+        <DashboardMetricCard
+          label="Arrived"
+          value={stats.arrived}
+          subtext="Ready to work"
+          accentClassName="border-emerald-200 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10"
+          valueClassName="mt-1 text-2xl font-bold text-emerald-900 dark:text-emerald-100"
+          labelClassName="text-emerald-700 dark:text-emerald-300"
+          compact
+        />
+        <DashboardMetricCard
+          label="In Progress"
+          value={stats.inProgress}
+          subtext="Active now"
+          accentClassName="border-indigo-200 bg-indigo-50 dark:border-indigo-500/20 dark:bg-indigo-500/10"
+          valueClassName="mt-1 text-2xl font-bold text-indigo-900 dark:text-indigo-100"
+          labelClassName="text-indigo-700 dark:text-indigo-300"
+          compact
+        />
+        <DashboardMetricCard
+          label="Completed"
+          value={stats.completed}
+          subtext="Done today"
+          accentClassName="border-green-200 bg-green-50 dark:border-green-500/20 dark:bg-green-500/10"
+          valueClassName="mt-1 text-2xl font-bold text-green-900 dark:text-green-100"
+          labelClassName="text-green-700 dark:text-green-300"
+          compact
+        />
+        <DashboardMetricCard
+          label="Queue"
+          value={stats.queueCount}
+          subtext="Waiting"
+          accentClassName="border-slate-200 bg-slate-50 dark:border-slate-500/20 dark:bg-slate-500/10"
+          valueClassName="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100"
+          labelClassName="text-slate-700 dark:text-slate-300"
+          compact
+        />
       </div>
 
       <Card className="border-emerald-200/70 bg-emerald-50/60 shadow-sm dark:border-emerald-500/20 dark:bg-emerald-500/10">
@@ -407,10 +397,17 @@ export default function AssistantDoctorDashboard() {
           </CardHeader>
           <CardContent>
             {upcomingAppointments.length === 0 ? (
-              <div className="text-center py-10 text-muted-foreground">
-                <Calendar className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">No appointments scheduled for today</p>
-              </div>
+              <Empty>
+                <EmptyContent>
+                  <EmptyMedia>
+                    <Calendar className="h-5 w-5" />
+                  </EmptyMedia>
+                  <EmptyTitle>No appointments scheduled for today</EmptyTitle>
+                  <EmptyDescription>
+                    Once appointments are assigned, they will appear in this assistant doctor workspace.
+                  </EmptyDescription>
+                </EmptyContent>
+              </Empty>
             ) : (
               <div className="space-y-3">
                 {upcomingAppointments.map((apt: Record<string, unknown>, idx: number) => {

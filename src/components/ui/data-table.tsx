@@ -12,6 +12,7 @@ import {
 } from "@tanstack/react-table";
 
 import { Button } from "@/components/ui/button";
+import { Empty, EmptyContent, EmptyDescription, EmptyTitle } from "@/components/ui/empty";
 import {
   Select,
   SelectContent,
@@ -118,8 +119,15 @@ export function DataTable<TData, TValue>({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  {emptyMessage}
+                <TableCell colSpan={columns.length} className="py-4 text-center">
+                  <Empty className="gap-2 p-3 md:p-4">
+                    <EmptyContent className="gap-1.5">
+                      <EmptyTitle className="text-base leading-tight">{emptyMessage}</EmptyTitle>
+                      <EmptyDescription className="text-xs leading-relaxed">
+                        Adjust your filters or try again once data is available.
+                      </EmptyDescription>
+                    </EmptyContent>
+                  </Empty>
                 </TableCell>
               </TableRow>
             )}
