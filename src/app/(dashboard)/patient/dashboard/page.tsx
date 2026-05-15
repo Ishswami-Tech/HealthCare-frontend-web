@@ -537,13 +537,13 @@ export default function PatientDashboard() {
                       </div>
                     </div>
                   ) : (
-                    <Empty>
-                      <EmptyContent>
+                    <Empty className="gap-2 p-4 md:p-5">
+                      <EmptyContent className="gap-2">
                         <EmptyMedia>
                           <Clock className="h-5 w-5" />
                         </EmptyMedia>
-                        <EmptyTitle>No upcoming or in-progress appointments right now</EmptyTitle>
-                        <EmptyDescription>
+                        <EmptyTitle className="text-sm">No upcoming or in-progress appointments right now</EmptyTitle>
+                        <EmptyDescription className="text-xs">
                           Book a visit to see your next appointment here.
                         </EmptyDescription>
                       </EmptyContent>
