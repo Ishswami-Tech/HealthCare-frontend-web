@@ -24,6 +24,7 @@ import { theme } from "@/lib/utils/theme-utils";
 import {
   getAppointmentViewState,
   isTerminalAppointment,
+  shouldShowAppointmentOnPatientDashboard,
   getAppointmentDateTimeValue,
   formatDateInIST,
   formatTimeInIST,
@@ -141,7 +142,10 @@ export default function PatientDashboard() {
     const patientWorkspaceAppointments = uniqueAppointments.filter((apt: any) => {
       const viewState = getAppointmentViewState(apt);
       const normalizedStatus = viewState.normalizedStatus.toUpperCase();
-      return !["CANCELLED", "COMPLETED", "NO_SHOW"].includes(normalizedStatus);
+      return (
+        !["CANCELLED", "COMPLETED", "NO_SHOW"].includes(normalizedStatus) &&
+        shouldShowAppointmentOnPatientDashboard(apt)
+      );
     });
     const activeUpcomingStatuses = new Set([
       "SCHEDULED",
@@ -536,13 +540,13 @@ export default function PatientDashboard() {
                       </div>
                     </div>
                   ) : (
-                    <Empty className="gap-2 p-4 md:p-5">
-                      <EmptyContent className="gap-2">
+                    <Empty>
+                      <EmptyContent>
                         <EmptyMedia>
                           <Clock className="h-5 w-5" />
                         </EmptyMedia>
-                        <EmptyTitle className="text-sm">No upcoming or in-progress appointments right now</EmptyTitle>
-                        <EmptyDescription className="text-xs">
+                        <EmptyTitle>No upcoming or in-progress appointments right now</EmptyTitle>
+                        <EmptyDescription>
                           Book a visit to see your next appointment here.
                         </EmptyDescription>
                       </EmptyContent>
