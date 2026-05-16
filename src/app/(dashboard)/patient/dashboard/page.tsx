@@ -24,7 +24,6 @@ import { theme } from "@/lib/utils/theme-utils";
 import {
   getAppointmentViewState,
   isTerminalAppointment,
-  shouldShowAppointmentOnPatientDashboard,
   getAppointmentDateTimeValue,
   formatDateInIST,
   formatTimeInIST,
@@ -142,10 +141,7 @@ export default function PatientDashboard() {
     const patientWorkspaceAppointments = uniqueAppointments.filter((apt: any) => {
       const viewState = getAppointmentViewState(apt);
       const normalizedStatus = viewState.normalizedStatus.toUpperCase();
-      return (
-        !["CANCELLED", "COMPLETED", "NO_SHOW"].includes(normalizedStatus) &&
-        shouldShowAppointmentOnPatientDashboard(apt)
-      );
+      return !["CANCELLED", "COMPLETED", "NO_SHOW"].includes(normalizedStatus);
     });
     const activeUpcomingStatuses = new Set([
       "SCHEDULED",
@@ -318,7 +314,10 @@ export default function PatientDashboard() {
           : null,
         lastVisit:
         uniqueAppointments
-            .filter(shouldShowAppointmentOnPatientDashboard)
+            .filter((apt: any) => {
+              const normalizedStatus = getAppointmentViewState(apt).normalizedStatus.toUpperCase();
+              return !["CANCELLED", "NO_SHOW"].includes(normalizedStatus);
+            })
             .filter((apt: any) => normalizePatientAppointment(apt).status === "COMPLETED")
             .sort(
               (a: any, b: any) =>
