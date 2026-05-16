@@ -181,9 +181,8 @@ export default function PatientDashboard() {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             return (
-              appointmentStart !== null &&
-              appointmentStart >= today &&
-              activeUpcomingStatuses.has(status)
+              activeUpcomingStatuses.has(status) &&
+              (appointmentStart === null || appointmentStart >= today)
             );
           })
           .sort((a: any, b: any) => {
