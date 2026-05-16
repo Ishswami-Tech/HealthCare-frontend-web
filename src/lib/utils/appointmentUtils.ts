@@ -589,7 +589,11 @@ export function getAppointmentViewState(appointment: any): AppointmentViewState 
   const paymentCompleted = isVideoAppointmentPaymentCompleted(appointment);
   const rawStatus = normalizeAppointmentStatus(appointment?.status);
   const terminalStatus = isTerminalAppointment(appointment)
-    ? (appointment?.completedAt || appointment?.completed_at ? 'COMPLETED' : 'CANCELLED')
+    ? (rawStatus === 'COMPLETED'
+        ? 'COMPLETED'
+        : rawStatus === 'NO_SHOW'
+          ? 'NO_SHOW'
+          : 'CANCELLED')
     : null;
   const status = terminalStatus || getAppointmentStatusWithPaymentFallback(appointment);
   const awaitingPayment = isAppointmentAwaitingPayment(appointment);
