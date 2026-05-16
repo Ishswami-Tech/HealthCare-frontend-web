@@ -45,6 +45,76 @@ export function invalidateAppointmentQueryFamilies(queryClient: QueryClient) {
   void queryClient.invalidateQueries({ queryKey: ['doctorPatients'], exact: false });
 }
 
+export function invalidateDashboardQueryFamilies(queryClient: QueryClient) {
+  void queryClient.invalidateQueries({ queryKey: ['clinicStats'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['dashboardAnalytics'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['appointmentAnalytics'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['patientAnalytics'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['revenueAnalytics'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['serviceUtilizationAnalytics'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['waitTimeAnalytics'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['patientSatisfactionAnalytics'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['queueAnalytics'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['pharmacyStats'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['medicineDeskQueue'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['prescriptions'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['medicalRecords'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['ehr'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['ehrClinic'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['billing-plans'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['billing-plan'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['subscriptions'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['clinic-subscriptions'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['active-subscription'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['billing-analytics'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['invoices'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['clinic-invoices'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['payments'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['clinic-payments'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['clinic-ledger'], exact: false });
+}
+
+export function invalidateUserQueryFamilies(queryClient: QueryClient) {
+  void queryClient.invalidateQueries({ queryKey: ['users'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['user'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['userProfile'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['patients'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['doctors'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['receptionists'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['clinicAdmins'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['clinicUsers'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['clinicUsersByRole'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['clinicDoctors'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['clinicPatients'], exact: false });
+}
+
+export function invalidateDoctorAvailabilityQueryFamilies(queryClient: QueryClient) {
+  void queryClient.invalidateQueries({ queryKey: ['doctorAvailability'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['doctorSchedule'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['doctorAppointments'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['doctorPatients'], exact: false });
+}
+
+export function invalidateClinicQueryFamilies(queryClient: QueryClient) {
+  void queryClient.invalidateQueries({ queryKey: ['clinics'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['clinic'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['clinicByAppName'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['myClinic'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['current-clinic'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['clinicLocations'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['clinicLocation'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['activeLocations'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['clinicDoctors'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['clinicStaff'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['clinicUsers'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['clinicUsersByRole'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['clinicPatients'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['clinicStats'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['clinicOperatingHours'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['clinicSettings'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['clinicCommunication'], exact: false });
+}
+
 export function invalidateBillingQueryFamilies(queryClient: QueryClient) {
   void queryClient.invalidateQueries({ queryKey: ['billing'], exact: false });
   void queryClient.invalidateQueries({ queryKey: ['invoices'], exact: false });
@@ -677,6 +747,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         'appointment.completed',
         'appointment.slot.confirmed',
         'appointment.consultation_started',
+        'doctor.availability.changed',
         'appointment.noshow',
       ] as const;
 
@@ -708,6 +779,11 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
             invalidateAppointmentQueries();
           }
 
+          invalidateDashboardQueryFamilies(queryClient);
+          if (event === 'doctor.availability.changed') {
+            invalidateDoctorAvailabilityQueryFamilies(queryClient);
+          }
+
         })
       );
 
@@ -727,14 +803,18 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         'billing.invoice.sent_whatsapp',
         'billing.appointment.booked',
         'billing.appointment.cancelled',
+        'billing.receipt.sent_whatsapp',
         'billing.payment.created',
         'billing.payment.updated',
+        'billing.receipt.paid',
         'billing.payout.pending',
         'billing.payout.success',
         'payment.pending',
         'payment.completed',
         'payment.failed',
         'payment.cancelled',
+        'payment.intent.created',
+        'payment.refunded',
       ] as const;
 
       const unsubscribePaymentLifecycleEvents = billingLifecycleEvents.map((event) =>
@@ -814,16 +894,109 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
           ) {
             if (!invoice && !payment) {
               invalidateBillingQueryFamilies(queryClient);
-            } else {
+          } else {
               queryClient.invalidateQueries({ queryKey: ['clinic-ledger'], exact: false });
               queryClient.invalidateQueries({ queryKey: ['billing-analytics'], exact: false });
-            }
+          }
+            invalidateDashboardQueryFamilies(queryClient);
           }
 
           if (appointmentId && event.startsWith('billing.payment.')) {
             if (!hasRealtimeAppointmentSnapshot(rawData)) {
               invalidateAppointmentQueries();
             }
+            invalidateDashboardQueryFamilies(queryClient);
+          }
+        })
+      );
+
+      const userLifecycleEvents = [
+        'user.created',
+        'user.updated',
+        'user.deleted',
+        'user.registered',
+        'profile.completed',
+      ] as const;
+
+      const unsubscribeUserLifecycleEvents = userLifecycleEvents.map((event) =>
+        subscribe(event, (rawData: unknown) => {
+          const data = rawData as { clinicId?: string };
+          if (data.clinicId && clinicId && data.clinicId !== clinicId) {
+            return;
+          }
+
+          invalidateUserQueryFamilies(queryClient);
+          invalidateDashboardQueryFamilies(queryClient);
+        })
+      );
+
+      const clinicLifecycleEvents = ['clinic.created', 'clinic.updated', 'clinic.deleted'] as const;
+
+      const unsubscribeClinicLifecycleEvents = clinicLifecycleEvents.map((event) =>
+        subscribe(event, (rawData: unknown) => {
+          const data = rawData as { clinicId?: string; id?: string; clinic?: { id?: string } };
+          const resolvedClinicId = String(data.clinicId || data.id || data.clinic?.id || '');
+
+          logger.info(`Realtime clinic event: ${event}`, {
+            clinicId: resolvedClinicId,
+            currentClinicId: clinicId,
+          });
+
+          invalidateClinicQueryFamilies(queryClient);
+          invalidateDashboardQueryFamilies(queryClient);
+        })
+      );
+
+      const ehrLifecycleEvents = [
+        'ehr.prescription.created',
+        'ehr.medical_history.created',
+        'ehr.medical_history.updated',
+        'ehr.medical_history.deleted',
+        'ehr.lab_report.created',
+        'ehr.lab_report.updated',
+        'ehr.lab_report.deleted',
+        'ehr.radiology_report.created',
+        'ehr.radiology_report.updated',
+        'ehr.radiology_report.deleted',
+        'ehr.surgical_record.created',
+        'ehr.surgical_record.updated',
+        'ehr.surgical_record.deleted',
+        'ehr.vital.created',
+        'ehr.vital.updated',
+        'ehr.vital.deleted',
+        'ehr.allergy.created',
+        'ehr.allergy.updated',
+        'ehr.allergy.deleted',
+        'ehr.medication.created',
+        'ehr.medication.updated',
+        'ehr.medication.deleted',
+        'ehr.immunization.created',
+        'ehr.immunization.updated',
+        'ehr.immunization.deleted',
+        'video.medical_note.saved_to_ehr',
+        'video.transcription.saved_to_ehr',
+      ] as const;
+
+      const unsubscribeEhrLifecycleEvents = ehrLifecycleEvents.map((event) =>
+        subscribe(event, (rawData: unknown) => {
+          const data = rawData as { clinicId?: string };
+          if (data.clinicId && clinicId && data.clinicId !== clinicId) {
+            return;
+          }
+
+          invalidateDashboardQueryFamilies(queryClient);
+          queryClient.invalidateQueries({ queryKey: ['ehr'], exact: false });
+          queryClient.invalidateQueries({ queryKey: ['ehrClinic'], exact: false });
+          queryClient.invalidateQueries({ queryKey: ['medicalRecords'], exact: false });
+
+          if (
+            event === 'ehr.prescription.created' ||
+            event === 'video.medical_note.saved_to_ehr' ||
+            event === 'video.transcription.saved_to_ehr'
+          ) {
+            queryClient.invalidateQueries({ queryKey: ['prescriptions'], exact: false });
+            queryClient.invalidateQueries({ queryKey: ['medicineDeskQueue'], exact: false });
+            queryClient.invalidateQueries({ queryKey: ['pharmacyStats'], exact: false });
           }
         })
       );
@@ -834,7 +1007,10 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         unsubscribeAppointmentDeleted,
         unsubscribeAppointmentStatusChanged,
         ...unsubscribeAppointmentLifecycleEvents,
-        ...unsubscribePaymentLifecycleEvents
+        ...unsubscribePaymentLifecycleEvents,
+        ...unsubscribeUserLifecycleEvents,
+        ...unsubscribeClinicLifecycleEvents,
+        ...unsubscribeEhrLifecycleEvents
       );
     }
 
@@ -851,6 +1027,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         queryClient.invalidateQueries({ queryKey: ['queue-metrics'] });
         queryClient.invalidateQueries({ queryKey: ['myAppointments'], exact: false });
         queryClient.invalidateQueries({ queryKey: ['appointments'], exact: false });
+        invalidateDashboardQueryFamilies(queryClient);
 
         if (payloadLocationId || payloadQueueName) {
           void queryClient.invalidateQueries({
@@ -904,6 +1081,11 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         }
       );
 
+      const unsubscribeAppointmentQueueReordered = subscribe('appointment.queue.reordered', (rawData: unknown) => {
+        const data = rawData as Record<string, unknown>;
+        invalidateQueueQueries(data);
+      });
+
       const unsubscribeAppointmentReassigned = subscribe('appointment.reassigned', (rawData: unknown) => {
         const data = rawData as Record<string, unknown>;
         invalidateQueueQueries(data);
@@ -950,6 +1132,11 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         invalidateQueueQueries(data);
       });
 
+      const unsubscribeQueueHealthChanged = subscribe('queue.health.changed', (rawData: unknown) => {
+        const data = rawData as Record<string, unknown>;
+        invalidateQueueQueries(data);
+      });
+
       const unsubscribeQueueAlertCreated = subscribe('queue.alert.created', (rawData: unknown) => {
         const data = rawData as Record<string, unknown>;
         invalidateQueueQueries(data);
@@ -981,10 +1168,12 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         unsubscribeQueuePatientRemoved,
         unsubscribeEnterpriseQueueUpdated,
         unsubscribeEnterpriseQueuePosition,
+        unsubscribeAppointmentQueueReordered,
         unsubscribeAppointmentReassigned,
         unsubscribeAppointmentCheckedIn,
         unsubscribeQueueMetrics,
         unsubscribeQueueMetricsEnterprise,
+        unsubscribeQueueHealthChanged,
         unsubscribeQueueAlertCreated,
         unsubscribeQueueAlertResolved,
         unsubscribeQueueReportGenerated,
@@ -995,15 +1184,15 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
     // Subscribe to general notifications
     // Backend handles push/email/SMS/WhatsApp delivery
     // Frontend only shows in-app notification and toast for reading
-    const unsubscribeNotification = subscribe('notification', (rawData: unknown) => {
+    const handleNotificationEvent = (rawData: unknown) => {
       const data = rawData as Record<string, unknown>;
-      
+
       if (!userId) return;
 
       // Map WebSocket notification to store format
       const notificationType = (data.type || data.category || 'SYSTEM') as Notification['type'];
       const notification: Notification = {
-        id: data.id as string || `ws-${Date.now()}-${Math.random()}`,
+        id: (data.id as string) || `ws-${Date.now()}-${Math.random()}`,
         userId,
         type: notificationType,
         title: (data.title as string) || 'New Notification',
@@ -1015,7 +1204,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         isRead: false,
         createdAt: (data.createdAt as string) || nowIso(),
       };
-      
+
       // Show toast for important notification types
       if (notificationType === 'SYSTEM' || notificationType === 'APPOINTMENT') {
         showInfoToast(notification.title, {
@@ -1024,10 +1213,17 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
           duration: 5000,
         });
       }
-      
+
       // Add to notification store for reading
       addNotification(notification);
-    });
+    };
+
+    const unsubscribeNotification = subscribe('notification', handleNotificationEvent);
+    const unsubscribeCommunicationSent = subscribe('communication.sent', handleNotificationEvent);
+    const unsubscribePatientNotification = subscribe(
+      'communication.patient.notification',
+      handleNotificationEvent
+    );
 
     const unsubscribeSystemUpdate = subscribe('system:update', (rawData: unknown) => {
       const data = rawData as Record<string, unknown>;
@@ -1061,6 +1257,8 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
 
     unsubscribeCallbacks.push(
       unsubscribeNotification,
+      unsubscribeCommunicationSent,
+      unsubscribePatientNotification,
       unsubscribeSystemUpdate
     );
 

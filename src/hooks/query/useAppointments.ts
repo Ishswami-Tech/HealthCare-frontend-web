@@ -16,6 +16,7 @@ import { sanitizeErrorMessage } from '@/lib/utils/error-handler';
 import { useAuth } from '../auth/useAuth';
 import { Role } from '@/types/auth.types';
 import { getClinicId } from '@/lib/utils/token-manager';
+import { syncAppointmentInCache } from '@/lib/utils/appointment-cache';
 import {
     getAppointments,
     getMyAppointments,
@@ -57,6 +58,40 @@ import {
   getAppointmentQueryKey,
   getAppointmentStatsQueryKey,
 } from '@/lib/query/appointment-query-keys';
+
+const DASHBOARD_QUERY_FAMILIES: string[][] = [
+  ['clinicStats'],
+  ['dashboardAnalytics'],
+  ['appointmentAnalytics'],
+  ['patientAnalytics'],
+  ['revenueAnalytics'],
+  ['serviceUtilizationAnalytics'],
+  ['waitTimeAnalytics'],
+  ['patientSatisfactionAnalytics'],
+  ['pharmacyStats'],
+  ['medicineDeskQueue'],
+  ['prescriptions'],
+  ['medicalRecords'],
+  ['medicineCategories'],
+  ['medicines'],
+  ['medicineInventory'],
+  ['pharmacyOrders'],
+  ['pharmacySales'],
+  ['pharmacyBatchAudit'],
+  ['ehr'],
+  ['ehrClinic'],
+  ['billing-plans'],
+  ['billing-plan'],
+  ['subscriptions'],
+  ['clinic-subscriptions'],
+  ['active-subscription'],
+  ['billing-analytics'],
+  ['invoices'],
+  ['clinic-invoices'],
+  ['payments'],
+  ['clinic-payments'],
+  ['clinic-ledger'],
+];
 import type { 
   CreateAppointmentData, 
   UpdateAppointmentData,
@@ -494,6 +529,7 @@ export const useUpdateAppointment = () => {
         ['appointmentStats'],
         ['queue'],
         ['queue-status'],
+        ...DASHBOARD_QUERY_FAMILIES,
       ],
       onSuccess: (updatedAppointment) => {
         const appointmentId = String((updatedAppointment as any)?.appointmentId || (updatedAppointment as any)?.id || '');
@@ -560,6 +596,7 @@ export const useCancelAppointment = () => {
         ['appointmentStats'],
         ['queue'],
         ['queue-status'],
+        ...DASHBOARD_QUERY_FAMILIES,
       ],
       onError: (error: Error) => {
         logger.error('Failed to cancel appointment', error, { component: 'useAppointments' });
@@ -601,6 +638,7 @@ export const useConfirmAppointment = () => {
         ['appointmentStats'],
         ['queue'],
         ['queue-status'],
+        ...DASHBOARD_QUERY_FAMILIES,
       ],
     }
   );
@@ -737,6 +775,7 @@ export const useCheckInAppointment = () => {
         ['appointmentStats'],
         ['queue'],
         ['queue-status'],
+        ...DASHBOARD_QUERY_FAMILIES,
       ],
     }
   );
@@ -817,6 +856,7 @@ export const useStartAppointment = () =>
     ['appointmentStats'],
     ['queue'],
     ['queue-status'],
+    ...DASHBOARD_QUERY_FAMILIES,
   ]);
 
 /**
@@ -825,6 +865,7 @@ export const useStartAppointment = () =>
 export const useCompleteAppointment = () => {
   const { hasPermission } = useRBAC();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   
   return useMutationOperation<{ success: boolean }, { 
       id: string; 
@@ -889,7 +930,35 @@ export const useCompleteAppointment = () => {
         ['billing-analytics'],
         ['payments'],
         ['invoices'],
+        ...DASHBOARD_QUERY_FAMILIES,
       ],
+      onSuccess: (_data, variables) => {
+        const completedAt = new Date().toISOString();
+        syncAppointmentInCache(
+          queryClient,
+          {
+            id: variables.id,
+            appointmentId: variables.id,
+            status: 'COMPLETED',
+            completedAt,
+            updatedAt: completedAt,
+          },
+          {
+            appointmentStatus: 'COMPLETED',
+            queryKeys: [
+              ['appointments'],
+              ['appointment', variables.id],
+              ['myAppointments'],
+              ['video-appointments'],
+              ['doctorAppointments'],
+              ['doctorSchedule'],
+            ],
+          }
+        );
+        void queryClient.invalidateQueries({ queryKey: ['appointments'], exact: false });
+        void queryClient.invalidateQueries({ queryKey: ['myAppointments'], exact: false });
+        void queryClient.invalidateQueries({ queryKey: ['video-appointments'], exact: false });
+      },
     }
   );
 };
@@ -942,6 +1011,7 @@ export const useForceCheckInAppointment = () => {
         ['appointmentStats'],
         ['queue'],
         ['queue-status'],
+        ...DASHBOARD_QUERY_FAMILIES,
       ],
     }
   );
@@ -981,6 +1051,7 @@ export const useMarkAppointmentNoShow = () => {
         ["appointmentStats"],
         ["queue"],
         ["queue-status"],
+        ...DASHBOARD_QUERY_FAMILIES,
       ],
     }
   );
@@ -1015,7 +1086,7 @@ export const useReassignAppointmentDoctor = () => {
       toastId: TOAST_IDS.APPOINTMENT.REASSIGN,
       loadingMessage: "Reassigning appointment...",
       successMessage: "Appointment reassigned successfully",
-      invalidateQueries: [["appointments"], ["appointment"], ["myAppointments"]],
+      invalidateQueries: [["appointments"], ["appointment"], ["myAppointments"], ...DASHBOARD_QUERY_FAMILIES],
       showLoading: false,
     }
   );
@@ -1096,7 +1167,7 @@ export const useAddToQueue = () => {
       toastId: TOAST_IDS.APPOINTMENT.CREATE,
       loadingMessage: 'Adding to queue...',
       successMessage: 'Patient added to queue successfully',
-      invalidateQueries: [['queue'], ['queue-status']],
+      invalidateQueries: [['queue'], ['queue-status'], ...DASHBOARD_QUERY_FAMILIES],
     }
   );
 };
@@ -1123,7 +1194,7 @@ export const useCallNextPatient = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Calling next patient...',
       successMessage: 'Next patient called successfully',
-      invalidateQueries: [['queue'], ['queue-status']],
+      invalidateQueries: [['queue'], ['queue-status'], ...DASHBOARD_QUERY_FAMILIES],
     }
   );
 };
@@ -1502,7 +1573,7 @@ export const useBulkAppointmentOperations = () => {
       toastId: TOAST_IDS.APPOINTMENT.BULK_UPDATE,
       loadingMessage: 'Updating appointments...',
       successMessage: 'Appointments updated successfully',
-      invalidateQueries: [['appointments'], ['myAppointments']],
+      invalidateQueries: [['appointments'], ['myAppointments'], ...DASHBOARD_QUERY_FAMILIES],
       onSuccess: (data, _variables) => {
         onSuccess(data);
       },
@@ -1595,7 +1666,7 @@ export const useProcessCheckIn = () => {
       toastId: TOAST_IDS.APPOINTMENT.CHECK_IN,
       loadingMessage: 'Confirming patient arrival...',
       successMessage: 'Patient confirmed and added to queue successfully',
-      invalidateQueries: [['appointments'], ['appointment'], ['queue'], ['myAppointments']],
+      invalidateQueries: [['appointments'], ['appointment'], ['queue'], ['myAppointments'], ...DASHBOARD_QUERY_FAMILIES],
     }
   );
 };
@@ -1783,7 +1854,7 @@ export const useRescheduleAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Rescheduling appointment...',
       successMessage: 'Appointment rescheduled successfully',
-      invalidateQueries: [['appointments'], ['appointment'], ['myAppointments']],
+      invalidateQueries: [['appointments'], ['appointment'], ['myAppointments'], ...DASHBOARD_QUERY_FAMILIES],
     }
   );
 };
@@ -1810,7 +1881,7 @@ export const useRejectVideoProposal = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Rejecting proposal...',
       successMessage: 'Proposal rejected successfully',
-      invalidateQueries: [['appointments'], ['appointment'], ['myAppointments']],
+      invalidateQueries: [['appointments'], ['appointment'], ['myAppointments'], ...DASHBOARD_QUERY_FAMILIES],
     }
   );
 };
@@ -1867,7 +1938,7 @@ export const useScanLocationQrAndCheckIn = () => {
       toastId: TOAST_IDS.APPOINTMENT.CHECK_IN,
       loadingMessage: 'Checking you in...',
       successMessage: 'Check-in successful',
-      invalidateQueries: [['appointments'], ['queue'], ['myAppointments']],
+      invalidateQueries: [['appointments'], ['queue'], ['myAppointments'], ...DASHBOARD_QUERY_FAMILIES],
       showToast: false,
     }
   );

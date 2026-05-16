@@ -4,7 +4,10 @@ import { nowIso } from '@/lib/utils/date-time';
 import { useEffect, useRef } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import { useQueryData, useOptimisticMutation, useQueryClient } from '@/hooks/core';
-import { invalidateBillingQueryFamilies } from './useWebSocketIntegration';
+import {
+  invalidateBillingQueryFamilies,
+  invalidateDashboardQueryFamilies,
+} from './useWebSocketIntegration';
 import { useWebSocketContext, useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import { useAppStore } from '@/stores';
 import { useAuth } from '@/hooks/auth/useAuth';
@@ -65,12 +68,42 @@ const CRITICAL_REALTIME_QUERY_PREFIXES: readonly ReadonlyArray<string>[] = [
   ['clinic-payments'],
   ['clinic-ledger'],
   ['billing-analytics'],
+  ['clinicStats'],
+  ['dashboardAnalytics'],
+  ['appointmentAnalytics'],
+  ['patientAnalytics'],
+  ['revenueAnalytics'],
+  ['serviceUtilizationAnalytics'],
+  ['waitTimeAnalytics'],
+  ['patientSatisfactionAnalytics'],
+  ['pharmacyStats'],
+  ['medicineDeskQueue'],
+  ['prescriptions'],
+  ['medicalRecords'],
+  ['medicineCategories'],
+  ['medicines'],
+  ['medicineInventory'],
+  ['pharmacyOrders'],
+  ['pharmacySales'],
+  ['pharmacyBatchAudit'],
+  ['ehr'],
+  ['ehrClinic'],
   ['clinics'],
   ['clinic'],
+  ['clinicByAppName'],
   ['myClinic'],
+  ['current-clinic'],
   ['clinicLocations'],
   ['clinicLocation'],
+  ['activeLocations'],
   ['clinicDoctors'],
+  ['clinicStaff'],
+  ['clinicUsers'],
+  ['clinicUsersByRole'],
+  ['clinicPatients'],
+  ['clinicOperatingHours'],
+  ['clinicSettings'],
+  ['clinicCommunication'],
   ['notifications'],
   ['userProfile'],
   ['user'],
@@ -78,8 +111,6 @@ const CRITICAL_REALTIME_QUERY_PREFIXES: readonly ReadonlyArray<string>[] = [
   ['patients'],
   ['receptionists'],
   ['clinicAdmins'],
-  ['ehr'],
-  ['ehrClinic'],
 ];
 
 async function refetchCriticalRealtimeQueries(queryClient: QueryClient) {
@@ -210,11 +241,13 @@ export function useRealTimeQueueStatus(queueName?: string, locationId?: string) 
       'queue_status_update',
       'queue.updated',
       'queue.position.updated',
+      'appointment.queue.reordered',
       'queue_metrics_update',
       'queue.metrics.updated',
       'queue.alert.created',
       'queue.alert.resolved',
       'queue.report.generated',
+      'queue.health.changed',
     ] as const;
 
     const unsubscribes = queueEvents.map((event) =>
@@ -430,17 +463,22 @@ export function useWebSocketQuerySync() {
       'billing.invoice.sent_whatsapp',
       'billing.payment.created',
       'billing.payment.updated',
+      'billing.receipt.sent_whatsapp',
+      'billing.receipt.paid',
       'billing.payout.pending',
       'billing.payout.success',
       'payment.pending',
       'payment.completed',
       'payment.failed',
       'payment.cancelled',
+      'payment.intent.created',
+      'payment.refunded',
     ] as const;
 
     const unsubscribePaymentLifecycleEvents = billingLifecycleEvents.map((event) =>
       subscribe(event, () => {
         invalidateBillingQueryFamilies(queryClient);
+        invalidateDashboardQueryFamilies(queryClient);
       })
     );
 
@@ -449,6 +487,7 @@ export function useWebSocketQuerySync() {
     const unsubscribeCheckInLifecycleEvents = checkInLifecycleEvents.map((event) =>
       subscribe(event, () => {
         invalidateQueueQueryFamilies();
+        invalidateDashboardQueryFamilies(queryClient);
       })
     );
 

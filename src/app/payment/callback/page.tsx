@@ -89,7 +89,16 @@ export default function PaymentCallbackPage() {
         ]);
 
         if (params.appointmentId) {
-          syncAppointmentInCache(queryClient, { id: params.appointmentId, status: "CONFIRMED" }, {
+          syncAppointmentInCache(queryClient, {
+            id: params.appointmentId,
+            appointmentId: params.appointmentId,
+            status: "CONFIRMED",
+            paymentCompleted: true,
+            isPaid: true,
+            paid: true,
+            paymentStatus: "PAID",
+            updatedAt: new Date().toISOString(),
+          }, {
             appointmentStatus: "CONFIRMED",
             queryKeys: [
               ["myAppointments"],

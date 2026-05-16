@@ -10,17 +10,19 @@ import { PerformanceProvider } from "@/app/providers/PerformanceProvider";
 import { Suspense } from "react";
 import Script from "next/script";
 import { APP_CONFIG } from "@/lib/config/config";
+import { baseSEO } from "@/lib/config/seo";
 import { DEFAULT_LANGUAGE } from "@/lib/i18n/config";
 import { LoadingSpinner } from "@/components/ui/loading";
 import { cn } from "@/lib/utils";
 
-const BRAND_NAME = APP_CONFIG.CLINIC.APP_NAME;
+const BRAND_NAME = baseSEO.siteName;
+const BRAND_TITLE = "Dr Chandrakumar Deshmukh";
 const OG_IMAGE = "/assets/og/og-image.png";
 const SITE_DESCRIPTION =
   "Experience authentic Ayurvedic care in Chinchwad, Pune with Panchakarma, Agnikarma, Viddha Karma, appointments, and secure patient workflows.";
 
 export const metadata = {
-  title: `${BRAND_NAME} | Authentic Ayurvedic Healing & Wellness`,
+  title: BRAND_TITLE,
   description: SITE_DESCRIPTION,
   keywords: [
     "Ayurveda",
@@ -46,12 +48,12 @@ export const metadata = {
     ? new URL(APP_CONFIG.APP.URL) 
     : new URL('http://localhost:3000'),
   icons: {
-    icon: "/assets/logo/logowithoutbackground.png",
-    apple: "/assets/logo/logowithoutbackground.png",
-    shortcut: "/assets/logo/logowithoutbackground.png",
+    icon: "/favicon.ico",
+    apple: "/favicon.ico",
+    shortcut: "/favicon.ico",
   },
   openGraph: {
-    title: `${BRAND_NAME} | Authentic Ayurvedic Healing & Wellness`,
+    title: BRAND_TITLE,
     description: SITE_DESCRIPTION,
     url: "/",
     siteName: BRAND_NAME,
@@ -68,7 +70,7 @@ export const metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: `${BRAND_NAME} | Authentic Ayurvedic Healing & Wellness`,
+    title: BRAND_TITLE,
     description: SITE_DESCRIPTION,
     images: [OG_IMAGE],
   },

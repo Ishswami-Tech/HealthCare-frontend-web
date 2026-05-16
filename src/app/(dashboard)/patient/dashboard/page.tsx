@@ -178,12 +178,7 @@ export default function PatientDashboard() {
               : viewState.isVideo && !viewState.paymentCompleted
                 ? "SCHEDULED"
                 : viewState.normalizedStatus;
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            return (
-              activeUpcomingStatuses.has(status) &&
-              (appointmentStart === null || appointmentStart >= today)
-            );
+            return activeUpcomingStatuses.has(status) || appointmentStart === null;
           })
           .sort((a: any, b: any) => {
             const first = normalizePatientAppointment(a).dateTime;

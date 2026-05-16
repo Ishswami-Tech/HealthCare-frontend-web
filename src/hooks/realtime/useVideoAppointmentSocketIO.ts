@@ -14,36 +14,32 @@ import { useWebSocketStore } from '@/stores';
 export const VideoAppointmentEvents = {
   APPOINTMENT_CREATED: 'appointment.created',
   APPOINTMENT_UPDATED: 'appointment.updated',
-  APPOINTMENT_JOINED: 'appointment.joined',
-  APPOINTMENT_LEFT: 'appointment.left',
-  APPOINTMENT_ENDED: 'appointment.ended',
   APPOINTMENT_CONSULTATION_STARTED: 'appointment.consultation_started',
   VIDEO_CONSULTATION_STARTED: 'video.consultation.started',
   VIDEO_CONSULTATION_ENDED: 'video.consultation.ended',
   CONSULTATION_EVENT: 'consultation.event',
+  VIDEO_PARTICIPANT_MANAGED: 'video.participant.managed',
   VIDEO_PARTICIPANT_JOINED: 'video_participant:joined',
   VIDEO_PARTICIPANT_LEFT: 'video_participant:left',
   VIDEO_RECORDING_STARTED: 'video_recording:started',
   VIDEO_RECORDING_STOPPED: 'video_recording:stopped',
-  VIDEO_VIRTUAL_BACKGROUND_UPDATED: 'virtual_background_updated',
+  VIDEO_RECORDING_STARTED_BACKEND: 'video.recording.started',
+  VIDEO_RECORDING_STOPPED_BACKEND: 'video.recording.stopped',
+  VIDEO_VIRTUAL_BACKGROUND_UPDATED_BACKEND: 'video.virtual_background.updated',
   // Phase 1 & 2 Events - Match backend Socket.IO event names
-  VIDEO_CHAT_MESSAGE: 'chat_message', // Backend emits: 'chat_message'
-  VIDEO_CHAT_TYPING: 'chat_typing', // Backend emits: 'chat_typing'
-  VIDEO_WAITING_ROOM_JOINED: 'waiting_room_joined', // Backend emits: 'waiting_room_joined'
-  VIDEO_WAITING_ROOM_LEFT: 'waiting_room_left', // Backend emits: 'waiting_room_left'
-  VIDEO_WAITING_ROOM_ADMITTED: 'waiting_room_admitted', // Backend emits: 'waiting_room_admitted'
-  VIDEO_NOTE_CREATED: 'note_created', // Backend emits: 'note_created'
-  VIDEO_NOTE_UPDATED: 'note_updated', // Backend emits: 'note_updated'
-  VIDEO_QUALITY_UPDATE: 'quality_warnings', // Backend emits: 'quality_warnings'
-  VIDEO_ANNOTATION_CREATED: 'annotation_created', // Backend emits: 'annotation_created'
-  VIDEO_ANNOTATION_UPDATED: 'annotation_updated', // Backend emits: 'annotation_updated'
-  VIDEO_ANNOTATION_DELETED: 'annotation_deleted', // Backend emits: 'annotation_deleted'
-  VIDEO_TRANSCRIPTION_SEGMENT: 'transcription_segment', // Backend emits: 'transcription_segment'
-  VIDEO_TRANSCRIPTION_STARTED: 'transcription_started', // Backend emits: 'transcription_started'
-  VIDEO_TRANSCRIPTION_STOPPED: 'transcription_stopped', // Backend emits: 'transcription_stopped'
-  VIDEO_PARTICIPANT_MUTED: 'video_participant:muted',
-  VIDEO_PARTICIPANT_UNMUTED: 'video_participant:unmuted',
-  VIDEO_PARTICIPANT_REMOVED: 'video_participant:removed',
+  VIDEO_CHAT_MESSAGE_BACKEND: 'video.chat.message.sent',
+  VIDEO_CHAT_TYPING: 'chat_typing',
+  VIDEO_WAITING_ROOM_JOINED_BACKEND: 'video.waiting_room.joined',
+  VIDEO_WAITING_ROOM_LEFT: 'waiting_room_left',
+  VIDEO_WAITING_ROOM_ADMITTED_BACKEND: 'video.waiting_room.admitted',
+  VIDEO_NOTE_CREATED_BACKEND: 'video.medical_note.created',
+  VIDEO_NOTE_UPDATED: 'note_updated',
+  VIDEO_QUALITY_UPDATE_BACKEND: 'video.quality.critical_warning',
+  VIDEO_ANNOTATION_CREATED_BACKEND: 'video.annotation.created',
+  VIDEO_ANNOTATION_UPDATED: 'annotation_updated',
+  VIDEO_ANNOTATION_DELETED: 'annotation_deleted',
+  VIDEO_TRANSCRIPTION_CREATED_BACKEND: 'video.transcription.created',
+  VIDEO_TRANSCRIPTION_SAVED_TO_EHR_BACKEND: 'video.transcription.saved_to_ehr',
 } as const;
 
 export interface VideoAppointmentEventData {
@@ -116,12 +112,28 @@ export function useVideoAppointmentWebSocket() {
           callback({ ...(data as VideoAppointmentEventData), eventType: VideoAppointmentEvents.CONSULTATION_EVENT });
         }
       );
+      const unsubscribeTokenGenerated = subscribe('video.token.generated', (data: unknown) => {
+        callback({ ...(data as VideoAppointmentEventData), eventType: 'video.token.generated' });
+      });
+      const unsubscribeConsultationFailed = subscribe('video.consultation.status.failed', (data: unknown) => {
+        callback({ ...(data as VideoAppointmentEventData), eventType: 'video.consultation.status.failed' });
+      });
+      const unsubscribeTechnicalIssue = subscribe('video.technical.issue.reported', (data: unknown) => {
+        callback({ ...(data as VideoAppointmentEventData), eventType: 'video.technical.issue.reported' });
+      });
+      const unsubscribeMedicalImage = subscribe('video.medical.image.shared', (data: unknown) => {
+        callback({ ...(data as VideoAppointmentEventData), eventType: 'video.medical.image.shared' });
+      });
 
       return () => {
         unsubscribeStarted();
         unsubscribeAppointmentStarted();
         unsubscribeEnded();
         unsubscribeConsultationEvent();
+        unsubscribeTokenGenerated();
+        unsubscribeConsultationFailed();
+        unsubscribeTechnicalIssue();
+        unsubscribeMedicalImage();
       };
     },
     [subscribe, isConnected]
@@ -137,6 +149,13 @@ export function useVideoAppointmentWebSocket() {
         return () => {}; // Return no-op unsubscribe
       }
 
+      const unsubscribeManaged = subscribe(VideoAppointmentEvents.VIDEO_PARTICIPANT_MANAGED, (data: unknown) => {
+        const payload = data as VideoAppointmentEventData & { action?: string };
+        callback({
+          ...payload,
+          action: payload.action || 'participant_managed',
+        });
+      });
       const unsubscribeJoined = subscribe(
         VideoAppointmentEvents.VIDEO_PARTICIPANT_JOINED,
         (data: unknown) => {
@@ -151,6 +170,7 @@ export function useVideoAppointmentWebSocket() {
       );
 
       return () => {
+        unsubscribeManaged();
         unsubscribeJoined();
         unsubscribeLeft();
       };
@@ -168,12 +188,18 @@ export function useVideoAppointmentWebSocket() {
         return () => {}; // Return no-op unsubscribe
       }
 
+      const unsubscribeStartedBackend = subscribe(VideoAppointmentEvents.VIDEO_RECORDING_STARTED_BACKEND, (data: unknown) => {
+        callback({ ...(data as VideoAppointmentEventData), action: 'recording_started' });
+      });
       const unsubscribeStarted = subscribe(
         VideoAppointmentEvents.VIDEO_RECORDING_STARTED,
         (data: unknown) => {
           callback({ ...(data as VideoAppointmentEventData), action: 'recording_started' });
         }
       );
+      const unsubscribeStoppedBackend = subscribe(VideoAppointmentEvents.VIDEO_RECORDING_STOPPED_BACKEND, (data: unknown) => {
+        callback({ ...(data as VideoAppointmentEventData), action: 'recording_stopped' });
+      });
       const unsubscribeStopped = subscribe(
         VideoAppointmentEvents.VIDEO_RECORDING_STOPPED,
         (data: unknown) => {
@@ -188,7 +214,9 @@ export function useVideoAppointmentWebSocket() {
       });
 
       return () => {
+        unsubscribeStartedBackend();
         unsubscribeStarted();
+        unsubscribeStoppedBackend();
         unsubscribeStopped();
         unsubscribeLegacyStarted();
         unsubscribeLegacyStopped();
@@ -207,13 +235,15 @@ export function useVideoAppointmentWebSocket() {
         return () => {};
       }
 
-      const unsubscribe = subscribe(
-        VideoAppointmentEvents.VIDEO_VIRTUAL_BACKGROUND_UPDATED,
+      const unsubscribeBackend = subscribe(
+        VideoAppointmentEvents.VIDEO_VIRTUAL_BACKGROUND_UPDATED_BACKEND,
         (data: unknown) => {
           callback({ ...(data as VideoAppointmentEventData), action: 'virtual_background_updated' });
         }
       );
-      return unsubscribe;
+      return () => {
+        unsubscribeBackend();
+      };
     },
     [subscribe, isConnected]
   );
@@ -327,10 +357,12 @@ export function useVideoAppointmentWebSocket() {
         return () => {};
       }
 
-      const unsubscribe = subscribe(VideoAppointmentEvents.VIDEO_CHAT_MESSAGE, (data: unknown) => {
+      const unsubscribeBackend = subscribe(VideoAppointmentEvents.VIDEO_CHAT_MESSAGE_BACKEND, (data: unknown) => {
         callback(data as VideoAppointmentEventData);
       });
-      return unsubscribe;
+      return () => {
+        unsubscribeBackend();
+      };
     },
     [subscribe, isConnected]
   );
@@ -345,20 +377,20 @@ export function useVideoAppointmentWebSocket() {
         return () => {};
       }
 
-      const unsubscribeJoined = subscribe(VideoAppointmentEvents.VIDEO_WAITING_ROOM_JOINED, (data: unknown) => {
+      const unsubscribeJoinedBackend = subscribe(VideoAppointmentEvents.VIDEO_WAITING_ROOM_JOINED_BACKEND, (data: unknown) => {
         callback({ ...(data as VideoAppointmentEventData), action: 'waiting_room_joined' });
       });
       const unsubscribeLeft = subscribe(VideoAppointmentEvents.VIDEO_WAITING_ROOM_LEFT, (data: unknown) => {
         callback({ ...(data as VideoAppointmentEventData), action: 'waiting_room_left' });
       });
-      const unsubscribeAdmitted = subscribe(VideoAppointmentEvents.VIDEO_WAITING_ROOM_ADMITTED, (data: unknown) => {
+      const unsubscribeAdmittedBackend = subscribe(VideoAppointmentEvents.VIDEO_WAITING_ROOM_ADMITTED_BACKEND, (data: unknown) => {
         callback({ ...(data as VideoAppointmentEventData), action: 'waiting_room_admitted' });
       });
 
       return () => {
-        unsubscribeJoined();
+        unsubscribeJoinedBackend();
         unsubscribeLeft();
-        unsubscribeAdmitted();
+        unsubscribeAdmittedBackend();
       };
     },
     [subscribe, isConnected]
@@ -374,7 +406,7 @@ export function useVideoAppointmentWebSocket() {
         return () => {};
       }
 
-      const unsubscribeCreated = subscribe(VideoAppointmentEvents.VIDEO_NOTE_CREATED, (data: unknown) => {
+      const unsubscribeCreatedBackend = subscribe(VideoAppointmentEvents.VIDEO_NOTE_CREATED_BACKEND, (data: unknown) => {
         callback({ ...(data as VideoAppointmentEventData), action: 'note_created' });
       });
       const unsubscribeUpdated = subscribe(VideoAppointmentEvents.VIDEO_NOTE_UPDATED, (data: unknown) => {
@@ -382,7 +414,7 @@ export function useVideoAppointmentWebSocket() {
       });
 
       return () => {
-        unsubscribeCreated();
+        unsubscribeCreatedBackend();
         unsubscribeUpdated();
       };
     },
@@ -399,15 +431,7 @@ export function useVideoAppointmentWebSocket() {
         return () => {};
       }
 
-      const unsubscribe = subscribe(VideoAppointmentEvents.VIDEO_QUALITY_UPDATE, (data: unknown) => {
-        const payload = data as VideoAppointmentEventData & { metrics?: unknown };
-        callback({
-          ...payload,
-          action: 'quality_update',
-          metrics: payload.metrics ?? payload,
-        });
-      });
-      const unsubscribeLegacy = subscribe('quality_update', (data: unknown) => {
+      const unsubscribeBackend = subscribe(VideoAppointmentEvents.VIDEO_QUALITY_UPDATE_BACKEND, (data: unknown) => {
         const payload = data as VideoAppointmentEventData & { metrics?: unknown };
         callback({
           ...payload,
@@ -416,8 +440,7 @@ export function useVideoAppointmentWebSocket() {
         });
       });
       return () => {
-        unsubscribe();
-        unsubscribeLegacy();
+        unsubscribeBackend();
       };
     },
     [subscribe, isConnected]
@@ -433,7 +456,7 @@ export function useVideoAppointmentWebSocket() {
         return () => {};
       }
 
-      const unsubscribeCreated = subscribe(VideoAppointmentEvents.VIDEO_ANNOTATION_CREATED, (data: unknown) => {
+      const unsubscribeCreatedBackend = subscribe(VideoAppointmentEvents.VIDEO_ANNOTATION_CREATED_BACKEND, (data: unknown) => {
         callback({ ...(data as VideoAppointmentEventData), action: 'annotation_created' });
       });
       const unsubscribeUpdated = subscribe(VideoAppointmentEvents.VIDEO_ANNOTATION_UPDATED, (data: unknown) => {
@@ -444,7 +467,7 @@ export function useVideoAppointmentWebSocket() {
       });
 
       return () => {
-        unsubscribeCreated();
+        unsubscribeCreatedBackend();
         unsubscribeUpdated();
         unsubscribeDeleted();
       };
@@ -462,24 +485,16 @@ export function useVideoAppointmentWebSocket() {
         return () => {};
       }
 
-      const unsubscribeSegment = subscribe(VideoAppointmentEvents.VIDEO_TRANSCRIPTION_SEGMENT, (data: unknown) => {
-        callback({ ...(data as VideoAppointmentEventData), action: 'transcription_segment' });
-      });
-      const unsubscribeStarted = subscribe(VideoAppointmentEvents.VIDEO_TRANSCRIPTION_STARTED, (data: unknown) => {
+      const unsubscribeCreatedBackend = subscribe(VideoAppointmentEvents.VIDEO_TRANSCRIPTION_CREATED_BACKEND, (data: unknown) => {
         callback({ ...(data as VideoAppointmentEventData), action: 'transcription_started' });
       });
-      const unsubscribeStopped = subscribe(VideoAppointmentEvents.VIDEO_TRANSCRIPTION_STOPPED, (data: unknown) => {
+      const unsubscribeSavedToEhrBackend = subscribe(VideoAppointmentEvents.VIDEO_TRANSCRIPTION_SAVED_TO_EHR_BACKEND, (data: unknown) => {
         callback({ ...(data as VideoAppointmentEventData), action: 'transcription_stopped' });
-      });
-      const unsubscribeLegacyCreated = subscribe('transcription_created', (data: unknown) => {
-        callback({ ...(data as VideoAppointmentEventData), action: 'transcription_segment' });
       });
 
       return () => {
-        unsubscribeSegment();
-        unsubscribeStarted();
-        unsubscribeStopped();
-        unsubscribeLegacyCreated();
+        unsubscribeCreatedBackend();
+        unsubscribeSavedToEhrBackend();
       };
     },
     [subscribe, isConnected]
@@ -495,7 +510,7 @@ export function useVideoAppointmentWebSocket() {
         return;
       }
 
-      emit(VideoAppointmentEvents.VIDEO_CHAT_MESSAGE, {
+      emit(VideoAppointmentEvents.VIDEO_CHAT_MESSAGE_BACKEND, {
         appointmentId,
         message,
         attachments,
