@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import { useQueryData, useOptimisticMutation, useQueryClient } from '@/hooks/core';
 import {
+  invalidateAppointmentQueryFamilies,
   invalidateBillingQueryFamilies,
   invalidateDashboardQueryFamilies,
 } from './useWebSocketIntegration';
@@ -479,6 +480,28 @@ export function useWebSocketQuerySync() {
       subscribe(event, () => {
         invalidateBillingQueryFamilies(queryClient);
         invalidateDashboardQueryFamilies(queryClient);
+        invalidateAppointmentQueryFamilies(queryClient);
+      })
+    );
+
+    const appointmentLifecycleEvents = [
+      'appointment.created',
+      'appointment.updated',
+      'appointment.confirmed',
+      'appointment.cancelled',
+      'appointment.rescheduled',
+      'appointment.completed',
+      'appointment.status_changed',
+      'appointment.checked_in',
+      'appointment.slot.confirmed',
+      'appointment.consultation_started',
+    ] as const;
+
+    const unsubscribeAppointmentLifecycleEvents = appointmentLifecycleEvents.map((event) =>
+      subscribe(event, () => {
+        invalidateAppointmentQueryFamilies(queryClient);
+        invalidateDashboardQueryFamilies(queryClient);
+        invalidateQueueQueryFamilies();
       })
     );
 
@@ -486,6 +509,7 @@ export function useWebSocketQuerySync() {
 
     const unsubscribeCheckInLifecycleEvents = checkInLifecycleEvents.map((event) =>
       subscribe(event, () => {
+        invalidateAppointmentQueryFamilies(queryClient);
         invalidateQueueQueryFamilies();
         invalidateDashboardQueryFamilies(queryClient);
       })
@@ -510,6 +534,7 @@ export function useWebSocketQuerySync() {
       unsubscribeGlobalRefresh();
       unsubscribeQueryUpdate();
       unsubscribePaymentLifecycleEvents.forEach((unsubscribe) => unsubscribe());
+      unsubscribeAppointmentLifecycleEvents.forEach((unsubscribe) => unsubscribe());
       unsubscribeCheckInLifecycleEvents.forEach((unsubscribe) => unsubscribe());
       unsubscribeBatchInvalidate();
     };
