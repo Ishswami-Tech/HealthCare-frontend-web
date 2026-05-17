@@ -635,8 +635,7 @@ export async function getMyAppointments(filters?: any) {
     const resolvedClinicId =
       filters?.clinicId ||
       sessionUser?.clinicId ||
-      sessionUser?.primaryClinicId ||
-      APP_CONFIG.CLINIC.ID;
+      sessionUser?.primaryClinicId;
     const normalizedFilters = {
       page: 1,
       limit: 100,
@@ -1218,8 +1217,7 @@ export async function getUserUpcomingAppointments(filters?: { clinicId?: string 
     const resolvedClinicId =
       filters?.clinicId ||
       sessionUser?.clinicId ||
-      sessionUser?.primaryClinicId ||
-      APP_CONFIG.CLINIC.ID;
+      sessionUser?.primaryClinicId;
 
     const { data } = await authenticatedApi<Appointment[]>(API_ENDPOINTS.APPOINTMENTS.UPCOMING, {
       ...(resolvedClinicId ? { headers: { 'X-Clinic-ID': resolvedClinicId } } : {}),
