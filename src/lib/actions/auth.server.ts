@@ -43,8 +43,18 @@ if (!API_URL) {
 const CLINIC_ID = APP_CONFIG.CLINIC.ID;
 
 function resolveClinicContextId(clinicId?: string | null): string {
-  const normalizedClinicId = normalizeClinicId(clinicId);
-  return normalizedClinicId || CLINIC_ID;
+  return normalizeClinicId(clinicId);
+}
+
+function extractClinicIdFromTokenValue(token?: string): string | undefined {
+  if (!token) {
+    return undefined;
+  }
+
+  return normalizeClinicId(
+    extractClinicIdFromPayload(parseJwtPayload(token)) ||
+      undefined
+  );
 }
 
 let hasLoggedEnvironment = false;
@@ -1027,7 +1037,10 @@ export async function login(data: { email: string; password?: string; otp?: stri
       session_id: resultData.session_id || resultData.sessionId,
       user: {
         ...resultData.user,
-        clinicId: resultData.user?.clinicId || resultData.user?.primaryClinicId,
+        clinicId:
+          resultData.user?.clinicId ||
+          resultData.user?.primaryClinicId ||
+          extractClinicIdFromTokenValue(resultData.access_token || resultData.accessToken),
       },
     };
     
@@ -1038,7 +1051,10 @@ export async function login(data: { email: string; password?: string; otp?: stri
       session_id: result.session_id || result.sessionId,
       user: {
         ...result.user,
-        clinicId: result.user?.clinicId || result.user?.primaryClinicId
+        clinicId:
+          result.user?.clinicId ||
+          result.user?.primaryClinicId ||
+          extractClinicIdFromTokenValue(result.access_token || result.accessToken),
       },
     };
     
@@ -1250,7 +1266,10 @@ export async function requestOTP(data: OtpRequestFormData): Promise<{ success: b
       session_id: resultData.session_id || resultData.sessionId,
       user: {
         ...resultData.user,
-        clinicId: resultData.user?.clinicId || resultData.user?.primaryClinicId,
+        clinicId:
+          resultData.user?.clinicId ||
+          resultData.user?.primaryClinicId ||
+          extractClinicIdFromTokenValue(resultData.access_token || resultData.accessToken),
       },
     };
     return {
@@ -1315,7 +1334,10 @@ export async function verifyOTP(data: OtpVerifyFormData): Promise<AuthResponse> 
       session_id: resultData.session_id || resultData.sessionId,
       user: {
         ...resultData.user,
-        clinicId: resultData.user?.clinicId || resultData.user?.primaryClinicId,
+        clinicId:
+          resultData.user?.clinicId ||
+          resultData.user?.primaryClinicId ||
+          extractClinicIdFromTokenValue(resultData.access_token || resultData.accessToken),
       },
     };
     const normalizedResult = {
@@ -1325,7 +1347,10 @@ export async function verifyOTP(data: OtpVerifyFormData): Promise<AuthResponse> 
       session_id: result.session_id || result.sessionId,
       user: {
         ...result.user,
-        clinicId: result.user?.clinicId || result.user?.primaryClinicId,
+        clinicId:
+          result.user?.clinicId ||
+          result.user?.primaryClinicId ||
+          extractClinicIdFromTokenValue(result.access_token || result.accessToken),
       },
     };
 
@@ -1362,7 +1387,10 @@ export async function verifyMagicLink(token: string): Promise<AuthResponse> {
       session_id: resultData.session_id || resultData.sessionId,
       user: {
         ...resultData.user,
-        clinicId: resultData.user?.clinicId || resultData.user?.primaryClinicId,
+        clinicId:
+          resultData.user?.clinicId ||
+          resultData.user?.primaryClinicId ||
+          extractClinicIdFromTokenValue(resultData.access_token || resultData.accessToken),
       },
     };
     await setAuthCookies(normalizedResult);
@@ -1384,13 +1412,12 @@ export async function socialLogin(data: { provider: string; token: string; clini
       session_id: result.session_id || result.sessionId,
       user: {
         ...result.user,
-        clinicId: result.user?.clinicId || result.user?.primaryClinicId,
+        clinicId:
+          result.user?.clinicId ||
+          result.user?.primaryClinicId ||
+          extractClinicIdFromTokenValue(result.access_token || result.accessToken),
       },
     };
-    
-    if (CLINIC_ID && normalizedResult?.user && !normalizedResult.user.clinicId) {
-        normalizedResult.user.clinicId = CLINIC_ID;
-    }
     
     await setAuthCookies(normalizedResult);
     return normalizedResult as AuthResponse;
@@ -1551,7 +1578,11 @@ async function setAuthCookies(data: {
     });
   }
 
-  const normalizedClinicId = normalizeClinicId(data.user?.clinicId);
+  const normalizedClinicId = normalizeClinicId(
+    data.user?.clinicId ||
+      (data.user as { primaryClinicId?: string } | undefined)?.primaryClinicId ||
+      extractClinicIdFromTokenValue(accessTokenValue)
+  );
 
   if (normalizedClinicId) {
     cookieStore.set({
@@ -1749,7 +1780,10 @@ export async function googleLogin(
         firstName: resolvedUserFirstName,
         lastName: resolvedUserLastName,
         name: resolvedUserName,
-        clinicId: resultData.user?.clinicId || resultData.user?.primaryClinicId,
+        clinicId:
+          resultData.user?.clinicId ||
+          resultData.user?.primaryClinicId ||
+          extractClinicIdFromTokenValue(accessToken),
       },
     };
 
@@ -1854,16 +1888,19 @@ export async function facebookLogin(token: string, clinicId?: string | undefined
   });
   const responseData = response.data as Record<string, any>;
   const result = responseData.data || responseData;
-  const normalizedResult = {
-    ...result,
-    access_token: result.access_token || result.accessToken,
-    refresh_token: result.refresh_token || result.refreshToken,
-    session_id: result.session_id || result.sessionId,
-    user: {
-      ...result.user,
-      clinicId: result.user?.clinicId || result.user?.primaryClinicId,
-    },
-  };
+    const normalizedResult = {
+      ...result,
+      access_token: result.access_token || result.accessToken,
+      refresh_token: result.refresh_token || result.refreshToken,
+      session_id: result.session_id || result.sessionId,
+      user: {
+        ...result.user,
+        clinicId:
+          result.user?.clinicId ||
+          result.user?.primaryClinicId ||
+          extractClinicIdFromTokenValue(result.access_token || result.accessToken),
+      },
+    };
   await setAuthCookies(normalizedResult);
   return normalizedResult as AuthResponse;
 }
@@ -1877,16 +1914,19 @@ export async function appleLogin(token: string, clinicId?: string | undefined): 
   });
   const responseData = response.data as Record<string, any>;
   const result = responseData.data || responseData;
-  const normalizedResult = {
-    ...result,
-    access_token: result.access_token || result.accessToken,
-    refresh_token: result.refresh_token || result.refreshToken,
-    session_id: result.session_id || result.sessionId,
-    user: {
-      ...result.user,
-      clinicId: result.user?.clinicId || result.user?.primaryClinicId,
-    },
-  };
+    const normalizedResult = {
+      ...result,
+      access_token: result.access_token || result.accessToken,
+      refresh_token: result.refresh_token || result.refreshToken,
+      session_id: result.session_id || result.sessionId,
+      user: {
+        ...result.user,
+        clinicId:
+          result.user?.clinicId ||
+          result.user?.primaryClinicId ||
+          extractClinicIdFromTokenValue(result.access_token || result.accessToken),
+      },
+    };
   await setAuthCookies(normalizedResult);
   return normalizedResult as { success: boolean; user?: User; error?: string };
 }

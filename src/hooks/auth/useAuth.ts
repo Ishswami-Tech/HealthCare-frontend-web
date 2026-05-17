@@ -117,6 +117,17 @@ function resolveProfileComplete(user: Record<string, unknown> | null | undefined
   return false;
 }
 
+function resolveClinicId(user: Record<string, unknown> | null | undefined): string | undefined {
+  if (!user) return undefined;
+
+  const clinicId = typeof user.clinicId === 'string' ? user.clinicId.trim() : '';
+  if (clinicId) return clinicId;
+
+  const primaryClinicId =
+    typeof user.primaryClinicId === 'string' ? user.primaryClinicId.trim() : '';
+  return primaryClinicId || undefined;
+}
+
 export function useAuth() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -280,10 +291,12 @@ export function useAuth() {
       onSuccess: (data) => {
         // Convert AuthResponse to Session
         const profileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
+        const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
         const { ...restUser } = data.user;
         const sessionData: Session = {
           user: {
             ...restUser,
+            ...(clinicId ? { clinicId } : {}),
             profileComplete,
           } as User,
           access_token: data.access_token,
@@ -341,6 +354,7 @@ export function useAuth() {
         }
 
         const initialProfileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
+        const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
         // Create session data with proper defaults
         const sessionData: Session = {
           user: {
@@ -352,6 +366,7 @@ export function useAuth() {
             lastName: data.user.lastName || data.user.name?.split(/\s+/).slice(1).join(' ') || '',
             isVerified: true,
             googleId: data.user.googleId || '',
+            ...(clinicId ? { clinicId } : {}),
             profileComplete: initialProfileComplete
           },
           access_token: data.token || '',
@@ -539,10 +554,12 @@ export function useAuth() {
       onSuccess: (data) => {
         // Convert AuthResponse to Session
         const profileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
+        const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
         const { ...restUser } = data.user;
         const sessionData: Session = {
            user: {
              ...restUser,
+             ...(clinicId ? { clinicId } : {}),
              profileComplete,
            } as User,
            access_token: data.access_token || '',
