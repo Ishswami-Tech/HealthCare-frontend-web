@@ -10,7 +10,11 @@ import { Loader2, ArrowLeft, Mail, CheckCircle2 } from "lucide-react";
 import { showErrorToast } from "@/hooks/utils/use-toast";
 import { REGEXP_ONLY_DIGITS_AND_CHARS } from "input-otp";
 
-export function EmailOtpRegisterForm() {
+interface EmailOtpRegisterFormProps {
+  clinicId?: string | undefined;
+}
+
+export function EmailOtpRegisterForm({ clinicId }: EmailOtpRegisterFormProps) {
   const { requestOTP, verifyOTP, isRequestingOTP, isVerifyingOTP } = useAuth();
   const [step, setStep] = useState<1 | 2>(1);
   const [email, setEmail] = useState("");
@@ -25,7 +29,7 @@ export function EmailOtpRegisterForm() {
         return;
     }
     try {
-        await requestOTP({ identifier: email, isRegistration: true });
+        await requestOTP({ identifier: email, isRegistration: true, clinicId });
         setStep(2);
     } catch (error) {
         // Error handling is managed by the mutation hook via toasts mostly
@@ -49,7 +53,8 @@ export function EmailOtpRegisterForm() {
             otp,
             isRegistration: true,
             firstName,
-            lastName
+            lastName,
+            clinicId,
         });
     } catch (error) {
         // Error handling

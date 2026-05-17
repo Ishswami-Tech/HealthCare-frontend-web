@@ -28,7 +28,10 @@ export async function getSessionId(): Promise<string | null> {
  * Get clinic ID securely
  */
 export async function getClinicId(): Promise<string | null> {
-  return normalizeClinicId(useAuthStore.getState().session?.user?.clinicId || null) || null;
+  const user = useAuthStore.getState().session?.user as
+    | { clinicId?: string | null; primaryClinicId?: string | null }
+    | undefined;
+  return normalizeClinicId(user?.clinicId || user?.primaryClinicId || null) || null;
 }
 
 /**

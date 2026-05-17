@@ -629,7 +629,14 @@ export async function getAppointments(filters?: AppointmentFilters & { omitClini
 export async function getMyAppointments(filters?: any) {
   try {
     const session = await getServerSession();
-    const resolvedClinicId = session?.user?.clinicId || APP_CONFIG.CLINIC.ID;
+    const sessionUser = session?.user as
+      | { clinicId?: string; primaryClinicId?: string }
+      | undefined;
+    const resolvedClinicId =
+      filters?.clinicId ||
+      sessionUser?.clinicId ||
+      sessionUser?.primaryClinicId ||
+      APP_CONFIG.CLINIC.ID;
     const normalizedFilters = {
       page: 1,
       limit: 100,

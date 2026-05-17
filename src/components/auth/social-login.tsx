@@ -61,6 +61,7 @@ interface SocialLoginProps {
   onSuccess?: () => void;
   isLoading?: boolean;
   onLoadingStateChange?: (isLoading: boolean) => void;
+  clinicId?: string | undefined;
 }
 
 function getGoogleIdentityState(): GoogleIdentityState {
@@ -149,6 +150,7 @@ export function SocialLogin({
   onSuccess,
   isLoading,
   onLoadingStateChange,
+  clinicId,
   showDivider = true,
 }: SocialLoginProps & { showDivider?: boolean }) {
   const { googleLogin, isGoogleLoggingIn } = useAuth();
@@ -174,7 +176,7 @@ export function SocialLogin({
 
         showLoadingToast("Signing in with Google...", toastId);
 
-        await googleLogin(response.credential);
+        await googleLogin(response.credential, clinicId);
 
         dismissToast(toastId);
         showSuccessToast("Successfully signed in with Google!", {
@@ -195,7 +197,7 @@ export function SocialLogin({
         });
       }
     },
-    [googleLogin, onSuccess, onError]
+    [clinicId, googleLogin, onSuccess, onError]
   );
 
   useEffect(() => {

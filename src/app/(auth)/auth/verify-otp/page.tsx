@@ -24,6 +24,7 @@ import { ROUTES } from "@/lib/config/routes";
 export default function VerifyOTPPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClinicId = searchParams.get("clinicId") || undefined;
   const { verifyOTP, requestOTP, isVerifyingOTP, isRequestingOTP } = useAuth();
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [email, setEmail] = useState("");
@@ -57,7 +58,7 @@ export default function VerifyOTPPage() {
     otpSchema,
     async (data: OTPFormData) => {
       await executeAuthOperation(async () => {
-        return await verifyOTP(data);
+        return await verifyOTP({ ...data, clinicId: queryClinicId });
       });
       triggerSuccessFlow();
     },
@@ -125,7 +126,7 @@ export default function VerifyOTPPage() {
   const handleResendOTP = async () => {
     // ✅ Use unified pattern - consistent across all auth pages
     await executeOTPResend(async () => {
-      return await requestOTP({ identifier: email });
+      return await requestOTP({ identifier: email, clinicId: queryClinicId });
     });
   };
 

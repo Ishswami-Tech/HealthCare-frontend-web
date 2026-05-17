@@ -23,6 +23,12 @@ import { triggerClientAuthRecovery } from '@/lib/utils/auth-recovery';
 import { dedupeRequest } from '@/hooks/core/requestDeduper';
 import type { Session } from '@/types/auth.types';
 
+type ClinicRequestInit = RequestInit & {
+  omitClinicId?: boolean;
+  clinicId?: string | undefined;
+  requireClinicId?: boolean;
+};
+
 // ✅ Custom Error Classes
 export class ApiError extends Error {
   public statusCode: number;
@@ -92,7 +98,9 @@ async function getDefaultHeaders(): Promise<Record<string, string>> {
 // Requires authentication unless explicitly marked as public
 async function getAuthHeaders(
   requireAuth: boolean = true,
-  includeClinicId: boolean = true
+  includeClinicId: boolean = true,
+  explicitClinicId?: string | undefined,
+  requireClinicId: boolean = false
 ): Promise<Record<string, string>> {
   // Support both server-side (cookies) and client-side (localStorage)
   let accessToken: string | undefined;
@@ -117,6 +125,10 @@ async function getAuthHeaders(
     clinicId = (await getClinicId()) || undefined;
   }
 
+  if (explicitClinicId) {
+    clinicId = normalizeClinicId(explicitClinicId);
+  }
+
   // Prefer clinic context from access token claims when cookie/local storage is missing.
   if (!clinicId && accessToken) {
     try {
@@ -136,9 +148,16 @@ async function getAuthHeaders(
     }
   }
 
-  // Only use static clinic fallback for non-authenticated/public flows.
-  // For authenticated requests, forcing a default clinic can leak wrong tenant context.
-  if (!clinicId && !requireAuth) {
+  if (!clinicId && requireClinicId) {
+    throw new ApiError(
+      'Clinic ID is required for this request.',
+      HTTP_STATUS.BAD_REQUEST,
+      ERROR_CODES.VALIDATION_ERROR
+    );
+  }
+
+  // Only use static clinic fallback for non-authenticated/public flows that do not require explicit clinic context.
+  if (!clinicId && !requireAuth && !requireClinicId) {
     clinicId = normalizeClinicId(APP_CONFIG.CLINIC.ID);
   }
 
@@ -365,7 +384,7 @@ export class ApiClient {
   // ✅ Generic Request Method (Optimized with Request Deduplication & Batching for 10M users)
   async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: ClinicRequestInit = {}
   ): Promise<ApiResponse<T>> {
     // ✅ Add API prefix if this is ClinicApiClient and endpoint doesn't already include it
     const apiPrefix = (this as any).API_PREFIX || '';
@@ -412,7 +431,7 @@ export class ApiClient {
   // ✅ Execute Request with Connection Pooling Optimization (10M users)
   protected async executeRequest<T>(
     url: string,
-    options: RequestInit = {},
+    options: ClinicRequestInit = {},
     requireAuth: boolean = true
   ): Promise<ApiResponse<T>> {
     // ✅ Rate Limiting Check (Client-side)
@@ -432,9 +451,14 @@ export class ApiClient {
     // Check if this is a public endpoint (auth endpoints, health checks, etc.)
     const isPublicEndpoint = url.includes('/auth/') || url.includes('/health');
     const shouldRequireAuth = requireAuth && !isPublicEndpoint;
-    const includeClinicId =
-      (options as RequestInit & { omitClinicId?: boolean }).omitClinicId !== true;
-    const headers = await getAuthHeaders(shouldRequireAuth, includeClinicId);
+    const clinicOptions = options as ClinicRequestInit;
+    const includeClinicId = clinicOptions.omitClinicId !== true;
+    const headers = await getAuthHeaders(
+      shouldRequireAuth,
+      includeClinicId,
+      clinicOptions.clinicId,
+      clinicOptions.requireClinicId === true
+    );
     
     const config: RequestInit = {
       method: 'GET',
@@ -751,7 +775,7 @@ export class ApiClient {
   // ✅ Public Request Method (for unauthenticated endpoints)
   async publicRequest<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: ClinicRequestInit = {}
   ): Promise<ApiResponse<T>> {
     // ✅ Add API prefix if this is ClinicApiClient and endpoint doesn't already include it
     const apiPrefix = (this as any).API_PREFIX || '';
@@ -853,17 +877,20 @@ export class ClinicApiClient extends ApiClient {
   async login(credentials: { 
     email: string; 
     password: string; 
-    rememberMe?: boolean; 
+    rememberMe?: boolean;
+    clinicId?: string | undefined;
   }) {
     const loginRequestOptions: RequestInit & { omitClinicId: boolean } = {
       method: 'POST',
       body: JSON.stringify(credentials),
       // Do not force a fallback clinic header during login.
-      // Backend now resolves clinic from the user's associations when needed.
+      // The clinic is included in the body when the caller provides it.
       omitClinicId: true,
     };
     return this.publicRequest(API_ENDPOINTS.AUTH.LOGIN, {
       ...loginRequestOptions,
+      clinicId: credentials.clinicId,
+      requireClinicId: true,
     });
   }
 
@@ -878,9 +905,13 @@ export class ClinicApiClient extends ApiClient {
     gender?: string;
     address?: string;
     role?: string;
+    clinicId?: string;
   }) {
     return this.publicRequest(API_ENDPOINTS.AUTH.REGISTER, {
       method: 'POST',
+      omitClinicId: true,
+      clinicId: data.clinicId,
+      requireClinicId: true,
       body: JSON.stringify(data)
     });
   }
@@ -897,6 +928,9 @@ export class ClinicApiClient extends ApiClient {
     const identifier = requestDto.identifier || requestDto.contact;
     return this.publicRequest(API_ENDPOINTS.AUTH.REQUEST_OTP, {
       method: 'POST',
+      omitClinicId: true,
+      clinicId: requestDto.clinicId,
+      requireClinicId: true,
       body: JSON.stringify({
         ...requestDto,
         identifier,
@@ -917,6 +951,9 @@ export class ClinicApiClient extends ApiClient {
     const identifier = data.identifier || data.contact;
     return this.publicRequest(API_ENDPOINTS.AUTH.VERIFY_OTP, {
       method: 'POST',
+      omitClinicId: true,
+      clinicId: data.clinicId,
+      requireClinicId: true,
       body: JSON.stringify({
         ...data,
         identifier,
@@ -963,6 +1000,9 @@ export class ClinicApiClient extends ApiClient {
     }
     return this.publicRequest(endpoint, {
       method: 'POST',
+      omitClinicId: true,
+      clinicId: data.clinicId,
+      requireClinicId: true,
       body: JSON.stringify({ token: data.token, clinicId: data.clinicId })
     });
   }

@@ -11,7 +11,11 @@ import { showErrorToast } from "@/hooks/utils/use-toast";
 import { REGEXP_ONLY_DIGITS_AND_CHARS } from "input-otp";
 import PhoneInput from "@/components/ui/phone-input";
 
-export function PhoneOtpRegisterForm() {
+interface PhoneOtpRegisterFormProps {
+  clinicId?: string | undefined;
+}
+
+export function PhoneOtpRegisterForm({ clinicId }: PhoneOtpRegisterFormProps) {
   const { requestOTP, verifyOTP, isRequestingOTP, isVerifyingOTP } = useAuth();
   const [step, setStep] = useState<1 | 2>(1);
   const [phone, setPhone] = useState("");
@@ -26,7 +30,7 @@ export function PhoneOtpRegisterForm() {
         return;
     }
     try {
-        await requestOTP({ identifier: phone, isRegistration: true });
+        await requestOTP({ identifier: phone, isRegistration: true, clinicId });
         setStep(2);
     } catch (error) {
         // Error handling is managed by the mutation hook
@@ -50,7 +54,8 @@ export function PhoneOtpRegisterForm() {
             otp,
             isRegistration: true,
             firstName,
-            lastName
+            lastName,
+            clinicId,
         });
     } catch (error) {
         // Error handling

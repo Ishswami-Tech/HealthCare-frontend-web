@@ -243,7 +243,7 @@ export function useAuth() {
 
   // Enhanced login mutation with proper error handling using core hook
   const loginMutation = useMutationOperation(
-    async (data: { email: string; password: string; rememberMe?: boolean }) => {
+    async (data: { email: string; password: string; rememberMe?: boolean; clinicId?: string | undefined }) => {
       const result = await loginAction(data);
 
       // ✅ Check for explicit error return (avoids Next.js error masking)
@@ -313,9 +313,9 @@ export function useAuth() {
   );
 
   // Google login mutation - ✅ Use core hook
-  const googleLoginMutation = useMutationOperation<GoogleLoginResponse, string>(
-    async (token: string) => {
-      const result = await googleLoginAction(token);
+  const googleLoginMutation = useMutationOperation<GoogleLoginResponse, { token: string; clinicId?: string | undefined }>(
+    async (data: { token: string; clinicId?: string | undefined }) => {
+      const result = await googleLoginAction(data.token, data.clinicId);
 
       if (!result) {
         throw new Error('Google login failed: No response from server');
@@ -416,7 +416,10 @@ export function useAuth() {
     }
   );
   
-  const googleLogin = googleLoginMutation.mutateAsync;
+  const googleLogin = useCallback(
+    (token: string, clinicId?: string | undefined) => googleLoginMutation.mutateAsync({ token, clinicId }),
+    [googleLoginMutation]
+  );
   const isGoogleLoggingIn = googleLoginMutation.isPending;
 
   // Register mutation - ✅ Use core hook
@@ -785,8 +788,8 @@ export function useAuth() {
   const isVerifyingEmail = verifyEmailMutation.isPending;
 
   // Social Login mutations - ✅ Use core hooks
-  const facebookLoginMutation = useMutationOperation<AuthResponse, string>(
-    (token) => facebookLoginAction(token),
+  const facebookLoginMutation = useMutationOperation<AuthResponse, { token: string; clinicId?: string | undefined }>(
+    (data) => facebookLoginAction(data.token, data.clinicId),
     {
       toastId: TOAST_IDS.AUTH.SOCIAL_LOGIN,
       loadingMessage: 'Logging in with Facebook...',
@@ -802,12 +805,15 @@ export function useAuth() {
     }
   );
   
-  const facebookLogin = facebookLoginMutation.mutate;
+  const facebookLogin = useCallback(
+    (token: string, clinicId?: string | undefined) => facebookLoginMutation.mutateAsync({ token, clinicId }),
+    [facebookLoginMutation]
+  );
   const isFacebookLoggingIn = facebookLoginMutation.isPending;
 
-  const appleLoginMutation = useMutationOperation<{ success: boolean; user?: User; error?: string }, string>(
-    async (token: string) => {
-      const result = await appleLoginAction(token);
+  const appleLoginMutation = useMutationOperation<{ success: boolean; user?: User; error?: string }, { token: string; clinicId?: string | undefined }>(
+    async (data: { token: string; clinicId?: string | undefined }) => {
+      const result = await appleLoginAction(data.token, data.clinicId);
       if (!result.success) {
         throw new Error(result.error || 'Apple login failed');
       }
@@ -831,7 +837,10 @@ export function useAuth() {
     }
   );
   
-  const appleLogin = appleLoginMutation.mutateAsync;
+  const appleLogin = useCallback(
+    (token: string, clinicId?: string | undefined) => appleLoginMutation.mutateAsync({ token, clinicId }),
+    [appleLoginMutation]
+  );
   const isAppleLoggingIn = appleLoginMutation.isPending;
 
   return {

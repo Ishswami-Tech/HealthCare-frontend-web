@@ -62,9 +62,6 @@ const TREATMENT_CATEGORIES: TreatmentCategory[] = [
 export default function PatientAppointments() {
   const router = useRouter();
   useWebSocketQuerySync();
-  const { data: appointmentsData, isPending: isPendingAppointments } = useMyAppointments();
-  const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
-  const openQrGate = usePatientUiStore((state) => state.openQrGate);
   const searchParams = useSearchParams();
   const queryClinicId = searchParams.get("clinicId") || undefined;
   const queryLocationId = searchParams.get("locationId") || undefined;
@@ -73,6 +70,11 @@ export default function PatientAppointments() {
   const shouldOpenBooking = searchParams.get("openBooking") === "1";
   const defaultConsultationMode =
     bookingMode?.toUpperCase() === "VIDEO" ? "VIDEO" : undefined;
+  const { data: appointmentsData, isPending: isPendingAppointments } = useMyAppointments(
+    queryClinicId ? { clinicId: queryClinicId } : undefined
+  );
+  const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
+  const openQrGate = usePatientUiStore((state) => state.openQrGate);
   const hasInPersonAppointment = useMemo(() => {
     const appointments = Array.isArray((appointmentsData as any)?.appointments)
       ? (appointmentsData as any).appointments

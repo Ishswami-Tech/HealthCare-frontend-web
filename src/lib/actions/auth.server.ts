@@ -42,6 +42,11 @@ if (!API_URL) {
 
 const CLINIC_ID = APP_CONFIG.CLINIC.ID;
 
+function resolveClinicContextId(clinicId?: string | null): string {
+  const normalizedClinicId = normalizeClinicId(clinicId);
+  return normalizedClinicId || CLINIC_ID;
+}
+
 let hasLoggedEnvironment = false;
 if ((APP_CONFIG.IS_DEVELOPMENT || APP_CONFIG.FEATURES.DEBUG) && !hasLoggedEnvironment) {
   hasLoggedEnvironment = true;
@@ -992,7 +997,7 @@ export async function clearSession() {
   });
 }
 
-export async function login(data: { email: string; password?: string; otp?: string; rememberMe?: boolean }) {
+export async function login(data: { email: string; password?: string; otp?: string; rememberMe?: boolean; clinicId?: string | undefined }) {
   try {
     if (!data.email) {
       throw new Error('Email is required');
@@ -1004,6 +1009,7 @@ export async function login(data: { email: string; password?: string; otp?: stri
     
     const requestBody: Record<string, unknown> = {
       email: data.email,
+      clinicId: resolveClinicContextId(data.clinicId),
     };
 
     if (data.password) requestBody.password = data.password;
@@ -1189,9 +1195,6 @@ export async function login(data: { email: string; password?: string; otp?: stri
 
 export async function register(data: RegisterFormData): Promise<AuthResponse | { error: string }> {
   try {
-    // ✅ clinicId validation removed - backend will use X-Clinic-ID header
-    // The header is automatically set by clinicApiClient
-    
     // Calculate dateOfBirth from age if provided
     let dateOfBirth: string | undefined;
     if (data.dateOfBirth) {
@@ -1208,7 +1211,7 @@ export async function register(data: RegisterFormData): Promise<AuthResponse | {
       firstName: data.firstName.trim(),
       lastName: data.lastName.trim(),
       phone: (data.phone || '').trim(),
-      // ✅ clinicId removed - will be sent via X-Clinic-ID header only
+      clinicId: resolveClinicContextId(data.clinicId),
       ...(data.role && { role: data.role }),
       ...(data.gender && { gender: data.gender.toUpperCase() }),
       ...(dateOfBirth && { dateOfBirth }),
@@ -1234,7 +1237,7 @@ export async function requestOTP(data: OtpRequestFormData): Promise<{ success: b
   try {
     const requestBody = {
       identifier: data.identifier,
-      clinicId: CLINIC_ID,
+      clinicId: resolveClinicContextId(data.clinicId),
       ...(data.isRegistration !== undefined ? { isRegistration: data.isRegistration } : {}),
     };
     const response = await clinicApiClient.requestOTP(requestBody);
@@ -1275,11 +1278,11 @@ export async function verifyEmail(email: string, otp: string): Promise<{ success
   }
 }
 
-export async function resendVerification(email: string): Promise<{ success: boolean; message: string }> {
+export async function resendVerification(email: string, clinicId?: string | undefined): Promise<{ success: boolean; message: string }> {
   try {
     const response = await clinicApiClient.post(API_ENDPOINTS.AUTH.RESEND_VERIFICATION, {
         email,
-        clinicId: CLINIC_ID
+        clinicId: resolveClinicContextId(clinicId)
     });
     return response.data as { success: boolean; message: string };
   } catch (error) {
@@ -1295,7 +1298,7 @@ export async function verifyOTP(data: OtpVerifyFormData): Promise<AuthResponse> 
     const requestBody = {
       identifier: data.identifier,
       otp: data.otp,
-      clinicId: CLINIC_ID,
+      clinicId: resolveClinicContextId(data.clinicId),
       ...(data.rememberMe !== undefined ? { rememberMe: data.rememberMe } : {}),
       ...(data.isRegistration !== undefined ? { isRegistration: data.isRegistration } : {}),
       ...(data.firstName ? { firstName: data.firstName } : {}),
@@ -1366,8 +1369,12 @@ export async function verifyMagicLink(token: string): Promise<AuthResponse> {
     return normalizedResult as AuthResponse;
 }
 
-export async function socialLogin(data: { provider: string; token: string }): Promise<AuthResponse> {
-    const response = await clinicApiClient.socialLogin(data);
+export async function socialLogin(data: { provider: string; token: string; clinicId?: string | undefined }): Promise<AuthResponse> {
+    const response = await clinicApiClient.socialLogin({
+      provider: data.provider,
+      token: data.token,
+      clinicId: resolveClinicContextId(data.clinicId),
+    });
     const responseData = response.data as Record<string, any>;
     const result = responseData.data || responseData;
     const normalizedResult = {
@@ -1695,9 +1702,13 @@ export async function checkAuth() {
 }
 
 
-export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
+export async function googleLogin(
+  token: string,
+  clinicId?: string | undefined
+): Promise<GoogleLoginResponse> {
   try {
-    logger.info('Starting Google login', { apiUrl: API_URL, clinicId: CLINIC_ID });
+    const resolvedClinicId = resolveClinicContextId(clinicId);
+    logger.info('Starting Google login', { apiUrl: API_URL, clinicId: resolvedClinicId });
     
     const isApiConnected = await checkApiConnection();
     if (!isApiConnected) {
@@ -1712,7 +1723,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
     const response = await clinicApiClient.socialLogin({
       provider: 'google',
       token,
-      clinicId: CLINIC_ID
+      clinicId: resolvedClinicId
     });
 
     const responseData = response.data as Record<string, any>;
@@ -1766,7 +1777,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
              headers: {
                'Authorization': `Bearer ${result.access_token}`,
                'X-Session-ID': result.session_id || '',
-               'X-Clinic-ID': CLINIC_ID || ''
+               'X-Clinic-ID': resolvedClinicId || ''
              }
            }
         );
@@ -1834,11 +1845,12 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
   }
 }
 
-export async function facebookLogin(token: string): Promise<AuthResponse> {
+export async function facebookLogin(token: string, clinicId?: string | undefined): Promise<AuthResponse> {
+  const resolvedClinicId = resolveClinicContextId(clinicId);
   const response = await clinicApiClient.socialLogin({ 
     provider: 'facebook', 
     token,
-    clinicId: CLINIC_ID 
+    clinicId: resolvedClinicId
   });
   const responseData = response.data as Record<string, any>;
   const result = responseData.data || responseData;
@@ -1856,11 +1868,12 @@ export async function facebookLogin(token: string): Promise<AuthResponse> {
   return normalizedResult as AuthResponse;
 }
 
-export async function appleLogin(token: string): Promise<{ success: boolean; user?: User; error?: string }> {
+export async function appleLogin(token: string, clinicId?: string | undefined): Promise<{ success: boolean; user?: User; error?: string }> {
+  const resolvedClinicId = resolveClinicContextId(clinicId);
   const response = await clinicApiClient.socialLogin({ 
     provider: 'apple', 
     token,
-    clinicId: CLINIC_ID
+    clinicId: resolvedClinicId
   });
   const responseData = response.data as Record<string, any>;
   const result = responseData.data || responseData;

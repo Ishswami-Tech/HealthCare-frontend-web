@@ -1317,6 +1317,7 @@ export const useAppointmentContext = () => {
  * Hook for fetching my appointments
  */
 export const useMyAppointments = (filters?: {
+  clinicId?: string;
   status?: string;
   date?: string;
   page?: number;
@@ -1335,7 +1336,16 @@ export const useMyAppointments = (filters?: {
     async (): Promise<any> => {
       // Use server action path so appointmentDate -> date/time normalization
       // stays consistent with the rest of appointment surfaces.
-      const result = await getMyAppointments(filters);
+      const resolvedClinicId =
+        filters?.clinicId ||
+        (await getClinicId()) ||
+        (session?.user as { clinicId?: string; primaryClinicId?: string } | undefined)?.clinicId ||
+        (session?.user as { clinicId?: string; primaryClinicId?: string } | undefined)?.primaryClinicId ||
+        undefined;
+      const result = await getMyAppointments({
+        ...(filters || {}),
+        ...(resolvedClinicId ? { clinicId: resolvedClinicId } : {}),
+      });
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch appointments');
       }

@@ -893,11 +893,14 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
           ) {
             if (!invoice && !payment) {
               invalidateBillingQueryFamilies(queryClient);
-          } else {
+            } else {
               queryClient.invalidateQueries({ queryKey: ['clinic-ledger'], exact: false });
               queryClient.invalidateQueries({ queryKey: ['billing-analytics'], exact: false });
-          }
+            }
             invalidateDashboardQueryFamilies(queryClient);
+            if (event === 'payment.completed' || event === 'billing.payment.updated') {
+              invalidateAppointmentQueries();
+            }
           }
 
           if (appointmentId && event.startsWith('billing.payment.')) {

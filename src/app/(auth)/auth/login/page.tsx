@@ -47,6 +47,7 @@ type SuccessPhase = "none" | "alert" | "redirecting";
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClinicId = searchParams.get("clinicId") || undefined;
   const [view, setView] = useState<LoginMethod>("selection");
   const [showOTPInput, setShowOTPInput] = useState(false);
   const [otpMethod, setOtpMethod] = useState<OtpMethod>("email");
@@ -142,6 +143,7 @@ export default function LoginPage() {
         email: data.email,
         password: data.password,
         rememberMe: data.rememberMe,
+        clinicId: queryClinicId,
       });
       triggerSuccessFlow();
       return result;
@@ -153,7 +155,7 @@ export default function LoginPage() {
   const otpMutation = async (
     data: z.infer<typeof otpSchema>,
   ): Promise<AuthResponse> => {
-    const result = await verifyOTP(data as OTPFormData);
+    const result = await verifyOTP({ ...(data as OTPFormData), clinicId: queryClinicId });
     triggerSuccessFlow();
     return result;
   };
@@ -172,7 +174,7 @@ export default function LoginPage() {
 
   const handleRequestOTP = async (identifier: string) => {
     try {
-      await requestOTP({ identifier });
+      await requestOTP({ identifier, clinicId: queryClinicId });
       setShowOTPInput(true);
     } catch (error) {
       // Handled by hook
@@ -189,6 +191,7 @@ export default function LoginPage() {
     <div className="space-y-4">
       <SocialLogin
         showDivider={false}
+        clinicId={queryClinicId}
         onLoadingStateChange={setIsSocialLoginLoading}
         onSuccess={triggerSuccessFlow}
         onError={(error) => {

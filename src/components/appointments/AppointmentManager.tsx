@@ -190,9 +190,10 @@ export default function AppointmentManager({
   const personalFilters = useMemo(() => {
     if (isAdminView) return undefined;
     const filters: any = {};
+    if (propClinicId) filters.clinicId = propClinicId;
     if (dateFilter.start) filters.date = dateFilter.start;
     return filters;
-  }, [isAdminView, dateFilter.start]);
+  }, [isAdminView, dateFilter.start, propClinicId]);
 
   const adminAppointments = useAppointments(adminFilters);
   const myPersonalAppointments = useMyAppointments(personalFilters);

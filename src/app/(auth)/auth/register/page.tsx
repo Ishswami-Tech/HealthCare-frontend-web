@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -47,6 +47,8 @@ type OtpMethod = "email" | "phone";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryClinicId = searchParams.get("clinicId") || undefined;
   const { register: registerUser, isPending } = useAuth();
   
   // State for view navigation
@@ -108,7 +110,7 @@ export default function RegisterPage() {
     registerSchema,
     async (values: any) => {
       setFormError(null);
-      const formData = { ...values, role: Role.PATIENT };
+      const formData = { ...values, role: Role.PATIENT, clinicId: queryClinicId };
       
       const result = await executeAuthOperation(async () => {
         return await registerUser(formData as RegisterData);
@@ -270,6 +272,7 @@ export default function RegisterPage() {
       {/* Hidden SocialLogin component to handle logic */}
       <div className="hidden">
            <SocialLogin
+            clinicId={queryClinicId}
             onLoadingStateChange={setIsSocialLoginLoading}
             onError={(error) => {
                  showErrorToast(error.message, { id: TOAST_IDS.AUTH.SOCIAL_LOGIN });
@@ -334,8 +337,8 @@ export default function RegisterPage() {
       </div>
 
       <div className="mt-6">
-        {otpMethod === "email" && <EmailOtpRegisterForm />}
-        {otpMethod === "phone" && <PhoneOtpRegisterForm />}
+        {otpMethod === "email" && <EmailOtpRegisterForm clinicId={queryClinicId} />}
+        {otpMethod === "phone" && <PhoneOtpRegisterForm clinicId={queryClinicId} />}
       </div>
     </div>
   );

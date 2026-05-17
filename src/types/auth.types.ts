@@ -48,6 +48,7 @@ export interface OTPData {
 export interface SocialLoginData {
   provider: string;
   token: string;
+  clinicId?: string | undefined;
 }
 
 export interface ResetPasswordFormData {
@@ -126,6 +127,7 @@ export interface OTPFormData {
   isRegistration?: boolean;
   firstName?: string;
   lastName?: string;
+  clinicId?: string | undefined;
 }
 
 // User Types
@@ -271,6 +273,7 @@ export interface PasswordLoginFormData {
 export interface OtpRequestFormData {
   identifier: string;
   isRegistration?: boolean;
+  clinicId?: string | undefined;
 }
 
 export interface OtpVerifyFormData {
@@ -280,6 +283,7 @@ export interface OtpVerifyFormData {
   isRegistration?: boolean;
   firstName?: string;
   lastName?: string;
+  clinicId?: string | undefined;
 }
 
 export interface ProfileCompletionFormData {
