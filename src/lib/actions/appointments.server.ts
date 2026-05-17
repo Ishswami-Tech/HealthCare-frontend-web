@@ -636,6 +636,14 @@ export async function getMyAppointments(filters?: any) {
       filters?.clinicId ||
       sessionUser?.clinicId ||
       sessionUser?.primaryClinicId;
+
+    if (!resolvedClinicId) {
+      return {
+        success: false,
+        error: 'Clinic context is required to fetch appointments.',
+        code: 'CLINIC_CONTEXT_REQUIRED' as const,
+      };
+    }
     const normalizedFilters = {
       page: 1,
       limit: 100,
@@ -1219,8 +1227,16 @@ export async function getUserUpcomingAppointments(filters?: { clinicId?: string 
       sessionUser?.clinicId ||
       sessionUser?.primaryClinicId;
 
+    if (!resolvedClinicId) {
+      return {
+        success: false,
+        error: 'Clinic context is required to fetch upcoming appointments.',
+        code: 'CLINIC_CONTEXT_REQUIRED' as const,
+      };
+    }
+
     const { data } = await authenticatedApi<Appointment[]>(API_ENDPOINTS.APPOINTMENTS.UPCOMING, {
-      ...(resolvedClinicId ? { headers: { 'X-Clinic-ID': resolvedClinicId } } : {}),
+      headers: { 'X-Clinic-ID': resolvedClinicId },
       omitClinicId: true,
     });
     return { success: true, appointments: data };

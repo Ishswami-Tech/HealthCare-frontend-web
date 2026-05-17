@@ -767,7 +767,6 @@ export const useCurrentClinicId = () => {
     currentClinic?.id ||
       sessionUser?.clinicId ||
       sessionUser?.clinic?.id ||
-      APP_CONFIG.CLINIC.ID ||
       ""
   );
 };

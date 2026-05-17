@@ -782,13 +782,22 @@ export function BookAppointmentDialog({
       return selectedPatientId;
     }
 
+    // currentPatientProfile is a User object with nested patient object
+    // We need the Patient entity ID (patient.id), not the User ID
     const patientRecordId =
       (currentPatientProfile as any)?.patient?.id ||
-      (currentPatientProfile as any)?.patientId ||
-      (currentPatientProfile as any)?.id;
+      (currentPatientProfile as any)?.patientId;
+
+    if (!patientRecordId) {
+      console.warn('[BookAppointmentDialog] Patient profile not found or missing patient.id', {
+        hasProfile: !!currentPatientProfile,
+        userId: session?.user?.id,
+        profileKeys: currentPatientProfile ? Object.keys(currentPatientProfile) : [],
+      });
+    }
 
     return patientRecordId || "";
-  }, [currentPatientProfile, isPrivilegedScheduler, selectedPatientId]);
+  }, [currentPatientProfile, isPrivilegedScheduler, selectedPatientId, session?.user?.id]);
 
   const activeSubscription = useMemo(() => {
     const candidates = (subscriptionsData as any[])
