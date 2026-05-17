@@ -53,6 +53,7 @@ export function StoreProvider({ children }: StoreProviderProps) {
       name: authUser.name || `${authUser.firstName || ''} ${authUser.lastName || ''}`.trim(),
       role: authUser.role as AppUser['role'],
       clinicId: authUser.clinicId ?? '',
+      clinicName: authUser.clinicName ?? '',
       avatarUrl: authUser.profilePicture ?? '',
       permissions: [],
       isActive:

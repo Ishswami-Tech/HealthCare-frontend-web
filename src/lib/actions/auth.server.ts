@@ -57,6 +57,51 @@ function extractClinicIdFromTokenValue(token?: string): string | undefined {
   );
 }
 
+function extractClinicNameFromPayload(
+  payload: Record<string, unknown> | null | undefined
+): string | undefined {
+  if (!payload) {
+    return undefined;
+  }
+
+  const directClinicName = payload['clinicName'];
+  if (typeof directClinicName === 'string' && directClinicName.trim()) {
+    return directClinicName.trim();
+  }
+
+  const nestedUser = payload['user'];
+  if (nestedUser && typeof nestedUser === 'object') {
+    const nestedClinicName = (nestedUser as Record<string, unknown>)['clinicName'];
+    if (typeof nestedClinicName === 'string' && nestedClinicName.trim()) {
+      return nestedClinicName.trim();
+    }
+  }
+
+  return undefined;
+}
+
+function normalizeAuthUserPayload(
+  user: Record<string, unknown> | null | undefined,
+  token?: string
+): Record<string, unknown> {
+  const clinicId = normalizeClinicId(
+    (typeof user?.clinicId === 'string' ? user.clinicId : undefined) ||
+      (typeof user?.primaryClinicId === 'string' ? user.primaryClinicId : undefined) ||
+      extractClinicIdFromTokenValue(token)
+  );
+
+  const clinicName =
+    (typeof user?.clinicName === 'string' && user.clinicName.trim()) ||
+    extractClinicNameFromPayload(parseJwtPayload(token || '')) ||
+    undefined;
+
+  return {
+    ...(user || {}),
+    ...(clinicId ? { clinicId } : {}),
+    ...(clinicName ? { clinicName } : {}),
+  };
+}
+
 let hasLoggedEnvironment = false;
 if ((APP_CONFIG.IS_DEVELOPMENT || APP_CONFIG.FEATURES.DEBUG) && !hasLoggedEnvironment) {
   hasLoggedEnvironment = true;
@@ -455,6 +500,8 @@ interface GoogleLoginResponse {
     role: Role;
     isNewUser?: boolean;
     googleId?: string;
+    clinicId?: string;
+    clinicName?: string;
     profileComplete?: boolean;
   };
   token?: string;
@@ -601,7 +648,8 @@ export async function getServerSession(): Promise<Session | null> {
           ...extractNamePartsFromPayload(payload),
           isVerified: true,
           profileComplete: profileComplete,
-          clinicId: resolvedClinicId
+          clinicId: resolvedClinicId,
+          ...(extractClinicNameFromPayload(payload) ? { clinicName: extractClinicNameFromPayload(payload) } : {})
         },
         access_token: accessToken,
         session_id: sessionId || '',
@@ -983,6 +1031,12 @@ export async function clearSession() {
   });
 
   cookieStore.set({
+    name: 'clinic_name',
+    value: '',
+    ...expiredOptions,
+  });
+
+  cookieStore.set({
     name: 'profile_complete',
     value: '',
     ...expiredOptions,
@@ -1035,13 +1089,10 @@ export async function login(data: { email: string; password?: string; otp?: stri
       access_token: resultData.access_token || resultData.accessToken,
       refresh_token: resultData.refresh_token || resultData.refreshToken,
       session_id: resultData.session_id || resultData.sessionId,
-      user: {
-        ...resultData.user,
-        clinicId:
-          resultData.user?.clinicId ||
-          resultData.user?.primaryClinicId ||
-          extractClinicIdFromTokenValue(resultData.access_token || resultData.accessToken),
-      },
+      user: normalizeAuthUserPayload(
+        resultData.user,
+        resultData.access_token || resultData.accessToken
+      ),
     };
     
     const normalizedResult = {
@@ -1049,13 +1100,7 @@ export async function login(data: { email: string; password?: string; otp?: stri
       access_token: result.access_token || result.accessToken,
       refresh_token: result.refresh_token || result.refreshToken,
       session_id: result.session_id || result.sessionId,
-      user: {
-        ...result.user,
-        clinicId:
-          result.user?.clinicId ||
-          result.user?.primaryClinicId ||
-          extractClinicIdFromTokenValue(result.access_token || result.accessToken),
-      },
+      user: normalizeAuthUserPayload(result.user, result.access_token || result.accessToken),
     };
     
     let sessionId = normalizedResult.session_id;
@@ -1264,13 +1309,10 @@ export async function requestOTP(data: OtpRequestFormData): Promise<{ success: b
       access_token: resultData.access_token || resultData.accessToken,
       refresh_token: resultData.refresh_token || resultData.refreshToken,
       session_id: resultData.session_id || resultData.sessionId,
-      user: {
-        ...resultData.user,
-        clinicId:
-          resultData.user?.clinicId ||
-          resultData.user?.primaryClinicId ||
-          extractClinicIdFromTokenValue(resultData.access_token || resultData.accessToken),
-      },
+      user: normalizeAuthUserPayload(
+        resultData.user,
+        resultData.access_token || resultData.accessToken
+      ),
     };
     return {
       success: result.success ?? true,
@@ -1332,13 +1374,10 @@ export async function verifyOTP(data: OtpVerifyFormData): Promise<AuthResponse> 
       access_token: resultData.access_token || resultData.accessToken,
       refresh_token: resultData.refresh_token || resultData.refreshToken,
       session_id: resultData.session_id || resultData.sessionId,
-      user: {
-        ...resultData.user,
-        clinicId:
-          resultData.user?.clinicId ||
-          resultData.user?.primaryClinicId ||
-          extractClinicIdFromTokenValue(resultData.access_token || resultData.accessToken),
-      },
+      user: normalizeAuthUserPayload(
+        resultData.user,
+        resultData.access_token || resultData.accessToken
+      ),
     };
     const normalizedResult = {
       ...result,
@@ -1385,13 +1424,10 @@ export async function verifyMagicLink(token: string): Promise<AuthResponse> {
       access_token: resultData.access_token || resultData.accessToken,
       refresh_token: resultData.refresh_token || resultData.refreshToken,
       session_id: resultData.session_id || resultData.sessionId,
-      user: {
-        ...resultData.user,
-        clinicId:
-          resultData.user?.clinicId ||
-          resultData.user?.primaryClinicId ||
-          extractClinicIdFromTokenValue(resultData.access_token || resultData.accessToken),
-      },
+      user: normalizeAuthUserPayload(
+        resultData.user,
+        resultData.access_token || resultData.accessToken
+      ),
     };
     await setAuthCookies(normalizedResult);
     return normalizedResult as AuthResponse;
@@ -1410,13 +1446,7 @@ export async function socialLogin(data: { provider: string; token: string; clini
       access_token: result.access_token || result.accessToken,
       refresh_token: result.refresh_token || result.refreshToken,
       session_id: result.session_id || result.sessionId,
-      user: {
-        ...result.user,
-        clinicId:
-          result.user?.clinicId ||
-          result.user?.primaryClinicId ||
-          extractClinicIdFromTokenValue(result.access_token || result.accessToken),
-      },
+      user: normalizeAuthUserPayload(result.user, result.access_token || result.accessToken),
     };
     
     await setAuthCookies(normalizedResult);
@@ -1535,6 +1565,7 @@ async function setAuthCookies(data: {
     role?: Role;
     profileComplete?: boolean;
     clinicId?: string;
+    clinicName?: string;
     firstName?: string;
     lastName?: string;
     name?: string;
@@ -1588,6 +1619,15 @@ async function setAuthCookies(data: {
     cookieStore.set({
       name: 'clinic_id',
       value: normalizedClinicId,
+      ...sessionOptions,
+    });
+  }
+
+  const clinicName = typeof data.user?.clinicName === 'string' ? data.user.clinicName.trim() : '';
+  if (clinicName) {
+    cookieStore.set({
+      name: 'clinic_name',
+      value: clinicName,
       ...sessionOptions,
     });
   }
@@ -1775,16 +1815,15 @@ export async function googleLogin(
       access_token: accessToken,
       refresh_token: refreshToken,
       session_id: sessionId,
-      user: {
-        ...resultData.user,
-        firstName: resolvedUserFirstName,
-        lastName: resolvedUserLastName,
-        name: resolvedUserName,
-        clinicId:
-          resultData.user?.clinicId ||
-          resultData.user?.primaryClinicId ||
-          extractClinicIdFromTokenValue(accessToken),
-      },
+      user: normalizeAuthUserPayload(
+        {
+          ...resultData.user,
+          firstName: resolvedUserFirstName,
+          lastName: resolvedUserLastName,
+          name: resolvedUserName,
+        },
+        accessToken
+      ),
     };
 
     if (!result?.access_token || !result?.user) {
@@ -1864,6 +1903,8 @@ export async function googleLogin(
         lastName: result.user.lastName || '',
         isNewUser: result.isNewUser,
         googleId: result.user.googleId,
+        clinicId: result.user.clinicId,
+        clinicName: result.user.clinicName,
         profileComplete: resolveProfileComplete(result.user as Record<string, unknown>)
       },
       token: result.access_token,
@@ -1893,13 +1934,7 @@ export async function facebookLogin(token: string, clinicId?: string | undefined
       access_token: result.access_token || result.accessToken,
       refresh_token: result.refresh_token || result.refreshToken,
       session_id: result.session_id || result.sessionId,
-      user: {
-        ...result.user,
-        clinicId:
-          result.user?.clinicId ||
-          result.user?.primaryClinicId ||
-          extractClinicIdFromTokenValue(result.access_token || result.accessToken),
-      },
+      user: normalizeAuthUserPayload(result.user, result.access_token || result.accessToken),
     };
   await setAuthCookies(normalizedResult);
   return normalizedResult as AuthResponse;
@@ -1919,13 +1954,7 @@ export async function appleLogin(token: string, clinicId?: string | undefined): 
       access_token: result.access_token || result.accessToken,
       refresh_token: result.refresh_token || result.refreshToken,
       session_id: result.session_id || result.sessionId,
-      user: {
-        ...result.user,
-        clinicId:
-          result.user?.clinicId ||
-          result.user?.primaryClinicId ||
-          extractClinicIdFromTokenValue(result.access_token || result.accessToken),
-      },
+      user: normalizeAuthUserPayload(result.user, result.access_token || result.accessToken),
     };
   await setAuthCookies(normalizedResult);
   return normalizedResult as { success: boolean; user?: User; error?: string };

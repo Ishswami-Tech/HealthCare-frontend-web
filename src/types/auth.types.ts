@@ -144,6 +144,7 @@ export interface User {
   googleId?: string | undefined;
   phone?: string | undefined;
   clinicId?: string | undefined;
+  clinicName?: string | undefined;
   createdAt?: string | undefined;
   updatedAt?: string | undefined;
   dateOfBirth?: string | null | undefined;
@@ -202,6 +203,8 @@ export interface GoogleLoginResponse {
     role: Role;
     isNewUser?: boolean;
     googleId?: string;
+    clinicId?: string;
+    clinicName?: string;
     profileComplete?: boolean;
   };
   token?: string;

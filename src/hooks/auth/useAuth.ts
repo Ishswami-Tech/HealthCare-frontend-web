@@ -59,6 +59,8 @@ interface GoogleLoginResponse {
   user: User & {
     isNewUser?: boolean;
     googleId?: string;
+    clinicId?: string;
+    clinicName?: string;
   };
   token?: string;
   redirectUrl?: string;
@@ -367,6 +369,7 @@ export function useAuth() {
             isVerified: true,
             googleId: data.user.googleId || '',
             ...(clinicId ? { clinicId } : {}),
+            ...(data.user.clinicName ? { clinicName: data.user.clinicName } : {}),
             profileComplete: initialProfileComplete
           },
           access_token: data.token || '',

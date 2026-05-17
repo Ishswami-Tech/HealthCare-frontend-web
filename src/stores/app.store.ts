@@ -13,6 +13,7 @@ export interface User {
   name: string;
   role: 'SUPER_ADMIN' | 'CLINIC_ADMIN' | 'DOCTOR' | 'RECEPTIONIST' | 'PHARMACIST' | 'PATIENT';
   clinicId?: string;
+  clinicName?: string;
   avatarUrl?: string;
   permissions: string[];
   isActive: boolean;

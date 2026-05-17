@@ -26,7 +26,8 @@ function isSameUser(a: User | null | undefined, b: User | null | undefined): boo
     a.phone === b.phone &&
     a.isVerified === b.isVerified &&
     a.profileComplete === b.profileComplete &&
-    a.clinicId === b.clinicId
+    a.clinicId === b.clinicId &&
+    a.clinicName === b.clinicName
   );
 }
 
