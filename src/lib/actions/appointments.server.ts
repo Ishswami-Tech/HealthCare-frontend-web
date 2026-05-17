@@ -1218,28 +1218,38 @@ export async function getDoctorAvailability(clinicId: string, doctorId: string, 
  */
 export async function getUserUpcomingAppointments(filters?: { clinicId?: string }) {
   try {
-    const session = await getServerSession();
-    const sessionUser = session?.user as
-      | { clinicId?: string; primaryClinicId?: string }
-      | undefined;
-    const resolvedClinicId =
-      filters?.clinicId ||
-      sessionUser?.clinicId ||
-      sessionUser?.primaryClinicId;
+    const result = await getMyAppointments({
+      ...(filters?.clinicId ? { clinicId: filters.clinicId } : {}),
+      limit: 100,
+    });
 
-    if (!resolvedClinicId) {
-      return {
-        success: false,
-        error: 'Clinic context is required to fetch upcoming appointments.',
-        code: 'CLINIC_CONTEXT_REQUIRED' as const,
-      };
+    if (!result.success) {
+      return result;
     }
 
-    const { data } = await authenticatedApi<Appointment[]>(API_ENDPOINTS.APPOINTMENTS.UPCOMING, {
-      headers: { 'X-Clinic-ID': resolvedClinicId },
-      omitClinicId: true,
-    });
-    return { success: true, appointments: data };
+    const now = new Date();
+    const appointments = Array.isArray(result.appointments)
+      ? (result.appointments as Array<Record<string, unknown>>).filter(appointment => {
+          const status = String(appointment.status || '').toUpperCase();
+          if (['CANCELLED', 'COMPLETED', 'NO_SHOW'].includes(status)) {
+            return false;
+          }
+
+          const dateValue =
+            typeof appointment.appointmentDate === 'string'
+              ? appointment.appointmentDate
+              : typeof appointment.date === 'string' && typeof appointment.time === 'string'
+                ? `${appointment.date}T${appointment.time}`
+                : typeof appointment.date === 'string'
+                  ? appointment.date
+                  : undefined;
+          const appointmentDate = dateValue ? new Date(dateValue) : null;
+
+          return !appointmentDate || Number.isNaN(appointmentDate.getTime()) || appointmentDate >= now;
+        })
+      : [];
+
+    return { success: true, appointments };
   } catch (error) {
     logger.error('Failed to get upcoming appointments', error instanceof Error ? error : new Error(String(error)));
     return { success: false, error: 'Failed to fetch upcoming appointments' };

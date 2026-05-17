@@ -1192,7 +1192,7 @@ export class ClinicApiClient extends ApiClient {
   }
 
   async getUserUpcomingAppointments(userId: string) {
-    return this.get(API_ENDPOINTS.APPOINTMENTS.UPCOMING, { userId });
+    return this.get(API_ENDPOINTS.APPOINTMENTS.UPCOMING(userId));
   }
 
   // ✅ Queue Management Methods

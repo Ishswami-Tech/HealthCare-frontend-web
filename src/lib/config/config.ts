@@ -454,7 +454,7 @@ export const API_ENDPOINTS = {
       VERIFY: '/appointments/verify-qr',
     },
     ANALYTICS: '/appointments/analytics/wait-times',
-    UPCOMING: '/appointments/upcoming',
+    UPCOMING: (userId: string) => `/appointments/user/${userId}/upcoming`,
     TEST_CONTEXT: '/appointments/test/context',
   },
   

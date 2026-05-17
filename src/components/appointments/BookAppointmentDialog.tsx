@@ -37,7 +37,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useQueryClient } from "@/hooks/core";
 import { useDoctors } from "@/hooks/query/useDoctors";
-import { usePatient, usePatients, useQuickRegisterPatient } from "@/hooks/query/usePatients";
+import { usePatients, useQuickRegisterPatient } from "@/hooks/query/usePatients";
+import { useUserProfile } from "@/hooks/query/useUsers";
 import {
   useAppointmentServices,
   useCreateAppointment,
@@ -55,7 +56,7 @@ import { useWebSocketContext } from "@/app/providers/WebSocketProvider";
 import { useRBAC } from "@/hooks/utils/useRBAC";
 import { getAppointmentStatsQueryKey } from "@/lib/query/appointment-query-keys";
 import { createPaymentIntent, verifyPaymentCallback } from "@/lib/actions/billing.server";
-import { updateUserProfile } from "@/lib/actions/users.server";
+import { getUserProfile, updateUserProfile } from "@/lib/actions/users.server";
 import {
   dismissToast,
   showErrorToast,
@@ -537,10 +538,7 @@ export function BookAppointmentDialog({
     { limit: 200, isActive: true },
     shouldLoadPatients ? { enabled: true } : undefined
   );
-  const { data: currentPatientProfile } = usePatient(
-    activeClinicId,
-    userRole === "PATIENT" ? session?.user?.id || "" : ""
-  );
+  const { data: currentPatientProfile } = useUserProfile();
 
   const clinicVideoCallWindow = useMemo(() => {
     const normalizeWindowTime = (value: unknown): string | null => {
@@ -1432,8 +1430,8 @@ export function BookAppointmentDialog({
         }
 
         const refreshedProfile = (await queryClient.fetchQuery({
-          queryKey: ["patient", activeClinicId, session?.user?.id || ""],
-          queryFn: async () => await (await import("@/lib/actions/patients.server")).getPatientById(activeClinicId, session?.user?.id || ""),
+          queryKey: ["userProfile"],
+          queryFn: async () => await getUserProfile(),
         })) as Record<string, unknown> | undefined;
 
         bookingPatientId =
