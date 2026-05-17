@@ -1209,9 +1209,22 @@ export async function getDoctorAvailability(clinicId: string, doctorId: string, 
 /**
  * Get user upcoming appointments
  */
-export async function getUserUpcomingAppointments() {
+export async function getUserUpcomingAppointments(filters?: { clinicId?: string }) {
   try {
-    const { data } = await authenticatedApi<Appointment[]>(API_ENDPOINTS.APPOINTMENTS.UPCOMING, {});
+    const session = await getServerSession();
+    const sessionUser = session?.user as
+      | { clinicId?: string; primaryClinicId?: string }
+      | undefined;
+    const resolvedClinicId =
+      filters?.clinicId ||
+      sessionUser?.clinicId ||
+      sessionUser?.primaryClinicId ||
+      APP_CONFIG.CLINIC.ID;
+
+    const { data } = await authenticatedApi<Appointment[]>(API_ENDPOINTS.APPOINTMENTS.UPCOMING, {
+      ...(resolvedClinicId ? { headers: { 'X-Clinic-ID': resolvedClinicId } } : {}),
+      omitClinicId: true,
+    });
     return { success: true, appointments: data };
   } catch (error) {
     logger.error('Failed to get upcoming appointments', error instanceof Error ? error : new Error(String(error)));

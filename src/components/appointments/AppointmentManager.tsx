@@ -27,6 +27,7 @@ import {
 import { showErrorToast, showInfoToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 import { useAuth } from "@/hooks/auth/useAuth";
+import { useQueryClient } from "@/hooks/core";
 import { useWebSocketStatus } from "@/app/providers/WebSocketProvider";
 import {
   useCancelAppointment,
@@ -197,6 +198,7 @@ export default function AppointmentManager({
 
   const adminAppointments = useAppointments(adminFilters);
   const myPersonalAppointments = useMyAppointments(personalFilters);
+  const queryClient = useQueryClient();
 
   const { mutate: cancelAppointment, isPending: cancellingAppointment } = useCancelAppointment();
   const { mutate: rescheduleAppointment, isPending: reschedulingAppointment } = useRescheduleAppointment();
@@ -235,6 +237,18 @@ export default function AppointmentManager({
     // Do not perform client-side patientId/userId filtering here.
     return allAppointments;
   }, [allAppointments, isAdminView]);
+
+  const handleRefreshAppointments = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["appointments"], exact: false }),
+      queryClient.invalidateQueries({ queryKey: ["appointment"], exact: false }),
+      queryClient.invalidateQueries({ queryKey: ["myAppointments"], exact: false }),
+      queryClient.invalidateQueries({ queryKey: ["userUpcomingAppointments"], exact: false }),
+      queryClient.invalidateQueries({ queryKey: ["appointmentStats"], exact: false }),
+    ]);
+
+    await refetch();
+  }, [queryClient, refetch]);
 
   const normalizedAppointments = useMemo(() => {
     return patientScopedAppointments
@@ -737,7 +751,7 @@ export default function AppointmentManager({
 
             <Button
               variant="outline"
-              onClick={() => refetch()}
+              onClick={() => void handleRefreshAppointments()}
               className="h-9 w-full gap-2 rounded-xl border-sky-200 bg-sky-50 px-4 py-2 text-sm text-sky-700 transition-all shadow-sm hover:bg-sky-100 hover:text-sky-800 dark:border-sky-900/70 dark:bg-sky-950/25 dark:text-sky-300 dark:hover:bg-sky-950/45 sm:w-auto"
               disabled={appointmentsFetching}
               title="Refresh Appointments"
