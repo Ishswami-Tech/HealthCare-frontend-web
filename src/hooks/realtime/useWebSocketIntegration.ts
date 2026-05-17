@@ -7,12 +7,12 @@ import { useQueryClient } from '@/hooks/core';
 import { useWebSocketStore, useAppStore } from '@/stores';
 import { useAuthStore } from '@/stores/auth.store';
 import { APP_CONFIG } from '@/lib/config/config';
-import { refreshToken } from '@/lib/actions/auth.server';
 import {
   getQueueStatusQueryKey,
   normalizeQueueStatusSnapshot,
 } from '@/lib/queue/queue-cache';
 import { getAppointmentStatsQueryKey } from '@/lib/query/appointment-query-keys';
+import { refreshClientSessionForRealtime } from '@/lib/utils/auth-recovery';
 // ✅ Consolidated: Import types from @/types (single source of truth)
 import type { Appointment } from '@/types/appointment.types';
 import type { BillingPlan, Invoice, Payment, Subscription } from '@/types/billing.types';
@@ -591,12 +591,11 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
             if (authRefreshInFlightRef.current) return;
             authRefreshInFlightRef.current = true;
             try {
-              const refreshedSession = await refreshToken();
+              const refreshedSession = await refreshClientSessionForRealtime('appointment-live-ws');
               if (!refreshedSession?.access_token) {
                 return;
               }
 
-              useAuthStore.getState().setSession(refreshedSession);
               connect(websocketUrl, {
                 tenantId,
                 userId,

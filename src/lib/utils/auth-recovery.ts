@@ -2,6 +2,9 @@
 
 import { ROUTES } from "@/lib/config/routes";
 import { clearTokens } from "@/lib/utils/token-manager";
+import { refreshToken } from "@/lib/actions/auth.server";
+import { useAuthStore } from "@/stores/auth.store";
+import type { Session } from "@/types/auth.types";
 import { resetAllStores } from "@/stores";
 
 type AuthLikeError = {
@@ -41,6 +44,29 @@ function extractAuthErrorStatus(error: unknown): number | undefined {
   return authError.response?.status || authError.status || authError.statusCode;
 }
 
+export function isSocketAuthError(error: unknown): boolean {
+  const status = extractAuthErrorStatus(error);
+  if (status === 401 || status === 403) {
+    return true;
+  }
+
+  const message = extractAuthErrorMessage(error).toLowerCase();
+  if (!message) {
+    return false;
+  }
+
+  return [
+    "jwt expired",
+    "authentication required",
+    "no token or session",
+    "no token provided",
+    "auth token invalid",
+    "invalid token",
+    "invalid session",
+    "session expired",
+  ].some((pattern) => message.includes(pattern));
+}
+
 export function isSessionInvalidError(error: unknown): boolean {
   const status = extractAuthErrorStatus(error);
   if (status === 401) {
@@ -62,6 +88,31 @@ export function isSessionInvalidError(error: unknown): boolean {
     "no refresh token available",
     "auth token invalid",
   ].some((pattern) => message.includes(pattern));
+}
+
+export async function refreshClientSessionForRealtime(
+  context: string
+): Promise<Session | null> {
+  const authStore = useAuthStore.getState();
+  authStore.setRefreshing(true);
+
+  try {
+    const refreshedSession = await refreshToken();
+    if (refreshedSession?.access_token) {
+      authStore.setSession(refreshedSession);
+      return refreshedSession;
+    }
+
+    return null;
+  } catch (error) {
+    if (process.env.NODE_ENV === "development") {
+      // Keep logs quiet in production unless the caller wants to surface the failure.
+      console.warn(`[${context}] realtime auth refresh failed`, error);
+    }
+    return null;
+  } finally {
+    authStore.setRefreshing(false);
+  }
 }
 
 export function triggerClientAuthRecovery(): void {

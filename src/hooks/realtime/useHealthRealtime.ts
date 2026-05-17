@@ -6,7 +6,7 @@ import { io, Socket } from 'socket.io-client';
 import { APP_CONFIG } from '@/lib/config/config';
 import { useHealthStore } from '@/stores';
 import { useAuthStore } from '@/stores/auth.store';
-import { refreshToken } from '@/lib/actions/auth.server';
+import { refreshClientSessionForRealtime } from '@/lib/utils/auth-recovery';
 import { DetailedHealthStatus } from '../query/useHealth';
 
 // Realtime health status types matching backend format
@@ -297,14 +297,12 @@ function bindSharedHealthSocket(socket: Socket) {
         sharedHealthAuthRefreshInFlight = true;
         void (async () => {
           try {
-            const refreshedSession = await refreshToken();
+            const refreshedSession = await refreshClientSessionForRealtime('health-live-ws');
             if (!refreshedSession?.access_token) {
               useHealthStore.getState().setConnectionStatus('error');
               useHealthStore.getState().setError(err);
               return;
             }
-
-            useAuthStore.getState().setSession(refreshedSession);
             socket.auth = { token: refreshedSession.access_token };
             socket.connect();
           } catch {

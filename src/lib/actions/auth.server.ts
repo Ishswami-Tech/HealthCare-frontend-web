@@ -129,6 +129,29 @@ function parseJwtPayload(token: string): Record<string, unknown> | null {
   }
 }
 
+function getJwtExpiryMs(token: string): number | null {
+  const payload = parseJwtPayload(token);
+  if (!payload) {
+    return null;
+  }
+
+  const exp = payload.exp;
+  if (typeof exp !== 'number' || !Number.isFinite(exp)) {
+    return null;
+  }
+
+  return Math.floor(exp * 1000);
+}
+
+function shouldRefreshJwt(token: string, thresholdMs = 5 * 60 * 1000): boolean {
+  const expiryMs = getJwtExpiryMs(token);
+  if (expiryMs === null) {
+    return false;
+  }
+
+  return expiryMs <= Date.now() + thresholdMs;
+}
+
 function extractClinicIdFromPayload(
   payload: Record<string, unknown> | null | undefined
 ): string | undefined {
@@ -452,6 +475,29 @@ export async function getServerSession(): Promise<Session | null> {
       }
     }
 
+    if (accessToken && refreshTokenValue && shouldRefreshJwt(accessToken)) {
+      try {
+        const refreshedSession = await refreshToken();
+        if (refreshedSession) {
+          return refreshedSession;
+        }
+      } catch (error: unknown) {
+        if (isTransientSessionError(error)) {
+          logger.warn('getServerSession - Refresh failed transiently', {
+            error: error instanceof Error ? error : new Error(String(error)),
+          });
+          throw error;
+        }
+        logger.error('getServerSession - Refresh failed', {
+          error: error instanceof Error ? error : new Error(String(error)),
+        });
+        if (isSessionInvalidError(error)) {
+          await clearSession();
+        }
+        return null;
+      }
+    }
+
     if (!accessToken && refreshTokenValue) {
       try {
         const refreshedSession = await refreshToken();
@@ -484,6 +530,35 @@ export async function getServerSession(): Promise<Session | null> {
           logger.debug('getServerSession - No tokens found');
         }
       }
+      return null;
+    }
+
+    const accessTokenExpiryMs = getJwtExpiryMs(accessToken);
+    if (accessTokenExpiryMs !== null && accessTokenExpiryMs <= Date.now()) {
+      if (refreshTokenValue) {
+        try {
+          const refreshedSession = await refreshToken();
+          if (refreshedSession) {
+            return refreshedSession;
+          }
+        } catch (error: unknown) {
+          if (isTransientSessionError(error)) {
+            logger.warn('getServerSession - Expired token refresh failed transiently', {
+              error: error instanceof Error ? error : new Error(String(error)),
+            });
+            throw error;
+          }
+          logger.error('getServerSession - Expired token refresh failed', {
+            error: error instanceof Error ? error : new Error(String(error)),
+          });
+          if (isSessionInvalidError(error)) {
+            await clearSession();
+          }
+          return null;
+        }
+      }
+
+      await clearSession();
       return null;
     }
 
