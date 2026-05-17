@@ -55,6 +55,11 @@ export default function AssistantDoctorDashboard() {
     date.setDate(date.getDate() - 90);
     return formatISODateInIST(date);
   }, []);
+  const futureEndDate = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 365);
+    return formatISODateInIST(date);
+  }, []);
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good morning";
@@ -83,7 +88,7 @@ export default function AssistantDoctorDashboard() {
           clinicId,
           doctorId: userId,
           startDate: historyStartDate,
-          ...(today ? { endDate: today } : {}),
+          ...(futureEndDate ? { endDate: futureEndDate } : {}),
         }
       : undefined
   );

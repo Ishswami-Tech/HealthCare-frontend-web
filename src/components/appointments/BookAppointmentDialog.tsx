@@ -1591,6 +1591,25 @@ export function BookAppointmentDialog({
           (atomicResult as any)?.appointment?.id ||
           (atomicResult as any)?.appointment?.data?.id ||
           "APPT-" + Date.now();
+        const createdSubscriptionAppointment =
+          (atomicResult as any)?.appointment ||
+          (atomicResult as any)?.appointment?.data ||
+          (atomicResult as any)?.data?.appointment ||
+          (atomicResult as any)?.data ||
+          null;
+        if (createdSubscriptionAppointment) {
+          syncAppointmentInCache(queryClient, createdSubscriptionAppointment as unknown as Record<string, unknown>, {
+            appointmentStatus: "SCHEDULED",
+            queryKeys: [
+              ["myAppointments"],
+              ["appointments"],
+              ["userUpcomingAppointments"],
+              ["appointment", apptId],
+              ["doctorAppointments"],
+              ["doctorSchedule"],
+            ],
+          });
+        }
       } else {
         const payload = {
           doctorId: appointmentDoctorId,
@@ -1624,6 +1643,19 @@ export function BookAppointmentDialog({
           throw new Error("Failed to create appointment; check console for details.");
         }
         apptId = appointmentId;
+        syncAppointmentInCache(queryClient, appointment as unknown as Record<string, unknown>, {
+          appointmentStatus: "SCHEDULED",
+          queryKeys: [
+            ["myAppointments"],
+            ["appointments"],
+            ["userUpcomingAppointments"],
+            ["appointment", appointmentId],
+            ["video-appointments"],
+            ["video-appointment", appointmentId],
+            ["doctorAppointments"],
+            ["doctorSchedule"],
+          ],
+        });
       }
 
       setBookedAppointmentId(apptId);

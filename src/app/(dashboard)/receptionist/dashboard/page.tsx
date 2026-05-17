@@ -125,9 +125,14 @@ export default function ReceptionistDashboard() {
     date.setDate(date.getDate() - 90);
     return formatISODateInIST(date);
   }, []);
+  const futureEndDate = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 365);
+    return formatISODateInIST(date);
+  }, []);
   const { data: appointmentsData, isPending, error: appointmentsError } = useAppointments({
     startDate: historyStartDate,
-    endDate: today,
+    endDate: futureEndDate,
     limit: 200,
   });
   const { data: queueData } = useQueue(clinicId || undefined, {
@@ -504,7 +509,7 @@ export default function ReceptionistDashboard() {
   const upcoming = useMemo(
     () =>
       appointments
-        .filter((item) => item.status === "SCHEDULED")
+        .filter((item) => ["SCHEDULED", "CONFIRMED"].includes(item.status))
         .slice(0, 8),
     [appointments]
   );

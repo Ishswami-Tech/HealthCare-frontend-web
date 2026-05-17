@@ -444,6 +444,28 @@ export const useCreateAppointment = (clinicId?: string) => {
     },
     mutationOptions: {
       onSuccess: (appointment: Appointment) => {
+        if (appointment && typeof appointment === 'object') {
+          const appointmentId = String((appointment as any)?.appointmentId || (appointment as any)?.id || '');
+          if (appointmentId) {
+            syncAppointmentInCache(queryClient, {
+              ...appointment,
+              id: appointmentId,
+              appointmentId,
+            }, {
+              appointmentStatus: String((appointment as any)?.status || 'SCHEDULED') as Appointment['status'],
+              queryKeys: [
+                ['appointments'],
+                ['myAppointments'],
+                ['userUpcomingAppointments'],
+                ['appointment', appointmentId],
+                ['video-appointments'],
+                ['video-appointment', appointmentId],
+                ['doctorAppointments'],
+                ['doctorSchedule'],
+              ],
+            });
+          }
+        }
         // Invalidate both appointments and myAppointments so all views refresh
         void queryClient.invalidateQueries({ queryKey: ['appointments'], exact: false });
         void queryClient.invalidateQueries({ queryKey: getAppointmentQueryKey(clinicId), exact: false });

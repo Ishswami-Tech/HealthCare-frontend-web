@@ -40,9 +40,14 @@ export default function ClinicLocationHeadDashboard() {
     date.setDate(date.getDate() - 90);
     return formatISODateInIST(date);
   }, []);
+  const futureEndDate = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 365);
+    return formatISODateInIST(date);
+  }, []);
 
   const { data: appointmentsResult, isPending: appointmentsPending } = useAppointments(
-    clinicId ? { clinicId, startDate: historyStartDate, ...(today ? { endDate: today } : {}) } : undefined
+    clinicId ? { clinicId, startDate: historyStartDate, ...(futureEndDate ? { endDate: futureEndDate } : {}) } : undefined
   );
 
   const { data: queueData, isPending: queuePending } = useQueue(clinicId ?? undefined, {
