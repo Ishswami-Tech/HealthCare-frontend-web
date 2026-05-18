@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -1437,7 +1437,6 @@ export function BookAppointmentDialog({
         bookingPatientId =
           (refreshedProfile as any)?.patient?.id ||
           (refreshedProfile as any)?.patientId ||
-          (refreshedProfile as any)?.id ||
           "";
       }
 

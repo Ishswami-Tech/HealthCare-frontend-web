@@ -127,6 +127,7 @@ interface AppointmentManagerProps {
   autoOpenBookDialog?: boolean;
   appointmentsData?: unknown;
   isAppointmentsPending?: boolean;
+  onRefreshAppointments?: () => Promise<unknown> | unknown;
 }
 
 function getEffectiveAppointmentId(appointment: AppointmentWithRelations | any): string {
@@ -143,6 +144,7 @@ export default function AppointmentManager({
   autoOpenBookDialog = false,
   appointmentsData: externalAppointmentsData,
   isAppointmentsPending: externalAppointmentsPending,
+  onRefreshAppointments,
 }: AppointmentManagerProps = {}) {
   const { session } = useAuth();
   const user = session?.user;
@@ -193,7 +195,7 @@ export default function AppointmentManager({
     const filters: any = {};
     if (propClinicId) filters.clinicId = propClinicId;
     if (dateFilter.start) filters.date = dateFilter.start;
-    return filters;
+    return Object.keys(filters).length > 0 ? filters : undefined;
   }, [isAdminView, dateFilter.start, propClinicId]);
 
   const adminAppointments = useAppointments(adminFilters);
@@ -247,8 +249,13 @@ export default function AppointmentManager({
       queryClient.invalidateQueries({ queryKey: ["appointmentStats"], exact: false }),
     ]);
 
+    if (onRefreshAppointments) {
+      await onRefreshAppointments();
+      return;
+    }
+
     await refetch();
-  }, [queryClient, refetch]);
+  }, [onRefreshAppointments, queryClient, refetch]);
 
   const normalizedAppointments = useMemo(() => {
     return patientScopedAppointments

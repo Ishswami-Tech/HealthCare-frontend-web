@@ -70,7 +70,12 @@ export default function PatientAppointments() {
   const shouldOpenBooking = searchParams.get("openBooking") === "1";
   const defaultConsultationMode =
     bookingMode?.toUpperCase() === "VIDEO" ? "VIDEO" : undefined;
-  const { data: appointmentsData, isPending: isPendingAppointments } = useMyAppointments(
+  const {
+    data: appointmentsData,
+    isPending: isPendingAppointments,
+    isFetching: isFetchingAppointments,
+    refetch: refetchAppointments,
+  } = useMyAppointments(
     queryClinicId ? { clinicId: queryClinicId } : undefined
   );
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
@@ -165,7 +170,10 @@ export default function PatientAppointments() {
             hideBookButton
             autoOpenBookDialog={shouldOpenBooking}
             appointmentsData={appointmentsData}
-            isAppointmentsPending={isPendingAppointments}
+            isAppointmentsPending={isPendingAppointments || isFetchingAppointments}
+            onRefreshAppointments={async () => {
+              await refetchAppointments();
+            }}
             {...(defaultConsultationMode ? { defaultConsultationMode } : {})}
             {...(queryClinicId ? { clinicId: queryClinicId } : {})}
           />
