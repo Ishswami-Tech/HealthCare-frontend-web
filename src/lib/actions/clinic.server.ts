@@ -330,6 +330,8 @@ export async function createClinicLocation(clinicId: string, data: any): Promise
     });
 
     revalidateCache('clinic-locations');
+    void revalidateCache('clinic-doctors');
+    void revalidateCache('doctors');
     return { success: true, location: response.data };
   } catch (error) {
     logger.error('Failed to create clinic location', error instanceof Error ? error : new Error(String(error)));
@@ -342,7 +344,14 @@ export async function createClinicLocation(clinicId: string, data: any): Promise
  */
 export async function getClinicLocations(clinicId: string) {
   try {
-    const { data } = await authenticatedApi<ClinicLocation[]>(API_ENDPOINTS.CLINIC_LOCATIONS.GET_ALL(clinicId), {});
+    const { data } = await authenticatedApi<ClinicLocation[]>(
+      API_ENDPOINTS.CLINIC_LOCATIONS.GET_ALL(clinicId),
+      {
+        clinicId,
+        requireClinicId: true,
+        cache: 'no-store',
+      }
+    );
     return normalizeCollectionResponse<ClinicLocation>(data);
   } catch (error) {
     logger.error('Failed to get clinic locations', error instanceof Error ? error : new Error(String(error)));
@@ -355,7 +364,14 @@ export async function getClinicLocations(clinicId: string) {
  */
 export async function getClinicLocation(clinicId: string, locationId: string) {
   try {
-    const { data } = await authenticatedApi<ClinicLocation>(API_ENDPOINTS.CLINIC_LOCATIONS.GET_BY_ID(clinicId, locationId), {});
+    const { data } = await authenticatedApi<ClinicLocation>(
+      API_ENDPOINTS.CLINIC_LOCATIONS.GET_BY_ID(clinicId, locationId),
+      {
+        clinicId,
+        requireClinicId: true,
+        cache: 'no-store',
+      }
+    );
     return data || null;
   } catch (error) {
     logger.error('Failed to get clinic location', error instanceof Error ? error : new Error(String(error)));
@@ -393,6 +409,8 @@ export async function updateClinicLocation(clinicId: string, locationId: string,
     });
 
     revalidateCache('clinic-locations');
+    void revalidateCache('clinic-doctors');
+    void revalidateCache('doctors');
     return response.data;
   } catch (error) {
     logger.error('Failed to update clinic location', error instanceof Error ? error : new Error(String(error)));
@@ -427,6 +445,8 @@ export async function deleteClinicLocation(clinicId: string, locationId: string)
     });
 
     revalidateCache('clinic-locations');
+    void revalidateCache('clinic-doctors');
+    void revalidateCache('doctors');
     return true;
   } catch (error) {
     logger.error('Failed to delete clinic location', error instanceof Error ? error : new Error(String(error)));
@@ -525,7 +545,11 @@ export async function assignClinicAdmin(data: { userId: string; clinicId: string
  */
 export async function getClinicDoctors(clinicId: string) {
   try {
-    const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId), {});
+    const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId), {
+      clinicId,
+      requireClinicId: true,
+      cache: 'no-store',
+    });
     return data || [];
   } catch (error) {
     logger.error('Failed to get clinic doctors', error instanceof Error ? error : new Error(String(error)));

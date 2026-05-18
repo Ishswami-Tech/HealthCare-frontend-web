@@ -94,7 +94,11 @@ export default function RegisterPage() {
         setCountdown((prev) => {
           if (prev <= 1) {
             clearInterval(timer);
-            router.push(ROUTES.LOGIN);
+            const params = new URLSearchParams();
+            if (queryClinicId) {
+              params.set('clinicId', queryClinicId);
+            }
+            router.push(params.toString() ? `${ROUTES.LOGIN}?${params.toString()}` : ROUTES.LOGIN);
             return 0;
           }
           return prev - 1;
@@ -122,7 +126,14 @@ export default function RegisterPage() {
               id: TOAST_IDS.AUTH.REGISTER,
           });
           setTimeout(() => {
-             router.push(`${ROUTES.VERIFY_OTP}?email=${encodeURIComponent(result.user.email)}`);
+             const params = new URLSearchParams({
+               email: result.user.email,
+               isRegistration: 'true',
+             });
+             if (queryClinicId) {
+               params.set('clinicId', queryClinicId);
+             }
+             router.push(`${ROUTES.VERIFY_OTP}?${params.toString()}`);
           }, 1000);
           return;
         }
@@ -168,7 +179,17 @@ export default function RegisterPage() {
           <span className="font-bold text-blue-600 dark:text-blue-400">{countdown}s</span>…
         </p>
       </div>
-      <Button onClick={() => router.push(ROUTES.LOGIN)} size="sm" variant="outline">
+      <Button
+        onClick={() => {
+          const params = new URLSearchParams();
+          if (queryClinicId) {
+            params.set('clinicId', queryClinicId);
+          }
+          router.push(params.toString() ? `${ROUTES.LOGIN}?${params.toString()}` : ROUTES.LOGIN);
+        }}
+        size="sm"
+        variant="outline"
+      >
         Go to Login Now
       </Button>
     </div>

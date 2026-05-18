@@ -764,9 +764,9 @@ export const useCurrentClinicId = () => {
   const sessionUser = useAuthStore(state => state.session?.user as { clinicId?: string; clinic?: { id?: string } } | undefined);
   
   return normalizeClinicId(
-    currentClinic?.id ||
-      sessionUser?.clinicId ||
+    sessionUser?.clinicId ||
       sessionUser?.clinic?.id ||
+      currentClinic?.id ||
       ""
   );
 };

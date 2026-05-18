@@ -33,7 +33,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { showSuccessToast, showErrorToast, showWarningToast, TOAST_IDS } from "@/hooks/utils/use-toast";
-import { Loader2, User, Phone, MapPin, Calendar, Venus, CalendarIcon } from "lucide-react";
+import { Loader2, User, Phone, MapPin, Calendar, Venus, CalendarIcon, Info } from "lucide-react";
 import { Role } from "@/types/auth.types";
 import { ROUTES } from "@/lib/config/routes";
 import { profileCompletionSchema, type SchemaProfileCompletionFormData as ProfileCompletionFormData } from "@/lib/schema";
@@ -55,10 +55,7 @@ const resolveNameParts = (
   const fullName = user?.name?.trim() || "";
 
   if (firstName || lastName) {
-    return {
-      firstName,
-      lastName,
-    };
+    return { firstName, lastName };
   }
 
   if (fullName) {
@@ -72,6 +69,12 @@ const resolveNameParts = (
   return { firstName: "", lastName: "" };
 };
 
+// Shared input class helper — keeps all fields visually consistent
+const inputCls = (hasError: boolean) =>
+  hasError
+    ? "aria-invalid:border-destructive aria-invalid:ring-destructive/20"
+    : "";
+
 export default function ProfileCompletionForm({
   onComplete,
 }: ProfileCompletionFormProps) {
@@ -83,25 +86,15 @@ export default function ProfileCompletionForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Get redirect URL from query params
   const redirectUrl = searchParams.get("redirect") || "/";
 
-  // Helper to ensure phone number is correctly formatted
-  // PhoneInput component with 'international' prop should handle this, 
-  // but we ensure it's clean for backend and initial display.
   const formatPhoneNumber = (phone: string | undefined | null) => {
     if (!phone) return "";
-    // If it starts with +, trust it (E.164)
-    if (phone.startsWith('+')) return phone;
-    
-    // Clean string
-    const cleaned = phone.replace(/[^\d+]/g, '');
-    if (cleaned.startsWith('+')) return cleaned;
-    
-    // If it's a raw number (likely 10 digits in India based on user context), add +91
+    if (phone.startsWith("+")) return phone;
+    const cleaned = phone.replace(/[^\d+]/g, "");
+    if (cleaned.startsWith("+")) return cleaned;
     if (cleaned.length === 10) return `+91${cleaned}`;
-    
-    return `+${cleaned}`; // Add + prefix as last resort attempt for E.164
+    return `+${cleaned}`;
   };
 
   const form = useForm<ProfileCompletionFormData>({
@@ -123,13 +116,9 @@ export default function ProfileCompletionForm({
     },
   });
 
-  // Pre-fill form from the authenticated session.
   useEffect(() => {
-    if (!session?.user || isInitialized) {
-      return;
-    }
-
-    const sessionData: ProfileCompletionFormData = {
+    if (!session?.user || isInitialized) return;
+    form.reset({
       ...resolveNameParts(session.user),
       phone: "",
       dateOfBirth: "",
@@ -142,97 +131,15 @@ export default function ProfileCompletionForm({
       experience: "",
       clinicName: "",
       clinicAddress: "",
-    };
-
-    form.reset(sessionData);
+    });
     setIsInitialized(true);
   }, [session, form, isInitialized]);
 
-  /*
-  // Update profile mutation
-  const updateProfileMutation = useMutationOperation<unknown, Record<string, unknown>>(
-    async (data: Record<string, unknown>) => {
-      try {
-        return await updateUserProfile(data);
-      } catch (error) {
-        console.error("Profile update error:", error);
-        // ✅ Use centralized error handler - don't show toast here
-        // The mutation's onError will handle it, or component will handle it
-        // Re-throw for the mutation to handle
-        throw error;
-      }
-    },
-    {
-      toastId: TOAST_IDS.PROFILE.COMPLETE,
-      loadingMessage: 'Updating profile...',
-      successMessage: 'Profile completed successfully!',
-      showToast: false, // Handle manually for custom logic
-      invalidateQueries: [['user-profile']],
-      onSuccess: async (result) => {
-        try {
-          // Log the result for debugging
-
-          // Check if the server action returned an error
-          const response = result as { success?: boolean; error?: string };
-          if (response && response.success === false && response.error) {
-             console.error("Profile update returned error:", response.error);
-             showErrorToast(response.error, { id: TOAST_IDS.PROFILE.COMPLETE });
-             return;
-          }
-
-          // Only show success toast once
-          showSuccessToast("Profile completed successfully!", {
-            id: TOAST_IDS.PROFILE.COMPLETE,
-          });
-
-          // Refresh session to get updated user data (force refresh from backend)
-          await refreshSession(true);
-
-          // Set profile complete cookie
-          await setProfileComplete(true);
-
-          // Wait a moment for cookies to be set and session to update
-          setTimeout(() => {
-            try {
-              // Call onComplete callback if provided
-              if (onComplete) {
-                onComplete();
-              } else {
-                // Use centralized redirect logic
-                const userRole = session?.user?.role as Role;
-                const finalRedirect = getProfileCompletionRedirectUrl(
-                  userRole,
-                  redirectUrl
-                );
-                // Use hard redirect to ensure navigation happens
-                window.location.href = finalRedirect;
-              }
-            } catch (redirectError) {
-              console.error("Error during redirect:", redirectError);
-              showErrorToast(
-                "Profile was updated but there was an error redirecting. Please try navigating manually.",
-                { id: TOAST_IDS.PROFILE.COMPLETE }
-              );
-            }
-          }, 1500); // Increased timeout to ensure cookies are set and propagated
-        } catch (error) {
-          console.error("Error in profile completion success handler:", error);
-          showErrorToast(
-            "Profile was updated but there was an error redirecting. Please try navigating manually.",
-            { id: TOAST_IDS.PROFILE.COMPLETE }
-          );
-        }
-      },
-    }
-  );
-
-  const updateProfile = updateProfileMutation.mutate;
-  const updatingProfile = updateProfileMutation.isPending;
-  */
   const updateProfileMutation = useUpdateUserProfile();
   const setProfileCompleteMutation = useSetProfileComplete();
   const updatingProfile =
     updateProfileMutation.isPending || setProfileCompleteMutation.isPending;
+
   const updateProfile = async (data: Record<string, unknown>) => {
     const result = await updateProfileMutation.mutateAsync(data);
     const response = result as { success?: boolean; error?: string };
@@ -249,17 +156,8 @@ export default function ProfileCompletionForm({
     setProfileCompletion(true, false);
     queryClient.setQueryData<Session | null>(["session"], (current) => {
       const source = current || session;
-      if (!source?.user) {
-        return source;
-      }
-
-      return {
-        ...source,
-        user: {
-          ...source.user,
-          profileComplete: true,
-        },
-      };
+      if (!source?.user) return source;
+      return { ...source, user: { ...source.user, profileComplete: true } };
     });
 
     setTimeout(() => {
@@ -283,10 +181,6 @@ export default function ProfileCompletionForm({
   const onSubmit = async (data: ProfileCompletionFormData) => {
     setIsSubmitting(true);
     try {
-      // Note: Clinic validation removed - clinic is already configured in backend
-      // CLINIC_ADMIN profile completion only requires personal info (name, phone, DOB, etc.)
-
-      // Start with a base object containing only common fields.
       const baseProfileData: Record<string, unknown> = {
         firstName: data.firstName,
         lastName: data.lastName,
@@ -296,12 +190,11 @@ export default function ProfileCompletionForm({
         address: data.address,
       };
 
-      // Only include emergency contact if ALL required fields are filled
-      const hasCompleteEmergencyContact = 
-        data.emergencyContactName?.trim() && 
-        data.emergencyContactPhone?.trim() && 
+      const hasCompleteEmergencyContact =
+        data.emergencyContactName?.trim() &&
+        data.emergencyContactPhone?.trim() &&
         data.emergencyContactRelationship?.trim();
-      
+
       if (hasCompleteEmergencyContact) {
         baseProfileData.emergencyContact = {
           name: data.emergencyContactName!.trim(),
@@ -312,7 +205,6 @@ export default function ProfileCompletionForm({
 
       let roleSpecificData = {};
       const userRole = session?.user?.role;
-
       if (userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR) {
         roleSpecificData = {
           specialization: data.specialization,
@@ -320,21 +212,13 @@ export default function ProfileCompletionForm({
         };
       }
 
-      const finalData = { ...baseProfileData, ...roleSpecificData };
-
-      await updateProfile(finalData as Record<string, unknown>);
+      await updateProfile({ ...baseProfileData, ...roleSpecificData } as Record<string, unknown>);
     } catch (error) {
       console.error("Profile completion error:", error);
 
-      // Handle API validation errors - map them to form fields
       if (error instanceof Error && error.message.includes("validation")) {
         try {
-          // Try to parse the error message as JSON
-          const errorData = JSON.parse(
-            error.message.replace("validation error: ", "")
-          );
-
-          // Set field errors
+          const errorData = JSON.parse(error.message.replace("validation error: ", ""));
           if (errorData.errors) {
             Object.entries(errorData.errors).forEach(([field, message]) => {
               form.setError(field as keyof ProfileCompletionFormData, {
@@ -342,51 +226,38 @@ export default function ProfileCompletionForm({
                 message: message as string,
               });
             });
-
-            // ✅ Use centralized error messages
-            const { ERROR_MESSAGES } = await import('@/lib/config/config');
-            showErrorToast(ERROR_MESSAGES.VALIDATION_ERROR, {
-              id: TOAST_IDS.PROFILE.COMPLETE,
-            });
+            const { ERROR_MESSAGES } = await import("@/lib/config/config");
+            showErrorToast(ERROR_MESSAGES.VALIDATION_ERROR, { id: TOAST_IDS.PROFILE.COMPLETE });
             return;
           }
         } catch (parseError) {
-          // If parsing fails, continue with generic error handling
           console.error("Error parsing validation error:", parseError);
         }
       }
 
-      // Handle different types of errors with specific messages
       if (error instanceof Error) {
         if (
           error.message.includes("Session validation failed") ||
           error.message.includes("Invalid device") ||
           error.message.includes("Invalid session")
         ) {
-          // Session-related errors
-          showErrorToast(
-            "Your session appears to be invalid or expired. Please log in again.",
-            { id: TOAST_IDS.AUTH.LOGIN, duration: 5000 }
-          );
+          showErrorToast("Your session appears to be invalid or expired. Please log in again.", {
+            id: TOAST_IDS.AUTH.LOGIN,
+            duration: 5000,
+          });
           router.push(ROUTES.LOGIN);
-        } else if (
-          error.message.includes("500") ||
-          error.message.includes("Server encountered an error")
-        ) {
-          // Server errors
+        } else if (error.message.includes("500") || error.message.includes("Server encountered an error")) {
           showErrorToast(
-            "The server encountered an error processing your request. Please try again in a few moments or contact support if the issue persists.",
+            "The server encountered an error. Please try again in a few moments.",
             { id: TOAST_IDS.GLOBAL.ERROR, duration: 5000 }
           );
         } else {
-          // Generic errors
           showErrorToast(`Failed to complete profile: ${error.message}`, {
             id: TOAST_IDS.PROFILE.COMPLETE,
             duration: 5000,
           });
         }
       } else {
-        // Fallback for non-Error objects
         showErrorToast("Failed to complete profile. Please try again.", {
           id: TOAST_IDS.PROFILE.COMPLETE,
           duration: 5000,
@@ -400,115 +271,76 @@ export default function ProfileCompletionForm({
   const userRole = session?.user?.role as Role;
   const isDoctor = userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR;
 
-  // Show loading state while initializing session-based defaults
   if (!isInitialized) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-neutral-950 dark:via-slate-900 dark:to-neutral-950 flex items-center justify-center p-4">
-        <div className="flex flex-col items-center">
-          <Loader2 className="h-12 w-12 animate-spin text-emerald-600 dark:text-emerald-400 mb-4" />
-          <p className="text-gray-600 dark:text-gray-400">Loading your profile data...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-neutral-950 dark:via-slate-900 dark:to-neutral-950 p-4">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-10 w-10 animate-spin text-emerald-600 dark:text-emerald-400" />
+          <p className="text-sm text-muted-foreground">Loading your profile data...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-neutral-950 dark:via-slate-900 dark:to-neutral-950 flex items-center justify-center p-4">
-      <Card className="w-full max-w-xl bg-white dark:bg-neutral-900 rounded-xl shadow-xl dark:shadow-none border border-gray-200 dark:border-neutral-800 overflow-hidden">
-        <CardHeader className="text-center border-b border-gray-200 dark:border-neutral-800 pb-2 bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-700 dark:to-teal-700">
-          <CardTitle className="text-lg font-bold text-white">
-            Complete Your Profile
-          </CardTitle>
-          <p className="text-xs text-emerald-100 dark:text-emerald-200 mt-0.5">
-            Please provide the required information to complete your profile setup
-          </p>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-neutral-950 dark:via-slate-900 dark:to-neutral-950 p-4">
+      <Card className="w-full max-w-lg overflow-hidden shadow-xl dark:shadow-none border border-border">
 
-          {/* One-time process banner */}
-          <div className="mt-2 p-2 bg-white/20 backdrop-blur-sm border border-white/30 dark:border-white/20 rounded-md text-left">
-            <div className="flex items-start gap-2">
-              <div className="flex-shrink-0 mt-0.5">
-                <svg className="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <h4 className="text-xs font-semibold text-white mb-0.5">
-                  One-Time Setup
-                </h4>
-                <p className="text-xs text-emerald-100 dark:text-emerald-200">
-                  This information will be securely stored and you can update it anytime from your profile settings.
-                </p>
-              </div>
+        {/* ── Header ── */}
+        <CardHeader className="bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-700 dark:to-teal-700 px-6 py-5 space-y-3">
+          <div className="text-center space-y-1">
+            <CardTitle className="text-xl font-bold text-white">
+              Complete Your Profile
+            </CardTitle>
+            <p className="text-sm text-emerald-100">
+              Please provide the required information to complete your profile setup
+            </p>
+          </div>
+
+          {/* One-time setup notice */}
+          <div className="flex items-start gap-3 rounded-lg bg-white/15 border border-white/25 px-4 py-3">
+            <Info className="h-4 w-4 text-white shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-semibold text-white">One-Time Setup</p>
+              <p className="text-xs text-emerald-100 mt-0.5">
+                This information will be securely stored and you can update it anytime from your profile settings.
+              </p>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="px-5 py-3 bg-white dark:bg-neutral-950">
+
+        {/* ── Body ── */}
+        <CardContent className="px-6 py-6">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-2">
-              {/* Form Errors Summary */}
-              {Object.keys(form.formState.errors).length > 0 && (
-                <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/50 text-red-800 dark:text-red-300 rounded-md p-4 mb-4">
-                  <div className="flex items-center mb-2">
-                    <svg
-                      className="h-5 w-5 mr-2"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zm-1 9a1 1 0 01-1-1v-4a1 1 0 112 0v4a1 1 0 01-1 1z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    <h3 className="font-medium">
-                      Please correct the following errors:
-                    </h3>
-                  </div>
-                  <ul className="list-disc pl-5 space-y-1 text-sm">
-                    {Object.entries(form.formState.errors).map(
-                      ([field, error]) => (
-                        <li key={field}>
-                          <strong className="capitalize">{field}:</strong>{" "}
-                          {error?.message?.toString()}
-                        </li>
-                      )
-                    )}
-                  </ul>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+
+              {/* ── Basic Information ── */}
+              <section className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-border">
+                  <User className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                    Basic Information
+                  </h3>
                 </div>
-              )}
 
-              {/* Basic Information */}
-              <div className="space-y-1.5">
-                <h3 className="text-base font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-2 mb-1 border-b border-emerald-200 dark:border-emerald-800/30 pb-1">
-                  <User className="h-4 w-4" />
-                  Basic Information
-                </h3>
-
-                {/* Row 1: First Name, Last Name, Gender */}
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                {/* First Name / Last Name */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="firstName"
                     render={({ field }) => (
-                      <FormItem className="md:col-span-2">
-                        <FormLabel className="text-gray-700 dark:text-gray-300">
-                          First Name <span className="text-red-500 dark:text-red-400">*</span>
+                      <FormItem>
+                        <FormLabel>
+                          First Name <span className="text-destructive">*</span>
                         </FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="Enter your first name"
-                            {...field}
+                            placeholder="First name"
                             aria-invalid={!!form.formState.errors.firstName}
-                            aria-describedby="firstName-error"
-                            className={
-                              "h-9 bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 " +
-                              (form.formState.errors.firstName
-                                ? "border-red-500 dark:border-red-500 focus:border-red-500 dark:focus:border-red-500"
-                                : "focus:border-emerald-500 dark:focus:border-emerald-500")
-                            }
+                            {...field}
                           />
                         </FormControl>
-                        <FormMessage id="firstName-error" />
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
@@ -516,98 +348,46 @@ export default function ProfileCompletionForm({
                     control={form.control}
                     name="lastName"
                     render={({ field }) => (
-                      <FormItem className="md:col-span-2">
-                        <FormLabel className="text-gray-700 dark:text-gray-300">
-                          Last Name <span className="text-red-500 dark:text-red-400">*</span>
+                      <FormItem>
+                        <FormLabel>
+                          Last Name <span className="text-destructive">*</span>
                         </FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="Enter your last name"
-                            {...field}
+                            placeholder="Last name"
                             aria-invalid={!!form.formState.errors.lastName}
-                            aria-describedby="lastName-error"
-                            className={
-                              "h-9 bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 " +
-                              (form.formState.errors.lastName
-                                ? "border-red-500 dark:border-red-500 focus:border-red-500 dark:focus:border-red-500"
-                                : "focus:border-emerald-500 dark:focus:border-emerald-500")
-                            }
+                            {...field}
                           />
                         </FormControl>
-                        <FormMessage id="lastName-error" />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="gender"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                          <Venus className="h-4" />
-                          Gender <span className="text-xs text-slate-500 dark:text-slate-400">(Optional)</span>
-                        </FormLabel>
-                        <Select
-                          value={field.value || "male"}
-                          onValueChange={(val) => field.onChange(val || "male")}
-                          defaultValue="male"
-                        >
-                          <FormControl>
-                            <SelectTrigger
-                              className={
-                                "h-9 w-full bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 " +
-                                (form.formState.errors.gender
-                                  ? "border-red-500 dark:border-red-500 focus:border-red-500 dark:focus:border-red-500"
-                                  : "focus:border-emerald-500 dark:focus:border-emerald-500")
-                              }
-                              aria-invalid={!!form.formState.errors.gender}
-                              aria-describedby="gender-error"
-                            >
-                              <SelectValue placeholder="Select gender" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="male">Male</SelectItem>
-                            <SelectItem value="female">Female</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage id="gender-error" />
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
 
-                {/* Row 2: Phone Number, Date of Birth */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* Phone / Date of Birth */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="phone"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                          <Phone className="h-4 w-4" />
-                          Phone Number <span className="text-red-500 dark:text-red-400">*</span>
+                        <FormLabel className="flex items-center gap-1.5">
+                          <Phone className="h-3.5 w-3.5" />
+                          Phone Number <span className="text-destructive">*</span>
                         </FormLabel>
                         <FormControl>
                           <PhoneInput
-                            placeholder="Enter your phone number"
-                            {...field}
+                            placeholder="Phone number"
                             aria-invalid={!!form.formState.errors.phone}
-                            aria-describedby="phone-error"
-                            className={
-                              "h-9 bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 " +
-                              (form.formState.errors.phone
-                                ? "border-red-500 dark:border-red-500 focus:border-red-500 dark:focus:border-red-500"
-                                : "focus:border-emerald-500 dark:focus:border-emerald-500")
-                            }
+                            error={!!form.formState.errors.phone}
                             defaultCountry="IN"
-                            country="IN"
                             international
                             withCountryCallingCode
+                            {...field}
                           />
                         </FormControl>
-                        <FormMessage id="phone-error" />
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
@@ -618,12 +398,12 @@ export default function ProfileCompletionForm({
                       const today = new Date();
                       const maxDate = new Date(today.getFullYear() - 12, today.getMonth(), today.getDate());
                       const minDate = new Date(today.getFullYear() - 100, today.getMonth(), today.getDate());
-
                       return (
                         <FormItem className="flex flex-col">
-                          <FormLabel className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                            <Calendar className="h-4 w-4" />
-                            Date of Birth <span className="text-xs text-slate-500 dark:text-slate-400">(Optional)</span>
+                          <FormLabel className="flex items-center gap-1.5">
+                            <Calendar className="h-3.5 w-3.5" />
+                            Date of Birth{" "}
+                            <span className="text-xs text-muted-foreground font-normal">(Optional)</span>
                           </FormLabel>
                           <Popover>
                             <PopoverTrigger asChild>
@@ -631,121 +411,131 @@ export default function ProfileCompletionForm({
                                 <Button
                                   variant="outline"
                                   className={
-                                    "h-9 w-full justify-start text-left font-normal bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 " +
-                                    (form.formState.errors.dateOfBirth
-                                      ? "border-red-500 dark:border-red-500 focus:border-red-500 dark:focus:border-red-500"
-                                      : "focus:border-emerald-500 dark:focus:border-emerald-500"
-                                    ) +
-                                    (!field.value ? " text-muted-foreground dark:text-gray-500" : "")
+                                    "h-9 w-full justify-start text-left font-normal" +
+                                    (!field.value ? " text-muted-foreground" : "")
                                   }
                                 >
-                                  <CalendarIcon className="mr-2 h-4 w-4" />
-                                  {field.value ? format(new Date(field.value), "PPP") : "Pick a date"}
+                                  <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                                  {field.value
+                                    ? format(new Date(field.value), "PPP")
+                                    : "Pick a date"}
                                 </Button>
                               </FormControl>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0 bg-white dark:bg-neutral-900 border-gray-200 dark:border-neutral-700" align="start">
+                            <PopoverContent className="w-auto p-0 bg-background dark:bg-neutral-950 border border-border" align="start">
                               <CalendarComponent
                                 mode="single"
                                 selected={field.value ? new Date(field.value) : undefined}
                                 onSelect={(date) => {
-                                  if (date) {
-                                    const selectedDate = date;
-                                    const today = new Date();
-                                    let age = today.getFullYear() - selectedDate.getFullYear();
-                                    const monthDifference = today.getMonth() - selectedDate.getMonth();
-                                    if (
-                                      monthDifference < 0 ||
-                                      (monthDifference === 0 && today.getDate() < selectedDate.getDate())
-                                    ) {
-                                      age--;
-                                    }
-                                    if (age < 12) {
-                                      showWarningToast("You must be at least 12 years old", {
-                                        id: TOAST_IDS.PROFILE.COMPLETE,
-                                      });
-                                      form.setError("dateOfBirth", {
-                                        type: "manual",
-                                        message: "You must be at least 12 years old",
-                                      });
-                                    } else {
-                                      form.clearErrors("dateOfBirth");
-                                      field.onChange(format(date, "yyyy-MM-dd"));
-                                    }
+                                  if (!date) return;
+                                  const today = new Date();
+                                  let age = today.getFullYear() - date.getFullYear();
+                                  const m = today.getMonth() - date.getMonth();
+                                  if (m < 0 || (m === 0 && today.getDate() < date.getDate())) age--;
+                                  if (age < 12) {
+                                    showWarningToast("You must be at least 12 years old", {
+                                      id: TOAST_IDS.PROFILE.COMPLETE,
+                                    });
+                                    form.setError("dateOfBirth", {
+                                      type: "manual",
+                                      message: "You must be at least 12 years old",
+                                    });
+                                  } else {
+                                    form.clearErrors("dateOfBirth");
+                                    field.onChange(format(date, "yyyy-MM-dd"));
                                   }
                                 }}
-                                disabled={(date) =>
-                                  date > maxDate || date < minDate
-                                }
+                                disabled={(date) => date > maxDate || date < minDate}
                                 captionLayout="dropdown"
                                 fromYear={today.getFullYear() - 100}
                                 toYear={today.getFullYear() - 12}
                                 defaultMonth={maxDate}
                                 initialFocus
+                                className="p-2 sm:p-3"
                               />
                             </PopoverContent>
                           </Popover>
-                          <FormMessage id="dateOfBirth-error" />
+                          <FormMessage />
                         </FormItem>
                       );
                     }}
                   />
                 </div>
 
-                {/* Address - Full Width */}
+                {/* Gender */}
+                <FormField
+                  control={form.control}
+                  name="gender"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-1.5">
+                        <Venus className="h-3.5 w-3.5" />
+                        Gender{" "}
+                        <span className="text-xs text-muted-foreground font-normal">(Optional)</span>
+                      </FormLabel>
+                      <Select
+                        value={field.value || "male"}
+                        onValueChange={(val) => field.onChange(val || "male")}
+                        defaultValue="male"
+                      >
+                        <FormControl>
+                          <SelectTrigger aria-invalid={!!form.formState.errors.gender}>
+                            <SelectValue placeholder="Select gender" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="male">Male</SelectItem>
+                          <SelectItem value="female">Female</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Address */}
                 <FormField
                   control={form.control}
                   name="address"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                        <MapPin className="h-4 w-4" />
-                        Address <span className="text-red-500 dark:text-red-400">*</span>
+                      <FormLabel className="flex items-center gap-1.5">
+                        <MapPin className="h-3.5 w-3.5" />
+                        Address <span className="text-destructive">*</span>
                       </FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Enter your address"
-                          {...field}
+                          placeholder="Enter your full address"
                           aria-invalid={!!form.formState.errors.address}
-                          aria-describedby="address-error"
-                          className={
-                            "bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 min-h-[80px] resize-none " +
-                            (form.formState.errors.address
-                              ? "border-red-500 dark:border-red-500 focus:border-red-500 dark:focus:border-red-500"
-                              : "focus:border-emerald-500 dark:focus:border-emerald-500")
-                          }
+                          className="min-h-[80px] resize-none"
+                          {...field}
                         />
                       </FormControl>
-                      <FormMessage id="address-error" />
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
-              </div>
+              </section>
 
-              {/* Emergency Contact */}
-              <div className="space-y-1.5 pt-1">
-                <h3 className="text-base font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-2 mb-1 border-b border-emerald-200 dark:border-emerald-800/30 pb-1">
-                  <Phone className="h-4 w-4" />
-                  Emergency Contact
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {/* ── Emergency Contact ── */}
+              <section className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-border">
+                  <Phone className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                    Emergency Contact
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="emergencyContactName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-gray-700 dark:text-gray-300">Contact Name</FormLabel>
+                        <FormLabel>Contact Name</FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="Enter contact's full name"
-                            {...field}
-                            className={
-                              "bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 " +
-                              (form.formState.errors.emergencyContactName
-                                ? "border-red-500 dark:border-red-500 focus:border-red-500 dark:focus:border-red-500"
-                                : "focus:border-emerald-500 dark:focus:border-emerald-500")
-                            }
-                          />
+                          <Input placeholder="Contact's full name" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -756,20 +546,15 @@ export default function ProfileCompletionForm({
                     name="emergencyContactPhone"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-gray-700 dark:text-gray-300">Contact Phone</FormLabel>
+                        <FormLabel>Contact Phone</FormLabel>
                         <FormControl>
                           <PhoneInput
-                            placeholder="Enter contact's phone number"
-                            {...field}
-                            className={
-                              "bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 " +
-                              (form.formState.errors.emergencyContactPhone
-                                ? "border-red-500 dark:border-red-500 focus:border-red-500 dark:focus:border-red-500"
-                                : "focus:border-emerald-500 dark:focus:border-emerald-500")
-                            }
+                            placeholder="Contact's phone number"
+                            error={!!form.formState.errors.emergencyContactPhone}
                             defaultCountry="IN"
                             international
                             withCountryCallingCode
+                            {...field}
                           />
                         </FormControl>
                         <FormMessage />
@@ -777,49 +562,40 @@ export default function ProfileCompletionForm({
                     )}
                   />
                 </div>
+
                 <FormField
                   control={form.control}
                   name="emergencyContactRelationship"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-gray-700 dark:text-gray-300">Relationship</FormLabel>
+                      <FormLabel>Relationship</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="e.g., Spouse, Parent, Sibling"
-                          {...field}
-                          className={
-                            "bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 " +
-                            (form.formState.errors.emergencyContactRelationship
-                              ? "border-red-500 dark:border-red-500 focus:border-red-500 dark:focus:border-red-500"
-                              : "focus:border-emerald-500 dark:focus:border-emerald-500")
-                          }
-                        />
+                        <Input placeholder="e.g., Spouse, Parent, Sibling" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              </div>
+              </section>
 
-              {/* Role-specific fields (Optional) */}
+              {/* ── Professional Information (doctors only) ── */}
               {isDoctor && (
-                <div className="space-y-2 pt-1">
-                  <h3 className="text-base font-semibold text-emerald-700 dark:text-emerald-400 mb-1 border-b border-emerald-200 dark:border-emerald-800/30 pb-1">
-                    Professional Information (Optional)
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <section className="space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-border">
+                    <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                      Professional Information{" "}
+                      <span className="text-xs text-muted-foreground font-normal">(Optional)</span>
+                    </h3>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="specialization"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-gray-700 dark:text-gray-300">Specialization</FormLabel>
+                          <FormLabel>Specialization</FormLabel>
                           <FormControl>
-                            <Input
-                              placeholder="e.g., Cardiology, Pediatrics"
-                              {...field}
-                              className="bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 focus:border-emerald-500 dark:focus:border-emerald-500"
-                            />
+                            <Input placeholder="e.g., Cardiology, Pediatrics" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -830,67 +606,24 @@ export default function ProfileCompletionForm({
                       name="experience"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-gray-700 dark:text-gray-300">Years of Experience</FormLabel>
+                          <FormLabel>Years of Experience</FormLabel>
                           <FormControl>
-                            <Input
-                              placeholder="e.g., 5 years"
-                              {...field}
-                              className="bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 focus:border-emerald-500 dark:focus:border-emerald-500"
-                            />
+                            <Input placeholder="e.g., 5" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
-                </div>
+                </section>
               )}
 
-              {/* Note: Clinic information is NOT shown here for CLINIC_ADMIN
-                  The clinic is already configured in the backend and associated with the user via clinicId.
-                  Clinic details (name, address) should be managed separately in clinic settings.
-              */}
-
-              {/* Submit Button */}
-              <div className="flex flex-col md:flex-row gap-3 pt-6 justify-end">
-                {form.formState.isSubmitted &&
-                  Object.keys(form.formState.errors).length > 0 && (
-                    <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 text-amber-800 dark:text-amber-300 rounded-md p-3 w-full md:w-auto">
-                      <p className="flex items-center">
-                        <svg
-                          className="h-5 w-5 mr-2"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                        Please fix the errors above before submitting the form.
-                      </p>
-                    </div>
-                  )}
+              {/* ── Submit ── */}
+              <div className="pt-2">
                 <Button
                   type="submit"
                   disabled={isSubmitting || updatingProfile}
-                  className="w-full md:w-auto self-end bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-700 dark:to-teal-700 hover:from-emerald-700 hover:to-teal-700 dark:hover:from-emerald-800 dark:hover:to-teal-800 text-white font-semibold px-8 py-2 rounded-lg shadow-lg dark:shadow-none transition-all duration-200"
-                  onClick={() => {
-                    if (Object.keys(form.formState.errors).length > 0) {
-                      // Scroll to the first error
-                      const firstErrorField = Object.keys(
-                        form.formState.errors
-                      )[0];
-                      const errorElement = document.getElementById(
-                        `${firstErrorField}-error`
-                      );
-                      errorElement?.scrollIntoView({
-                        behavior: "smooth",
-                        block: "center",
-                      });
-                    }
-                  }}
+                  className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 dark:from-emerald-700 dark:to-teal-700 dark:hover:from-emerald-800 dark:hover:to-teal-800 text-white font-semibold h-10 rounded-lg shadow-md transition-all duration-200"
                 >
                   {isSubmitting || updatingProfile ? (
                     <>
@@ -902,6 +635,7 @@ export default function ProfileCompletionForm({
                   )}
                 </Button>
               </div>
+
             </form>
           </Form>
         </CardContent>

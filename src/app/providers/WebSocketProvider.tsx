@@ -43,6 +43,7 @@ export function WebSocketProvider({
   enableErrorBoundary = true,
 }: WebSocketProviderProps) {
   const { user, currentClinic } = useAppStore();
+  const resolvedClinicId = user?.clinicId || currentClinic?.id || undefined;
 
   // Real-time WebSocket enabled - using Docker backend
   const shouldConnect = autoConnect;
@@ -52,9 +53,9 @@ export function WebSocketProvider({
     autoConnect: shouldConnect,
     subscribeToQueues: shouldConnect,
     subscribeToAppointments: shouldConnect,
-    tenantId: currentClinic?.id || user?.clinicId || undefined,
+    tenantId: resolvedClinicId,
     userId: user?.id || undefined,
-    clinicId: currentClinic?.id || user?.clinicId || undefined,
+    clinicId: resolvedClinicId,
   });
 
   // ✅ Retry logic is handled by useWebSocketIntegration hook

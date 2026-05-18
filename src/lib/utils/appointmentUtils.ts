@@ -243,6 +243,119 @@ function getPaymentCompletionFlags(appointment: any): boolean[] {
   ].filter((value): value is boolean => typeof value === 'boolean');
 }
 
+function hasExplicitVideoPaymentRequirement(appointment: any): boolean {
+  if (!appointment || typeof appointment !== 'object') {
+    return false;
+  }
+
+  const directRequirementFlags = [
+    appointment?.requiresPayment,
+    appointment?.paymentRequired,
+    appointment?.billing?.requiresPayment,
+    appointment?.invoice?.requiresPayment,
+    appointment?.payment?.requiresPayment,
+  ];
+
+  if (directRequirementFlags.some((value) => value === true)) {
+    return true;
+  }
+
+  const candidateFees = [
+    appointment?.videoConsultationFee,
+    appointment?.service?.videoConsultationFee,
+    appointment?.appointmentService?.videoConsultationFee,
+  ];
+
+  return candidateFees.some((value) => {
+    const amount = Number(value);
+    return Number.isFinite(amount) && amount > 0;
+  });
+}
+
+function getBackendVideoAccessState(appointment: any): {
+  canJoin?: boolean;
+  paymentRequired?: boolean;
+  paymentCompleted?: boolean;
+  joinBlockedReason?: string | null;
+  scheduledStartTime?: string | Date | null;
+  scheduledEndTime?: string | Date | null;
+  joinWindowStart?: string | Date | null;
+  joinWindowEnd?: string | Date | null;
+} | null {
+  if (!appointment || typeof appointment !== 'object') {
+    return null;
+  }
+
+  const record = appointment as Record<string, unknown>;
+  const hasJoinStateSignal = [
+    'canJoin',
+    'paymentRequired',
+    'paymentCompleted',
+    'joinBlockedReason',
+    'scheduledStartTime',
+    'scheduledEndTime',
+    'joinWindowStart',
+    'joinWindowEnd',
+  ].some((key) => key in record);
+
+  if (!hasJoinStateSignal) {
+    return null;
+  }
+
+  const joinBlockedReason =
+    typeof record.joinBlockedReason === 'string'
+      ? record.joinBlockedReason
+      : record.joinBlockedReason === null
+        ? null
+        : undefined;
+
+  const state: {
+    canJoin?: boolean;
+    paymentRequired?: boolean;
+    paymentCompleted?: boolean;
+    joinBlockedReason?: string | null;
+    scheduledStartTime?: string | Date | null;
+    scheduledEndTime?: string | Date | null;
+    joinWindowStart?: string | Date | null;
+    joinWindowEnd?: string | Date | null;
+  } = {};
+
+  if (typeof record.canJoin === 'boolean') {
+    state.canJoin = record.canJoin;
+  }
+  if (typeof record.paymentRequired === 'boolean') {
+    state.paymentRequired = record.paymentRequired;
+  }
+  if (typeof record.paymentCompleted === 'boolean') {
+    state.paymentCompleted = record.paymentCompleted;
+  }
+  if (joinBlockedReason !== undefined) {
+    state.joinBlockedReason = joinBlockedReason;
+  }
+  if (typeof record.scheduledStartTime === 'string' || record.scheduledStartTime instanceof Date) {
+    state.scheduledStartTime = record.scheduledStartTime;
+  } else if ('scheduledStartTime' in record) {
+    state.scheduledStartTime = null;
+  }
+  if (typeof record.scheduledEndTime === 'string' || record.scheduledEndTime instanceof Date) {
+    state.scheduledEndTime = record.scheduledEndTime;
+  } else if ('scheduledEndTime' in record) {
+    state.scheduledEndTime = null;
+  }
+  if (typeof record.joinWindowStart === 'string' || record.joinWindowStart instanceof Date) {
+    state.joinWindowStart = record.joinWindowStart;
+  } else if ('joinWindowStart' in record) {
+    state.joinWindowStart = null;
+  }
+  if (typeof record.joinWindowEnd === 'string' || record.joinWindowEnd instanceof Date) {
+    state.joinWindowEnd = record.joinWindowEnd;
+  } else if ('joinWindowEnd' in record) {
+    state.joinWindowEnd = null;
+  }
+
+  return state;
+}
+
 function normalizePaymentStatusValue(value: unknown): string {
   const normalized = String(value || '')
     .trim()
@@ -273,6 +386,21 @@ export function isVideoAppointmentPaymentCompleted(appointment: any): boolean {
 
   const type = String(appointment?.type || appointment?.appointmentType || '').toUpperCase();
   if (type !== 'VIDEO_CALL') {
+    return true;
+  }
+
+  const backendAccessState = getBackendVideoAccessState(appointment);
+  if (backendAccessState?.canJoin === true) {
+    return true;
+  }
+  if (typeof backendAccessState?.paymentCompleted === 'boolean') {
+    return backendAccessState.paymentCompleted;
+  }
+  if (backendAccessState?.paymentRequired === false) {
+    return true;
+  }
+
+  if (!hasExplicitVideoPaymentRequirement(appointment)) {
     return true;
   }
 
@@ -585,8 +713,14 @@ function isActiveLike(status: string): boolean {
 
 export function getAppointmentViewState(appointment: any): AppointmentViewState {
   const type = String(appointment?.type || appointment?.appointmentType || '').toUpperCase();
+  const backendAccessState = getBackendVideoAccessState(appointment);
   const paymentStatus = getAppointmentPaymentStatus(appointment);
-  const paymentCompleted = isVideoAppointmentPaymentCompleted(appointment);
+  const paymentCompleted =
+    backendAccessState?.canJoin === true
+      ? true
+      : typeof backendAccessState?.paymentCompleted === 'boolean'
+        ? backendAccessState.paymentCompleted
+        : isVideoAppointmentPaymentCompleted(appointment);
   const rawStatus = normalizeAppointmentStatus(appointment?.status);
   const terminalStatus = isTerminalAppointment(appointment)
     ? (rawStatus === 'COMPLETED'
@@ -596,7 +730,12 @@ export function getAppointmentViewState(appointment: any): AppointmentViewState 
           : 'CANCELLED')
     : null;
   const status = terminalStatus || getAppointmentStatusWithPaymentFallback(appointment);
-  const awaitingPayment = isAppointmentAwaitingPayment(appointment);
+  const awaitingPayment =
+    type === 'VIDEO_CALL'
+      ? backendAccessState?.paymentRequired === true
+        ? !paymentCompleted
+        : isAppointmentAwaitingPayment(appointment)
+      : false;
   const isVideo = type === 'VIDEO_CALL';
   const isScheduledLike = status === 'SCHEDULED' || status === 'CONFIRMED';
   const workflowState: AppointmentWorkflowState =
@@ -680,7 +819,33 @@ export function getVideoSessionDecision(appointment: any): VideoSessionDecision 
     };
   }
 
-  if (!viewState.paymentCompleted) {
+  const backendAccessState = getBackendVideoAccessState(appointment);
+  if (backendAccessState?.canJoin === true) {
+    const status = viewState.normalizedStatus.toUpperCase();
+    return {
+      status,
+      action: status === 'IN_PROGRESS' ? 'resume' : 'join',
+      label: status === 'IN_PROGRESS' ? 'Resume Video Call' : 'Join Session',
+      blockedReason: null,
+      shouldCallConsultationStart: status !== 'IN_PROGRESS',
+      canJoin: true,
+    };
+  }
+
+  if (backendAccessState?.canJoin === false) {
+    return {
+      status: viewState.normalizedStatus.toUpperCase(),
+      action: 'blocked',
+      label: backendAccessState.paymentRequired ? 'Payment pending' : getAppointmentStatusDisplayName(viewState.normalizedStatus),
+      blockedReason:
+        backendAccessState.joinBlockedReason ||
+        'This video appointment is not ready to join yet.',
+      shouldCallConsultationStart: false,
+      canJoin: false,
+    };
+  }
+
+  if (!viewState.paymentCompleted && hasExplicitVideoPaymentRequirement(appointment)) {
     return {
       status,
       action: 'blocked',

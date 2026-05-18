@@ -59,6 +59,7 @@ function normalizeAppointment(
 
   const consultationSessionId = String(appointment?.id || "");
   const startTime =
+    appointment?.scheduledStartTime ||
     appointment?.startTime ||
     appointment?.appointmentDate ||
     appointment?.scheduledFor ||
@@ -66,8 +67,8 @@ function normalizeAppointment(
     nowIso();
 
   const endTime =
-    appointment?.endTime ||
     appointment?.scheduledEndTime ||
+    appointment?.endTime ||
     new Date(new Date(startTime).getTime() + VIDEO_ACTIVE_WINDOW_MS).toISOString();
 
   return {
@@ -197,12 +198,22 @@ export function VideoAppointmentMeetSession({
   );
   const appointmentDetailsSource = React.useMemo(() => {
     if (appointmentRecordSource && appointmentConsultationSource) {
-      const merged: Record<string, unknown> = { ...appointmentConsultationSource };
+      const merged: Record<string, unknown> = {
+        ...(appointmentConsultationSource as Record<string, unknown>),
+        ...(appointmentRecordSource as Record<string, unknown>),
+      };
 
-      for (const [key, value] of Object.entries(appointmentRecordSource as Record<string, unknown>)) {
+      const consultation = appointmentConsultationSource as Record<string, unknown>;
+      const protectedSessionFields = ['roomName', 'meetingUrl', 'roomId', 'meetingId', 'provider', 'token'];
+      for (const key of protectedSessionFields) {
+        const value = consultation[key];
         if (isMergeableValue(value)) {
           merged[key] = value;
         }
+      }
+
+      if (isMergeableValue(consultation.id) && consultation.id !== (appointmentRecordSource as Record<string, unknown>).id) {
+        merged.sessionId = consultation.id;
       }
 
       return merged;
@@ -233,14 +244,39 @@ export function VideoAppointmentMeetSession({
   }, [appointmentDetailsSource]);
   const appointmentDoctorName = getAppointmentDoctorName(appointmentDetailsSource);
   const appointmentPatientName = getAppointmentPatientName(appointmentDetailsSource);
+  const appointmentRecordScheduleSource = appointmentRecordSource as
+    | {
+        appointmentDate?: string;
+        date?: string;
+        time?: string;
+        scheduledFor?: string;
+        scheduledStartTime?: string;
+        scheduledEndTime?: string;
+        startTime?: string;
+        endTime?: string;
+        scheduledTime?: string;
+      }
+    | null;
   const appointmentDateValue =
-    appointmentDetailsSource?.startTime ||
+    appointmentRecordScheduleSource?.scheduledStartTime ||
+    appointmentRecordScheduleSource?.appointmentDate ||
+    (appointmentRecordScheduleSource?.date && appointmentRecordScheduleSource?.time
+      ? `${appointmentRecordScheduleSource.date}T${appointmentRecordScheduleSource.time}`
+      : "") ||
+    appointmentRecordScheduleSource?.scheduledFor ||
+    appointmentRecordScheduleSource?.startTime ||
+    (appointmentDetailsSource as { scheduledStartTime?: string } | null | undefined)?.scheduledStartTime ||
     appointmentDetailsSource?.appointmentDate ||
-    appointmentDetailsSource?.scheduledFor ||
     appointmentDetailsSource?.date ||
+    appointmentDetailsSource?.scheduledFor ||
+    appointmentDetailsSource?.startTime ||
     appointmentDetailsSource?.createdAt ||
     "";
   const appointmentTimeValue =
+    appointmentRecordScheduleSource?.time ||
+    appointmentRecordScheduleSource?.scheduledTime ||
+    appointmentRecordScheduleSource?.startTime ||
+    (appointmentDetailsSource as { scheduledStartTime?: string } | null | undefined)?.scheduledStartTime ||
     appointmentDetailsSource?.time ||
     appointmentDetailsSource?.startTime ||
     appointmentDetailsSource?.scheduledTime ||

@@ -1,6 +1,6 @@
 'use server';
 
-import { authenticatedApi } from './auth.server';
+import { authenticatedApi, revalidateCache } from './auth.server';
 import { API_ENDPOINTS } from '../config/config';
 
 function unsupportedDoctorRoute(feature: string): never {
@@ -79,6 +79,7 @@ export async function getDoctors(clinicId: string, filters?: {
   const endpoint = `${API_ENDPOINTS.DOCTORS.GET_ALL}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint, {
     ...(clinicId ? { headers: { 'X-Clinic-ID': clinicId } } : {}),
+    cache: 'no-store',
   });
   return normalizeCollectionResponse(data);
 }
@@ -114,6 +115,11 @@ export async function createDoctor(doctorData: {
     method: 'POST',
     body: JSON.stringify(doctorData),
   });
+  if (doctorData.clinicId) {
+    void revalidateCache('doctors');
+    void revalidateCache('clinic-doctors');
+    void revalidateCache('clinic-locations');
+  }
   return data;
 }
 
@@ -224,7 +230,9 @@ export async function getDoctorAppointments(doctorId: string, filters?: {
   // Backend: GET /appointments?doctorId=X (no /doctors/:id/appointments route)
   params.append('doctorId', doctorId);
   const endpoint = `/appointments${params.toString() ? `?${params.toString()}` : ''}`;
-  const { data } = await authenticatedApi(endpoint, {});
+  const { data } = await authenticatedApi(endpoint, {
+    cache: 'no-store',
+  });
   return data;
 }
 

@@ -80,7 +80,7 @@ export async function getConsultationStatus(appointmentId: string) {
   try {
     const { data: response } = await authenticatedApi(
       API_ENDPOINTS.VIDEO.CONSULTATION.STATUS(appointmentId),
-      {}
+      { cache: 'no-store' }
     );
     return response;
   } catch (error) {
@@ -268,7 +268,7 @@ async function getConsultationId(appointmentId: string): Promise<string> {
   try {
     const { data: response } = await authenticatedApi(
       API_ENDPOINTS.VIDEO.CONSULTATION.STATUS(appointmentId),
-      {}
+      { cache: 'no-store' }
     );
     // The status response should contain the consultation/session ID
     if (response && typeof response === 'object' && 'id' in response) {

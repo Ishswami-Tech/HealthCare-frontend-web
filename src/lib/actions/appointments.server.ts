@@ -575,6 +575,7 @@ export async function getAppointments(filters?: AppointmentFilters & { omitClini
     }>(endpoint, {
       ...(resolvedClinicId ? { headers: { 'X-Clinic-ID': resolvedClinicId } } : {}),
       omitClinicId: true,
+      cache: 'no-store',
     });
 
     // Detect profile-incomplete 403 returned gracefully by authenticatedApi
@@ -665,6 +666,7 @@ export async function getMyAppointments(filters?: any) {
     }>(endpoint, {
       ...(resolvedClinicId ? { headers: { 'X-Clinic-ID': resolvedClinicId } } : {}),
       omitClinicId: true,
+      cache: 'no-store',
     });
 
     // Detect profile-incomplete 403 returned gracefully by authenticatedApi
@@ -723,7 +725,9 @@ export async function getMyAppointments(filters?: any) {
  */
 export async function getAppointmentById(id: string) {
   try {
-    const { data } = await authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.GET_BY_ID(id), {});
+    const { data } = await authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.GET_BY_ID(id), {
+      cache: 'no-store',
+    });
     return { success: true, appointment: normalizeAppointment(data as Appointment) };
   } catch (error) {
     logger.error('Failed to get appointment by ID', error instanceof Error ? error : new Error(String(error)));

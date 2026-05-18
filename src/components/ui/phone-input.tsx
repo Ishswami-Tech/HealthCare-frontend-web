@@ -207,11 +207,11 @@ const PhoneInputComponent = forwardRef<HTMLInputElement, PhoneInputProps>(
       <div className="relative w-full">
         <PhoneInput
           className={cn(
-            "flex h-10 w-full items-center rounded-md border border-input bg-background px-3 text-sm ring-offset-background",
+            "flex h-9 w-full items-center rounded-md border border-input bg-background px-3 text-sm",
             "phone-input-container",
-            "focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
+            "focus-within:outline-none focus-within:ring-[3px] focus-within:ring-ring/50 focus-within:border-ring",
             "disabled:cursor-not-allowed disabled:opacity-50",
-            error && "border-red-500 focus-within:ring-red-500",
+            error && "border-destructive focus-within:ring-destructive/20 dark:focus-within:ring-destructive/40",
             className,
           )}
           onChange={(val) => onChange?.(val ?? "")}

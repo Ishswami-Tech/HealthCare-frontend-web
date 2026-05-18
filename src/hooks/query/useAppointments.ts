@@ -243,7 +243,6 @@ export const useAppointments = (
 ) => {
   const clinicId = useCurrentClinicId();
   const { hasPermission } = useRBAC();
-  const { isConnected } = useWebSocketStatus();
   
   // Memoize query key for performance
   const queryKey = useMemo(
@@ -292,12 +291,12 @@ export const useAppointments = (
         (options?.enabled ?? true) &&
         (!!clinicId || (typeof clinicIdOrFilters === 'object' && (!!clinicIdOrFilters.omitClinicId || !!clinicIdOrFilters.clinicId))) &&
         hasPermission(Permission.VIEW_APPOINTMENTS),
-      staleTime: 5 * 60 * 1000, // 5 minutes for better caching
+      staleTime: 30 * 1000,
       gcTime: 10 * 60 * 1000, // 10 minutes garbage collection
-      refetchOnWindowFocus: false, // Reduce unnecessary refetches
-      refetchOnMount: true, // Refetch when invalidated so post-payment redirects see fresh data
+      refetchOnWindowFocus: true,
+      refetchOnMount: 'always',
       refetchOnReconnect: true,
-      refetchInterval: options?.enabled === false ? false : (isConnected ? false : 30_000),
+      refetchInterval: options?.enabled === false ? false : 30_000,
       retry: (failureCount, error: Error) => {
         if (error.message.includes('Access denied')) {
           return false;
@@ -349,7 +348,10 @@ export const useAppointment = (appointmentId: string) => {
     },
     {
       enabled: !!appointmentId && hasPermission(Permission.VIEW_APPOINTMENTS),
-      staleTime: 2 * 60 * 1000, // 2 minutes
+      staleTime: 0,
+      gcTime: 2 * 60 * 1000,
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: true,
       retry: (failureCount, error: Error) => {
         if (error.message.includes('Access denied') || error.message.includes('not found')) {
           return false;
@@ -1452,7 +1454,6 @@ export const useTestAppointmentContext = () => {
 export const useAppointmentsWithErrorHandling = (filters?: AppointmentFilters) => {
   const clinicId = useCurrentClinicId();
   const { hasPermission } = useRBAC();
-  const { isConnected } = useWebSocketStatus();
   
   // Memoize query configuration
   const queryConfig = useMemo(() => {
@@ -1492,11 +1493,12 @@ export const useAppointmentsWithErrorHandling = (filters?: AppointmentFilters) =
       queryKey,
       queryFn,
       enabled: !!clinicId && hasPermission(Permission.VIEW_APPOINTMENTS),
-      staleTime: 3 * 60 * 1000, // 3 minutes for better caching
+      staleTime: 30 * 1000,
       gcTime: 5 * 60 * 1000, // 5 minutes GC time
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
       refetchOnReconnect: true,
-      refetchInterval: isConnected ? false : 30_000,
+      refetchOnMount: 'always',
+      refetchInterval: 30_000,
       retry: (failureCount: number, error: Error) => {
         // Don't retry on permission errors
         if (error.message.includes('permission') || error.message.includes('Access denied')) {

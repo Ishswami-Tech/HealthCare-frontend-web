@@ -111,6 +111,13 @@ export interface VideoAppointment {
   recordingUrl?: string;
   notes?: string;
   paymentCompleted?: boolean;
+  paymentRequired?: boolean;
+  canJoin?: boolean;
+  joinBlockedReason?: string | null;
+  scheduledStartTime?: string;
+  scheduledEndTime?: string;
+  joinWindowStart?: string;
+  joinWindowEnd?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -272,7 +279,6 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
 export function useVideoAppointment(id: string) {
   const { hasPermission } = useRBAC();
   const queryClient = useQueryClient();
-  const { isConnected: socketConnected } = useWebSocketStatus();
   const resolvedAppointmentId = normalizeVideoSessionAppointmentId(id);
   const {
     subscribeToVideoAppointments,
@@ -303,10 +309,11 @@ export function useVideoAppointment(id: string) {
     },
     {
       enabled: !!resolvedAppointmentId && hasPermission(Permission.VIEW_VIDEO_APPOINTMENTS),
-      staleTime: 1 * 60 * 1000, // 1 minute - WebSocket handles real-time updates
+      staleTime: 0,
       gcTime: 5 * 60 * 1000, // 5 minutes
-      refetchInterval: socketConnected ? false : 30_000, // Poll when websocket is unavailable
-      refetchOnWindowFocus: false,
+      refetchInterval: 30_000,
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: true,
       retry: false,
     }
   );

@@ -6,7 +6,7 @@ import { io, Socket } from 'socket.io-client';
 import { APP_CONFIG } from '@/lib/config/config';
 import { useHealthStore } from '@/stores';
 import { useAuthStore } from '@/stores/auth.store';
-import { refreshClientSessionForRealtime } from '@/lib/utils/auth-recovery';
+import { getJwtRefreshDelayMs, refreshClientSessionForRealtime } from '@/lib/utils/auth-recovery';
 import { DetailedHealthStatus } from '../query/useHealth';
 
 // Realtime health status types matching backend format
@@ -250,6 +250,53 @@ let sharedHealthSocket: Socket | null = null;
 let sharedHealthRefCount = 0;
 let sharedHealthDisconnectTimer: number | null = null;
 let sharedHealthAuthRefreshInFlight = false;
+let sharedHealthAuthRefreshTimer: number | null = null;
+
+function clearSharedHealthAuthRefreshTimer() {
+  if (sharedHealthAuthRefreshTimer !== null) {
+    window.clearTimeout(sharedHealthAuthRefreshTimer);
+    sharedHealthAuthRefreshTimer = null;
+  }
+}
+
+function scheduleSharedHealthAuthRefresh(token?: string) {
+  clearSharedHealthAuthRefreshTimer();
+  if (!token) {
+    return;
+  }
+
+  const delayMs = getJwtRefreshDelayMs(token);
+  if (delayMs === null) {
+    return;
+  }
+
+  sharedHealthAuthRefreshTimer = window.setTimeout(() => {
+    if (sharedHealthAuthRefreshInFlight) {
+      return;
+    }
+
+    sharedHealthAuthRefreshInFlight = true;
+    void (async () => {
+      try {
+        const refreshedSession = await refreshClientSessionForRealtime('health-live-ws');
+        if (!refreshedSession?.access_token || !sharedHealthSocket) {
+          return;
+        }
+
+        sharedHealthSocket.auth = { token: refreshedSession.access_token };
+        sharedHealthSocket.connect();
+        scheduleSharedHealthAuthRefresh(refreshedSession.access_token);
+      } catch (refreshError) {
+        useHealthStore.getState().setConnectionStatus('error');
+        useHealthStore.getState().setError(
+          refreshError instanceof Error ? refreshError : new Error('Failed to refresh websocket auth')
+        );
+      } finally {
+        sharedHealthAuthRefreshInFlight = false;
+      }
+    })();
+  }, Math.max(delayMs, 5000));
+}
 
 function emitInitialHealthSnapshot() {
   if (!sharedHealthSocket?.connected) return;
@@ -290,11 +337,11 @@ function bindSharedHealthSocket(socket: Socket) {
     const message = String(err?.message || '');
     const isAuthError = /jwt expired|authentication required|no token or session/i.test(message);
 
-    if (isAuthError) {
-      socket.disconnect();
+      if (isAuthError) {
+        socket.disconnect();
 
-      if (!sharedHealthAuthRefreshInFlight) {
-        sharedHealthAuthRefreshInFlight = true;
+        if (!sharedHealthAuthRefreshInFlight) {
+          sharedHealthAuthRefreshInFlight = true;
         void (async () => {
           try {
             const refreshedSession = await refreshClientSessionForRealtime('health-live-ws');
@@ -305,6 +352,7 @@ function bindSharedHealthSocket(socket: Socket) {
             }
             socket.auth = { token: refreshedSession.access_token };
             socket.connect();
+            scheduleSharedHealthAuthRefresh(refreshedSession.access_token);
           } catch {
             useHealthStore.getState().setConnectionStatus('error');
             useHealthStore.getState().setError(err);
@@ -513,6 +561,7 @@ export function useHealthRealtime(
         ...(currentToken ? { auth: { token: currentToken } } : {}),
       });
       bindSharedHealthSocket(sharedHealthSocket);
+      scheduleSharedHealthAuthRefresh(currentToken || undefined);
       useHealthStore.getState().setConnectionStatus('connecting');
     } else if (currentToken) {
       const socketAuth = sharedHealthSocket.auth as { token?: string } | undefined;
@@ -524,6 +573,7 @@ export function useHealthRealtime(
       if (!sharedHealthSocket.connected) {
         sharedHealthSocket.connect();
       }
+      scheduleSharedHealthAuthRefresh(currentToken);
     } else if (!sharedHealthSocket.connected) {
       sharedHealthSocket.connect();
     }
@@ -537,6 +587,7 @@ export function useHealthRealtime(
       if (sharedHealthDisconnectTimer !== null) {
         window.clearTimeout(sharedHealthDisconnectTimer);
       }
+      clearSharedHealthAuthRefreshTimer();
 
       sharedHealthDisconnectTimer = window.setTimeout(() => {
         sharedHealthSocket?.disconnect();

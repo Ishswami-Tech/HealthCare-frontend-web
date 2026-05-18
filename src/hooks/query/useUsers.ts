@@ -396,7 +396,19 @@ export const useUpdateUserRole = () => {
       toastId: TOAST_IDS.USER.UPDATE,
       loadingMessage: 'Updating user role...',
       successMessage: 'User role updated successfully',
-      invalidateQueries: [['users'], ['user'], ['patients'], ['doctors'], ['receptionists'], ['clinicAdmins']],
+      invalidateQueries: [
+        ['users'],
+        ['user'],
+        ['patients'],
+        ['doctors'],
+        ['clinicDoctors'],
+        ['doctorAvailability'],
+        ['doctorSchedule'],
+        ['activeLocations'],
+        ['clinicLocations'],
+        ['receptionists'],
+        ['clinicAdmins'],
+      ],
     }
   );
 };

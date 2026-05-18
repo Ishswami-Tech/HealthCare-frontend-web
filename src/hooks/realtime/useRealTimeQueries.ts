@@ -32,6 +32,13 @@ import {
   getAppointmentStatsQueryKey,
 } from '@/lib/query/appointment-query-keys';
 
+function resolveRealtimeClinicId(
+  currentClinic: { id?: string } | null | undefined,
+  sessionUser: { clinicId?: string; clinic?: { id?: string } } | undefined
+): string | undefined {
+  return sessionUser?.clinicId || sessionUser?.clinic?.id || currentClinic?.id;
+}
+
 const CRITICAL_REALTIME_QUERY_PREFIXES: readonly ReadonlyArray<string>[] = [
   ['appointments'],
   ['appointment'],
@@ -132,7 +139,7 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
   const { session } = useAuth();
   const { isConnected } = useWebSocketContext();
   const sessionUser = session?.user as { clinicId?: string; clinic?: { id?: string } } | undefined;
-  const resolvedClinicId = currentClinic?.id || sessionUser?.clinicId || sessionUser?.clinic?.id;
+  const resolvedClinicId = resolveRealtimeClinicId(currentClinic, sessionUser);
   const hasDoctorFilter = Object.prototype.hasOwnProperty.call(filters, 'doctorId');
   const doctorFilterReady = !hasDoctorFilter || Boolean(filters.doctorId);
 
@@ -167,14 +174,17 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
 
 export function useRealTimeAppointmentStats() {
   const { currentClinic } = useAppStore();
+  const { session } = useAuth();
   const { isConnected, subscribe } = useWebSocketContext();
+  const sessionUser = session?.user as { clinicId?: string; clinic?: { id?: string } } | undefined;
+  const resolvedClinicId = resolveRealtimeClinicId(currentClinic, sessionUser);
 
   const query = useQueryData(
-    getAppointmentStatsQueryKey(currentClinic?.id),
+    getAppointmentStatsQueryKey(resolvedClinicId),
     async () => {
-      if (!currentClinic) throw new Error('No clinic selected');
+      if (!resolvedClinicId) throw new Error('No clinic selected');
 
-      const response = await getAppointmentAnalytics({ clinicId: currentClinic.id });
+      const response = await getAppointmentAnalytics({ clinicId: resolvedClinicId });
       if (!response) {
         throw new Error('Failed to fetch appointment stats');
       }
@@ -182,7 +192,7 @@ export function useRealTimeAppointmentStats() {
       return { success: true, data: response as Record<string, unknown> };
     },
     {
-      enabled: !!currentClinic,
+      enabled: !!resolvedClinicId,
       staleTime: 5 * 60 * 1000, // 5 minutes (optimized for 10M users)
       gcTime: 15 * 60 * 1000, // 15 minutes
       refetchInterval: isConnected ? false : 10 * 60 * 1000, // 10 minutes if not real-time (increased for 10M users)
@@ -200,16 +210,19 @@ export function useRealTimeAppointmentStats() {
 export function useRealTimeQueueStatus(queueName?: string, locationId?: string) {
   const queryClient = useQueryClient();
   const { currentClinic } = useAppStore();
+  const { session } = useAuth();
   const { isConnected } = useWebSocketStatus();
   const { subscribe } = useWebSocketContext();
-  const queryKey = getQueueStatusQueryKey(currentClinic?.id, locationId, queueName);
+  const sessionUser = session?.user as { clinicId?: string; clinic?: { id?: string } } | undefined;
+  const resolvedClinicId = resolveRealtimeClinicId(currentClinic, sessionUser);
+  const queryKey = getQueueStatusQueryKey(resolvedClinicId, locationId, queueName);
 
   const query = useQueryData(
     queryKey,
     async () => {
-      if (!currentClinic) throw new Error('No clinic selected');
+      if (!resolvedClinicId) throw new Error('No clinic selected');
 
-      const response = await getQueueStats(locationId || currentClinic.id);
+      const response = await getQueueStats(locationId || resolvedClinicId);
       if (!response) {
         throw new Error('Failed to fetch queue status');
       }
@@ -217,7 +230,7 @@ export function useRealTimeQueueStatus(queueName?: string, locationId?: string) 
       return normalizeQueueStatusSnapshot(response as QueueStatusSnapshot);
     },
     {
-      enabled: !!currentClinic && !!locationId,
+      enabled: !!resolvedClinicId && !!locationId,
       staleTime: 30 * 1000, // 30 seconds (optimized for 10M users)
       gcTime: 5 * 60 * 1000, // 5 minutes
       // Keep queue status fresh even when the websocket is connected because
@@ -287,7 +300,7 @@ export function useRealTimeQueueStatus(queueName?: string, locationId?: string) 
     return () => {
       unsubscribes.forEach((unsubscribe) => unsubscribe());
     };
-  }, [isConnected, currentClinic, locationId, queueName, queryClient, subscribe]);
+  }, [isConnected, resolvedClinicId, locationId, queueName, queryClient, subscribe]);
 
   return {
     ...query,

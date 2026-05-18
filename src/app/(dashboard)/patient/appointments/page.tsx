@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { useMyAppointments } from "@/hooks/query/useAppointments";
+import { useCurrentClinicId } from "@/hooks/query/useClinics";
 import { PatientQueueCard } from "@/components/dashboard/PatientQueueCard";
 import AppointmentManager from "@/components/appointments/AppointmentManager";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
@@ -70,13 +71,15 @@ export default function PatientAppointments() {
   const shouldOpenBooking = searchParams.get("openBooking") === "1";
   const defaultConsultationMode =
     bookingMode?.toUpperCase() === "VIDEO" ? "VIDEO" : undefined;
+  const sessionClinicId = useCurrentClinicId();
+  const resolvedClinicId = queryClinicId || sessionClinicId || undefined;
   const {
     data: appointmentsData,
     isPending: isPendingAppointments,
     isFetching: isFetchingAppointments,
     refetch: refetchAppointments,
   } = useMyAppointments(
-    queryClinicId ? { clinicId: queryClinicId } : undefined
+    resolvedClinicId ? { clinicId: resolvedClinicId } : undefined
   );
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const openQrGate = usePatientUiStore((state) => state.openQrGate);
@@ -151,7 +154,7 @@ export default function PatientAppointments() {
           onOpenChange={setIsBookingDialogOpen}
           hideTrigger
           {...(defaultConsultationMode ? { initialConsultationMode: defaultConsultationMode } : {})}
-          {...(queryClinicId ? { clinicId: queryClinicId } : {})}
+          {...(resolvedClinicId ? { clinicId: resolvedClinicId } : {})}
           {...(queryLocationId ? { locationId: queryLocationId } : {})}
           {...(queryClinicName ? { clinicName: queryClinicName } : {})}
           onBooked={() => setIsBookingDialogOpen(false)}
@@ -175,7 +178,7 @@ export default function PatientAppointments() {
               await refetchAppointments();
             }}
             {...(defaultConsultationMode ? { defaultConsultationMode } : {})}
-            {...(queryClinicId ? { clinicId: queryClinicId } : {})}
+            {...(resolvedClinicId ? { clinicId: resolvedClinicId } : {})}
           />
         </div>
 

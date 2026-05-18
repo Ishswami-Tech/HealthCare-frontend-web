@@ -34,6 +34,12 @@ import {
   refreshToken,
   clearSession,
 } from '@/lib/actions/auth.server';
+import {
+  getClinicById,
+  getClinicDoctors,
+  getClinicLocations,
+  getMyClinic,
+} from '@/lib/actions/clinic.server';
 import type {
   OTPFormData,
   OtpRequestFormData,
@@ -139,6 +145,63 @@ export function useAuth() {
   const clearAuth = useAuthStore((state) => state.clearAuth);
   const setLoading = useAuthStore((state) => state.setLoading);
   const setError = useAuthStore((state) => state.setError);
+
+  const resetQueryCacheForAuthTransition = useCallback(
+    (nextSession?: Session | null) => {
+      void queryClient.cancelQueries();
+      queryClient.clear();
+
+      if (nextSession) {
+        queryClient.setQueryData(['session'], nextSession);
+      }
+    },
+    [queryClient]
+  );
+
+  const prefetchAuthenticatedWorkspace = useCallback(
+    async (clinicId?: string) => {
+      if (!clinicId) {
+        return;
+      }
+
+      const normalizedClinicId = clinicId.trim();
+      if (!normalizedClinicId) {
+        return;
+      }
+
+      await Promise.allSettled([
+        queryClient.prefetchQuery({
+          queryKey: ['myClinic'],
+          queryFn: async () => getMyClinic(),
+          staleTime: 2 * 60 * 1000,
+        }),
+        queryClient.prefetchQuery({
+          queryKey: ['current-clinic', normalizedClinicId],
+          queryFn: async () => getClinicById(normalizedClinicId),
+          staleTime: 2 * 60 * 1000,
+        }),
+        queryClient.prefetchQuery({
+          queryKey: ['activeLocations', normalizedClinicId],
+          queryFn: async () => {
+            const locations = await getClinicLocations(normalizedClinicId);
+            return Array.isArray(locations)
+              ? locations.filter(location => location?.isActive !== false)
+              : [];
+          },
+          staleTime: 2 * 60 * 1000,
+        }),
+        queryClient.prefetchQuery({
+          queryKey: ['clinicDoctors', normalizedClinicId],
+          queryFn: async () => {
+            const result = await getClinicDoctors(normalizedClinicId);
+            return Array.isArray(result) ? result : [];
+          },
+          staleTime: 2 * 60 * 1000,
+        }),
+      ]);
+    },
+    [queryClient]
+  );
 
   // Get current session with auto-refresh using core hook
   const { data: session, isPending, error: sessionError } = useQueryData<Session | null>(
@@ -306,8 +369,9 @@ export function useAuth() {
           isAuthenticated: true,
         };
         
-        // Update React Query cache
-        queryClient.setQueryData(['session'], sessionData);
+        // Reset guest cache before establishing the authenticated session
+        resetQueryCacheForAuthTransition(sessionData);
+        void prefetchAuthenticatedWorkspace(clinicId);
         
         // ✅ Use centralized redirect utility
         const currentPath = typeof window !== 'undefined' ? window.location.pathname : undefined;
@@ -377,38 +441,9 @@ export function useAuth() {
           isAuthenticated: true
         };
 
-        // Set the session data immediately
-        queryClient.setQueryData(['session'], sessionData);
-
-        // Refresh session from server after a brief delay
-        try {
-          await new Promise(resolve => setTimeout(resolve, 500));
-          const serverSession = await getServerSession();
-
-          if (serverSession) {
-            queryClient.setQueryData<Session | null>(['session'], (current) => {
-              const currentProfileComplete = resolveProfileComplete(
-                current?.user as unknown as Record<string, unknown>
-              );
-              const serverProfileComplete = resolveProfileComplete(
-                serverSession.user as unknown as Record<string, unknown>
-              );
-              const nextProfileComplete = currentProfileComplete || serverProfileComplete;
-
-              return {
-                ...serverSession,
-                user: {
-                  ...serverSession.user,
-                  profileComplete: nextProfileComplete,
-                },
-              };
-            });
-          }
-        } catch (refreshError) {
-          if (process.env.NODE_ENV === 'development') {
-            logger.error('Error refreshing session', refreshError, { component: 'useAuth' });
-          }
-        }
+        // Reset guest cache before establishing the authenticated session
+        resetQueryCacheForAuthTransition(sessionData);
+        void prefetchAuthenticatedWorkspace(clinicId);
 
         // Handle redirect based on profile completion
         const refreshedSession = queryClient.getQueryData<Session | null>(['session']);
@@ -460,6 +495,9 @@ export function useAuth() {
       showToast: false, // Let page component handle it
       // ✅ Removed onSuccess redirect - let page component handle it to prevent double redirects
       // ✅ Removed onError toast - let page component handle it to prevent duplicate toasts
+      onSuccess: () => {
+        resetQueryCacheForAuthTransition();
+      },
     }
   );
 
@@ -486,13 +524,8 @@ export function useAuth() {
       successMessage: 'Logged out successfully',
       showToast: false, // Handle manually for custom messages
       onSuccess: () => {
-        // ✅ CRITICAL FIX: Immediately invalidate session query to prevent dashboard render
-        queryClient.invalidateQueries({ queryKey: ['session'] });
-        queryClient.setQueryData(['session'], null);
-
-        // Clear all query cache and Zustand stores (prevent cross-role state leakage)
-        queryClient.clear();
-        queryClient.setQueryData(['session'], null);
+        // Clear query cache and Zustand stores (prevent cross-role state leakage)
+        resetQueryCacheForAuthTransition();
         resetAllStores();
         clearSession();
 
@@ -518,12 +551,8 @@ export function useAuth() {
         }
 
         // ✅ CRITICAL FIX: Immediately invalidate session query to prevent dashboard render
-        queryClient.invalidateQueries({ queryKey: ['session'] });
-        queryClient.setQueryData(['session'], null);
-
         // Clear client state even if server logout fails (prevent cross-role state leakage)
-        queryClient.clear();
-        queryClient.setQueryData(['session'], null);
+        resetQueryCacheForAuthTransition();
         resetAllStores();
         clearSession();
 
@@ -570,7 +599,8 @@ export function useAuth() {
            isAuthenticated: true,
         };
         
-        queryClient.setQueryData(['session'], sessionData);
+        resetQueryCacheForAuthTransition(sessionData);
+        void prefetchAuthenticatedWorkspace(clinicId);
         
         // ✅ Use centralized redirect utility
         const currentPath = typeof window !== 'undefined' ? window.location.pathname : undefined;
@@ -668,8 +698,9 @@ export function useAuth() {
       toastId: TOAST_IDS.AUTH.SOCIAL_LOGIN,
       loadingMessage: 'Logging in...',
       successMessage: 'Logged in successfully',
-      invalidateQueries: [['session']],
       onSuccess: (data) => {
+        resetQueryCacheForAuthTransition();
+        void prefetchAuthenticatedWorkspace(resolveClinicId(data.user as unknown as Record<string, unknown>));
         const redirectPath = getRedirectPath(data.user, data.redirectUrl);
         router.push(redirectPath);
         showSuccessToast('Logged in successfully', {
@@ -706,8 +737,9 @@ export function useAuth() {
       toastId: TOAST_IDS.AUTH.LOGIN,
       loadingMessage: 'Verifying magic link...',
       successMessage: 'Logged in successfully',
-      invalidateQueries: [['session']],
       onSuccess: (data) => {
+        resetQueryCacheForAuthTransition();
+        void prefetchAuthenticatedWorkspace(resolveClinicId(data.user as unknown as Record<string, unknown>));
         const redirectPath = getRedirectPath(data.user, data.redirectUrl);
         router.push(redirectPath);
         showSuccessToast('Logged in successfully', {
@@ -743,8 +775,7 @@ export function useAuth() {
       loadingMessage: 'Terminating all sessions...',
       successMessage: 'All sessions terminated successfully',
       onSuccess: () => {
-        queryClient.clear();
-        queryClient.setQueryData(['session'], null);
+        resetQueryCacheForAuthTransition();
         router.push(ROUTES.LOGIN);
         showSuccessToast('All sessions terminated successfully', {
           id: TOAST_IDS.SESSION.TERMINATE_ALL,
@@ -814,8 +845,9 @@ export function useAuth() {
       toastId: TOAST_IDS.AUTH.SOCIAL_LOGIN,
       loadingMessage: 'Logging in with Facebook...',
       successMessage: 'Logged in with Facebook successfully',
-      invalidateQueries: [['session']],
       onSuccess: (data) => {
+        resetQueryCacheForAuthTransition();
+        void prefetchAuthenticatedWorkspace(resolveClinicId(data.user as unknown as Record<string, unknown>));
         const redirectPath = getRedirectPath(data.user, data.redirectUrl);
         router.push(redirectPath);
         showSuccessToast('Logged in with Facebook successfully', {
@@ -843,11 +875,12 @@ export function useAuth() {
       toastId: TOAST_IDS.AUTH.SOCIAL_LOGIN,
       loadingMessage: 'Logging in with Apple...',
       successMessage: 'Successfully logged in with Apple',
-      invalidateQueries: [['session'], ['auth', 'session']],
       onSuccess: (data) => {
         // Handle successful Apple login
         if (data?.user) {
           // Redirect to dashboard
+          resetQueryCacheForAuthTransition();
+          void prefetchAuthenticatedWorkspace(resolveClinicId(data.user as unknown as Record<string, unknown>));
           router.push(getDashboardByRole(data.user.role as Role));
           showSuccessToast('Successfully logged in with Apple', {
             id: TOAST_IDS.AUTH.SOCIAL_LOGIN,

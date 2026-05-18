@@ -8,13 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -25,7 +18,6 @@ import {
 import { DataTable } from "@/components/ui/data-table";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
-import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useStartAppointment, useCompleteAppointment, useUpdateAppointment } from "@/hooks/query/useAppointments";
@@ -39,10 +31,8 @@ import {
   getAppointmentDateTimeValue,
   formatDateInIST,
   formatTimeInIST,
-  formatISODateInIST,
   getReceptionistAppointmentDateLabel,
   getReceptionistAppointmentTimeLabel,
-  shouldShowAppointmentOnDoctorDashboard,
 } from "@/lib/utils/appointmentUtils";
 import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 import {
@@ -52,6 +42,7 @@ import {
   Calendar,
   Play,
   CheckCircle,
+  AlertCircle,
   Clock,
   FileText,
   Video,
@@ -59,6 +50,7 @@ import {
   MessageSquare,
   Search,
   Eye,
+  XCircle,
   Loader2,
 } from "lucide-react";
 import type { AppointmentStatus } from "@/types/appointment.types";
@@ -73,6 +65,59 @@ const APPOINTMENT_STATUS = {
   CANCELLED: 'CANCELLED',
   NO_SHOW: 'NO_SHOW',
 } as const;
+
+type DoctorAppointmentViewFilter =
+  | typeof APPOINTMENT_STATUS.ALL
+  | "ACTIVE"
+  | typeof APPOINTMENT_STATUS.IN_PROGRESS
+  | typeof APPOINTMENT_STATUS.SCHEDULED
+  | typeof APPOINTMENT_STATUS.CONFIRMED
+  | typeof APPOINTMENT_STATUS.COMPLETED
+  | typeof APPOINTMENT_STATUS.CANCELLED
+  | typeof APPOINTMENT_STATUS.NO_SHOW;
+
+const DOCTOR_APPOINTMENT_VIEW_FILTERS: Array<{
+  value: DoctorAppointmentViewFilter;
+  label: string;
+}> = [
+  { value: APPOINTMENT_STATUS.ALL, label: "All" },
+  { value: "ACTIVE", label: "Active" },
+  { value: APPOINTMENT_STATUS.COMPLETED, label: "Completed" },
+  { value: APPOINTMENT_STATUS.CANCELLED, label: "Cancelled" },
+  { value: APPOINTMENT_STATUS.NO_SHOW, label: "No Show" },
+];
+
+function getDoctorAppointmentBucket(status: string): DoctorAppointmentViewFilter {
+  switch (status) {
+    case APPOINTMENT_STATUS.COMPLETED:
+      return APPOINTMENT_STATUS.COMPLETED;
+    case APPOINTMENT_STATUS.CANCELLED:
+      return APPOINTMENT_STATUS.CANCELLED;
+    case APPOINTMENT_STATUS.NO_SHOW:
+      return APPOINTMENT_STATUS.NO_SHOW;
+    case APPOINTMENT_STATUS.IN_PROGRESS:
+      return APPOINTMENT_STATUS.IN_PROGRESS;
+    case APPOINTMENT_STATUS.CONFIRMED:
+      return APPOINTMENT_STATUS.CONFIRMED;
+    case APPOINTMENT_STATUS.SCHEDULED:
+    default:
+      return "ACTIVE";
+  }
+}
+
+function matchesDoctorAppointmentViewFilter(
+  appointmentStatus: string,
+  viewFilter: DoctorAppointmentViewFilter
+): boolean {
+  if (viewFilter === APPOINTMENT_STATUS.ALL) return true;
+  if (viewFilter === "ACTIVE") {
+    return ["ACTIVE", APPOINTMENT_STATUS.SCHEDULED, APPOINTMENT_STATUS.CONFIRMED, APPOINTMENT_STATUS.IN_PROGRESS].includes(
+      getDoctorAppointmentBucket(appointmentStatus)
+    );
+  }
+
+  return getDoctorAppointmentBucket(appointmentStatus) === viewFilter;
+}
 
 // Interface for the transformed appointment object
 interface TransformedAppointment {
@@ -171,7 +216,7 @@ export default function DoctorAppointments() {
   const user = session?.user;
   const { clinicId } = useClinicContext();
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<AppointmentStatus | string>(APPOINTMENT_STATUS.ALL);
+  const [appointmentViewFilter, setAppointmentViewFilter] = useState<DoctorAppointmentViewFilter>(APPOINTMENT_STATUS.ALL);
   const [selectedAppointment, setSelectedAppointment] = useState<TransformedAppointment | null>(null);
   const [consultationNotes, setConsultationNotes] = useState("");
   const [prescription, setPrescription] = useState("");
@@ -190,7 +235,6 @@ export default function DoctorAppointments() {
   // Fetch real appointment data
   const realTimeAppointments = useRealTimeAppointments({
     doctorId: user?.id || undefined,
-    ...(statusFilter !== APPOINTMENT_STATUS.ALL ? { status: statusFilter } : {}),
     startDate: historyStartDate,
     endDate: futureEndDate,
     limit: 500,
@@ -211,9 +255,8 @@ export default function DoctorAppointments() {
   // Transform appointments data
   const appointments = useMemo(() => {
     const apps = extractAppointments(appointmentsData);
-    const visibleApps = apps.filter(shouldShowAppointmentOnDoctorDashboard);
 
-    return visibleApps
+    return apps
       .map((app: any): TransformedAppointment => {
         const displayDuration = getDisplayAppointmentDuration(app);
         const viewState = getAppointmentViewState(app);
@@ -275,11 +318,11 @@ export default function DoctorAppointments() {
         app.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         app.chiefComplaint?.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchesStatus = statusFilter === APPOINTMENT_STATUS.ALL || app.status === statusFilter;
+      const matchesStatus = matchesDoctorAppointmentViewFilter(app.status, appointmentViewFilter);
 
       return matchesSearch && matchesStatus;
     });
-  }, [appointments, searchTerm, statusFilter]);
+  }, [appointments, searchTerm, appointmentViewFilter]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -293,8 +336,9 @@ export default function DoctorAppointments() {
       case APPOINTMENT_STATUS.SCHEDULED: return 'bg-gray-100 text-gray-800';
       case APPOINTMENT_STATUS.COMPLETED: return 'bg-purple-100 text-purple-800';
       case APPOINTMENT_STATUS.CANCELLED:
+        return 'bg-rose-100 text-rose-800';
       case APPOINTMENT_STATUS.NO_SHOW:
-        return 'bg-red-100 text-red-800';
+        return 'bg-orange-100 text-orange-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -321,15 +365,25 @@ export default function DoctorAppointments() {
     [appointments]
   );
 
-  const pendingAppointmentsCount = useMemo(
-    () =>
-      appointments.filter((a: TransformedAppointment) =>
-        ['PENDING', 'RESCHEDULED', 'ON_HOLD', 'AWAITING_SLOT_CONFIRMATION'].includes(String(a.status))
-      ).length,
+  const activeAppointmentsCount = useMemo(
+    () => appointments.filter((a: TransformedAppointment) => matchesDoctorAppointmentViewFilter(a.status, "ACTIVE")).length,
+    [appointments]
+  );
+
+  const cancelledAppointmentsCount = useMemo(
+    () => appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.CANCELLED).length,
+    [appointments]
+  );
+
+  const noShowAppointmentsCount = useMemo(
+    () => appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.NO_SHOW).length,
     [appointments]
   );
 
   const totalAppointmentsCount = appointments.length;
+  const selectedAppointmentIsClosed = selectedAppointment
+    ? ["COMPLETED", "CANCELLED", "NO_SHOW"].includes(String(selectedAppointment.status))
+    : false;
 
   const appointmentColumns = useMemo<ColumnDef<TransformedAppointment>[]>(
     () => [
@@ -615,7 +669,7 @@ export default function DoctorAppointments() {
               weekday: "long",
               month: "long",
               day: "numeric",
-            })}. Review every scheduled, video, in-person, completed, and cancelled appointment in one place.`}
+            })}. Review active visits and appointment history, including completed, cancelled, and no-show records.`}
             actionsSlot={
               <div className="flex flex-wrap items-center gap-3">
                 <BookAppointmentDialog
@@ -636,19 +690,11 @@ export default function DoctorAppointments() {
           {/* Stats Overview */}
           <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
             <DashboardMetricCard
-              label="Pending"
-              value={pendingAppointmentsCount}
-              icon={<Clock className="h-3.5 w-3.5 text-amber-600" />}
-              accentClassName="border-l-amber-400"
-              valueClassName="text-sm font-semibold text-amber-600 sm:text-base"
-              compact
-            />
-            <DashboardMetricCard
-              label="Confirmed"
-              value={appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.CONFIRMED).length}
-              icon={<CheckCircle className="h-3.5 w-3.5 text-green-600" />}
-              accentClassName="border-l-emerald-400"
-              valueClassName="text-sm font-semibold text-green-600 sm:text-base"
+              label="Active"
+              value={activeAppointmentsCount}
+              icon={<Clock className="h-3.5 w-3.5 text-slate-600" />}
+              accentClassName="border-l-slate-400"
+              valueClassName="text-sm font-semibold text-slate-600 sm:text-base"
               compact
             />
             <DashboardMetricCard
@@ -660,14 +706,6 @@ export default function DoctorAppointments() {
               compact
             />
             <DashboardMetricCard
-              label="Scheduled"
-              value={appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.SCHEDULED || a.status === APPOINTMENT_STATUS.CONFIRMED).length}
-              icon={<Clock className="h-3.5 w-3.5 text-gray-600" />}
-              accentClassName="border-l-amber-400"
-              valueClassName="text-sm font-semibold text-gray-600 sm:text-base"
-              compact
-            />
-            <DashboardMetricCard
               label="Completed"
               value={completedAppointmentsCount}
               icon={<CheckCircle className="h-3.5 w-3.5 text-purple-600" />}
@@ -676,11 +714,27 @@ export default function DoctorAppointments() {
               compact
             />
             <DashboardMetricCard
-              label="Total All"
+              label="Cancelled"
+              value={cancelledAppointmentsCount}
+              icon={<XCircle className="h-3.5 w-3.5 text-rose-600" />}
+              accentClassName="border-l-rose-400"
+              valueClassName="text-sm font-semibold text-rose-600 sm:text-base"
+              compact
+            />
+            <DashboardMetricCard
+              label="No Show"
+              value={noShowAppointmentsCount}
+              icon={<AlertCircle className="h-3.5 w-3.5 text-orange-600" />}
+              accentClassName="border-l-orange-400"
+              valueClassName="text-sm font-semibold text-orange-600 sm:text-base"
+              compact
+            />
+            <DashboardMetricCard
+              label="Total"
               value={totalAppointmentsCount}
-              icon={<Calendar className="h-3.5 w-3.5 text-purple-600" />}
+              icon={<Calendar className="h-3.5 w-3.5 text-violet-600" />}
               accentClassName="border-l-violet-400"
-              valueClassName="text-sm font-semibold text-purple-600 sm:text-base"
+              valueClassName="text-sm font-semibold text-violet-600 sm:text-base"
               compact
             />
           </div>
@@ -691,28 +745,44 @@ export default function DoctorAppointments() {
               <CardTitle className="text-base font-semibold">Filter Appointments</CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4 pt-0">
-              <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <div className="space-y-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
                   <Input
-                    placeholder="Search by patient name or appointment type..."
+                    placeholder="Search by patient name, appointment type, or complaint..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
                   />
                 </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full md:w-64">
-                    <SelectValue placeholder="Filter by status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">All Status</SelectItem>
-                    <SelectItem value="CONFIRMED">Confirmed</SelectItem>
-                    <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                    <SelectItem value="SCHEDULED">Scheduled</SelectItem>
-                    <SelectItem value="COMPLETED">Completed</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex flex-wrap gap-2">
+                  {DOCTOR_APPOINTMENT_VIEW_FILTERS.map((filter) => {
+                    const count =
+                      filter.value === APPOINTMENT_STATUS.ALL
+                        ? totalAppointmentsCount
+                        : filter.value === "ACTIVE"
+                          ? activeAppointmentsCount
+                          : filter.value === APPOINTMENT_STATUS.COMPLETED
+                            ? completedAppointmentsCount
+                            : filter.value === APPOINTMENT_STATUS.CANCELLED
+                              ? cancelledAppointmentsCount
+                              : noShowAppointmentsCount;
+
+                    return (
+                      <Button
+                        key={filter.value}
+                        variant={appointmentViewFilter === filter.value ? "default" : "outline"}
+                        className="h-10 rounded-xl px-4"
+                        onClick={() => setAppointmentViewFilter(filter.value)}
+                      >
+                        <span className="mr-2">{filter.label}</span>
+                        <span className="rounded-full bg-background/80 px-2 py-0.5 text-[11px] font-semibold leading-none text-foreground">
+                          {count}
+                        </span>
+                      </Button>
+                    );
+                  })}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -720,7 +790,7 @@ export default function DoctorAppointments() {
           <DataTable
             columns={appointmentColumns}
             data={filteredAppointments}
-            emptyMessage="No appointments found"
+            emptyMessage="No appointments match this view"
             pageSize={10}
           />
 
@@ -759,8 +829,8 @@ export default function DoctorAppointments() {
                   <Tabs defaultValue="patient-info" className="space-y-4">
                     <TabsList className="grid h-11 w-full grid-cols-3 rounded-xl bg-muted p-1">
                       <TabsTrigger value="patient-info">Patient Info</TabsTrigger>
-                      <TabsTrigger value="consultation">Consultation</TabsTrigger>
-                      <TabsTrigger value="prescription">Prescription</TabsTrigger>
+                      <TabsTrigger value="consultation" disabled={selectedAppointmentIsClosed}>Consultation</TabsTrigger>
+                      <TabsTrigger value="prescription" disabled={selectedAppointmentIsClosed}>Prescription</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="patient-info">
@@ -830,6 +900,11 @@ export default function DoctorAppointments() {
                     </TabsContent>
 
                     <TabsContent value="consultation">
+                      {selectedAppointmentIsClosed ? (
+                        <div className="mb-4 rounded-xl border border-border/60 bg-muted/40 p-3 text-sm text-muted-foreground">
+                          This appointment is closed. Consultation fields are read-only for completed, cancelled, and no-show visits.
+                        </div>
+                      ) : null}
                       <div className="grid gap-4 lg:grid-cols-2">
                         <div className={WORKFLOW_PANEL_CLASS}>
                           <label htmlFor="diagnosis" className="mb-2 block text-sm font-medium">
@@ -840,6 +915,7 @@ export default function DoctorAppointments() {
                             value={diagnosis}
                             onChange={(e) => setDiagnosis(e.target.value)}
                             placeholder="Enter diagnosis..."
+                            disabled={selectedAppointmentIsClosed}
                           />
                         </div>
 
@@ -853,6 +929,7 @@ export default function DoctorAppointments() {
                             onChange={(e) => setConsultationNotes(e.target.value)}
                             placeholder="Enter detailed consultation notes..."
                             rows={6}
+                            disabled={selectedAppointmentIsClosed}
                           />
                         </div>
 
@@ -863,13 +940,15 @@ export default function DoctorAppointments() {
                               saveConsultationDraft(selectedAppointment.id);
                             }
                           }}
-                          disabled={updateAppointmentMutation.isPending}
+                          disabled={updateAppointmentMutation.isPending || selectedAppointmentIsClosed}
                         >
                           {updateAppointmentMutation.isPending ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                               Saving draft...
                             </>
+                          ) : selectedAppointmentIsClosed ? (
+                            "Read only"
                           ) : (
                             <>
                               <FileText className="mr-2 h-4 w-4" />
@@ -881,6 +960,11 @@ export default function DoctorAppointments() {
                     </TabsContent>
 
                     <TabsContent value="prescription">
+                      {selectedAppointmentIsClosed ? (
+                        <div className="mb-4 rounded-xl border border-border/60 bg-muted/40 p-3 text-sm text-muted-foreground">
+                          Prescription editing is disabled for closed appointments.
+                        </div>
+                      ) : null}
                       <div className="grid gap-4 lg:grid-cols-2">
                         <div className={WORKFLOW_PANEL_CLASS}>
                           <label htmlFor="prescription" className="mb-2 block text-sm font-medium">
@@ -892,6 +976,7 @@ export default function DoctorAppointments() {
                             onChange={(e) => setPrescription(e.target.value)}
                             placeholder="Enter medications, dosage, and treatment instructions..."
                             rows={8}
+                            disabled={selectedAppointmentIsClosed}
                           />
                         </div>
 
@@ -907,9 +992,9 @@ export default function DoctorAppointments() {
                             variant="outline"
                             className="h-10 w-full rounded-xl"
                             onClick={() => selectedAppointment && saveConsultationDraft(selectedAppointment.id)}
-                            disabled={updateAppointmentMutation.isPending}
+                            disabled={updateAppointmentMutation.isPending || selectedAppointmentIsClosed}
                           >
-                            {updateAppointmentMutation.isPending ? "Saving..." : "Save as Draft"}
+                            {updateAppointmentMutation.isPending ? "Saving..." : selectedAppointmentIsClosed ? "Read only" : "Save as Draft"}
                           </Button>
                           <Button
                             className="h-10 w-full rounded-xl"
@@ -922,13 +1007,15 @@ export default function DoctorAppointments() {
                                 });
                               }
                             }}
-                            disabled={completeAppointmentMutation.isPending}
+                            disabled={completeAppointmentMutation.isPending || selectedAppointmentIsClosed}
                           >
                             {completeAppointmentMutation.isPending ? (
                               <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 Saving...
                               </>
+                            ) : selectedAppointmentIsClosed ? (
+                              "Read only"
                             ) : (
                               <>
                                 <CheckCircle className="mr-2 h-4 w-4" />

@@ -12,7 +12,7 @@ import {
   normalizeQueueStatusSnapshot,
 } from '@/lib/queue/queue-cache';
 import { getAppointmentStatsQueryKey } from '@/lib/query/appointment-query-keys';
-import { refreshClientSessionForRealtime } from '@/lib/utils/auth-recovery';
+import { getJwtRefreshDelayMs, refreshClientSessionForRealtime } from '@/lib/utils/auth-recovery';
 // ✅ Consolidated: Import types from @/types (single source of truth)
 import type { Appointment } from '@/types/appointment.types';
 import type { BillingPlan, Invoice, Payment, Subscription } from '@/types/billing.types';
@@ -541,6 +541,10 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
   const subscriptionsRef = useRef<(() => void)[]>([]);
   const hasSyncedOnConnectRef = useRef(false);
   const authRefreshInFlightRef = useRef(false);
+  const websocketUrl =
+    APP_CONFIG.WEBSOCKET.URL ||
+    APP_CONFIG.API.RAW_URL ||
+    (typeof window !== 'undefined' ? window.location.origin : '');
 
   const logAppointmentNamespace = useCallback((action: string, context?: Record<string, unknown>) => {
     logger.info(`Appointment live websocket: ${action}`, {
@@ -559,6 +563,88 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
     clinicId = currentClinic?.id || session?.user?.clinicId
   } = options;
 
+  const authRefreshTimerRef = useRef<number | null>(null);
+
+  const clearAuthRefreshTimer = useCallback(() => {
+    if (authRefreshTimerRef.current !== null) {
+      window.clearTimeout(authRefreshTimerRef.current);
+      authRefreshTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleAuthRefresh = useCallback(
+    (accessToken?: string) => {
+      clearAuthRefreshTimer();
+      if (!accessToken) {
+        return;
+      }
+
+      const delayMs = getJwtRefreshDelayMs(accessToken);
+      if (delayMs === null) {
+        return;
+      }
+
+      authRefreshTimerRef.current = window.setTimeout(async () => {
+        if (authRefreshInFlightRef.current) {
+          return;
+        }
+
+        authRefreshInFlightRef.current = true;
+        try {
+          const refreshedSession = await refreshClientSessionForRealtime('appointment-live-ws');
+          if (!refreshedSession?.access_token) {
+            return;
+          }
+
+          connect(websocketUrl, {
+            tenantId,
+            userId,
+            token: refreshedSession.access_token,
+            withCredentials: true,
+            autoReconnect: true,
+            reconnectionAttempts: 5,
+            onAuthError: async () => {
+              if (authRefreshInFlightRef.current) return;
+              authRefreshInFlightRef.current = true;
+              try {
+                const failedRefreshSession = await refreshClientSessionForRealtime('appointment-live-ws');
+                if (!failedRefreshSession?.access_token) {
+                  return;
+                }
+
+                connect(websocketUrl, {
+                  tenantId,
+                  userId,
+                  token: failedRefreshSession.access_token,
+                  withCredentials: true,
+                  autoReconnect: true,
+                  reconnectionAttempts: 5,
+                });
+              } catch (refreshError) {
+                logger.warn('Socket auth refresh failed', {
+                  component: 'appointment-live-ws',
+                  error: refreshError instanceof Error ? refreshError.message : String(refreshError),
+                });
+              } finally {
+                authRefreshInFlightRef.current = false;
+              }
+            },
+          });
+
+          scheduleAuthRefresh(refreshedSession.access_token);
+        } catch (refreshError) {
+          logger.warn('Scheduled socket auth refresh failed', {
+            component: 'appointment-live-ws',
+            error: refreshError instanceof Error ? refreshError.message : String(refreshError),
+          });
+        } finally {
+          authRefreshInFlightRef.current = false;
+        }
+      }, Math.max(delayMs, 5_000));
+    },
+    [clearAuthRefreshTimer, connect, tenantId, userId, websocketUrl]
+  );
+
   // Initialize WebSocket connection - Real-time enabled
   useEffect(() => {
     if (!autoConnect) return;
@@ -567,11 +653,6 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
     const initializeWebSocket = async () => {
       try {
         // ⚠️ SECURITY: Use APP_CONFIG instead of hardcoded URLs
-        const websocketUrl =
-          APP_CONFIG.WEBSOCKET.URL ||
-          APP_CONFIG.API.RAW_URL ||
-          (typeof window !== 'undefined' ? window.location.origin : '');
-
         const accessToken = session?.access_token;
         if (!accessToken) {
           disconnect();
@@ -614,6 +695,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
             }
           },
         });
+        scheduleAuthRefresh(accessToken);
 
       } catch (error) {
         logger.warn('Failed to initialize appointment websocket', {
@@ -628,10 +710,11 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
 
     return () => {
       // Cleanup subscriptions
+      clearAuthRefreshTimer();
       subscriptionsRef.current.forEach(unsubscribe => unsubscribe());
       subscriptionsRef.current = [];
     };
-  }, [autoConnect, tenantId, userId, session?.access_token, connect, disconnect, clearError]);
+  }, [autoConnect, tenantId, userId, session?.access_token, connect, disconnect, clearError, scheduleAuthRefresh, clearAuthRefreshTimer]);
 
   // Refresh once on connect so missed payment/slot changes are reconciled from the backend snapshot.
   useEffect(() => {

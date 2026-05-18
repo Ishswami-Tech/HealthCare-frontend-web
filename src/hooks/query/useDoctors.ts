@@ -116,6 +116,10 @@ export const useDoctorAppointments = (doctorId: string, filters?: {
     return await getDoctorAppointments(doctorId, filters);
   }, {
     enabled: !!doctorId,
+    staleTime: 0,
+    gcTime: 60_000,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
     refetchInterval: isConnected ? false : 30_000,
   });
 };

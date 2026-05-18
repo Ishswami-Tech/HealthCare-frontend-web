@@ -7,6 +7,8 @@ import { useAuthStore } from "@/stores/auth.store";
 import type { Session } from "@/types/auth.types";
 import { resetAllStores } from "@/stores";
 
+const DEFAULT_JWT_REFRESH_LEAD_MS = 2 * 60 * 1000;
+
 type AuthLikeError = {
   message?: string;
   status?: number;
@@ -88,6 +90,36 @@ export function isSessionInvalidError(error: unknown): boolean {
     "no refresh token available",
     "auth token invalid",
   ].some((pattern) => message.includes(pattern));
+}
+
+export function getJwtExpiryEpochMs(token: string): number | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) {
+      return null;
+    }
+
+    const payload = JSON.parse(atob(parts[1] || '')) as { exp?: number };
+    if (typeof payload.exp !== 'number') {
+      return null;
+    }
+
+    return payload.exp * 1000;
+  } catch {
+    return null;
+  }
+}
+
+export function getJwtRefreshDelayMs(
+  token: string,
+  leadTimeMs: number = DEFAULT_JWT_REFRESH_LEAD_MS
+): number | null {
+  const expiryMs = getJwtExpiryEpochMs(token);
+  if (!expiryMs) {
+    return null;
+  }
+
+  return Math.max(expiryMs - Date.now() - leadTimeMs, 0);
 }
 
 export async function refreshClientSessionForRealtime(
