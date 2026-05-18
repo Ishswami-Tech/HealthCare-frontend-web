@@ -595,7 +595,7 @@ export default function DoctorDashboard() {
                   Join Session
                 </Button>
                 <p className="text-[11px] text-muted-foreground">
-                  Join opens 5 minutes before your visit and stays open for 3 hours after start.
+                  Join opens 10 minutes before your visit and stays open for 3 hours after start.
                 </p>
               </div>
             )}
