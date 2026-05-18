@@ -898,10 +898,19 @@ export function BookAppointmentDialog({
   }, [activeSteps, currentStepId, dialogOpen]);
 
   const extractAvailabilitySlots = useCallback((source: unknown) => {
+    const normalizeSlotKey = (slot: string): string => {
+      const trimmed = slot.trim();
+      const match = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(trimmed);
+      if (!match) {
+        return trimmed;
+      }
+      return `${(match[1] || "").padStart(2, "0")}:${match[2] || ""}`;
+    };
+
     const normalizeSlotValue = (slot: unknown): string | null => {
       if (typeof slot === "string") {
         const trimmed = slot.trim();
-        return trimmed ? trimmed : null;
+        return trimmed ? normalizeSlotKey(trimmed) : null;
       }
 
       if (!slot || typeof slot !== "object") {
@@ -929,7 +938,7 @@ export function BookAppointmentDialog({
 
         const trimmed = candidate.trim();
         if (trimmed) {
-          return trimmed;
+          return normalizeSlotKey(trimmed);
         }
       }
 
@@ -953,6 +962,7 @@ export function BookAppointmentDialog({
 
       const record = value as {
         availableSlots?: unknown;
+        bookedSlots?: unknown;
         slots?: unknown;
         data?: unknown;
       };
@@ -961,26 +971,32 @@ export function BookAppointmentDialog({
         ...collectSlots(record.availableSlots),
         ...collectSlots(record.slots),
       ];
+      const booked = collectSlots(record.bookedSlots);
 
       if (record.data && typeof record.data === "object") {
         const nested = record.data as {
           availableSlots?: unknown;
+          bookedSlots?: unknown;
           slots?: unknown;
           data?: unknown;
         };
         collected.push(...collectSlots(nested.availableSlots));
         collected.push(...collectSlots(nested.slots));
+        booked.push(...collectSlots(nested.bookedSlots));
         if (nested.data && typeof nested.data === "object") {
           const nestedDeep = nested.data as {
             availableSlots?: unknown;
+            bookedSlots?: unknown;
             slots?: unknown;
           };
           collected.push(...collectSlots(nestedDeep.availableSlots));
           collected.push(...collectSlots(nestedDeep.slots));
+          booked.push(...collectSlots(nestedDeep.bookedSlots));
         }
       }
 
-      return Array.from(new Set(collected));
+      const bookedSet = new Set(booked);
+      return Array.from(new Set(collected.filter((slot) => !bookedSet.has(slot))));
     };
 
     if (Array.isArray(source)) {
@@ -1583,7 +1599,7 @@ export function BookAppointmentDialog({
       if (finalAppointmentType === "IN_PERSON" && userRole === "PATIENT" && activeSubscription?.id) {
         const atomicResult = await createSubscriptionAppointment({
           subscriptionId: activeSubscription.id,
-          patientId: targetPatientId,
+          patientId: bookingPatientId,
           doctorId: appointmentDoctorId,
           clinicId: activeClinicId,
           locationId: appointmentLocationId,
@@ -1627,7 +1643,7 @@ export function BookAppointmentDialog({
           duration: appointmentDurationMinutes,
           notes: chiefComplaint || selectedService.label,
           priority: urgency.toUpperCase() as any,
-          patientId: targetPatientId,
+          patientId: bookingPatientId,
         };
 
         console.info("[BookAppointmentDialog] Creating appointment", {
@@ -1635,7 +1651,7 @@ export function BookAppointmentDialog({
           doctorId: selectedDoctorId,
           date: formatDateIST(appointmentDate),
           slot: selectedSlot,
-          patientId: targetPatientId,
+          patientId: bookingPatientId,
         });
 
         const appointment = await createAppointment(payload);
