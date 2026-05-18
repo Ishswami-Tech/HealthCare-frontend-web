@@ -51,7 +51,13 @@ import {
   useCreateInPersonAppointmentWithSubscription,
 } from "@/hooks/query/useBilling";
 import { useSendAppointmentReminder } from "@/hooks/query/useCommunication";
-import { useActiveLocations, useClinicContext, useClinicLocations, useMyClinic } from "@/hooks/query/useClinics";
+import {
+  useActiveLocations,
+  useClinicContext,
+  useClinicLocations,
+  useCurrentClinicId,
+  useMyClinic,
+} from "@/hooks/query/useClinics";
 import { useWebSocketContext } from "@/app/providers/WebSocketProvider";
 import { useRBAC } from "@/hooks/utils/useRBAC";
 import { getAppointmentStatsQueryKey } from "@/lib/query/appointment-query-keys";
@@ -281,10 +287,13 @@ export function BookAppointmentDialog({
   const postBookingLabel = userRole === "RECEPTIONIST" ? "Go to appointment manager" : "Go to appointments";
   const patientCheckInRoute = "/patient/check-in";
   const { clinicId: contextClinicId } = useClinicContext();
-  const { data: myClinic, isPending: myClinicLoading } = useMyClinic();
-  const hasExplicitClinicId = !!clinicId || !!contextClinicId || !!session?.user?.clinicId;
-  const shouldResolvePatientClinic = userRole === "PATIENT" && !hasExplicitClinicId;
-  const activeClinicId = clinicId || contextClinicId || session?.user?.clinicId || myClinic?.id || APP_CONFIG.CLINIC.ID;
+  const currentClinicId = useCurrentClinicId();
+  const { data: myClinic } = useMyClinic();
+  const resolvedClinicId = clinicId || contextClinicId || session?.user?.clinicId || currentClinicId || "";
+  const hasExplicitClinicId = !!resolvedClinicId;
+  const activeClinicId =
+    resolvedClinicId ||
+    (userRole !== "PATIENT" ? APP_CONFIG.CLINIC.ID : "");
 
   // ””” Dialog / Step state ””””””””””””””””””””””””””””””””””””””””””””””””””
   const [internalOpen, setInternalOpen] = useState(defaultOpen);
@@ -342,7 +351,11 @@ export function BookAppointmentDialog({
   const previousDateRef = useRef<Date | undefined>(selectedDate);
   const isPrivilegedScheduler = ["RECEPTIONIST", "DOCTOR", "CLINIC_ADMIN", "SUPER_ADMIN"].includes(userRole);
   const targetPatientId = isPrivilegedScheduler ? selectedPatientId : session?.user?.id || "";
-  const shouldLoadLocations = dialogOpen && consultationMode !== "VIDEO" && (!shouldResolvePatientClinic || !myClinicLoading);
+  const isPatientClinicStillResolving = userRole === "PATIENT" && !activeClinicId;
+  const shouldLoadLocations =
+    dialogOpen &&
+    consultationMode !== "VIDEO" &&
+    !isPatientClinicStillResolving;
   const shouldLoadServices = dialogOpen;
   const shouldLoadDoctors = dialogOpen && !!activeClinicId && (consultationMode === "VIDEO" || !!selectedLocationId);
   const shouldLoadPatients = dialogOpen && isPrivilegedScheduler && !!activeClinicId;
@@ -519,7 +532,9 @@ export function BookAppointmentDialog({
     activeClinicId,
     shouldLoadLocations ? { enabled: true } : undefined
   );
-  const { data: allLocations = [] } = useClinicLocations(activeClinicId);
+  const { data: allLocations = [] } = useClinicLocations(activeClinicId, {
+    includeInactive: true,
+  });
   const { data: appointmentServices = [], isPending: servicesLoading } = useAppointmentServices(shouldLoadServices);
   const { data: doctorsData, isPending: doctorsLoading } = useDoctors(
     activeClinicId,
@@ -1896,7 +1911,7 @@ export function BookAppointmentDialog({
         <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
           Video consultations do not require a physical location.
         </div>
-      ) : shouldResolvePatientClinic && myClinicLoading ? (
+      ) : isPatientClinicStillResolving ? (
         <div className="text-center py-6 border border-dashed rounded-xl text-muted-foreground text-sm">
           <Loader2 className="w-7 h-7 mx-auto mb-2 opacity-60 animate-spin" />
           Resolving your clinic...

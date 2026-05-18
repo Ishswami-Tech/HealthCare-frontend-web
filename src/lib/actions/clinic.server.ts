@@ -342,10 +342,11 @@ export async function createClinicLocation(clinicId: string, data: any): Promise
 /**
  * Get clinic locations
  */
-export async function getClinicLocations(clinicId: string) {
+export async function getClinicLocations(clinicId: string, includeInactive = false) {
   try {
+    const queryString = `?includeInactive=${includeInactive ? 'true' : 'false'}`;
     const { data } = await authenticatedApi<ClinicLocation[]>(
-      API_ENDPOINTS.CLINIC_LOCATIONS.GET_ALL(clinicId),
+      `${API_ENDPOINTS.CLINIC_LOCATIONS.GET_ALL(clinicId)}${queryString}`,
       {
         clinicId,
         requireClinicId: true,

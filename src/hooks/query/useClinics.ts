@@ -254,12 +254,15 @@ export const useCreateClinicLocation = () => {
 /**
  * Hook to get all locations for a clinic
  */
-export const useClinicLocations = (clinicId: string) => {
+export const useClinicLocations = (
+  clinicId: string,
+  options?: { enabled?: boolean; includeInactive?: boolean }
+) => {
   const { isConnected } = useWebSocketStatus();
   return useQueryData<ClinicLocation[]>(
-    ['clinicLocations', clinicId],
+    ['clinicLocations', clinicId, options?.includeInactive ? 'all' : 'active'],
     async () => {
-      const result = await getClinicLocations(clinicId);
+      const result = await getClinicLocations(clinicId, options?.includeInactive ?? false);
       if (!result) {
         throw new Error('Failed to fetch clinic locations');
       }
@@ -277,7 +280,7 @@ export const useClinicLocations = (clinicId: string) => {
       );
     },
     {
-      enabled: !!clinicId,
+      enabled: !!clinicId && (options?.enabled ?? true),
       refetchInterval: isConnected ? false : 300_000,
     }
   );
@@ -624,7 +627,7 @@ export const useActiveLocations = (clinicId: string, options?: {
   return useQueryData<ClinicLocation[]>(
     ['activeLocations', clinicId],
     async () => {
-      const result = await getClinicLocations(clinicId);
+      const result = await getClinicLocations(clinicId, false);
       if (!result) {
         throw new Error('Failed to fetch active locations');
       }
@@ -767,7 +770,7 @@ export const useCurrentClinicId = () => {
     sessionUser?.clinicId ||
       sessionUser?.clinic?.id ||
       currentClinic?.id ||
-      ""
+      CLINIC_ID
   );
 };
 

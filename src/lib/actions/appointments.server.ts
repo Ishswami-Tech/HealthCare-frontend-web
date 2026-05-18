@@ -412,7 +412,18 @@ export async function getAppointmentServiceCatalog(): Promise<{
         ? data.data.services
         : [];
 
-    return { success: true, services };
+    const sanitizedServices = services
+      .map((service) => ({
+        ...service,
+        appointmentModes: Array.isArray(service.appointmentModes)
+          ? service.appointmentModes.filter(
+              (mode): mode is 'IN_PERSON' | 'VIDEO_CALL' => mode === 'IN_PERSON' || mode === 'VIDEO_CALL'
+            )
+          : [],
+      }))
+      .filter((service) => service.appointmentModes.length > 0);
+
+    return { success: true, services: sanitizedServices };
   } catch (error) {
     logger.error(
       'Failed to get appointment service catalog',

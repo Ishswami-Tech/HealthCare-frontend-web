@@ -365,8 +365,8 @@ export default function ProfileCompletionForm({
                   />
                 </div>
 
-                {/* Phone / Date of Birth */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Phone / Date of Birth — stacked to avoid overflow */}
+                <div className="grid grid-cols-1 gap-4">
                   <FormField
                     control={form.control}
                     name="phone"
@@ -383,7 +383,6 @@ export default function ProfileCompletionForm({
                             error={!!form.formState.errors.phone}
                             defaultCountry="IN"
                             international
-                            withCountryCallingCode
                             {...field}
                           />
                         </FormControl>
@@ -541,27 +540,27 @@ export default function ProfileCompletionForm({
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={form.control}
-                    name="emergencyContactPhone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contact Phone</FormLabel>
-                        <FormControl>
-                          <PhoneInput
-                            placeholder="Contact's phone number"
-                            error={!!form.formState.errors.emergencyContactPhone}
-                            defaultCountry="IN"
-                            international
-                            withCountryCallingCode
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                 </div>
+
+                <FormField
+                  control={form.control}
+                  name="emergencyContactPhone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Contact Phone</FormLabel>
+                      <FormControl>
+                        <PhoneInput
+                          placeholder="Contact's phone number"
+                          error={!!form.formState.errors.emergencyContactPhone}
+                          defaultCountry="IN"
+                          international
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <FormField
                   control={form.control}
