@@ -68,6 +68,12 @@ import {
 // This ensures proper fallback and type safety
 const CLINIC_ID = APP_CONFIG.CLINIC.ID;
 
+const useClinicQueryScope = () => {
+  const sessionId = useAuthStore((state) => state.session?.session_id?.trim() || '');
+  const userId = useAuthStore((state) => state.session?.user?.id?.trim() || '');
+  return sessionId || userId || 'guest';
+};
+
 // ===== CLINIC CRUD HOOKS =====
 
 /**
@@ -161,9 +167,10 @@ export const useClinicByAppName = (appName: string) => {
 export const useMyClinic = () => {
   const { session, isPending } = useAuth();
   const { isConnected } = useWebSocketStatus();
+  const authScope = useClinicQueryScope();
   
   return useQueryData<ClinicWithRelations>(
-    ['myClinic'],
+    ['myClinic', authScope],
     async () => {
       const result = await getMyClinic();
       if (!result) {
@@ -259,8 +266,9 @@ export const useClinicLocations = (
   options?: { enabled?: boolean; includeInactive?: boolean }
 ) => {
   const { isConnected } = useWebSocketStatus();
+  const authScope = useClinicQueryScope();
   return useQueryData<ClinicLocation[]>(
-    ['clinicLocations', clinicId, options?.includeInactive ? 'all' : 'active'],
+    ['clinicLocations', clinicId, authScope, options?.includeInactive ? 'all' : 'active'],
     async () => {
       const result = await getClinicLocations(clinicId, options?.includeInactive ?? false);
       if (!result) {
@@ -423,8 +431,9 @@ export const useAssignClinicAdmin = () => {
  */
 export const useClinicDoctors = (clinicId: string) => {
   const { isConnected } = useWebSocketStatus();
+  const authScope = useClinicQueryScope();
   return useQueryData<ClinicUser[]>(
-    ['clinicDoctors', clinicId],
+    ['clinicDoctors', clinicId, authScope],
     async () => {
       const result = await getClinicDoctors(clinicId);
       return Array.isArray(result) ? result : [];
@@ -624,8 +633,9 @@ export const useActiveLocations = (clinicId: string, options?: {
   enabled?: boolean;
 }) => {
   const { isConnected } = useWebSocketStatus();
+  const authScope = useClinicQueryScope();
   return useQueryData<ClinicLocation[]>(
-    ['activeLocations', clinicId],
+    ['activeLocations', clinicId, authScope],
     async () => {
       const result = await getClinicLocations(clinicId, false);
       if (!result) {
@@ -778,9 +788,10 @@ export const useCurrentClinicId = () => {
 export const useCurrentClinic = () => {
   const clinicId = useCurrentClinicId();
   const { isConnected } = useWebSocketStatus();
+  const authScope = useClinicQueryScope();
   
   return useQueryData(
-    ['current-clinic', clinicId],
+    ['current-clinic', clinicId, authScope],
     async () => {
       if (!clinicId) {
         throw new Error('No clinic ID available');
@@ -871,9 +882,10 @@ export const useClinicAwareQuery = <T>(
 ) => {
   const clinicId = useCurrentClinicId();
   const { hasPermission } = useRBAC();
+  const authScope = useClinicQueryScope();
   
   return useQueryData(
-    [...queryKey, clinicId],
+    [...queryKey, clinicId, authScope],
     () => {
       if (!clinicId) {
         throw new Error('No clinic ID available');

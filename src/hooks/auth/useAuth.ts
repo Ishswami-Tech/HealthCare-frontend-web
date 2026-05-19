@@ -153,48 +153,49 @@ export function useAuth() {
 
       if (nextSession) {
         queryClient.setQueryData(['session'], nextSession);
+        setSession(nextSession);
       }
     },
-    [queryClient]
+    [queryClient, setSession]
   );
 
   const prefetchAuthenticatedWorkspace = useCallback(
-    async (clinicId?: string) => {
-      if (!clinicId) {
-        return;
-      }
+      async (clinicId?: string, authScope: string = 'guest') => {
+        if (!clinicId) {
+          return;
+        }
 
       const normalizedClinicId = clinicId.trim();
       if (!normalizedClinicId) {
         return;
       }
 
-      await Promise.allSettled([
-        queryClient.prefetchQuery({
-          queryKey: ['myClinic'],
-          queryFn: async () => getMyClinic(),
-          staleTime: 2 * 60 * 1000,
-        }),
-        queryClient.prefetchQuery({
-          queryKey: ['current-clinic', normalizedClinicId],
-          queryFn: async () => getClinicById(normalizedClinicId),
-          staleTime: 2 * 60 * 1000,
-        }),
-        queryClient.prefetchQuery({
-          queryKey: ['activeLocations', normalizedClinicId],
-          queryFn: async () => {
-            const locations = await getClinicLocations(normalizedClinicId);
-            return Array.isArray(locations)
-              ? locations.filter(location => location?.isActive !== false)
-              : [];
-          },
-          staleTime: 2 * 60 * 1000,
-        }),
-        queryClient.prefetchQuery({
-          queryKey: ['clinicDoctors', normalizedClinicId],
-          queryFn: async () => {
-            const result = await getClinicDoctors(normalizedClinicId);
-            return Array.isArray(result) ? result : [];
+        await Promise.allSettled([
+          queryClient.prefetchQuery({
+            queryKey: ['myClinic', authScope],
+            queryFn: async () => getMyClinic(),
+            staleTime: 2 * 60 * 1000,
+          }),
+          queryClient.prefetchQuery({
+            queryKey: ['current-clinic', normalizedClinicId, authScope],
+            queryFn: async () => getClinicById(normalizedClinicId),
+            staleTime: 2 * 60 * 1000,
+          }),
+          queryClient.prefetchQuery({
+            queryKey: ['activeLocations', normalizedClinicId, authScope],
+            queryFn: async () => {
+              const locations = await getClinicLocations(normalizedClinicId);
+              return Array.isArray(locations)
+                ? locations.filter(location => location?.isActive !== false)
+                : [];
+            },
+            staleTime: 2 * 60 * 1000,
+          }),
+          queryClient.prefetchQuery({
+            queryKey: ['clinicDoctors', normalizedClinicId, authScope],
+            queryFn: async () => {
+              const result = await getClinicDoctors(normalizedClinicId);
+              return Array.isArray(result) ? result : [];
           },
           staleTime: 2 * 60 * 1000,
         }),
@@ -358,7 +359,7 @@ export function useAuth() {
         const profileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
         const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
         const { ...restUser } = data.user;
-        const sessionData: Session = {
+          const sessionData: Session = {
           user: {
             ...restUser,
             ...(clinicId ? { clinicId } : {}),
@@ -367,11 +368,11 @@ export function useAuth() {
           access_token: data.access_token,
           session_id: data.session_id,
           isAuthenticated: true,
-        };
-        
-        // Reset guest cache before establishing the authenticated session
-        resetQueryCacheForAuthTransition(sessionData);
-        void prefetchAuthenticatedWorkspace(clinicId);
+          };
+          
+          // Reset guest cache before establishing the authenticated session
+          resetQueryCacheForAuthTransition(sessionData);
+          void prefetchAuthenticatedWorkspace(clinicId, sessionData.session_id || sessionData.user.id || 'guest');
         
         // ✅ Use centralized redirect utility
         const currentPath = typeof window !== 'undefined' ? window.location.pathname : undefined;
@@ -422,7 +423,7 @@ export function useAuth() {
         const initialProfileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
         const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
         // Create session data with proper defaults
-        const sessionData: Session = {
+          const sessionData: Session = {
           user: {
             id: data.user.id,
             email: data.user.email,
@@ -439,11 +440,11 @@ export function useAuth() {
           access_token: data.token || '',
           session_id: '',
           isAuthenticated: true
-        };
+          };
 
-        // Reset guest cache before establishing the authenticated session
-        resetQueryCacheForAuthTransition(sessionData);
-        void prefetchAuthenticatedWorkspace(clinicId);
+          // Reset guest cache before establishing the authenticated session
+          resetQueryCacheForAuthTransition(sessionData);
+          void prefetchAuthenticatedWorkspace(clinicId, sessionData.session_id || sessionData.user.id || 'guest');
 
         // Handle redirect based on profile completion
         const refreshedSession = queryClient.getQueryData<Session | null>(['session']);
@@ -588,7 +589,7 @@ export function useAuth() {
         const profileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
         const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
         const { ...restUser } = data.user;
-        const sessionData: Session = {
+          const sessionData: Session = {
            user: {
              ...restUser,
              ...(clinicId ? { clinicId } : {}),
@@ -597,10 +598,10 @@ export function useAuth() {
            access_token: data.access_token || '',
            session_id: data.session_id || '',
            isAuthenticated: true,
-        };
-        
-        resetQueryCacheForAuthTransition(sessionData);
-        void prefetchAuthenticatedWorkspace(clinicId);
+          };
+          
+          resetQueryCacheForAuthTransition(sessionData);
+          void prefetchAuthenticatedWorkspace(clinicId, sessionData.session_id || sessionData.user.id || 'guest');
         
         // ✅ Use centralized redirect utility
         const currentPath = typeof window !== 'undefined' ? window.location.pathname : undefined;
@@ -698,9 +699,30 @@ export function useAuth() {
       toastId: TOAST_IDS.AUTH.SOCIAL_LOGIN,
       loadingMessage: 'Logging in...',
       successMessage: 'Logged in successfully',
-      onSuccess: (data) => {
-        resetQueryCacheForAuthTransition();
-        void prefetchAuthenticatedWorkspace(resolveClinicId(data.user as unknown as Record<string, unknown>));
+        onSuccess: (data) => {
+          const profileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
+          const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
+          const accessToken =
+            (data as unknown as { access_token?: string; accessToken?: string }).access_token ||
+            (data as unknown as { access_token?: string; accessToken?: string }).accessToken ||
+            '';
+          const sessionId =
+            (data as unknown as { session_id?: string; sessionId?: string }).session_id ||
+            (data as unknown as { session_id?: string; sessionId?: string }).sessionId ||
+            '';
+          const sessionData: Session = {
+            user: {
+              ...data.user,
+              ...(clinicId ? { clinicId } : {}),
+              profileComplete,
+            } as User,
+            access_token: accessToken,
+            session_id: sessionId,
+            isAuthenticated: true,
+          };
+
+          resetQueryCacheForAuthTransition(sessionData);
+          void prefetchAuthenticatedWorkspace(clinicId, sessionData.session_id || sessionData.user.id || 'guest');
         const redirectPath = getRedirectPath(data.user, data.redirectUrl);
         router.push(redirectPath);
         showSuccessToast('Logged in successfully', {
@@ -737,9 +759,30 @@ export function useAuth() {
       toastId: TOAST_IDS.AUTH.LOGIN,
       loadingMessage: 'Verifying magic link...',
       successMessage: 'Logged in successfully',
-      onSuccess: (data) => {
-        resetQueryCacheForAuthTransition();
-        void prefetchAuthenticatedWorkspace(resolveClinicId(data.user as unknown as Record<string, unknown>));
+        onSuccess: (data) => {
+          const profileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
+          const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
+          const accessToken =
+            (data as unknown as { access_token?: string; accessToken?: string }).access_token ||
+            (data as unknown as { access_token?: string; accessToken?: string }).accessToken ||
+            '';
+          const sessionId =
+            (data as unknown as { session_id?: string; sessionId?: string }).session_id ||
+            (data as unknown as { session_id?: string; sessionId?: string }).sessionId ||
+            '';
+          const sessionData: Session = {
+            user: {
+              ...data.user,
+              ...(clinicId ? { clinicId } : {}),
+              profileComplete,
+            } as User,
+            access_token: accessToken,
+            session_id: sessionId,
+            isAuthenticated: true,
+          };
+
+          resetQueryCacheForAuthTransition(sessionData);
+          void prefetchAuthenticatedWorkspace(clinicId, sessionData.session_id || sessionData.user.id || 'guest');
         const redirectPath = getRedirectPath(data.user, data.redirectUrl);
         router.push(redirectPath);
         showSuccessToast('Logged in successfully', {
@@ -846,8 +889,29 @@ export function useAuth() {
       loadingMessage: 'Logging in with Facebook...',
       successMessage: 'Logged in with Facebook successfully',
       onSuccess: (data) => {
-        resetQueryCacheForAuthTransition();
-        void prefetchAuthenticatedWorkspace(resolveClinicId(data.user as unknown as Record<string, unknown>));
+        const profileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
+        const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
+        const accessToken =
+          (data as unknown as { access_token?: string; accessToken?: string }).access_token ||
+          (data as unknown as { access_token?: string; accessToken?: string }).accessToken ||
+          '';
+        const sessionId =
+          (data as unknown as { session_id?: string; sessionId?: string }).session_id ||
+          (data as unknown as { session_id?: string; sessionId?: string }).sessionId ||
+          '';
+        const sessionData: Session = {
+          user: {
+            ...data.user,
+            ...(clinicId ? { clinicId } : {}),
+            profileComplete,
+          } as User,
+          access_token: accessToken,
+          session_id: sessionId,
+          isAuthenticated: true,
+        };
+
+        resetQueryCacheForAuthTransition(sessionData);
+        void prefetchAuthenticatedWorkspace(clinicId, sessionData.session_id || sessionData.user.id || 'guest');
         const redirectPath = getRedirectPath(data.user, data.redirectUrl);
         router.push(redirectPath);
         showSuccessToast('Logged in with Facebook successfully', {
@@ -877,11 +941,32 @@ export function useAuth() {
       successMessage: 'Successfully logged in with Apple',
       onSuccess: (data) => {
         // Handle successful Apple login
-        if (data?.user) {
-          // Redirect to dashboard
-          resetQueryCacheForAuthTransition();
-          void prefetchAuthenticatedWorkspace(resolveClinicId(data.user as unknown as Record<string, unknown>));
-          router.push(getDashboardByRole(data.user.role as Role));
+          if (data?.user) {
+            const profileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
+            const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
+            const accessToken =
+              (data as unknown as { access_token?: string; accessToken?: string }).access_token ||
+              (data as unknown as { access_token?: string; accessToken?: string }).accessToken ||
+              '';
+            const sessionId =
+              (data as unknown as { session_id?: string; sessionId?: string }).session_id ||
+              (data as unknown as { session_id?: string; sessionId?: string }).sessionId ||
+              '';
+            const sessionData: Session = {
+              user: {
+                ...data.user,
+                ...(clinicId ? { clinicId } : {}),
+                profileComplete,
+              } as User,
+              access_token: accessToken,
+              session_id: sessionId,
+              isAuthenticated: true,
+            };
+
+            // Redirect to dashboard
+            resetQueryCacheForAuthTransition(sessionData);
+            void prefetchAuthenticatedWorkspace(clinicId, sessionData.session_id || sessionData.user.id || 'guest');
+            router.push(getDashboardByRole(data.user.role as Role));
           showSuccessToast('Successfully logged in with Apple', {
             id: TOAST_IDS.AUTH.SOCIAL_LOGIN,
           });

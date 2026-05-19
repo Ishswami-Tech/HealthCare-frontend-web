@@ -6,6 +6,7 @@ import { nowIso } from '@/lib/utils/date-time';
 
 import { useCallback, useMemo } from 'react';
 import { useCurrentClinicId } from './useClinics';
+import { useAuthStore } from '@/stores/auth.store';
 import { useRBAC } from '../utils/useRBAC';
 import { Permission } from '@/types/rbac.types';
 import { logger } from '@/lib/utils/logger';
@@ -17,6 +18,12 @@ import { useAuth } from '../auth/useAuth';
 import { Role } from '@/types/auth.types';
 import { getClinicId } from '@/lib/utils/token-manager';
 import { syncAppointmentInCache } from '@/lib/utils/appointment-cache';
+
+const useAppointmentQueryScope = () => {
+  const sessionId = useAuthStore((state) => state.session?.session_id?.trim() || '');
+  const userId = useAuthStore((state) => state.session?.user?.id?.trim() || '');
+  return sessionId || userId || 'guest';
+};
 import {
     getAppointments,
     getMyAppointments,
@@ -1395,12 +1402,13 @@ export const useDoctorAvailability = (
     enabled?: boolean;
     refetchIntervalMs?: number;
   }
-) => {
-  
-  return useQueryData(
-    ['doctorAvailability', clinicId, doctorId, date, locationId, appointmentType],
-    async (): Promise<any> => {
-      const response = await getDoctorAvailability(clinicId, doctorId, date, locationId, appointmentType);
+  ) => {
+    const authScope = useAppointmentQueryScope();
+    
+    return useQueryData(
+      ['doctorAvailability', clinicId, doctorId, date, locationId, appointmentType, authScope],
+      async (): Promise<any> => {
+        const response = await getDoctorAvailability(clinicId, doctorId, date, locationId, appointmentType);
       if (!response.success) {
         throw new Error(response.error || 'Failed to fetch doctor availability');
       }

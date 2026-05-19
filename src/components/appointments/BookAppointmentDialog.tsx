@@ -528,15 +528,24 @@ export function BookAppointmentDialog({
   );
 
   // ””” Queries ”””””””””””””””””””””””””””””””””””””””””””””””””””””””””””””
-  const { data: activeLocations = [], isPending: locationsLoading, isFetching: locationsFetching } = useActiveLocations(
+  const {
+    data: activeLocations = [],
+    isPending: locationsLoading,
+    isFetching: locationsFetching,
+    isFetched: activeLocationsFetched,
+  } = useActiveLocations(
     activeClinicId,
     shouldLoadLocations ? { enabled: true } : undefined
   );
-  const { data: allLocations = [] } = useClinicLocations(activeClinicId, {
+  const {
+    data: allLocations = [],
+    isPending: allLocationsLoading,
+    isFetched: allLocationsFetched,
+  } = useClinicLocations(activeClinicId, {
     includeInactive: true,
   });
   const { data: appointmentServices = [], isPending: servicesLoading } = useAppointmentServices(shouldLoadServices);
-  const { data: doctorsData, isPending: doctorsLoading } = useDoctors(
+  const { data: doctorsData, isPending: doctorsLoading, isFetched: doctorsFetched } = useDoctors(
     activeClinicId,
     consultationMode === "VIDEO"
       ? undefined
@@ -1919,10 +1928,12 @@ export function BookAppointmentDialog({
       ) : (
         <div className="flex flex-col gap-2">
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Visit Location</p>
-          {locationsLoading && (locations as any[]).length === 0 ? (
-            <div className="text-center py-6 border border-dashed rounded-xl text-muted-foreground text-sm">
-              <Building className="w-7 h-7 mx-auto mb-2 opacity-30" />
-              Loading locations...
+            {((locationsLoading || allLocationsLoading) && (locations as any[]).length === 0) ||
+            !activeLocationsFetched ||
+            !allLocationsFetched ? (
+              <div className="text-center py-6 border border-dashed rounded-xl text-muted-foreground text-sm">
+                <Building className="w-7 h-7 mx-auto mb-2 opacity-30" />
+                Loading locations...
             </div>
           ) : (locations as any[]).length === 0 ? (
             <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
@@ -2466,7 +2477,7 @@ export function BookAppointmentDialog({
   const renderStep2 = () => (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-muted-foreground">Choose your preferred doctor</p>
-      {doctorsLoading ? (
+      {doctorsLoading || !doctorsFetched ? (
         <div className="space-y-2">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-16 rounded-xl bg-muted animate-pulse" />

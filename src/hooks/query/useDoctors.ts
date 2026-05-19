@@ -28,7 +28,14 @@ import {
 } from '@/lib/actions/doctors.server';
 import { getDoctorAvailability } from '@/lib/actions/appointments.server';
 import { usePatientStore } from '@/stores';
+import { useAuthStore } from '@/stores/auth.store';
 import { useClinicDoctors, useCurrentClinicId } from './useClinics';
+
+const useDoctorQueryScope = () => {
+  const sessionId = useAuthStore((state) => state.session?.session_id?.trim() || '');
+  const userId = useAuthStore((state) => state.session?.user?.id?.trim() || '');
+  return sessionId || userId || 'guest';
+};
 
 // ===== DOCTORS QUERY HOOKS =====
 
@@ -46,8 +53,9 @@ export const useDoctors = (clinicId: string, filters?: {
   enabled?: boolean;
 }) => {
   const { isConnected } = useWebSocketStatus();
+  const authScope = useDoctorQueryScope();
 
-  return useQueryData(['doctors', clinicId, filters], async () => {
+  return useQueryData(['doctors', clinicId, authScope, filters], async () => {
     return await getDoctors(clinicId, filters);
   }, {
     enabled: !!clinicId && (options?.enabled ?? true),
@@ -89,8 +97,9 @@ export const useDoctorSchedule = (clinicId: string, doctorId: string, date?: str
 export const useDoctorAvailabilityLegacy = (doctorId: string, date: string, locationId?: string) => {
   const clinicId = useCurrentClinicId();
   const { isConnected } = useWebSocketStatus();
+  const authScope = useDoctorQueryScope();
 
-  return useQueryData(['doctorAvailability', doctorId, date, locationId || 'all'], async () => {
+  return useQueryData(['doctorAvailability', clinicId, doctorId, date, locationId || 'all', authScope], async () => {
     if (!clinicId) {
       throw new Error('No clinic ID available');
     }
