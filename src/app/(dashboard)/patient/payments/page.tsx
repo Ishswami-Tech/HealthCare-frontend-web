@@ -37,7 +37,6 @@ import {
 } from "lucide-react";
 import { PaymentHistory } from "@/components/billing/PaymentHistory";
 import { PaymentButton } from "@/components/payments";
-import { useCurrentClinicId } from "@/hooks/query/useClinics";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { useLayoutStore } from "@/stores/layout.store";
 import { formatDateInIST } from "@/lib/utils/date-time";
@@ -49,7 +48,7 @@ import type { BillingPlan, Invoice, Subscription } from "@/types/billing.types";
 
 export default function PatientBillingPage() {
   const { session } = useAuth();
-  const clinicId = useCurrentClinicId();
+  const clinicId = session?.user?.clinicId || "";
   const setPageTitle = useLayoutStore((state) => state.setPageTitle);
   const [planToConfirm, setPlanToConfirm] = useState<BillingPlan | null>(null);
   const [pendingSubscriptionPayment, setPendingSubscriptionPayment] = useState<{

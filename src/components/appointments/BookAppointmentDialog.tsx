@@ -89,7 +89,6 @@ import {
   ChevronDown, ChevronUp,
 } from "lucide-react";
 
-
 interface ConsultationVisual {
   icon: React.ReactNode;
   color: string;
@@ -289,11 +288,21 @@ export function BookAppointmentDialog({
   const { clinicId: contextClinicId } = useClinicContext();
   const currentClinicId = useCurrentClinicId();
   const { data: myClinic } = useMyClinic();
-  const resolvedClinicId = clinicId || contextClinicId || session?.user?.clinicId || currentClinicId || "";
+  const clinicFallbackId = APP_CONFIG.CLINIC.ID?.trim() || "";
+  const sessionClinicId = session?.user?.clinicId || "";
+  const safeContextClinicId = contextClinicId || "";
+
+  const authClinicId =
+    clinicId ||
+    sessionClinicId ||
+    safeContextClinicId ||
+    currentClinicId ||
+    (userRole !== "PATIENT" ? clinicFallbackId : "");
+  const resolvedClinicId = authClinicId;
   const hasExplicitClinicId = !!resolvedClinicId;
   const activeClinicId =
     resolvedClinicId ||
-    (userRole !== "PATIENT" ? APP_CONFIG.CLINIC.ID : "");
+    (userRole !== "PATIENT" ? clinicFallbackId : "");
 
   // ””” Dialog / Step state ””””””””””””””””””””””””””””””””””””””””””””””””””
   const [internalOpen, setInternalOpen] = useState(defaultOpen);
@@ -351,7 +360,7 @@ export function BookAppointmentDialog({
   const previousDateRef = useRef<Date | undefined>(selectedDate);
   const isPrivilegedScheduler = ["RECEPTIONIST", "DOCTOR", "CLINIC_ADMIN", "SUPER_ADMIN"].includes(userRole);
   const targetPatientId = isPrivilegedScheduler ? selectedPatientId : session?.user?.id || "";
-  const isPatientClinicStillResolving = userRole === "PATIENT" && !activeClinicId;
+  const isPatientClinicStillResolving = userRole === "PATIENT" && !resolvedClinicId;
   const shouldLoadLocations =
     dialogOpen &&
     consultationMode !== "VIDEO" &&
