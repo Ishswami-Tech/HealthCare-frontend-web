@@ -19,7 +19,7 @@ export default function PrivacyPolicyPage() {
             </Link>
              <div className="flex items-center gap-2 text-blue-600">
                 <Shield className="h-6 w-6" />
-                <span className="font-semibold text-lg">HealthCare App</span>
+                <span className="font-semibold text-lg">Dr Chandrakumar Deshmukh</span>
             </div>
         </div>
 
@@ -35,7 +35,7 @@ export default function PrivacyPolicyPage() {
               Last updated: January 21, 2026
             </p>
             <p className="text-lg text-gray-700 leading-relaxed">
-              Your privacy is critically important to us. At HealthCare App, we have a few fundamental principles regarding the collection and processing of your personal health information.
+              Your privacy is critically important to us. At Dr Chandrakumar Deshmukh, we have a few fundamental principles regarding the collection and processing of your personal health information.
             </p>
           </CardHeader>
           <CardContent className="space-y-8 pt-8 px-6 sm:px-10">
@@ -107,3 +107,4 @@ export default function PrivacyPolicyPage() {
     </div>
   );
 }
+

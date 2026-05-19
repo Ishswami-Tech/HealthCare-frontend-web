@@ -32,8 +32,10 @@ export default function VerifyOTPPage() {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [email, setEmail] = useState("");
   const [successPhase, setSuccessPhase] = useState<"none" | "alert" | "redirecting">("none");
+  const [formError, setFormError] = useState<string | null>(null);
 
   const triggerSuccessFlow = useCallback(() => {
+    setFormError(null);
     setSuccessPhase("alert");
     setTimeout(() => setSuccessPhase("redirecting"), 1500);
   }, []);
@@ -44,7 +46,7 @@ export default function VerifyOTPPage() {
     loadingMessage: "Verifying OTP...",
     successMessage: "OTP verified successfully! Redirecting...",
     errorMessage: "OTP verification failed. Please try again.",
-    showToast: true,
+    showToast: false,
     // Don't redirect - AuthLayout will handle it
   });
 
@@ -60,13 +62,17 @@ export default function VerifyOTPPage() {
   const form = useZodForm(
     otpSchema,
     async (data: OTPFormData) => {
-      await executeAuthOperation(async () => {
+      const result = await executeAuthOperation(async () => {
         return await verifyOTP({
           ...data,
           clinicId: queryClinicId,
           isRegistration,
         });
       });
+      if (!result) {
+        setFormError("OTP verification failed. Please try again.");
+        return;
+      }
       triggerSuccessFlow();
     },
     {
@@ -122,7 +128,7 @@ export default function VerifyOTPPage() {
     loadingMessage: "Sending OTP...",
     successMessage: "A new OTP has been sent to your email.",
     errorMessage: "Failed to resend OTP. Please try again.",
-    showToast: true,
+    showToast: false,
     onSuccess: () => {
       // Reset OTP input fields
       setOtp(["", "", "", "", "", ""]);
@@ -132,13 +138,16 @@ export default function VerifyOTPPage() {
 
   const handleResendOTP = async () => {
     // ✅ Use unified pattern - consistent across all auth pages
-    await executeOTPResend(async () => {
+    const result = await executeOTPResend(async () => {
       return await requestOTP({
         identifier: email,
         clinicId: queryClinicId,
         isRegistration,
       });
     });
+    if (!result) {
+      setFormError("Failed to resend OTP. Please try again.");
+    }
   };
 
   // ✅ Overlay clearing is handled by auth layout - no need to clear here
@@ -177,6 +186,14 @@ export default function VerifyOTPPage() {
       </CardHeader>
       <CardContent className="px-4 sm:px-6">
         {/* Success alert */}
+        {formError && (
+          <div className="mb-4 flex items-center gap-3 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+            <div className="h-5 w-5 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center shrink-0">
+              <span className="text-xs font-bold text-red-600 dark:text-red-300">!</span>
+            </div>
+            <p className="text-sm text-red-700 dark:text-red-300">{formError}</p>
+          </div>
+        )}
         {successPhase === "alert" && (
           <div className="mb-4 flex items-center gap-3 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 animate-in fade-in slide-in-from-top-2 duration-300">
             <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0" />
@@ -259,3 +276,4 @@ export default function VerifyOTPPage() {
     </Card>
   );
 }
+

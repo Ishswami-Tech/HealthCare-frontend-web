@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Loader2, ArrowLeft, Smartphone, CheckCircle2 } from "lucide-react";
-import { showErrorToast } from "@/hooks/utils/use-toast";
 import { REGEXP_ONLY_DIGITS_AND_CHARS } from "input-otp";
 import PhoneInput from "@/components/ui/phone-input";
 
@@ -22,29 +21,32 @@ export function PhoneOtpRegisterForm({ clinicId }: PhoneOtpRegisterFormProps) {
   const [otp, setOtp] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
     if (!phone || phone.length < 10) {
-        showErrorToast("Please enter a valid phone number");
+        setErrorMessage("Please enter a valid phone number");
         return;
     }
     try {
         await requestOTP({ identifier: phone, isRegistration: true, clinicId });
         setStep(2);
     } catch (error) {
-        // Error handling is managed by the mutation hook
+        setErrorMessage(error instanceof Error ? error.message : "Failed to send OTP");
     }
   };
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
     if (!otp || otp.length < 6) {
-        showErrorToast("Please enter a valid OTP");
+        setErrorMessage("Please enter a valid OTP");
         return;
     }
     if (!firstName || !lastName) {
-        showErrorToast("Please enter your full name");
+        setErrorMessage("Please enter your full name");
         return;
     }
     
@@ -58,13 +60,18 @@ export function PhoneOtpRegisterForm({ clinicId }: PhoneOtpRegisterFormProps) {
             clinicId,
         });
     } catch (error) {
-        // Error handling
+        setErrorMessage(error instanceof Error ? error.message : "Failed to verify OTP");
     }
   };
 
   if (step === 1) {
     return (
       <form onSubmit={handleRequestOtp} className="space-y-4 pt-4">
+        {errorMessage && (
+          <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            {errorMessage}
+          </div>
+        )}
         <div className="space-y-2">
           <Label htmlFor="phone">Phone Number</Label>
           <PhoneInput
@@ -92,6 +99,11 @@ export function PhoneOtpRegisterForm({ clinicId }: PhoneOtpRegisterFormProps) {
   return (
     <form onSubmit={handleVerify} className="space-y-4 pt-4">
       <div className="space-y-4">
+        {errorMessage && (
+          <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            {errorMessage}
+          </div>
+        )}
         <div className="space-y-2">
           <Label>Enter OTP</Label>
            <div className="flex justify-center">

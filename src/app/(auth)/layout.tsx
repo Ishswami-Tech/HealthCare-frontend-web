@@ -42,7 +42,7 @@ export default function AuthLayout({
       <div className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-indigo-600 to-blue-500">
         <div className="absolute inset-0 bg-black opacity-10" />
         <div className="relative z-10 flex flex-col justify-center px-12 xl:px-16 text-white">
-          <h1 className="text-3xl xl:text-4xl font-bold mb-6">Welcome to HealthCare App</h1>
+          <h1 className="text-3xl xl:text-4xl font-bold mb-6">Welcome to Dr Chandrakumar Deshmukh</h1>
           <p className="text-lg xl:text-xl">
             Your comprehensive healthcare management solution. Connect withdoctors, manage appointments, and access your medical recordssecurely.
           </p>
@@ -98,3 +98,4 @@ export default function AuthLayout({
     </div>
   );
 }
+

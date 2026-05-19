@@ -353,11 +353,12 @@ export function useAuth() {
       toastId: TOAST_IDS.AUTH.LOGIN,
       loadingMessage: 'Logging in...',
       successMessage: 'Logged in successfully',
-      // showToast: true (default) - to ensure errors are shown
+      showToast: false,
+      showLoading: false,
       onError: (error: Error) => {
-        showErrorToast(error.message || 'Login failed', {
-          id: TOAST_IDS.AUTH.LOGIN,
-        });
+        if (process.env.NODE_ENV === 'development') {
+          logger.warn('Login failed', { error: error.message, component: 'useAuth' });
+        }
       },
       onSuccess: (data) => {
         // Convert AuthResponse to Session
@@ -416,7 +417,8 @@ export function useAuth() {
       toastId: TOAST_IDS.AUTH.SOCIAL_LOGIN,
       loadingMessage: 'Logging in with Google...',
       successMessage: 'Logged in successfully',
-      showToast: false, // Handle manually for custom message
+      showToast: false,
+      showLoading: false,
       onSuccess: async (data) => {
         if (!data || !data.user) {
           showErrorToast('Google login failed: Invalid response data', {
@@ -461,16 +463,16 @@ export function useAuth() {
           router.push(ROUTES.PROFILE_COMPLETION);
         } else {
           const redirectPath = getRedirectPath(data.user, data.redirectUrl);
-          showSuccessToast(`Welcome${data.user.firstName ? ', ' + data.user.firstName : ''}!`, {
-            id: TOAST_IDS.AUTH.SOCIAL_LOGIN,
-          });
           router.push(redirectPath);
         }
       },
       onError: (error) => {
-        showErrorToast(error, {
-          id: TOAST_IDS.AUTH.SOCIAL_LOGIN,
-        });
+        if (process.env.NODE_ENV === 'development') {
+          logger.warn('Google login failed', {
+            error: error instanceof Error ? error.message : String(error),
+            component: 'useAuth',
+          });
+        }
       },
     }
   );
@@ -498,7 +500,8 @@ export function useAuth() {
       toastId: TOAST_IDS.AUTH.REGISTER,
       loadingMessage: 'Registering...',
       successMessage: 'Registration successful',
-      showToast: false, // Let page component handle it
+      showToast: false,
+      showLoading: false,
       // ✅ Removed onSuccess redirect - let page component handle it to prevent double redirects
       // ✅ Removed onError toast - let page component handle it to prevent duplicate toasts
       onSuccess: () => {
@@ -588,7 +591,8 @@ export function useAuth() {
       toastId: TOAST_IDS.AUTH.OTP,
       loadingMessage: 'Verifying OTP...',
       successMessage: 'OTP verified successfully! Welcome back!',
-      showToast: false, // Handle manually for custom message
+      showToast: false,
+      showLoading: false,
       onSuccess: (data) => {
         // Convert AuthResponse to Session
         const profileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
@@ -627,14 +631,14 @@ export function useAuth() {
         const redirect = resolveRedirect(redirectContext);
         
         router.push(redirect.path);
-        showSuccessToast('OTP verified successfully! Welcome back!', {
-          id: TOAST_IDS.AUTH.OTP,
-        });
       },
       onError: (error) => {
-        showErrorToast(error, {
-          id: TOAST_IDS.AUTH.OTP,
-        });
+        if (process.env.NODE_ENV === 'development') {
+          logger.warn('OTP verification failed', {
+            error: error instanceof Error ? error.message : String(error),
+            component: 'useAuth',
+          });
+        }
       },
     }
   );
@@ -648,11 +652,13 @@ export function useAuth() {
       toastId: TOAST_IDS.AUTH.OTP,
       loadingMessage: 'Sending OTP...',
       successMessage: 'OTP sent successfully! Please check your email.',
+      showToast: false,
+      showLoading: false,
       invalidateQueries: [['session']],
       onSuccess: (data) => {
-        showSuccessToast(data.message || 'OTP sent successfully! Please check your email.', {
-          id: TOAST_IDS.AUTH.OTP,
-        });
+        if (process.env.NODE_ENV === 'development') {
+          logger.info('OTP sent', { component: 'useAuth' });
+        }
       },
     }
   );
@@ -704,6 +710,8 @@ export function useAuth() {
       toastId: TOAST_IDS.AUTH.SOCIAL_LOGIN,
       loadingMessage: 'Logging in...',
       successMessage: 'Logged in successfully',
+      showToast: false,
+      showLoading: false,
         onSuccess: (data) => {
           const profileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
           const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
@@ -726,13 +734,10 @@ export function useAuth() {
             isAuthenticated: true,
           };
 
-          resetQueryCacheForAuthTransition(sessionData);
-          void prefetchAuthenticatedWorkspace(clinicId, sessionData.session_id || sessionData.user.id || 'guest');
+        resetQueryCacheForAuthTransition(sessionData);
+        void prefetchAuthenticatedWorkspace(clinicId, sessionData.session_id || sessionData.user.id || 'guest');
         const redirectPath = getRedirectPath(data.user, data.redirectUrl);
         router.push(redirectPath);
-        showSuccessToast('Logged in successfully', {
-          id: TOAST_IDS.AUTH.SOCIAL_LOGIN,
-        });
       },
     }
   );
@@ -893,6 +898,8 @@ export function useAuth() {
       toastId: TOAST_IDS.AUTH.SOCIAL_LOGIN,
       loadingMessage: 'Logging in with Facebook...',
       successMessage: 'Logged in with Facebook successfully',
+      showToast: false,
+      showLoading: false,
       onSuccess: (data) => {
         const profileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
         const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
@@ -919,9 +926,6 @@ export function useAuth() {
         void prefetchAuthenticatedWorkspace(clinicId, sessionData.session_id || sessionData.user.id || 'guest');
         const redirectPath = getRedirectPath(data.user, data.redirectUrl);
         router.push(redirectPath);
-        showSuccessToast('Logged in with Facebook successfully', {
-          id: TOAST_IDS.AUTH.SOCIAL_LOGIN,
-        });
       },
     }
   );
@@ -944,6 +948,8 @@ export function useAuth() {
       toastId: TOAST_IDS.AUTH.SOCIAL_LOGIN,
       loadingMessage: 'Logging in with Apple...',
       successMessage: 'Successfully logged in with Apple',
+      showToast: false,
+      showLoading: false,
       onSuccess: (data) => {
         // Handle successful Apple login
           if (data?.user) {
@@ -972,9 +978,6 @@ export function useAuth() {
             resetQueryCacheForAuthTransition(sessionData);
             void prefetchAuthenticatedWorkspace(clinicId, sessionData.session_id || sessionData.user.id || 'guest');
             router.push(getDashboardByRole(data.user.role as Role));
-          showSuccessToast('Successfully logged in with Apple', {
-            id: TOAST_IDS.AUTH.SOCIAL_LOGIN,
-          });
         }
       },
     }
@@ -1163,3 +1166,5 @@ export function useAuthForm(options: AuthFormOptions) {
     stopLoading: stopLoadingRef.current,
   };
 } 
+
+

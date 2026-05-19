@@ -20,6 +20,11 @@ import {
   FormItem,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
 import { SocialLogin } from "@/components/auth/social-login";
 import {
   Loader2,
@@ -29,7 +34,6 @@ import {
   Mail,
   CheckCircle2,
 } from "lucide-react";
-import { TOAST_IDS, showErrorToast } from "@/hooks/utils/use-toast";
 import { useAuth } from "@/hooks/auth/useAuth";
 import useZodForm from "@/hooks/utils/useZodForm";
 import { loginSchema, otpSchema } from "@/lib/schema";
@@ -38,6 +42,7 @@ import { ROUTES } from "@/lib/config/routes";
 import { cn } from "@/lib/utils";
 import { z } from "zod";
 import PhoneInput from "@/components/ui/phone-input";
+import { REGEXP_ONLY_DIGITS_AND_CHARS } from "input-otp";
 
 type LoginMethod = "selection" | "password" | "otp";
 type OtpMethod = "email" | "phone";
@@ -54,19 +59,21 @@ export default function LoginPage() {
   const [isSocialLoginLoading, setIsSocialLoginLoading] = useState(false);
   const [successPhase, setSuccessPhase] = useState<SuccessPhase>("none");
   const [isRestoringSession, setIsRestoringSession] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const requestOtpLockRef = useRef(false);
   const sessionExpired = searchParams.get("reason") === "session-expired";
 
   // Separate email and phone state to prevent cross-contamination
   const [emailIdentifier, setEmailIdentifier] = useState("");
   const [phoneIdentifier, setPhoneIdentifier] = useState("");
 
-  const otpInputRef = useRef<HTMLInputElement>(null);
   const {
     loginAsync,
     requestOTP,
     verifyOTP,
     isLoggingIn,
     isVerifyingOTP,
+    isRequestingOTP,
     session,
     refreshSession,
     getRedirectPath,
@@ -75,15 +82,10 @@ export default function LoginPage() {
   const isFormDisabled = isSocialLoginLoading || successPhase !== "none";
 
   const triggerSuccessFlow = useCallback(() => {
+    setAuthError(null);
     setSuccessPhase("alert");
     setTimeout(() => setSuccessPhase("redirecting"), 1500);
   }, []);
-
-  useEffect(() => {
-    if (showOTPInput && otpInputRef.current) {
-      otpInputRef.current.focus();
-    }
-  }, [showOTPInput]);
 
   useEffect(() => {
     if (session?.user && successPhase === "none" && !isSocialLoginLoading) {
@@ -139,6 +141,7 @@ export default function LoginPage() {
   // Login Mutation
   const loginMutation = useCallback(
     async (data: z.infer<typeof loginSchema>): Promise<AuthResponse> => {
+      setAuthError(null);
       const result = await loginAsync({
         email: data.email,
         password: data.password,
@@ -155,6 +158,7 @@ export default function LoginPage() {
   const otpMutation = async (
     data: z.infer<typeof otpSchema>,
   ): Promise<AuthResponse> => {
+    setAuthError(null);
     const result = await verifyOTP({ ...(data as OTPFormData), clinicId: queryClinicId });
     triggerSuccessFlow();
     return result;
@@ -173,11 +177,19 @@ export default function LoginPage() {
   });
 
   const handleRequestOTP = async (identifier: string) => {
+    if (requestOtpLockRef.current || isRequestingOTP) {
+      return;
+    }
+
+    requestOtpLockRef.current = true;
     try {
-      await requestOTP({ identifier, clinicId: queryClinicId });
+      setAuthError(null);
+      await requestOTP({ identifier, clinicId: queryClinicId, isRegistration: false });
       setShowOTPInput(true);
     } catch (error) {
-      // Handled by hook
+      setAuthError(error instanceof Error ? error.message : "Failed to request OTP");
+    } finally {
+      requestOtpLockRef.current = false;
     }
   };
 
@@ -189,13 +201,18 @@ export default function LoginPage() {
   // Render Selection View
   const renderSelectionView = () => (
     <div className="space-y-4">
+      {authError && (
+        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {authError}
+        </div>
+      )}
       <SocialLogin
         showDivider={false}
         clinicId={queryClinicId}
         onLoadingStateChange={setIsSocialLoginLoading}
         onSuccess={triggerSuccessFlow}
         onError={(error) => {
-          showErrorToast(error.message, { id: TOAST_IDS.AUTH.SOCIAL_LOGIN });
+          setAuthError(error.message);
         }}
       />
 
@@ -218,6 +235,7 @@ export default function LoginPage() {
             "border-slate-200 dark:border-slate-700",
           )}
           onClick={() => {
+            setAuthError(null);
             setView("otp");
             setOtpMethod("email");
           }}
@@ -248,6 +266,7 @@ export default function LoginPage() {
             "border-slate-200 dark:border-slate-700",
           )}
           onClick={() => {
+            setAuthError(null);
             setView("password");
           }}
           disabled={isFormDisabled}
@@ -281,6 +300,11 @@ export default function LoginPage() {
         }}
         className="space-y-4"
       >
+        {authError && (
+          <div className="p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md">
+            {authError}
+          </div>
+        )}
         {passwordForm.formState.errors.root && (
           <div className="p-3 text-sm text-red-500 bg-red-50 border border-red-200 rounded-md">
             {passwordForm.formState.errors.root.message}
@@ -385,6 +409,11 @@ export default function LoginPage() {
   const renderOtpView = () => (
     <Form {...otpForm}>
       <form onSubmit={otpForm.onFormSubmit} className="space-y-4">
+        {authError && (
+          <div className="p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md">
+            {authError}
+          </div>
+        )}
         {!showOTPInput && (
           <div className="flex p-1 bg-gray-100 dark:bg-slate-800 rounded-lg mb-4">
             <button
@@ -467,15 +496,24 @@ export default function LoginPage() {
             render={({ field }) => (
               <FormItem>
                 <FormControl>
-                  <Input
-                    type="text"
-                    placeholder="Enter OTP"
-                    {...field}
-                    ref={otpInputRef}
-                    disabled={isFormDisabled}
-                    className="text-center tracking-widest text-lg"
-                    maxLength={6}
-                  />
+                  <div className="flex justify-center">
+                    <InputOTP
+                      maxLength={6}
+                      value={field.value}
+                      onChange={field.onChange}
+                      disabled={isFormDisabled}
+                      pattern={REGEXP_ONLY_DIGITS_AND_CHARS}
+                    >
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={4} />
+                        <InputOTPSlot index={5} />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -491,14 +529,19 @@ export default function LoginPage() {
               if (id) {
                 handleRequestOTP(id);
               } else {
-                showErrorToast("Please enter your email or phone first", {
-                  id: TOAST_IDS.AUTH.OTP,
-                });
+                setAuthError("Please enter your email or phone first");
               }
             }}
-            disabled={isFormDisabled}
+            disabled={isFormDisabled || isRequestingOTP || requestOtpLockRef.current}
           >
-            Request OTP
+            {isRequestingOTP ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Sending...
+              </>
+            ) : (
+              "Request OTP"
+            )}
           </Button>
         )}
 

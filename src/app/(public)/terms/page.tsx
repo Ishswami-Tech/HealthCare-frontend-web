@@ -19,7 +19,7 @@ export default function TermsOfServicePage() {
             </Link>
              <div className="flex items-center gap-2 text-blue-600">
                 <ShieldCheck className="h-6 w-6" />
-                <span className="font-semibold text-lg">HealthCare App</span>
+                <span className="font-semibold text-lg">Dr Chandrakumar Deshmukh</span>
             </div>
         </div>
 
@@ -35,7 +35,7 @@ export default function TermsOfServicePage() {
               Last updated: January 21, 2026
             </p>
             <p className="text-lg text-gray-700 leading-relaxed">
-              Welcome to HealthCare App. By accessing or using our platform, you agree to be bound by these Terms of Service. Please read them carefully.
+              Welcome to Dr Chandrakumar Deshmukh. By accessing or using our platform, you agree to be bound by these Terms of Service. Please read them carefully.
             </p>
           </CardHeader>
           <CardContent className="space-y-8 pt-8 px-6 sm:px-10">
@@ -45,7 +45,7 @@ export default function TermsOfServicePage() {
                  1. Acceptance of Terms
               </h2>
               <p className="text-gray-600 leading-relaxed">
-                By creating an account or using any part of the HealthCare App platform, you acknowledge that you have read, understood, and agree to be bound by these terms. If you do not agree to these terms, you may not use our services.
+                By creating an account or using any part of the Dr Chandrakumar Deshmukh platform, you acknowledge that you have read, understood, and agree to be bound by these terms. If you do not agree to these terms, you may not use our services.
               </p>
             </section>
 
@@ -55,7 +55,7 @@ export default function TermsOfServicePage() {
                  2. No Medical Advice
               </h2>
               <p className="text-gray-600 leading-relaxed">
-                The content provided through HealthCare App is for informational purposes only and is not intended to substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition.
+                The content provided through Dr Chandrakumar Deshmukh is for informational purposes only and is not intended to substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition.
               </p>
             </section>
 
@@ -90,7 +90,7 @@ export default function TermsOfServicePage() {
                  5. Limitation of Liability
               </h2>
               <p className="text-gray-600 leading-relaxed">
-                To the maximum extent permitted by law, HealthCare App shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits or revenues, whether incurred directly or indirectly, or any loss of data, use, goodwill, or other intangible losses.
+                To the maximum extent permitted by law, Dr Chandrakumar Deshmukh shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits or revenues, whether incurred directly or indirectly, or any loss of data, use, goodwill, or other intangible losses.
               </p>
             </section>
 
@@ -106,3 +106,4 @@ export default function TermsOfServicePage() {
     </div>
   );
 }
+

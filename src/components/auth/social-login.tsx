@@ -3,7 +3,6 @@
 import { useAuth } from "@/hooks/auth/useAuth";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, useCallback } from "react";
-import { showSuccessToast, showErrorToast, showLoadingToast, dismissToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 
 // Google client ID from environment variable
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
@@ -168,33 +167,18 @@ export function SocialLogin({
   // Memoized Google response handler
   const handleGoogleResponse = useCallback(
     async (response: { credential: string }) => {
-      const toastId = TOAST_IDS.AUTH.SOCIAL_LOGIN;
       try {
         if (!response.credential) {
           throw new Error("No credential received from Google");
         }
-
-        showLoadingToast("Signing in with Google...", toastId);
-
         await googleLogin(response.credential, clinicId);
-
-        dismissToast(toastId);
-        showSuccessToast("Successfully signed in with Google!", {
-          id: toastId,
-        });
-
         onSuccess?.();
       } catch (error) {
-        dismissToast(toastId);
-        
         if (process.env.NODE_ENV === "development") {
           console.error("Google login error:", error);
         }
 
         onError?.(error instanceof Error ? error : new Error("Google login failed"));
-        showErrorToast(error, {
-          id: toastId,
-        });
       }
     },
     [clinicId, googleLogin, onSuccess, onError]
@@ -209,9 +193,6 @@ export function SocialLogin({
         console.error(error.message);
       }
       onError?.(error);
-      showErrorToast("Google login is not configured", {
-        id: TOAST_IDS.AUTH.SOCIAL_LOGIN,
-      });
       return;
     }
 
@@ -249,9 +230,6 @@ export function SocialLogin({
         const resolvedError =
           error instanceof Error ? error : new Error("Failed to initialize Google Sign-In");
         onError?.(resolvedError);
-        showErrorToast(resolvedError.message, {
-          id: TOAST_IDS.AUTH.SOCIAL_LOGIN,
-        });
       });
 
     return () => {

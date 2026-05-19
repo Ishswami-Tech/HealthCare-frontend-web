@@ -18,7 +18,7 @@ export default function DisclaimerPage() {
             </Link>
              <div className="flex items-center gap-2 text-blue-600">
                 <Shield className="h-6 w-6" />
-                <span className="font-semibold text-lg">HealthCare App</span>
+                <span className="font-semibold text-lg">Dr Chandrakumar Deshmukh</span>
             </div>
         </div>
 
@@ -34,7 +34,7 @@ export default function DisclaimerPage() {
               Last updated: January 21, 2026
             </p>
             <p className="text-lg text-gray-700 leading-relaxed font-medium">
-              Important information regarding the use of the HealthCare App platform and services.
+              Important information regarding the use of the Dr Chandrakumar Deshmukh platform and services.
             </p>
           </CardHeader>
           <CardContent className="space-y-8 pt-8 px-6 sm:px-10">
@@ -44,7 +44,7 @@ export default function DisclaimerPage() {
                  1. Medical Information Disclaimer
               </h2>
               <p className="text-gray-600 leading-relaxed">
-                The content provided on HealthCare App, including text, graphics, images, and other material, is for informational purposes only. It is not intended to be a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition.
+                The content provided on Dr Chandrakumar Deshmukh, including text, graphics, images, and other material, is for informational purposes only. It is not intended to be a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition.
               </p>
             </section>
 
@@ -54,7 +54,7 @@ export default function DisclaimerPage() {
                  2. No Emergency Services
               </h2>
               <p className="text-gray-600 leading-relaxed">
-                HealthCare App is not intended for use in medical emergencies. If you are experiencing a medical emergency, call your local emergency services immediately.
+                Dr Chandrakumar Deshmukh is not intended for use in medical emergencies. If you are experiencing a medical emergency, call your local emergency services immediately.
               </p>
             </section>
 
@@ -64,7 +64,7 @@ export default function DisclaimerPage() {
                  3. Accuracy of Information
               </h2>
               <p className="text-gray-600 leading-relaxed">
-                While we strive to provide accurate and up-to-date information, medical knowledge is constantly evolving. HealthCare App makes no representations or warranties, express or implied, about the completeness, accuracy, reliability, or suitability of the information contained on the platform.
+                While we strive to provide accurate and up-to-date information, medical knowledge is constantly evolving. Dr Chandrakumar Deshmukh makes no representations or warranties, express or implied, about the completeness, accuracy, reliability, or suitability of the information contained on the platform.
               </p>
             </section>
 
@@ -74,7 +74,7 @@ export default function DisclaimerPage() {
                  4. Limitation of Liability
               </h2>
               <p className="text-gray-600 leading-relaxed">
-                In no event will HealthCare App, its directors, employees, or partners be liable for any loss or damage including without limitation, indirect or consequential loss or damage, or any loss or damage whatsoever arising from loss of data or profits arising out of, or in connection with, the use of this platform.
+                In no event will Dr Chandrakumar Deshmukh, its directors, employees, or partners be liable for any loss or damage including without limitation, indirect or consequential loss or damage, or any loss or damage whatsoever arising from loss of data or profits arising out of, or in connection with, the use of this platform.
               </p>
             </section>
 
@@ -90,3 +90,4 @@ export default function DisclaimerPage() {
     </div>
   );
 }
+

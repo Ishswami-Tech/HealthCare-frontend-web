@@ -19,7 +19,7 @@ export default function DataDeletionPage() {
           </Link>
           <div className="flex items-center gap-2 text-blue-600">
             <Trash2 className="h-6 w-6" />
-            <span className="font-semibold text-lg">HealthCare App</span>
+            <span className="font-semibold text-lg">Dr Chandrakumar Deshmukh</span>
           </div>
         </div>
 
@@ -46,7 +46,7 @@ export default function DataDeletionPage() {
                 1. What will be deleted
               </h2>
               <p className="text-gray-600 leading-relaxed">
-                On request, we can remove account data associated with your HealthCare App profile. This may include your profile details, contact information, saved preferences, and app usage records that are not required to be retained for legal, medical, billing, or compliance reasons.
+                On request, we can remove account data associated with your Dr Chandrakumar Deshmukh profile. This may include your profile details, contact information, saved preferences, and app usage records that are not required to be retained for legal, medical, billing, or compliance reasons.
               </p>
             </section>
 
@@ -98,3 +98,4 @@ export default function DataDeletionPage() {
     </div>
   );
 }
+

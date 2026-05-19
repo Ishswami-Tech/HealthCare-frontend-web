@@ -27,7 +27,7 @@ import { Role, type RegisterData } from "@/types/auth.types";
 import { useAuth, useAuthForm } from "@/hooks/auth/useAuth";
 import useZodForm from "@/hooks/utils/useZodForm";
 import { ERROR_MESSAGES } from "@/lib/config/config";
-import { TOAST_IDS, showErrorToast, showSuccessToast } from "@/hooks/utils/use-toast";
+import { TOAST_IDS } from "@/hooks/utils/use-toast";
 import { ROUTES } from "@/lib/config/routes";
 import { EmailOtpRegisterForm } from "@/components/auth/email-otp-register-form";
 import { PhoneOtpRegisterForm } from "@/components/auth/phone-otp-register-form";
@@ -68,16 +68,12 @@ export default function RegisterPage() {
     loadingMessage: "Creating account...",
     successMessage: "Account created successfully!",
     errorMessage: ERROR_MESSAGES.REGISTER_FAILED,
-    showToast: true,
+    showToast: false,
     onError: (error: Error) => {
       if (
         error.message.toLowerCase().includes("already exists") ||
         error.message.toLowerCase().includes("please login")
       ) {
-        showErrorToast(
-          "An account with this email address already exists. Please login.",
-          { id: TOAST_IDS.AUTH.REGISTER }
-        );
         setFormError("An account with this email address already exists. Please login.");
         setTimeout(() => router.push(ROUTES.LOGIN), 3000);
         return;
@@ -120,11 +116,8 @@ export default function RegisterPage() {
         return await registerUser(formData as RegisterData);
       });
 
-      if (result) {
+        if (result) {
         if (result.requiresVerification && result.user?.email) {
-          showSuccessToast("Verification code sent to your email.", {
-              id: TOAST_IDS.AUTH.REGISTER,
-          });
           setTimeout(() => {
              const params = new URLSearchParams({
                email: result.user.email,
@@ -296,7 +289,7 @@ export default function RegisterPage() {
             clinicId={queryClinicId}
             onLoadingStateChange={setIsSocialLoginLoading}
             onError={(error) => {
-                 showErrorToast(error.message, { id: TOAST_IDS.AUTH.SOCIAL_LOGIN });
+                 setFormError(error.message);
             }}
            />
       </div>
