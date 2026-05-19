@@ -373,6 +373,42 @@ export class ApiClient {
     return `${method}:${endpoint}:${body}`;
   }
 
+  private normalizeHeadersForCache(headers: HeadersInit | undefined): Record<string, string> {
+    if (!headers) {
+      return {};
+    }
+
+    if (headers instanceof Headers) {
+      const result: Record<string, string> = {};
+      headers.forEach((value, key) => {
+        result[key.toLowerCase()] = value;
+      });
+      return result;
+    }
+
+    if (Array.isArray(headers)) {
+      return headers.reduce<Record<string, string>>((acc, [key, value]) => {
+        acc[String(key).toLowerCase()] = String(value);
+        return acc;
+      }, {});
+    }
+
+    return Object.entries(headers).reduce<Record<string, string>>((acc, [key, value]) => {
+      if (typeof value === 'string') {
+        acc[key.toLowerCase()] = value;
+      }
+      return acc;
+    }, {});
+  }
+
+  private buildRequestScopeKey(headers: HeadersInit | undefined): string {
+    const normalized = this.normalizeHeadersForCache(headers);
+    const authScope = normalized.authorization ? 'auth' : 'public';
+    const sessionId = normalized['x-session-id'] || 'no-session';
+    const clinicId = normalized['x-clinic-id'] || 'no-clinic';
+    return `${authScope}:${sessionId}:${clinicId}`;
+  }
+
   protected resolveBaseURL(endpoint: string): string {
     // Health endpoints intentionally bypass /api/v1 versioning and must hit the raw backend base URL.
     if (endpoint === '/health' || endpoint.startsWith('/health?') || endpoint.startsWith('/health/')) {
@@ -393,19 +429,31 @@ export class ApiClient {
       : endpoint;
     const url = `${this.resolveBaseURL(prefixedEndpoint)}${prefixedEndpoint}`;
     const method = (options.method || 'GET').toUpperCase();
-    const cacheKey = this.getCacheKey(endpoint, options);
-    
+    const clinicOptions = options as ClinicRequestInit;
+    const includeClinicId = clinicOptions.omitClinicId !== true;
+    const isPublicEndpoint = url.includes('/auth/') || url.includes('/health');
+    const shouldRequireAuth = !isPublicEndpoint;
+    const headers = await getAuthHeaders(
+      shouldRequireAuth,
+      includeClinicId,
+      clinicOptions.clinicId,
+      clinicOptions.requireClinicId === true
+    );
+    const mergedHeaders = options.headers ? { ...headers, ...options.headers } : headers;
+    const scopeKey = this.buildRequestScopeKey(mergedHeaders);
+    const cacheKey = this.getCacheKey(`${endpoint}:${scopeKey}`, options);
+
     // Request deduplication for GET requests to reduce server load
     if (method === 'GET' && this.requestCache[cacheKey]) {
       const cached = this.requestCache[cacheKey];
       const now = Date.now();
-      
+
       if (now - cached.timestamp < this.CACHE_DURATION) {
         return cached.promise;
       }
       delete this.requestCache[cacheKey];
     }
-    
+
     // Execute request
     const requestPromise = dedupeRequest(
       'api-client',
@@ -413,6 +461,7 @@ export class ApiClient {
         url,
         method,
         body: options.body ?? null,
+        scopeKey,
       },
       () => this.executeRequest<T>(url, options)
     );
@@ -424,7 +473,7 @@ export class ApiClient {
         promise: requestPromise,
       };
     }
-    
+
     return requestPromise;
   }
   
@@ -664,6 +713,10 @@ export class ApiClient {
   }
 
   // ✅ Session Management Implementation
+  public clearRequestCache(): void {
+    this.requestCache = {};
+  }
+
   private async updateSession(data: any) {
     const accessToken = data.access_token || data.accessToken;
     const refreshToken = data.refresh_token || data.refreshToken;

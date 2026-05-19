@@ -69,3 +69,16 @@ export function dedupeQueryRequest<T>(
 export function hasInflightRequest(namespace: string, keyParts: unknown): boolean {
   return inflightRequests.has(buildRequestKey(namespace, keyParts));
 }
+
+export function clearInflightRequests(namespace?: string): void {
+  if (!namespace) {
+    inflightRequests.clear();
+    return;
+  }
+
+  for (const key of Array.from(inflightRequests.keys())) {
+    if (key.startsWith(`${namespace}:`)) {
+      inflightRequests.delete(key);
+    }
+  }
+}

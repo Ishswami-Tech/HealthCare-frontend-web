@@ -55,6 +55,8 @@ import { getDashboardByRole, ROUTES } from '@/lib/config/routes';
 import { 
   clearTokens 
 } from '@/lib/utils/token-manager';
+import { clinicApiClient } from '@/lib/api/client';
+import { clearInflightRequests } from '@/hooks/core/requestDeduper';
 
 // Constants
 const TOKEN_REFRESH_THRESHOLD = 5 * 60 * 1000; // 5 minutes
@@ -150,6 +152,9 @@ export function useAuth() {
     (nextSession?: Session | null) => {
       void queryClient.cancelQueries();
       queryClient.clear();
+      clinicApiClient.clearRequestCache();
+      clearInflightRequests('api-client');
+      clearInflightRequests('query');
 
       if (nextSession) {
         queryClient.setQueryData(['session'], nextSession);
