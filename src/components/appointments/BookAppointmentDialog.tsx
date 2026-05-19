@@ -89,7 +89,6 @@ import {
   ChevronDown, ChevronUp,
 } from "lucide-react";
 
-
 interface ConsultationVisual {
   icon: React.ReactNode;
   color: string;
@@ -291,13 +290,14 @@ export function BookAppointmentDialog({
   const { data: myClinic } = useMyClinic();
   const clinicFallbackId = APP_CONFIG.CLINIC.ID?.trim() || "";
   const sessionClinicId = session?.user?.clinicId || "";
-  const safeContextClinicId = contextClinicId && contextClinicId !== clinicFallbackId ? contextClinicId : "";
-  const safeCurrentClinicId = currentClinicId && currentClinicId !== clinicFallbackId ? currentClinicId : "";
+  const safeContextClinicId = contextClinicId || "";
+
   const authClinicId =
     clinicId ||
     sessionClinicId ||
     safeContextClinicId ||
-    (userRole !== "PATIENT" ? safeCurrentClinicId || clinicFallbackId : safeCurrentClinicId || "");
+    currentClinicId ||
+    (userRole !== "PATIENT" ? clinicFallbackId : "");
   const resolvedClinicId = authClinicId;
   const hasExplicitClinicId = !!resolvedClinicId;
   const activeClinicId =
