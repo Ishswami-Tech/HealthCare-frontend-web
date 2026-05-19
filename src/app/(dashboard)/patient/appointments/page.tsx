@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { useMyAppointments } from "@/hooks/query/useAppointments";
-import { useCurrentClinicId } from "@/hooks/query/useClinics";
+import { useAuth } from "@/hooks/auth/useAuth";
 import { PatientQueueCard } from "@/components/dashboard/PatientQueueCard";
 import AppointmentManager from "@/components/appointments/AppointmentManager";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
@@ -62,6 +62,7 @@ const TREATMENT_CATEGORIES: TreatmentCategory[] = [
 
 export default function PatientAppointments() {
   const router = useRouter();
+  const { session } = useAuth();
   useWebSocketQuerySync();
   const searchParams = useSearchParams();
   const queryClinicId = searchParams.get("clinicId") || undefined;
@@ -71,7 +72,7 @@ export default function PatientAppointments() {
   const shouldOpenBooking = searchParams.get("openBooking") === "1";
   const defaultConsultationMode =
     bookingMode?.toUpperCase() === "VIDEO" ? "VIDEO" : undefined;
-  const sessionClinicId = useCurrentClinicId();
+  const sessionClinicId = session?.user?.clinicId || "";
   const resolvedClinicId = queryClinicId || sessionClinicId || undefined;
   const {
     data: appointmentsData,

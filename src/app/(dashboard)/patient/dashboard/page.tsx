@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useMyAppointments } from "@/hooks/query/useAppointments";
-import { useCurrentClinicId } from "@/hooks/query/useClinics";
 import {
   usePatientMedicalRecords,
   usePatientVitalSigns,
@@ -70,7 +69,7 @@ export default function PatientDashboard() {
   // Enable real-time WebSocket sync
   useWebSocketQuerySync();
 
-  const clinicId = useCurrentClinicId();
+  const clinicId = session?.user?.clinicId || "";
   const patientId = user?.id || "";
 
   // Fetch real data using hooks with loading and error states
