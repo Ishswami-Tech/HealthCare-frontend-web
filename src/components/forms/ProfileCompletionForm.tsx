@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import PhoneInput from "@/components/ui/phone-input";
+import { OtpCodeInput } from "@/components/auth/otp-code-input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Form,
@@ -31,9 +32,17 @@ import {
 } from "@/components/ui/select";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { showSuccessToast, showErrorToast, showWarningToast, TOAST_IDS } from "@/hooks/utils/use-toast";
-import { Loader2, User, Phone, MapPin, Calendar, Venus, CalendarIcon, Info } from "lucide-react";
+import { Loader2, Phone, MapPin, Calendar, Venus, CalendarIcon, ShieldCheck } from "lucide-react";
 import { Role } from "@/types/auth.types";
 import { ROUTES } from "@/lib/config/routes";
 import { profileCompletionSchema, type SchemaProfileCompletionFormData as ProfileCompletionFormData } from "@/lib/schema";
@@ -71,11 +80,158 @@ const resolveNameParts = (
   return { firstName: "", lastName: "" };
 };
 
-// Shared input class helper — keeps all fields visually consistent
-const inputCls = (hasError: boolean) =>
-  hasError
-    ? "aria-invalid:border-destructive aria-invalid:ring-destructive/20"
-    : "";
+interface OtpModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  phone: string;
+  onVerified: () => void;
+}
+
+function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
+  const [otp, setOtp] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    if (countdown > 0) {
+      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    }
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
+  }, [countdown]);
+
+  const handleResend = async () => {
+    if (countdown > 0) return;
+    setErrorMessage(null);
+    try {
+      await clinicApiClient.requestOTP({ identifier: phone, isRegistration: true });
+      showSuccessToast("OTP resent to your phone.", { id: TOAST_IDS.PROFILE.OTP });
+      setCountdown(30);
+      setOtp("");
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("expired")) {
+        showErrorToast("Session expired. Please log in again.", {
+          id: TOAST_IDS.AUTH.LOGIN,
+          duration: 5000,
+        });
+        window.location.href = '/login';
+      } else {
+        showErrorToast(error instanceof Error ? error.message : "Failed to resend OTP", {
+          id: TOAST_IDS.PROFILE.OTP,
+        });
+      }
+    }
+    return;
+  };
+
+  const handleVerify = async () => {
+    if (!otp.trim() || otp.length < 6) {
+      setErrorMessage("Please enter a valid 6-digit OTP.");
+      return;
+    }
+    setIsVerifying(true);
+    setErrorMessage(null);
+    try {
+      const response = await clinicApiClient.post(API_ENDPOINTS.AUTH.VERIFY_PHONE, {
+        phone,
+        otp: otp.trim(),
+      });
+      const data = response.data as Record<string, unknown>;
+      const result = (data.data || data) as Record<string, unknown>;
+      if (result.phoneVerified !== false) {
+        showSuccessToast("Phone number verified!", { id: TOAST_IDS.PROFILE.OTP });
+        setOtp("");
+        setErrorMessage(null);
+        onVerified();
+        onOpenChange(false);
+      } else {
+        setErrorMessage("Invalid OTP. Please try again.");
+        showErrorToast("Invalid OTP. Please try again.", { id: TOAST_IDS.PROFILE.OTP });
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("expired")) {
+        showErrorToast("Session expired. Please log in again.", {
+          id: TOAST_IDS.AUTH.LOGIN,
+          duration: 5000,
+        });
+        window.location.href = '/login';
+      } else {
+        setErrorMessage("Invalid OTP. Please try again.");
+        showErrorToast("Invalid OTP. Please try again.", { id: TOAST_IDS.PROFILE.OTP });
+      }
+    } finally {
+      setIsVerifying(false);
+    }
+    return;
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[400px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-emerald-600" />
+            Verify Phone Number
+          </DialogTitle>
+          <DialogDescription>
+            Enter the 4-6 digit code sent to <span className="font-medium text-foreground">{phone}</span>
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-6 py-4">
+          <div className="flex flex-col items-center gap-4">
+            <OtpCodeInput
+              value={otp}
+              onChange={(value) => {
+                setOtp(value);
+                setErrorMessage(null);
+              }}
+              disabled={isVerifying}
+              invalid={Boolean(errorMessage)}
+            />
+            <p className="text-sm text-muted-foreground">
+              Enter the 6-digit code sent to your phone
+            </p>
+            {errorMessage && (
+              <p className="text-sm text-destructive text-center">{errorMessage}</p>
+            )}
+          </div>
+          <Button
+            onClick={handleVerify}
+            disabled={otp.length < 6 || isVerifying}
+            className="w-full"
+          >
+            {isVerifying ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Verifying...
+              </>
+            ) : (
+              "Verify"
+            )}
+          </Button>
+        </div>
+
+        <DialogFooter className="sm:justify-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleResend}
+            disabled={countdown > 0}
+            className="text-muted-foreground"
+          >
+            Resend OTP {countdown > 0 && `(${countdown}s)`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function ProfileCompletionForm({
   onComplete,
@@ -87,10 +243,10 @@ export default function ProfileCompletionForm({
   const setProfileCompletion = useAuthStore((state) => state.setProfileCompletion);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [isSendingPhoneOtp, setIsSendingPhoneOtp] = useState(false);
-  const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
-  const [phoneOtp, setPhoneOtp] = useState("");
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isPhoneVerified, setIsPhoneVerified] = useState(Boolean(session?.user?.phoneVerified));
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [pendingPhone, setPendingPhone] = useState("");
 
   const redirectUrl = searchParams.get("redirect") || "/";
 
@@ -166,54 +322,45 @@ export default function ProfileCompletionForm({
         showErrorToast("Enter a phone number first.", { id: TOAST_IDS.PROFILE.COMPLETE });
         return;
       }
-
-      setIsSendingPhoneOtp(true);
+      setIsSendingOtp(true);
       await clinicApiClient.requestOTP({
         identifier: phone,
         isRegistration: false,
         ...(session?.user?.clinicId ? { clinicId: session.user.clinicId } : {}),
       });
-      showSuccessToast("OTP sent to your phone number.", { id: TOAST_IDS.PROFILE.COMPLETE });
+      setPendingPhone(phone);
+      setShowOtpModal(true);
+      showSuccessToast("OTP sent to your phone.", { id: TOAST_IDS.PROFILE.COMPLETE });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to send OTP";
-      showErrorToast(message, { id: TOAST_IDS.PROFILE.COMPLETE });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorLower = errorMessage.toLowerCase();
+
+      if (errorLower.includes("user") && errorLower.includes("not found")) {
+        showErrorToast("This phone is not registered. Please use a registered phone number.", {
+          id: TOAST_IDS.PROFILE.COMPLETE,
+        });
+      } else if (errorLower.includes("expired") || errorLower.includes("unauthorized")) {
+        showErrorToast("Session expired. Please log in again.", {
+          id: TOAST_IDS.AUTH.LOGIN,
+          duration: 5000,
+        });
+        window.location.href = '/login';
+      } else if (errorLower.includes("rate limit")) {
+        showErrorToast("Too many requests. Please wait a moment and try again.", {
+          id: TOAST_IDS.PROFILE.COMPLETE,
+        });
+      } else {
+        showErrorToast(errorMessage || "Failed to send OTP. Please try again.", {
+          id: TOAST_IDS.PROFILE.COMPLETE,
+        });
+      }
     } finally {
-      setIsSendingPhoneOtp(false);
+      setIsSendingOtp(false);
     }
   };
 
-  const confirmPhoneVerification = async () => {
-    try {
-      const phone = formatPhoneNumber(form.getValues("phone"));
-      if (!phone) {
-        showErrorToast("Enter a phone number first.", { id: TOAST_IDS.PROFILE.COMPLETE });
-        return;
-      }
-
-      if (!phoneOtp.trim()) {
-        showErrorToast("Enter the OTP sent to your phone.", { id: TOAST_IDS.PROFILE.COMPLETE });
-        return;
-      }
-
-      setIsVerifyingPhone(true);
-      const response = await clinicApiClient.post(API_ENDPOINTS.AUTH.VERIFY_PHONE, {
-        phone,
-        otp: phoneOtp.trim(),
-      });
-      const responseData = response.data as Record<string, any>;
-      const result = responseData.data || responseData;
-      if ((result.success ?? true) && (result.phoneVerified ?? true)) {
-        setIsPhoneVerified(true);
-        showSuccessToast("Phone number verified.", { id: TOAST_IDS.PROFILE.COMPLETE });
-      } else {
-        showErrorToast("Phone verification failed.", { id: TOAST_IDS.PROFILE.COMPLETE });
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to verify phone";
-      showErrorToast(message, { id: TOAST_IDS.PROFILE.COMPLETE });
-    } finally {
-      setIsVerifyingPhone(false);
-    }
+  const handlePhoneVerified = () => {
+    setIsPhoneVerified(true);
   };
 
   const updateProfile = async (data: Record<string, unknown>) => {
@@ -356,69 +503,51 @@ export default function ProfileCompletionForm({
 
   if (!isInitialized) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-neutral-950 dark:via-slate-900 dark:to-neutral-950 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-10 w-10 animate-spin text-emerald-600 dark:text-emerald-400" />
-          <p className="text-sm text-muted-foreground">Loading your profile data...</p>
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-neutral-950 dark:via-slate-900 dark:to-neutral-950 p-4">
-      <Card className="w-full max-w-lg overflow-hidden shadow-xl dark:shadow-none border border-border">
+    <div className="min-h-screen flex items-center justify-center bg-background p-3 sm:p-4">
+      <Card className="w-full max-w-sm sm:max-w-lg border-border">
 
         {/* ── Header ── */}
-        <CardHeader className="bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-700 dark:to-teal-700 px-6 py-5 space-y-3">
-          <div className="text-center space-y-1">
-            <CardTitle className="text-xl font-bold text-white">
-              Complete Your Profile
-            </CardTitle>
-            <p className="text-sm text-emerald-100">
-              Please provide the required information to complete your profile setup
-            </p>
-          </div>
-
-          {/* One-time setup notice */}
-          <div className="flex items-start gap-3 rounded-lg bg-white/15 border border-white/25 px-4 py-3">
-            <Info className="h-4 w-4 text-white shrink-0 mt-0.5" />
-            <div>
-              <p className="text-xs font-semibold text-white">One-Time Setup</p>
-              <p className="text-xs text-emerald-100 mt-0.5">
-                This information will be securely stored and you can update it anytime from your profile settings.
-              </p>
-            </div>
-          </div>
+        <CardHeader className="px-4 py-3 sm:px-6 sm:py-4 pb-0">
+          <CardTitle className="text-base sm:text-lg font-semibold text-center">
+            Complete Your Profile
+          </CardTitle>
         </CardHeader>
 
         {/* ── Body ── */}
-        <CardContent className="px-6 py-6">
+        <CardContent className="px-4 py-3 sm:px-6 sm:py-4">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 sm:space-y-3">
 
               {/* ── Basic Information ── */}
-              <section className="space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-border">
-                  <User className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                  <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-                    Basic Information
-                  </h3>
-                </div>
+              <section className="space-y-3">
+                <h3 className="text-sm font-medium text-foreground">
+                  Basic Information
+                </h3>
 
                 {/* First Name / Last Name */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <FormField
                     control={form.control}
                     name="firstName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>
+                        <FormLabel className="text-xs sm:text-sm">
                           First Name <span className="text-destructive">*</span>
                         </FormLabel>
                         <FormControl>
                           <Input
                             placeholder="First name"
+                            className="h-10 sm:h-9 text-sm"
                             aria-invalid={!!form.formState.errors.firstName}
                             {...field}
                           />
@@ -432,12 +561,13 @@ export default function ProfileCompletionForm({
                     name="lastName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>
+                        <FormLabel className="text-xs sm:text-sm">
                           Last Name <span className="text-destructive">*</span>
                         </FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Last name"
+                            className="h-10 sm:h-9 text-sm"
                             aria-invalid={!!form.formState.errors.lastName}
                             {...field}
                           />
@@ -448,63 +578,57 @@ export default function ProfileCompletionForm({
                   />
                 </div>
 
-                {/* Phone / Date of Birth — stacked to avoid overflow */}
-                <div className="grid grid-cols-1 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-1.5">
-                          <Phone className="h-3.5 w-3.5" />
-                          Phone Number <span className="text-destructive">*</span>
-                        </FormLabel>
-                        <FormControl>
+                {/* Phone */}
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
+                        <Phone className="h-3 w-3" />
+                        Phone <span className="text-destructive">*</span>
+                      </FormLabel>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <div className="flex-1">
                           <PhoneInput
                             placeholder="Phone number"
                             aria-invalid={!!form.formState.errors.phone}
                             error={!!form.formState.errors.phone}
                             defaultCountry="IN"
                             international
+                            disabled={isPhoneVerified}
+                            className="h-10 sm:h-9 text-sm"
                             {...field}
                           />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={sendPhoneOtp}
-                        disabled={isSendingPhoneOtp || isVerifyingPhone}
-                      >
-                        {isSendingPhoneOtp ? "Sending OTP..." : "Send OTP"}
-                      </Button>
-                      <Input
-                        value={phoneOtp}
-                        onChange={(e) => setPhoneOtp(e.target.value)}
-                        placeholder="Enter phone OTP"
-                        className="max-w-[180px]"
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={confirmPhoneVerification}
-                        disabled={isVerifyingPhone || isSendingPhoneOtp}
-                      >
-                        {isVerifyingPhone ? "Verifying..." : "Verify phone"}
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {isPhoneVerified
-                        ? "Phone number verified."
-                        : "Verify this phone number before submitting the profile."}
-                    </p>
-                  </div>
+                        </div>
+                        {isPhoneVerified ? (
+                          <div className="flex items-center justify-center gap-1 text-emerald-600 text-xs font-medium h-10 sm:h-9 px-3 sm:px-2">
+                            <ShieldCheck className="h-3 w-3" />
+                            <span>Verified</span>
+                          </div>
+                        ) : (
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={sendPhoneOtp}
+                            disabled={isSendingOtp || !form.getValues("phone")}
+                            className="h-10 sm:h-9 text-xs sm:text-sm whitespace-nowrap px-4"
+                          >
+                            {isSendingOtp ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              "Verify OTP"
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Date of Birth / Gender */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField
                     control={form.control}
                     name="dateOfBirth"
@@ -514,10 +638,9 @@ export default function ProfileCompletionForm({
                       const minDate = new Date(today.getFullYear() - 100, today.getMonth(), today.getDate());
                       return (
                         <FormItem className="flex flex-col">
-                          <FormLabel className="flex items-center gap-1.5">
-                            <Calendar className="h-3.5 w-3.5" />
-                            Date of Birth{" "}
-                            <span className="text-xs text-muted-foreground font-normal">(Optional)</span>
+                          <FormLabel className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            DOB
                           </FormLabel>
                           <Popover>
                             <PopoverTrigger asChild>
@@ -531,8 +654,8 @@ export default function ProfileCompletionForm({
                                 >
                                   <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
                                   {field.value
-                                    ? format(new Date(field.value), "PPP")
-                                    : "Pick a date"}
+                                    ? format(new Date(field.value), "P")
+                                    : "Pick"}
                                 </Button>
                               </FormControl>
                             </PopoverTrigger>
@@ -574,39 +697,38 @@ export default function ProfileCompletionForm({
                       );
                     }}
                   />
-                </div>
 
-                {/* Gender */}
-                <FormField
-                  control={form.control}
-                  name="gender"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-1.5">
-                        <Venus className="h-3.5 w-3.5" />
-                        Gender{" "}
-                        <span className="text-xs text-muted-foreground font-normal">(Optional)</span>
-                      </FormLabel>
-                      <Select
-                        value={field.value || "male"}
-                        onValueChange={(val) => field.onChange(val || "male")}
-                        defaultValue="male"
-                      >
-                        <FormControl>
-                          <SelectTrigger aria-invalid={!!form.formState.errors.gender}>
-                            <SelectValue placeholder="Select gender" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="male">Male</SelectItem>
-                          <SelectItem value="female">Female</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  {/* Gender */}
+                  <FormField
+                    control={form.control}
+                    name="gender"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
+                          <Venus className="h-3 w-3" />
+                          Gender
+                        </FormLabel>
+                        <Select
+                          value={field.value || "male"}
+                          onValueChange={(val) => field.onChange(val || "male")}
+                          defaultValue="male"
+                        >
+                          <FormControl>
+                            <SelectTrigger aria-invalid={!!form.formState.errors.gender} className="h-10 sm:h-9">
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="male">Male</SelectItem>
+                            <SelectItem value="female">Female</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 {/* Address */}
                 <FormField
@@ -614,18 +736,16 @@ export default function ProfileCompletionForm({
                   name="address"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="flex items-center gap-1.5">
-                        <MapPin className="h-3.5 w-3.5" />
-                        Address <span className="text-xs text-muted-foreground font-normal">(Optional)</span>
+                      <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        Address
                       </FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Enter your full address"
-                          aria-invalid={!!form.formState.errors.address}
-                          className="min-h-[80px] resize-none"
-                          {...field}
-                        />
-                      </FormControl>
+                      <Textarea
+                        placeholder="Enter address"
+                        aria-invalid={!!form.formState.errors.address}
+                        className="min-h-[60px] sm:min-h-[50px] resize-none text-sm h-10 sm:h-9"
+                        {...field}
+                      />
                       <FormMessage />
                     </FormItem>
                   )}
@@ -633,84 +753,78 @@ export default function ProfileCompletionForm({
               </section>
 
               {/* ── Emergency Contact ── */}
-              <section className="space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-border">
-                  <Phone className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                  <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-                    Emergency Contact
-                  </h3>
-                </div>
+              <section className="rounded-lg border p-3 sm:p-4">
+                <h3 className="text-xs sm:text-sm font-medium text-foreground mb-2 sm:mb-3">
+                  Emergency Contact
+                </h3>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2 sm:space-y-3">
+                  {/* Row 1: Name & Relation */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <FormField
+                      control={form.control}
+                      name="emergencyContactName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs sm:text-sm">Name</FormLabel>
+                          <Input placeholder="Emergency contact name" className="h-10 sm:h-9 text-sm" {...field} />
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="emergencyContactRelationship"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs sm:text-sm">Relation</FormLabel>
+                          <Input placeholder="e.g., Parent, Spouse" className="h-10 sm:h-9 text-sm" {...field} />
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Row 2: Contact Phone */}
                   <FormField
                     control={form.control}
-                    name="emergencyContactName"
+                    name="emergencyContactPhone"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Contact Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Contact's full name" {...field} />
-                        </FormControl>
+                        <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
+                          <Phone className="h-3 w-3" />
+                          Phone
+                        </FormLabel>
+                        <PhoneInput
+                          placeholder="Emergency contact phone"
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          error={!!form.formState.errors.emergencyContactPhone}
+                          defaultCountry="IN"
+                          international
+                          className="h-10 sm:h-9 text-sm"
+                        />
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
-
-                <FormField
-                  control={form.control}
-                  name="emergencyContactPhone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Contact Phone</FormLabel>
-                      <FormControl>
-                        <PhoneInput
-                          placeholder="Contact's phone number"
-                          error={!!form.formState.errors.emergencyContactPhone}
-                          defaultCountry="IN"
-                          international
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="emergencyContactRelationship"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Relationship</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., Spouse, Parent, Sibling" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </section>
 
               {/* ── Professional Information (doctors only) ── */}
               {isDoctor && (
-                <section className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-border">
-                    <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-                      Professional Information{" "}
-                      <span className="text-xs text-muted-foreground font-normal">(Optional)</span>
-                    </h3>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <section className="space-y-3">
+                  <h3 className="text-xs sm:text-sm font-medium text-foreground">
+                    Professional Info
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                     <FormField
                       control={form.control}
                       name="specialization"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Specialization</FormLabel>
-                          <FormControl>
-                            <Input placeholder="e.g., Cardiology, Pediatrics" {...field} />
-                          </FormControl>
+                          <FormLabel className="text-xs sm:text-sm">Specialization</FormLabel>
+                          <Input placeholder="e.g., Cardiology" className="h-10 sm:h-9 text-sm" {...field} />
                           <FormMessage />
                         </FormItem>
                       )}
@@ -720,10 +834,8 @@ export default function ProfileCompletionForm({
                       name="experience"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Years of Experience</FormLabel>
-                          <FormControl>
-                            <Input placeholder="e.g., 5" {...field} />
-                          </FormControl>
+                          <FormLabel className="text-xs sm:text-sm">Experience</FormLabel>
+                          <Input placeholder="Years" className="h-10 sm:h-9 text-sm" {...field} />
                           <FormMessage />
                         </FormItem>
                       )}
@@ -733,27 +845,33 @@ export default function ProfileCompletionForm({
               )}
 
               {/* ── Submit ── */}
-              <div className="pt-2">
-                <Button
-                  type="submit"
-                  disabled={isSubmitting || updatingProfile}
-                  className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 dark:from-emerald-700 dark:to-teal-700 dark:hover:from-emerald-800 dark:hover:to-teal-800 text-white font-semibold h-10 rounded-lg shadow-md transition-all duration-200"
-                >
-                  {isSubmitting || updatingProfile ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Completing Profile...
-                    </>
-                  ) : (
-                    "Complete Profile"
-                  )}
-                </Button>
-              </div>
-
+              <Button
+                type="submit"
+                disabled={isSubmitting || updatingProfile}
+                className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 dark:from-emerald-700 dark:to-teal-700 dark:hover:from-emerald-800 dark:hover:to-teal-800 text-white font-semibold h-11 sm:h-10 text-sm sm:text-base rounded-lg"
+              >
+                {isSubmitting || updatingProfile ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 sm:h-3.5 animate-spin" />
+                    <span className="hidden sm:inline">Completing Profile...</span>
+                    <span className="sm:hidden">Submitting...</span>
+                  </>
+                ) : (
+                  "Complete Profile"
+                )}
+              </Button>
             </form>
           </Form>
         </CardContent>
       </Card>
+
+      {/* OTP Modal */}
+      <OtpModal
+        open={showOtpModal}
+        onOpenChange={setShowOtpModal}
+        phone={pendingPhone}
+        onVerified={handlePhoneVerified}
+      />
     </div>
   );
 }

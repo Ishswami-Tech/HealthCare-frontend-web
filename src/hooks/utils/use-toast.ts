@@ -35,6 +35,7 @@ export const TOAST_IDS = {
   PROFILE: {
     UPDATE: 'profile-update',
     COMPLETE: 'profile-complete',
+    OTP: 'profile-otp',
   },
   APPOINTMENT: {
     CREATE: 'appointment-create',
