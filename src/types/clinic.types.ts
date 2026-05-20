@@ -111,6 +111,9 @@ export interface ClinicSettings {
       start: string;
       end: string;
     };
+    operatingWindowsByDay?: Record<string, Array<{ start: string; end: string }> | { start: string; end: string } | null>;
+    holidayClosures?: Array<{ date: string; title?: string; type?: string } | string>;
+    holidayDates?: string[];
   };
   paymentSettings: {
     currency: string;

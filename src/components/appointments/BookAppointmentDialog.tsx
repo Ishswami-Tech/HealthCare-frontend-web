@@ -178,6 +178,7 @@ const STEP_LABELS: Record<WizardStepId, string> = {
 /** Each appointment slot is 3 minutes ” 20 bookable slots per hour. */
 const IN_PERSON_APPOINTMENT_SLOT_DURATION_MINUTES = 3;
 const VIDEO_APPOINTMENT_SLOT_DURATION_MINUTES = 15;
+const VIDEO_CONSULTATION_TREATMENT_TYPE: TreatmentType = "GENERAL_CONSULTATION";
 
 // ””” Component ””””””””””””””””””””””””””””””””””””””””””””””””””””””””””””””
 
@@ -599,6 +600,90 @@ export function BookAppointmentDialog({
 
     return { start, end };
   }, [myClinic]);
+  const clinicHolidayClosures = useMemo(() => {
+    const clinicSettings = (myClinic?.settings as Record<string, unknown> | undefined) || {};
+    const appointmentSettings = clinicSettings.appointmentSettings;
+    if (!appointmentSettings || typeof appointmentSettings !== "object" || Array.isArray(appointmentSettings)) {
+      return new Set<string>();
+    }
+
+    const closures = new Set<string>();
+    const addDate = (value: unknown) => {
+      if (typeof value !== "string") return;
+      const trimmed = value.trim();
+      if (!trimmed) return;
+      const normalized = formatISODateInIST(new Date(trimmed));
+      if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+        closures.add(normalized);
+      }
+    };
+
+    const appointmentSettingsRecord = appointmentSettings as Record<string, unknown>;
+    const rawClosures = appointmentSettingsRecord.holidayClosures;
+    if (Array.isArray(rawClosures)) {
+      rawClosures.forEach((entry) => {
+        if (typeof entry === "string") {
+          addDate(entry);
+        } else if (entry && typeof entry === "object" && !Array.isArray(entry)) {
+          addDate((entry as Record<string, unknown>).date);
+        }
+      });
+    }
+
+    const legacyHolidayDates = appointmentSettingsRecord.holidayDates;
+    if (Array.isArray(legacyHolidayDates)) {
+      legacyHolidayDates.forEach(addDate);
+    }
+
+    return closures;
+  }, [myClinic]);
+  const clinicOperatingDays = useMemo(() => {
+    const clinicSettings = (myClinic?.settings as Record<string, unknown> | undefined) || {};
+    const appointmentSettings = clinicSettings.appointmentSettings;
+    if (!appointmentSettings || typeof appointmentSettings !== "object" || Array.isArray(appointmentSettings)) {
+      return null;
+    }
+
+    const appointmentSettingsRecord = appointmentSettings as Record<string, unknown>;
+    const operatingWindows = appointmentSettingsRecord.operatingWindowsByDay;
+    if (!operatingWindows || typeof operatingWindows !== "object" || Array.isArray(operatingWindows)) {
+      return null;
+    }
+
+    return operatingWindows as Record<string, unknown>;
+  }, [myClinic]);
+  const isClinicClosedDate = useCallback(
+    (date: Date) => {
+      const dayKey = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"][date.getDay()];
+      if (!dayKey) {
+        return false;
+      }
+
+      if (clinicOperatingDays) {
+        const dayWindows = clinicOperatingDays[dayKey];
+        const hasOpenWindow =
+          Array.isArray(dayWindows)
+            ? dayWindows.some((window) => {
+                if (!window || typeof window !== "object" || Array.isArray(window)) {
+                  return false;
+                }
+
+                const record = window as Record<string, unknown>;
+                const start = typeof record.start === "string" ? record.start.trim() : "";
+                const end = typeof record.end === "string" ? record.end.trim() : "";
+                return !!start && !!end && start < end;
+              })
+            : false;
+
+        if (!hasOpenWindow) {
+          return true;
+        }
+      }
+
+      return clinicHolidayClosures.has(formatISODateInIST(date));
+    },
+    [clinicHolidayClosures, clinicOperatingDays]
+  );
   const isSlotWithinClinicVideoWindow = useCallback(
     (slot: string) => {
       if (consultationMode !== "VIDEO" || !clinicVideoCallWindow) {
@@ -650,12 +735,20 @@ export function BookAppointmentDialog({
   const modeAppointmentType: AppointmentType =
     consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON";
   const visibleServices = useMemo(() => {
-    return (appointmentServices as AppointmentServiceDefinition[]).filter(
+    const filteredServices = (appointmentServices as AppointmentServiceDefinition[]).filter(
       (service) =>
         service.active &&
         service.appointmentModes.includes(modeAppointmentType)
     );
-  }, [appointmentServices, modeAppointmentType]);
+
+    if (consultationMode === "VIDEO") {
+      return filteredServices.filter(
+        (service) => service.treatmentType === VIDEO_CONSULTATION_TREATMENT_TYPE
+      );
+    }
+
+    return filteredServices;
+  }, [appointmentServices, consultationMode, modeAppointmentType]);
 
   const selectedService = useMemo(
     () => visibleServices.find((service) => service.treatmentType === selectedServiceId),
@@ -858,13 +951,17 @@ export function BookAppointmentDialog({
     const hasMultipleDoctors = doctorsLoading || doctorsList.length !== 1;
 
     return STEP_ORDER.filter((stepId) => {
+      if (stepId === "service") {
+        return consultationMode !== "VIDEO";
+      }
+
       if (stepId === "doctor") {
         return hasMultipleDoctors;
       }
 
       return true;
     });
-  }, [doctorsList.length, doctorsLoading]);
+  }, [consultationMode, doctorsList.length, doctorsLoading]);
 
   const currentStepIndex = Math.max(0, Math.min(step - 1, Math.max(activeSteps.length - 1, 0)));
   const currentStepId = activeSteps[currentStepIndex] ?? "success";
@@ -1277,13 +1374,17 @@ export function BookAppointmentDialog({
   }, [initialConsultationMode, initialDoctorId, initialPatientId, initialServiceId, locationId, dialogOpen]);
 
   useEffect(() => {
-    if (
-      selectedServiceId &&
-      !visibleServices.some(service => service.treatmentType === selectedServiceId)
-    ) {
+    if (consultationMode === "VIDEO") {
+      if (selectedServiceId !== VIDEO_CONSULTATION_TREATMENT_TYPE) {
+        setSelectedServiceId(VIDEO_CONSULTATION_TREATMENT_TYPE);
+      }
+      return;
+    }
+
+    if (selectedServiceId && !visibleServices.some(service => service.treatmentType === selectedServiceId)) {
       setSelectedServiceId("");
     }
-  }, [selectedServiceId, visibleServices]);
+  }, [consultationMode, selectedServiceId, visibleServices]);
 
   useEffect(() => {
     if (previousConsultationModeRef.current === consultationMode) {
@@ -1294,6 +1395,7 @@ export function BookAppointmentDialog({
 
     if (consultationMode === "VIDEO") {
       setSelectedLocationId("");
+      setSelectedServiceId(VIDEO_CONSULTATION_TREATMENT_TYPE);
     }
     setSelectedDoctorId("");
     setSelectedDate(getTodayIST());
@@ -1329,6 +1431,21 @@ export function BookAppointmentDialog({
     previousDateRef.current = selectedDate;
     setSelectedSlot("");
   }, [selectedDate]);
+
+  useEffect(() => {
+    if (!dialogOpen || !selectedDate || !isClinicClosedDate(selectedDate)) {
+      return;
+    }
+
+    const nextDate = new Date(selectedDate);
+    for (let offset = 1; offset <= 60; offset += 1) {
+      nextDate.setDate(selectedDate.getDate() + offset);
+      if (!isClinicClosedDate(nextDate) && nextDate >= getTodayIST()) {
+        setSelectedDate(new Date(nextDate));
+        return;
+      }
+    }
+  }, [dialogOpen, isClinicClosedDate, selectedDate]);
 
   useEffect(() => {
     if (previousServiceIdRef.current === selectedServiceId) {
@@ -2568,11 +2685,9 @@ export function BookAppointmentDialog({
               }
             }}
             disabled={(date) => {
-              // Enforce Indian Standard Time (IST) exactly for calculating disabled "past" days
               const todayIST = getTodayIST();
-            // Testing mode: allow any non-past booking date.
-            return date < todayIST;
-          }}
+              return date < todayIST || isClinicClosedDate(date);
+            }}
           className="border border-border/50 shadow-sm p-2 sm:p-3 mx-auto max-w-[280px] sm:max-w-xs [--cell-size:--spacing(8)] sm:[--cell-size:--spacing(9)] text-sm [&_.rdp-caption_label]:text-sm [&_.rdp-button]:text-sm"
         />
       </div>
