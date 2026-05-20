@@ -269,10 +269,7 @@ export const useIsProfileComplete = () => {
     const requiredFields = [
       'firstName',
       'lastName', 
-      'phone',
-      'dateOfBirth',
-      'gender',
-      'address'
+      'phone'
     ];
     
     const missingFields = requiredFields.filter(field => {
@@ -280,6 +277,13 @@ export const useIsProfileComplete = () => {
       return !value || (typeof value === 'string' && value.trim() === '');
     });
     
+    if (requiredFields.every(field => !missingFields.includes(field))) {
+      const phone = user.phone as string | undefined;
+      if (phone && user.phoneVerified !== true) {
+        return false;
+      }
+    }
+
     return missingFields.length === 0;
   };
 };

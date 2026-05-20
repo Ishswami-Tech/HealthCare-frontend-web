@@ -39,6 +39,8 @@ import { ROUTES } from "@/lib/config/routes";
 import { profileCompletionSchema, type SchemaProfileCompletionFormData as ProfileCompletionFormData } from "@/lib/schema";
 import { useAuthStore } from "@/stores";
 import type { Session } from "@/types/auth.types";
+import { clinicApiClient } from "@/lib/api/client";
+import { API_ENDPOINTS } from "@/lib/config/config";
 
 interface ProfileCompletionFormProps {
   onComplete?: () => void;
@@ -85,6 +87,10 @@ export default function ProfileCompletionForm({
   const setProfileCompletion = useAuthStore((state) => state.setProfileCompletion);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isSendingPhoneOtp, setIsSendingPhoneOtp] = useState(false);
+  const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
+  const [phoneOtp, setPhoneOtp] = useState("");
+  const [isPhoneVerified, setIsPhoneVerified] = useState(Boolean(session?.user?.phoneVerified));
 
   const redirectUrl = searchParams.get("redirect") || "/";
 
@@ -116,6 +122,19 @@ export default function ProfileCompletionForm({
     },
   });
 
+  const watchedPhone = form.watch("phone");
+
+  useEffect(() => {
+    setIsPhoneVerified(Boolean(session?.user?.phoneVerified));
+  }, [session?.user?.phoneVerified]);
+
+  useEffect(() => {
+    if (!watchedPhone) return;
+    if (watchedPhone !== formatPhoneNumber(session?.user?.phone)) {
+      setIsPhoneVerified(false);
+    }
+  }, [watchedPhone, session?.user?.phone]);
+
   useEffect(() => {
     if (!session?.user || isInitialized) return;
     form.reset({
@@ -139,6 +158,63 @@ export default function ProfileCompletionForm({
   const setProfileCompleteMutation = useSetProfileComplete();
   const updatingProfile =
     updateProfileMutation.isPending || setProfileCompleteMutation.isPending;
+
+  const sendPhoneOtp = async () => {
+    try {
+      const phone = formatPhoneNumber(form.getValues("phone"));
+      if (!phone) {
+        showErrorToast("Enter a phone number first.", { id: TOAST_IDS.PROFILE.COMPLETE });
+        return;
+      }
+
+      setIsSendingPhoneOtp(true);
+      await clinicApiClient.requestOTP({
+        identifier: phone,
+        isRegistration: false,
+        ...(session?.user?.clinicId ? { clinicId: session.user.clinicId } : {}),
+      });
+      showSuccessToast("OTP sent to your phone number.", { id: TOAST_IDS.PROFILE.COMPLETE });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to send OTP";
+      showErrorToast(message, { id: TOAST_IDS.PROFILE.COMPLETE });
+    } finally {
+      setIsSendingPhoneOtp(false);
+    }
+  };
+
+  const confirmPhoneVerification = async () => {
+    try {
+      const phone = formatPhoneNumber(form.getValues("phone"));
+      if (!phone) {
+        showErrorToast("Enter a phone number first.", { id: TOAST_IDS.PROFILE.COMPLETE });
+        return;
+      }
+
+      if (!phoneOtp.trim()) {
+        showErrorToast("Enter the OTP sent to your phone.", { id: TOAST_IDS.PROFILE.COMPLETE });
+        return;
+      }
+
+      setIsVerifyingPhone(true);
+      const response = await clinicApiClient.post(API_ENDPOINTS.AUTH.VERIFY_PHONE, {
+        phone,
+        otp: phoneOtp.trim(),
+      });
+      const responseData = response.data as Record<string, any>;
+      const result = responseData.data || responseData;
+      if ((result.success ?? true) && (result.phoneVerified ?? true)) {
+        setIsPhoneVerified(true);
+        showSuccessToast("Phone number verified.", { id: TOAST_IDS.PROFILE.COMPLETE });
+      } else {
+        showErrorToast("Phone verification failed.", { id: TOAST_IDS.PROFILE.COMPLETE });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to verify phone";
+      showErrorToast(message, { id: TOAST_IDS.PROFILE.COMPLETE });
+    } finally {
+      setIsVerifyingPhone(false);
+    }
+  };
 
   const updateProfile = async (data: Record<string, unknown>) => {
     const result = await updateProfileMutation.mutateAsync(data);
@@ -189,6 +265,13 @@ export default function ProfileCompletionForm({
         gender: data.gender ? data.gender.toUpperCase() : undefined,
         address: data.address,
       };
+
+      if (!isPhoneVerified) {
+        showErrorToast("Please verify your phone number before completing the profile.", {
+          id: TOAST_IDS.PROFILE.COMPLETE,
+        });
+        return;
+      }
 
       const hasCompleteEmergencyContact =
         data.emergencyContactName?.trim() &&
@@ -390,6 +473,38 @@ export default function ProfileCompletionForm({
                       </FormItem>
                     )}
                   />
+                  <div className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={sendPhoneOtp}
+                        disabled={isSendingPhoneOtp || isVerifyingPhone}
+                      >
+                        {isSendingPhoneOtp ? "Sending OTP..." : "Send OTP"}
+                      </Button>
+                      <Input
+                        value={phoneOtp}
+                        onChange={(e) => setPhoneOtp(e.target.value)}
+                        placeholder="Enter phone OTP"
+                        className="max-w-[180px]"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={confirmPhoneVerification}
+                        disabled={isVerifyingPhone || isSendingPhoneOtp}
+                      >
+                        {isVerifyingPhone ? "Verifying..." : "Verify phone"}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {isPhoneVerified
+                        ? "Phone number verified."
+                        : "Verify this phone number before submitting the profile."}
+                    </p>
+                  </div>
                   <FormField
                     control={form.control}
                     name="dateOfBirth"
@@ -501,7 +616,7 @@ export default function ProfileCompletionForm({
                     <FormItem>
                       <FormLabel className="flex items-center gap-1.5">
                         <MapPin className="h-3.5 w-3.5" />
-                        Address <span className="text-destructive">*</span>
+                        Address <span className="text-xs text-muted-foreground font-normal">(Optional)</span>
                       </FormLabel>
                       <FormControl>
                         <Textarea

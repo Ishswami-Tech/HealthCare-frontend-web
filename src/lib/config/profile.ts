@@ -15,6 +15,8 @@ export interface UserProfileData {
   email: string;
   role: string;
   phone?: string;
+  phoneVerified?: boolean;
+  phoneVerifiedAt?: string;
   address?: string;
   city?: string;
   state?: string;
@@ -55,8 +57,7 @@ export function checkProfileCompletion(profileData: UserProfileData): ProfileCom
   const requiredFields: string[] = [
     'firstName',
     'lastName', 
-    'phone',
-    'address'
+    'phone'
     // emergencyContact removed - not collected in profile completion form
   ];
 
@@ -78,6 +79,10 @@ export function checkProfileCompletion(profileData: UserProfileData): ProfileCom
       missingFields.push(field);
     }
   });
+
+  if (profileData.phone && profileData.phoneVerified !== true) {
+    missingFields.push('phoneVerified');
+  }
 
   const isComplete = missingFields.length === 0;
 
@@ -132,8 +137,7 @@ export function calculateProfileCompletion(userData: UserProfileData): boolean {
   const requiredFields = [
     'firstName',
     'lastName', 
-    'phone',
-    'address'
+    'phone'
   ];
 
   // Check if all required fields are present and not empty
@@ -141,6 +145,10 @@ export function calculateProfileCompletion(userData: UserProfileData): boolean {
     const value = getNestedValue(userData, field);
     return !value || (typeof value === 'string' && value.trim() === '');
   });
+
+  if (!missingFields.includes('phone') && userData.phone && userData.phoneVerified !== true) {
+    return false;
+  }
 
   // Profile is complete if no required fields are missing
   return missingFields.length === 0;
@@ -188,10 +196,7 @@ export function getRequiredFieldsForRole(): string[] {
   const baseFields = [
     'firstName',
     'lastName',
-    'phone',
-    'dateOfBirth',
-    'gender',
-    'address'
+    'phone'
     // emergencyContact removed - not collected in profile completion form
   ];
 
@@ -271,7 +276,7 @@ export function transformApiResponse(apiData: Record<string, unknown>): UserProf
           ? !apiData.requiresProfileCompletion
           : false;
 
-  return {
+  const result: UserProfileData = {
     id: (apiData.id as string) || '',
     firstName: (apiData.firstName as string) || '',
     lastName: (apiData.lastName as string) || '',
@@ -310,4 +315,14 @@ export function transformApiResponse(apiData: Record<string, unknown>): UserProf
     clinicAddress: (apiData.clinicAddress as string) || '',
     profileComplete
   };
+
+  if (typeof apiData.phoneVerified === 'boolean') {
+    result.phoneVerified = apiData.phoneVerified;
+  }
+
+  if (typeof apiData.phoneVerifiedAt === 'string') {
+    result.phoneVerifiedAt = apiData.phoneVerifiedAt;
+  }
+
+  return result;
 }
