@@ -103,8 +103,6 @@ function CountrySelect({ value, onChange, disabled }: CountrySelectProps) {
     [value],
   );
 
-  const selectedCode = value ? getCountryCallingCode(value) : null;
-
   return (
     <Popover open={open} onOpenChange={setOpen} modal>
       <PopoverTrigger asChild>
@@ -125,11 +123,6 @@ function CountrySelect({ value, onChange, disabled }: CountrySelectProps) {
             <CountryFlag country={value} />
           ) : (
             <span className="text-sm">🌐</span>
-          )}
-          {selectedCode && (
-            <span className="text-xs font-medium tabular-nums text-foreground/80">
-              +{selectedCode}
-            </span>
           )}
           <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
         </Button>

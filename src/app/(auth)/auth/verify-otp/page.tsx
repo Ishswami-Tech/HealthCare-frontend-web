@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Loader2, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
@@ -20,6 +19,7 @@ import {
 import { useAuthForm } from "@/hooks/auth/useAuth";
 import { TOAST_IDS } from "@/hooks/utils/use-toast";
 import { ROUTES } from "@/lib/config/routes";
+import { OtpCodeInput } from "@/components/auth/otp-code-input";
 
 export default function VerifyOTPPage() {
   const router = useRouter();
@@ -29,7 +29,6 @@ export default function VerifyOTPPage() {
     searchParams.get("isRegistration") === "true" ||
     searchParams.get("isRegistration") === "1";
   const { verifyOTP, requestOTP, isVerifyingOTP, isRequestingOTP } = useAuth();
-  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [email, setEmail] = useState("");
   const [successPhase, setSuccessPhase] = useState<"none" | "alert" | "redirecting">("none");
   const [formError, setFormError] = useState<string | null>(null);
@@ -63,11 +62,11 @@ export default function VerifyOTPPage() {
     otpSchema,
     async (data: OTPFormData) => {
       const result = await executeAuthOperation(async () => {
-        return await verifyOTP({
-          ...data,
-          clinicId: queryClinicId,
-          isRegistration,
-        });
+      return await verifyOTP({
+        ...data,
+        clinicId: queryClinicId,
+        isRegistration,
+      });
       });
       if (!result) {
         setFormError("OTP verification failed. Please try again.");
@@ -80,47 +79,7 @@ export default function VerifyOTPPage() {
       otp: "",
     }
   );
-
-  const handleOtpChange = (index: number, value: string) => {
-    if (value.length > 1) {
-      value = value[0] || "";
-    }
-
-    if (value.match(/^[0-9]$/)) {
-      const newOtp = [...otp];
-      newOtp[index] = value;
-      setOtp(newOtp);
-
-      // Update form value
-      form.setValue("otp", newOtp.join(""));
-
-      // Auto-focus next input
-      if (index < 5 && value !== "") {
-        const nextInput = document.getElementById(`otp-${index + 1}`);
-        nextInput?.focus();
-      }
-    } else if (value === "") {
-      const newOtp = [...otp];
-      newOtp[index] = "";
-      setOtp(newOtp);
-
-      // Update form value
-      form.setValue("otp", newOtp.join(""));
-
-      // Auto-focus previous input on backspace
-      if (index > 0) {
-        const prevInput = document.getElementById(`otp-${index - 1}`);
-        prevInput?.focus();
-      }
-    }
-  };
-
-  const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
-    if (e.key === "Backspace" && otp[index] === "" && index > 0) {
-      const prevInput = document.getElementById(`otp-${index - 1}`);
-      prevInput?.focus();
-    }
-  };
+  const otpValue = form.watch("otp");
 
   // ✅ Use unified auth form hook for OTP resend
   const { executeAuthOperation: executeOTPResend } = useAuthForm({
@@ -130,9 +89,8 @@ export default function VerifyOTPPage() {
     errorMessage: "Failed to resend OTP. Please try again.",
     showToast: false,
     onSuccess: () => {
-      // Reset OTP input fields
-      setOtp(["", "", "", "", "", ""]);
       form.setValue("otp", "");
+      form.clearErrors("otp");
     },
   });
 
@@ -208,29 +166,18 @@ export default function VerifyOTPPage() {
             <FormField
               control={form.control}
               name="otp"
-              render={() => (
+              render={({ field, fieldState }) => (
                 <FormItem>
                   <FormControl>
-                    <div className="flex justify-center gap-2 sm:gap-3">
-                      {otp.map((digit, index) => (
-                        <Input
-                          key={index}
-                          id={`otp-${index}`}
-                          type="text"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          maxLength={1}
-                          className="w-10 h-10 sm:w-12 sm:h-12 text-center text-base sm:text-lg font-semibold"
-                          value={digit}
-                          onChange={(e) =>
-                            handleOtpChange(index, e.target.value)
-                          }
-                          onKeyDown={(e) => handleKeyDown(index, e)}
-                          autoFocus={index === 0}
-                          disabled={isVerifyingOTP || successPhase !== "none"}
-                        />
-                      ))}
-                    </div>
+                    <OtpCodeInput
+                      value={field.value}
+                      onChange={(value) => {
+                        setFormError(null);
+                        field.onChange(value);
+                      }}
+                      disabled={isVerifyingOTP || successPhase !== "none"}
+                      invalid={!!fieldState.error || !!formError}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -241,7 +188,7 @@ export default function VerifyOTPPage() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={isVerifyingOTP || otp.join("").length !== 6 || successPhase !== "none"}
+                disabled={isVerifyingOTP || (otpValue || "").length !== 6 || successPhase !== "none"}
               >
                 {isVerifyingOTP ? (
                   <div className="flex items-center justify-center">

@@ -20,12 +20,8 @@ import {
   FormItem,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from "@/components/ui/input-otp";
 import { SocialLogin } from "@/components/auth/social-login";
+import { OtpCodeInput } from "@/components/auth/otp-code-input";
 import {
   Loader2,
   ArrowLeft,
@@ -42,7 +38,6 @@ import { ROUTES } from "@/lib/config/routes";
 import { cn } from "@/lib/utils";
 import { z } from "zod";
 import PhoneInput from "@/components/ui/phone-input";
-import { REGEXP_ONLY_DIGITS_AND_CHARS } from "input-otp";
 
 type LoginMethod = "selection" | "password" | "otp";
 type OtpMethod = "email" | "phone";
@@ -159,9 +154,14 @@ export default function LoginPage() {
     data: z.infer<typeof otpSchema>,
   ): Promise<AuthResponse> => {
     setAuthError(null);
-    const result = await verifyOTP({ ...(data as OTPFormData), clinicId: queryClinicId });
-    triggerSuccessFlow();
-    return result;
+    try {
+      const result = await verifyOTP({ ...(data as OTPFormData), clinicId: queryClinicId });
+      triggerSuccessFlow();
+      return result;
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Failed to verify OTP");
+      throw error;
+    }
   };
 
   const passwordForm = useZodForm(loginSchema, loginMutation, {
@@ -490,33 +490,24 @@ export default function LoginPage() {
         />
 
         {showOTPInput ? (
-          <FormField
-            control={otpForm.control}
-            name="otp"
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>
-                  <div className="flex justify-center">
-                    <InputOTP
-                      maxLength={6}
-                      value={field.value}
-                      onChange={field.onChange}
-                      disabled={isFormDisabled}
-                      pattern={REGEXP_ONLY_DIGITS_AND_CHARS}
-                    >
-                      <InputOTPGroup>
-                        <InputOTPSlot index={0} />
-                        <InputOTPSlot index={1} />
-                        <InputOTPSlot index={2} />
-                        <InputOTPSlot index={3} />
-                        <InputOTPSlot index={4} />
-                        <InputOTPSlot index={5} />
-                      </InputOTPGroup>
-                    </InputOTP>
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
+        <FormField
+          control={otpForm.control}
+          name="otp"
+          render={({ field, fieldState }) => (
+            <FormItem>
+              <FormControl>
+                <OtpCodeInput
+                  value={field.value}
+                  onChange={(value) => {
+                    setAuthError(null);
+                    field.onChange(value);
+                  }}
+                  disabled={isFormDisabled}
+                  invalid={!!fieldState.error || !!authError}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
             )}
           />
         ) : (

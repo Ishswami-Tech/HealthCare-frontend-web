@@ -5,10 +5,9 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Loader2, ArrowLeft, Smartphone, CheckCircle2 } from "lucide-react";
-import { REGEXP_ONLY_DIGITS_AND_CHARS } from "input-otp";
 import PhoneInput from "@/components/ui/phone-input";
+import { OtpCodeInput } from "@/components/auth/otp-code-input";
 
 interface PhoneOtpRegisterFormProps {
   clinicId?: string | undefined;
@@ -107,22 +106,15 @@ export function PhoneOtpRegisterForm({ clinicId }: PhoneOtpRegisterFormProps) {
         <div className="space-y-2">
           <Label>Enter OTP</Label>
            <div className="flex justify-center">
-            <InputOTP
-                maxLength={6}
-                value={otp}
-                onChange={(value) => setOtp(value)}
-                pattern={REGEXP_ONLY_DIGITS_AND_CHARS}
-                disabled={isVerifyingOTP}
-            >
-                <InputOTPGroup>
-                <InputOTPSlot index={0} />
-                <InputOTPSlot index={1} />
-                <InputOTPSlot index={2} />
-                <InputOTPSlot index={3} />
-                <InputOTPSlot index={4} />
-                <InputOTPSlot index={5} />
-                </InputOTPGroup>
-            </InputOTP>
+            <OtpCodeInput
+              value={otp}
+              onChange={(value) => {
+                setOtp(value);
+                setErrorMessage(null);
+              }}
+              disabled={isVerifyingOTP}
+              invalid={Boolean(errorMessage)}
+            />
           </div>
           <p className="text-xs text-center text-muted-foreground mt-2">
             We sent a code to your phone
