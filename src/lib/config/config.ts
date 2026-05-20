@@ -371,6 +371,7 @@ export const API_ENDPOINTS = {
     CHANGE_PASSWORD: '/auth/change-password', // POST /auth/change-password
     REQUEST_OTP: '/auth/request-otp',        // POST /auth/request-otp
     VERIFY_OTP: '/auth/verify-otp',           // POST /auth/verify-otp
+    VERIFY_PHONE: '/auth/verify-phone',       // POST /auth/verify-phone
     SESSIONS: '/auth/sessions',              // GET /auth/sessions ✅ Added
     GOOGLE_LOGIN: '/auth/google',            // POST /auth/google
     CHECK_OTP_STATUS: '/auth/check-otp-status',

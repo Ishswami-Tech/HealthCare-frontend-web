@@ -143,6 +143,9 @@ export interface User {
   profilePicture?: string | undefined;
   googleId?: string | undefined;
   phone?: string | undefined;
+  phoneVerified?: boolean | undefined;
+  phoneVerifiedAt?: string | undefined;
+  loginMethod?: 'password' | 'otp' | 'google_oauth' | 'facebook_oauth' | 'apple_oauth' | undefined;
   clinicId?: string | undefined;
   clinicName?: string | undefined;
   createdAt?: string | undefined;
@@ -295,7 +298,7 @@ export interface ProfileCompletionFormData {
   phone: string;
   dateOfBirth: string;
   gender: 'male' | 'female' | 'other';
-  address: string;
+  address?: string;
   emergencyContactName: string;
   emergencyContactPhone: string;
   emergencyContactRelationship: string;

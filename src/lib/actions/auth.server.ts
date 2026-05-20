@@ -1400,6 +1400,29 @@ export async function verifyOTP(data: OtpVerifyFormData): Promise<AuthResponse> 
   }
 }
 
+export async function verifyPhoneNumber(data: { phone: string; otp: string }): Promise<{
+  success: boolean;
+  phoneVerified: boolean;
+  phoneVerifiedAt: string;
+}> {
+  const response = await clinicApiClient.post(API_ENDPOINTS.AUTH.VERIFY_PHONE, {
+    phone: data.phone,
+    otp: data.otp,
+  });
+
+  const responseData = response.data as Record<string, any>;
+  const resultData = responseData.data || responseData;
+
+  return {
+    success: resultData.success ?? true,
+    phoneVerified: resultData.phoneVerified ?? true,
+    phoneVerifiedAt:
+      resultData.phoneVerifiedAt ||
+      resultData.phone_verified_at ||
+      new Date().toISOString(),
+  };
+}
+
 export async function checkOTPStatus(email: string): Promise<{ hasActiveOTP: boolean }> {
     const response = await clinicApiClient.post(API_ENDPOINTS.AUTH.CHECK_OTP_STATUS, { email });
     return response.data as { hasActiveOTP: boolean };
