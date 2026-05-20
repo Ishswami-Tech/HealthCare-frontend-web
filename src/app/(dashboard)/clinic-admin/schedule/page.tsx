@@ -22,7 +22,7 @@ import {
 } from "@/components/dashboard/DashboardPageShell";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { useAuth } from "@/hooks/auth/useAuth";
-import { useClinicContext } from "@/hooks/query/useClinics";
+import { useClinicContext, useMyClinic, useUpdateClinic } from "@/hooks/query/useClinics";
 import {
   useDoctors,
   useDoctorSchedule,
@@ -69,6 +69,63 @@ type HolidayRecord = {
   title: string;
   type: string;
 };
+
+function normalizeHolidayDate(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+  if (isoMatch) {
+    return trimmed;
+  }
+
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  const year = parsed.getFullYear();
+  const month = `${parsed.getMonth() + 1}`.padStart(2, "0");
+  const day = `${parsed.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeHolidayRecords(value: unknown): HolidayRecord[] {
+  const source = Array.isArray(value) ? value : [];
+  return source.flatMap((entry, index) => {
+    if (typeof entry === "string") {
+      const date = normalizeHolidayDate(entry);
+      return date
+        ? [{ id: `${date}-${index}`, date, title: "Clinic Closure", type: "Clinic Closure" }]
+        : [];
+    }
+
+    if (entry && typeof entry === "object" && !Array.isArray(entry)) {
+      const record = entry as Record<string, unknown>;
+      const date = normalizeHolidayDate(record.date);
+      if (!date) {
+        return [];
+      }
+
+      return [
+        {
+          id: String(record.id ?? `${date}-${index}`),
+          date,
+          title: String(record.title ?? "Clinic Closure"),
+          type: String(record.type ?? "Clinic Closure"),
+        },
+      ];
+    }
+
+    return [];
+  });
+}
 
 const WEEKDAY_ORDER = [
   "Sunday",
@@ -259,6 +316,7 @@ export default function ClinicAdminSchedule() {
   useAuth();
   const { clinicId } = useClinicContext();
   const scheduleWritesSupported = !!clinicId;
+  const { data: clinic } = useMyClinic();
 
   const { data: doctorsData, isPending: isPendingDoctors } = useDoctors(
     clinicId || "",
@@ -275,6 +333,7 @@ export default function ClinicAdminSchedule() {
   );
 
   const updateScheduleMutation = useUpdateDoctorSchedule();
+  const updateClinicMutation = useUpdateClinic();
 
   const doctors = useMemo(
     () => normalizeDoctors(doctorsData),
@@ -356,6 +415,18 @@ export default function ClinicAdminSchedule() {
     type: "Public Holiday",
   });
   const [holidayDate, setHolidayDate] = useState<Date | undefined>(undefined);
+
+  useEffect(() => {
+    const settings = isRecord(clinic?.settings) ? clinic.settings : null;
+    const appointmentSettings = isRecord(settings?.appointmentSettings)
+      ? settings?.appointmentSettings
+      : null;
+    if (!appointmentSettings) {
+      return;
+    }
+
+    setHolidays(normalizeHolidayRecords((appointmentSettings as Record<string, unknown>).holidayClosures));
+  }, [clinic]);
 
   const scheduleConflicts = useMemo(() => {
     return localSchedules.flatMap((doctor) =>
@@ -447,9 +518,32 @@ export default function ClinicAdminSchedule() {
         ...(clinicId ? { clinicId } : {}),
       });
 
-      showSuccessToast("Schedule updated successfully", {
-        id: TOAST_IDS.GLOBAL.SUCCESS,
-      });
+      if (clinicId) {
+        const baseSettings = isRecord(clinic?.settings) ? (clinic.settings as Record<string, unknown>) : {};
+        const appointmentSettings = isRecord(baseSettings.appointmentSettings)
+          ? (baseSettings.appointmentSettings as Record<string, unknown>)
+          : {};
+        const holidayClosures = holidays.map((holiday) => ({
+          date: holiday.date,
+          title: holiday.title,
+          type: holiday.type,
+        }));
+
+        await updateClinicMutation.mutateAsync({
+          id: clinicId,
+          data: {
+            settings: {
+              ...baseSettings,
+              appointmentSettings: {
+                ...appointmentSettings,
+                holidayClosures,
+                holidayDates: holidayClosures.map((holiday) => holiday.date),
+              },
+            },
+          },
+        });
+      }
+
     } catch (error) {
       showErrorToast("Failed to update schedule", {
         id: TOAST_IDS.GLOBAL.ERROR,
