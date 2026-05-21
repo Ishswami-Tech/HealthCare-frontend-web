@@ -411,11 +411,14 @@ export default function ProfileCompletionForm({
         dateOfBirth: data.dateOfBirth,
         gender: data.gender ? data.gender.toUpperCase() : undefined,
         address: data.address,
+        phoneVerified: isPhoneVerified,  // Required by backend to mark profile complete
       };
 
+      // phoneVerified IS required before completing profile
       if (!isPhoneVerified) {
-        showErrorToast("Please verify your phone number before completing the profile.", {
-          id: TOAST_IDS.PROFILE.COMPLETE,
+        form.setError("phone", {
+          type: "manual",
+          message: "Please verify your phone number via OTP before completing the profile.",
         });
         return;
       }

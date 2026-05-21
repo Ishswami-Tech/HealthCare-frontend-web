@@ -72,6 +72,7 @@ import {
 } from "@/hooks/utils/use-toast";
 import { Permission } from "@/types/rbac.types";
 import { APP_CONFIG } from "@/lib/config/config";
+import { ROUTES } from "@/lib/config/routes";
 import { DEFAULT_PAYMENT_PROVIDER, isPaymentProviderEnabled } from "@/lib/payments/providers";
 import { theme } from "@/lib/utils/theme-utils";
 import { cn } from "@/lib/utils";
@@ -88,6 +89,26 @@ import {
   Check, ArrowRight, Video, MapPin, Building, Wifi, WifiOff,
   ChevronDown, ChevronUp,
 } from "lucide-react";
+
+function isProfileCompletionError(error: unknown): boolean {
+  if (!error) {
+    return false;
+  }
+
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "object" && error !== null && "message" in error
+        ? String((error as { message?: unknown }).message ?? "")
+        : String(error);
+
+  return (
+    message.includes("PROFILE_INCOMPLETE") ||
+    message.includes("Profile incomplete") ||
+    message.includes("Please complete your profile") ||
+    message.includes("requiresProfileCompletion")
+  );
+}
 
 interface ConsultationVisual {
   icon: React.ReactNode;
@@ -283,6 +304,12 @@ export function BookAppointmentDialog({
   const { session } = useAuth();
   const { hasPermission } = useRBAC();
   const userRole = (session?.user?.role || "").toUpperCase();
+
+  const profileCompletionRedirectUrl = useMemo(
+    () => `${ROUTES.PROFILE_COMPLETION}?redirect=${encodeURIComponent(pathname || "/patient/appointments")}`,
+    [pathname]
+  );
+
   const postBookingRoute = userRole === "RECEPTIONIST" ? "/receptionist/appointments" : "/patient/appointments";
   const postBookingLabel = userRole === "RECEPTIONIST" ? "Go to appointment manager" : "Go to appointments";
   const patientCheckInRoute = "/patient/check-in";
@@ -543,6 +570,7 @@ export function BookAppointmentDialog({
     isPending: locationsLoading,
     isFetching: locationsFetching,
     isFetched: activeLocationsFetched,
+    error: activeLocationsError,
   } = useActiveLocations(
     activeClinicId,
     shouldLoadLocations ? { enabled: true } : undefined
@@ -551,11 +579,17 @@ export function BookAppointmentDialog({
     data: allLocations = [],
     isPending: allLocationsLoading,
     isFetched: allLocationsFetched,
+    error: allLocationsError,
   } = useClinicLocations(activeClinicId, {
     includeInactive: true,
   });
   const { data: appointmentServices = [], isPending: servicesLoading } = useAppointmentServices(shouldLoadServices);
-  const { data: doctorsData, isPending: doctorsLoading, isFetched: doctorsFetched } = useDoctors(
+  const {
+    data: doctorsData,
+    isPending: doctorsLoading,
+    isFetched: doctorsFetched,
+    error: doctorsError,
+  } = useDoctors(
     activeClinicId,
     consultationMode === "VIDEO"
       ? undefined
@@ -573,6 +607,24 @@ export function BookAppointmentDialog({
     shouldLoadPatients ? { enabled: true } : undefined
   );
   const { data: currentPatientProfile } = useUserProfile();
+  const profileCompletionBlocked = useMemo(
+    () =>
+      session?.user?.profileComplete === false ||
+      isProfileCompletionError(activeLocationsError) ||
+      isProfileCompletionError(allLocationsError) ||
+      isProfileCompletionError(doctorsError),
+    [activeLocationsError, allLocationsError, doctorsError, session?.user?.profileComplete]
+  );
+
+  useEffect(() => {
+    if (!dialogOpen) {
+      return;
+    }
+
+    if (profileCompletionBlocked) {
+      router.replace(profileCompletionRedirectUrl);
+    }
+  }, [dialogOpen, profileCompletionBlocked, profileCompletionRedirectUrl, router]);
 
   const clinicVideoCallWindow = useMemo(() => {
     const normalizeWindowTime = (value: unknown): string | null => {
@@ -2051,6 +2103,32 @@ export function BookAppointmentDialog({
           <Loader2 className="w-7 h-7 mx-auto mb-2 opacity-60 animate-spin" />
           Resolving your clinic...
         </div>
+      ) : profileCompletionBlocked ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+            <div className="space-y-1">
+              <p className="font-semibold">Complete your profile first</p>
+              <p className="text-xs text-amber-800/90 dark:text-amber-200/90">
+                We need your profile details before loading locations or doctors.
+              </p>
+              <p className="text-xs text-amber-800/80 dark:text-amber-200/80">
+                You will be redirected to the profile completion page.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-2 h-9 rounded-lg"
+                onClick={() => {
+                  handleOpenChange(false);
+                  router.replace(profileCompletionRedirectUrl);
+                }}
+              >
+                Complete profile
+              </Button>
+            </div>
+          </div>
+        </div>
       ) : (
         <div className="flex flex-col gap-2">
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Visit Location</p>
@@ -3315,8 +3393,13 @@ export function BookAppointmentDialog({
     selectedServiceId,
     selectedSlot,
     servicesLoading,
+    profileCompletionBlocked,
     showAvailabilityLoader,
     videoPaymentCompleted,
+    profileCompletionRedirectUrl,
+    activeLocationsError,
+    allLocationsError,
+    doctorsError,
   ]);
 
   return (

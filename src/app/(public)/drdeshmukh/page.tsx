@@ -8,6 +8,7 @@ import {
   Check,
   ChevronRight,
   ClipboardCopy,
+  Clock,
   Copy,
   ExternalLink,
   Flame,
@@ -17,6 +18,7 @@ import {
   MoreVertical,
   Phone,
   Share2,
+  Video,
   X,
   Youtube,
 } from "lucide-react";
@@ -44,18 +46,46 @@ type LinkPreview = {
 };
 
 function getServiceCardClass(index: number) {
+  if (index === 0) {
+    // Video appointments - highlighted orange card
+    return "border-orange-300 bg-orange-100/80 hover:bg-orange-200/60 dark:border-orange-700/50 dark:bg-orange-950/25 dark:hover:bg-orange-900/40 shadow-md shadow-orange-200/40 dark:shadow-orange-500/10";
+  }
   const tones = [
-    "border-sky-100 bg-sky-50/70 hover:bg-sky-100/55 dark:border-sky-900/35 dark:bg-sky-950/18 dark:hover:bg-sky-950/30",
-    "border-amber-100 bg-amber-50/70 hover:bg-amber-100/55 dark:border-amber-900/35 dark:bg-amber-950/18 dark:hover:bg-amber-950/30",
+    // Sky blue
+    "border-sky-200 bg-sky-50/70 hover:bg-sky-100/55 dark:border-sky-900/35 dark:bg-sky-950/18 dark:hover:bg-sky-950/30",
+    // Amber
+    "border-amber-200 bg-amber-50/70 hover:bg-amber-100/55 dark:border-amber-900/35 dark:bg-amber-950/18 dark:hover:bg-amber-950/30",
+    // Green
+    "border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100/55 dark:border-emerald-900/35 dark:bg-emerald-950/18 dark:hover:bg-emerald-950/30",
+    // Violet
+    "border-violet-200 bg-violet-50/70 hover:bg-violet-100/55 dark:border-violet-900/35 dark:bg-violet-950/18 dark:hover:bg-violet-950/30",
+    // Rose
+    "border-rose-200 bg-rose-50/70 hover:bg-rose-100/55 dark:border-rose-900/35 dark:bg-rose-950/18 dark:hover:bg-rose-950/30",
+    // Teal
+    "border-teal-200 bg-teal-50/70 hover:bg-teal-100/55 dark:border-teal-900/35 dark:bg-teal-950/18 dark:hover:bg-teal-950/30",
   ];
 
   return tones[index % tones.length];
 }
 
 function getServiceAccentClass(index: number) {
+  if (index === 0) {
+    // Video appointments - orange accent with glow
+    return "bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/30";
+  }
   const tones = [
+    // Sky blue
     "bg-sky-400 text-slate-900",
+    // Amber
     "bg-amber-400 text-slate-900",
+    // Green
+    "bg-emerald-400 text-white",
+    // Violet
+    "bg-violet-400 text-white",
+    // Rose
+    "bg-rose-400 text-white",
+    // Teal
+    "bg-teal-400 text-white",
   ];
 
   return tones[index % tones.length];
@@ -117,6 +147,16 @@ const doctor = {
 };
 
 const services: ServiceItem[] = [
+  {
+    id: "video-appointments",
+    title: "Book Video Consultation",
+    description: "Schedule an online video consultation with Dr. Deshmukh on the web.",
+    href: "/patient/appointments?openBooking=1&mode=VIDEO",
+    icon: Video,
+    accent: "bg-orange-500",
+    badge: "Book Now",
+    previewKind: "app",
+  },
   {
     id: "soup",
     title: "Charabi Bhasma Soup",

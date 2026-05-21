@@ -356,6 +356,9 @@ export async function getClinicLocations(clinicId: string, includeInactive = fal
     return normalizeCollectionResponse<ClinicLocation>(data);
   } catch (error) {
     logger.error('Failed to get clinic locations', error instanceof Error ? error : new Error(String(error)));
+    if (isProfileCompletionAccessError(error)) {
+      throw new Error('PROFILE_INCOMPLETE');
+    }
     return [];
   }
 }
@@ -554,8 +557,30 @@ export async function getClinicDoctors(clinicId: string) {
     return data || [];
   } catch (error) {
     logger.error('Failed to get clinic doctors', error instanceof Error ? error : new Error(String(error)));
+    if (isProfileCompletionAccessError(error)) {
+      throw new Error('PROFILE_INCOMPLETE');
+    }
     return [];
   }
+}
+
+function isProfileCompletionAccessError(error: unknown): boolean {
+  if (!error) {
+    return false;
+  }
+
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'object' && error !== null && 'message' in error
+        ? String((error as { message?: unknown }).message ?? '')
+        : String(error);
+
+  return (
+    message.includes('Please complete your profile') ||
+    message.includes('Profile incomplete') ||
+    message.includes('requiresProfileCompletion')
+  );
 }
 
 /**

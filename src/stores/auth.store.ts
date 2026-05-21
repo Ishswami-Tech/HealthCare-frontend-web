@@ -54,6 +54,40 @@ function normalizeAuthUser(user: User | null | undefined): User | null {
   };
 }
 
+function resolveProfileCompleteFromPayload(
+  user: User | null | undefined,
+  session?: Session | null
+): boolean {
+  const userRecord = user as unknown as Record<string, unknown> | null | undefined;
+  const sessionUserRecord = session?.user as unknown as Record<string, unknown> | null | undefined;
+
+  if (typeof userRecord?.profileComplete === 'boolean') {
+    return userRecord.profileComplete;
+  }
+
+  if (typeof sessionUserRecord?.profileComplete === 'boolean') {
+    return sessionUserRecord.profileComplete;
+  }
+
+  if (typeof userRecord?.requiresProfileCompletion === 'boolean') {
+    return !userRecord.requiresProfileCompletion;
+  }
+
+  if (typeof sessionUserRecord?.requiresProfileCompletion === 'boolean') {
+    return !sessionUserRecord.requiresProfileCompletion;
+  }
+
+  if (typeof userRecord?.isProfileComplete === 'boolean') {
+    return userRecord.isProfileComplete;
+  }
+
+  if (typeof sessionUserRecord?.isProfileComplete === 'boolean') {
+    return sessionUserRecord.isProfileComplete;
+  }
+
+  return false;
+}
+
 export interface AuthState {
   user: User | null;
   session: Session | null;
@@ -111,10 +145,10 @@ export const useAuthStore = create<AuthState>()(
           return;
         }
         set((state) => {
-          const nextProfileComplete =
-            typeof normalizedSession?.user?.profileComplete === 'boolean'
-              ? normalizedSession.user.profileComplete
-              : state.isProfileComplete;
+          const nextProfileComplete = resolveProfileCompleteFromPayload(
+            normalizedSession?.user || null,
+            normalizedSession
+          );
           state.session = normalizedSession;
           state.user = normalizedSession?.user || null;
           state.isAuthenticated = !!normalizedSession?.isAuthenticated;
@@ -131,10 +165,7 @@ export const useAuthStore = create<AuthState>()(
           return;
         }
         set((state) => {
-          const nextProfileComplete =
-            typeof normalizedUser?.profileComplete === 'boolean'
-              ? normalizedUser.profileComplete
-              : state.isProfileComplete;
+          const nextProfileComplete = resolveProfileCompleteFromPayload(normalizedUser);
           state.user = normalizedUser;
           state.isAuthenticated = !!normalizedUser;
           state.isProfileComplete = nextProfileComplete;
