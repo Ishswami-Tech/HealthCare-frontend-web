@@ -1,6 +1,6 @@
-'use server';
+﻿'use server';
 
-import { authenticatedApi } from './auth.server';
+import { authenticatedApi, getServerSession } from './auth.server';
 import { formatISODateInIST, formatTimeInIST } from '@/lib/utils';
 import type { SupportRequest } from '@/types/medical-records.types';
 
@@ -26,6 +26,11 @@ export async function getSupportRequests(
   }
 ): Promise<{ requests: SupportRequest[] }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const { data } = await authenticatedApi<{ queue: SupportRequest[] } | SupportRequest[]>('/queue');
 
     const raw = Array.isArray(data)
@@ -57,6 +62,11 @@ export async function getSupportRequests(
 export async function createSupportRequest(
   requestData: SupportRequest
 ): Promise<{ request: SupportRequest }> {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi<SupportRequest>(
     '/appointments',
     {
@@ -85,6 +95,11 @@ export async function updateSupportRequest(
   requestId: string,
   updates: Partial<SupportRequest>
 ): Promise<{ request: SupportRequest }> {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi<SupportRequest>(
     `/appointments/${requestId}/status`,
     {
@@ -102,6 +117,11 @@ export async function updateSupportRequest(
  * Delete a support request — proxied through PATCH /appointments/:id/status with CANCELLED
  */
 export async function deleteSupportRequest(requestId: string): Promise<void> {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   await authenticatedApi(`/appointments/${requestId}/status`, {
     method: 'PATCH',
     body: JSON.stringify({ status: 'CANCELLED' }),

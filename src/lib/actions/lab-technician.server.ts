@@ -1,8 +1,9 @@
-'use server';
+﻿'use server';
 
 import { HealthcareErrorsService } from '@/lib/config/config';
 import type { LabResult } from '@/types/medical-records.types';
 import { clinicApiClient as api } from '@/lib/api/client';
+import { getServerSession } from './auth.server';
 
 /**
  * Get all lab results
@@ -18,6 +19,11 @@ export async function getLabResults(
   }
 ): Promise<{ results: LabResult[] }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const params = new URLSearchParams();
     if (filters?.testType) params.append('testType', filters.testType);
     if (filters?.status) params.append('status', filters.status);
@@ -55,6 +61,11 @@ export async function getLabResultsByPatientId(
   }
 ): Promise<{ results: LabResult[] }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const params = new URLSearchParams();
     if (filters?.status) params.append('status', filters.status);
     if (filters?.startDate) params.append('startDate', filters.startDate);
@@ -82,6 +93,11 @@ export async function createLabResult(
   resultData: LabResult
 ): Promise<{ result: LabResult }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const response = await api.post<{ result: LabResult }>(
       '/ehr/lab-reports',
       resultData
@@ -106,6 +122,11 @@ export async function updateLabResult(
   updates: Partial<LabResult>
 ): Promise<{ result: LabResult }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const response = await api.put<{ result: LabResult }>(
       `/ehr/lab-reports/${resultId}`,
       updates
@@ -127,6 +148,11 @@ export async function updateLabResult(
  */
 export async function deleteLabResult(resultId: string): Promise<void> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const response = await api.delete(
       `/ehr/lab-reports/${resultId}`
     );

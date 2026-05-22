@@ -234,7 +234,7 @@ export function WebSocketStatusBar() {
     return (
       <div className="bg-primary/10 border-b border-primary/20 p-2 text-sm text-center">
         <div className="flex items-center justify-center gap-2">
-          <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+          <div className="size-2 bg-primary rounded-full animate-pulse"></div>
           <span>
             {connectionStatus === "connecting"
               ? "Connecting to real-time updates..."
@@ -257,3 +257,4 @@ export function WebSocketStatusBar() {
 }
 
 export default WebSocketProvider;
+

@@ -196,9 +196,9 @@ interface AnimatedSpinnerProps {
 
 const AnimatedSpinner: React.FC<AnimatedSpinnerProps> = ({ size = "md", className }) => {
   const sizeClasses = {
-    sm: "w-4 h-4",
-    md: "w-8 h-8",
-    lg: "w-12 h-12",
+    sm: "size-4",
+    md: "size-8",
+    lg: "size-12",
   };
 
   return (
@@ -239,7 +239,7 @@ const AnimatedProgress: React.FC<AnimatedProgressProps> = ({
   const percentage = Math.min(Math.max((value / max) * 100, 0), 100);
 
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn("gap-y-2", className)}>
       <div className={cn("w-full rounded-full overflow-hidden", backgroundColor, height)}>
         <motion.div
           initial={{ width: 0 }}
@@ -303,14 +303,18 @@ const Typewriter: React.FC<TypewriterProps> = ({
   className,
   onComplete,
 }) => {
-  const [displayText, setDisplayText] = React.useState("");
-  const [currentIndex, setCurrentIndex] = React.useState(0);
+  const [state, setState] = React.useState({
+    displayText: "",
+    currentIndex: 0,
+  });
 
   React.useEffect(() => {
-    if (currentIndex < text.length) {
+    if (state.currentIndex < text.length) {
       const timer = setTimeout(() => {
-        setDisplayText((prev) => prev + text[currentIndex]);
-        setCurrentIndex((prev) => prev + 1);
+        setState((prev) => ({
+          displayText: prev.displayText + text[prev.currentIndex],
+          currentIndex: prev.currentIndex + 1,
+        }));
       }, speed);
 
       return () => clearTimeout(timer);
@@ -318,12 +322,12 @@ const Typewriter: React.FC<TypewriterProps> = ({
       onComplete();
     }
     return undefined;
-  }, [currentIndex, text, speed, onComplete]);
+  }, [state.currentIndex, text, speed, onComplete]);
 
   return (
     <span className={className}>
-      {displayText}
-      {currentIndex < text.length && (
+      {state.displayText}
+      {state.currentIndex < text.length && (
         <motion.span
           animate={{ opacity: [1, 0] }}
           transition={{ duration: 0.8, repeat: Infinity }}
@@ -549,3 +553,4 @@ export type {
   RevealOnScrollProps,
   PageTransitionProps,
 };
+

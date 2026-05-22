@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 /**
- * ✅ App Provider
+ * âœ… App Provider
  * Root provider stack for the application
  * NO loading overlay - uses inline loading states
  */
@@ -32,17 +32,17 @@ function ErrorFallback({
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex items-center justify-center px-4">
       <div className="max-w-md w-full text-center">
-        <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-          <AlertTriangle className="w-8 h-8 text-red-600" />
+        <div className="mx-auto size-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+          <AlertTriangle className="size-8 text-red-600" />
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+        <h1 className="text-2xl font-semibold text-gray-900 mb-2">
           Application Error
         </h1>
         <p className="text-gray-600 mb-6">
           {error ? sanitizeErrorMessage(error) : ERROR_MESSAGES.UNKNOWN_ERROR}
         </p>
         <Button onClick={resetErrorBoundary} className="w-full">
-          <RefreshCw className="w-4 h-4 mr-2" />
+          <RefreshCw className="size-4 mr-2" />
           Try Again
         </Button>
         {process.env.NODE_ENV === "development" && (
@@ -63,7 +63,7 @@ function ErrorFallback({
 function AppProviderFallback() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-blue-950/20 dark:via-background dark:to-indigo-950/20 flex items-center justify-center">
-      <LoadingSpinner size="lg" text="Initializing..." center />
+      <LoadingSpinner size="lg" text="Initializing…" center />
     </div>
   );
 }
@@ -115,3 +115,5 @@ export function AppProvider({ children }: { children: ReactNode }) {
     </ErrorBoundary>
   );
 }
+
+

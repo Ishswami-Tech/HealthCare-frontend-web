@@ -19,6 +19,8 @@ const DEFAULT_STATUS_CONFIG = {
   dot: "bg-blue-500",
   bg: "bg-blue-50 dark:bg-blue-950/30 border-blue-100 dark:border-blue-900",
 } as const;
+const EMPTY_APPOINTMENT_SERVICES: unknown[] = [];
+const EMPTY_VIDEO_FILTERS: VideoAppointmentsListProps["filters"] = {};
 
 import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -81,6 +83,10 @@ import { useAppointmentServices, useAppointments, useDoctorAvailability, useMyAp
 import { useClinics, useCurrentClinicId } from "@/hooks/query/useClinics";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { useRBAC } from "@/hooks/utils/useRBAC";
+import {
+  getVideoPaymentAmount,
+  isJoinableVideoAppointment,
+} from "@/components/video/video-appointments-list-utils";
 import {
   Dialog,
   DialogContent,
@@ -290,10 +296,6 @@ function computeStats(appointments: VideoAppointment[]): AppointmentStats {
   );
 }
 
-export function isJoinableVideoAppointment(appointment: VideoAppointment | any): boolean {
-  return isVideoAppointmentJoinable(appointment);
-}
-
 function isWithinJoinWindow(appointment: VideoAppointment | any): boolean {
   const VIDEO_ACTIVE_WINDOW_MS = 3 * 60 * 60 * 1000;
   const EARLY_JOIN_WINDOW_MS = 5 * 60 * 1000;
@@ -314,45 +316,290 @@ function isWithinJoinWindow(appointment: VideoAppointment | any): boolean {
   return now >= earlyJoinWindow && now <= effectiveEndTime;
 }
 
-export function getVideoPaymentAmount(
-  appointment: VideoAppointment,
-  appointmentServices: unknown[] = []
-): number {
-  const matchingService = (appointmentServices as any[]).find(
-    (service) =>
-      service?.treatmentType &&
-      service.treatmentType === (appointment as any).treatmentType
-  );
-
-  const candidateValues = [
-    (appointment as any).videoConsultationFee,
-    (appointment as any).consultationFee,
-    (appointment as any).amount,
-    (appointment as any).price,
-    (appointment as any).fee,
-    (appointment as any).service?.videoConsultationFee,
-    (appointment as any).service?.consultationFee,
-    (appointment as any).service?.amount,
-    (appointment as any).service?.price,
-    (appointment as any).service?.fee,
-    (appointment as any).billing?.amount,
-    (appointment as any).payment?.amount,
-    (appointment as any).invoice?.amount,
-    matchingService?.videoConsultationFee,
-    matchingService?.consultationFee,
-    matchingService?.amount,
-    matchingService?.price,
-    matchingService?.fee,
-  ];
-
-  for (const value of candidateValues) {
-    const numericValue = Number(value);
-    if (Number.isFinite(numericValue) && numericValue > 0) {
-      return numericValue;
-    }
-  }
-  return 0;
+function parseDateValue(value: string): Date | undefined {
+  if (!value) return undefined;
+  const parsed = new Date(`${value}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 }
+
+function toDateString(date?: Date): string {
+  if (!date) return "";
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function formatDateValue(value: string, placeholder: string): string {
+  const parsed = parseDateValue(value);
+  return parsed ? formatDateInIST(parsed, { day: "2-digit", month: "short", year: "numeric" }) : placeholder;
+}
+
+interface LocalStatCardProps {
+  label: string;
+  value: number | string;
+  icon: React.ReactNode;
+  color: string;
+  className?: string;
+}
+
+function LocalStatCard({ label, value, icon, color, className }: LocalStatCardProps) {
+  return (
+    <div className={cn("rounded-xl border border-border bg-card p-3 sm:p-4 flex items-center gap-2 sm:gap-3", className)}>
+      <div className={cn("rounded-xl p-2 sm:p-2.5 shrink-0", color)}>
+        {icon}
+      </div>
+      <div>
+        <p className="text-xl sm:text-2xl font-semibold text-foreground leading-none mb-0.5">{value}</p>
+        <p className="text-xs text-muted-foreground">{label}</p>
+      </div>
+    </div>
+  );
+}
+
+interface VideoAppointmentCardProps {
+  appointment: VideoAppointment;
+  expandedCard: string | null;
+  onExpand: (id: string | null) => void;
+  showJoinButton: boolean;
+  showEndButton: boolean;
+  showDownloadButton: boolean;
+  enforceTimeSlotWindow: boolean;
+  canEnd: boolean;
+  role: string;
+  appointmentServices: unknown[];
+  endVideoAppointment: { isPending: boolean };
+  handleEndAppointment: (appointmentId: string) => void;
+  openReschedule: (apt: VideoAppointment) => void;
+  openCancel: (apt: VideoAppointment) => void;
+}
+
+const AppointmentCard = ({
+  appointment,
+  expandedCard,
+  onExpand,
+  showJoinButton,
+  showEndButton,
+  showDownloadButton,
+  enforceTimeSlotWindow,
+  canEnd,
+  role,
+  appointmentServices,
+  endVideoAppointment,
+  handleEndAppointment,
+  openReschedule,
+  openCancel,
+}: VideoAppointmentCardProps) => {
+  const normalizedStatus = normalizeAppointmentStatus(appointment.status).toLowerCase().replace(/_/g, "-");
+  const viewState = getAppointmentViewState(appointment);
+  const effectiveStatus = viewState.normalizedStatus.toLowerCase().replace(/_/g, "-");
+  const cfg: { label: string; color: string; dot: string; bg: string } =
+    STATUS_CONFIG[normalizedStatus] ?? DEFAULT_STATUS_CONFIG;
+  const statusLabel = viewState.displayStatusLabel;
+  const isExpanded = expandedCard === (appointment.appointmentId || appointment.id);
+  const appointmentSessionId = getEffectiveAppointmentId(appointment);
+  const patientName = getAppointmentPatientName(appointment);
+  const rawDoctorName = (appointment as any).doctorName || getAppointmentDoctorName(appointment);
+  const doctorName = rawDoctorName.startsWith("Consultation ") ||
+    rawDoctorName === "Unknown Doctor" ||
+    rawDoctorName === "Doctor details pending"
+    ? ""
+    : rawDoctorName;
+  const displayDuration = getDisplayAppointmentDuration(appointment);
+  const videoSessionDecision = getVideoSessionDecision(appointment);
+  const finalSlotSource = String(
+    (appointment as any).metadata?.finalSlotSource ||
+      (appointment as any).finalSlotSource ||
+      ""
+  ).toUpperCase();
+  const finalSlotSourceLabel =
+    finalSlotSource === "PROPOSED_SLOT"
+      ? "Confirmed from patient choices"
+      : finalSlotSource === "CUSTOM_SLOT"
+        ? "Doctor-selected fallback slot"
+        : "";
+  const isCancelled = normalizedStatus === "cancelled";
+  const paymentCompleted = viewState.paymentCompleted;
+  const paymentAmount = getVideoPaymentAmount(appointment, appointmentServices);
+  const serviceLabel = getAppointmentServiceLabel(appointment, appointmentServices as any[]);
+  const appointmentDateTime = getAppointmentDateTimeValue(appointment);
+  const appointmentDateLabel = appointmentDateTime
+    ? formatDateInIST(appointmentDateTime, { weekday: "short", month: "short", day: "2-digit" })
+    : "";
+  const appointmentTimeLabel = appointmentDateTime
+    ? formatTimeInIST(appointmentDateTime, { hour: "2-digit", minute: "2-digit", hour12: true })
+    : "";
+  return (
+    <div className={cn(
+      "rounded-xl border overflow-hidden shadow-sm transition-all duration-200 hover:shadow-md",
+      isCancelled ? "bg-red-50 border-red-200 dark:bg-red-950/25 dark:border-red-900/50" : cfg.bg
+    )}>
+      <div
+        className="p-2.5 sm:p-4 cursor-pointer"
+        role="button"
+        tabIndex={0}
+        onClick={() => onExpand(isExpanded ? null : getEffectiveAppointmentId(appointment))}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onExpand(isExpanded ? null : getEffectiveAppointmentId(appointment));
+          }
+        }}
+      >
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="size-8 rounded-full bg-emerald-100 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-900/70 flex items-center justify-center shrink-0 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+              {patientName.charAt(0)}
+            </div>
+            <div className="min-w-0">
+              <p className="font-semibold text-sm text-foreground leading-tight mb-0.5 truncate">{patientName}</p>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="text-[11px] text-muted-foreground truncate">
+                  {doctorName ? `Doctor: ${doctorName}` : "Doctor details pending"}
+                </span>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "h-5 px-1.5 text-[10px] font-semibold uppercase tracking-wide",
+                    paymentCompleted
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
+                      : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
+                  )}
+                >
+                  {paymentCompleted ? "Payment verified" : "Payment pending"}
+                </Badge>
+              </div>
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                <span className="inline-flex items-center gap-1">
+                  <Calendar className="size-3" />
+                  {appointmentDateLabel || "Date pending"}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Clock className="size-3" />
+                  {appointmentTimeLabel || "Time pending"}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <FileText className="size-3" />
+                  Session {appointmentSessionId ? appointmentSessionId.slice(-6).toUpperCase() : "â€”"}
+                </span>
+              </div>
+              {!paymentCompleted && paymentAmount > 0 && (
+                <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
+                  Join unlocks after payment of â‚¹{paymentAmount.toLocaleString("en-IN")}.
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3">
+             <div className="text-left sm:text-right">
+                <p className="text-xs font-semibold text-foreground leading-none">{appointmentDateTime ? formatTimeInIST(appointmentDateTime, { hour: "2-digit", minute: "2-digit", hour12: true }) : "â€”"}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{appointmentDateTime ? formatDateInIST(appointmentDateTime, { month: "short", day: "2-digit" }) : "â€”"}</p>
+             </div>
+             <div className="flex items-center gap-2">
+               <span className={cn("inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-0.5 text-[11px] font-semibold shadow-sm", cfg.color)}>
+                 <span className={cn("size-1 sm:w-1.5 sm:h-1.5 rounded-full", cfg.dot)} />
+                 {statusLabel}
+               </span>
+               <ChevronDown className={cn("size-3 sm:w-4 sm:h-4 text-muted-foreground transition-transform duration-300", isExpanded && "rotate-180")} />
+             </div>
+          </div>
+        </div>
+      </div>
+
+      {isExpanded && (
+          <div className="px-4 sm:px-5 pb-4 sm:pb-5 overflow-hidden">
+             <div className="pt-3 border-t border-border gap-y-3">
+                <div className="gap-y-3 pt-1.5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 gap-y-1.5">
+                      <span className="text-xs font-medium text-muted-foreground">Diagnostic Context</span>
+                      <p className="text-sm text-foreground leading-snug">
+                        {(appointment as any).chiefComplaint || "Routine video checkup and clinical review."}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 gap-y-1.5">
+                      <span className="text-xs font-medium text-muted-foreground">Appointment Time</span>
+                      <p className="font-medium text-foreground text-sm">
+                        {appointmentDateLabel || "Date pending"} {appointmentTimeLabel ? `â€¢ ${appointmentTimeLabel}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 gap-y-1.5">
+                      <span className="text-xs font-medium text-muted-foreground">Session ID</span>
+                      <p className="font-medium text-foreground text-sm break-all">
+                        {appointmentSessionId || "Pending"}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 gap-y-1.5">
+                      <span className="text-xs font-medium text-muted-foreground">Protocol Type</span>
+                      <p className="font-medium text-foreground text-sm">{serviceLabel}</p>
+                    </div>
+                    <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 gap-y-1.5">
+                      <span className="text-xs font-medium text-muted-foreground">Authorization</span>
+                      <p className="font-medium text-emerald-600 text-sm">{role} Access</p>
+                    </div>
+                  </div>
+                  {finalSlotSourceLabel && (
+                    <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 gap-y-1.5">
+                      <span className="text-xs font-medium text-muted-foreground">Final Slot</span>
+                      <p className="font-medium text-foreground text-sm">{finalSlotSourceLabel}</p>
+                    </div>
+                  )}
+                </div>
+
+                {(appointment as any).cancellationReason && (
+                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">
+                    <span className="font-semibold">Cancellation reason:</span>{" "}
+                    {(appointment as any).cancellationReason}
+                  </div>
+                )}
+
+                {videoSessionDecision.canJoin && (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[12px] text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+                    Join opens 10 minutes before your visit and stays open for 3 hours after start.
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2 justify-end pt-2.5 border-t border-border">
+                  {['scheduled', 'confirmed', 'queued', 'in-progress'].includes(effectiveStatus) && (
+                    <>
+                      {!paymentCompleted && paymentAmount > 0 && (
+                        <PaymentButton appointmentId={getEffectiveAppointmentId(appointment)} amount={getVideoPaymentAmount(appointment, appointmentServices)} appointmentType="VIDEO_CALL" description={serviceLabel} className="h-8 px-3 rounded-xl text-xs font-semibold">
+                          Pay â‚¹{paymentAmount}
+                        </PaymentButton>
+                      )}
+                      <Button variant="outline" size="sm" onClick={() => openReschedule(appointment)} className="h-8 px-3 rounded-xl text-xs">Reschedule</Button>
+                      <Button variant="ghost" size="sm" onClick={() => openCancel(appointment)} className="h-8 px-3 rounded-xl text-xs text-destructive hover:text-destructive">Cancel</Button>
+                    </>
+                  )}
+                  {showJoinButton &&
+                    videoSessionDecision.canJoin &&
+                    ["join", "resume"].includes(videoSessionDecision.action) &&
+                    !videoSessionDecision.blockedReason &&
+                    (!enforceTimeSlotWindow || isWithinJoinWindow(appointment)) && (
+                    <Link
+                      href={buildVideoSessionRoute(getEffectiveAppointmentId(appointment))}
+                      prefetch={false}
+                      className="inline-flex h-8 items-center justify-center rounded-xl bg-emerald-600 px-3 text-xs font-semibold text-white transition-colors hover:bg-emerald-700"
+                    >
+                      Join Session
+                    </Link>
+                  )}
+                  {showEndButton && appointment.status === "in-progress" && (
+                    <Button size="sm" variant="destructive" onClick={() => handleEndAppointment(getEffectiveAppointmentId(appointment))} className="h-8 px-3 rounded-xl text-xs" disabled={endVideoAppointment.isPending}>
+                      {endVideoAppointment.isPending ? "Ending..." : "End Session"}
+                    </Button>
+                  )}
+                  {showDownloadButton && appointment.status === "completed" && appointment.recordingUrl && (
+                      <Button size="sm" onClick={() => window.open(appointment.recordingUrl, "_blank")} variant="outline" className="h-8 px-3 rounded-xl text-xs">Download Recording</Button>
+                  )}
+                </div>
+             </div>
+          </div>
+        )}
+    </div>
+  );
+};
+
+// nested component definitions removed; module-scope versions are used instead
 
 interface VideoAppointmentsListProps {
   title?: string;
@@ -381,7 +628,7 @@ export function VideoAppointmentsList({
   showDownloadButton = true,
   enforceTimeSlotWindow = false,
   limit = 100,
-  filters = {},
+  filters = EMPTY_VIDEO_FILTERS,
 }: VideoAppointmentsListProps) {
   const { session, user } = useAuth();
   const router = useRouter();
@@ -396,7 +643,8 @@ export function VideoAppointmentsList({
   const [isCancelOpen, setIsCancelOpen] = useState(false);
   const [isRejectOpen, setIsRejectOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  
+  const [expandedCard, setExpandedCard] = useState<string | null>(null);
+
   const [rescheduleDate, setRescheduleDate] = useState("");
   const [rescheduleTime, setRescheduleTime] = useState("");
   const [actionReason, setActionReason] = useState("");
@@ -438,7 +686,7 @@ export function VideoAppointmentsList({
   const { data: myAppointmentsData, isPending: isLoadingMyAppointments, refetch: refetchMyAppointments } = useMyAppointments(undefined, {
     enabled: isPatient,
   });
-  const { data: appointmentServices = [] } = useAppointmentServices();
+  const { data: appointmentServices = EMPTY_APPOINTMENT_SERVICES } = useAppointmentServices();
   const { data: clinicsData } = useClinics({
     enabled: showClinicFilter,
   });
@@ -545,14 +793,6 @@ export function VideoAppointmentsList({
   const totalPages = Math.max(1, Math.ceil(filteredAppointments.length / PAGE_SIZE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
 
-  useEffect(() => {
-    setCurrentPage((previousPage) => Math.min(previousPage, totalPages));
-  }, [totalPages]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, filterStatus, dateFilter.start, dateFilter.end, isPatient]);
-
   const stats = computeStats(appointments);
   const { total: totalAppointments, active: activeAppointments, scheduled: scheduledAppointments, completed: completedAppointmentsCount, cancelled: cancelledAppointments } = stats;
 
@@ -639,21 +879,42 @@ export function VideoAppointmentsList({
     setRescheduleTime("");
   };
 
-  const LocalStatCard = ({ label, value, icon, color, className }: any) => (
-    <div className={cn("rounded-xl border border-border bg-card p-3 sm:p-4 flex items-center gap-2 sm:gap-3", className)}>
-      <div className={cn("rounded-xl p-2 sm:p-2.5 shrink-0", color)}>
-        {icon}
-      </div>
-      <div>
-        <p className="text-xl sm:text-2xl font-semibold text-foreground leading-none mb-0.5">{value}</p>
-        <p className="text-xs text-muted-foreground">{label}</p>
-      </div>
-    </div>
-  );
+  // ─── Module-scope components ────────────────────────────────────────────────────
 
-  const [expandedCard, setExpandedCard] = useState<string | null>(null);
+/*
+interface VideoAppointmentCardProps {
+  appointment: VideoAppointment;
+  expandedCard: string | null;
+  onExpand: (id: string | null) => void;
+  showJoinButton: boolean;
+  showEndButton: boolean;
+  showDownloadButton: boolean;
+  enforceTimeSlotWindow: boolean;
+  canEnd: boolean;
+  role: string;
+  appointmentServices: unknown[];
+  endVideoAppointment: { isPending: boolean };
+  handleEndAppointment: (appointmentId: string) => void;
+  openReschedule: (apt: VideoAppointment) => void;
+  openCancel: (apt: VideoAppointment) => void;
+}
 
-  const AppointmentCard = ({ appointment }: { appointment: VideoAppointment }) => {
+const AppointmentCard = ({
+  appointment,
+  expandedCard,
+  onExpand,
+  showJoinButton,
+  showEndButton,
+  showDownloadButton,
+  enforceTimeSlotWindow,
+  canEnd,
+  role,
+  appointmentServices,
+  endVideoAppointment,
+  handleEndAppointment,
+  openReschedule,
+  openCancel,
+}: VideoAppointmentCardProps) => {
     const normalizedStatus = normalizeAppointmentStatus(appointment.status).toLowerCase().replace(/_/g, "-");
     const viewState = getAppointmentViewState(appointment);
     const effectiveStatus = viewState.normalizedStatus.toLowerCase().replace(/_/g, "-");
@@ -698,10 +959,21 @@ export function VideoAppointmentsList({
         "rounded-xl border overflow-hidden shadow-sm transition-all duration-200 hover:shadow-md",
         isCancelled ? "bg-red-50 border-red-200 dark:bg-red-950/25 dark:border-red-900/50" : cfg.bg
       )}>
-        <div className="p-2.5 sm:p-4 cursor-pointer" onClick={() => setExpandedCard(isExpanded ? null : getEffectiveAppointmentId(appointment))}>
+        <div
+          className="p-2.5 sm:p-4 cursor-pointer"
+          role="button"
+          tabIndex={0}
+          onClick={() => onExpand(isExpanded ? null : getEffectiveAppointmentId(appointment))}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onExpand(isExpanded ? null : getEffectiveAppointmentId(appointment));
+            }
+          }}
+        >
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-emerald-100 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-900/70 flex items-center justify-center shrink-0 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+              <div className="size-8 rounded-full bg-emerald-100 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-900/70 flex items-center justify-center shrink-0 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
                 {patientName.charAt(0)}
               </div>
               <div className="min-w-0">
@@ -724,15 +996,15 @@ export function VideoAppointmentsList({
                 </div>
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
                   <span className="inline-flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
+                    <Calendar className="size-3" />
                     {appointmentDateLabel || "Date pending"}
                   </span>
                   <span className="inline-flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
+                    <Clock className="size-3" />
                     {appointmentTimeLabel || "Time pending"}
                   </span>
                   <span className="inline-flex items-center gap-1">
-                    <FileText className="w-3 h-3" />
+                    <FileText className="size-3" />
                     Session {appointmentSessionId ? appointmentSessionId.slice(-6).toUpperCase() : "—"}
                   </span>
                 </div>
@@ -750,10 +1022,10 @@ export function VideoAppointmentsList({
                </div>
                <div className="flex items-center gap-2">
                  <span className={cn("inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-0.5 text-[11px] font-semibold shadow-sm", cfg.color)}>
-                   <span className={cn("w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full", cfg.dot)} />
+                   <span className={cn("size-1 sm:w-1.5 sm:h-1.5 rounded-full", cfg.dot)} />
                    {statusLabel}
                  </span>
-                 <ChevronDown className={cn("w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground transition-transform duration-300", isExpanded && "rotate-180")} />
+                 <ChevronDown className={cn("size-3 sm:w-4 sm:h-4 text-muted-foreground transition-transform duration-300", isExpanded && "rotate-180")} />
                </div>
             </div>
           </div>
@@ -761,16 +1033,16 @@ export function VideoAppointmentsList({
 
         {isExpanded && (
             <div className="px-4 sm:px-5 pb-4 sm:pb-5 overflow-hidden">
-               <div className="pt-3 border-t border-border space-y-3">
-                  <div className="space-y-3 pt-1.5">
+               <div className="pt-3 border-t border-border gap-y-3">
+                  <div className="gap-y-3 pt-1.5">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 space-y-1.5">
+                      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 gap-y-1.5">
                         <span className="text-xs font-medium text-muted-foreground">Diagnostic Context</span>
                         <p className="text-sm text-foreground leading-snug">
                           {(appointment as any).chiefComplaint || "Routine video checkup and clinical review."}
                         </p>
                       </div>
-                      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 space-y-1.5">
+                      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 gap-y-1.5">
                         <span className="text-xs font-medium text-muted-foreground">Appointment Time</span>
                         <p className="font-medium text-foreground text-sm">
                           {appointmentDateLabel || "Date pending"} {appointmentTimeLabel ? `• ${appointmentTimeLabel}` : ""}
@@ -778,23 +1050,23 @@ export function VideoAppointmentsList({
                       </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 space-y-1.5">
+                      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 gap-y-1.5">
                         <span className="text-xs font-medium text-muted-foreground">Session ID</span>
                         <p className="font-medium text-foreground text-sm break-all">
                           {appointmentSessionId || "Pending"}
                         </p>
                       </div>
-                      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 space-y-1.5">
+                      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 gap-y-1.5">
                         <span className="text-xs font-medium text-muted-foreground">Protocol Type</span>
                         <p className="font-medium text-foreground text-sm">{serviceLabel}</p>
                       </div>
-                      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 space-y-1.5">
+                      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 gap-y-1.5">
                         <span className="text-xs font-medium text-muted-foreground">Authorization</span>
                         <p className="font-medium text-emerald-600 text-sm">{role} Access</p>
                       </div>
                     </div>
                     {finalSlotSourceLabel && (
-                      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 space-y-1.5">
+                      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 gap-y-1.5">
                         <span className="text-xs font-medium text-muted-foreground">Final Slot</span>
                         <p className="font-medium text-foreground text-sm">{finalSlotSourceLabel}</p>
                       </div>
@@ -854,6 +1126,7 @@ export function VideoAppointmentsList({
       </div>
     );
   };
+*/
 
   return (
     <ProtectedComponent permission={Permission.VIEW_VIDEO_APPOINTMENTS}>
@@ -873,7 +1146,7 @@ export function VideoAppointmentsList({
                 >
                   Book Session
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => refetch()} className="h-9 w-9 rounded-xl p-0"><RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} /></Button>
+                <Button variant="outline" size="sm" onClick={() => refetch()} className="size-9 rounded-xl p-0"><RefreshCw className={cn("size-4", isLoading && "animate-spin")} /></Button>
               </div>
             )}
           </div>
@@ -881,17 +1154,17 @@ export function VideoAppointmentsList({
 
         {showStatistics && (
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3 mb-4">
-            <LocalStatCard label="Total" value={totalAppointments} icon={<Users className="w-4 h-4 sm:w-5 sm:h-5" />} color="text-indigo-600 dark:text-indigo-300 bg-indigo-100/80 dark:bg-indigo-950/40" className="border-indigo-100 bg-indigo-50/70 dark:border-indigo-900 dark:bg-indigo-950/20" />
-            <LocalStatCard label="Active" value={activeAppointments} icon={<Activity className="w-4 h-4 sm:w-5 sm:h-5" />} color="text-emerald-600 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-950/40" className="border-emerald-100 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/20" />
-            <LocalStatCard label="Pending" value={scheduledAppointments} icon={<Calendar className="w-4 h-4 sm:w-5 sm:h-5" />} color="text-blue-600 dark:text-blue-300 bg-blue-100/80 dark:bg-blue-950/40" className="border-blue-100 bg-blue-50/70 dark:border-blue-900 dark:bg-blue-950/20" />
-            <LocalStatCard label="Finished" value={completedAppointmentsCount} icon={<CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />} color="text-slate-600 dark:text-slate-300 bg-slate-100/80 dark:bg-slate-900/40" className="border-slate-100 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/20" />
-            <LocalStatCard label="Cancelled" value={cancelledAppointments} icon={<XCircle className="w-4 h-4 sm:w-5 sm:h-5" />} color="text-red-600 dark:text-red-300 bg-red-100/80 dark:bg-red-950/40" className="border-red-100 bg-red-50/70 dark:border-red-900 dark:bg-red-950/20" />
+            <LocalStatCard label="Total" value={totalAppointments} icon={<Users className="size-4 sm:w-5 sm:h-5" />} color="text-indigo-600 dark:text-indigo-300 bg-indigo-100/80 dark:bg-indigo-950/40" className="border-indigo-100 bg-indigo-50/70 dark:border-indigo-900 dark:bg-indigo-950/20" />
+            <LocalStatCard label="Active" value={activeAppointments} icon={<Activity className="size-4 sm:w-5 sm:h-5" />} color="text-emerald-600 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-950/40" className="border-emerald-100 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/20" />
+            <LocalStatCard label="Pending" value={scheduledAppointments} icon={<Calendar className="size-4 sm:w-5 sm:h-5" />} color="text-blue-600 dark:text-blue-300 bg-blue-100/80 dark:bg-blue-950/40" className="border-blue-100 bg-blue-50/70 dark:border-blue-900 dark:bg-blue-950/20" />
+            <LocalStatCard label="Finished" value={completedAppointmentsCount} icon={<CheckCircle className="size-4 sm:w-5 sm:h-5" />} color="text-slate-600 dark:text-slate-300 bg-slate-100/80 dark:bg-slate-900/40" className="border-slate-100 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/20" />
+            <LocalStatCard label="Cancelled" value={cancelledAppointments} icon={<XCircle className="size-4 sm:w-5 sm:h-5" />} color="text-red-600 dark:text-red-300 bg-red-100/80 dark:bg-red-950/40" className="border-red-100 bg-red-50/70 dark:border-red-900 dark:bg-red-950/20" />
           </div>
         )}
 
-        <div className="space-y-3 mb-3">
+        <div className="gap-y-3 mb-3">
           <div className="relative">
-             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
              <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search by doctor or session ID..." className="h-10 pl-9 rounded-xl border-border bg-muted/50 text-sm" />
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
@@ -910,12 +1183,12 @@ export function VideoAppointmentsList({
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div className="gap-y-3">
           {isLoading ? (
-            <div className="py-14 flex flex-col items-center justify-center gap-2.5"><Loader2 className="w-7 h-7 animate-spin text-muted-foreground/30" /><p className="text-muted-foreground font-medium text-[11px] uppercase tracking-widest">Loading sessions...</p></div>
+            <div className="py-14 flex flex-col items-center justify-center gap-2.5"><Loader2 className="size-7 animate-spin text-muted-foreground/30" /><p className="text-muted-foreground font-medium text-[11px] uppercase tracking-widest">Loading sessions...</p></div>
           ) : filteredAppointments.length === 0 ? (
             <div className="py-12 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center text-center px-5">
-              <CalendarClock className="w-11 h-11 text-muted-foreground/20 mb-3" />
+              <CalendarClock className="size-11 text-muted-foreground/20 mb-3" />
               <p className="text-sm font-semibold text-foreground mb-1">No Sessions Found</p>
               <p className="text-muted-foreground text-xs max-w-sm mb-4">Try adjusting the status filter or book a new video consultation.</p>
               {isPatient && (
@@ -929,12 +1202,28 @@ export function VideoAppointmentsList({
               )}
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="grid gap-4">
+            <div className="gap-y-4">
+              <div className="grid gap-4" suppressHydrationWarning>
                 {filteredAppointments
                   .slice((safeCurrentPage - 1) * PAGE_SIZE, safeCurrentPage * PAGE_SIZE)
                   .map((apt) => (
-                    <AppointmentCard key={apt.appointmentId || apt.id} appointment={apt} />
+                    <AppointmentCard
+                      key={apt.appointmentId || apt.id}
+                      appointment={apt}
+                      expandedCard={expandedCard}
+                      onExpand={setExpandedCard}
+                      showJoinButton={showJoinButton}
+                      showEndButton={showEndButton}
+                      showDownloadButton={showDownloadButton}
+                      enforceTimeSlotWindow={enforceTimeSlotWindow}
+                      canEnd={canEnd}
+                      role={role}
+                      appointmentServices={appointmentServices}
+                      endVideoAppointment={endVideoAppointment}
+                      handleEndAppointment={handleEndAppointment}
+                      openReschedule={openReschedule}
+                      openCancel={openCancel}
+                    />
                   ))}
               </div>
               {filteredAppointments.length > PAGE_SIZE && (
@@ -956,8 +1245,8 @@ export function VideoAppointmentsList({
               <DialogTitle>Modify Schedule</DialogTitle>
               <DialogDescription>Select a new session date and pick from the available time slots.</DialogDescription>
             </DialogHeader>
-            <div className="space-y-3.5 py-3.5">
-              <div className="space-y-2">
+            <div className="gap-y-3.5 py-3.5">
+              <div className="gap-y-2">
                 <Label>Date</Label>
                 <Popover>
                   <PopoverTrigger asChild>
@@ -968,7 +1257,7 @@ export function VideoAppointmentsList({
                         !rescheduleDate && "text-muted-foreground"
                       )}
                     >
-                      <Calendar className="mr-2 h-4 w-4" />
+                      <Calendar className="mr-2 size-4" />
                       {rescheduleDate ? formatDateValue(rescheduleDate, "Pick a new date") : "Pick a new date"}
                     </Button>
                   </PopoverTrigger>
@@ -987,7 +1276,7 @@ export function VideoAppointmentsList({
                   </PopoverContent>
                 </Popover>
               </div>
-              <div className="space-y-3">
+              <div className="gap-y-3">
                 <div className="flex items-center justify-between">
                   <Label>Available slots</Label>
                   {rescheduleDate && (
@@ -999,11 +1288,11 @@ export function VideoAppointmentsList({
 
                 {isRescheduleAvailabilityLoading ? (
                   <div className="flex items-center gap-2 justify-center rounded-xl border border-dashed py-6 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="size-4 animate-spin" />
                     Loading available slots...
                   </div>
                 ) : availableRescheduleSlots.length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="gap-y-4">
                     {[
                       { key: "morning" as const, label: "Morning", range: "Before 12pm", slots: rescheduleSlotGroups.morning },
                       { key: "afternoon" as const, label: "Afternoon", range: "12pm – 5pm", slots: rescheduleSlotGroups.afternoon },
@@ -1052,7 +1341,7 @@ export function VideoAppointmentsList({
                   </div>
                 ) : (
                   <div className="rounded-xl border border-dashed py-6 text-center text-sm text-muted-foreground">
-                    <Clock className="mx-auto mb-2 h-5 w-5 opacity-40" />
+                    <Clock className="mx-auto mb-2 size-5 opacity-40" />
                     <p className="font-medium">
                       {rescheduleDate ? "No available slots for this date" : "Pick a date to see available slots"}
                     </p>
@@ -1064,7 +1353,7 @@ export function VideoAppointmentsList({
                   </div>
                 )}
               </div>
-              <div className="space-y-2">
+              <div className="gap-y-2">
                 <Label>Reason</Label>
                 <Textarea placeholder="Reason for change..." value={actionReason} onChange={e => setActionReason(e.target.value)} className="min-h-[90px]" />
               </div>
@@ -1081,8 +1370,8 @@ export function VideoAppointmentsList({
               <DialogTitle>Cancel Session</DialogTitle>
               <DialogDescription>Are you sure you want to cancel this video session?</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
+            <div className="gap-y-4 py-4">
+              <div className="gap-y-2">
                 <Label>Reason</Label>
                 <Textarea placeholder="Cancellation reason..." value={actionReason} onChange={e => setActionReason(e.target.value)} className="min-h-[90px]" />
               </div>
@@ -1097,5 +1386,7 @@ export function VideoAppointmentsList({
     </ProtectedComponent>
   );
 }
+
+
 
 

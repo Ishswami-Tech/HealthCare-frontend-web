@@ -87,11 +87,11 @@ const WhyChooseUsSection = () => {
         {/* Header */}
         <ScrollReveal direction="up" className="text-center mb-16">
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-4">
-            <Award className="w-4 h-4" />
+            <Award className="size-4" />
             {t("whyChooseUs.title")}
           </div>
 
-          <h2 className="text-3xl md:text-4xl lg:text-4xl font-bold text-foreground mb-6">
+          <h2 className="text-3xl md:text-4xl lg:text-4xl font-semibold text-foreground mb-6">
             {t("whyChooseUs.title")}
           </h2>
 
@@ -104,16 +104,16 @@ const WhyChooseUsSection = () => {
         <ScrollReveal direction="up" delay={0.2} className="mb-16">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {stats.map((stat, index) => (
-              <StaggerItem key={index}>
+              <StaggerItem key={stat.label}>
                 <HoverAnimation type="scale">
                   <div className="text-center p-6 bg-card rounded-2xl shadow-lg border border-border glass card-hover">
-                    <div className={`w-12 h-12 bg-gradient-to-r ${
+                    <div className={`size-12 bg-gradient-to-r ${
                       index === 0 ? 'from-sky-500 to-blue-700' :
                       index === 1 ? 'from-lime-500 to-green-800' :
                       index === 2 ? 'from-fuchsia-500 to-purple-800' :
                       'from-zinc-500 to-stone-700'
                     } rounded-full flex items-center justify-center mx-auto mb-3 interactive`}>
-                      <stat.icon className="w-6 h-6 text-white" />
+                      <stat.icon className="size-6 text-white" />
                     </div>
                     <div className="text-3xl font-bold text-foreground mb-1 gradient-text">
                       {stat.number}
@@ -133,19 +133,19 @@ const WhyChooseUsSection = () => {
           className="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
           staggerDelay={0.1}
         >
-          {features.map((feature, index) => (
-            <StaggerItem key={index}>
+          {features.map((feature) => (
+            <StaggerItem key={feature.title}>
               <HoverAnimation type="glow">
                 <div
                   className={`p-6 rounded-2xl ${feature.bgColor} border-2 min-h-[280px] flex flex-col group cursor-pointer transition-all duration-300 hover:shadow-xl glass card-hover`}
                 >
                   <div
-                    className={`w-14 h-14 bg-gradient-to-r ${feature.color} rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 flex-shrink-0 interactive`}
+                    className={`size-14 bg-gradient-to-r ${feature.color} rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 flex-shrink-0 interactive`}
                   >
-                    <feature.icon className="w-7 h-7 text-white" />
+                    <feature.icon className="size-7 text-white" />
                   </div>
 
-                  <h3 className="text-lg font-bold text-foreground mb-3 group-hover:text-primary transition-colors duration-300 line-clamp-2">
+                  <h3 className="text-lg font-semibold text-foreground mb-3 group-hover:text-primary transition-colors duration-300 line-clamp-2">
                     {feature.title}
                   </h3>
 
@@ -154,7 +154,7 @@ const WhyChooseUsSection = () => {
                   </p>
 
                   <div className="mt-4 flex items-center text-primary font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-sm">
-                    <CheckCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <CheckCircle className="size-4 mr-2 flex-shrink-0" />
                     <span className="truncate">
                       {t("whyChooseUs.verifiedExcellence")}
                     </span>
@@ -168,7 +168,7 @@ const WhyChooseUsSection = () => {
         {/* Bottom CTA */}
         <ScrollReveal direction="up" delay={0.4} className="text-center mt-16">
           <div className="bg-gradient-to-r from-primary to-primary/80 rounded-3xl p-8 text-primary-foreground">
-            <h3 className="text-2xl md:text-3xl font-bold mb-4">
+            <h3 className="text-2xl md:text-3xl font-semibold mb-4">
               {t("whyChooseUs.cta.title")}
             </h3>
             <p className="text-lg opacity-90 mb-6 max-w-2xl mx-auto">
@@ -185,3 +185,4 @@ const WhyChooseUsSection = () => {
 };
 
 export default WhyChooseUsSection;
+

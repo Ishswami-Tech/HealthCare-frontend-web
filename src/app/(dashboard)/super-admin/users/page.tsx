@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/ui/data-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -126,7 +126,7 @@ export default function SuperAdminUsers() {
   const [createOpen, setCreateOpen] = useState(false);
   const [showCreateAdditionalDetails, setShowCreateAdditionalDetails] = useState(false);
   const [editUser, setEditUser] = useState<UserRow | null>(null);
-  const [createForm, setCreateForm] = useState<CreateUserForm>(defaultCreateUserForm());
+  const [createForm, setCreateForm] = useState<CreateUserForm>(() => defaultCreateUserForm());
 
   const clinics = useMemo(() => {
     const data = clinicsData as any;
@@ -157,11 +157,18 @@ export default function SuperAdminUsers() {
     }));
   }, [usersData]);
 
-  useEffect(() => {
-    if (!createForm.clinicId && clinics[0]?.id) {
-      setCreateForm(prev => ({ ...prev, clinicId: clinics[0].id }));
+  const handleCreateDialogChange = useCallback((open: boolean) => {
+    setCreateOpen(open);
+    if (open) {
+      setCreateForm((prev) =>
+        prev.clinicId || !clinics[0]?.id
+          ? prev
+          : { ...prev, clinicId: clinics[0].id }
+      );
+      return;
     }
-  }, [clinics, createForm.clinicId]);
+    setShowCreateAdditionalDetails(false);
+  }, [clinics]);
 
   const filteredUsers = useMemo(() => {
     return users.filter((user) => {
@@ -248,14 +255,14 @@ export default function SuperAdminUsers() {
         accessorKey: "name",
         header: "User",
         cell: ({ row }) => (
-          <div className="space-y-1">
+          <div className="gap-y-1">
             <div className="font-semibold">{row.original.name}</div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Mail className="h-4 w-4" />
+              <Mail className="size-4" />
               <span>{row.original.email}</span>
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Phone className="h-4 w-4" />
+              <Phone className="size-4" />
               <span>{row.original.phone}</span>
             </div>
           </div>
@@ -291,10 +298,10 @@ export default function SuperAdminUsers() {
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setEditUser(row.original)}>
-              <Edit className="h-4 w-4" />
+              <Edit className="size-4" />
             </Button>
             <Button variant="outline" size="sm" onClick={() => handleDeleteUser(row.original)} disabled={deleteUserMutation.isPending}>
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="size-4" />
             </Button>
           </div>
         ),
@@ -306,22 +313,22 @@ export default function SuperAdminUsers() {
   if (isLoadingUsers) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <Loader2 className="size-8 animate-spin text-blue-600" />
       </div>
     );
   }
 
   return (
-    <div className="p-4 space-y-4 sm:p-6 sm:space-y-5">
+    <div className="p-4 gap-y-4 sm:p-6 sm:gap-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">User Administration</h1>
+          <h1 className="text-3xl font-semibold">User Administration</h1>
           <p className="text-sm text-muted-foreground">Create, search, and manage role-aware users from one place.</p>
         </div>
         <div className="flex items-center gap-2">
           <WebSocketStatusIndicator />
-          <Button className="flex items-center gap-2" onClick={() => setCreateOpen(true)}>
-            <Plus className="w-4 h-4" />
+          <Button className="flex items-center gap-2" onClick={() => handleCreateDialogChange(true)}>
+            <Plus className="size-4" />
             Add New User
           </Button>
         </div>
@@ -329,9 +336,9 @@ export default function SuperAdminUsers() {
 
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <Users className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{users.length}</div>
@@ -339,9 +346,9 @@ export default function SuperAdminUsers() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Doctors</CardTitle>
-            <UserCheck className="h-4 w-4 text-blue-600" />
+            <UserCheck className="size-4 text-blue-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
@@ -350,9 +357,9 @@ export default function SuperAdminUsers() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Admins</CardTitle>
-            <UserCheck className="h-4 w-4 text-purple-600" />
+            <UserCheck className="size-4 text-purple-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-600">
@@ -361,9 +368,9 @@ export default function SuperAdminUsers() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Patients</CardTitle>
-            <Users className="h-4 w-4 text-green-600" />
+            <Users className="size-4 text-green-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
@@ -372,9 +379,9 @@ export default function SuperAdminUsers() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active</CardTitle>
-            <UserCheck className="h-4 w-4 text-green-600" />
+            <UserCheck className="size-4 text-green-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
@@ -391,7 +398,7 @@ export default function SuperAdminUsers() {
         <CardContent>
           <div className="grid gap-4 md:grid-cols-3">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input placeholder="Search by name or email..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
             </div>
             <Select value={roleFilter} onValueChange={setRoleFilter}>
@@ -421,7 +428,7 @@ export default function SuperAdminUsers() {
 
       <DataTable columns={columns} data={filteredUsers} pageSize={10} emptyMessage="No users found." />
 
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      <Dialog open={createOpen} onOpenChange={handleCreateDialogChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create User</DialogTitle>
@@ -429,10 +436,10 @@ export default function SuperAdminUsers() {
               Create a new user and assign clinic/role access in one step.
           </DialogDescription>
         </DialogHeader>
-          <div className="space-y-4">
+          <div className="gap-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {USER_CREATE_FIELDS.map(({ key, label }) => (
-                <div key={key} className="space-y-2">
+                <div key={key} className="gap-y-2">
                   <Label>{label}</Label>
                   <Input
                     type={key === "password" ? "password" : "text"}
@@ -441,7 +448,7 @@ export default function SuperAdminUsers() {
                   />
                 </div>
               ))}
-              <div className="space-y-2">
+              <div className="gap-y-2">
                 <Label>Role</Label>
                 <Select value={createForm.role} onValueChange={(value) => setCreateForm((prev) => ({ ...prev, role: value as Role }))}>
                   <SelectTrigger>
@@ -454,7 +461,7 @@ export default function SuperAdminUsers() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
+              <div className="gap-y-2">
                 <Label>Clinic</Label>
                 <Select value={createForm.clinicId} onValueChange={(value) => setCreateForm((prev) => ({ ...prev, clinicId: value }))}>
                   <SelectTrigger>
@@ -486,21 +493,21 @@ export default function SuperAdminUsers() {
                 {showCreateAdditionalDetails ? (
                   <>
                     Hide
-                    <ChevronUp className="h-4 w-4" />
+                    <ChevronUp className="size-4" />
                   </>
                 ) : (
                   <>
                     Show
-                    <ChevronDown className="h-4 w-4" />
+                    <ChevronDown className="size-4" />
                   </>
                 )}
               </Button>
             </div>
 
             {showCreateAdditionalDetails && (
-              <div className="space-y-4 rounded-2xl border border-border bg-muted/20 p-4">
+              <div className="gap-y-4 rounded-2xl border border-border bg-muted/20 p-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
+                  <div className="gap-y-2">
                     <Label>Gender</Label>
                     <Select value={createForm.gender} onValueChange={(value) => setCreateForm((prev) => ({ ...prev, gender: value }))}>
                       <SelectTrigger>
@@ -513,7 +520,7 @@ export default function SuperAdminUsers() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
+                  <div className="gap-y-2">
                     <Label>Date of Birth</Label>
                     <Input
                       type="date"
@@ -521,7 +528,7 @@ export default function SuperAdminUsers() {
                       onChange={(e) => setCreateForm((prev) => ({ ...prev, dateOfBirth: e.target.value }))}
                     />
                   </div>
-                  <div className="space-y-2 md:col-span-2">
+                  <div className="gap-y-2 md:col-span-2">
                     <Label>Address</Label>
                     <Textarea
                       value={createForm.address}
@@ -529,56 +536,56 @@ export default function SuperAdminUsers() {
                       placeholder="Street, city, state"
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="gap-y-2">
                     <Label>City</Label>
                     <Input
                       value={createForm.city}
                       onChange={(e) => setCreateForm((prev) => ({ ...prev, city: e.target.value }))}
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="gap-y-2">
                     <Label>State</Label>
                     <Input
                       value={createForm.state}
                       onChange={(e) => setCreateForm((prev) => ({ ...prev, state: e.target.value }))}
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="gap-y-2">
                     <Label>Zip Code</Label>
                     <Input
                       value={createForm.zipCode}
                       onChange={(e) => setCreateForm((prev) => ({ ...prev, zipCode: e.target.value }))}
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="gap-y-2">
                     <Label>Emergency Contact</Label>
                     <Input
                       value={createForm.emergencyContact}
                       onChange={(e) => setCreateForm((prev) => ({ ...prev, emergencyContact: e.target.value }))}
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="gap-y-2">
                     <Label>Emergency Phone</Label>
                     <Input
                       value={createForm.emergencyPhone}
                       onChange={(e) => setCreateForm((prev) => ({ ...prev, emergencyPhone: e.target.value }))}
                     />
                   </div>
-                  <div className="space-y-2 md:col-span-2">
+                  <div className="gap-y-2 md:col-span-2">
                     <Label>Medical History</Label>
                     <Textarea
                       value={createForm.medicalHistory}
                       onChange={(e) => setCreateForm((prev) => ({ ...prev, medicalHistory: e.target.value }))}
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="gap-y-2">
                     <Label>Allergies</Label>
                     <Input
                       value={createForm.allergies}
                       onChange={(e) => setCreateForm((prev) => ({ ...prev, allergies: e.target.value }))}
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="gap-y-2">
                     <Label>Current Medications</Label>
                     <Textarea
                       value={createForm.currentMedications}
@@ -592,7 +599,7 @@ export default function SuperAdminUsers() {
           <div className="flex items-center justify-end gap-2 pt-4">
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
             <Button onClick={createUser} disabled={createUserMutation.isPending}>
-              {createUserMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {createUserMutation.isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
               Create User
             </Button>
           </div>
@@ -626,3 +633,5 @@ export default function SuperAdminUsers() {
     </div>
   );
 }
+
+

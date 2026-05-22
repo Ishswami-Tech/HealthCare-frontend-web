@@ -26,7 +26,7 @@ import { useDebouncedCallback } from "@/lib/utils/performance";
 
 export default function NursePatients() {
   const { user } = useAuth();
-  const router = useRouter();
+  const { push } = useRouter();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
@@ -101,7 +101,7 @@ export default function NursePatients() {
   if (isPending) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <Loader2 className="size-8 animate-spin" />
       </div>
     );
   }
@@ -119,7 +119,7 @@ export default function NursePatients() {
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-3 size-4 text-gray-400" />
               <Input
                 placeholder="Search by patient name or condition..."
                 value={searchQuery}
@@ -128,7 +128,7 @@ export default function NursePatients() {
               />
             </div>
             <Button variant="outline" className="flex items-center gap-2">
-              <Filter className="w-4 h-4" />
+              <Filter className="size-4" />
               Filter
             </Button>
           </div>
@@ -138,7 +138,7 @@ export default function NursePatients() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Users className="w-5 h-5" />
+            <Users className="size-5" />
             Patients Under Care
           </CardTitle>
         </CardHeader>
@@ -147,7 +147,7 @@ export default function NursePatients() {
             <Empty>
               <EmptyContent>
                 <EmptyMedia>
-                  <Users className="h-5 w-5" />
+                  <Users className="size-5" />
                 </EmptyMedia>
                 <EmptyTitle>No patients found</EmptyTitle>
                 <EmptyDescription>
@@ -156,7 +156,7 @@ export default function NursePatients() {
               </EmptyContent>
             </Empty>
           ) : (
-            <div className="space-y-4">
+            <div className="gap-y-4">
               {filteredPatients.map((patient: any) => (
                 <div
                   key={patient.id}
@@ -164,8 +164,8 @@ export default function NursePatients() {
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-4 flex-1">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <Users className="w-5 h-5 text-blue-600" />
+                      <div className="size-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <Users className="size-5 text-blue-600" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2 mb-1">
@@ -186,17 +186,17 @@ export default function NursePatients() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => router.push(`/nurse/vitals?patientId=${patient.id}&patientName=${encodeURIComponent(patient.patientName || patient.name || "")}`)}
+                        onClick={() => push(`/nurse/vitals?patientId=${patient.id}&patientName=${encodeURIComponent(patient.patientName || patient.name || "")}`)}
                       >
-                        <Heart className="w-3 h-3 mr-1" />
+                        <Heart className="size-3 mr-1" />
                         Vitals
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => router.push(`/nurse/care?patientId=${patient.id}`)}
+                        onClick={() => push(`/nurse/care?patientId=${patient.id}`)}
                       >
-                        <BedDouble className="w-3 h-3 mr-1" />
+                        <BedDouble className="size-3 mr-1" />
                         Care
                       </Button>
                     </div>
@@ -219,3 +219,5 @@ export default function NursePatients() {
     </DashboardPageShell>
   );
 }
+
+

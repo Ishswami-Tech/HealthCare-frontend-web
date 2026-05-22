@@ -28,7 +28,7 @@ export function PatientBillingAnalytics({
       <StatCard 
         label="AMOUNT PAID"
         value={`â‚¹${totalPaid.toLocaleString("en-IN")}`}
-        icon={<DollarSign className="w-4 h-4 text-emerald-600" />}
+        icon={<DollarSign className="size-4 text-emerald-600" />}
         color="bg-emerald-50/50 border-emerald-100"
       />
 
@@ -36,7 +36,7 @@ export function PatientBillingAnalytics({
       <StatCard 
         label="PENDING AMOUNT"
         value={`â‚¹${totalPending.toLocaleString("en-IN")}`}
-        icon={<AlertCircle className="w-4 h-4 text-orange-600" />}
+        icon={<AlertCircle className="size-4 text-orange-600" />}
         color="bg-orange-50/50 border-orange-100"
       />
 
@@ -44,7 +44,7 @@ export function PatientBillingAnalytics({
       <StatCard 
         label="ACTIVE PLAN"
         value={activeSubscriptions > 0 ? activeSubscriptions : "None"}
-        icon={<CreditCard className="w-4 h-4 text-emerald-600" />}
+        icon={<CreditCard className="size-4 text-emerald-600" />}
         color="bg-emerald-50/50 border-emerald-100"
       />
 
@@ -52,7 +52,7 @@ export function PatientBillingAnalytics({
       <StatCard 
         label="LAST PAYMENT"
         value={lastPayment ? `â‚¹${lastPayment.amount.toLocaleString("en-IN")}` : "None"}
-        icon={<Receipt className="w-4 h-4 text-emerald-600" />}
+        icon={<Receipt className="size-4 text-emerald-600" />}
         color="bg-emerald-50/50 border-emerald-100"
       />
     </div>
@@ -85,3 +85,4 @@ function StatCard({
     </div>
   );
 }
+

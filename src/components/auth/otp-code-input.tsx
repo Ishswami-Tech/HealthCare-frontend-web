@@ -46,7 +46,7 @@ export function OtpCodeInput({
         index={index}
         aria-invalid={invalid}
         className={cn(
-          "h-11 w-11 text-base font-semibold sm:h-12 sm:w-12 sm:text-lg",
+          "size-11 text-base font-semibold sm:h-12 sm:w-12 sm:text-lg",
           invalid && "border-destructive text-destructive focus-visible:border-destructive",
           slotClassName
         )}
@@ -84,3 +84,4 @@ export function OtpCodeInput({
     </InputOTP>
   );
 }
+

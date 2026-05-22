@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React from 'react';
 import { cn } from '@/lib/utils';
@@ -69,18 +69,18 @@ const statusConfig = {
 const sizeConfig = {
   sm: {
     container: 'px-2 py-1 text-xs',
-    icon: 'h-3 w-3',
-    dot: 'h-2 w-2',
+    icon: 'size-3',
+    dot: 'size-2',
   },
   md: {
     container: 'px-3 py-1.5 text-sm',
-    icon: 'h-4 w-4',
-    dot: 'h-3 w-3',
+    icon: 'size-4',
+    dot: 'size-3',
   },
   lg: {
     container: 'px-4 py-2 text-base',
-    icon: 'h-5 w-5',
-    dot: 'h-4 w-4',
+    icon: 'size-5',
+    dot: 'size-4',
   },
 };
 
@@ -159,29 +159,29 @@ export function SystemStatusIndicator() {
       
       // If all critical services are healthy, system is active (green)
       if (dbHealthy && cacheHealthy && queueHealthy && apiHealthy) {
-        return 'active'; // ✅ Green - All services healthy
+        return 'active'; // âœ… Green - All services healthy
       }
       
       // If some services are down, show warning (yellow)
       if (dbHealthy || cacheHealthy || queueHealthy) {
-        return 'warning'; // ⚠️ Yellow - Some services degraded
+        return 'warning'; // âš ï¸ Yellow - Some services degraded
       }
       
       // If all critical services are down, show error (red)
-      return 'error'; // ❌ Red - Critical services down
+      return 'error'; // âŒ Red - Critical services down
     }
     
     // Priority 2: Fallback to WebSocket connection status
     // If WebSocket is connected, assume system is at least partially online
     if (isRealTimeEnabled && isConnected) {
-      return 'active'; // ✅ Green - Real-time connected
+      return 'active'; // âœ… Green - Real-time connected
     }
     if (isConnected) {
-      return 'warning'; // ⚠️ Yellow - Connected but no real-time
+      return 'warning'; // âš ï¸ Yellow - Connected but no real-time
     }
     
     // Priority 3: No connection at all
-    return 'error'; // ❌ Red - No connection
+    return 'error'; // âŒ Red - No connection
   };
 
   const getSystemLabel = () => {
@@ -196,12 +196,12 @@ export function SystemStatusIndicator() {
       const apiHealthy = dbHealthy;
       
       if (dbHealthy && cacheHealthy && queueHealthy && apiHealthy) {
-        return 'System Active'; // ✅ All services healthy
+        return 'System Active'; // âœ… All services healthy
       }
       if (dbHealthy || cacheHealthy || queueHealthy) {
-        return 'System Degraded'; // ⚠️ Some services down
+        return 'System Degraded'; // âš ï¸ Some services down
       }
-      return 'System Offline'; // ❌ Critical services down
+      return 'System Offline'; // âŒ Critical services down
     }
     
     // Priority 2: Fallback to WebSocket connection
@@ -236,7 +236,7 @@ export function ConnectionStatusIndicator() {
 
   const getConnectionLabel = () => {
     if (error) return 'Connection Error';
-    if (connectionStatus === 'connecting') return 'Connecting...';
+    if (connectionStatus === 'connecting') return 'Connecting…';
     if (connectionStatus === 'reconnecting') return 'Reconnecting...';
     if (isConnected) return 'Connected';
     return 'Offline';
@@ -348,7 +348,7 @@ export function LiveActivityIndicator({
   return (
     <div className={cn('flex items-center gap-2', className)}>
       <div className="flex items-center gap-1.5">
-        <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+        <div className="size-2 rounded-full bg-red-500 animate-pulse" />
         {showLabel && <span className="text-xs font-medium text-red-600">LIVE</span>}
       </div>
     </div>
@@ -372,7 +372,7 @@ export function StatusSummary({ className }: { className?: string }) {
   return (
     <div className={cn('flex items-center gap-3', className)}>
       <div className="flex items-center gap-2 text-sm">
-        <Users className="h-4 w-4 text-gray-600" />
+        <Users className="size-4 text-gray-600" />
         <span className="font-medium">
           {activeCount}/{totalSystems} Systems Active
         </span>
@@ -382,3 +382,5 @@ export function StatusSummary({ className }: { className?: string }) {
     </div>
   );
 }
+
+

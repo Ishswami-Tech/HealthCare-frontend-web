@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter as useRouterAlias, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Loader2, CheckCircle2 } from "lucide-react";
@@ -24,15 +24,15 @@ import { OtpCodeInput } from "@/components/auth/otp-code-input";
 const RESEND_COOLDOWN_SECONDS = 60;
 
 export default function VerifyOTPPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const queryClinicId = searchParams.get("clinicId") || undefined;
+  const { push } = useRouterAlias();
+  const { get } = useSearchParams();
+  const queryClinicId = get("clinicId") || undefined;
   const { verifyOTP, requestOTP, isVerifyingOTP, isRequestingOTP } = useAuth();
   const [email, setEmail] = useState("");
   const [successPhase, setSuccessPhase] = useState<"none" | "alert" | "redirecting">("none");
   const [formError, setFormError] = useState<string | null>(null);
   const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
-  const [countdown, setCountdown] = useState(0);
+  const [countdown, setCountdown] = useState(RESEND_COOLDOWN_SECONDS);
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
 
   const triggerSuccessFlow = useCallback(() => {
@@ -41,11 +41,11 @@ export default function VerifyOTPPage() {
     setTimeout(() => setSuccessPhase("redirecting"), 1500);
   }, []);
 
-  // ✅ Use unified auth form hook for consistent patterns
+  // âœ… Use unified auth form hook for consistent patterns
   const { executeAuthOperation } = useAuthForm({
     toastId: TOAST_IDS.AUTH.OTP,
     loadingMessage: "Verifying OTP...",
-    successMessage: "OTP verified successfully! Redirecting...",
+    successMessage: "OTP verified successfully! Redirecting…",
     errorMessage: "OTP verification failed. Please try again.",
     showToast: false,
     onError: (error) => {
@@ -66,13 +66,13 @@ export default function VerifyOTPPage() {
   });
 
   useEffect(() => {
-    const emailParam = searchParams.get("email");
+    const emailParam = get("email");
     if (!emailParam) {
-      router.push(ROUTES.LOGIN);
+      push(ROUTES.LOGIN);
       return;
     }
     setEmail(emailParam);
-  }, [searchParams, router]);
+  }, [get, push]);
 
   const form = useZodForm(
     otpSchema,
@@ -95,7 +95,7 @@ export default function VerifyOTPPage() {
   );
   const otpValue = form.watch("otp");
 
-  // ✅ Use unified auth form hook for OTP resend
+  // âœ… Use unified auth form hook for OTP resend
   const { executeAuthOperation: executeOTPResend } = useAuthForm({
     toastId: TOAST_IDS.AUTH.OTP,
     loadingMessage: "Sending OTP...",
@@ -114,7 +114,7 @@ export default function VerifyOTPPage() {
   const handleResendOTP = async () => {
     if (countdown > 0) return; // Don't allow during cooldown
 
-    // ✅ Use unified pattern - consistent across all auth pages
+    // âœ… Use unified pattern - consistent across all auth pages
     const result = await executeOTPResend(async () => {
       return await requestOTP({
         identifier: email,
@@ -124,7 +124,7 @@ export default function VerifyOTPPage() {
     if (!result) {
       return;
     }
-    startCountdown(); // Start cooldown after successful request
+    restartCountdown(); // Start cooldown after successful request
   };
 
   // Clear countdown on unmount
@@ -136,8 +136,7 @@ export default function VerifyOTPPage() {
     };
   }, []);
 
-  const startCountdown = () => {
-    setCountdown(RESEND_COOLDOWN_SECONDS);
+  const startCountdownTimer = useCallback(() => {
     if (countdownRef.current) {
       clearInterval(countdownRef.current);
     }
@@ -152,13 +151,21 @@ export default function VerifyOTPPage() {
         return prev - 1;
       });
     }, 1000);
-  };
-
-  // Start initial countdown when page loads (optional, for UX)
-  useEffect(() => {
-    startCountdown();
   }, []);
-  // This prevents race conditions and ensures consistent behavior
+
+  const restartCountdown = useCallback(() => {
+    setCountdown(RESEND_COOLDOWN_SECONDS);
+    startCountdownTimer();
+  }, [startCountdownTimer]);
+
+  useEffect(() => {
+    startCountdownTimer();
+    return () => {
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+      }
+    };
+  }, [startCountdownTimer]);
 
   // Redirecting overlay
   if (successPhase === "redirecting") {
@@ -166,14 +173,14 @@ export default function VerifyOTPPage() {
       <Card className="w-full max-w-md mx-auto shadow-lg px-4 sm:px-0">
         <CardContent className="flex flex-col items-center justify-center py-16 gap-5">
           <div className="relative flex items-center justify-center">
-            <div className="h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-              <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
+            <div className="size-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+              <CheckCircle2 className="size-8 text-green-600 dark:text-green-400" />
             </div>
-            <Loader2 className="absolute h-20 w-20 animate-spin text-green-500/40" />
+            <Loader2 className="absolute size-20 animate-spin text-green-500/40" />
           </div>
-          <div className="text-center space-y-1">
+          <div className="text-center gap-y-1">
             <p className="font-semibold text-gray-900 dark:text-gray-100">Successfully signed in!</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Redirecting…</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Redirectingâ€¦</p>
           </div>
         </CardContent>
       </Card>
@@ -183,7 +190,7 @@ export default function VerifyOTPPage() {
   return (
     <Card className="w-full max-w-md mx-auto shadow-lg px-4 sm:px-0">
       <CardHeader className="px-4 sm:px-6">
-        <h2 className="text-xl sm:text-2xl font-bold text-center">
+        <h2 className="text-xl sm:text-2xl font-semibold text-center">
           Verify OTP
         </h2>
         <p className="text-xs sm:text-sm text-gray-600 text-center mt-2 break-words">
@@ -195,7 +202,7 @@ export default function VerifyOTPPage() {
         {/* Success alert */}
         {formError && (
           <div className="mb-4 flex items-center gap-3 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-            <div className="h-5 w-5 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center shrink-0">
+            <div className="size-5 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center shrink-0">
               <span className="text-xs font-bold text-red-600 dark:text-red-300">!</span>
             </div>
             <p className="text-sm text-red-700 dark:text-red-300">{formError}</p>
@@ -203,15 +210,15 @@ export default function VerifyOTPPage() {
         )}
         {successPhase === "alert" && (
           <div className="mb-4 flex items-center gap-3 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 animate-in fade-in slide-in-from-top-2 duration-300">
-            <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0" />
+            <CheckCircle2 className="size-5 text-green-600 dark:text-green-400 shrink-0" />
             <div>
               <p className="text-sm font-semibold text-green-800 dark:text-green-300">OTP verified!</p>
-              <p className="text-xs text-green-600 dark:text-green-400">Redirecting to the next step…</p>
+              <p className="text-xs text-green-600 dark:text-green-400">Redirecting to the next stepâ€¦</p>
             </div>
           </div>
         )}
         <Form {...form}>
-          <form onSubmit={form.onFormSubmit} className="space-y-6">
+          <form onSubmit={form.onFormSubmit} className="gap-y-6">
             <FormField
               control={form.control}
               name="otp"
@@ -238,7 +245,7 @@ export default function VerifyOTPPage() {
               )}
             />
 
-            <div className="space-y-4">
+            <div className="gap-y-4">
               <Button
                 type="submit"
                 className="w-full"
@@ -246,8 +253,8 @@ export default function VerifyOTPPage() {
               >
                 {isVerifyingOTP ? (
                   <div className="flex items-center justify-center">
-                    <div className="w-5 h-5 border-t-2 border-b-2 border-white rounded-full animate-spin mr-2" />
-                    Verifying...
+                    <div className="size-5 border-t-2 border-b-2 border-white rounded-full animate-spin mr-2" />
+                    Verifying…
                   </div>
                 ) : (
                   "Verify OTP"
@@ -263,8 +270,8 @@ export default function VerifyOTPPage() {
               >
                 {isRequestingOTP ? (
                   <div className="flex items-center justify-center">
-                    <div className="w-5 h-5 border-t-2 border-b-2 border-current rounded-full animate-spin mr-2" />
-                    Sending...
+                    <div className="size-5 border-t-2 border-b-2 border-current rounded-full animate-spin mr-2" />
+                    Sending…
                   </div>
                 ) : countdown > 0 ? (
                   `Resend in ${countdown}s`
@@ -279,4 +286,7 @@ export default function VerifyOTPPage() {
     </Card>
   );
 }
+
+
+
 

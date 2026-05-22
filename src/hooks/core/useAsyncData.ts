@@ -1,4 +1,4 @@
-/**
+﻿/**
  * React 19 use() Hook Integration
  * For handling async data in components
  */
@@ -58,16 +58,18 @@ export function AsyncDataWrapper<T>({
   fallback?: React.ReactNode;
   children: (data: T) => React.ReactNode;
 }) {
-  const defaultFallback = React.createElement('div', null, 'Loading...');
+  const defaultFallback = React.createElement('div', null, 'Loading…');
   const AsyncDataContentComponent = AsyncDataContent as React.ComponentType<{
     promise: Promise<T>;
-    children: (data: T) => React.ReactNode;
   }>;
 
   return React.createElement(
     Suspense,
     { fallback: fallback || defaultFallback },
-    React.createElement(AsyncDataContentComponent, { promise, children })
+    React.createElement(AsyncDataContentComponent, {
+      promise,
+      children: children as any,
+    } as any)
   );
 }
 
@@ -89,3 +91,4 @@ function AsyncDataContent<T>({
 export function useContextValue<T>(context: React.Context<T>): T {
   return React.useContext(context);
 }
+

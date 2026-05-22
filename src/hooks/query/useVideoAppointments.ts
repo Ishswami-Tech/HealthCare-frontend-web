@@ -392,20 +392,22 @@ export function useCreateVideoAppointment() {
       const resolvedClinicId = data.clinicId || clinicId;
 
       // Generate token first, then start consultation
-      const tokenResult = await generateVideoToken({
-        appointmentId: data.appointmentId,
-        userId: data.doctorId,
-        userRole: currentUserRole,
-        userInfo,
-        ...(resolvedClinicId && { clinicId: resolvedClinicId }),
-      });
-
-      const consultationResult = await startVideoConsultation({
-        appointmentId: data.appointmentId,
-        userId: data.doctorId,
-        userRole: currentUserRole,
-        ...(resolvedClinicId && { clinicId: resolvedClinicId }),
-      });
+      // Run both operations in parallel since they're independent
+      const [tokenResult, consultationResult] = await Promise.all([
+        generateVideoToken({
+          appointmentId: data.appointmentId,
+          userId: data.doctorId,
+          userRole: currentUserRole,
+          userInfo,
+          ...(resolvedClinicId && { clinicId: resolvedClinicId }),
+        }),
+        startVideoConsultation({
+          appointmentId: data.appointmentId,
+          userId: data.doctorId,
+          userRole: currentUserRole,
+          ...(resolvedClinicId && { clinicId: resolvedClinicId }),
+        }),
+      ]);
 
       return { success: true, data: consultationResult, token: tokenResult };
     },

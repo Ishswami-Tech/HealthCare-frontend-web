@@ -109,7 +109,7 @@ const MiniBarChart: React.FC<ChartProps> = ({
   const maxValue = Math.max(...data.map(d => d.value));
 
   return (
-    <div className={cn("flex items-end space-x-1", className)} style={{ height }}>
+    <div className={cn("flex items-end gap-x-1", className)} style={{ height }}>
       {data.map((item, index) => (
         <div
           key={index}
@@ -199,7 +199,7 @@ const DonutChart: React.FC<DonutChartProps> = ({
   let accumulatedPercentage = 0;
 
   return (
-    <div className={cn("flex flex-col items-center space-y-4", className)}>
+    <div className={cn("flex flex-col items-center gap-y-4", className)}>
       <div className="relative">
         <svg width={size} height={size} className="transform -rotate-90">
           {data.map((item, index) => {
@@ -244,9 +244,9 @@ const DonutChart: React.FC<DonutChartProps> = ({
       {showLegend && (
         <div className="grid grid-cols-2 gap-2 text-sm">
           {data.map((item, index) => (
-            <div key={index} className="flex items-center space-x-2">
+            <div key={index} className="flex items-center gap-x-2">
               <div
-                className="w-3 h-3 rounded-full"
+                className="size-3 rounded-full"
                 style={{ backgroundColor: item.color || `hsl(${(index * 137.5) % 360}, 70%, 50%)` }}
               />
               <span className="text-muted-foreground">{item.label}</span>
@@ -275,12 +275,14 @@ interface MetricChartCardProps {
   loading?: boolean;
 }
 
+const EMPTY_CHART_DATA: ChartDataPoint[] = [];
+
 const MetricChartCard: React.FC<MetricChartCardProps> = ({
   title,
   value,
   change,
   chartType = "line",
-  chartData = [],
+  chartData = EMPTY_CHART_DATA,
   progress,
   className,
   loading,
@@ -313,11 +315,11 @@ const MetricChartCard: React.FC<MetricChartCardProps> = ({
     
     switch (change.direction) {
       case "up":
-        return <TrendingUp className="h-4 w-4 text-green-600" />;
+        return <TrendingUp className="size-4 text-green-600" />;
       case "down":
-        return <TrendingDown className="h-4 w-4 text-red-600" />;
+        return <TrendingDown className="size-4 text-red-600" />;
       case "neutral":
-        return <Minus className="h-4 w-4 text-gray-600" />;
+        return <Minus className="size-4 text-gray-600" />;
     }
   };
 
@@ -327,7 +329,7 @@ const MetricChartCard: React.FC<MetricChartCardProps> = ({
       className
     )}>
       <div className="flex items-start justify-between mb-4">
-        <div className="space-y-1">
+        <div className="gap-y-1">
           <p className="text-sm font-medium text-muted-foreground">{title}</p>
           <p className="text-2xl font-bold">{value}</p>
         </div>
@@ -337,7 +339,7 @@ const MetricChartCard: React.FC<MetricChartCardProps> = ({
       </div>
       
       {change && (
-        <div className="flex items-center space-x-1">
+        <div className="flex items-center gap-x-1">
           {getTrendIcon()}
           <span className={cn(
             "text-sm font-medium",
@@ -378,7 +380,7 @@ const Heatmap: React.FC<HeatmapProps> = ({ data, className }) => {
   };
 
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn("gap-y-2", className)}>
       <div className="grid grid-cols-25 gap-1">
         {/* Header row */}
         <div></div>
@@ -415,11 +417,11 @@ const Heatmap: React.FC<HeatmapProps> = ({ data, className }) => {
       {/* Legend */}
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>Less</span>
-        <div className="flex space-x-1">
+        <div className="flex gap-x-1">
           {[0.2, 0.4, 0.6, 0.8, 1].map(intensity => (
             <div
               key={intensity}
-              className="w-3 h-3 rounded-sm border border-border/50"
+              className="size-3 rounded-sm border border-border/50"
               style={{
                 backgroundColor: `hsl(var(--primary) / ${intensity * 0.8})`,
               }}
@@ -475,7 +477,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   ];
 
   return (
-    <div className={cn("space-y-6", className)}>
+    <div className={cn("gap-y-6", className)}>
       {/* Metric Cards Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricChartCard
@@ -555,3 +557,4 @@ export type {
   HeatmapProps,
   AnalyticsDashboardProps 
 };
+

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
@@ -61,7 +61,7 @@ import { usePatientUiStore } from "@/stores/patient-ui.store";
 
 export default function PatientDashboard() {
   const { session } = useAuth();
-  const router = useRouter();
+  const { push } = useRouter();
   const user = session?.user;
   const { t } = useTranslation();
   const openQrGate = usePatientUiStore((state) => state.openQrGate);
@@ -404,25 +404,25 @@ export default function PatientDashboard() {
                   className="h-9 gap-2 rounded-xl border-sky-200 bg-sky-50 px-3 text-sm text-sky-700 hover:bg-sky-100 hover:text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-300 sm:h-10 sm:px-4"
                   onClick={() => {
                     if (hasInPersonAppointment) {
-                      router.push("/patient/check-in");
+                      push("/patient/check-in");
                       return;
                     }
                     openQrGate({
                       bookLabel: "Open appointments",
-                      onBookAppointment: () => router.push("/patient/appointments"),
+                      onBookAppointment: () => push("/patient/appointments"),
                     });
                   }}
                 >
-                  <div className="flex h-4 w-4 items-center justify-center rounded-full border-2 border-current">
-                    <div className="h-1.5 w-1.5 rounded-[1px] bg-current" />
+                  <div className="flex size-4 items-center justify-center rounded-full border-2 border-current">
+                    <div className="size-1.5 rounded-[1px] bg-current" />
                   </div>
                   Scan Check-In
                 </Button>
                 <Button
                   className="h-9 gap-2 rounded-xl border-0 bg-emerald-600 px-3 text-sm font-semibold text-white hover:bg-emerald-700 sm:h-10 sm:px-4"
-                  onClick={() => router.push("/patient/appointments?openBooking=1")}
+                  onClick={() => push("/patient/appointments?openBooking=1")}
                 >
-                  <Plus className="h-4 w-4" />
+                  <Plus className="size-4" />
                   Book Appointment
                 </Button>
               </div>
@@ -432,9 +432,9 @@ export default function PatientDashboard() {
           <Card className="overflow-hidden border border-emerald-200/70 bg-linear-to-br from-emerald-50 via-background to-sky-50 shadow-sm dark:border-emerald-900/40 dark:from-emerald-950/30 dark:via-card dark:to-sky-950/20">
             <CardContent className="p-3 sm:p-4">
               <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
-                <div className="min-w-0 flex-1 space-y-2.5">
+                <div className="min-w-0 flex-1 gap-y-2.5">
                   <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
-                    <Clock className="h-4 w-4" />
+                    <Clock className="size-4" />
                     Healthcare Workspace
                   </div>
                   {patientData.upcomingAppointments.length > 0 ? (
@@ -453,7 +453,7 @@ export default function PatientDashboard() {
                         </Badge>
                       </div>
 
-                      <div className="mt-3 max-h-72 space-y-2.5 overflow-y-auto pr-1 sm:mt-4 sm:space-y-3">
+                      <div className="mt-3 max-h-72 gap-y-2.5 overflow-y-auto pr-1 sm:mt-4 sm:gap-y-3">
                         {patientData.upcomingAppointments.map((appointment: any) => {
                           const videoSessionDecision = appointment.isOnline
                             ? getVideoSessionDecision(appointment)
@@ -466,11 +466,11 @@ export default function PatientDashboard() {
                             >
                               <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
                                 <div className="flex min-w-0 items-start gap-3">
-                                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300 sm:h-11 sm:w-11">
+                                  <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300 sm:h-11 sm:w-11">
                                     {appointment.isOnline ? (
-                                      <Video className="h-5 w-5" />
+                                      <Video className="size-5" />
                                     ) : (
-                                      <Stethoscope className="h-5 w-5" />
+                                      <Stethoscope className="size-5" />
                                     )}
                                   </div>
                                   <div className="min-w-0 flex-1">
@@ -521,7 +521,7 @@ export default function PatientDashboard() {
                                   <Button
                                     size="sm"
                                     className="h-8 rounded-xl bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700"
-                                    onClick={() => router.push(buildVideoSessionRoute(appointment.id))}
+                                    onClick={() => push(buildVideoSessionRoute(appointment.id))}
                                   >
                                     Join Session
                                   </Button>
@@ -536,7 +536,7 @@ export default function PatientDashboard() {
                     <Empty>
                       <EmptyContent>
                         <EmptyMedia>
-                          <Clock className="h-5 w-5" />
+                          <Clock className="size-5" />
                         </EmptyMedia>
                         <EmptyTitle>No upcoming or in-progress appointments right now</EmptyTitle>
                         <EmptyDescription>
@@ -594,15 +594,15 @@ export default function PatientDashboard() {
           {/* Patient Services */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 sm:gap-3">
             <Card className="h-full overflow-hidden border border-border bg-card shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 sm:pb-2">
+              <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-1.5 sm:pb-2">
                 <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
                   Prescriptions
                 </CardTitle>
-                <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
-                  <Pill className="h-4 w-4" />
+                <div className="flex size-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                  <Pill className="size-4" />
                 </div>
               </CardHeader>
-              <CardContent className="space-y-2.5 sm:space-y-3">
+              <CardContent className="gap-y-2.5 sm:gap-y-3">
                 <div>
                   <div className="text-xl font-bold leading-none text-emerald-700 dark:text-emerald-300 sm:text-2xl">
                     {patientData.medications.length}
@@ -614,53 +614,53 @@ export default function PatientDashboard() {
                 <Button
                   variant="outline"
                   className="h-9 w-full justify-between border-emerald-200 bg-white/80 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200 dark:hover:bg-emerald-900/30 sm:h-10"
-                  onClick={() => router.push("/patient/health?tab=medicines")}
+                  onClick={() => push("/patient/health?tab=medicines")}
                 >
                   Open medicines
-                  <FileText className="h-4 w-4" />
+                  <FileText className="size-4" />
                 </Button>
               </CardContent>
             </Card>
 
             <Card className="h-full overflow-hidden border border-border bg-card shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 sm:pb-2">
+              <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-1.5 sm:pb-2">
                 <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
                   Payments
                 </CardTitle>
-                <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300">
-                  <CreditCard className="h-4 w-4" />
+                <div className="flex size-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300">
+                  <CreditCard className="size-4" />
                 </div>
               </CardHeader>
-              <CardContent className="space-y-2.5 sm:space-y-3">
+              <CardContent className="gap-y-2.5 sm:gap-y-3">
                 <div>
                   <div className="text-xl font-bold leading-none text-sky-700 dark:text-sky-300 sm:text-2xl">
                     {patientData.billingSummary.openInvoices}
                   </div>
                   <p className={`text-xs ${theme.textColors.secondary}`}>
-                    Open invoices · {patientData.billingSummary.outstandingAmount > 0 ? `₹${patientData.billingSummary.outstandingAmount.toLocaleString("en-IN")}` : "No dues"}
+                    Open invoices · {patientData.billingSummary.outstandingAmount > 0 ? `?${patientData.billingSummary.outstandingAmount.toLocaleString("en-IN")}` : "No dues"}
                   </p>
                 </div>
                 <Button
                   variant="outline"
                   className="h-9 w-full justify-between border-sky-200 bg-white/80 text-sky-700 hover:bg-sky-50 dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-sky-200 dark:hover:bg-sky-900/30 sm:h-10"
-                  onClick={() => router.push("/patient/payments?tab=payments")}
+                  onClick={() => push("/patient/payments?tab=payments")}
                 >
                   Open payments
-                  <CreditCard className="h-4 w-4" />
+                  <CreditCard className="size-4" />
                 </Button>
               </CardContent>
             </Card>
 
             <Card className="h-full overflow-hidden border border-border bg-card shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 sm:pb-2">
+              <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-1.5 sm:pb-2">
                 <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
                   Video
                 </CardTitle>
-                <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">
-                  <Video className="h-4 w-4" />
+                <div className="flex size-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">
+                  <Video className="size-4" />
                 </div>
               </CardHeader>
-              <CardContent className="space-y-2.5 sm:space-y-3">
+              <CardContent className="gap-y-2.5 sm:gap-y-3">
                 <div>
                   <div className="text-xl font-bold leading-none text-violet-700 dark:text-violet-300 sm:text-2xl">
                     {patientData.videoAppointments.length}
@@ -672,24 +672,24 @@ export default function PatientDashboard() {
                 <Button
                   variant="outline"
                   className="h-9 w-full justify-between border-violet-200 bg-white/80 text-violet-700 hover:bg-violet-50 dark:border-violet-900/40 dark:bg-violet-950/20 dark:text-violet-200 dark:hover:bg-violet-900/30 sm:h-10"
-                  onClick={() => router.push("/patient/appointments?mode=VIDEO")}
+                  onClick={() => push("/patient/appointments?mode=VIDEO")}
                 >
                   Join video visits
-                  <Video className="h-4 w-4" />
+                  <Video className="size-4" />
                 </Button>
               </CardContent>
             </Card>
 
             <Card className="h-full overflow-hidden border border-border bg-card shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 sm:pb-2">
+              <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-1.5 sm:pb-2">
                 <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
                   Records
                 </CardTitle>
-                <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
-                  <FileText className="h-4 w-4" />
+                <div className="flex size-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                  <FileText className="size-4" />
                 </div>
               </CardHeader>
-              <CardContent className="space-y-2.5 sm:space-y-3">
+              <CardContent className="gap-y-2.5 sm:gap-y-3">
                 <div>
                   <div className="text-xl font-bold leading-none text-amber-700 dark:text-amber-300 sm:text-2xl">
                     {patientData.recordsCount}
@@ -701,10 +701,10 @@ export default function PatientDashboard() {
                 <Button
                   variant="outline"
                   className="h-9 w-full justify-between border-amber-200 bg-white/80 text-amber-700 hover:bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200 dark:hover:bg-amber-900/30 sm:h-10"
-                  onClick={() => router.push("/patient/health?tab=records")}
+                  onClick={() => push("/patient/health?tab=records")}
                 >
                   Open records
-                  <FileText className="h-4 w-4" />
+                  <FileText className="size-4" />
                 </Button>
               </CardContent>
             </Card>
@@ -713,12 +713,12 @@ export default function PatientDashboard() {
           {/* At a glance */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 sm:gap-4">
             <Card className="overflow-hidden border border-border bg-card shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 sm:pb-2">
+              <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-1.5 sm:pb-2">
                 <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
                   Next visit
                 </CardTitle>
-                <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
-                  <Clock className="h-4 w-4" />
+                <div className="flex size-7 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                  <Clock className="size-4" />
                 </div>
               </CardHeader>
               <CardContent className="p-3">
@@ -732,12 +732,12 @@ export default function PatientDashboard() {
             </Card>
 
             <Card className="overflow-hidden border border-border bg-card shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 sm:pb-2">
+              <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-1.5 sm:pb-2">
                 <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
                   Medicines
                 </CardTitle>
-                <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">
-                  <Pill className="h-4 w-4" />
+                <div className="flex size-7 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">
+                  <Pill className="size-4" />
                 </div>
               </CardHeader>
               <CardContent className="p-3">
@@ -751,12 +751,12 @@ export default function PatientDashboard() {
             </Card>
 
             <Card className="overflow-hidden border border-border bg-card shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 sm:pb-2">
+              <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-1.5 sm:pb-2">
                 <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
                   Payments
                 </CardTitle>
-                <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300">
-                  <CreditCard className="h-4 w-4" />
+                <div className="flex size-7 items-center justify-center rounded-xl bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300">
+                  <CreditCard className="size-4" />
                 </div>
               </CardHeader>
               <CardContent className="p-3">
@@ -765,19 +765,19 @@ export default function PatientDashboard() {
                 </div>
                 <p className={`mt-1 text-xs ${theme.textColors.secondary}`}>
                   {patientData.billingSummary.outstandingAmount > 0
-                    ? `₹${patientData.billingSummary.outstandingAmount.toLocaleString("en-IN")} due`
+                    ? `?${patientData.billingSummary.outstandingAmount.toLocaleString("en-IN")} due`
                     : "No dues"}
                 </p>
               </CardContent>
             </Card>
 
             <Card className="overflow-hidden border border-border bg-card shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 sm:pb-2">
+              <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-1.5 sm:pb-2">
                 <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
                   Records
                 </CardTitle>
-                <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
-                  <FileText className="h-4 w-4" />
+                <div className="flex size-7 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                  <FileText className="size-4" />
                 </div>
               </CardHeader>
               <CardContent className="p-3">
@@ -794,4 +794,6 @@ export default function PatientDashboard() {
         </PatientPageShell>
   );
 }
+
+
 

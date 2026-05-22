@@ -209,30 +209,30 @@ async function getAuthHeaders(
 }
 
 // ✅ Retry Logic
+const NON_RETRYABLE_API_STATUSES: ReadonlySet<number> = new Set([
+  HTTP_STATUS.BAD_REQUEST,
+  HTTP_STATUS.UNAUTHORIZED,
+  HTTP_STATUS.FORBIDDEN,
+  HTTP_STATUS.NOT_FOUND,
+  HTTP_STATUS.CONFLICT,
+  HTTP_STATUS.UNPROCESSABLE_ENTITY,
+]);
+
 async function retryRequest<T>(
   requestFn: () => Promise<T>,
   maxAttempts: number = APP_CONFIG.API.RETRY.MAX_ATTEMPTS,
   delay: number = APP_CONFIG.API.RETRY.DELAY,
   backoffMultiplier: number = APP_CONFIG.API.RETRY.BACKOFF_MULTIPLIER
 ): Promise<T> {
-  let lastError: Error;
-  
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+  const attemptRequest = async (attempt: number): Promise<T> => {
     try {
       return await requestFn();
     } catch (error) {
-      lastError = error as Error;
+      const lastError = error as Error;
       
       // Don't retry on certain errors
       if (error instanceof ApiError) {
-        if ([
-          HTTP_STATUS.BAD_REQUEST,
-          HTTP_STATUS.UNAUTHORIZED,
-          HTTP_STATUS.FORBIDDEN,
-          HTTP_STATUS.NOT_FOUND,
-          HTTP_STATUS.CONFLICT,
-          HTTP_STATUS.UNPROCESSABLE_ENTITY,
-        ].includes(error.statusCode as any)) {
+        if (NON_RETRYABLE_API_STATUSES.has(error.statusCode)) {
           throw error;
         }
       }
@@ -244,11 +244,12 @@ async function retryRequest<T>(
       
       // Wait before retrying
       const waitTime = delay * Math.pow(backoffMultiplier, attempt - 1);
-      await new Promise(resolve => setTimeout(resolve, waitTime));
+      await new Promise((resolve) => setTimeout(resolve, waitTime));
+      return attemptRequest(attempt + 1);
     }
-  }
-  
-  throw lastError!;
+  };
+
+  return attemptRequest(1);
 }
 
 // ✅ Response Handler

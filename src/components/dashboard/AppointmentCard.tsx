@@ -80,26 +80,26 @@ function AppointmentCardComponent({
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "scheduled":
-        return <Clock className="w-3 h-3" />;
+        return <Clock className="size-3" />;
       case "completed":
-        return <CheckCircle className="w-3 h-3" />;
+        return <CheckCircle className="size-3" />;
       case "cancelled":
-        return <XCircle className="w-3 h-3" />;
+        return <XCircle className="size-3" />;
       case "in-progress":
-        return <AlertCircle className="w-3 h-3" />;
+        return <AlertCircle className="size-3" />;
       default:
-        return <Clock className="w-3 h-3" />;
+        return <Clock className="size-3" />;
     }
   };
 
   const getTypeIcon = (type: string) => {
     switch (type) {
       case "video":
-        return <Video className="w-4 h-4" />;
+        return <Video className="size-4" />;
       case "phone":
-        return <Phone className="w-4 h-4" />;
+        return <Phone className="size-4" />;
       default:
-        return <MapPin className="w-4 h-4" />;
+        return <MapPin className="size-4" />;
     }
   };
 
@@ -119,11 +119,11 @@ function AppointmentCardComponent({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Calendar className="w-4 h-4" />
+              <Calendar className="size-4" />
               {formatAppointmentDate(appointment.date)}
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Clock className="w-4 h-4" />
+              <Clock className="size-4" />
               {displayTime}
             </div>
           </div>
@@ -136,14 +136,14 @@ function AppointmentCardComponent({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="gap-y-4">
         {/* Doctor/Patient Info */}
         {showDoctor && appointment.doctor && (
           <div className="flex items-center gap-3">
-            <Avatar className="w-10 h-10">
+            <Avatar className="size-10">
               <AvatarImage src={appointment.doctor.avatar} />
               <AvatarFallback className={`${getAvatarTone(appointment.doctor.name).backgroundClass} ${getAvatarTone(appointment.doctor.name).textClass}`}>
-                <User className="w-5 h-5" />
+                <User className="size-5" />
               </AvatarFallback>
             </Avatar>
             <div>
@@ -159,10 +159,10 @@ function AppointmentCardComponent({
 
         {showPatient && appointment.patient && (
           <div className="flex items-center gap-3">
-            <Avatar className="w-10 h-10">
+            <Avatar className="size-10">
               <AvatarImage src={appointment.patient.avatar} />
               <AvatarFallback className={`${getAvatarTone(appointment.patient.name).backgroundClass} ${getAvatarTone(appointment.patient.name).textClass}`}>
-                <User className="w-5 h-5" />
+                <User className="size-5" />
               </AvatarFallback>
             </Avatar>
             <div>
@@ -175,10 +175,10 @@ function AppointmentCardComponent({
         )}
 
         {/* Appointment Details */}
-        <div className="space-y-2">
+        <div className="gap-y-2">
           {appointment.reason && (
             <div className="flex items-start gap-2">
-              <FileText className="w-4 h-4 mt-0.5 text-muted-foreground" />
+              <FileText className="size-4 mt-0.5 text-muted-foreground" />
               <p className="text-sm">{appointment.reason}</p>
             </div>
           )}
@@ -199,7 +199,7 @@ function AppointmentCardComponent({
 
           {appointment.duration && (
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-muted-foreground" />
+              <Clock className="size-4 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">
                 {appointment.duration} {t("appointments.duration")}
               </p>
@@ -216,13 +216,13 @@ function AppointmentCardComponent({
               onClick={onJoin}
             >
               {appointment.type === "video" && (
-                <Video className="w-4 h-4 mr-2" />
+                <Video className="size-4 mr-2" />
               )}
               {appointment.type === "phone" && (
-                <Phone className="w-4 h-4 mr-2" />
+                <Phone className="size-4 mr-2" />
               )}
               {appointment.type === "in-person" && (
-                <MapPin className="w-4 h-4 mr-2" />
+                <MapPin className="size-4 mr-2" />
               )}
               {t("appointments.join")}
             </Button>
@@ -297,7 +297,7 @@ export function AppointmentList({
   if (appointments.length === 0) {
     return (
       <div className="text-center py-8">
-        <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+        <Calendar className="size-12 mx-auto text-muted-foreground mb-4" />
         <p className="text-muted-foreground">
           {t("appointments.noAppointments")}
         </p>
@@ -306,7 +306,7 @@ export function AppointmentList({
   }
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("gap-y-4", className)}>
       {appointments.map((appointment) => (
         <AppointmentCard
           key={appointment.id}
@@ -323,3 +323,4 @@ export function AppointmentList({
     </div>
   );
 }
+

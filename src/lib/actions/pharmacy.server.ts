@@ -1,6 +1,6 @@
-"use server";
+﻿"use server";
 
-import { authenticatedApi } from "./auth.server";
+import { authenticatedApi, getServerSession } from "./auth.server";
 import { API_ENDPOINTS } from "../config/config";
 import type {
   DispensePrescriptionData,
@@ -91,6 +91,11 @@ export async function getMedicines(
     offset?: number;
   },
 ) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
@@ -120,6 +125,11 @@ export async function getMedicines(
  * Get medicine by ID
  */
 export async function getMedicineById(medicineId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   // Backend: GET /pharmacy/inventory/:id
   const { data } = await authenticatedApi(`/pharmacy/inventory/${medicineId}`);
   return data;
@@ -151,6 +161,11 @@ export async function createMedicine(
     storageConditions?: string;
   },
 ) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   // Backend: POST /pharmacy/inventory (clinic-scoped via guard)
   const { data } = await authenticatedApi("/pharmacy/inventory", {
     method: "POST",
@@ -188,6 +203,11 @@ export async function updateMedicine(
     isActive?: boolean;
   },
 ) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   // Backend: PATCH /pharmacy/inventory/:id
   const { data } = await authenticatedApi(`/pharmacy/inventory/${medicineId}`, {
     method: "PATCH",
@@ -200,6 +220,11 @@ export async function updateMedicine(
  * Delete medicine
  */
 export async function deleteMedicine(_clinicId: string, medicineId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   // Backend: PATCH /pharmacy/inventory/:id with isActive:false (no DELETE endpoint)
   const { data } = await authenticatedApi(`/pharmacy/inventory/${medicineId}`, {
     method: "PATCH",
@@ -224,6 +249,11 @@ export async function getPrescriptions(
     limit?: number;
   },
 ) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
@@ -247,6 +277,11 @@ export async function getPrescriptions(
 }
 
 export async function getMedicineDeskQueue(clinicId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(
     API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.QUEUE,
     {
@@ -260,6 +295,11 @@ export async function getMedicineDeskQueue(clinicId: string) {
  * Get prescription by ID
  */
 export async function getPrescriptionById(prescriptionId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(
     API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.GET(prescriptionId),
   );
@@ -287,6 +327,11 @@ export async function createPrescription(
     validUntil?: string;
   },
 ) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const items = prescriptionData.medications.map((m) => ({
     medicineId: m.medicineId,
     dosage: m.dosage,
@@ -316,6 +361,11 @@ export async function updatePrescriptionStatus(
   status: string,
   notes?: string,
 ) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(
     API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.UPDATE_STATUS(prescriptionId),
     {
@@ -327,6 +377,11 @@ export async function updatePrescriptionStatus(
 }
 
 export async function getPrescriptionPaymentSummary(prescriptionId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(
     API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.PAYMENT_SUMMARY(prescriptionId),
   );
@@ -340,6 +395,11 @@ export async function dispensePrescription(
   prescriptionId: string,
   dispensingData?: DispensePrescriptionData,
 ) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(
     API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.DISPENSE(prescriptionId),
     {
@@ -375,6 +435,11 @@ export async function reversePrescriptionDispense(
   prescriptionId: string,
   reversalData: ReversePrescriptionDispenseData,
 ) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(
     API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.REVERSE_DISPENSE(prescriptionId),
     {
@@ -399,6 +464,11 @@ export async function getPharmacyBatchAudit(
     endDate?: string;
   },
 ) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
@@ -428,6 +498,11 @@ export async function getInventory(
     limit?: number;
   },
 ) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
@@ -459,6 +534,11 @@ export async function updateInventory(
     lastRestocked?: string;
   },
 ) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   // Backend: PATCH /pharmacy/inventory/:id
   const { data } = await authenticatedApi(`/pharmacy/inventory/${medicineId}`, {
     method: "PATCH",
@@ -481,6 +561,11 @@ export async function getPharmacyOrders(
     limit?: number;
   },
 ) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   // No backend orders endpoint — return empty
   return null;
 }
@@ -498,6 +583,11 @@ export async function createPharmacyOrder(
     notes?: string;
   },
 ) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   // No backend orders endpoint
   return null;
 }
@@ -516,6 +606,11 @@ export async function getPharmacySales(
     limit?: number;
   },
 ) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   // No backend sales endpoint
   return null;
 }
@@ -527,6 +622,11 @@ export async function getPharmacyStats(
   clinicId: string,
   period?: "day" | "week" | "month" | "year",
 ) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   // Backend: GET /pharmacy/stats (clinic-scoped via guard)
   const params = period ? `?period=${period}` : "";
   const { data } = await authenticatedApi(`/pharmacy/stats${params}`, {
@@ -548,6 +648,11 @@ export async function searchMedicines(
     limit?: number;
   },
 ) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams({ q: query });
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
@@ -571,6 +676,11 @@ export async function searchMedicines(
  * Get medicine categories
  */
 export async function getMedicineCategories() {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.PHARMACY.CATEGORIES);
   return data;
 }
@@ -579,6 +689,11 @@ export async function getMedicineCategories() {
  * Get suppliers
  */
 export async function getSuppliers() {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.PHARMACY.SUPPLIERS);
   return data;
 }
@@ -595,6 +710,11 @@ export async function exportPharmacyData(
     endDate?: string;
   },
 ) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   // No backend export endpoint
   return null;
 }

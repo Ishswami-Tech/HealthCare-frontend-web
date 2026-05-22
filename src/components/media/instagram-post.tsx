@@ -1,7 +1,7 @@
 "use client";
 import { nowIso } from '@/lib/utils/date-time';
 
-import { useState, useEffect } from "react";
+import { useEffect, useReducer } from "react";
 import {
   Instagram,
   Heart,
@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateInIST } from "@/lib/utils/date-time";
+import { extractInstagramPostId } from "@/components/media/instagram-post-utils";
 
 interface InstagramPostProps {
   postUrl: string;
@@ -33,22 +34,50 @@ interface InstagramPostData {
   comments_count?: number;
 }
 
-// Helper function to extract Instagram post ID from URL
-export function extractInstagramPostId(url: string): string | null {
-  const patterns = [
-    /instagram\.com\/p\/([A-Za-z0-9_-]+)/,
-    /instagram\.com\/reel\/([A-Za-z0-9_-]+)/,
-    /instagr\.am\/p\/([A-Za-z0-9_-]+)/,
-  ];
+interface InstagramPostState {
+  postData: InstagramPostData | null;
+  isLoading: boolean;
+  hasError: boolean;
+  showFullCaption: boolean;
+}
 
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match && match[1]) {
-      return match[1];
-    }
+type InstagramPostAction =
+  | { type: "LOAD_START" }
+  | { type: "LOAD_SUCCESS"; postData: InstagramPostData }
+  | { type: "LOAD_ERROR" }
+  | { type: "TOGGLE_CAPTION" };
+
+function instagramPostReducer(
+  state: InstagramPostState,
+  action: InstagramPostAction
+): InstagramPostState {
+  switch (action.type) {
+    case "LOAD_START":
+      return {
+        ...state,
+        isLoading: true,
+        hasError: false,
+      };
+    case "LOAD_SUCCESS":
+      return {
+        ...state,
+        postData: action.postData,
+        isLoading: false,
+      };
+    case "LOAD_ERROR":
+      return {
+        ...state,
+        hasError: true,
+        isLoading: false,
+      };
+    case "TOGGLE_CAPTION":
+      return {
+        ...state,
+        showFullCaption: !state.showFullCaption,
+      };
+    default:
+      return state;
   }
-
-  return null;
 }
 
 export function InstagramPost({
@@ -58,10 +87,13 @@ export function InstagramPost({
   maxCaptionLength = 150,
   aspectRatio = "square",
 }: InstagramPostProps) {
-  const [postData, setPostData] = useState<InstagramPostData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
-  const [showFullCaption, setShowFullCaption] = useState(false);
+  const [state, dispatch] = useReducer(instagramPostReducer, {
+    postData: null,
+    isLoading: true,
+    hasError: false,
+    showFullCaption: false,
+  });
+  const { postData, isLoading, hasError, showFullCaption } = state;
 
   const postId = extractInstagramPostId(postUrl);
 
@@ -73,14 +105,16 @@ export function InstagramPost({
 
   // Mock data for demonstration (in real app, you'd fetch from Instagram API)
   useEffect(() => {
-    const fetchPostData = async () => {
-      setIsLoading(true);
-      setHasError(false);
+    let isActive = true;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
-      try {
-        // Simulate API call delay
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+    const fetchPostData = () => {
+      dispatch({ type: "LOAD_START" });
 
+      timeoutId = setTimeout(() => {
+        if (!isActive) {
+          return;
+        }
         // Mock Instagram post data
         const mockData: InstagramPostData = {
           id: postId || "mock-id",
@@ -96,21 +130,22 @@ export function InstagramPost({
           comments_count: 23,
         };
 
-        setPostData(mockData);
-      } catch (error) {
-        console.error("Failed to fetch Instagram post:", error);
-        setHasError(true);
-      } finally {
-        setIsLoading(false);
-      }
+        dispatch({ type: "LOAD_SUCCESS", postData: mockData });
+      }, 1000);
     };
 
     if (postId) {
       fetchPostData();
     } else {
-      setHasError(true);
-      setIsLoading(false);
+      dispatch({ type: "LOAD_ERROR" });
     }
+
+    return () => {
+      isActive = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [postId, postUrl]);
 
   const truncatedCaption =
@@ -136,12 +171,12 @@ export function InstagramPost({
             aspectRatioClasses[aspectRatio]
           )}
         />
-        <div className="p-4 space-y-3">
+        <div className="p-4 gap-y-3">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse" />
+            <div className="size-8 bg-gray-200 rounded-full animate-pulse" />
             <div className="h-4 bg-gray-200 rounded animate-pulse flex-1" />
           </div>
-          <div className="space-y-2">
+          <div className="gap-y-2">
             <div className="h-3 bg-gray-200 rounded animate-pulse" />
             <div className="h-3 bg-gray-200 rounded animate-pulse w-3/4" />
           </div>
@@ -165,7 +200,7 @@ export function InstagramPost({
           )}
         >
           <div className="text-center">
-            <Instagram className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+            <Instagram className="size-12 text-gray-400 mx-auto mb-2" />
             <p className="text-gray-600 font-medium">Post unavailable</p>
             <p className="text-gray-500 text-sm mt-1">
               Unable to load Instagram post
@@ -186,9 +221,9 @@ export function InstagramPost({
       {/* Post Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-100">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 rounded-full p-0.5">
+          <div className="size-8 bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 rounded-full p-0.5">
             <div className="w-full h-full bg-white rounded-full flex items-center justify-center">
-              <Instagram className="w-4 h-4 text-gray-600" />
+              <Instagram className="size-4 text-gray-600" />
             </div>
           </div>
           <div>
@@ -205,7 +240,7 @@ export function InstagramPost({
           className="p-1 hover:bg-gray-100 rounded-full transition-colors"
           aria-label="Open on Instagram"
         >
-          <ExternalLink className="w-4 h-4 text-gray-600" />
+          <ExternalLink className="size-4 text-gray-600" />
         </button>
       </div>
 
@@ -219,8 +254,8 @@ export function InstagramPost({
         />
         {postData.media_type === "VIDEO" && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="bg-black bg-opacity-50 rounded-full p-3">
-              <Instagram className="w-6 h-6 text-white" />
+            <div className="bg-gray-950/50 rounded-full p-3">
+              <Instagram className="size-6 text-white" />
             </div>
           </div>
         )}
@@ -234,26 +269,26 @@ export function InstagramPost({
               className="hover:text-red-500 transition-colors"
               aria-label="Like"
             >
-              <Heart className="w-6 h-6" />
+              <Heart className="size-6" />
             </button>
             <button
               className="hover:text-blue-500 transition-colors"
               aria-label="Comment"
             >
-              <MessageCircle className="w-6 h-6" />
+              <MessageCircle className="size-6" />
             </button>
             <button
               className="hover:text-green-500 transition-colors"
               aria-label="Share"
             >
-              <Share className="w-6 h-6" />
+              <Share className="size-6" />
             </button>
           </div>
           <button
             className="hover:text-gray-700 transition-colors"
             aria-label="Save"
           >
-            <Bookmark className="w-6 h-6" />
+            <Bookmark className="size-6" />
           </button>
         </div>
 
@@ -278,7 +313,7 @@ export function InstagramPost({
             </p>
             {postData.caption.length > maxCaptionLength && (
               <button
-                onClick={() => setShowFullCaption(!showFullCaption)}
+                onClick={() => dispatch({ type: "TOGGLE_CAPTION" })}
                 className="text-gray-500 hover:text-gray-700 mt-1"
               >
                 {showFullCaption ? "Show less" : "Show more"}
@@ -293,7 +328,7 @@ export function InstagramPost({
           className="mt-3 text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1"
         >
           View on Instagram
-          <ExternalLink className="w-3 h-3" />
+          <ExternalLink className="size-3" />
         </button>
       </div>
     </div>
@@ -331,7 +366,7 @@ export function InstagramGrid({
   if (!posts || posts.length === 0) {
     return (
       <div className={cn("text-center py-12", className)}>
-        <Instagram className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+        <Instagram className="size-12 text-gray-400 mx-auto mb-4" />
         <p className="text-gray-600">No Instagram posts available</p>
       </div>
     );
@@ -350,3 +385,4 @@ export function InstagramGrid({
     </div>
   );
 }
+

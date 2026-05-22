@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Role } from "@/types/auth.types";
 import { Permission } from "@/types/rbac.types";
@@ -96,10 +96,7 @@ function BillingPageContent() {
   const subscriptions = isPatientRole ? userSubscriptions : [];
   const invoices = usesClinicBillingData ? clinicInvoices : userInvoices;
   const payments = usesClinicBillingData ? clinicPayments : userPayments;
-  const plans = useMemo(
-    () => (clinicPlans.length > 0 ? clinicPlans : fallbackPlans),
-    [clinicPlans, fallbackPlans]
-  );
+  const plans = clinicPlans.length > 0 ? clinicPlans : fallbackPlans;
   const plansPending = clinicId ? clinicPlansPending : fallbackPlansPending;
 
   const isPending =

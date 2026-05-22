@@ -35,7 +35,7 @@ export function DashboardMetricCard({
         className
       )}
     >
-      <CardHeader className={cn("flex flex-row items-center justify-between space-y-0 px-2.5 pb-0.5", compact ? "pt-2" : "pt-3")}>
+      <CardHeader className={cn("flex flex-row items-center justify-between gap-y-0 px-2.5 pb-0.5", compact ? "pt-2" : "pt-3")}>
         <CardTitle className={cn("text-[10px] font-medium uppercase tracking-wide text-muted-foreground", labelClassName)}>
           {label}
         </CardTitle>
@@ -48,3 +48,4 @@ export function DashboardMetricCard({
     </Card>
   );
 }
+

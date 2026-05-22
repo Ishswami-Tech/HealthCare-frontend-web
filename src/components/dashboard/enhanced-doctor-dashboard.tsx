@@ -14,6 +14,7 @@ import { useMyAppointments } from "@/hooks/query/useAppointments";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { formatDateInIST } from "@/lib/utils/date-time";
+import { useCurrentDate } from "@/hooks/utils/useClientDate";
 import {
   Calendar,
   Users,
@@ -44,7 +45,7 @@ export default function EnhancedDoctorDashboard() {
   const { data: appointments } = useMyAppointments();
 
   const allAppointments: any[] = appointments?.appointments || [];
-  const todayStr = new Date().toDateString();
+  const todayStr = useCurrentDate();
 
   // Stats derived entirely from real data
   const stats = {
@@ -129,30 +130,30 @@ export default function EnhancedDoctorDashboard() {
           <div className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-40">
             <div className="px-6 py-4">
               <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-teal-600 bg-clip-text text-transparent">
+                <div className="gap-y-1">
+                  <h1 className="text-3xl font-semibold bg-gradient-to-r from-blue-600 via-purple-600 to-teal-600 bg-clip-text text-transparent">
                     Good morning, Dr. {user?.firstName || "Doctor"}
                   </h1>
-                  <p className="text-sm text-muted-foreground">
-                    {formatDateInIST(new Date(), {
+                  <p className="text-sm text-muted-foreground" suppressHydrationWarning>
+                    {todayStr ? formatDateInIST(new Date(todayStr), {
                       weekday: "long",
                       year: "numeric",
                       month: "long",
                       day: "numeric",
-                    })} • {clinicId ? "Ayurveda Wellness Center" : "Healthcare Clinic"}
+                    }) : "Loading..."} • {clinicId ? "Ayurveda Wellness Center" : "Healthcare Clinic"}
                   </p>
                 </div>
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center gap-x-3">
                   <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+                    <div className="size-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
                     Online
                   </Badge>
                   <Button variant="outline" size="sm" className="gap-2">
-                    <Bell className="h-4 w-4" />
+                    <Bell className="size-4" />
                     {stats.urgentTasks}
                   </Button>
                   <Button variant="outline" size="sm" className="gap-2">
-                    <MessageSquare className="h-4 w-4" />
+                    <MessageSquare className="size-4" />
                     Messages
                   </Button>
                 </div>
@@ -160,7 +161,7 @@ export default function EnhancedDoctorDashboard() {
 
               {/* Quick Stats Bar */}
               <div className="flex items-center justify-between mt-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border">
-                <div className="flex items-center space-x-6">
+                <div className="flex items-center gap-x-6">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-blue-600">{stats.nextAppointment}</div>
                     <div className="text-xs text-muted-foreground">Next Patient</div>
@@ -176,13 +177,13 @@ export default function EnhancedDoctorDashboard() {
                     <div className="text-xs text-muted-foreground">Waiting</div>
                   </div>
                 </div>
-                <div className="flex space-x-2">
+                <div className="flex gap-x-2">
                   <Button size="sm" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                    <Video className="h-4 w-4 mr-2" />
+                    <Video className="size-4 mr-2" />
                     Start Video Call
                   </Button>
                   <Button variant="outline" size="sm" className="gap-2">
-                    <Settings className="h-4 w-4" />
+                    <Settings className="size-4" />
                   </Button>
                 </div>
               </div>
@@ -190,7 +191,7 @@ export default function EnhancedDoctorDashboard() {
           </div>
 
           {/* Main Content */}
-          <div className="p-6 space-y-6">
+          <div className="p-6 gap-y-6">
             {/* Urgent Notifications */}
             {urgentNotifications.length > 0 && (
               <div className="grid gap-3">
@@ -205,8 +206,8 @@ export default function EnhancedDoctorDashboard() {
                   >
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <AlertCircle className={`h-5 w-5 ${
+                        <div className="flex items-center gap-x-3">
+                          <AlertCircle className={`size-5 ${
                             notification.type === "critical" ? "text-red-500" : "text-amber-500"
                           }`} />
                           <div>
@@ -232,7 +233,7 @@ export default function EnhancedDoctorDashboard() {
               <Card className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5" />
+                    <Calendar className="size-5" />
                     Today's Appointments
                   </CardTitle>
                 </CardHeader>
@@ -244,7 +245,7 @@ export default function EnhancedDoctorDashboard() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5" />
+                    <Users className="size-5" />
                     Total Patients
                   </CardTitle>
                 </CardHeader>
@@ -256,7 +257,7 @@ export default function EnhancedDoctorDashboard() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Star className="h-5 w-5" />
+                    <Star className="size-5" />
                     Satisfaction Score
                   </CardTitle>
                 </CardHeader>
@@ -268,7 +269,7 @@ export default function EnhancedDoctorDashboard() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Clock className="h-5 w-5" />
+                    <Clock className="size-5" />
                     Avg Consultation
                   </CardTitle>
                 </CardHeader>
@@ -286,7 +287,7 @@ export default function EnhancedDoctorDashboard() {
                     <div className="flex items-center justify-between">
                       <div>
                         <CardTitle className="flex items-center gap-2">
-                          <Stethoscope className="h-5 w-5 text-blue-600" />
+                          <Stethoscope className="size-5 text-blue-600" />
                           Today's Patient Queue
                         </CardTitle>
                         <p className="text-sm text-muted-foreground mt-1">
@@ -294,12 +295,12 @@ export default function EnhancedDoctorDashboard() {
                         </p>
                       </div>
                       <Button variant="outline" size="sm" className="gap-2">
-                        <Eye className="h-4 w-4" />
+                        <Eye className="size-4" />
                         View All
                       </Button>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-3">
+                  <CardContent className="gap-y-3">
                     {todaysQueue.map((patient) => (
                       <div
                         key={patient.id}
@@ -310,11 +311,11 @@ export default function EnhancedDoctorDashboard() {
                         }`}
                       >
                         <div className="flex items-start justify-between">
-                          <div className="flex items-start space-x-4">
-                            <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
-                              <User className="h-6 w-6 text-blue-600" />
+                          <div className="flex items-start gap-x-4">
+                            <div className="size-12 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
+                              <User className="size-6 text-blue-600" />
                             </div>
-                            <div className="space-y-1 flex-1">
+                            <div className="gap-y-1 flex-1">
                               <div className="flex items-center gap-2">
                                 <h4 className="font-semibold text-gray-900">{patient.patientName}</h4>
                                 {patient.priority === "critical" && (
@@ -326,7 +327,7 @@ export default function EnhancedDoctorDashboard() {
                               </div>
                               <div className="flex items-center gap-4 text-sm text-muted-foreground">
                                 <span className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
+                                  <Clock className="size-3" />
                                   {patient.time} • {patient.duration}
                                 </span>
                                 <span>{patient.type}</span>
@@ -357,7 +358,7 @@ export default function EnhancedDoctorDashboard() {
                             
                             {patient.status === "waiting" && (
                               <Button size="sm" className="gap-1">
-                                <Play className="h-3 w-3" />
+                                <Play className="size-3" />
                                 Start
                               </Button>
                             )}
@@ -365,10 +366,10 @@ export default function EnhancedDoctorDashboard() {
                             {patient.status === "in-progress" && (
                               <div className="flex gap-1">
                                 <Button size="sm" variant="outline" className="gap-1">
-                                  <Video className="h-3 w-3" />
+                                  <Video className="size-3" />
                                 </Button>
                                 <Button size="sm" className="gap-1">
-                                  <CheckCircle className="h-3 w-3" />
+                                  <CheckCircle className="size-3" />
                                   Complete
                                 </Button>
                               </div>
@@ -389,17 +390,17 @@ export default function EnhancedDoctorDashboard() {
               </div>
 
               {/* Right Sidebar */}
-              <div className="space-y-6">
+              <div className="gap-y-6">
                 {/* Today's Progress */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <TrendingUp className="h-5 w-5 text-green-600" />
+                      <TrendingUp className="size-5 text-green-600" />
                       Today's Progress
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
+                  <CardContent className="gap-y-4">
+                    <div className="gap-y-2">
                       <div className="flex justify-between text-sm">
                         <span>Appointments</span>
                         <span className="font-medium">{stats.completedToday} / {stats.todayAppointments}</span>
@@ -429,19 +430,19 @@ export default function EnhancedDoctorDashboard() {
                   </CardHeader>
                   <CardContent className="grid grid-cols-2 gap-3">
                     <Button variant="outline" size="sm" className="h-auto p-3 flex flex-col items-center gap-2">
-                      <FileText className="h-5 w-5 text-blue-600" />
+                      <FileText className="size-5 text-blue-600" />
                       <span className="text-xs">Write Prescription</span>
                     </Button>
                     <Button variant="outline" size="sm" className="h-auto p-3 flex flex-col items-center gap-2">
-                      <Video className="h-5 w-5 text-green-600" />
+                      <Video className="size-5 text-green-600" />
                       <span className="text-xs">Video Call</span>
                     </Button>
                     <Button variant="outline" size="sm" className="h-auto p-3 flex flex-col items-center gap-2">
-                      <Brain className="h-5 w-5 text-purple-600" />
+                      <Brain className="size-5 text-purple-600" />
                       <span className="text-xs">AI Diagnosis</span>
                     </Button>
                     <Button variant="outline" size="sm" className="h-auto p-3 flex flex-col items-center gap-2">
-                      <Heart className="h-5 w-5 text-red-600" />
+                      <Heart className="size-5 text-red-600" />
                       <span className="text-xs">Health Monitor</span>
                     </Button>
                   </CardContent>
@@ -472,3 +473,5 @@ const User = ({ className, ...props }: React.SVGProps<SVGSVGElement>) => (
     <circle cx="12" cy="7" r="4" />
   </svg>
 );
+
+

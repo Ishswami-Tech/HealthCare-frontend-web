@@ -1,8 +1,9 @@
-'use server';
+﻿'use server';
 
 import { HealthcareErrorsService } from '@/lib/config/config';
 import type { Prescription } from '@/types/medical-records.types';
 import { clinicApiClient as api } from '@/lib/api/client';
+import { getServerSession } from './auth.server';
 
 /**
  * Get all prescriptions for the current doctor/clinic
@@ -20,6 +21,11 @@ export async function getPrescriptions(
   }
 ): Promise<{ prescriptions: Prescription[] }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const params = new URLSearchParams();
     if (doctorId) params.append('doctorId', doctorId);
     if (filters?.status) params.append('status', filters.status);
@@ -64,6 +70,11 @@ export async function getPrescriptionsByPatientId(
   }
 ): Promise<{ prescriptions: Prescription[] }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const params = new URLSearchParams();
     if (doctorId) params.append('doctorId', doctorId);
     if (filters?.status) params.append('status', filters.status);
@@ -98,6 +109,11 @@ export async function createPrescription(
   prescriptionData: Prescription
 ): Promise<{ prescription: Prescription }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const response = await api.post<unknown>(
       '/pharmacy/prescriptions',
       prescriptionData
@@ -126,6 +142,11 @@ export async function updatePrescription(
   updates: Partial<Prescription>
 ): Promise<{ prescription: Prescription }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const response = await api.patch<unknown>(
       `/pharmacy/prescriptions/${prescriptionId}/status`,
       updates
@@ -151,6 +172,11 @@ export async function updatePrescription(
  */
 export async function deletePrescription(prescriptionId: string): Promise<void> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const response = await api.patch<unknown>(
       `/pharmacy/prescriptions/${prescriptionId}/status`,
       { status: 'CANCELLED' }

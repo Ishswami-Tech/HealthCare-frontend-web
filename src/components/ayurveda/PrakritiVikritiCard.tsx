@@ -3,7 +3,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useTranslation } from "@/lib/i18n/context";
-// import { Progress } from "@/components/ui/progress"; // TODO: Add Progress component to shadcn/ui
 import { cn } from "@/lib/utils";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import {
@@ -16,6 +15,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { DoshaData } from "./DoshaChart";
+import DoshaComparison from "./DoshaComparison";
 
 export interface PrakritiVikritiData {
   prakriti: DoshaData; // Natural constitution
@@ -37,14 +37,31 @@ const DOSHA_COLORS = {
   kapha: "#10B981",
 };
 
+// Helper functions defined at module scope (not inside component)
+function calculateDifference(doshaKey: keyof DoshaData, vikriti: DoshaData, prakriti: DoshaData) {
+  return vikriti[doshaKey] - prakriti[doshaKey];
+}
+
+function getDifferenceIcon(difference: number) {
+  if (difference > 10) return <TrendingUp className="size-4 text-red-500" />;
+  if (difference < -10) return <TrendingDown className="size-4 text-blue-500" />;
+  return <Minus className="size-4 text-gray-500" />;
+}
+
+function getDifferenceColor(difference: number) {
+  if (Math.abs(difference) > 15) return "text-red-600";
+  if (Math.abs(difference) > 10) return "text-orange-600";
+  if (Math.abs(difference) > 5) return "text-yellow-600";
+  return "text-green-600";
+}
+
 export default function PrakritiVikritiCard({
   data,
   showRecommendations = true,
   className,
 }: PrakritiVikritiCardProps) {
   const { t } = useTranslation();
-  const { prakriti, vikriti, patientName, assessmentDate, recommendations } =
-    data;
+  const { prakriti, vikriti, patientName, assessmentDate, recommendations } = data;
 
   const DOSHA_NAMES = {
     vata: t("doshas.vata"),
@@ -53,23 +70,7 @@ export default function PrakritiVikritiCard({
   };
 
   // Calculate differences between Prakriti and Vikriti
-  const getDifference = (doshaKey: keyof DoshaData) => {
-    return vikriti[doshaKey] - prakriti[doshaKey];
-  };
-
-  const getDifferenceIcon = (difference: number) => {
-    if (difference > 10) return <TrendingUp className="w-4 h-4 text-red-500" />;
-    if (difference < -10)
-      return <TrendingDown className="w-4 h-4 text-blue-500" />;
-    return <Minus className="w-4 h-4 text-gray-500" />;
-  };
-
-  const getDifferenceColor = (difference: number) => {
-    if (Math.abs(difference) > 15) return "text-red-600";
-    if (Math.abs(difference) > 10) return "text-orange-600";
-    if (Math.abs(difference) > 5) return "text-yellow-600";
-    return "text-green-600";
-  };
+  const getDifference = (doshaKey: keyof DoshaData) => calculateDifference(doshaKey, vikriti, prakriti);
 
   const getBalanceStatus = () => {
     const totalDifference =
@@ -95,81 +96,20 @@ export default function PrakritiVikritiCard({
   const balanceStatus = getBalanceStatus();
   const BalanceIcon = balanceStatus.icon;
 
-  const DoshaComparison = ({ doshaKey }: { doshaKey: keyof DoshaData }) => {
-    const prakritValue = prakriti[doshaKey];
-    const vikritValue = vikriti[doshaKey];
-    const difference = getDifference(doshaKey);
-    const doshaName = DOSHA_NAMES[doshaKey];
-    const color = DOSHA_COLORS[doshaKey];
-
-    return (
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h4 className="font-medium flex items-center gap-2">
-            <div
-              className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: color }}
-            />
-            {doshaName}
-          </h4>
-          <div className="flex items-center gap-2">
-            {getDifferenceIcon(difference)}
-            <span
-              className={cn(
-                "text-sm font-medium",
-                getDifferenceColor(difference)
-              )}
-            >
-              {difference > 0 ? "+" : ""}
-              {difference}%
-            </span>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">{t("prakritiVikriti.prakritNatural")}</span>
-            <span className="font-medium">{prakritValue}%</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div
-              className="h-2 rounded-full transition-all duration-300"
-              style={{
-                width: `${prakritValue}%`,
-                backgroundColor: color,
-              }}
-            />
-          </div>
-
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">{t("prakritiVikriti.vikritiCurrent")}</span>
-            <span className="font-medium">{vikritValue}%</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div
-              className="h-2 rounded-full transition-all duration-300"
-              style={{
-                width: `${vikritValue}%`,
-                backgroundColor: color,
-              }}
-            />
-          </div>
-        </div>
-      </div>
-    );
-  };
+  // Translation helper for DoshaComparison
+  const translate = (key: string) => t(key);
 
   return (
     <Card className={className}>
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
-            <User className="w-5 h-5" />
+            <User className="size-5" />
             {t("prakritiVikriti.title")}
             {patientName && <Badge variant="outline">{patientName}</Badge>}
           </CardTitle>
           <div className="flex items-center gap-2">
-            <BalanceIcon className={cn("w-4 h-4", balanceStatus.color)} />
+            <BalanceIcon className={cn("size-4", balanceStatus.color)} />
             <span
               className={cn(
                 "text-sm font-medium capitalize",
@@ -187,26 +127,56 @@ export default function PrakritiVikritiCard({
         )}
       </CardHeader>
 
-      <CardContent className="space-y-6">
+      <CardContent className="gap-y-6">
         {/* Constitution Comparison */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-4">
+          <div className="gap-y-4">
             <h3 className="font-semibold text-lg flex items-center gap-2">
-              <Activity className="w-4 h-4 text-blue-600" />
+              <Activity className="size-4 text-blue-600" />
               {t("prakritiVikriti.constitutionAnalysis")}
             </h3>
-            <div className="space-y-4">
-              <DoshaComparison doshaKey="vata" />
-              <DoshaComparison doshaKey="pitta" />
-              <DoshaComparison doshaKey="kapha" />
+            <div className="gap-y-4">
+              <DoshaComparison
+                doshaKey="vata"
+                prakriti={prakriti}
+                vikriti={vikriti}
+                getDifference={getDifference}
+                getDifferenceIcon={getDifferenceIcon}
+                getDifferenceColor={getDifferenceColor}
+                DOSHA_NAMES={DOSHA_NAMES}
+                DOSHA_COLORS={DOSHA_COLORS}
+                translation={translate}
+              />
+              <DoshaComparison
+                doshaKey="pitta"
+                prakriti={prakriti}
+                vikriti={vikriti}
+                getDifference={getDifference}
+                getDifferenceIcon={getDifferenceIcon}
+                getDifferenceColor={getDifferenceColor}
+                DOSHA_NAMES={DOSHA_NAMES}
+                DOSHA_COLORS={DOSHA_COLORS}
+                translation={translate}
+              />
+              <DoshaComparison
+                doshaKey="kapha"
+                prakriti={prakriti}
+                vikriti={vikriti}
+                getDifference={getDifference}
+                getDifferenceIcon={getDifferenceIcon}
+                getDifferenceColor={getDifferenceColor}
+                DOSHA_NAMES={DOSHA_NAMES}
+                DOSHA_COLORS={DOSHA_COLORS}
+                translation={translate}
+              />
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="gap-y-4">
             <h3 className="font-semibold text-lg">{t("prakritiVikriti.balanceOverview")}</h3>
-            <div className="p-4 bg-gray-50 rounded-lg space-y-3">
+            <div className="p-4 bg-gray-50 rounded-lg gap-y-3">
               <div className="flex items-center gap-2">
-                <BalanceIcon className={cn("w-5 h-5", balanceStatus.color)} />
+                <BalanceIcon className={cn("size-5", balanceStatus.color)} />
                 <span
                   className={cn("font-medium capitalize", balanceStatus.color)}
                 >
@@ -214,7 +184,7 @@ export default function PrakritiVikritiCard({
                 </span>
               </div>
 
-              <div className="text-sm text-gray-600 space-y-2">
+              <div className="text-sm text-gray-600 gap-y-2">
                 <p>
                   <strong>{t("prakritiVikriti.prakriti")}</strong> {t("prakritiVikriti.prakritDescription")}
                 </p>
@@ -224,9 +194,9 @@ export default function PrakritiVikritiCard({
               </div>
 
               {/* Key Imbalances */}
-              <div className="space-y-2">
+              <div className="gap-y-2">
                 <h4 className="font-medium text-sm">{t("prakritiVikriti.keyObservations")}:</h4>
-                <div className="space-y-1">
+                <div className="gap-y-1">
                   {(["vata", "pitta", "kapha"] as const).map((dosha) => {
                     const diff = getDifference(dosha);
                     if (Math.abs(diff) > 10) {
@@ -236,7 +206,7 @@ export default function PrakritiVikritiCard({
                           className="flex items-center gap-2 text-xs"
                         >
                           <div
-                            className="w-2 h-2 rounded-full"
+                            className="size-2 rounded-full"
                             style={{ backgroundColor: DOSHA_COLORS[dosha] }}
                           />
                           <span className="capitalize">{dosha}</span>
@@ -259,13 +229,13 @@ export default function PrakritiVikritiCard({
         {showRecommendations &&
           recommendations &&
           recommendations.length > 0 && (
-            <div className="space-y-3">
+            <div className="gap-y-3">
               <h3 className="font-semibold text-lg">{t("prakritiVikriti.recommendations")}</h3>
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <ul className="space-y-2">
-                  {recommendations.map((recommendation, index) => (
-                    <li key={index} className="flex items-start gap-2 text-sm">
-                      <CheckCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                <ul className="gap-y-2">
+                  {recommendations.map((recommendation) => (
+                    <li key={recommendation} className="flex items-start gap-2 text-sm">
+                      <CheckCircle className="size-4 text-blue-600 mt-0.5 flex-shrink-0" />
                       <span>{recommendation}</span>
                     </li>
                   ))}

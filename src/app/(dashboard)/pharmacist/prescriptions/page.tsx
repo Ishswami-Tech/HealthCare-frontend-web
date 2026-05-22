@@ -649,7 +649,7 @@ export default function PharmacistPrescriptionsPage() {
           const StateIcon = state.icon;
           return (
             <Badge className={`${state.badgeClass} flex items-center gap-1`}>
-              <StateIcon className="w-3.5 h-3.5" />
+              <StateIcon className="size-3.5" />
               {state.label}
             </Badge>
           );
@@ -701,7 +701,7 @@ export default function PharmacistPrescriptionsPage() {
                 !row.original.canDispense || dispensePrescription.isPending
               }
             >
-              <Package className="mr-2 h-4 w-4" />
+              <Package className="mr-2 size-4" />
               Review Dispense
             </Button>
           </div>
@@ -753,7 +753,7 @@ export default function PharmacistPrescriptionsPage() {
           const StateIcon = state.icon;
           return (
             <Badge className={`${state.badgeClass} flex items-center gap-1`}>
-              <StateIcon className="w-3.5 h-3.5" />
+              <StateIcon className="size-3.5" />
               {state.label}
             </Badge>
           );
@@ -923,7 +923,7 @@ export default function PharmacistPrescriptionsPage() {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
         <div className="text-center">
-          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-b-2 border-blue-600" />
+          <div className="mx-auto size-10 animate-spin rounded-full border-b-2 border-blue-600" />
           <p className="mt-3 text-sm text-gray-600">Loading prescriptions...</p>
         </div>
       </div>
@@ -931,9 +931,9 @@ export default function PharmacistPrescriptionsPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="gap-y-6 p-6">
       <div>
-        <h1 className="text-3xl font-bold">Prescription Management</h1>
+        <h1 className="text-3xl font-semibold">Prescription Management</h1>
         <p className="text-gray-600">
           Payment-gated medicine handover for active clinic prescriptions
         </p>
@@ -943,7 +943,7 @@ export default function PharmacistPrescriptionsPage() {
         <CardContent className="p-4">
           <div className="flex flex-col gap-3 lg:flex-row">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
               <Input
                 placeholder="Search prescriptions, patients, doctors, medicines..."
                 value={searchTerm}
@@ -967,14 +967,14 @@ export default function PharmacistPrescriptionsPage() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="active" className="space-y-6">
+      <Tabs defaultValue="active" className="gap-y-6">
         <TabsList>
           <TabsTrigger value="active">Active</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
           <TabsTrigger value="audit">Batch audit</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="active" className="space-y-4">
+        <TabsContent value="active" className="gap-y-4">
           {activePrescriptions.length > 0 ? (
             <Card>
               <CardContent className="p-4">
@@ -989,7 +989,7 @@ export default function PharmacistPrescriptionsPage() {
           ) : (
             <Card>
               <CardContent className="flex flex-col items-center justify-center gap-3 p-10 text-center">
-                <Pill className="h-10 w-10 text-gray-400" />
+                <Pill className="size-10 text-gray-400" />
                 <div>
                   <h3 className="text-lg font-semibold">
                     No active prescriptions
@@ -1004,7 +1004,7 @@ export default function PharmacistPrescriptionsPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="history" className="space-y-4">
+        <TabsContent value="history" className="gap-y-4">
           {historyPrescriptions.length > 0 ? (
             <Card>
               <CardContent className="p-4">
@@ -1019,7 +1019,7 @@ export default function PharmacistPrescriptionsPage() {
           ) : (
             <Card>
               <CardContent className="flex flex-col items-center justify-center gap-3 p-10 text-center">
-                <CheckCircle className="h-10 w-10 text-gray-400" />
+                <CheckCircle className="size-10 text-gray-400" />
                 <div>
                   <h3 className="text-lg font-semibold">No dispense history</h3>
                   <p className="text-sm text-gray-500">
@@ -1031,17 +1031,17 @@ export default function PharmacistPrescriptionsPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="audit" className="space-y-4">
+        <TabsContent value="audit" className="gap-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
+                <Clock className="size-5" />
                 Batch audit trail
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="gap-y-4">
               <div className="grid gap-3 md:grid-cols-3">
-                <div className="space-y-2">
+                <div className="gap-y-2">
                   <Label htmlFor="audit-search">Search audit</Label>
                   <Input
                     id="audit-search"
@@ -1050,7 +1050,7 @@ export default function PharmacistPrescriptionsPage() {
                     onChange={(event) => setAuditSearchTerm(event.target.value)}
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="gap-y-2">
                   <Label htmlFor="audit-start-date">Start date</Label>
                   <Input
                     id="audit-start-date"
@@ -1059,7 +1059,7 @@ export default function PharmacistPrescriptionsPage() {
                     onChange={(event) => setAuditStartDate(event.target.value)}
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="gap-y-2">
                   <Label htmlFor="audit-end-date">End date</Label>
                   <Input
                     id="audit-end-date"
@@ -1094,7 +1094,7 @@ export default function PharmacistPrescriptionsPage() {
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <Package className="h-5 w-5" />
+                  <Package className="size-5" />
                   Review dispense for prescription #{selectedPrescription.id}
                 </DialogTitle>
                 <DialogDescription>
@@ -1137,7 +1137,7 @@ export default function PharmacistPrescriptionsPage() {
                 </div>
               ) : null}
 
-              <div className="space-y-4">
+              <div className="gap-y-4">
                 {dispenseLines.map((line, medicineIndex) => {
                   const enteredQuantity = getTotalBatchQuantity(line);
                   const remainingQuantity = Math.max(
@@ -1160,7 +1160,7 @@ export default function PharmacistPrescriptionsPage() {
                       key={`${line.medicineId}-${medicineIndex}`}
                       className="border-border/70"
                     >
-                      <CardContent className="space-y-4 p-4">
+                      <CardContent className="gap-y-4 p-4">
                         <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                           <div>
                             <h3 className="text-base font-semibold">
@@ -1205,7 +1205,7 @@ export default function PharmacistPrescriptionsPage() {
                         </div>
 
                         <div className="grid gap-3 rounded-xl border bg-muted/20 p-3 md:grid-cols-2">
-                          <div className="space-y-2">
+                          <div className="gap-y-2">
                             <Label htmlFor={`substitute-${medicineIndex}`}>
                               Substitute medicine
                             </Label>
@@ -1244,7 +1244,7 @@ export default function PharmacistPrescriptionsPage() {
                                 ))}
                             </select>
                           </div>
-                          <div className="space-y-2">
+                          <div className="gap-y-2">
                             <Label
                               htmlFor={`substitution-reason-${medicineIndex}`}
                             >
@@ -1266,13 +1266,13 @@ export default function PharmacistPrescriptionsPage() {
                           </div>
                         </div>
 
-                        <div className="space-y-3">
+                        <div className="gap-y-3">
                           {line.batches.map((batch, batchIndex) => (
                             <div
                               key={batch.id}
                               className="grid gap-3 rounded-xl border bg-background p-3 md:grid-cols-[minmax(0,1.2fr)_160px_180px_140px]"
                             >
-                              <div className="space-y-2">
+                              <div className="gap-y-2">
                                 <Label
                                   htmlFor={`batch-number-${medicineIndex}-${batchIndex}`}
                                 >
@@ -1293,7 +1293,7 @@ export default function PharmacistPrescriptionsPage() {
                                 />
                               </div>
 
-                              <div className="space-y-2">
+                              <div className="gap-y-2">
                                 <Label
                                   htmlFor={`batch-quantity-${medicineIndex}-${batchIndex}`}
                                 >
@@ -1318,7 +1318,7 @@ export default function PharmacistPrescriptionsPage() {
                                 />
                               </div>
 
-                              <div className="space-y-2">
+                              <div className="gap-y-2">
                                 <Label
                                   htmlFor={`batch-expiry-${medicineIndex}-${batchIndex}`}
                                 >
@@ -1407,7 +1407,7 @@ export default function PharmacistPrescriptionsPage() {
                 })}
               </div>
 
-              <div className="space-y-2">
+              <div className="gap-y-2">
                 <Label htmlFor="dispense-notes">Pharmacist notes</Label>
                 <Textarea
                   id="dispense-notes"
@@ -1430,7 +1430,7 @@ export default function PharmacistPrescriptionsPage() {
                   onClick={handleDispense}
                   disabled={dispensePrescription.isPending}
                 >
-                  <Package className="mr-2 h-4 w-4" />
+                  <Package className="mr-2 size-4" />
                   {dispensePrescription.isPending
                     ? "Dispensing..."
                     : "Confirm dispense"}
@@ -1454,7 +1454,7 @@ export default function PharmacistPrescriptionsPage() {
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5" />
+                  <AlertTriangle className="size-5" />
                   Reverse dispense for prescription #
                   {selectedReversalPrescription.id}
                 </DialogTitle>
@@ -1481,7 +1481,7 @@ export default function PharmacistPrescriptionsPage() {
                 </div>
               ) : null}
 
-              <div className="space-y-2">
+              <div className="gap-y-2">
                 <Label htmlFor="reversal-reason">Reversal reason</Label>
                 <Textarea
                   id="reversal-reason"
@@ -1517,3 +1517,5 @@ export default function PharmacistPrescriptionsPage() {
     </div>
   );
 }
+
+

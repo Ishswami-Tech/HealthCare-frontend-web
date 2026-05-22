@@ -1,11 +1,12 @@
-// ✅ Consolidated Appointments Server Actions
+﻿// ✅ Consolidated Appointments Server Actions
 // This file is the single source of truth for appointments and doctor availability.
 
 'use server';
 
 import { revalidatePath } from 'next/cache';
 
-import { authenticatedApi, publicApi, getServerSession, getClientInfo, revalidateCache } from './auth.server';
+import { authenticatedApi, publicApi, getServerSession, getClientInfo } from './auth.server';
+import { revalidateCache } from '@/lib/utils/revalidate-cache';
 import { auditLog } from '@/lib/utils/audit';
 import { validateClinicAccess } from '@/lib/config/permissions';
 import { logger } from '@/lib/utils/logger';
@@ -399,6 +400,9 @@ export async function getAppointmentServiceCatalog(): Promise<{
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
     const { data } = await authenticatedApi<{
       services?: AppointmentServiceDefinition[];
       data?: { services?: AppointmentServiceDefinition[] };
@@ -439,6 +443,9 @@ export async function getCheckInLocations(): Promise<{
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
     const { data } = await authenticatedApi<{
       data?: unknown[];
       locations?: unknown[];
@@ -468,6 +475,9 @@ export async function getCheckInHistory(): Promise<{
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
     const { data } = await authenticatedApi<unknown>(API_ENDPOINTS.APPOINTMENTS.CHECK_IN_HISTORY, {});
     return { success: true, data };
   } catch (error) {
@@ -487,6 +497,9 @@ export async function getAppointmentReassignmentCandidates(
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
     const { data } = await authenticatedApi<{
       candidates?: AppointmentReassignmentCandidate[];
       data?: { candidates?: AppointmentReassignmentCandidate[] };
@@ -514,6 +527,9 @@ export async function getAssistantDoctorCoverage(): Promise<{
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
     const { data } = await authenticatedApi<{
       entries?: AssistantDoctorCoverageAssignment[];
       data?: { entries?: AssistantDoctorCoverageAssignment[] };
@@ -543,6 +559,9 @@ export async function updateAssistantDoctorCoverage(
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
     const { data } = await authenticatedApi<{
       entries?: AssistantDoctorCoverageAssignment[];
       data?: { entries?: AssistantDoctorCoverageAssignment[] };
@@ -736,6 +755,9 @@ export async function getMyAppointments(filters?: any) {
  */
 export async function getAppointmentById(id: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
     const { data } = await authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.GET_BY_ID(id), {
       cache: 'no-store',
     });
@@ -1005,6 +1027,9 @@ export async function scanLocationQRAndCheckIn(data: {
   coordinates?: { lat: number; lng: number };
 }) {
   try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
     const validatedData = scanQRSchema.parse(data);
     const payload = {
       qrCode: validatedData.code,
@@ -1136,6 +1161,9 @@ export async function testAppointmentContext(): Promise<{
   code?: string; 
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
     const { data } = await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.TEST_CONTEXT, {});
     return { success: true, context: data };
   } catch (error) {
@@ -1149,6 +1177,9 @@ export async function testAppointmentContext(): Promise<{
  */
 export async function bulkUpdateAppointmentStatus(appointmentIds: string[], status: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
     const normalizedStatus = status.toUpperCase();
     const results = await Promise.allSettled(
       appointmentIds.map((appointmentId) =>
@@ -1233,6 +1264,9 @@ export async function getDoctorAvailability(clinicId: string, doctorId: string, 
  */
 export async function getUserUpcomingAppointments(filters?: { clinicId?: string }) {
   try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
     const result = await getMyAppointments({
       ...(filters?.clinicId ? { clinicId: filters.clinicId } : {}),
       limit: 100,

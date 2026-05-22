@@ -35,17 +35,17 @@ export function ActiveSessionsList() {
   function getDeviceIcon(deviceInfo: string) {
     const lower = deviceInfo.toLowerCase();
     if (lower.includes('mobile') || lower.includes('android') || lower.includes('iphone')) {
-      return <Smartphone className="h-5 w-5" />;
+      return <Smartphone className="size-5" />;
     }
-    return <Monitor className="h-5 w-5" />;
+    return <Monitor className="size-5" />;
   }
 
   if (loading) {
     return (
       <Card>
         <CardContent className="py-12">
-          <div className="flex flex-col items-center justify-center space-y-4">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <div className="flex flex-col items-center justify-center gap-y-4">
+            <Loader2 className="size-8 animate-spin text-muted-foreground" />
             <p className="text-sm text-muted-foreground">Loading sessions...</p>
           </div>
         </CardContent>
@@ -56,7 +56,7 @@ export function ActiveSessionsList() {
   if (error) {
     return (
       <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
+        <AlertCircle className="size-4" />
         <AlertDescription>{error.message}</AlertDescription>
       </Alert>
     );
@@ -66,8 +66,8 @@ export function ActiveSessionsList() {
     return (
       <Card>
         <CardContent className="py-12">
-          <div className="text-center space-y-2">
-            <CheckCircle className="h-12 w-12 mx-auto text-muted-foreground" />
+          <div className="text-center gap-y-2">
+            <CheckCircle className="size-12 mx-auto text-muted-foreground" />
             <p className="text-lg font-medium">No active sessions</p>
             <p className="text-sm text-muted-foreground">
               You're not logged in on any devices
@@ -79,14 +79,14 @@ export function ActiveSessionsList() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="gap-y-4">
       {sessions.map((session) => (
         <Card key={session.id}>
           <CardHeader>
             <div className="flex items-start justify-between">
-              <div className="flex items-start space-x-4">
+              <div className="flex items-start gap-x-4">
                 <div className="mt-1">{getDeviceIcon(session.deviceInfo)}</div>
-                <div className="space-y-1">
+                <div className="gap-y-1">
                   <div className="flex items-center gap-2">
                     <CardTitle className="text-base">{session.deviceInfo}</CardTitle>
                     {session.isCurrent && (
@@ -95,7 +95,7 @@ export function ActiveSessionsList() {
                       </Badge>
                     )}
                   </div>
-                  <CardDescription>
+                  <CardDescription suppressHydrationWarning>
                     IP: {session.ipAddress} • Last active{' '}
                     {formatDistanceToNow(new Date(session.lastActivity), { addSuffix: true })}
                   </CardDescription>
@@ -110,7 +110,7 @@ export function ActiveSessionsList() {
                 >
                   {revokingId === session.id ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="mr-2 size-4 animate-spin" />
                       Revoking...
                     </>
                   ) : (
@@ -125,3 +125,5 @@ export function ActiveSessionsList() {
     </div>
   );
 }
+
+

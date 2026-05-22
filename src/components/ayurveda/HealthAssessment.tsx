@@ -132,10 +132,10 @@ const HealthAssessment = () => {
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-12">
               <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
-                <CheckCircle className="w-4 h-4 mr-2" />
+                <CheckCircle className="size-4 mr-2" />
                 {t("healthAssessment.results.assessmentComplete")}
               </Badge>
-              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
+              <h2 className="text-3xl md:text-4xl font-playfair font-semibold text-foreground mb-4">
                 {t("healthAssessment.results.title")}
               </h2>
               <p className="text-lg text-muted-foreground">
@@ -149,7 +149,7 @@ const HealthAssessment = () => {
                   📊 {t("healthAssessment.results.cardTitle")}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="gap-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <h4 className="font-semibold text-card-foreground mb-2">
@@ -194,7 +194,7 @@ const HealthAssessment = () => {
                     <h4 className="font-semibold text-card-foreground mb-2">
                       {t("healthAssessment.results.successProbability")}
                     </h4>
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center gap-x-3">
                       <div className="flex-1 bg-muted rounded-full h-2">
                         <div
                           className="bg-primary h-2 rounded-full"
@@ -258,10 +258,10 @@ const HealthAssessment = () => {
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
-              <Brain className="w-4 h-4 mr-2" />
+              <Brain className="size-4 mr-2" />
               {t("healthAssessment.main.interactiveAssessment")}
             </Badge>
-            <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
+            <h2 className="text-3xl md:text-4xl font-playfair font-semibold text-foreground mb-4">
               {t("healthAssessment.main.title")}
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
@@ -285,8 +285,8 @@ const HealthAssessment = () => {
 
           <Card className="bg-card shadow-xl border-0">
             <CardHeader>
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+              <div className="flex items-center gap-x-3 mb-4">
+                <div className="size-10 bg-primary rounded-full flex items-center justify-center">
                   <span className="text-primary-foreground font-bold">
                     {currentStep + 1}
                   </span>
@@ -305,10 +305,10 @@ const HealthAssessment = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3 mb-8">
-                {currentQuestion.options.map((option, index) => (
+              <div className="gap-y-3 mb-8">
+                {currentQuestion.options.map((option) => (
                   <Button
-                    key={index}
+                    key={option}
                     variant="outline"
                     className={`w-full justify-start text-left p-4 h-auto ${
                       answers[currentQuestion.id] === option
@@ -317,16 +317,16 @@ const HealthAssessment = () => {
                     }`}
                     onClick={() => handleAnswer(currentQuestion.id, option)}
                   >
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center gap-x-3">
                       <div
-                        className={`w-4 h-4 rounded-full border-2 ${
+                        className={`size-4 rounded-full border-2 ${
                           answers[currentQuestion.id] === option
                             ? "border-primary bg-primary"
                             : "border-border"
                         }`}
                       >
                         {answers[currentQuestion.id] === option && (
-                          <CheckCircle className="w-4 h-4 text-primary-foreground" />
+                          <CheckCircle className="size-4 text-primary-foreground" />
                         )}
                       </div>
                       <span>{option}</span>
@@ -336,8 +336,8 @@ const HealthAssessment = () => {
               </div>
 
               <div className="flex justify-between items-center">
-                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                  <Clock className="w-4 h-4" />
+                <div className="flex items-center gap-x-2 text-sm text-muted-foreground">
+                  <Clock className="size-4" />
                   <span>
                     ~{questions.length - currentStep}{" "}
                     {t("healthAssessment.main.minutesRemaining")}
@@ -352,7 +352,7 @@ const HealthAssessment = () => {
                   {currentStep === questions.length - 1
                     ? t("healthAssessment.main.getResults")
                     : t("healthAssessment.main.nextQuestion")}
-                  <ArrowRight className="w-4 h-4 ml-2" />
+                  <ArrowRight className="size-4 ml-2" />
                 </Button>
               </div>
             </CardContent>
@@ -360,20 +360,20 @@ const HealthAssessment = () => {
 
           {/* Trust Indicators */}
           <div className="flex flex-wrap justify-center gap-6 mt-12 text-sm text-muted-foreground">
-            <div className="flex items-center space-x-2">
-              <Star className="w-4 h-4 text-primary" />
+            <div className="flex items-center gap-x-2">
+              <Star className="size-4 text-primary" />
               <span>
                 {t("healthAssessment.trustIndicators.usedByPatients")}
               </span>
             </div>
-            <div className="flex items-center space-x-2">
-              <CheckCircle className="w-4 h-4 text-primary" />
+            <div className="flex items-center gap-x-2">
+              <CheckCircle className="size-4 text-primary" />
               <span>
                 {t("healthAssessment.trustIndicators.scientificallyValidated")}
               </span>
             </div>
-            <div className="flex items-center space-x-2">
-              <Target className="w-4 h-4 text-primary" />
+            <div className="flex items-center gap-x-2">
+              <Target className="size-4 text-primary" />
               <span>{t("healthAssessment.trustIndicators.accuracyRate")}</span>
             </div>
           </div>
@@ -384,3 +384,4 @@ const HealthAssessment = () => {
 };
 
 export default HealthAssessment;
+

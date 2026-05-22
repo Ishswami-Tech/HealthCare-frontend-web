@@ -95,7 +95,7 @@ export default function DoctorPatientDetailPage() {
             label: "Back to Patients",
             href: "/doctor/patients",
             variant: "outline",
-            icon: <ArrowLeft className="h-4 w-4" />,
+            icon: <ArrowLeft className="size-4" />,
           },
         ]}
       />
@@ -104,9 +104,9 @@ export default function DoctorPatientDetailPage() {
         <Card className="border-border/70 bg-card shadow-sm">
           <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
             <div className="rounded-full bg-red-100 p-3 text-red-600 dark:bg-red-950/40 dark:text-red-300">
-              <AlertCircle className="h-6 w-6" />
+              <AlertCircle className="size-6" />
             </div>
-            <div className="space-y-1">
+            <div className="gap-y-1">
               <h2 className="text-lg font-semibold text-foreground">Patient record not available</h2>
               <p className="max-w-md text-sm text-muted-foreground">
                 The backend returned an error while loading this patient. The ID may be invalid or the patient may not belong to your clinic.
@@ -140,3 +140,5 @@ export default function DoctorPatientDetailPage() {
     </DashboardPageShell>
   );
 }
+
+

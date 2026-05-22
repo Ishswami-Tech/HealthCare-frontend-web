@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -121,7 +121,7 @@ type LocationRow = {
   raw: any;
 };
 
-const FORM_FIELD_CLASS = "space-y-2";
+const FORM_FIELD_CLASS = "gap-y-2";
 const FORM_INPUT_CLASS = "h-10";
 const TIME_INPUT_CLASS =
   "h-10 w-full min-w-0 rounded-md border border-teal-200 bg-white px-3 text-sm font-medium leading-none tabular-nums shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:border-teal-400 focus-visible:ring-2 focus-visible:ring-teal-200/70 dark:border-teal-900/70 dark:bg-background [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-70 [&::-webkit-datetime-edit-fields-wrapper]:p-0 [&::-webkit-datetime-edit]:p-0 [&::-webkit-datetime-edit-hour-field]:px-0.5 [&::-webkit-datetime-edit-minute-field]:px-0.5 [&::-webkit-datetime-edit-ampm-field]:px-1";
@@ -330,7 +330,7 @@ function WorkingHoursTable({
                   {slot ? (
                     <div className="flex flex-wrap gap-2">
                       <div className="grid w-full grid-cols-1 gap-2 rounded-md border border-teal-200 bg-background p-2 dark:border-teal-900/70 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
-                        <div className="min-w-0 space-y-1">
+                        <div className="min-w-0 gap-y-1">
                           <Label className="text-[11px] font-medium leading-none text-muted-foreground">
                             Start
                           </Label>
@@ -342,7 +342,7 @@ function WorkingHoursTable({
                             aria-label={`${DAY_LABEL[day]} start time`}
                           />
                         </div>
-                        <div className="min-w-0 space-y-1">
+                        <div className="min-w-0 gap-y-1">
                           <Label className="text-[11px] font-medium leading-none text-muted-foreground">
                             End
                           </Label>
@@ -362,7 +362,7 @@ function WorkingHoursTable({
                           onClick={() => onToggleDay(target, day, false)}
                           aria-label={`Close ${DAY_LABEL[day]}`}
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="size-3.5" />
                         </Button>
                       </div>
                     </div>
@@ -381,7 +381,7 @@ function WorkingHoursTable({
                     disabled={!!slot}
                     aria-label={`Open ${DAY_LABEL[day]}`}
                   >
-                    <Plus className="h-4 w-4" />
+                    <Plus className="size-4" />
                   </Button>
                 </TableCell>
               </TableRow>
@@ -696,10 +696,10 @@ export default function ClinicLocationsPage() {
         accessorKey: "name",
         header: "Location",
         cell: ({ row }) => (
-          <div className="w-[280px] space-y-1.5">
+          <div className="w-[280px] gap-y-1.5">
             <div className="truncate font-semibold text-foreground">{displayValue(row.original.name)}</div>
             <div className="flex items-start gap-1.5 text-xs leading-5 text-muted-foreground">
-              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <MapPin className="mt-0.5 size-3.5 shrink-0" />
               <span className="line-clamp-2 whitespace-normal">{formatAddress(row.original)}</span>
             </div>
           </div>
@@ -709,13 +709,13 @@ export default function ClinicLocationsPage() {
         accessorKey: "contact",
         header: "Contact",
         cell: ({ row }) => (
-          <div className="w-[128px] space-y-1 text-xs">
+          <div className="w-[128px] gap-y-1 text-xs">
             <div className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
-              <Phone className="h-3.5 w-3.5 shrink-0" />
+              <Phone className="size-3.5 shrink-0" />
               <span className="truncate">{displayValue(row.original.phone)}</span>
             </div>
             <div className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
-              <Mail className="h-3.5 w-3.5 shrink-0" />
+              <Mail className="size-3.5 shrink-0" />
               <span className="truncate">{displayValue(row.original.email)}</span>
             </div>
           </div>
@@ -755,7 +755,7 @@ export default function ClinicLocationsPage() {
                         : "inline-flex max-w-full items-center gap-1 whitespace-nowrap rounded-md border border-muted bg-muted/50 px-2 py-1 text-[11px] leading-none text-muted-foreground"
                     }
                   >
-                    <Icon className="h-3 w-3" />
+                    <Icon className="size-3" />
                     {item.label}
                   </span>
                 );
@@ -791,10 +791,10 @@ export default function ClinicLocationsPage() {
         cell: ({ row }) => (
           <div className="flex w-[84px] items-center justify-end gap-1">
             <Button variant="ghost" size="icon-sm" onClick={() => handleEditLocation(row.original.raw)} aria-label={`Edit ${row.original.name}`}>
-              <Edit className="h-4 w-4" />
+              <Edit className="size-4" />
             </Button>
             <Button variant="ghost" size="icon-sm" onClick={() => handleDeleteLocation(row.original.id)} disabled={isDeleting} aria-label={`Delete ${row.original.name}`}>
-              <Trash2 className="h-4 w-4 text-red-600" />
+              <Trash2 className="size-4 text-red-600" />
             </Button>
           </div>
         ),
@@ -807,7 +807,7 @@ export default function ClinicLocationsPage() {
     return (
       <PatientPageShell className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
         <div className="flex min-h-[400px] items-center justify-center rounded-xl border border-border bg-card">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Loader2 className="size-8 animate-spin text-primary" />
         </div>
       </PatientPageShell>
     );
@@ -822,7 +822,7 @@ export default function ClinicLocationsPage() {
         meta={
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>{filteredLocations.length} of {locations.length} locations</span>
-            <span className="h-1 w-1 rounded-full bg-muted-foreground/50" />
+            <span className="size-1 rounded-full bg-muted-foreground/50" />
             <WebSocketStatusIndicator />
           </div>
         }
@@ -833,7 +833,7 @@ export default function ClinicLocationsPage() {
           >
             <DialogTrigger asChild>
               <Button className="h-9 rounded-lg px-4 text-sm font-semibold sm:h-10">
-                <Plus className="h-4 w-4" />
+                <Plus className="size-4" />
                 Add Location
               </Button>
             </DialogTrigger>
@@ -844,7 +844,7 @@ export default function ClinicLocationsPage() {
                       Add a new clinic location or branch office
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="space-y-5 px-4 py-5 sm:px-6">
+                  <div className="gap-y-5 px-4 py-5 sm:px-6">
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className={FORM_FIELD_CLASS}>
                         <Label htmlFor="name">Location Name *</Label>
@@ -893,7 +893,7 @@ export default function ClinicLocationsPage() {
                         rows={2}
                       />
                     </div>
-                    <div className="space-y-3 rounded-lg border border-teal-200 bg-white/80 p-3 dark:border-teal-900/70 dark:bg-background/40">
+                    <div className="gap-y-3 rounded-lg border border-teal-200 bg-white/80 p-3 dark:border-teal-900/70 dark:bg-background/40">
                       <div>
                         <Label>Google Maps Validation</Label>
                         <p className="mt-1 text-xs text-muted-foreground">
@@ -1044,7 +1044,7 @@ export default function ClinicLocationsPage() {
                         }
                       />
                     </div>
-                    <div className="space-y-3 rounded-lg border border-teal-200 bg-white/80 p-3 dark:border-teal-900/70 dark:bg-background/40">
+                    <div className="gap-y-3 rounded-lg border border-teal-200 bg-white/80 p-3 dark:border-teal-900/70 dark:bg-background/40">
                       <div>
                         <Label>Location Permissions</Label>
                         <p className="mt-1 text-xs text-muted-foreground">
@@ -1080,7 +1080,7 @@ export default function ClinicLocationsPage() {
                         />
                       </div>
                     </div>
-                    <div className="space-y-3">
+                    <div className="gap-y-3">
                       <Label>Working Hours</Label>
                       <WorkingHoursTable
                         value={newLocation.workingHours}
@@ -1103,8 +1103,8 @@ export default function ClinicLocationsPage() {
                     >
                       {createLocationMutation.isPending ? (
                         <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Creating...
+                          <Loader2 className="size-4 mr-2 animate-spin" />
+                          Creating…
                         </>
                       ) : (
                         "Create Location"
@@ -1118,7 +1118,7 @@ export default function ClinicLocationsPage() {
 
           <div className={TOOLBAR_CARD_CLASS}>
             <div className="relative w-full max-w-md">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search locations..."
                 value={searchTerm}
@@ -1154,7 +1154,7 @@ export default function ClinicLocationsPage() {
                 </DialogDescription>
               </DialogHeader>
               {selectedLocation && (
-                <div className="space-y-5 px-4 py-5 sm:px-6">
+                <div className="gap-y-5 px-4 py-5 sm:px-6">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className={FORM_FIELD_CLASS}>
                       <Label htmlFor="edit-name">Location Name *</Label>
@@ -1200,7 +1200,7 @@ export default function ClinicLocationsPage() {
                       rows={2}
                     />
                   </div>
-                  <div className="space-y-3 rounded-lg border border-teal-200 bg-white/80 p-3 dark:border-teal-900/70 dark:bg-background/40">
+                  <div className="gap-y-3 rounded-lg border border-teal-200 bg-white/80 p-3 dark:border-teal-900/70 dark:bg-background/40">
                     <div>
                       <Label>Google Maps Validation</Label>
                       <p className="mt-1 text-xs text-muted-foreground">
@@ -1368,7 +1368,7 @@ export default function ClinicLocationsPage() {
                       }
                     />
                   </div>
-                  <div className="space-y-3 rounded-lg border border-teal-200 bg-white/80 p-3 dark:border-teal-900/70 dark:bg-background/40">
+                  <div className="gap-y-3 rounded-lg border border-teal-200 bg-white/80 p-3 dark:border-teal-900/70 dark:bg-background/40">
                     <div>
                       <Label>Location Permissions</Label>
                       <p className="mt-1 text-xs text-muted-foreground">
@@ -1404,7 +1404,7 @@ export default function ClinicLocationsPage() {
                       />
                     </div>
                   </div>
-                  <div className="space-y-3">
+                  <div className="gap-y-3">
                     <Label>Working Hours</Label>
                     <WorkingHoursTable
                       value={selectedLocation.workingHours}
@@ -1428,8 +1428,8 @@ export default function ClinicLocationsPage() {
                 >
                   {updateLocationMutation.isPending ? (
                     <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Updating...
+                      <Loader2 className="size-4 mr-2 animate-spin" />
+                      Updating…
                     </>
                   ) : (
                     "Update Location"
@@ -1442,3 +1442,6 @@ export default function ClinicLocationsPage() {
     
   );
 }
+
+
+

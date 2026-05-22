@@ -7,6 +7,8 @@ interface DashboardPageShellProps {
   className?: string;
 }
 
+const EMPTY_ACTIONS: DashboardPageHeaderAction[] = [];
+
 interface DashboardPageHeaderAction {
   label: string;
   onClick?: () => void;
@@ -27,7 +29,7 @@ interface DashboardPageHeaderProps {
 
 export function DashboardPageShell({ children, className }: DashboardPageShellProps) {
   return (
-    <div className={cn("space-y-3 text-foreground sm:space-y-4", className)}>
+    <div className={cn("gap-y-3 text-foreground sm:gap-y-4", className)}>
       {children}
     </div>
   );
@@ -38,7 +40,7 @@ export function DashboardPageHeader({
   title,
   description,
   meta,
-  actions = [],
+  actions = EMPTY_ACTIONS,
   actionsSlot,
 }: DashboardPageHeaderProps) {
   return (
@@ -47,14 +49,14 @@ export function DashboardPageHeader({
 
       <div className="relative px-4 pb-4 pt-5 sm:px-6 sm:pb-5 sm:pt-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-0">
-          <div className="min-w-0 space-y-1">
+          <div className="min-w-0 gap-y-1">
             <span className="inline-block text-[9px] font-extrabold uppercase tracking-[0.25em] text-primary sm:text-[11px]">
               {eyebrow}
             </span>
-            <h1 className="text-[1.2rem] font-bold leading-[1.15] tracking-tight text-foreground sm:text-[1.5rem] lg:text-[1.8rem]">
+            <h1 className="text-[1.2rem] font-semibold leading-[1.15] tracking-tight text-foreground sm:text-[1.5rem] lg:text-[1.8rem]">
               {title}
             </h1>
-            <p className="max-w-xl text-[13px] leading-[1.5] text-muted-foreground sm:text-sm sm:leading-relaxed">
+            <p className="max-w-xl text-[13px] leading-[1.5] text-muted-foreground sm:text-sm sm:leading-relaxed" suppressHydrationWarning>
               {description}
             </p>
             {meta ? <div className="flex flex-wrap items-center gap-2 pt-1">{meta}</div> : null}
@@ -104,3 +106,4 @@ export function DashboardPageHeader({
     </div>
   );
 }
+

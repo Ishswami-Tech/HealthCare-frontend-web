@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -44,6 +44,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { Input } from "@/components/ui/input";
 import { theme } from "@/lib/utils/theme-utils";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { useCurrentTimestamp } from "@/hooks/utils/useClientDate";
 
 import {
   Activity,
@@ -136,7 +137,7 @@ function getDoctorQueueLaneLabel(entry: CanonicalQueueEntry): string {
 }
 
 export default function DoctorDashboard() {
-  const router = useRouter();
+  const { push } = useRouter();
   const { session } = useAuth();
   const user = session?.user;
   const displayDoctorName = useMemo(
@@ -336,12 +337,10 @@ export default function DoctorDashboard() {
 
   // Full appointment timeline from real data (sorted by time)
   const appointmentTimeline = useMemo(() => {
-    return [...visibleAppointmentsArray]
-      .sort(
-        (a: AppointmentWithRelations, b: AppointmentWithRelations) =>
-          (getAppointmentDateTimeValue(a)?.getTime() ?? 0) - (getAppointmentDateTimeValue(b)?.getTime() ?? 0)
-      )
-      .map((apt: AppointmentWithRelations): TransformedAppointment => {
+    return visibleAppointmentsArray.toSorted(
+      (a: AppointmentWithRelations, b: AppointmentWithRelations) =>
+        (getAppointmentDateTimeValue(a)?.getTime() ?? 0) - (getAppointmentDateTimeValue(b)?.getTime() ?? 0)
+    ).map((apt: AppointmentWithRelations): TransformedAppointment => {
         const patientName = getAppointmentPatientName(apt);
         const displayDuration = getDisplayAppointmentDuration(apt);
         const paymentDisplay = getAppointmentPaymentDisplayState(apt);
@@ -450,7 +449,7 @@ export default function DoctorDashboard() {
     options?: { openVideoAfterStart?: boolean }
   ) => {
     if (options?.openVideoAfterStart) {
-      router.push(buildVideoSessionRoute(appointmentId));
+      push(buildVideoSessionRoute(appointmentId));
       return;
     }
 
@@ -504,8 +503,8 @@ export default function DoctorDashboard() {
       cell: ({ row }) => {
         return (
           <div className="flex items-center gap-3">
-            <div className={`w-9 h-9 ${row.original.isVideo ? 'bg-indigo-100/80 text-indigo-600' : 'bg-blue-100/80 text-blue-600'} rounded-full flex items-center justify-center shrink-0`}>
-              {row.original.isVideo ? <Video className="w-4 h-4" /> : <Users className="w-4 h-4" />}
+            <div className={`size-9 ${row.original.isVideo ? 'bg-indigo-100/80 text-indigo-600' : 'bg-blue-100/80 text-blue-600'} rounded-full flex items-center justify-center shrink-0`}>
+              {row.original.isVideo ? <Video className="size-4" /> : <Users className="size-4" />}
             </div>
             <div>
               <div className={`font-semibold leading-none mb-1 flex items-center gap-2 ${theme.textColors.heading}`}>
@@ -589,9 +588,9 @@ export default function DoctorDashboard() {
                 <Button
                   size="sm"
                   className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-                  onClick={() => router.push(buildVideoSessionRoute(appointment.id))}
+                  onClick={() => push(buildVideoSessionRoute(appointment.id))}
                 >
-                  <Play className="w-3 h-3 fill-current" />
+                  <Play className="size-3 fill-current" />
                   Join Session
                 </Button>
                 <p className="text-[11px] text-muted-foreground">
@@ -609,9 +608,9 @@ export default function DoctorDashboard() {
                 }}
               >
                 {startAppointmentMutation.isPending ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
+                  <Loader2 className="size-3 animate-spin" />
                 ) : (
-                  <Play className="w-3 h-3 fill-current" />
+                  <Play className="size-3 fill-current" />
                 )}
                 Start
               </Button>
@@ -624,7 +623,7 @@ export default function DoctorDashboard() {
                   className="h-8 gap-1.5 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 shadow-sm"
                   onClick={() => openPrescription(appointment)}
                 >
-                  <Pill className="w-3 h-3" />
+                  <Pill className="size-3" />
                   Prescribe
                 </Button>
                 <Button
@@ -639,9 +638,9 @@ export default function DoctorDashboard() {
                   }
                 >
                   {completeAppointmentMutation.isPending ? (
-                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <Loader2 className="size-3 animate-spin" />
                   ) : (
-                    <CheckCircle className="w-3 h-3" />
+                    <CheckCircle className="size-3" />
                   )}
                   Complete
                 </Button>
@@ -652,7 +651,7 @@ export default function DoctorDashboard() {
                 size="sm" 
                 variant="outline" 
                 className="h-8 border-border bg-card text-muted-foreground shadow-sm hover:text-foreground"
-                onClick={() => router.push(`/doctor/patients/${appointment.patientId}`)}
+                onClick={() => push(`/doctor/patients/${appointment.patientId}`)}
               >
                 EHR
               </Button>
@@ -673,8 +672,8 @@ export default function DoctorDashboard() {
 
         return (
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-              <Users className="h-4 w-4" />
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+              <Users className="size-4" />
             </div>
             <div className="min-w-0">
               <div className="truncate text-sm font-semibold text-foreground">
@@ -722,7 +721,7 @@ export default function DoctorDashboard() {
         if (!waitValue) return <span className="text-muted-foreground">-</span>;
         return (
           <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-            <Clock className="h-3 w-3" />
+            <Clock className="size-3" />
             {waitValue}m
           </span>
         );
@@ -748,15 +747,15 @@ export default function DoctorDashboard() {
   function getStatusIcon(status: string) {
     switch (status) {
       case "WAITING":
-        return <Clock className="w-4 h-4" />;
+        return <Clock className="size-4" />;
       case "IN_PROGRESS":
-        return <Play className="w-4 h-4" />;
+        return <Play className="size-4" />;
       case "CONFIRMED":
-        return <Users className="w-4 h-4" />;
+        return <Users className="size-4" />;
       case "COMPLETED":
-        return <CheckCircle className="w-4 h-4" />;
+        return <CheckCircle className="size-4" />;
       default:
-        return <AlertCircle className="w-4 h-4" />;
+        return <AlertCircle className="size-4" />;
     }
   }
 
@@ -764,7 +763,7 @@ export default function DoctorDashboard() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-full border-4 border-emerald-200 border-t-emerald-600 animate-spin" />
+          <div className="size-12 rounded-full border-4 border-emerald-200 border-t-emerald-600 animate-spin" />
           <p className="text-emerald-700 font-medium">Loading your clinical workspace...</p>
         </div>
       </div>
@@ -774,10 +773,10 @@ export default function DoctorDashboard() {
   if (appointmentsError && appointmentsArray.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6">
-        <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-4">
-          <AlertCircle className="w-8 h-8" />
+        <div className="size-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-4">
+          <AlertCircle className="size-8" />
         </div>
-        <h3 className="text-xl font-bold text-foreground mb-2">Workspace Connection Issue</h3>
+        <h3 className="text-xl font-semibold text-foreground mb-2">Workspace Connection Issue</h3>
         <p className="text-muted-foreground max-w-sm mb-6">We could not load your appointments. Please check your connection and try again.</p>
         <Button onClick={() => window.location.reload()} variant="outline">Refresh Workspace</Button>
       </div>
@@ -799,7 +798,7 @@ export default function DoctorDashboard() {
             variant="outline"
             className="rounded-full border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700"
           >
-            <Activity className="mr-1 inline-block h-3 w-3" />
+            <Activity className="mr-1 inline-block size-3" />
             Active Shift
           </Badge>
         }
@@ -807,12 +806,12 @@ export default function DoctorDashboard() {
           {
             label: "Appointments",
             href: "/doctor/appointments",
-            icon: <Video className="h-4 w-4" />,
+            icon: <Video className="size-4" />,
           },
           {
             label: "Patient Directory",
             href: "/doctor/patients",
-            icon: <Users className="h-4 w-4" />,
+            icon: <Users className="size-4" />,
           },
         ]}
       />
@@ -822,7 +821,7 @@ export default function DoctorDashboard() {
           <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-600">
-                <Clock className="h-4 w-4" />
+                <Clock className="size-4" />
                 Live Workspace
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -888,15 +887,15 @@ export default function DoctorDashboard() {
       <Card className="overflow-hidden border-l-4 border-l-emerald-500 shadow-sm">
         <CardHeader className="border-b border-border bg-muted/40 px-4 py-3 dark:bg-muted/20">
           <CardTitle className="flex items-center gap-2 text-base font-bold text-foreground">
-            <Clock className="h-4 w-4 text-emerald-600" />
+            <Clock className="size-4 text-emerald-600" />
             In-Person Consultation
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 p-4">
+        <CardContent className="gap-y-4 p-4">
           {currentInPersonConsult ? (
             <>
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0 space-y-2">
+                <div className="min-w-0 gap-y-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge
                       variant="outline"
@@ -922,13 +921,13 @@ export default function DoctorDashboard() {
                     <span>Session {currentInPersonConsult.id.slice(0, 8).toUpperCase()}</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <span>Checked in: {currentInPersonConsult.checkedInAt ? formatDateInIST(new Date(currentInPersonConsult.checkedInAt), {
+                    <span suppressHydrationWarning>Checked in: {currentInPersonConsult.checkedInAt ? formatDateInIST(new Date(currentInPersonConsult.checkedInAt), {
                       hour: "2-digit",
                       minute: "2-digit",
                       hour12: true,
                     }) : "Not yet"}</span>
                     {currentConsultStartedAt && (
-                      <span>Started: {formatDateInIST(currentConsultStartedAt, {
+                      <span suppressHydrationWarning>Started: {formatDateInIST(currentConsultStartedAt, {
                         hour: "2-digit",
                         minute: "2-digit",
                         hour12: true,
@@ -950,7 +949,7 @@ export default function DoctorDashboard() {
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="gap-y-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   Consultation summary
                 </label>
@@ -968,7 +967,7 @@ export default function DoctorDashboard() {
                   disabled={!canStartConsultation || startAppointmentMutation.isPending}
                   className="w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto"
                 >
-                  {startAppointmentMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+                  {startAppointmentMutation.isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Play className="mr-2 size-4" />}
                   Start Consultation
                 </Button>
                 <Button
@@ -977,7 +976,7 @@ export default function DoctorDashboard() {
                   disabled={!currentInPersonConsult || !isConsultInProgress || isPrescriptionModalOpen}
                   className="w-full sm:w-auto"
                 >
-                  <Pill className="mr-2 h-4 w-4" />
+                  <Pill className="mr-2 size-4" />
                   Add Prescription
                 </Button>
                 <Button
@@ -986,7 +985,7 @@ export default function DoctorDashboard() {
                   disabled={!currentInPersonConsult || !isConsultInProgress}
                   className={`w-full sm:w-auto ${skipMedicineSelected ? "bg-amber-600 text-white hover:bg-amber-700" : ""}`}
                 >
-                  <AlertCircle className="mr-2 h-4 w-4" />
+                  <AlertCircle className="mr-2 size-4" />
                   Skip Medicine
                 </Button>
                 <Button
@@ -995,7 +994,7 @@ export default function DoctorDashboard() {
                   disabled={!currentInPersonConsult || !isConsultInProgress || !skipMedicineSelected || completeAppointmentMutation.isPending}
                   className="w-full sm:w-auto"
                 >
-                  {completeAppointmentMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                  {completeAppointmentMutation.isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : <CheckCircle className="mr-2 size-4" />}
                   Complete Appointment
                 </Button>
               </div>
@@ -1012,7 +1011,7 @@ export default function DoctorDashboard() {
             <Empty className="!p-2.5 md:!p-3 gap-1.5">
               <EmptyContent className="gap-1.5">
                 <EmptyMedia className="mb-0">
-                  <Clock className="h-4 w-4" />
+                  <Clock className="size-4" />
                 </EmptyMedia>
                 <EmptyTitle className="text-sm font-semibold leading-tight">
                   No checked-in in-person patient is ready right now.
@@ -1028,12 +1027,12 @@ export default function DoctorDashboard() {
 
       <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-4">
         {/* Active Treatment Queue Table - Dominant Column */}
-        <div className="lg:col-span-3 space-y-4">
+        <div className="lg:col-span-3 gap-y-4">
           <Card className="overflow-hidden border-l-4 border-l-emerald-400 shadow-sm">
             <CardHeader className="flex flex-col gap-3 border-b border-border bg-muted/40 px-4 pb-4 pt-4 dark:bg-muted/20 sm:flex-row sm:items-end sm:justify-between">
               <CardTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-                  <Activity className="w-4 h-4" />
+                <div className="flex size-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                  <Activity className="size-4" />
                 </div>
                 Live Queue
               </CardTitle>
@@ -1049,13 +1048,13 @@ export default function DoctorDashboard() {
                   variant="outline"
                   size="sm"
                   className="h-8 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                  onClick={() => router.push("/queue")}
+                  onClick={() => push("/queue")}
                 >
                   View Queue Workspace
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="space-y-3 p-3 sm:p-4">
+            <CardContent className="gap-y-3 p-3 sm:p-4">
               {highlightedQueuePatient ? (
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 px-3 py-3 shadow-sm dark:border-emerald-900 dark:bg-emerald-950/40">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -1135,7 +1134,7 @@ export default function DoctorDashboard() {
           <Card className="overflow-hidden border-l-4 border-l-blue-400 shadow-sm">
             <CardHeader className="border-b border-border bg-muted/40 px-4 pb-3 pt-4">
               <CardTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
-                <Calendar className="w-5 h-5 text-muted-foreground" />
+                <Calendar className="size-5 text-muted-foreground" />
                 Full Schedule List
               </CardTitle>
             </CardHeader>
@@ -1151,52 +1150,52 @@ export default function DoctorDashboard() {
         </div>
 
         {/* Sidebar Actions */}
-        <div className="space-y-6">
+        <div className="gap-y-6">
             <Card className="overflow-hidden border-l-4 border-l-slate-400 shadow-sm">
               <div className="bg-muted/40 border-b border-border p-3">
-                <h3 className="font-bold text-foreground flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-muted-foreground" />
+                <h3 className="font-semibold text-foreground flex items-center gap-2">
+                  <FileText className="size-4 text-muted-foreground" />
                   Workspace Tools
                 </h3>
               </div>
-              <CardContent className="space-y-2.5 p-3">
+              <CardContent className="gap-y-2.5 p-3">
                 <Button
                   variant="outline"
                   className="w-full justify-start h-12 border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-100 dark:hover:bg-emerald-500/20"
-                  onClick={() => router.push("/doctor/appointments")}
+                  onClick={() => push("/doctor/appointments")}
                 >
-                  <div className="w-8 h-8 rounded bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-200 flex items-center justify-center mr-3 transition-colors">
-                    <Calendar className="w-4 h-4" />
+                  <div className="size-8 rounded bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-200 flex items-center justify-center mr-3 transition-colors">
+                    <Calendar className="size-4" />
                   </div>
                   Master Calendar
                 </Button>
                 <Button
                   variant="outline"
                   className="w-full justify-start h-12 border-indigo-200 bg-indigo-50 text-indigo-800 hover:bg-indigo-100 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-100 dark:hover:bg-indigo-500/20"
-                  onClick={() => router.push("/doctor/patients")}
+                  onClick={() => push("/doctor/patients")}
                 >
-                  <div className="w-8 h-8 rounded bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-200 flex items-center justify-center mr-3 transition-colors">
-                    <Users className="w-4 h-4" />
+                  <div className="size-8 rounded bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-200 flex items-center justify-center mr-3 transition-colors">
+                    <Users className="size-4" />
                   </div>
                   Patient Directory
                 </Button>
                 <Button
                   variant="outline"
                   className="w-full justify-start h-12 border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100 dark:hover:bg-amber-500/20"
-                  onClick={() => router.push("/doctor/appointments")}
+                  onClick={() => push("/doctor/appointments")}
                 >
-                  <div className="w-8 h-8 rounded bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-200 flex items-center justify-center mr-3 transition-colors">
-                    <Video className="w-4 h-4" />
+                  <div className="size-8 rounded bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-200 flex items-center justify-center mr-3 transition-colors">
+                    <Video className="size-4" />
                   </div>
                   Appointments
                 </Button>
                 <Button
                   variant="outline"
                   className="w-full justify-start h-12 border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-100 dark:hover:bg-blue-500/20"
-                  onClick={() => router.push("/doctor/appointments")}
+                  onClick={() => push("/doctor/appointments")}
                 >
-                  <div className="w-8 h-8 rounded bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-200 flex items-center justify-center mr-3 transition-colors">
-                    <Calendar className="w-4 h-4" />
+                  <div className="size-8 rounded bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-200 flex items-center justify-center mr-3 transition-colors">
+                    <Calendar className="size-4" />
                   </div>
                   Appointment Manager
                 </Button>
@@ -1204,10 +1203,10 @@ export default function DoctorDashboard() {
           </Card>
 
           <Card className="relative overflow-hidden border-l-4 border-l-amber-400 bg-amber-50 shadow-sm dark:bg-amber-950/30">
-            <div className="absolute top-0 right-0 w-16 h-16 bg-amber-100 rounded-bl-[100px] -z-0 dark:bg-amber-900/40" />
+            <div className="absolute top-0 right-0 size-16 bg-amber-100 rounded-bl-[100px] -z-0 dark:bg-amber-900/40" />
               <div className="relative z-10 p-3.5">
-              <h3 className="font-bold text-amber-900 flex items-center gap-2 mb-2 dark:text-amber-100">
-                <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-300" />
+              <h3 className="font-semibold text-amber-900 flex items-center gap-2 mb-2 dark:text-amber-100">
+                <AlertCircle className="size-4 text-amber-600 dark:text-amber-300" />
                 Clinical Notice
               </h3>
               <p className="text-sm text-amber-800/80 leading-relaxed dark:text-amber-100/80">
@@ -1229,6 +1228,8 @@ export default function DoctorDashboard() {
     </DashboardPageShell>
   );
 }
+
+
 
 
 

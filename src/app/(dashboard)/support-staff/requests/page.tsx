@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,18 +57,18 @@ export default function SupportStaffRequests() {
     return matchesSearch && matchesStatus;
   });
 
-  const handleStatusChange = (requestId: string, newStatus: string) => {
+  const handleStatusChange = useCallback((requestId: string, newStatus: string) => {
     updateMutation.mutate({
       requestId,
       updates: { status: newStatus },
     });
-  };
+  }, [updateMutation]);
 
-  const handleDelete = (requestId: string) => {
+  const handleDelete = useCallback((requestId: string) => {
     if (confirm("Are you sure you want to delete this request?")) {
       deleteMutation.mutate(requestId);
     }
-  };
+  }, [deleteMutation]);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -142,7 +142,7 @@ export default function SupportStaffRequests() {
                 onClick={() => handleStatusChange(row.original.id, "in_progress")}
                 disabled={updateMutation.isPending}
               >
-                <Play className="w-3 h-3 mr-1" />
+                <Play className="size-3 mr-1" />
                 Start
               </Button>
             )}
@@ -170,21 +170,21 @@ export default function SupportStaffRequests() {
         ),
       },
     ],
-    [deleteMutation.isPending, updateMutation.isPending]
+    [deleteMutation.isPending, handleDelete, handleStatusChange, updateMutation.isPending]
   );
 
   if (isPending) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <Loader2 className="size-8 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 gap-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Help Requests</h1>
+        <h1 className="text-3xl font-semibold">Help Requests</h1>
         <p className="text-gray-600">Manage and respond to support tickets</p>
       </div>
 
@@ -192,7 +192,7 @@ export default function SupportStaffRequests() {
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-3 size-4 text-gray-400" />
               <Input
                 placeholder="Search requests..."
                 value={searchQuery}
@@ -233,7 +233,7 @@ export default function SupportStaffRequests() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <MessageSquare className="w-5 h-5" />
+            <MessageSquare className="size-5" />
             Requests
           </CardTitle>
         </CardHeader>
@@ -242,7 +242,7 @@ export default function SupportStaffRequests() {
             <Empty>
               <EmptyContent>
                 <EmptyMedia>
-                  <MessageSquare className="h-5 w-5" />
+                  <MessageSquare className="size-5" />
                 </EmptyMedia>
                 <EmptyTitle>No requests found</EmptyTitle>
                 <EmptyDescription>
@@ -263,3 +263,5 @@ export default function SupportStaffRequests() {
     </div>
   );
 }
+
+

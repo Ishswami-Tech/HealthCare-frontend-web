@@ -43,10 +43,10 @@ export default function SpecializationsSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <Badge className="bg-primary/10 text-primary border-primary/20 mb-6 glass animate-fade-in-down">
-            <Award className="w-4 h-4 mr-2" />
+            <Award className="size-4 mr-2" />
             Specialized Treatments
           </Badge>
-          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-6 gradient-text">
+          <h2 className="text-3xl md:text-4xl font-playfair font-semibold text-foreground mb-6 gradient-text">
             {t("homepage.specializations.title")}
           </h2>
           <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
@@ -54,18 +54,18 @@ export default function SpecializationsSection() {
           </p>
         </div>
         <div className="grid md:grid-cols-3 gap-8">
-          {specializations.map((spec, index) => {
+          {specializations.map((spec) => {
             const IconComponent = spec.icon;
             return (
               <Card
-                key={index}
+                key={spec.title}
                 className={`text-center p-6 ${spec.bgColor} rounded-lg border-2 ${spec.borderColor} glass card-hover`}
               >
                 <CardContent className="p-0">
                   <div
-                    className={`w-16 h-16 bg-gradient-to-r ${spec.color} rounded-full flex items-center justify-center mx-auto mb-4 interactive`}
+                    className={`size-16 bg-gradient-to-r ${spec.color} rounded-full flex items-center justify-center mx-auto mb-4 interactive`}
                   >
-                    <IconComponent className="w-8 h-8 text-white" />
+                    <IconComponent className="size-8 text-white" />
                   </div>
                   <h3
                     className={`text-xl font-semibold ${spec.textColor} mb-3`}
@@ -84,3 +84,4 @@ export default function SpecializationsSection() {
     </section>
   );
 }
+

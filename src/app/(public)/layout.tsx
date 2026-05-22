@@ -61,14 +61,13 @@ export default function PublicLayout({
         id="public-layout-schema"
         type="application/ld+json"
         strategy="afterInteractive"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify([
-            organizationSchema,
-            localBusinessSchema,
-            websiteSchema,
-          ]),
-        }}
-      />
+      >
+        {JSON.stringify([
+          organizationSchema,
+          localBusinessSchema,
+          websiteSchema,
+        ])}
+      </Script>
 
       <LayoutContent>{children}</LayoutContent>
     </>

@@ -51,7 +51,7 @@ export function OptimisticAppointmentForm({ clinicId }: { clinicId: string }) {
 
   return (
     <CardSuspense>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="gap-y-4">
         <Input
           placeholder="Patient ID"
           value={formData.patientId}
@@ -88,4 +88,5 @@ export function OptimisticAppointmentForm({ clinicId }: { clinicId: string }) {
     </CardSuspense>
   );
 }
+
 

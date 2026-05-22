@@ -122,7 +122,7 @@ export function DashboardHeader({
   className?: string;
 }) {
   return (
-    <div className={cn('space-y-4', className)}>
+    <div className={cn('gap-y-4', className)}>
       {showStatusBar && (
         <DashboardStatusBar variant={statusBarVariant} position="top" />
       )}
@@ -132,7 +132,7 @@ export function DashboardHeader({
           <div className="flex items-center justify-between">
             <div>
               {title && (
-                <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+                <h1 className="text-2xl font-semibold text-gray-900">{title}</h1>
               )}
               {subtitle && (
                 <p className="text-sm text-gray-600 mt-1">{subtitle}</p>

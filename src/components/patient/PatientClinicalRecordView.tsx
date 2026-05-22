@@ -113,10 +113,10 @@ export function PatientClinicalRecordView({
   );
 
   const summaryCards = [
-    { label: "Appointments", value: appointments.length, icon: <Calendar className="h-4 w-4 text-emerald-600 dark:text-emerald-300" /> },
-    { label: "History Items", value: history.length, icon: <FileText className="h-4 w-4 text-sky-600 dark:text-sky-300" /> },
-    { label: "Lab Reports", value: labs.length, icon: <FlaskConical className="h-4 w-4 text-violet-600 dark:text-violet-300" /> },
-    { label: "Active Medications", value: activeMedications.length, icon: <Pill className="h-4 w-4 text-amber-600 dark:text-amber-300" /> },
+    { label: "Appointments", value: appointments.length, icon: <Calendar className="size-4 text-emerald-600 dark:text-emerald-300" /> },
+    { label: "History Items", value: history.length, icon: <FileText className="size-4 text-sky-600 dark:text-sky-300" /> },
+    { label: "Lab Reports", value: labs.length, icon: <FlaskConical className="size-4 text-violet-600 dark:text-violet-300" /> },
+    { label: "Active Medications", value: activeMedications.length, icon: <Pill className="size-4 text-amber-600 dark:text-amber-300" /> },
   ];
 
   const appointmentColumns = useMemo<ColumnDef<RecordLike>[]>(
@@ -320,7 +320,7 @@ export function PatientClinicalRecordView({
   );
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("gap-y-4", className)}>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {summaryCards.map((card) => (
           <Card key={card.label} className="border-border/70 bg-card shadow-sm">
@@ -335,35 +335,35 @@ export function PatientClinicalRecordView({
         ))}
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-4">
+      <Tabs defaultValue="overview" className="gap-y-4">
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
           <TabsTrigger value="overview" className="gap-2">
-            <UserRound className="h-4 w-4" />
+            <UserRound className="size-4" />
             Overview
           </TabsTrigger>
           <TabsTrigger value="appointments" className="gap-2">
-            <Calendar className="h-4 w-4" />
+            <Calendar className="size-4" />
             Appointments
           </TabsTrigger>
           <TabsTrigger value="history" className="gap-2">
-            <FileText className="h-4 w-4" />
+            <FileText className="size-4" />
             History
           </TabsTrigger>
           <TabsTrigger value="vitals" className="gap-2">
-            <HeartPulse className="h-4 w-4" />
+            <HeartPulse className="size-4" />
             Vitals
           </TabsTrigger>
           <TabsTrigger value="reports" className="gap-2">
-            <FlaskConical className="h-4 w-4" />
+            <FlaskConical className="size-4" />
             Reports
           </TabsTrigger>
           <TabsTrigger value="medications" className="gap-2">
-            <Pill className="h-4 w-4" />
+            <Pill className="size-4" />
             Medications
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-4">
+        <TabsContent value="overview" className="gap-y-4">
           <div className="grid gap-4 lg:grid-cols-3">
             <Card className="border-border/70 bg-card shadow-sm lg:col-span-2">
               <CardHeader className="pb-3">
@@ -392,7 +392,7 @@ export function PatientClinicalRecordView({
               <CardHeader className="pb-3">
                 <CardTitle className="text-base font-bold text-foreground">Clinical Summary</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3 text-sm text-muted-foreground">
+              <CardContent className="gap-y-3 text-sm text-muted-foreground">
                 <div className="flex items-center justify-between">
                   <span>Upcoming appointments</span>
                   <span className="font-semibold text-foreground">{upcomingAppointments.length}</span>
@@ -532,3 +532,5 @@ export function PatientClinicalRecordView({
     </div>
   );
 }
+
+

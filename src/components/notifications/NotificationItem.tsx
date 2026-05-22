@@ -112,11 +112,11 @@ export function NotificationItem({
       {/* Icon */}
       <div
         className={cn(
-          "shrink-0 w-10 h-10 rounded-full flex items-center justify-center border-2",
+          "shrink-0 size-10 rounded-full flex items-center justify-center border-2",
           colorClass
         )}
       >
-        <Icon className="h-5 w-5" />
+        <Icon className="size-5" />
       </div>
 
       {/* Content */}
@@ -138,15 +138,15 @@ export function NotificationItem({
 
           {/* Unread indicator */}
           {!notification.isRead && (
-            <div className="shrink-0 w-2 h-2 rounded-full bg-primary" />
+            <div className="shrink-0 size-2 rounded-full bg-primary" />
           )}
         </div>
 
         {/* Footer */}
         <div className="flex items-center justify-between mt-2">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Clock className="h-3 w-3" />
-            <span>
+            <Clock className="size-3" />
+            <span suppressHydrationWarning>
               {formatDistanceToNow(new Date(notification.createdAt), {
                 addSuffix: true,
               })}
@@ -163,7 +163,7 @@ export function NotificationItem({
                 onClick={handleMarkAsRead}
                 title="Mark as read"
               >
-                <CheckCircle2 className="h-3 w-3" />
+                <CheckCircle2 className="size-3" />
               </Button>
             )}
             {onRemove && (
@@ -174,7 +174,7 @@ export function NotificationItem({
                 onClick={handleRemove}
                 title="Remove"
               >
-                <X className="h-3 w-3" />
+                <X className="size-3" />
               </Button>
             )}
           </div>
@@ -183,3 +183,5 @@ export function NotificationItem({
     </div>
   );
 }
+
+

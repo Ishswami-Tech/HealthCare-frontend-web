@@ -91,11 +91,11 @@ export default function GalleryPage() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto text-center">
             <Badge className="bg-primary/10 text-primary border-primary/20 mb-6 glass animate-fade-in-down">
-              <Instagram className="w-4 h-4 mr-2" />
+              <Instagram className="size-4 mr-2" />
               {t("gallery.badge")}
             </Badge>
 
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-playfair font-bold text-foreground mb-6 gradient-text">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-playfair font-semibold text-foreground mb-6 gradient-text">
               {t("gallery.hero.title1")}{" "}
               <span className="text-primary">{t("gallery.hero.title2")}</span>
             </h1>
@@ -111,7 +111,7 @@ export default function GalleryPage() {
                 rel="noopener noreferrer"
                 className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 flex items-center gap-2 interactive"
               >
-                <Instagram className="w-5 h-5" />
+                <Instagram className="size-5" />
                 {t("gallery.followInstagram")}
               </a>
             </div>
@@ -132,9 +132,9 @@ export default function GalleryPage() {
                 >
                   <CardContent className="p-6">
                     <div
-                      className={`w-16 h-16 bg-gradient-to-r ${stat.colorScheme.gradient} rounded-full flex items-center justify-center mx-auto mb-4 interactive hover:${stat.colorScheme.hover} transition-all duration-300`}
+                      className={`size-16 bg-gradient-to-r ${stat.colorScheme.gradient} rounded-full flex items-center justify-center mx-auto mb-4 interactive hover:${stat.colorScheme.hover} transition-all duration-300`}
                     >
-                      <IconComponent className="w-8 h-8 text-white" />
+                      <IconComponent className="size-8 text-white" />
                     </div>
                     <div className="text-3xl font-bold text-foreground mb-2 gradient-text">
                       {stat.number}
@@ -154,7 +154,7 @@ export default function GalleryPage() {
       <section className="py-12 sm:py-16 md:py-20 bg-muted/50">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-foreground mb-4 gradient-text">
+            <h2 className="text-3xl font-semibold text-foreground mb-4 gradient-text">
               {t("gallery.instagram.title")}
             </h2>
             <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
@@ -176,7 +176,7 @@ export default function GalleryPage() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 interactive"
             >
-              <Instagram className="w-5 h-5" />
+              <Instagram className="size-5" />
               {t("gallery.viewMoreInstagram")}
             </a>
           </div>
@@ -186,7 +186,7 @@ export default function GalleryPage() {
       {/* Call to Action */}
       <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
+          <h2 className="text-3xl md:text-4xl font-semibold mb-4">
             {t("gallery.cta.title")}
           </h2>
           <p className="text-xl mb-8 text-primary-foreground/80 max-w-3xl mx-auto">
@@ -214,3 +214,4 @@ export default function GalleryPage() {
     </div>
   );
 }
+

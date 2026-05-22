@@ -46,7 +46,7 @@ const EMPTY_FORM: VitalsFormData = {
 
 export default function NurseVitals() {
   const { user } = useAuth();
-  const searchParams = useSearchParams();
+  const { get: getSearchParam } = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -56,15 +56,15 @@ export default function NurseVitals() {
 
   // Auto-open form when navigated from patients page with patientId
   useEffect(() => {
-    const patientId = searchParams.get("patientId");
-    const patientName = searchParams.get("patientName");
+    const patientId = getSearchParam("patientId");
+    const patientName = getSearchParam("patientName");
     if (patientId) {
       setForm((f) => ({ ...f, patientId, patientName: patientName || "" }));
       setEditingId(null);
       setFormError("");
       setFormOpen(true);
     }
-  }, [searchParams]);
+  }, [getSearchParam]);
 
   const nurseId = user?.id;
 
@@ -145,7 +145,7 @@ export default function NurseVitals() {
   if (isPending) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <Loader2 className="size-8 animate-spin" />
       </div>
     );
   }
@@ -167,7 +167,7 @@ export default function NurseVitals() {
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-4 items-center">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-3 size-4 text-gray-400" />
               <Input
                 placeholder="Search by patient name..."
                 value={searchQuery}
@@ -176,7 +176,7 @@ export default function NurseVitals() {
               />
             </div>
             <Button className="flex items-center gap-2" onClick={openCreateForm}>
-              <Plus className="w-4 h-4" />
+              <Plus className="size-4" />
               Record New Vitals
             </Button>
           </div>
@@ -186,18 +186,18 @@ export default function NurseVitals() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Heart className="w-5 h-5 text-red-600" />
+            <Heart className="size-5 text-red-600" />
             Vitals History
           </CardTitle>
         </CardHeader>
         <CardContent>
           {filteredRecords.length === 0 ? (
             <div className="text-center py-12">
-              <Heart className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+              <Heart className="size-16 mx-auto text-gray-300 mb-4" />
               <p className="text-gray-500">No vitals recorded yet</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="gap-y-4">
               {filteredRecords.map((record: any) => (
                 <div key={record.id} className="p-4 border rounded-lg hover:bg-gray-50">
                   <div className="flex items-start justify-between gap-4">
@@ -209,7 +209,7 @@ export default function NurseVitals() {
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                         <div className="p-3 bg-red-50 rounded-lg">
                           <div className="flex items-center gap-1 mb-1">
-                            <Activity className="w-4 h-4 text-red-600" />
+                            <Activity className="size-4 text-red-600" />
                             <span className="text-xs text-gray-600">BP</span>
                           </div>
                           <p className="font-semibold">
@@ -219,7 +219,7 @@ export default function NurseVitals() {
                         </div>
                         <div className="p-3 bg-orange-50 rounded-lg">
                           <div className="flex items-center gap-1 mb-1">
-                            <Thermometer className="w-4 h-4 text-orange-600" />
+                            <Thermometer className="size-4 text-orange-600" />
                             <span className="text-xs text-gray-600">Temp</span>
                           </div>
                           <p className="font-semibold">
@@ -228,7 +228,7 @@ export default function NurseVitals() {
                         </div>
                         <div className="p-3 bg-pink-50 rounded-lg">
                           <div className="flex items-center gap-1 mb-1">
-                            <Heart className="w-4 h-4 text-pink-600" />
+                            <Heart className="size-4 text-pink-600" />
                             <span className="text-xs text-gray-600">Pulse</span>
                           </div>
                           <p className="font-semibold">
@@ -237,7 +237,7 @@ export default function NurseVitals() {
                         </div>
                         <div className="p-3 bg-blue-50 rounded-lg">
                           <div className="flex items-center gap-1 mb-1">
-                            <Activity className="w-4 h-4 text-blue-600" />
+                            <Activity className="size-4 text-blue-600" />
                             <span className="text-xs text-gray-600">Resp</span>
                           </div>
                           <p className="font-semibold">
@@ -246,7 +246,7 @@ export default function NurseVitals() {
                         </div>
                         <div className="p-3 bg-green-50 rounded-lg">
                           <div className="flex items-center gap-1 mb-1">
-                            <Activity className="w-4 h-4 text-green-600" />
+                            <Activity className="size-4 text-green-600" />
                             <span className="text-xs text-gray-600">O2 Sat</span>
                           </div>
                           <p className="font-semibold">
@@ -255,7 +255,7 @@ export default function NurseVitals() {
                         </div>
                         <div className="p-3 bg-gray-50 rounded-lg">
                           <div className="flex items-center gap-1 mb-1">
-                            <Calendar className="w-4 h-4 text-gray-600" />
+                            <Calendar className="size-4 text-gray-600" />
                             <span className="text-xs text-gray-600">Time</span>
                           </div>
                           <p className="font-semibold text-xs">
@@ -283,7 +283,7 @@ export default function NurseVitals() {
                       onClick={() => openEditForm(record)}
                       disabled={updateMutation.isPending}
                     >
-                      <Edit2 className="w-3 h-3 mr-1" />
+                      <Edit2 className="size-3 mr-1" />
                       Edit
                     </Button>
                   </div>
@@ -301,9 +301,9 @@ export default function NurseVitals() {
             <DialogTitle>{editingId ? "Edit Vitals" : "Record New Vitals"}</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
+          <div className="gap-y-4 py-2">
             {/* Patient selector */}
-            <div className="space-y-1">
+            <div className="gap-y-1">
               <Label>Patient</Label>
               {patientsList.length > 0 ? (
                 <select
@@ -335,7 +335,7 @@ export default function NurseVitals() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
+              <div className="gap-y-1">
                 <Label>BP Systolic (mmHg)</Label>
                 <Input
                   type="number"
@@ -344,7 +344,7 @@ export default function NurseVitals() {
                   onChange={(e) => setForm((f) => ({ ...f, systolic: e.target.value }))}
                 />
               </div>
-              <div className="space-y-1">
+              <div className="gap-y-1">
                 <Label>BP Diastolic (mmHg)</Label>
                 <Input
                   type="number"
@@ -353,7 +353,7 @@ export default function NurseVitals() {
                   onChange={(e) => setForm((f) => ({ ...f, diastolic: e.target.value }))}
                 />
               </div>
-              <div className="space-y-1">
+              <div className="gap-y-1">
                 <Label>Temperature (°F)</Label>
                 <Input
                   type="number"
@@ -363,7 +363,7 @@ export default function NurseVitals() {
                   onChange={(e) => setForm((f) => ({ ...f, temperature: e.target.value }))}
                 />
               </div>
-              <div className="space-y-1">
+              <div className="gap-y-1">
                 <Label>Pulse (bpm)</Label>
                 <Input
                   type="number"
@@ -372,7 +372,7 @@ export default function NurseVitals() {
                   onChange={(e) => setForm((f) => ({ ...f, pulse: e.target.value }))}
                 />
               </div>
-              <div className="space-y-1">
+              <div className="gap-y-1">
                 <Label>Respiratory Rate (/min)</Label>
                 <Input
                   type="number"
@@ -381,7 +381,7 @@ export default function NurseVitals() {
                   onChange={(e) => setForm((f) => ({ ...f, respiratoryRate: e.target.value }))}
                 />
               </div>
-              <div className="space-y-1">
+              <div className="gap-y-1">
                 <Label>O2 Saturation (%)</Label>
                 <Input
                   type="number"
@@ -392,7 +392,7 @@ export default function NurseVitals() {
               </div>
             </div>
 
-            <div className="space-y-1">
+            <div className="gap-y-1">
               <Label>Notes (optional)</Label>
               <Textarea
                 placeholder="Additional observations…"
@@ -411,9 +411,9 @@ export default function NurseVitals() {
             </Button>
             <Button onClick={handleSubmit} disabled={isSaving}>
               {isSaving ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                <Loader2 className="size-4 animate-spin mr-2" />
               ) : (
-                <Save className="w-4 h-4 mr-2" />
+                <Save className="size-4 mr-2" />
               )}
               {editingId ? "Update" : "Save Vitals"}
             </Button>
@@ -423,3 +423,5 @@ export default function NurseVitals() {
     </DashboardPageShell>
   );
 }
+
+

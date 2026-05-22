@@ -217,17 +217,17 @@ const ComprehensiveCTA = () => {
   ];
 
   return (
-    <div className="space-y-20">
+    <div className="gap-y-20">
       {/* Multi-Level Engagement Strategy */}
       <section className="py-20 bg-background">
         <div className="container mx-auto px-4">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
               <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
-                <Target className="w-4 h-4 mr-2" />
+                <Target className="size-4 mr-2" />
                 {t("comprehensiveCTA.strategy.title")}
               </Badge>
-              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
+              <h2 className="text-3xl md:text-4xl font-playfair font-semibold text-foreground mb-4">
                 {t("comprehensiveCTA.strategy.subtitle")}
               </h2>
               <p className="text-lg text-muted-foreground">
@@ -235,7 +235,7 @@ const ComprehensiveCTA = () => {
               </p>
             </div>
 
-            <div className="space-y-8">
+            <div className="gap-y-8">
               {engagementLevels.map((level) => {
                 const IconComponent = level.icon;
                 const isSelected = selectedIntent === level.id;
@@ -258,11 +258,11 @@ const ComprehensiveCTA = () => {
                           className={`bg-gradient-to-br ${level.bgColor} p-6 flex flex-col justify-center min-h-[200px]`}
                         >
                           <div
-                            className={`w-14 h-14 bg-gradient-to-r ${level.color} rounded-xl flex items-center justify-center mb-4 flex-shrink-0`}
+                            className={`size-14 bg-gradient-to-r ${level.color} rounded-xl flex items-center justify-center mb-4 flex-shrink-0`}
                           >
-                            <IconComponent className="w-7 h-7 text-white" />
+                            <IconComponent className="size-7 text-white" />
                           </div>
-                          <h3 className="text-lg font-bold text-card-foreground mb-2 line-clamp-2">
+                          <h3 className="text-lg font-semibold text-card-foreground mb-2 line-clamp-2">
                             {level.title}
                           </h3>
                           <p className="text-sm text-muted-foreground mb-3 line-clamp-1">
@@ -278,7 +278,7 @@ const ComprehensiveCTA = () => {
                             {(level.actions || []).map(
                               (action, actionIndex) => (
                                 <Button
-                                  key={actionIndex}
+                                  key={action.label}
                                   variant={
                                     action.urgent ? "default" : "outline"
                                   }
@@ -296,7 +296,7 @@ const ComprehensiveCTA = () => {
                                       {action.subtext}
                                     </div>
                                   </div>
-                                  <ArrowRight className="w-4 h-4 ml-2 flex-shrink-0" />
+                                  <ArrowRight className="size-4 ml-2 flex-shrink-0" />
                                 </Button>
                               )
                             )}
@@ -318,10 +318,10 @@ const ComprehensiveCTA = () => {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
               <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
-                <Phone className="w-4 h-4 mr-2" />
+                <Phone className="size-4 mr-2" />
                 {t("comprehensiveCTA.contactChannels.title")}
               </Badge>
-              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
+              <h2 className="text-3xl md:text-4xl font-playfair font-semibold text-foreground mb-4">
                 {t("comprehensiveCTA.contactChannels.subtitle")}
               </h2>
               <p className="text-lg text-muted-foreground">
@@ -335,15 +335,15 @@ const ComprehensiveCTA = () => {
 
                 return (
                   <Card
-                    key={index}
+                    key={contact.channel}
                     className="hover:shadow-lg transition-all duration-300 border-0 bg-card"
                   >
                     <CardHeader>
-                      <div className="flex items-center space-x-4">
+                      <div className="flex items-center gap-x-4">
                         <div
-                          className={`w-12 h-12 bg-gradient-to-r ${contact.color} rounded-full flex items-center justify-center`}
+                          className={`size-12 bg-gradient-to-r ${contact.color} rounded-full flex items-center justify-center`}
                         >
-                          <IconComponent className="w-6 h-6 text-white" />
+                          <IconComponent className="size-6 text-white" />
                         </div>
                         <div>
                           <CardTitle className="text-lg text-card-foreground">
@@ -366,7 +366,7 @@ const ComprehensiveCTA = () => {
                         {t(
                           "comprehensiveCTA.contactChannels.channels.whatsapp.button"
                         )}
-                        <ArrowRight className="w-4 h-4 ml-2" />
+                        <ArrowRight className="size-4 ml-2" />
                       </Button>
                     </CardContent>
                   </Card>
@@ -377,35 +377,35 @@ const ComprehensiveCTA = () => {
             {/* Response Time Guarantees */}
             <div className="mt-12 grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
               <div className="p-4 bg-primary/10 rounded-lg">
-                <Clock className="w-8 h-8 text-primary mx-auto mb-2" />
+                <Clock className="size-8 text-primary mx-auto mb-2" />
                 <div className="font-bold text-primary">2 Rings</div>
                 <div className="text-xs text-muted-foreground">
                   {t("comprehensiveCTA.contactChannels.responseTimes.phone")}
                 </div>
               </div>
               <div className="p-4 bg-primary/10 rounded-lg">
-                <MessageCircle className="w-8 h-8 text-primary mx-auto mb-2" />
+                <MessageCircle className="size-8 text-primary mx-auto mb-2" />
                 <div className="font-bold text-primary">30 Seconds</div>
                 <div className="text-xs text-muted-foreground">
                   {t("comprehensiveCTA.contactChannels.responseTimes.chat")}
                 </div>
               </div>
               <div className="p-4 bg-primary/10 rounded-lg">
-                <Mail className="w-8 h-8 text-primary mx-auto mb-2" />
+                <Mail className="size-8 text-primary mx-auto mb-2" />
                 <div className="font-bold text-primary">4 Hours</div>
                 <div className="text-xs text-muted-foreground">
                   {t("comprehensiveCTA.contactChannels.responseTimes.email")}
                 </div>
               </div>
               <div className="p-4 bg-destructive/10 rounded-lg">
-                <Phone className="w-8 h-8 text-destructive mx-auto mb-2" />
+                <Phone className="size-8 text-destructive mx-auto mb-2" />
                 <div className="font-bold text-destructive">10 Minutes</div>
                 <div className="text-xs text-muted-foreground">
                   {t("comprehensiveCTA.contactChannels.responseTimes.callback")}
                 </div>
               </div>
               <div className="p-4 bg-primary/10 rounded-lg">
-                <Calendar className="w-8 h-8 text-primary mx-auto mb-2" />
+                <Calendar className="size-8 text-primary mx-auto mb-2" />
                 <div className="font-bold text-primary">30 Minutes</div>
                 <div className="text-xs text-muted-foreground">
                   {t(
@@ -422,7 +422,7 @@ const ComprehensiveCTA = () => {
       <section className="py-20 bg-primary">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center text-primary-foreground">
-            <h2 className="text-3xl md:text-4xl font-playfair font-bold mb-6">
+            <h2 className="text-3xl md:text-4xl font-playfair font-semibold mb-6">
               {t("comprehensiveCTA.guarantees.title")}
             </h2>
             <p className="text-xl text-primary-foreground/80 mb-8 leading-relaxed">
@@ -431,45 +431,45 @@ const ComprehensiveCTA = () => {
 
             {/* Emotional Vision */}
             <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-2xl p-8 mb-8">
-              <h3 className="text-2xl font-bold mb-4">
+              <h3 className="text-2xl font-semibold mb-4">
                 {t("comprehensiveCTA.transformLife.title")}
               </h3>
               <div className="grid md:grid-cols-2 gap-6 text-left">
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle className="w-5 h-5 text-primary-foreground/70" />
+                <div className="gap-y-3">
+                  <div className="flex items-center gap-x-2">
+                    <CheckCircle className="size-5 text-primary-foreground/70" />
                     <span>
                       {t("comprehensiveCTA.transformLife.benefits.0")}
                     </span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle className="w-5 h-5 text-primary-foreground/70" />
+                  <div className="flex items-center gap-x-2">
+                    <CheckCircle className="size-5 text-primary-foreground/70" />
                     <span>
                       {t("comprehensiveCTA.transformLife.benefits.1")}
                     </span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle className="w-5 h-5 text-primary-foreground/70" />
+                  <div className="flex items-center gap-x-2">
+                    <CheckCircle className="size-5 text-primary-foreground/70" />
                     <span>
                       {t("comprehensiveCTA.transformLife.benefits.2")}
                     </span>
                   </div>
                 </div>
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle className="w-5 h-5 text-primary-foreground/70" />
+                <div className="gap-y-3">
+                  <div className="flex items-center gap-x-2">
+                    <CheckCircle className="size-5 text-primary-foreground/70" />
                     <span>
                       {t("comprehensiveCTA.transformLife.benefits.3")}
                     </span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle className="w-5 h-5 text-primary-foreground/70" />
+                  <div className="flex items-center gap-x-2">
+                    <CheckCircle className="size-5 text-primary-foreground/70" />
                     <span>
                       {t("comprehensiveCTA.transformLife.benefits.4")}
                     </span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle className="w-5 h-5 text-primary-foreground/70" />
+                  <div className="flex items-center gap-x-2">
+                    <CheckCircle className="size-5 text-primary-foreground/70" />
                     <span>
                       {t("comprehensiveCTA.transformLife.benefits.5")}
                     </span>
@@ -483,8 +483,8 @@ const ComprehensiveCTA = () => {
               {(guarantees || []).map((guarantee, index) => {
                 const IconComponent = guarantee.icon;
                 return (
-                  <div key={index} className="text-center">
-                    <IconComponent className="w-8 h-8 text-primary-foreground/70 mx-auto mb-2" />
+                  <div key={guarantee.text} className="text-center">
+                    <IconComponent className="size-8 text-primary-foreground/70 mx-auto mb-2" />
                     <div className="text-sm text-primary-foreground/80">
                       {guarantee.text}
                     </div>
@@ -494,7 +494,7 @@ const ComprehensiveCTA = () => {
             </div>
 
             {/* Final CTA */}
-            <div className="space-y-6">
+            <div className="gap-y-6">
               <p className="text-lg text-primary-foreground/80">
                 {t("comprehensiveCTA.guarantees.description")}
               </p>
@@ -530,7 +530,7 @@ const ComprehensiveCTA = () => {
       <section className="py-20 bg-muted/50">
         <div className="container mx-auto px-4">
           <div className="max-w-2xl mx-auto text-center">
-            <h3 className="text-2xl font-bold text-foreground mb-4">
+            <h3 className="text-2xl font-semibold text-foreground mb-4">
               {t("comprehensiveCTA.newsletter.title")}
             </h3>
             <p className="text-muted-foreground mb-8">
@@ -561,3 +561,4 @@ const ComprehensiveCTA = () => {
 };
 
 export default ComprehensiveCTA;
+

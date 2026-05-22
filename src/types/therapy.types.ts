@@ -1,0 +1,11 @@
+export type TherapyType =
+  | "AGNIKARMA"
+  | "VIDDHAKARMA"
+  | "PANCHAKARMA"
+  | "SHIRODHARA"
+  | "GENERAL_CONSULTATION"
+  | "NADI_PARIKSHA"
+  | "ABHYANGA"
+  | "SWEDANA"
+  | "VIRECHANA"
+  | "BASTI";

@@ -6,7 +6,7 @@
 
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { useFCM } from "@/hooks/realtime/useFCM";
 import { APP_CONFIG } from "@/lib/config/config";
 
@@ -24,7 +24,7 @@ export function PushNotificationProvider({
     requestPermission,
   } = useFCM();
 
-  const [serviceWorkerRegistered, setServiceWorkerRegistered] = useState(false);
+  const serviceWorkerRegisteredRef = useRef(false);
 
   // Register service worker
   useEffect(() => {
@@ -42,6 +42,12 @@ export function PushNotificationProvider({
       return;
     }
 
+    let isActive = true;
+    let registrationRef: ServiceWorkerRegistration | null = null;
+    let installingWorkerRef: ServiceWorker | null = null;
+    let installingStateHandler: (() => void) | null = null;
+    let updateFoundHandler: (() => void) | null = null;
+
     const registerServiceWorker = async () => {
       try {
         // Register service worker
@@ -52,6 +58,11 @@ export function PushNotificationProvider({
           }
         );
 
+        if (!isActive) {
+          return;
+        }
+
+        registrationRef = registration;
 
         // Inject Firebase config into service worker
         const sendConfigToSW = () => {
@@ -68,7 +79,8 @@ export function PushNotificationProvider({
               },
             });
           } else if (registration.installing) {
-            registration.installing.addEventListener("statechange", () => {
+            installingWorkerRef = registration.installing;
+            installingStateHandler = () => {
               if (registration.installing?.state === "activated") {
                 registration.active?.postMessage({
                   type: "FIREBASE_CONFIG",
@@ -82,16 +94,17 @@ export function PushNotificationProvider({
                   },
                 });
               }
-            });
+            };
+            installingWorkerRef.addEventListener("statechange", installingStateHandler);
           }
         };
 
         sendConfigToSW();
 
-        setServiceWorkerRegistered(true);
+        serviceWorkerRegisteredRef.current = true;
 
         // Listen for service worker updates
-        registration.addEventListener("updatefound", () => {
+        updateFoundHandler = () => {
           const newWorker = registration.installing;
           if (newWorker) {
             newWorker.addEventListener("statechange", () => {
@@ -102,13 +115,24 @@ export function PushNotificationProvider({
               }
             });
           }
-        });
+        };
+        registration.addEventListener("updatefound", updateFoundHandler);
       } catch {
         // Service Worker registration failed silently — push notifications unavailable
       }
     };
 
     registerServiceWorker();
+
+    return () => {
+      isActive = false;
+      if (registrationRef && updateFoundHandler) {
+        registrationRef.removeEventListener("updatefound", updateFoundHandler);
+      }
+      if (installingWorkerRef && installingStateHandler) {
+        installingWorkerRef.removeEventListener("statechange", installingStateHandler);
+      }
+    };
   }, []);
 
   // Request permission when supported and not already granted
@@ -117,7 +141,7 @@ export function PushNotificationProvider({
       isSupported &&
       permission === "default" &&
       !isLoading &&
-      serviceWorkerRegistered &&
+      serviceWorkerRegisteredRef.current &&
       APP_CONFIG.FEATURES.NOTIFICATIONS
     ) {
       // Auto-request permission after a short delay
@@ -132,7 +156,6 @@ export function PushNotificationProvider({
     isSupported,
     permission,
     isLoading,
-    serviceWorkerRegistered,
     requestPermission,
   ]);
 

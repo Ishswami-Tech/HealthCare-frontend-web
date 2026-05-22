@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useTranslation, useLanguageSwitcher } from "@/lib/i18n/context";
 import { useAuth } from "@/hooks/auth/useAuth";
+import { useHydrated } from "@/hooks/utils/useHydrated";
 import { useRouter } from "next/navigation";
 import { APP_CONFIG } from "@/lib/config/config";
 import { ROUTES, getDashboardByRole } from "@/lib/config/routes";
@@ -31,22 +32,18 @@ import {
 } from "@/components/ui/sheet";
 
 const Navigation = () => {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isTreatmentsDropdownOpen, setIsTreatmentsDropdownOpen] =
     useState(false);
-  const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pathname = usePathname();
   const { t } = useTranslation();
   const { setLanguage, language: currentLanguage } = useLanguageSwitcher();
   const { session, isAuthenticated, logout } = useAuth();
   const router = useRouter();
   const isAuthEnabled = APP_CONFIG.AUTH.ENABLED;
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Get current language short form
   const getCurrentLanguageShort = () => {
@@ -66,7 +63,7 @@ const Navigation = () => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
     };
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
@@ -108,9 +105,9 @@ const Navigation = () => {
 
   // Enhanced hover handlers with timeout
   const handleMouseEnter = () => {
-    if (hoverTimeout) {
-      clearTimeout(hoverTimeout);
-      setHoverTimeout(null);
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
     }
     setIsTreatmentsDropdownOpen(true);
   };
@@ -119,17 +116,17 @@ const Navigation = () => {
     const timeout = setTimeout(() => {
       setIsTreatmentsDropdownOpen(false);
     }, 150); // Small delay to prevent accidental closes
-    setHoverTimeout(timeout);
+    hoverTimeoutRef.current = timeout;
   };
 
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
-      if (hoverTimeout) {
-        clearTimeout(hoverTimeout);
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
       }
     };
-  }, [hoverTimeout]);
+  }, [hoverTimeoutRef]);
 
   // Authentication handlers
   const handleLogin = () => {
@@ -188,7 +185,7 @@ const Navigation = () => {
               variant="secondary"
               className="bg-white/20 text-white border-white/30 text-xs"
             >
-              <div className="w-2 h-2 bg-destructive rounded-full animate-pulse mr-1"></div>
+              <div className="size-2 bg-destructive rounded-full animate-pulse mr-1"></div>
               {t("navigation.livePatients")}
             </Badge>
             <span className="hidden sm:inline text-xs">
@@ -199,8 +196,8 @@ const Navigation = () => {
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-            <div className="flex items-center space-x-1 sm:space-x-2">
-              <Phone className="w-3 h-3 sm:w-4 sm:h-4" />
+            <div className="flex items-center gap-x-1 sm:gap-x-2">
+              <Phone className="size-3 sm:w-4 sm:h-4" />
               <span className="font-semibold text-xs sm:text-sm">
                 {t("navigation.phoneNumber")}
               </span>
@@ -211,13 +208,13 @@ const Navigation = () => {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="flex items-center space-x-1 sm:space-x-2 h-7 sm:h-8 px-2 sm:px-3 hover:bg-white/20 dark:hover:bg-gray-700/50 transition-colors duration-200 z-50 relative"
+                  className="flex items-center gap-x-1 sm:gap-x-2 h-7 sm:h-8 px-2 sm:px-3 hover:bg-white/20 dark:hover:bg-gray-700/50 transition-colors duration-200 z-50 relative"
                 >
-                  <Globe className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <Globe className="size-3 sm:w-4 sm:h-4" />
                   <span className="text-xs font-semibold">
                     {getCurrentLanguageShort()}
                   </span>
-                  <ChevronDown className="w-3 h-3" />
+                  <ChevronDown className="size-3" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48 z-9999">
@@ -304,9 +301,9 @@ const Navigation = () => {
               <Link
                 href="/"
                 prefetch={false}
-                className="flex items-center space-x-2 sm:space-x-3 touch-manipulation"
+                className="flex items-center gap-x-2 sm:gap-x-3 touch-manipulation"
               >
-                  <motion.div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center overflow-hidden shrink-0 rounded-2xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
+                  <motion.div className="size-14 sm:w-16 sm:h-16 flex items-center justify-center overflow-hidden shrink-0 rounded-2xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
                     <img
                       src="/assets/logo/logowithoutbackground.png"
                       alt={t("navigation.clinicName")}
@@ -319,7 +316,7 @@ const Navigation = () => {
                     />
                   </motion.div>
                   <div className="hidden sm:block min-w-0">
-                    <h1 className="font-playfair text-base sm:text-lg lg:text-lg font-bold text-gray-900 dark:text-white leading-tight truncate">
+                    <h1 className="font-playfair text-base sm:text-lg lg:text-lg font-semibold text-gray-900 dark:text-white leading-tight truncate">
                       {t("navigation.clinicName")}
                     </h1>
                     <p className="text-[10px] sm:text-xs lg:text-xs text-orange-600 dark:text-orange-400 -mt-1 truncate">
@@ -330,7 +327,7 @@ const Navigation = () => {
             </div>
 
             {/* Center Navigation */}
-            <div className="hidden lg:flex items-center space-x-4 xl:space-x-6 flex-1 justify-center max-w-3xl">
+            <div className="hidden lg:flex items-center gap-x-4 xl:gap-x-6 flex-1 justify-center max-w-3xl">
               {navItems.map((item, index) => (
                 <motion.div
                   key={item.name}
@@ -349,6 +346,7 @@ const Navigation = () => {
                       onMouseEnter={handleMouseEnter}
                       onMouseLeave={handleMouseLeave}
                       role="button"
+                      tabIndex={0}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           setIsTreatmentsDropdownOpen(
@@ -361,7 +359,7 @@ const Navigation = () => {
                         href={item.href}
                         prefetch={false}
                         className={cn(
-                          "text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 font-medium transition-colors duration-200 relative group text-sm lg:text-sm xl:text-sm whitespace-nowrap flex items-center space-x-1",
+                          "text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 font-medium transition-colors duration-200 relative group text-sm lg:text-sm xl:text-sm whitespace-nowrap flex items-center gap-x-1",
                           (pathname === item.href ||
                             item.subItems?.some(
                               (subItem) => pathname === subItem.href
@@ -380,7 +378,7 @@ const Navigation = () => {
                             ease: [0.0, 0.0, 0.2, 1],
                           }}
                         >
-                          <ChevronRight className="w-3 h-3" />
+                          <ChevronRight className="size-3" />
                         </motion.div>
                         <motion.span
                           className="absolute -bottom-1 left-0 h-0.5 bg-orange-600 dark:bg-orange-400"
@@ -437,8 +435,8 @@ const Navigation = () => {
                                       "bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400"
                                   )}
                                 >
-                                  <div className="flex items-center space-x-2">
-                                    <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
+                                  <div className="flex items-center gap-x-2">
+                                    <div className="size-2 bg-orange-400 rounded-full"></div>
                                     <span>{subItem.name}</span>
                                   </div>
                                 </Link>
@@ -473,41 +471,41 @@ const Navigation = () => {
             </div>
 
             {/* Right Section - Clean and Simple */}
-            <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3 shrink-0">
+            <div className="flex items-center gap-x-1 sm:gap-x-2 lg:gap-x-3 shrink-0">
               {mounted ? (
                 <>
                   {/* Authentication Buttons */}
                   {isAuthenticated && session ? (
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center gap-x-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
-                            className="flex items-center space-x-1 sm:space-x-2 h-8 px-2 sm:px-3 touch-manipulation"
+                            className="flex items-center gap-x-1 sm:gap-x-2 h-8 px-2 sm:px-3 touch-manipulation"
                           >
-                            <User className="w-4 h-4 shrink-0" />
+                            <User className="size-4 shrink-0" />
                             <span className="hidden sm:inline text-sm truncate max-w-20">
                               {session.user.firstName || "User"}
                             </span>
-                            <ChevronDown className="w-3 h-3 shrink-0" />
+                            <ChevronDown className="size-3 shrink-0" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
                           <DropdownMenuItem onClick={handleDashboardNavigation}>
-                            <User className="w-4 h-4 mr-2" />
+                            <User className="size-4 mr-2" />
                             Dashboard
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={handleLogout}>
-                            <LogOut className="w-4 h-4 mr-2" />
+                            <LogOut className="size-4 mr-2" />
                             Logout
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
                   ) : isAuthEnabled ? (
-                    <div className="flex items-center space-x-1 sm:space-x-2">
+                    <div className="flex items-center gap-x-1 sm:gap-x-2">
                       <Button
                         type="button"
                         size="sm"
@@ -544,7 +542,7 @@ const Navigation = () => {
                 className="hidden lg:flex bg-linear-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs sm:text-sm px-3 sm:px-4 shadow-lg"
                 onClick={() => (window.location.href = "tel:9860370961")}
               >
-                <Phone className="w-3 h-3 mr-1" />
+                <Phone className="size-3 mr-1" />
                 {t("navigation.bookConsultation")}
               </Button>
 
@@ -555,7 +553,7 @@ const Navigation = () => {
                 className="lg:hidden bg-linear-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs px-3 py-2 h-8 shadow-lg touch-manipulation"
                 onClick={() => (window.location.href = "tel:9860370961")}
               >
-                <Phone className="w-3 h-3 mr-1" />
+                <Phone className="size-3 mr-1" />
                 <span className="hidden sm:inline">
                   {t("navigation.bookConsultation")}
                 </span>
@@ -569,10 +567,10 @@ const Navigation = () => {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="lg:hidden h-10 w-10 p-0 touch-manipulation hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                    className="lg:hidden size-10 p-0 touch-manipulation hover:bg-orange-50 dark:hover:bg-orange-900/20"
                     aria-label="Toggle mobile menu"
                   >
-                    <Menu className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+                    <Menu className="size-4 text-gray-700 dark:text-gray-300" />
                   </Button>
                 </SheetTrigger>
 
@@ -581,8 +579,8 @@ const Navigation = () => {
                   className="w-80 p-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700"
                 >
                   <SheetHeader className="p-8 pb-6 border-b border-gray-200 dark:border-gray-700 bg-linear-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20">
-                    <SheetTitle className="text-left text-xl font-bold text-orange-600 dark:text-orange-400 leading-tight tracking-wide flex items-center space-x-3">
-                      <div className="w-9 h-9 flex items-center justify-center overflow-hidden shrink-0 rounded-xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
+                    <SheetTitle className="text-left text-xl font-bold text-orange-600 dark:text-orange-400 leading-tight tracking-wide flex items-center gap-x-3">
+                      <div className="size-9 flex items-center justify-center overflow-hidden shrink-0 rounded-xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
                         <img
                           src="/assets/logo/logowithoutbackground.png"
                           alt={t("navigation.clinicName")}
@@ -604,7 +602,7 @@ const Navigation = () => {
                   <div className="flex flex-col h-full overflow-y-auto">
                     {/* Navigation Items */}
                     <div className="flex-1 px-8 py-6">
-                      <div className="flex flex-col space-y-3">
+                      <div className="flex flex-col gap-y-3">
                         {navItems.map((item) => (
                           <div key={item.name}>
                             {item.hasDropdown ? (
@@ -633,13 +631,13 @@ const Navigation = () => {
                                         : "rotate-0"
                                     }`}
                                   >
-                                    <ChevronRight className="w-4 h-4" />
+                                    <ChevronRight className="size-4" />
                                   </div>
                                 </button>
 
                                 {/* Mobile Accordion */}
                                 {isTreatmentsDropdownOpen && (
-                                  <div className="ml-4 space-y-1 py-2">
+                                  <div className="ml-4 gap-y-1 py-2">
                                     {item.subItems?.map((subItem) => (
                                       <Link
                                         key={subItem.name}
@@ -654,8 +652,8 @@ const Navigation = () => {
                                           setIsMobileMenuOpen(false)
                                         }
                                       >
-                                        <div className="flex items-center space-x-2">
-                                          <div className="w-1.5 h-1.5 bg-orange-400 rounded-full"></div>
+                                        <div className="flex items-center gap-x-2">
+                                          <div className="size-1.5 bg-orange-400 rounded-full"></div>
                                           <span>{subItem.name}</span>
                                         </div>
                                       </Link>
@@ -685,9 +683,9 @@ const Navigation = () => {
                     {/* Authentication Section */}
                     <div className="p-8 pt-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                       {isAuthenticated && session ? (
-                        <div className="flex flex-col space-y-4">
-                          <div className="flex items-center space-x-2 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
-                            <User className="w-4 h-4 text-orange-600" />
+                        <div className="flex flex-col gap-y-4">
+                          <div className="flex items-center gap-x-2 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                            <User className="size-4 text-orange-600" />
                             <span className="text-sm font-medium text-orange-800 dark:text-orange-200">
                               {session.user.firstName || "User"}
                             </span>
@@ -697,7 +695,7 @@ const Navigation = () => {
                             onClick={handleDashboardNavigation}
                             className="bg-linear-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white h-12 text-base touch-manipulation shadow-md"
                           >
-                            <User className="w-4 h-4 mr-2" />
+                            <User className="size-4 mr-2" />
                             Dashboard
                           </Button>
                           <Button
@@ -706,12 +704,12 @@ const Navigation = () => {
                             onClick={handleLogout}
                             className="border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 h-12 text-base touch-manipulation"
                           >
-                            <LogOut className="w-4 h-4 mr-2" />
+                            <LogOut className="size-4 mr-2" />
                             Logout
                           </Button>
                         </div>
                       ) : isAuthEnabled ? (
-                        <div className="flex flex-col space-y-4">
+                        <div className="flex flex-col gap-y-4">
                           <Button
                             type="button"
                             onClick={handleLogin}
@@ -735,7 +733,7 @@ const Navigation = () => {
                         variant="outline"
                         className="border-orange-300 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 h-12 text-base touch-manipulation mt-3 w-full"
                       >
-                        <Phone className="w-4 h-4 mr-2" />
+                        <Phone className="size-4 mr-2" />
                         {t("navigation.bookConsultation")}
                       </Button>
                     </div>
@@ -751,3 +749,5 @@ const Navigation = () => {
 };
 
 export default Navigation;
+
+

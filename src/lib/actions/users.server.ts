@@ -1,9 +1,9 @@
-'use server';
+﻿'use server';
 
 // ✅ User actions for frontend, matching backend endpoints
 // Follows SOLID, DRY, KISS principles with consistent error handling and logging
 
-import { authenticatedApi } from './auth.server';
+import { authenticatedApi, getServerSession } from './auth.server';
 import { API_ENDPOINTS } from '../config/config';
 import { logger } from '@/lib/utils/logger';
 import { sanitizeErrorMessage } from '@/lib/utils/error-handler';
@@ -128,12 +128,20 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
 }
 
 export async function getUserById(id: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   return executeAction('getUserById', async () => {
     return await requestUserApi(API_ENDPOINTS.USERS.GET_BY_ID(id), { method: 'GET' });
   }, { userId: id });
 }
 
 export async function updateUser(id: string, data: Record<string, unknown>) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   return executeAction('updateUser', async () => {
     return await requestUserApi(API_ENDPOINTS.USERS.UPDATE(id), { 
       method: 'PATCH', 
@@ -143,12 +151,20 @@ export async function updateUser(id: string, data: Record<string, unknown>) {
 }
 
 export async function deleteUser(id: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   return executeAction('deleteUser', async () => {
     return await requestUserApi(API_ENDPOINTS.USERS.DELETE(id), { method: 'DELETE' });
   }, { userId: id });
 }
 
 export async function getAllUsers() {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   return executeAction('getAllUsers', async () => {
     return await requestUserApi(API_ENDPOINTS.USERS.GET_ALL, { method: 'GET' });
   });
@@ -205,6 +221,10 @@ export async function createUser(userData: {
     status?: string;
   }[];
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   return executeAction('createUser', async () => {
     return await requestUserApi(API_ENDPOINTS.USERS.BASE, {
       method: 'POST',
@@ -222,6 +242,10 @@ export async function updateUserRole(
   role: string,
   options?: { clinicId?: string; locationId?: string; permissions?: string[] }
 ) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   return executeAction('updateUserRole', async () => {
     const body: { role: string; clinicId?: string; locationId?: string; permissions?: string[] } = { role };
     if (options?.clinicId) body.clinicId = options.clinicId;
@@ -238,6 +262,10 @@ export async function updateUserRole(
  * Get users by role
  */
 export async function getUsersByRole(role: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   return executeAction('getUsersByRole', async () => {
     const normalizedRole = role.trim().toUpperCase();
     const roleEndpointMap: Record<string, string> = {
@@ -262,6 +290,10 @@ export async function getUsersByRole(role: string) {
  * Get users by clinic
  */
 export async function getUsersByClinic(clinicId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   return executeAction('getUsersByClinic', async () => {
     const { data } = await authenticatedApi(API_ENDPOINTS.USERS.GET_BY_CLINIC(clinicId), { method: 'GET' });
     return data;
@@ -276,6 +308,10 @@ export async function searchUsers(query: string, filters?: {
   clinicId?: string;
   isVerified?: boolean;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   return executeAction('searchUsers', async () => {
     const params = new URLSearchParams({ q: query });
     if (filters) {
@@ -293,6 +329,10 @@ export async function searchUsers(query: string, filters?: {
  * Get user statistics
  */
 export async function getUserStats() {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   return executeAction('getUserStats', async () => {
     return await requestUserApi(API_ENDPOINTS.USERS.STATS, { method: 'GET' });
   });
@@ -302,6 +342,10 @@ export async function getUserStats() {
  * Bulk update users
  */
 export async function bulkUpdateUsers(userIds: string[], updates: Record<string, string | number | boolean>) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   return executeAction('bulkUpdateUsers', async () => {
     return await requestUserApi(API_ENDPOINTS.USERS.BULK_UPDATE, {
       method: 'PATCH',
@@ -314,6 +358,10 @@ export async function bulkUpdateUsers(userIds: string[], updates: Record<string,
  * Export users data
  */
 export async function exportUsers(format: 'csv' | 'excel' = 'csv', filters?: Record<string, string | number | boolean>) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   return executeAction('exportUsers', async () => {
     const params = new URLSearchParams({ format });
     if (filters) {
@@ -331,6 +379,10 @@ export async function exportUsers(format: 'csv' | 'excel' = 'csv', filters?: Rec
  * Change user password (admin action)
  */
 export async function changeUserPassword(userId: string, newPassword: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   return executeAction('changeUserPassword', async () => {
     return await requestUserApi(API_ENDPOINTS.USERS.CHANGE_PASSWORD(userId), {
       method: 'PATCH',
@@ -343,6 +395,10 @@ export async function changeUserPassword(userId: string, newPassword: string) {
  * Toggle user verification status
  */
 export async function toggleUserVerification(userId: string, isVerified: boolean) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   return executeAction('toggleUserVerification', async () => {
     return await requestUserApi(API_ENDPOINTS.USERS.TOGGLE_VERIFICATION(userId), {
       method: 'PATCH',
@@ -355,6 +411,10 @@ export async function toggleUserVerification(userId: string, isVerified: boolean
  * Get user activity logs
  */
 export async function getUserActivityLogs(userId: string, limit: number = 50) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   return executeAction('getUserActivityLogs', async () => {
     return await requestUserApi(`${API_ENDPOINTS.USERS.ACTIVITY_LOGS(userId)}?limit=${limit}`, { method: 'GET' });
   }, { userId, limit });
@@ -364,6 +424,10 @@ export async function getUserActivityLogs(userId: string, limit: number = 50) {
  * Get user sessions
  */
 export async function getUserSessions(userId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   return executeAction('getUserSessions', async () => {
     // SESSIONS is an object, use GET_ALL and pass userId as query param
     return await requestUserApi(`${API_ENDPOINTS.USERS.SESSIONS.GET_ALL}?userId=${userId}`, { method: 'GET' });
@@ -374,6 +438,10 @@ export async function getUserSessions(userId: string) {
  * Terminate user session
  */
 export async function terminateUserSession(userId: string, sessionId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   return executeAction('terminateUserSession', async () => {
     // TERMINATE_SESSION takes only sessionId
     return await requestUserApi(API_ENDPOINTS.USERS.TERMINATE_SESSION(sessionId), { method: 'DELETE' });
@@ -384,6 +452,10 @@ export async function terminateUserSession(userId: string, sessionId: string) {
  * Change user location
  */
 export async function changeUserLocation(userId: string, locationId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   return executeAction('changeUserLocation', async () => {
     return await requestUserApi(API_ENDPOINTS.USERS.CHANGE_LOCATION(userId), {
       method: 'POST',

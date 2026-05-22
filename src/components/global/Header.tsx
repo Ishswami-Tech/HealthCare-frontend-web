@@ -7,6 +7,7 @@ import { NotificationBell } from "@/components/notifications";
 import { MinimalStatusIndicator } from "@/components/common/MinimalStatusIndicator";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/auth/useAuth";
+import { useHydrated } from "@/hooks/utils/useHydrated";
 import { useRouter } from "next/navigation";
 import { LogOut, User, Settings } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -43,7 +44,7 @@ function getAvatarGradient(initials?: string) {
 }
 
 export function Header({ className, children, showSidebarTrigger = true }: HeaderProps) {
-  const [mounted, setMounted] = React.useState(false);
+  const mounted = useHydrated();
   const { logout } = useAuth();
   const router = useRouter();
   
@@ -51,10 +52,6 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
   const displayUser = useLayoutStore((state) => state.displayUser);
   const pageTitle = useLayoutStore((state) => state.pageTitle);
   const normalizedRole = displayUser?.role?.toUpperCase().replace(/\s+/g, "_") || "";
-
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const handleProfileClick = () => {
     if (displayUser?.role) {
@@ -92,7 +89,7 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
         {/* Left side content (title, breadcrumbs, etc) */}
         <div className="flex-1 flex items-center min-w-0">
           {showSidebarTrigger && (
-            <SidebarTrigger className="-ml-1 mr-1.5 md:hidden shrink-0 h-7 w-7" />
+            <SidebarTrigger className="-ml-1 mr-1.5 md:hidden shrink-0 size-7" />
           )}
           
           {pageTitle && (
@@ -100,7 +97,7 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
               key={pageTitle}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              className="text-sm md:text-base font-bold tracking-tight text-foreground truncate pl-1 border-l-2 border-primary/50 ml-1"
+              className="text-sm md:text-base font-semibold tracking-tight text-foreground truncate pl-1 border-l-2 border-primary/50 ml-1"
             >
               {pageTitle}
             </motion.h1>
@@ -121,7 +118,7 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
 
               {/* 2. Utility Cluster */}
               <div className="flex items-center gap-1 p-0.5 bg-muted/30 dark:bg-muted/10 rounded-full border border-border/50 backdrop-blur-md shadow-sm">
-                <NotificationBell className="h-7 w-7 rounded-full hover:bg-muted/50 transition-colors" />
+                <NotificationBell className="size-7 rounded-full hover:bg-muted/50 transition-colors" />
                 
                 <div className="h-4 w-px bg-border/40 mx-0.5" />
                 
@@ -134,7 +131,7 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
                   size="icon" 
                   showFlag={true} 
                   showLabel={false}
-                  className="h-7 w-7 rounded-full hover:bg-muted/50 transition-colors" 
+                  className="size-7 rounded-full hover:bg-muted/50 transition-colors" 
                 />
 
                 {/* 3. Profile Dropdown (Connected to Zustand) */}
@@ -144,7 +141,7 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
                       <button
                         type="button"
                         className={cn(
-                          "h-7 w-7 rounded-full bg-linear-to-br flex items-center justify-center text-white text-[10px] font-bold ring-2 ring-primary/20 hover:ring-primary/40 transition-all overflow-hidden",
+                          "size-7 rounded-full bg-linear-to-br flex items-center justify-center text-white text-[10px] font-bold ring-2 ring-primary/20 hover:ring-primary/40 transition-all overflow-hidden",
                           getAvatarGradient(displayUser.initials)
                         )}
                       >
@@ -169,14 +166,14 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator className="opacity-50" />
                       
-                      <div className="p-1 space-y-1">
+                      <div className="p-1 gap-y-1">
                         <DropdownMenuItem onClick={handleProfileClick} className="rounded-xl cursor-pointer py-2 focus:bg-primary/5">
-                          <User className="mr-3 h-4 w-4 text-primary" />
+                          <User className="mr-3 size-4 text-primary" />
                           <span>{normalizedRole === "PATIENT" ? "Profile" : "My Profile"}</span>
                         </DropdownMenuItem>
                         {normalizedRole !== "PATIENT" && (
                           <DropdownMenuItem onClick={handleSettingsClick} className="rounded-xl cursor-pointer py-2 focus:bg-primary/5">
-                            <Settings className="mr-3 h-4 w-4 text-primary" />
+                            <Settings className="mr-3 size-4 text-primary" />
                             <span>Settings</span>
                           </DropdownMenuItem>
                         )}
@@ -189,7 +186,7 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
                           onClick={() => logout()} 
                           className="rounded-xl cursor-pointer py-2 text-destructive focus:bg-destructive/5 focus:text-destructive transition-colors"
                         >
-                          <LogOut className="mr-3 h-4 w-4" />
+                          <LogOut className="mr-3 size-4" />
                           <span>Log out</span>
                         </DropdownMenuItem>
                       </div>
@@ -206,3 +203,5 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
     </header>
   );
 }
+
+

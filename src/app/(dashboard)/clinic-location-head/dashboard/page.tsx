@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 
 export default function ClinicLocationHeadDashboard() {
-  const router = useRouter();
+  const { push } = useRouter();
   const { session } = useAuth();
   const user = session?.user;
   const clinicId = user?.clinicId;
@@ -124,17 +124,17 @@ export default function ClinicLocationHeadDashboard() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="size-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="p-4 space-y-4 sm:p-6 sm:space-y-5">
+    <div className="p-4 gap-y-4 sm:p-6 sm:gap-y-5">
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Location Overview</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Location Overview</h1>
           <p className="text-muted-foreground">
             {user?.name ? `${user.name} · ` : ""}Clinic Location Head · {today}
           </p>
@@ -143,13 +143,13 @@ export default function ClinicLocationHeadDashboard() {
           <Button
             variant="outline"
             className="gap-2"
-            onClick={() => router.push("/clinic-location-head/check-in")}
+            onClick={() => push("/clinic-location-head/check-in")}
           >
-            <ClipboardList className="w-4 h-4" />
+            <ClipboardList className="size-4" />
             Check-In
           </Button>
-          <Button className="gap-2" onClick={() => router.push("/queue")}>
-            <Activity className="w-4 h-4" />
+          <Button className="gap-2" onClick={() => push("/queue")}>
+            <Activity className="size-4" />
             Live Queue
           </Button>
         </div>
@@ -200,16 +200,16 @@ export default function ClinicLocationHeadDashboard() {
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-blue-600" />
+              <Calendar className="size-5 text-blue-600" />
               Recent Appointments
             </CardTitle>
             <Button
               variant="ghost"
               size="sm"
               className="gap-1 text-blue-600"
-              onClick={() => router.push("/clinic-location-head/appointments")}
+              onClick={() => push("/clinic-location-head/appointments")}
             >
-              See all <ArrowRight className="w-3 h-3" />
+              See all <ArrowRight className="size-3" />
             </Button>
           </CardHeader>
           <CardContent>
@@ -217,14 +217,14 @@ export default function ClinicLocationHeadDashboard() {
               <Empty className="min-h-[200px] border-border/70 bg-muted/20">
                 <EmptyContent>
                   <EmptyMedia variant="icon">
-                    <Calendar className="h-5 w-5" />
+                    <Calendar className="size-5" />
                   </EmptyMedia>
                   <EmptyTitle>No recent appointments found</EmptyTitle>
                   <EmptyDescription>Scheduled visits for this location will appear here.</EmptyDescription>
                 </EmptyContent>
               </Empty>
             ) : (
-              <div className="space-y-2">
+              <div className="gap-y-2">
                 {upcomingAppointments.map((apt: Record<string, unknown>, idx: number) => {
                   const status = String(apt.status ?? "").toUpperCase();
                   const isActive = status === "IN_PROGRESS";
@@ -247,7 +247,7 @@ export default function ClinicLocationHeadDashboard() {
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                          className={`size-2 rounded-full flex-shrink-0 ${
                             isActive ? "bg-blue-500 animate-pulse" : "bg-slate-300"
                           }`}
                         />
@@ -277,7 +277,7 @@ export default function ClinicLocationHeadDashboard() {
         </Card>
 
         {/* Quick Actions */}
-        <div className="space-y-6">
+        <div className="gap-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Quick Actions</CardTitle>
@@ -286,41 +286,41 @@ export default function ClinicLocationHeadDashboard() {
               <Button
                 variant="outline"
                 className="flex flex-col h-20 gap-1 border-slate-100 hover:bg-blue-50"
-                onClick={() => router.push("/clinic-location-head/locations")}
+                onClick={() => push("/clinic-location-head/locations")}
               >
-                <MapPin className="w-5 h-5 text-blue-600" />
+                <MapPin className="size-5 text-blue-600" />
                 <span className="text-[11px] font-medium text-slate-600">Locations</span>
               </Button>
               <Button
                 variant="outline"
                 className="flex flex-col h-20 gap-1 border-slate-100 hover:bg-emerald-50"
-                onClick={() => router.push("/queue")}
+                onClick={() => push("/queue")}
               >
-                <Activity className="w-5 h-5 text-emerald-600" />
+                <Activity className="size-5 text-emerald-600" />
                 <span className="text-[11px] font-medium text-slate-600">Queue</span>
               </Button>
               <Button
                 variant="outline"
                 className="flex flex-col h-20 gap-1 border-slate-100 hover:bg-amber-50"
-                onClick={() => router.push("/clinic-location-head/appointments")}
+                onClick={() => push("/clinic-location-head/appointments")}
               >
-                <Calendar className="w-5 h-5 text-amber-600" />
+                <Calendar className="size-5 text-amber-600" />
                 <span className="text-[11px] font-medium text-slate-600">Appointments</span>
               </Button>
               <Button
                 variant="outline"
                 className="flex flex-col h-20 gap-1 border-slate-100 hover:bg-purple-50"
-                onClick={() => router.push("/clinic-location-head/check-in")}
+                onClick={() => push("/clinic-location-head/check-in")}
               >
-                <ClipboardList className="w-5 h-5 text-purple-600" />
+                <ClipboardList className="size-5 text-purple-600" />
                 <span className="text-[11px] font-medium text-slate-600">Check-In</span>
               </Button>
               <Button
                 variant="outline"
                 className="flex flex-col h-20 gap-1 border-slate-100 hover:bg-slate-50 col-span-2"
-                onClick={() => router.push("/billing")}
+                onClick={() => push("/billing")}
               >
-                <Wallet className="w-5 h-5 text-slate-600" />
+                <Wallet className="size-5 text-slate-600" />
                 <span className="text-[11px] font-medium text-slate-600">Billing</span>
               </Button>
             </CardContent>
@@ -329,15 +329,15 @@ export default function ClinicLocationHeadDashboard() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <Users className="w-4 h-4 text-slate-500" />
+                <Users className="size-4 text-slate-500" />
                 Day Summary
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="gap-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Completed</span>
                 <span className="font-semibold text-emerald-600 flex items-center gap-1">
-                  <CheckCircle className="w-3 h-3" /> {stats.completed}
+                  <CheckCircle className="size-3" /> {stats.completed}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
@@ -372,7 +372,7 @@ export default function ClinicLocationHeadDashboard() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-slate-500" />
+                <Building2 className="size-4 text-slate-500" />
                 Locations
               </CardTitle>
             </CardHeader>
@@ -383,11 +383,11 @@ export default function ClinicLocationHeadDashboard() {
               <Button
                 className="w-full gap-2"
                 variant="outline"
-                onClick={() => router.push("/clinic-location-head/locations")}
+                onClick={() => push("/clinic-location-head/locations")}
               >
-                <Building2 className="w-4 h-4" />
+                <Building2 className="size-4" />
                 Manage Locations
-                <ArrowRight className="w-3 h-3 ml-auto" />
+                <ArrowRight className="size-3 ml-auto" />
               </Button>
             </CardContent>
           </Card>
@@ -396,3 +396,5 @@ export default function ClinicLocationHeadDashboard() {
     </div>
   );
 }
+
+

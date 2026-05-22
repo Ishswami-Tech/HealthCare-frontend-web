@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -68,9 +68,9 @@ function ServiceCard({
   };
 
   const statusIcons = {
-    up: <CheckCircle className="h-5 w-5 text-green-600" />,
-    down: <AlertTriangle className="h-5 w-5 text-red-600" />,
-    degraded: <AlertTriangle className="h-5 w-5 text-yellow-600" />,
+    up: <CheckCircle className="size-5 text-green-600" />,
+    down: <AlertTriangle className="size-5 text-red-600" />,
+    degraded: <AlertTriangle className="size-5 text-yellow-600" />,
   };
 
   return (
@@ -80,7 +80,7 @@ function ServiceCard({
           <CardHeader className="cursor-pointer hover:bg-opacity-80 transition-colors">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Icon className="h-5 w-5" />
+                <Icon className="size-5" />
                 <div>
                   <CardTitle className="text-lg">{title}</CardTitle>
                   <div className="flex items-center gap-2 mt-1">
@@ -104,9 +104,9 @@ function ServiceCard({
                 </div>
               </div>
               {isOpen ? (
-                <ChevronUp className="h-4 w-4" />
+                <ChevronUp className="size-4" />
               ) : (
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDown className="size-4" />
               )}
             </div>
           </CardHeader>
@@ -133,7 +133,7 @@ function MetricRow({
   return (
     <div className="flex items-center justify-between py-2 border-b last:border-0">
       <div className="flex items-center gap-2 text-sm text-gray-600">
-        {Icon && <Icon className="h-4 w-4" />}
+        {Icon && <Icon className="size-4" />}
         <span>{label}</span>
       </div>
       <span className="text-sm font-medium">{value}</span>
@@ -171,7 +171,7 @@ export function ComprehensiveHealthDashboard({
     return (
       <div className={cn("flex items-center justify-center p-12", className)}>
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <Loader2 className="size-8 animate-spin mx-auto mb-4 text-blue-600" />
           <p className="text-gray-600">Loading health status...</p>
         </div>
       </div>
@@ -183,7 +183,7 @@ export function ComprehensiveHealthDashboard({
       <Card className={cn("border-red-200 bg-red-50", className)}>
         <CardHeader>
           <CardTitle className="text-red-800 flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5" />
+            <AlertTriangle className="size-5" />
             Error Loading Health Status
           </CardTitle>
         </CardHeader>
@@ -194,7 +194,7 @@ export function ComprehensiveHealthDashboard({
               : "Failed to fetch health status"}
           </p>
           <Button onClick={handleRefresh} variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
+            <RefreshCw className="size-4 mr-2" />
             Retry
           </Button>
         </CardContent>
@@ -227,12 +227,12 @@ export function ComprehensiveHealthDashboard({
       : "degraded";
 
   return (
-    <div className={cn("space-y-6", className)}>
+    <div className={cn("gap-y-6", className)}>
       {/* Header with overall status */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <Activity className="h-8 w-8" />
+          <h1 className="text-3xl font-semibold flex items-center gap-3">
+            <Activity className="size-8" />
             System Health Dashboard
           </h1>
           <div className="flex items-center gap-3 mt-1">
@@ -251,17 +251,17 @@ export function ComprehensiveHealthDashboard({
             >
               {isConnected ? (
                 <>
-                  <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
+                  <div className="size-2 bg-green-500 rounded-full animate-pulse" />
                   Socket.IO Connected
                 </>
               ) : connectionStatus === "connecting" ? (
                 <>
-                  <div className="h-2 w-2 bg-yellow-500 rounded-full animate-pulse" />
-                  Connecting...
+                  <div className="size-2 bg-yellow-500 rounded-full animate-pulse" />
+                  Connecting…
                 </>
               ) : (
                 <>
-                  <div className="h-2 w-2 bg-red-500 rounded-full" />
+                  <div className="size-2 bg-red-500 rounded-full" />
                   Disconnected
                 </>
               )}
@@ -284,7 +284,7 @@ export function ComprehensiveHealthDashboard({
             size="sm"
           >
             <RefreshCw
-              className={cn("h-4 w-4 mr-2", isFetching && "animate-spin")}
+              className={cn("size-4 mr-2", isFetching && "animate-spin")}
             />
             Refresh
           </Button>
@@ -330,7 +330,7 @@ export function ComprehensiveHealthDashboard({
         icon={Database}
         status={health.database?.status === "up" ? "up" : "down"}
       >
-        <div className="space-y-2">
+        <div className="gap-y-2">
           <MetricRow
             label="Connection Count"
             value={health.database?.connectionCount}
@@ -373,7 +373,7 @@ export function ComprehensiveHealthDashboard({
         icon={HardDrive}
         status={health.cache?.status === "up" ? "up" : "down"}
       >
-        <div className="space-y-2">
+        <div className="gap-y-2">
           <MetricRow
             label="Provider"
             value={health.cache?.provider}
@@ -410,10 +410,10 @@ export function ComprehensiveHealthDashboard({
         icon={Zap}
         status={health.queue?.status === "up" ? "up" : "down"}
       >
-        <div className="space-y-4">
+        <div className="gap-y-4">
           <div>
             <h4 className="font-medium mb-2 text-sm">Connection</h4>
-            <div className="space-y-2">
+            <div className="gap-y-2">
               <MetricRow
                 label="Status"
                 value={
@@ -445,7 +445,7 @@ export function ComprehensiveHealthDashboard({
           {health.queue?.metrics && (
             <div>
               <h4 className="font-medium mb-2 text-sm">Metrics</h4>
-              <div className="space-y-2">
+              <div className="gap-y-2">
                 <MetricRow
                   label="Total Jobs"
                   value={health.queue.metrics.totalJobs}
@@ -480,7 +480,7 @@ export function ComprehensiveHealthDashboard({
           {health.queue?.performance && (
             <div>
               <h4 className="font-medium mb-2 text-sm">Performance</h4>
-              <div className="space-y-2">
+              <div className="gap-y-2">
                 <MetricRow
                   label="Avg Processing Time"
                   value={
@@ -516,14 +516,14 @@ export function ComprehensiveHealthDashboard({
             : "down"
         }
       >
-        <div className="space-y-4">
+        <div className="gap-y-4">
           {health.communication?.socket && (
             <div>
               <h4 className="font-medium mb-2 text-sm flex items-center gap-2">
-                <Wifi className="h-4 w-4" />
+                <Wifi className="size-4" />
                 WebSocket
               </h4>
-              <div className="space-y-2">
+              <div className="gap-y-2">
                 <MetricRow
                   label="Connected"
                   value={health.communication.socket.connected ? "Yes" : "No"}
@@ -551,7 +551,7 @@ export function ComprehensiveHealthDashboard({
           )}
           <div>
             <h4 className="font-medium mb-2 text-sm">Channels</h4>
-            <div className="space-y-2">
+            <div className="gap-y-2">
               <MetricRow
                 label="Email"
                 value={
@@ -599,7 +599,7 @@ export function ComprehensiveHealthDashboard({
           {health.communication?.metrics && (
             <div>
               <h4 className="font-medium mb-2 text-sm">Metrics</h4>
-              <div className="space-y-2">
+              <div className="gap-y-2">
                 <MetricRow
                   label="Socket Connections"
                   value={health.communication.metrics.socketConnections}
@@ -621,8 +621,8 @@ export function ComprehensiveHealthDashboard({
               <div className="mt-3 p-2 bg-red-100 rounded text-sm text-red-700">
                 <strong>Issues:</strong>
                 <ul className="list-disc list-inside mt-1">
-                  {health.communication.issues.map((issue: string, idx: number) => (
-                    <li key={idx}>{issue}</li>
+                  {health.communication.issues.map((issue: string) => (
+                    <li key={issue}>{issue}</li>
                   ))}
                 </ul>
               </div>
@@ -640,7 +640,7 @@ export function ComprehensiveHealthDashboard({
             : "down"
         }
       >
-        <div className="space-y-2">
+        <div className="gap-y-2">
           <MetricRow
             label="Primary Provider"
             value={health.video?.primaryProvider}
@@ -668,11 +668,11 @@ export function ComprehensiveHealthDashboard({
             : "down"
         }
       >
-        <div className="space-y-4">
+        <div className="gap-y-4">
           {health.logging?.service && (
             <div>
               <h4 className="font-medium mb-2 text-sm">Service</h4>
-              <div className="space-y-2">
+              <div className="gap-y-2">
                 <MetricRow
                   label="Available"
                   value={health.logging.service.available ? "Yes" : "No"}
@@ -701,7 +701,7 @@ export function ComprehensiveHealthDashboard({
           {health.logging?.endpoint && (
             <div>
               <h4 className="font-medium mb-2 text-sm">Endpoint</h4>
-              <div className="space-y-2">
+              <div className="gap-y-2">
                 <MetricRow
                   label="Accessible"
                   value={health.logging.endpoint.accessible ? "Yes" : "No"}
@@ -732,7 +732,7 @@ export function ComprehensiveHealthDashboard({
           {health.logging?.metrics && (
             <div>
               <h4 className="font-medium mb-2 text-sm">Metrics</h4>
-              <div className="space-y-2">
+              <div className="gap-y-2">
                 <MetricRow
                   label="Total Logs"
                   value={health.logging.metrics.totalLogs}
@@ -788,17 +788,17 @@ export function ComprehensiveHealthDashboard({
           >
             {isConnected ? (
               <>
-                <Activity className="h-4 w-4 animate-pulse" />
+                <Activity className="size-4 animate-pulse" />
                 <span>Real-time updates via Socket.IO</span>
               </>
             ) : connectionStatus === "connecting" ? (
               <>
-                <RefreshCw className="h-4 w-4 animate-spin" />
+                <RefreshCw className="size-4 animate-spin" />
                 <span>Connecting to Socket.IO...</span>
               </>
             ) : (
               <>
-                <AlertTriangle className="h-4 w-4" />
+                <AlertTriangle className="size-4" />
                 <span>Disconnected - attempting to reconnect...</span>
               </>
             )}
@@ -808,3 +808,6 @@ export function ComprehensiveHealthDashboard({
     </div>
   );
 }
+
+
+

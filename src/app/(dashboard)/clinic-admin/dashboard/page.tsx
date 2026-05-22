@@ -60,7 +60,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 export default function ClinicAdminDashboard() {
-  const router = useRouter();
+  const { push } = useRouter();
   const { data: currentClinic, isPending: isLoadingClinic } = useCurrentClinic();
   const clinicId = currentClinic?.id;
 
@@ -79,7 +79,7 @@ export default function ClinicAdminDashboard() {
   });
   const { data: medicineDeskQueue = [] } = useMedicineDeskQueue(clinicId || "", !!clinicId);
 
-  const appointments = (appointmentsData as any)?.data || [];
+  const appointments = useMemo(() => (appointmentsData as any)?.data || [], [appointmentsData]);
   const clinicLocations = useMemo(() => {
     const data = clinicLocationsData as any;
     if (!data) return [];
@@ -102,24 +102,42 @@ export default function ClinicAdminDashboard() {
     const data = doctorsData as any;
     const source = Array.isArray(data) ? data : Array.isArray(data?.doctors) ? data.doctors : Array.isArray(data?.data) ? data.data : [];
 
-    return source.map((doctor: any) => ({
-      id: String(doctor?.id || ""),
-      name: String(doctor?.name || `${doctor?.firstName || ""} ${doctor?.lastName || ""}`.trim() || "Doctor"),
-      specialization: String(doctor?.specialization || doctor?.specializations?.[0] || "General"),
-      isActive: doctor?.isActive !== false,
-      hasSchedule:
-        Boolean(doctor?.schedule) ||
-        Boolean(doctor?.weeklySchedule) ||
-        Boolean(doctor?.schedule?.schedules) ||
-        Boolean(doctor?.schedule?.weeklySchedule),
-    })).filter((doctor: any) => doctor.id);
+    return source.reduce(
+      (accumulator: Array<{
+        id: string;
+        name: string;
+        specialization: string;
+        isActive: boolean;
+        hasSchedule: boolean;
+      }>, doctor: any) => {
+        const id = String(doctor?.id || "");
+        if (!id) {
+          return accumulator;
+        }
+
+        accumulator.push({
+          id,
+          name: String(doctor?.name || `${doctor?.firstName || ""} ${doctor?.lastName || ""}`.trim() || "Doctor"),
+          specialization: String(doctor?.specialization || doctor?.specializations?.[0] || "General"),
+          isActive: doctor?.isActive !== false,
+          hasSchedule:
+            Boolean(doctor?.schedule) ||
+            Boolean(doctor?.weeklySchedule) ||
+            Boolean(doctor?.schedule?.schedules) ||
+            Boolean(doctor?.schedule?.weeklySchedule),
+        });
+
+        return accumulator;
+      },
+      []
+    );
   }, [doctorsData]);
 
   const queueItems = useMemo(
     () =>
       extractQueueEntries(liveQueueData)
         .filter((item: any) => !["COMPLETED", "CANCELLED", "NO_SHOW"].includes(String(item.status || "").toUpperCase()))
-        .sort((a: any, b: any) => a.position - b.position),
+        .toSorted((a: any, b: any) => a.position - b.position),
     [liveQueueData]
   );
 
@@ -150,22 +168,18 @@ export default function ClinicAdminDashboard() {
       });
     });
 
-    return Array.from(sectionMap.values()).sort((a, b) => b.items.length - a.items.length || a.title.localeCompare(b.title));
+    return Array.from(sectionMap.values()).toSorted((a, b) => b.items.length - a.items.length || a.title.localeCompare(b.title));
   }, [queueItems]);
 
   const [activeQueueLane, setActiveQueueLane] = useState("");
-
-  useEffect(() => {
-    if (queueSections.length === 0) {
-      if (activeQueueLane) {
-        setActiveQueueLane("");
-      }
-      return;
+  const resolvedActiveQueueLane = useMemo(() => {
+    if (!queueSections.length) {
+      return "";
     }
 
-    if (!queueSections.some((section) => section.key === activeQueueLane)) {
-      setActiveQueueLane(queueSections[0]?.key || "");
-    }
+    return queueSections.some((section) => section.key === activeQueueLane)
+      ? activeQueueLane
+      : queueSections[0]?.key || "";
   }, [activeQueueLane, queueSections]);
 
   const activeQueueSection = useMemo(() => {
@@ -173,8 +187,8 @@ export default function ClinicAdminDashboard() {
       return null;
     }
 
-    return queueSections.find((section) => section.key === activeQueueLane) || queueSections[0];
-  }, [activeQueueLane, queueSections]);
+    return queueSections.find((section) => section.key === resolvedActiveQueueLane) || queueSections[0];
+  }, [queueSections, resolvedActiveQueueLane]);
 
   const selectedQueueItems = activeQueueSection?.items || [];
   const highlightedQueueItem = selectedQueueItems[0] || queueItems[0] || null;
@@ -353,8 +367,8 @@ export default function ClinicAdminDashboard() {
   }, [clinicStats]);
 
   const recentEvents = useMemo(() => {
-    return [...inPersonAppointments]
-      .sort((a: any, b: any) => (b.checkedInAt?.getTime() || b.dateTime?.getTime() || 0) - (a.checkedInAt?.getTime() || a.dateTime?.getTime() || 0))
+    return inPersonAppointments
+      .toSorted((a: any, b: any) => (b.checkedInAt?.getTime() || b.dateTime?.getTime() || 0) - (a.checkedInAt?.getTime() || a.dateTime?.getTime() || 0))
       .slice(0, 3)
       .map((apt: any) => ({
       id: apt.id,
@@ -422,14 +436,14 @@ export default function ClinicAdminDashboard() {
   if (isLoadingClinic || isLoadingStats || isLoadingLocations) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] gap-4">
-        <Loader2 className="w-12 h-12 animate-spin text-primary" />
+        <Loader2 className="size-12 animate-spin text-primary" />
         <p className="text-muted-foreground font-medium animate-pulse text-lg">Waking up the clinic dashboard...</p>
       </div>
     );
   }
 
   return (
-    <DashboardPageShell className="mx-auto max-w-7xl space-y-4 px-4 pb-6 pt-0 sm:space-y-5 sm:px-6 lg:px-8">
+    <DashboardPageShell className="mx-auto max-w-7xl gap-y-4 px-4 pb-6 pt-0 sm:gap-y-5 sm:px-6 lg:px-8">
       <DashboardPageHeader
         eyebrow="Clinic Admin"
         title="Operations Dashboard"
@@ -437,7 +451,7 @@ export default function ClinicAdminDashboard() {
         meta={
           <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-muted-foreground">
             <span className="font-semibold text-primary">{currentClinic?.name || "Clinic"}</span>
-            <span className="h-1 w-1 rounded-full bg-muted-foreground/50" />
+            <span className="size-1 rounded-full bg-muted-foreground/50" />
             <span>Live operational status</span>
           </div>
         }
@@ -449,24 +463,24 @@ export default function ClinicAdminDashboard() {
               onClick={() => refetchStats()}
               className="h-9 items-center gap-2 border border-border bg-card px-4 font-semibold text-foreground shadow-sm hover:bg-muted"
             >
-              <RefreshCcw className="w-4 h-4" />
+              <RefreshCcw className="size-4" />
               Sync
             </Button>
             <Button asChild variant="outline" className="h-9 items-center gap-2 border-border bg-card px-4 font-semibold text-foreground shadow-sm hover:bg-muted">
               <Link href="/clinic-admin/staff" prefetch={false}>
-                <UserPlus className="w-4 h-4" />
+                <UserPlus className="size-4" />
                 Staff
               </Link>
             </Button>
             <Button asChild className="h-9 items-center gap-2 bg-emerald-600 px-4 font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 active:scale-95">
               <Link href="/clinic-admin/schedule" prefetch={false}>
-                <CalendarDays className="w-4 h-4" />
+                <CalendarDays className="size-4" />
                 Schedule
               </Link>
             </Button>
             <Button asChild variant="outline" className="h-9 items-center gap-2 border-border bg-card px-4 font-semibold text-foreground shadow-sm hover:bg-muted">
               <Link href="/queue" prefetch={false}>
-                <Activity className="w-4 h-4" />
+                <Activity className="size-4" />
                 Queue
               </Link>
             </Button>
@@ -476,9 +490,9 @@ export default function ClinicAdminDashboard() {
 
       <Card className="overflow-hidden border border-border bg-card shadow-sm">
         <CardHeader className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
+          <div className="gap-y-1">
               <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-              <Activity className="w-5 h-5 text-primary" />
+              <Activity className="size-5 text-primary" />
               Workflow Shortcuts
             </CardTitle>
             <CardDescription className="text-sm">
@@ -495,7 +509,7 @@ export default function ClinicAdminDashboard() {
                 className="h-8 gap-2 border-border bg-muted/30 px-3 text-xs font-semibold text-foreground hover:bg-muted"
               >
                 <Link href={link.href} prefetch={false}>
-                  <link.icon className="w-4 h-4" />
+                  <link.icon className="size-4" />
                   {link.label}
                 </Link>
               </Button>
@@ -595,23 +609,23 @@ export default function ClinicAdminDashboard() {
             trend: `${medicineDeskItems.filter((item: any) => item.paymentStatus !== "PAID").length} unpaid`,
             isUp: medicineDeskItems.filter((item: any) => item.paymentStatus === "PAID").length > 0
           }
-        ].map((item, i) => (
-          <Card key={i} className="overflow-hidden border border-border bg-card shadow-sm">
+        ].map((item) => (
+          <Card key={item.label} className="overflow-hidden border border-border bg-card shadow-sm">
             <div className={cn("h-1 w-full opacity-70", item.color.replace('text', 'bg'))} />
             <CardContent className="p-5">
               <div className="mb-4 flex items-center justify-between">
                 <div className="shrink-0 rounded-xl border border-border bg-background p-2.5">
-                  <item.icon className={cn("w-5 h-5", item.color)} />
+                  <item.icon className={cn("size-5", item.color)} />
                 </div>
                 <div className={cn(
                   "flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-semibold uppercase",
                   item.isUp ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"
                 )}>
-                  {item.isUp ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                  {item.isUp ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}
                   {item.trend}
                 </div>
               </div>
-              <div className="space-y-1">
+              <div className="gap-y-1">
                 <p className="text-2xl font-semibold tracking-tight">{item.value}</p>
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{item.label}</p>
@@ -625,9 +639,9 @@ export default function ClinicAdminDashboard() {
 
       <Card className="overflow-hidden border border-border bg-card shadow-sm">
         <CardHeader className="flex flex-col gap-3 border-b border-border bg-muted/40 px-4 pb-4 pt-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
+          <div className="gap-y-1">
             <CardTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
-              <Activity className="w-5 h-5 text-primary" />
+              <Activity className="size-5 text-primary" />
               Clinic Admin Snapshot
             </CardTitle>
             <CardDescription className="text-sm">
@@ -646,7 +660,7 @@ export default function ClinicAdminDashboard() {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-indigo-700 dark:text-indigo-300">Staff Directory</p>
                 <p className="mt-1 text-2xl font-semibold">{staffSummary.active}/{staffSummary.total}</p>
               </div>
-              <Users className="h-5 w-5 text-indigo-600 dark:text-indigo-300" />
+              <Users className="size-5 text-indigo-600 dark:text-indigo-300" />
             </div>
             <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
               <Badge variant="outline" className="border-indigo-200 bg-white text-indigo-700">Doctors {staffSummary.doctors}</Badge>
@@ -663,7 +677,7 @@ export default function ClinicAdminDashboard() {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Locations</p>
                 <p className="mt-1 text-2xl font-semibold">{activeLocationCount}/{locationSummaries.length || clinicLocations.length || 0}</p>
               </div>
-              <MapPin className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
+              <MapPin className="size-5 text-emerald-600 dark:text-emerald-300" />
             </div>
             <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
               <Badge variant="outline" className="border-emerald-200 bg-white text-emerald-700">Queued {queueItems.length}</Badge>
@@ -680,7 +694,7 @@ export default function ClinicAdminDashboard() {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">Schedule</p>
                 <p className="mt-1 text-2xl font-semibold">{doctorRosterSummary.scheduled}/{doctorRosterSummary.total}</p>
               </div>
-              <CalendarDays className="h-5 w-5 text-sky-600 dark:text-sky-300" />
+              <CalendarDays className="size-5 text-sky-600 dark:text-sky-300" />
             </div>
             <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
               <Badge variant="outline" className="border-sky-200 bg-white text-sky-700">Doctors {doctorRosterSummary.total}</Badge>
@@ -697,7 +711,7 @@ export default function ClinicAdminDashboard() {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300">Settings</p>
                 <p className="mt-1 text-2xl font-semibold">{clinicSettingsSnapshot.appointmentDuration}m</p>
               </div>
-              <Settings className="h-5 w-5 text-violet-600 dark:text-violet-300" />
+              <Settings className="size-5 text-violet-600 dark:text-violet-300" />
             </div>
             <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
               <Badge variant="outline" className="border-violet-200 bg-white text-violet-700">
@@ -720,7 +734,7 @@ export default function ClinicAdminDashboard() {
             <CardTitle className="text-base font-semibold">Booking Policy</CardTitle>
             <CardDescription className="text-xs">Clinic booking and visit timing rules.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3 p-4">
+          <CardContent className="gap-y-3 p-4">
             <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
               <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
                 <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Duration</div>
@@ -751,7 +765,7 @@ export default function ClinicAdminDashboard() {
             <CardTitle className="text-base font-semibold">Consultation Modes</CardTitle>
             <CardDescription className="text-xs">Current OPD and consultation switches.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3 p-4">
+          <CardContent className="gap-y-3 p-4">
             <div className="flex flex-wrap gap-2 text-[11px]">
               <Badge variant="outline" className={cn("border", clinicSettingsSnapshot.generalConsultationEnabled ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700")}>
                 General {clinicSettingsSnapshot.generalConsultationEnabled ? "On" : "Off"}
@@ -777,7 +791,7 @@ export default function ClinicAdminDashboard() {
             <CardTitle className="text-base font-semibold">Doctor Coverage</CardTitle>
             <CardDescription className="text-xs">Schedule coverage and assistant mappings.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3 p-4">
+          <CardContent className="gap-y-3 p-4">
             <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
               <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
                 <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Doctors</div>
@@ -801,13 +815,13 @@ export default function ClinicAdminDashboard() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 text-foreground lg:grid-cols-12">
-        <div className="space-y-6 lg:col-span-8">
+        <div className="gap-y-6 lg:col-span-8">
         <Card className="overflow-hidden border-l-4 border-l-emerald-400 shadow-sm">
           <CardHeader className="flex flex-col gap-3 border-b border-border bg-muted/40 px-4 pb-4 pt-4 sm:flex-row sm:items-end sm:justify-between">
-            <div className="space-y-1">
+            <div className="gap-y-1">
               <CardTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-                  <Clock className="w-4 h-4" />
+                <div className="flex size-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                  <Clock className="size-4" />
                 </div>
                 Queue
               </CardTitle>
@@ -825,19 +839,19 @@ export default function ClinicAdminDashboard() {
                 variant="outline"
                 size="sm"
                 className="h-8 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                onClick={() => router.push("/queue")}
+                onClick={() => push("/queue")}
               >
                 View Queue Workspace
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="space-y-3 p-3 sm:p-4">
+          <CardContent className="gap-y-3 p-3 sm:p-4">
             {isLoadingQueue ? (
               <div className="flex justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <Loader2 className="size-8 animate-spin text-primary" />
               </div>
             ) : queueItems.length > 0 ? (
-              <div className="space-y-3">
+              <div className="gap-y-3">
                 {highlightedQueueItem ? (
                   <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 px-3 py-3 shadow-sm">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -975,11 +989,11 @@ export default function ClinicAdminDashboard() {
                 </div>
               </div>
             ) : (
-                <div className="space-y-4">
+                <div className="gap-y-4">
                     <Empty>
                       <EmptyContent>
                         <EmptyMedia>
-                          <Users className="h-5 w-5" />
+                          <Users className="size-5" />
                         </EmptyMedia>
                         <EmptyTitle>No active queue right now</EmptyTitle>
                         <EmptyDescription>
@@ -1039,10 +1053,10 @@ export default function ClinicAdminDashboard() {
 
           <Card className="overflow-hidden border-l-4 border-l-amber-400 shadow-sm">
             <CardHeader className="flex flex-col gap-2 border-b border-border bg-muted/40 px-4 pb-4 pt-4 sm:flex-row sm:items-end sm:justify-between">
-              <div className="space-y-1">
+              <div className="gap-y-1">
                 <CardTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-amber-600">
-                    <Activity className="w-4 h-4" />
+                  <div className="flex size-7 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+                    <Activity className="size-4" />
                   </div>
                   Medicine Desk Queue
                 </CardTitle>
@@ -1054,7 +1068,7 @@ export default function ClinicAdminDashboard() {
                 Live medication flow
               </Badge>
             </CardHeader>
-            <CardContent className="space-y-3 p-3 sm:p-4">
+            <CardContent className="gap-y-3 p-3 sm:p-4">
               {medicineDeskItems.length > 0 ? (
                 <div className="overflow-hidden rounded-xl border border-border">
                   <Table>
@@ -1096,7 +1110,7 @@ export default function ClinicAdminDashboard() {
                 <Empty>
                   <EmptyContent>
                     <EmptyMedia>
-                      <Activity className="h-5 w-5" />
+                      <Activity className="size-5" />
                     </EmptyMedia>
                     <EmptyTitle>No active medicine desk queue right now.</EmptyTitle>
                     <EmptyDescription>
@@ -1109,18 +1123,18 @@ export default function ClinicAdminDashboard() {
           </Card>
         </div>
 
-        <div className="space-y-4 text-foreground lg:col-span-4">
+        <div className="gap-y-4 text-foreground lg:col-span-4">
           <Card className="overflow-hidden border border-border bg-card shadow-sm">
             <CardHeader className="border-b px-4 py-3">
               <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                <MapPin className="w-4 h-4 text-primary" />
+                <MapPin className="size-4 text-primary" />
                 Location Health
               </CardTitle>
               <CardDescription className="text-xs">
                 Active branches and check-in pressure.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3 p-4">
+            <CardContent className="gap-y-3 p-4">
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Active</p>
@@ -1178,14 +1192,14 @@ export default function ClinicAdminDashboard() {
           <Card className="overflow-hidden border border-border bg-card shadow-sm">
             <CardHeader className="border-b px-4 py-3">
               <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                <Users className="w-4 h-4 text-primary" />
+                <Users className="size-4 text-primary" />
                 Staff Snapshot
               </CardTitle>
               <CardDescription className="text-xs">
                 Workforce ready to receive patients today.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3 p-4">
+            <CardContent className="gap-y-3 p-4">
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Total</p>
@@ -1226,7 +1240,7 @@ export default function ClinicAdminDashboard() {
           <Card className="border border-border bg-card shadow-sm">
             <CardHeader className="border-b px-4 py-3">
               <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                <Activity className="w-4 h-4 text-primary" />
+                <Activity className="size-4 text-primary" />
                 Recent Movement
               </CardTitle>
               <CardDescription className="text-xs">
@@ -1234,10 +1248,10 @@ export default function ClinicAdminDashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4">
-              <div className="space-y-2">
+              <div className="gap-y-2">
                 {recentEvents.length > 0 ? (
-                  recentEvents.map((event: any, i: number) => (
-                    <div key={i} className="rounded-lg border border-border bg-muted/10 px-3 py-2">
+                  recentEvents.map((event: any) => (
+                    <div key={`${event.date}-${event.time}-${event.message}`} className="rounded-lg border border-border bg-muted/10 px-3 py-2">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium">{event.message}</p>
@@ -1262,3 +1276,5 @@ export default function ClinicAdminDashboard() {
     </DashboardPageShell>
   );
 }
+
+

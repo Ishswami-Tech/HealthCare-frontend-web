@@ -1,11 +1,12 @@
-// ✅ Clinic Server Actions - Backend Integration
+﻿// ✅ Clinic Server Actions - Backend Integration
 // This file provides server actions that integrate with the backend clinic app
 
 'use server';
 
 import { revalidatePath } from 'next/cache';
 
-import { authenticatedApi, getServerSession, getClientInfo, revalidateCache } from './auth.server';
+import { authenticatedApi, getServerSession, getClientInfo } from './auth.server';
+import { revalidateCache } from '@/lib/utils/revalidate-cache';
 import { auditLog } from '@/lib/utils/audit';
 import { validateClinicAccess } from '@/lib/config/permissions';
 import { logger } from '@/lib/utils/logger';
@@ -168,6 +169,8 @@ export async function getClinics(filters?: any) {
  */
 export async function getClinicById(id: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) throw new Error('Unauthorized: Authentication required');
     const { data } = await authenticatedApi<Clinic>(API_ENDPOINTS.CLINICS.GET_BY_ID(id), {});
     return data;
   } catch (error) {
@@ -181,6 +184,8 @@ export async function getClinicById(id: string) {
  */
 export async function getClinicByAppName(appName: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) throw new Error('Unauthorized: Authentication required');
     const { data } = await authenticatedApi<Clinic>(API_ENDPOINTS.CLINICS.GET_BY_APP_NAME(appName), {});
     return data;
   } catch (error) {
@@ -194,6 +199,8 @@ export async function getClinicByAppName(appName: string) {
  */
 export async function getMyClinic() {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) throw new Error('Unauthorized: Authentication required');
     const { data } = await authenticatedApi<Clinic>('/clinics/my-clinic', {});
     return data || null;
   } catch (error) {
@@ -344,6 +351,8 @@ export async function createClinicLocation(clinicId: string, data: any): Promise
  */
 export async function getClinicLocations(clinicId: string, includeInactive = false) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) throw new Error('Unauthorized: Authentication required');
     const queryString = `?includeInactive=${includeInactive ? 'true' : 'false'}`;
     const { data } = await authenticatedApi<ClinicLocation[]>(
       `${API_ENDPOINTS.CLINIC_LOCATIONS.GET_ALL(clinicId)}${queryString}`,
@@ -368,6 +377,8 @@ export async function getClinicLocations(clinicId: string, includeInactive = fal
  */
 export async function getClinicLocation(clinicId: string, locationId: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) throw new Error('Unauthorized: Authentication required');
     const { data } = await authenticatedApi<ClinicLocation>(
       API_ENDPOINTS.CLINIC_LOCATIONS.GET_BY_ID(clinicId, locationId),
       {
@@ -463,6 +474,8 @@ export async function deleteClinicLocation(clinicId: string, locationId: string)
  */
 export async function generateLocationQRCode(locationId: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) throw new Error('Unauthorized: Authentication required');
     const { data } = await authenticatedApi<{ qrCode: string }>(API_ENDPOINTS.APPOINTMENTS.QR.GENERATE(locationId), {});
     return data || null;
   } catch (error) {
@@ -476,6 +489,8 @@ export async function generateLocationQRCode(locationId: string) {
  */
 export async function verifyLocationQR(qrData: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) throw new Error('Unauthorized: Authentication required');
     const { data } = await authenticatedApi<{ appointmentId: string; verified: boolean }>(API_ENDPOINTS.APPOINTMENTS.QR.VERIFY, {
       method: 'POST',
       body: JSON.stringify({ qrToken: qrData }),
@@ -494,6 +509,8 @@ export async function verifyLocationQR(qrData: string) {
  */
 export async function getHealthStatus() {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) throw new Error('Unauthorized: Authentication required');
     const { data } = await authenticatedApi(API_ENDPOINTS.HEALTH.STATUS, {});
     return data;
   } catch (error) {
@@ -507,6 +524,8 @@ export async function getHealthStatus() {
  */
 export async function getHealthReady() {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) throw new Error('Unauthorized: Authentication required');
     const { data } = await authenticatedApi(API_ENDPOINTS.HEALTH.READY, {});
     return data;
   } catch (error) {
@@ -520,6 +539,8 @@ export async function getHealthReady() {
  */
 export async function getHealthLive() {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) throw new Error('Unauthorized: Authentication required');
     const { data } = await authenticatedApi(API_ENDPOINTS.HEALTH.LIVE, {});
     return data;
   } catch (error) {
@@ -533,6 +554,8 @@ export async function getHealthLive() {
  */
 export async function assignClinicAdmin(data: { userId: string; clinicId: string }) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) throw new Error('Unauthorized: Authentication required');
     const { data: result } = await authenticatedApi('/clinics/assign-admin', {
       method: 'POST',
       body: JSON.stringify(data)
@@ -549,6 +572,8 @@ export async function assignClinicAdmin(data: { userId: string; clinicId: string
  */
 export async function getClinicDoctors(clinicId: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) throw new Error('Unauthorized: Authentication required');
     const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId), {
       clinicId,
       requireClinicId: true,
@@ -588,6 +613,8 @@ function isProfileCompletionAccessError(error: unknown): boolean {
  */
 export async function getClinicStaff(clinicId: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) throw new Error('Unauthorized: Authentication required');
     const { data } = await authenticatedApi(API_ENDPOINTS.USERS.GET_BY_CLINIC(clinicId), {});
     return data || [];
   } catch (error) {
@@ -604,6 +631,8 @@ export async function getClinicPatients(
   params?: { page?: number; limit?: number }
 ): Promise<ClinicPatientResult | ClinicUser[]> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) throw new Error('Unauthorized: Authentication required');
     const query = new URLSearchParams({
       page: String(Math.max(params?.page ?? 1, 1)),
       limit: String(Math.max(params?.limit ?? 100, 1)),
@@ -624,6 +653,8 @@ export async function getClinicPatients(
  */
 export async function registerPatientToClinic(data: RegisterPatientData) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) throw new Error('Unauthorized: Authentication required');
     const { data: result } = await authenticatedApi<ClinicUser>('/clinics/register-patient', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -640,6 +671,8 @@ export async function registerPatientToClinic(data: RegisterPatientData) {
  */
 export async function getClinicUsers(clinicId: string, role: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) throw new Error('Unauthorized: Authentication required');
     const { data } = await authenticatedApi<ClinicUser[]>(
       `/clinics/${clinicId}/users?role=${encodeURIComponent(role)}`,
       {}
@@ -656,6 +689,8 @@ export async function getClinicUsers(clinicId: string, role: string) {
  */
 export async function validateAppName(appName: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) throw new Error('Unauthorized: Authentication required');
     const { data } = await authenticatedApi<{ available: boolean; message?: string }>(
       `/clinics/validate-app-name?appName=${encodeURIComponent(appName)}`,
       {}
@@ -672,6 +707,8 @@ export async function validateAppName(appName: string) {
  */
 export async function associateUserToClinic(clinicId: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) throw new Error('Unauthorized: Authentication required');
     const { data } = await authenticatedApi<{ message: string }>(`/clinics/${clinicId}/associate`, {
       method: 'POST',
     });
@@ -687,6 +724,8 @@ export async function associateUserToClinic(clinicId: string) {
  */
 export async function getClinicStats(clinicId: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) throw new Error('Unauthorized: Authentication required');
     const { data } = await authenticatedApi<ClinicStats>(API_ENDPOINTS.CLINICS.STATS(clinicId), {});
     return data || null;
   } catch (error) {
@@ -700,6 +739,8 @@ export async function getClinicStats(clinicId: string) {
  */
 export async function getClinicOperatingHours(clinicId: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) throw new Error('Unauthorized: Authentication required');
     const { data } = await authenticatedApi<any[]>(API_ENDPOINTS.CLINICS.OPERATING_HOURS(clinicId), {});
     return data || [];
   } catch (error) {
@@ -713,6 +754,8 @@ export async function getClinicOperatingHours(clinicId: string) {
  */
 export async function getClinicSettings(clinicId: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) throw new Error('Unauthorized: Authentication required');
     const { data } = await authenticatedApi<ClinicSettings>(API_ENDPOINTS.CLINICS.SETTINGS(clinicId), {});
     return data || null;
   } catch (error) {
@@ -726,6 +769,8 @@ export async function getClinicSettings(clinicId: string) {
  */
 export async function updateClinicSettings(clinicId: string, settings: Partial<ClinicSettings>) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) throw new Error('Unauthorized: Authentication required');
     const { data } = await authenticatedApi<ClinicSettings>(API_ENDPOINTS.CLINICS.SETTINGS(clinicId), {
       method: 'PUT',
       body: JSON.stringify(settings),
@@ -743,6 +788,8 @@ export async function updateClinicSettings(clinicId: string, settings: Partial<C
  */
 export async function getClinicToken(clinicId: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) throw new Error('Unauthorized: Authentication required');
     const { data } = await authenticatedApi<{ token: string }>(`/clinics/${clinicId}/token`, {});
     return data || null;
   } catch (error) {
@@ -756,6 +803,8 @@ export async function getClinicToken(clinicId: string) {
  */
 export async function checkClinicPermission(clinicId: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) throw new Error('Unauthorized: Authentication required');
     const { data } = await authenticatedApi<boolean>(`/clinics/${clinicId}/permission`, {});
     return !!data;
   } catch (error) {

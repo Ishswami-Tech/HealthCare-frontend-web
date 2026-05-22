@@ -57,6 +57,7 @@ import { useCompleteAppointment } from "@/hooks/query/useAppointments";
 import { cn } from "@/lib/utils";
 import { getAvatarTone } from "@/lib/config/color-palette";
 import type { VideoRoomAccess } from "@/components/video/VideoAppointmentRoomWorkspace";
+import { isDoctorRole } from "@/components/video/daily-in-app-call-utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type MeetPanel = "chat" | "people";
@@ -200,22 +201,6 @@ function getTileBgColor(name: string | undefined): string {
   return TILE_BG_COLORS[Math.abs(hash) % TILE_BG_COLORS.length] ?? "#1a237e";
 }
 
-// ─── Doctor role detection ────────────────────────────────────────────────────
-export const DOCTOR_ROLES = new Set([
-  "DOCTOR",
-  "ASSISTANT_DOCTOR",
-  "THERAPIST",
-  "COUNSELOR",
-]);
-
-export function isDoctorRole(role: string | undefined): boolean {
-  return DOCTOR_ROLES.has(
-    String(role || "")
-      .toUpperCase()
-      .trim(),
-  );
-}
-
 // ─── Shared loading screen (used across all video states) ────────────────────
 function VideoLoadingScreen({
   message = "Getting ready…",
@@ -226,11 +211,11 @@ function VideoLoadingScreen({
 }) {
   return (
     <div className="flex h-full w-full min-h-[100dvh] items-center justify-center bg-[#111315] px-6 text-center text-white">
-      <div className="space-y-4 max-w-xs w-full">
-        <div className="relative mx-auto h-14 w-14">
+      <div className="gap-y-4 max-w-xs w-full">
+        <div className="relative mx-auto size-14">
           <Loader2 className="h-full w-full animate-spin text-[#8ab4f8]/40" />
           <div className="absolute inset-0 flex items-center justify-center">
-            <Video className="h-6 w-6 text-[#8ab4f8]" />
+            <Video className="size-6 text-[#8ab4f8]" />
           </div>
         </div>
         <div>
@@ -253,7 +238,7 @@ function DeviceSelect({
   onChange: (deviceId: string) => void | Promise<void>;
 }) {
   return (
-    <div className="space-y-1.5">
+    <div className="gap-y-1.5">
       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#9aa0a6]">
         {label}
       </p>
@@ -321,7 +306,7 @@ function DeviceChevronMenu({
           whileTap={{ scale: 0.94 }}
           aria-label={`Change ${label}`}
           title={`Change ${label}`}
-          className="flex h-7 w-7 items-center justify-center rounded-full bg-[#3c4043] text-[#e8eaed] hover:bg-[#5f6368] transition-all shrink-0 focus:outline-none"
+          className="flex size-7 items-center justify-center rounded-full bg-[#3c4043] text-[#e8eaed] hover:bg-[#5f6368] transition-all shrink-0 focus:outline-none"
         >
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
             <path
@@ -341,13 +326,13 @@ function DeviceChevronMenu({
         style={{ width: "220px", maxWidth: "85vw" }}
         className="!w-auto rounded-2xl border border-[#3c4043] bg-[#202124] p-2 text-white shadow-2xl z-[200] overflow-hidden"
       >
-        <div className="space-y-2">
+        <div className="gap-y-2">
           {/* Primary device list */}
           <div>
             <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9aa0a6] px-2">
               {label}
             </p>
-            <div className="space-y-0.5">
+            <div className="gap-y-0.5">
               {devices.length === 0 ? (
                 <div className="px-2 py-1.5 text-[12px] text-[#5f6368]">
                   No devices found
@@ -370,7 +355,7 @@ function DeviceChevronMenu({
                   >
                     <svg
                       className={cn(
-                        "h-3 w-3 shrink-0",
+                        "size-3 shrink-0",
                         d.device.deviceId === currentDeviceId
                           ? "opacity-100"
                           : "opacity-0",
@@ -403,7 +388,7 @@ function DeviceChevronMenu({
                 <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9aa0a6] px-2">
                   {extraLabel}
                 </p>
-                <div className="space-y-0.5">
+                <div className="gap-y-0.5">
                   {extraDevices.map((d) => (
                     <button
                       key={d.device.deviceId}
@@ -421,7 +406,7 @@ function DeviceChevronMenu({
                     >
                       <svg
                         className={cn(
-                          "h-3 w-3 shrink-0",
+                          "size-3 shrink-0",
                           d.device.deviceId === (extraCurrentId || "")
                             ? "opacity-100"
                             : "opacity-0",
@@ -464,8 +449,8 @@ function MicGroup({
   devices: ReturnType<typeof useDevices>;
   small?: boolean;
 }) {
-  const size = small ? "h-11 w-11" : "h-14 w-14";
-  const iconSize = small ? "h-5 w-5" : "h-6 w-6";
+  const size = small ? "size-11" : "size-14";
+  const iconSize = small ? "size-5" : "size-6";
 
   return (
     <div className="flex items-center gap-1">
@@ -512,8 +497,8 @@ function CameraGroup({
   devices: ReturnType<typeof useDevices>;
   small?: boolean;
 }) {
-  const size = small ? "h-11 w-11" : "h-14 w-14";
-  const iconSize = small ? "h-5 w-5" : "h-6 w-6";
+  const size = small ? "size-11" : "size-14";
+  const iconSize = small ? "size-5" : "size-6";
 
   return (
     <div className="flex items-center gap-1">
@@ -581,9 +566,9 @@ function ScreenShareMenu({
           whileTap={{ scale: 0.94 }}
           aria-label="Presenting"
           title="Presenting"
-          className="flex h-11 w-11 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-[#8ab4f8]/20 text-[#8ab4f8] border-2 border-[#8ab4f8]/40 hover:bg-[#8ab4f8]/30 transition-all shrink-0 focus:outline-none"
+          className="flex size-11 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-[#8ab4f8]/20 text-[#8ab4f8] border-2 border-[#8ab4f8]/40 hover:bg-[#8ab4f8]/30 transition-all shrink-0 focus:outline-none"
         >
-          <MonitorUp className="h-5 w-5 sm:h-6 sm:w-6" />
+          <MonitorUp className="size-5 sm:h-6 sm:w-6" />
         </motion.button>
       </PopoverTrigger>
       <PopoverContent
@@ -600,7 +585,7 @@ function ScreenShareMenu({
           }}
           className="flex w-full items-center gap-3 rounded-xl px-4 py-3.5 text-[14px] font-medium text-white hover:bg-white/10 transition-colors"
         >
-          <MonitorUp className="h-5 w-5 text-[#9aa0a6]" />
+          <MonitorUp className="size-5 text-[#9aa0a6]" />
           Present something else
         </button>
         <button
@@ -611,7 +596,7 @@ function ScreenShareMenu({
           }}
           className="flex w-full items-center gap-3 rounded-xl px-4 py-3.5 text-[14px] font-medium text-white hover:bg-white/10 transition-colors"
         >
-          <MonitorX className="h-5 w-5 text-[#9aa0a6]" />
+          <MonitorX className="size-5 text-[#9aa0a6]" />
           Stop sharing
         </button>
       </PopoverContent>
@@ -660,8 +645,8 @@ const ToolbarBtn = React.forwardRef<
             ? "h-11 w-20 sm:h-14 sm:w-24"
             : "h-14 w-24"
           : small
-            ? "h-11 w-11 sm:h-14 sm:w-14"
-            : "h-14 w-14",
+            ? "size-11 sm:h-14 sm:w-14"
+            : "size-14",
         danger
           ? "bg-[#ea4335] text-white hover:bg-[#d93025]"
           : active
@@ -671,7 +656,7 @@ const ToolbarBtn = React.forwardRef<
       {...rest}
     >
       <Icon
-        className={cn("shrink-0", small ? "h-5 w-5 sm:h-6 sm:w-6" : "h-6 w-6")}
+        className={cn("shrink-0", small ? "size-5 sm:h-6 sm:w-6" : "size-6")}
       />
       <span className="sr-only">{label}</span>
     </motion.button>
@@ -736,14 +721,14 @@ function ParticipantTile({
           {/* Subtle white glow */}
           <div
             className="absolute inset-0 opacity-15"
-            style={{
-              background:
-                "radial-gradient(circle at 50% 40%, rgba(255,255,255,0.8) 0%, transparent 60%)",
-              filter: "blur(28px)",
-            }}
-          />
+              style={{
+                background:
+                  "radial-gradient(circle at 50% 40%, rgba(255,255,255,0.8) 0%, transparent 60%)",
+                filter: "blur(8px)",
+              }}
+            />
           {/* Avatar circle — responsive size */}
-          <div className="relative flex h-16 w-16 sm:h-24 sm:w-24 lg:h-28 lg:w-28 items-center justify-center rounded-full bg-white/15 border-2 border-white/25 shadow-2xl">
+          <div className="relative flex size-16 sm:h-24 sm:w-24 lg:h-28 lg:w-28 items-center justify-center rounded-full bg-white/15 border-2 border-white/25 shadow-2xl">
             <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white tracking-tight select-none">
               {initials}
             </span>
@@ -786,7 +771,7 @@ function ParticipantTile({
 
       {/* Name tag — bottom-left, always visible */}
       <div className="absolute bottom-2 left-2 flex items-center gap-1 rounded-md bg-black/70 backdrop-blur-sm px-2 py-1 border border-white/10 max-w-[calc(100%-1rem)]">
-        {!audioOn && <MicOff className="h-2.5 w-2.5 text-[#ea4335] shrink-0" />}
+        {!audioOn && <MicOff className="size-2.5 text-[#ea4335] shrink-0" />}
         <span className="truncate text-[10px] sm:text-[11px] font-medium text-white leading-none">
           {label}
         </span>
@@ -834,7 +819,7 @@ function ScreenShareTile({
       {isLocal && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <div className="rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 px-8 py-6 text-center max-w-sm pointer-events-auto">
-            <MonitorUp className="mx-auto mb-3 h-10 w-10 text-[#8ab4f8]" />
+            <MonitorUp className="mx-auto mb-3 size-10 text-[#8ab4f8]" />
             <p className="text-[18px] font-semibold text-white mb-1">
               You are presenting
             </p>
@@ -847,7 +832,7 @@ function ScreenShareTile({
                 onClick={onStopShare}
                 className="flex items-center gap-2 mx-auto rounded-full bg-[#ea4335] px-5 py-2.5 text-[13px] font-semibold text-white hover:bg-[#d93025] transition-colors"
               >
-                <MonitorX className="h-4 w-4" />
+                <MonitorX className="size-4" />
                 Stop presenting
               </button>
             )}
@@ -856,7 +841,7 @@ function ScreenShareTile({
       )}
 
       <div className="absolute bottom-3 left-3 flex items-center gap-2 rounded-lg bg-black/70 backdrop-blur-sm px-2.5 py-1.5 border border-white/10">
-        <ScreenShare className="h-3.5 w-3.5 text-[#8ab4f8]" />
+        <ScreenShare className="size-3.5 text-[#8ab4f8]" />
         <span className="text-[12px] font-medium text-white">
           {label}&apos;s screen
         </span>
@@ -908,7 +893,7 @@ function SidebarParticipantRow({
     >
       {/* Avatar with bg color */}
       <div
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-white/15 text-[13px] font-bold text-white shadow-md"
+        className="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-white/15 text-[13px] font-bold text-white shadow-md"
         style={{ backgroundColor: bgColor }}
       >
         {getInitials(label)}
@@ -940,16 +925,16 @@ function SidebarParticipantRow({
 
       <div
         className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-full border shrink-0",
+          "flex size-8 items-center justify-center rounded-full border shrink-0",
           isMuted
             ? "bg-[#ea4335]/15 border-[#ea4335]/30"
             : "bg-[#34a853]/15 border-[#34a853]/30",
         )}
       >
         {isMuted ? (
-          <MicOff className="h-3.5 w-3.5 text-[#ea4335]" />
+          <MicOff className="size-3.5 text-[#ea4335]" />
         ) : (
-          <Mic className="h-3.5 w-3.5 text-[#34a853]" />
+          <Mic className="size-3.5 text-[#34a853]" />
         )}
       </div>
     </div>
@@ -999,10 +984,10 @@ function MeetingSidebar({
         <button
           type="button"
           onClick={onClose}
-          className="flex h-9 w-9 items-center justify-center rounded-full text-[#9aa0a6] hover:bg-white/10 transition-colors"
+          className="flex size-9 items-center justify-center rounded-full text-[#9aa0a6] hover:bg-white/10 transition-colors"
           aria-label="Close panel"
         >
-          <X className="h-5 w-5" />
+          <X className="size-5" />
         </button>
       </div>
 
@@ -1017,11 +1002,11 @@ function MeetingSidebar({
             </div>
 
             {/* Messages list */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5 min-h-0">
+            <div className="flex-1 overflow-y-auto px-4 py-4 gap-y-5 min-h-0">
               {sentMessages.length === 0 && (
                 <div className="flex h-full items-center justify-center pt-8">
-                  <div className="text-center space-y-2">
-                    <MessageSquare className="mx-auto h-10 w-10 text-[#3c4043]" />
+                  <div className="text-center gap-y-2">
+                    <MessageSquare className="mx-auto size-10 text-[#3c4043]" />
                     <p className="text-[13px] text-[#5f6368]">
                       No messages yet
                     </p>
@@ -1051,7 +1036,7 @@ function MeetingSidebar({
                   >
                     {!isMe && (
                       <div
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-white/15 text-[11px] font-bold text-white self-end mb-1 shadow-md"
+                        className="flex size-8 shrink-0 items-center justify-center rounded-full border-2 border-white/15 text-[11px] font-bold text-white self-end mb-1 shadow-md"
                         style={{ backgroundColor: bgColor }}
                       >
                         {getInitials(senderName)}
@@ -1098,9 +1083,8 @@ function MeetingSidebar({
             {/* Input */}
             <div className="shrink-0 border-t border-white/10 p-4">
               <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const text = draft.trim();
+                action={(formData) => {
+                  const text = String(formData.get("message") ?? "").trim();
                   if (!text) return;
                   onSendMessage({
                     appointmentId,
@@ -1112,8 +1096,10 @@ function MeetingSidebar({
                   setDraft("");
                 }}
                 className="flex items-center gap-2 rounded-xl border border-white/15 bg-[#2d2e30] px-4 py-1 focus-within:border-[#8ab4f8]/50 focus-within:ring-1 focus-within:ring-[#8ab4f8]/20 transition-all"
+                suppressHydrationWarning
               >
                 <input
+                  name="message"
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   placeholder="Send a message to everyone"
@@ -1122,22 +1108,22 @@ function MeetingSidebar({
                 <button
                   type="submit"
                   disabled={!draft.trim()}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#8ab4f8]/25 bg-[#8ab4f8]/15 text-[#8ab4f8] hover:bg-[#8ab4f8]/25 transition disabled:opacity-30 disabled:pointer-events-none"
+                  className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-[#8ab4f8]/25 bg-[#8ab4f8]/15 text-[#8ab4f8] hover:bg-[#8ab4f8]/25 transition disabled:opacity-30 disabled:pointer-events-none"
                 >
-                  <Send className="h-4 w-4" />
+                  <Send className="size-4" />
                 </button>
               </form>
             </div>
           </>
         ) : (
           /* ── People panel ── */
-          <div className="flex-1 overflow-y-auto px-4 py-4 min-h-0 space-y-5">
+          <div className="flex-1 overflow-y-auto px-4 py-4 min-h-0 gap-y-5">
             {waitingParticipants.length > 0 && (
               <div>
                 <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#9aa0a6]">
                   Waiting to join · {waitingParticipants.length}
                 </p>
-                <div className="space-y-2">
+                <div className="gap-y-2">
                   {waitingParticipants.map((p) => {
                     const rawName = String(p.name || p.user_name || "").trim();
                     const pName =
@@ -1151,7 +1137,7 @@ function MeetingSidebar({
                         className="flex items-center gap-3 rounded-xl border border-[#fbbc05]/25 bg-[#fbbc05]/8 px-3 py-3 hover:bg-[#fbbc05]/12 transition-all"
                       >
                         <div
-                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-white/15 text-[13px] font-bold text-white shadow-md"
+                          className="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-white/15 text-[13px] font-bold text-white shadow-md"
                           style={{ backgroundColor: bgColor }}
                         >
                           {getInitials(pName)}
@@ -1184,7 +1170,7 @@ function MeetingSidebar({
               <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#9aa0a6]">
                 In call · {participantIds.length}
               </p>
-              <div className="space-y-2">
+              <div className="gap-y-2">
                 {participantIds.map((id) => (
                   <SidebarParticipantRow
                     key={id}
@@ -1220,7 +1206,7 @@ function EndCallModal({
   const [isCompleting, setIsCompleting] = React.useState(false);
   const { mutateAsync: completeAppointment } = useCompleteAppointment();
   const btnSize = small ? "h-11 w-20" : "h-14 w-24";
-  const iconSize = small ? "h-5 w-5" : "h-6 w-6";
+  const iconSize = small ? "size-5" : "size-6";
 
   return (
     <>
@@ -1248,7 +1234,7 @@ function EndCallModal({
             </DialogTitle>
           </DialogHeader>
 
-          <div className="mt-4 space-y-2">
+          <div className="mt-4 gap-y-2">
             {/* Leave Meeting — no API call */}
             <button
               type="button"
@@ -1259,8 +1245,8 @@ function EndCallModal({
               }}
               className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-[14px] font-medium text-white hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#fbbc05]/15">
-                <PhoneOff className="h-4 w-4 text-[#fbbc05]" />
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#fbbc05]/15">
+                <PhoneOff className="size-4 text-[#fbbc05]" />
               </div>
               <div className="text-left">
                 <p className="text-[13px] font-semibold text-white">
@@ -1298,11 +1284,11 @@ function EndCallModal({
                   }}
                   className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-[14px] font-medium text-white hover:bg-[#ea4335]/15 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#ea4335]/15">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#ea4335]/15">
                     {isCompleting ? (
-                      <Loader2 className="h-4 w-4 text-[#ea4335] animate-spin" />
+                      <Loader2 className="size-4 text-[#ea4335] animate-spin" />
                     ) : (
-                      <PhoneOff className="h-4 w-4 text-[#ea4335]" />
+                      <PhoneOff className="size-4 text-[#ea4335]" />
                     )}
                   </div>
                   <div className="text-left">
@@ -1357,7 +1343,7 @@ function GridLayout({
           />
         ) : (
           <div className="flex h-full items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-[#8ab4f8]" />
+            <Loader2 className="size-8 animate-spin text-[#8ab4f8]" />
           </div>
         )}
       </div>
@@ -1493,21 +1479,24 @@ function DailyCallSurfaceContent({
       : (userData?.patientName as string) || "Patient");
 
   const [sentMessages, setSentMessages] = React.useState<DailyAppMessage[]>([]);
-  const [unreadCount, setUnreadCount] = React.useState(0);
+  const receivedMessagesRef = React.useRef<DailyAppMessage[]>([]);
+  const lastReadMessageCountRef = React.useRef(0);
   const activePanelRef = React.useRef(activePanel);
 
   React.useEffect(() => {
     activePanelRef.current = activePanel;
-    if (activePanel === "chat") setUnreadCount(0);
+    if (activePanel === "chat") {
+      lastReadMessageCountRef.current = receivedMessagesRef.current.length;
+    }
   }, [activePanel]);
 
   const handleAppMessage = React.useCallback((event: { data: unknown }) => {
     const payload = event.data;
     if (!payload || typeof payload !== "object") return;
     const msg = { ...(payload as DailyAppMessage), isLocal: false };
+    receivedMessagesRef.current = [...receivedMessagesRef.current, msg];
     setSentMessages((prev) => [...prev, msg]);
     if (activePanelRef.current !== "chat") {
-      setUnreadCount((n) => n + 1);
       showInfoToast(`New message from ${msg.senderName || "Participant"}`, {
         description:
           msg.text.length > 50 ? `${msg.text.slice(0, 50)}…` : msg.text,
@@ -1589,6 +1578,9 @@ function DailyCallSurfaceContent({
     joinError ||
     String((dailyError as { message?: unknown } | null)?.message || "");
   const isJoined = meetingState === "joined-meeting";
+  const unreadCount = activePanel === "chat"
+    ? 0
+    : Math.max(0, receivedMessagesRef.current.length - lastReadMessageCountRef.current);
 
   const activeSessionId =
     activeSpeakerId || remoteParticipantIds[0] || localSessionId || "";
@@ -1645,7 +1637,7 @@ function DailyCallSurfaceContent({
                 {/* Left: title pill */}
                 <div className="flex items-center gap-2 rounded-xl bg-black/60 backdrop-blur-md px-2.5 py-1.5 border border-white/10 pointer-events-auto min-w-0 max-w-[60%]">
                   <div
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white border border-white/20"
+                    className="flex size-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white border border-white/20"
                     style={{
                       backgroundColor: getTileBgColor(appointmentTitle),
                     }}
@@ -1673,7 +1665,7 @@ function DailyCallSurfaceContent({
                 <div className="flex items-center gap-1.5 pointer-events-auto shrink-0">
                   {isLocalSharing && (
                     <div className="hidden md:flex items-center gap-1 rounded-full bg-[#8ab4f8]/20 border border-[#8ab4f8]/40 px-2 py-1 text-[10px] font-semibold text-[#8ab4f8]">
-                      <MonitorUp className="h-3 w-3" />
+                      <MonitorUp className="size-3" />
                       Presenting
                     </div>
                   )}
@@ -1686,7 +1678,7 @@ function DailyCallSurfaceContent({
                     )}
                   >
                     {isJoined && (
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#34a853] animate-pulse shrink-0" />
+                      <span className="size-1.5 rounded-full bg-[#34a853] animate-pulse shrink-0" />
                     )}
                     <span>{renderedState}</span>
                   </div>
@@ -1860,15 +1852,15 @@ function DailyCallSurfaceContent({
                     whileTap={{ scale: 0.94 }}
                     aria-label="More options"
                     className={cn(
-                      "relative flex h-10 w-10 items-center justify-center rounded-full transition-all shrink-0 focus:outline-none",
+                      "relative flex size-10 items-center justify-center rounded-full transition-all shrink-0 focus:outline-none",
                       mobileMenuOpen
                         ? "bg-[#8ab4f8]/20 text-[#8ab4f8] border-2 border-[#8ab4f8]/40"
                         : "bg-[#3c4043] text-[#e8eaed]",
                     )}
                   >
-                    <MoreVertical className="h-5 w-5" />
+                    <MoreVertical className="size-5" />
                     {unreadCount > 0 && (
-                      <span className="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#ea4335] text-[7px] font-bold text-white border border-[#202124]">
+                      <span className="absolute -right-0.5 -top-0.5 flex size-3.5 items-center justify-center rounded-full bg-[#ea4335] text-[7px] font-bold text-white border border-[#202124]">
                         {unreadCount > 9 ? "9+" : unreadCount}
                       </span>
                     )}
@@ -1895,7 +1887,7 @@ function DailyCallSurfaceContent({
                   >
                     <MonitorUp
                       className={cn(
-                        "h-5 w-5 shrink-0",
+                        "size-5 shrink-0",
                         isLocalSharing ? "text-[#8ab4f8]" : "text-[#9aa0a6]",
                       )}
                     />
@@ -1913,10 +1905,10 @@ function DailyCallSurfaceContent({
                     }}
                     className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-[14px] font-medium text-white hover:bg-white/10 transition-colors"
                   >
-                    <Users className="h-5 w-5 shrink-0 text-[#9aa0a6]" />
+                    <Users className="size-5 shrink-0 text-[#9aa0a6]" />
                     <span className="flex-1 text-left">Participants</span>
                     {participantCounts.present > 0 && (
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#8ab4f8] text-[9px] font-bold text-[#202124]">
+                      <span className="flex size-5 items-center justify-center rounded-full bg-[#8ab4f8] text-[9px] font-bold text-[#202124]">
                         {participantCounts.present > 9
                           ? "9+"
                           : participantCounts.present}
@@ -1933,10 +1925,10 @@ function DailyCallSurfaceContent({
                     }}
                     className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-[14px] font-medium text-white hover:bg-white/10 transition-colors"
                   >
-                    <MessageSquare className="h-5 w-5 shrink-0 text-[#9aa0a6]" />
+                    <MessageSquare className="size-5 shrink-0 text-[#9aa0a6]" />
                     <span className="flex-1 text-left">In-call messages</span>
                     {unreadCount > 0 && (
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#ea4335] text-[9px] font-bold text-white">
+                      <span className="flex size-5 items-center justify-center rounded-full bg-[#ea4335] text-[9px] font-bold text-white">
                         {unreadCount > 9 ? "9+" : unreadCount}
                       </span>
                     )}
@@ -1979,11 +1971,11 @@ function DailyCallSurfaceContent({
                           : "text-white hover:bg-white/10",
                       )}
                     >
-                      <Icon className="h-4 w-4 shrink-0" />
+                      <Icon className="size-4 shrink-0" />
                       <span className="flex-1 text-left">{label}</span>
                       {layout === id && (
                         <svg
-                          className="h-3.5 w-3.5 shrink-0"
+                          className="size-3.5 shrink-0"
                           viewBox="0 0 14 14"
                           fill="none"
                         >
@@ -2050,7 +2042,7 @@ function DailyCallSurfaceContent({
                     align="center"
                     className="w-[min(92vw,22rem)] rounded-2xl border border-[#3c4043] bg-[#202124] p-3 text-white shadow-2xl z-[200]"
                   >
-                    <div className="space-y-1">
+                    <div className="gap-y-1">
                       <button
                         type="button"
                         onClick={() => {
@@ -2059,10 +2051,10 @@ function DailyCallSurfaceContent({
                         }}
                         className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-[14px] font-medium text-white hover:bg-white/10 transition-colors"
                       >
-                        <Users className="h-5 w-5 shrink-0 text-[#9aa0a6]" />
+                        <Users className="size-5 shrink-0 text-[#9aa0a6]" />
                         <span className="flex-1 text-left">Participants</span>
                         {participantCounts.present > 0 && (
-                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#8ab4f8] text-[9px] font-bold text-[#202124]">
+                          <span className="flex size-5 items-center justify-center rounded-full bg-[#8ab4f8] text-[9px] font-bold text-[#202124]">
                             {participantCounts.present > 9
                               ? "9+"
                               : participantCounts.present}
@@ -2077,12 +2069,12 @@ function DailyCallSurfaceContent({
                         }}
                         className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-[14px] font-medium text-white hover:bg-white/10 transition-colors"
                       >
-                        <MessageSquare className="h-5 w-5 shrink-0 text-[#9aa0a6]" />
+                        <MessageSquare className="size-5 shrink-0 text-[#9aa0a6]" />
                         <span className="flex-1 text-left">
                           In-call messages
                         </span>
                         {unreadCount > 0 && (
-                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#ea4335] text-[9px] font-bold text-white">
+                          <span className="flex size-5 items-center justify-center rounded-full bg-[#ea4335] text-[9px] font-bold text-white">
                             {unreadCount > 9 ? "9+" : unreadCount}
                           </span>
                         )}
@@ -2124,11 +2116,11 @@ function DailyCallSurfaceContent({
                               : "text-white hover:bg-white/10",
                           )}
                         >
-                          <Icon className="h-4 w-4 shrink-0" />
+                          <Icon className="size-4 shrink-0" />
                           <span className="flex-1 text-left">{label}</span>
                           {layout === id && (
                             <svg
-                              className="h-3.5 w-3.5 shrink-0"
+                              className="size-3.5 shrink-0"
                               viewBox="0 0 14 14"
                               fill="none"
                             >
@@ -2162,15 +2154,15 @@ function DailyCallSurfaceContent({
                   onClick={() => handleTogglePanel("people")}
                   aria-label="Participants"
                   className={cn(
-                    "relative flex h-14 w-14 items-center justify-center rounded-full transition-all",
+                    "relative flex size-14 items-center justify-center rounded-full transition-all",
                     activePanel === "people"
                       ? "bg-[#8ab4f8]/20 text-[#8ab4f8] border-2 border-[#8ab4f8]/40"
                       : "bg-[#3c4043] text-[#e8eaed] hover:bg-[#5f6368]",
                   )}
                 >
-                  <Users className="h-6 w-6" />
+                  <Users className="size-6" />
                   {participantCounts.present > 0 && (
-                    <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#8ab4f8] text-[9px] font-bold text-[#202124] border-2 border-[#202124]">
+                    <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-[#8ab4f8] text-[9px] font-bold text-[#202124] border-2 border-[#202124]">
                       {participantCounts.present > 9
                         ? "9+"
                         : participantCounts.present}
@@ -2182,15 +2174,15 @@ function DailyCallSurfaceContent({
                   onClick={() => handleTogglePanel("chat")}
                   aria-label="Chat"
                   className={cn(
-                    "relative flex h-14 w-14 items-center justify-center rounded-full transition-all",
+                    "relative flex size-14 items-center justify-center rounded-full transition-all",
                     activePanel === "chat"
                       ? "bg-[#8ab4f8]/20 text-[#8ab4f8] border-2 border-[#8ab4f8]/40"
                       : "bg-[#3c4043] text-[#e8eaed] hover:bg-[#5f6368]",
                   )}
                 >
-                  <MessageSquare className="h-6 w-6" />
+                  <MessageSquare className="size-6" />
                   {unreadCount > 0 && (
-                    <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#ea4335] text-[9px] font-bold text-white border-2 border-[#202124]">
+                    <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-[#ea4335] text-[9px] font-bold text-white border-2 border-[#202124]">
                       {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                   )}
@@ -2206,27 +2198,24 @@ function DailyCallSurfaceContent({
 
 // ─── DailyCallSurface (public export) ────────────────────────────────────────
 function DailyCallSurface(props: DailyInAppCallProps) {
-  const [callObject, setCallObject] = React.useState<DailyCall | null | false>(
-    null,
-  );
-
-  React.useEffect(() => {
-    let co: DailyCall | null = null;
+  const [callObject] = React.useState<DailyCall | false>(() => {
     try {
-      co = getOrCreateCallObject();
-      setCallObject(co);
+      return getOrCreateCallObject();
     } catch (err) {
       console.error("[VIDEO] Daily.createCallObject failed:", err);
-      setCallObject(false);
+      return false;
     }
+  });
+
+  React.useEffect(() => {
+    if (!callObject) return;
 
     return () => {
-      if (!co) return;
-      if (co === sharedDailyCallObject) {
+      if (callObject === sharedDailyCallObject) {
         try {
-          if (!co.isDestroyed()) {
-            void co.leave();
-            co.destroy();
+          if (!callObject.isDestroyed()) {
+            void callObject.leave();
+            callObject.destroy();
           }
         } catch {
           /* ignore */
@@ -2234,16 +2223,7 @@ function DailyCallSurface(props: DailyInAppCallProps) {
         sharedDailyCallObject = null;
       }
     };
-  }, []);
-
-  if (callObject === null) {
-    return (
-      <VideoLoadingScreen
-        message="Initialising video engine…"
-        sub="Loading the Daily call object in your browser."
-      />
-    );
-  }
+  }, [callObject]);
 
   if (callObject === false) {
     return (
@@ -2264,3 +2244,5 @@ function DailyCallSurface(props: DailyInAppCallProps) {
 }
 
 export { DailyCallSurface };
+
+

@@ -135,15 +135,15 @@ export default function LabTechnicianDashboard() {
   if (isPending) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="size-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="p-4 space-y-4 sm:p-6 sm:space-y-5">
+    <div className="p-4 gap-y-4 sm:p-6 sm:gap-y-5">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Lab Technician Dashboard</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Lab Technician Dashboard</h1>
         <p className="text-muted-foreground">
           Welcome back, {user?.name || "Technician"}! Here's your laboratory overview.
         </p>
@@ -193,7 +193,7 @@ export default function LabTechnicianDashboard() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-orange-600" />
+              <AlertCircle className="size-5 text-orange-600" />
               Test Queue
             </CardTitle>
           </CardHeader>
@@ -202,28 +202,28 @@ export default function LabTechnicianDashboard() {
               <Empty className="min-h-[220px] border-border/70 bg-muted/20">
                 <EmptyContent>
                   <EmptyMedia variant="icon">
-                    <Clock className="h-5 w-5" />
+                    <Clock className="size-5" />
                   </EmptyMedia>
                   <EmptyTitle>No pending lab tests</EmptyTitle>
                   <EmptyDescription>Tests waiting for processing will appear here.</EmptyDescription>
                 </EmptyContent>
               </Empty>
             ) : (
-              <div className="space-y-4">
+              <div className="gap-y-4">
                 {pendingTests.map((test) => (
                   <div
                     key={test.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50 transition-colors"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                        <TestTube2 className="w-5 h-5 text-orange-600" />
+                      <div className="size-10 bg-orange-100 rounded-full flex items-center justify-center">
+                        <TestTube2 className="size-5 text-orange-600" />
                       </div>
                       <div>
                         <h4 className="font-semibold leading-none mb-1">{test.patientName}</h4>
                         <p className="text-sm text-muted-foreground">{test.testType}</p>
                         <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
+                          <Clock className="size-3" />
                           {test.requestedAt}
                         </p>
                       </div>
@@ -242,7 +242,7 @@ export default function LabTechnicianDashboard() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-green-600" />
+              <CheckCircle className="size-5 text-green-600" />
               Recent Reports
             </CardTitle>
           </CardHeader>
@@ -251,22 +251,22 @@ export default function LabTechnicianDashboard() {
               <Empty className="min-h-[220px] border-border/70 bg-muted/20">
                 <EmptyContent>
                   <EmptyMedia variant="icon">
-                    <FileText className="h-5 w-5" />
+                    <FileText className="size-5" />
                   </EmptyMedia>
                   <EmptyTitle>No recent lab reports</EmptyTitle>
                   <EmptyDescription>Reported results will appear here once finalized.</EmptyDescription>
                 </EmptyContent>
               </Empty>
             ) : (
-              <div className="space-y-4">
+              <div className="gap-y-4">
                 {recentResults.map((result) => (
                   <div
                     key={result.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50 transition-colors"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                        <FileText className="w-5 h-5 text-green-600" />
+                      <div className="size-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <FileText className="size-5 text-green-600" />
                       </div>
                       <div>
                         <h4 className="font-semibold leading-none mb-1">{result.patientName}</h4>
@@ -296,7 +296,7 @@ export default function LabTechnicianDashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="flex items-center gap-4 p-4 bg-blue-50/50 border border-blue-100 rounded-lg">
               <div className="p-2 bg-blue-100 rounded-lg">
-                <TestTube2 className="w-6 h-6 text-blue-600" />
+                <TestTube2 className="size-6 text-blue-600" />
               </div>
               <div>
                 <div className="text-2xl font-bold text-blue-700">{categoryStats.hematology}</div>
@@ -305,7 +305,7 @@ export default function LabTechnicianDashboard() {
             </div>
             <div className="flex items-center gap-4 p-4 bg-purple-50/50 border border-purple-100 rounded-lg">
               <div className="p-2 bg-purple-100 rounded-lg">
-                <Activity className="w-6 h-6 text-purple-600" />
+                <Activity className="size-6 text-purple-600" />
               </div>
               <div>
                 <div className="text-2xl font-bold text-purple-700">{categoryStats.urineAnalysis}</div>
@@ -314,7 +314,7 @@ export default function LabTechnicianDashboard() {
             </div>
             <div className="flex items-center gap-4 p-4 bg-emerald-50/50 border border-emerald-100 rounded-lg">
               <div className="p-2 bg-emerald-100 rounded-lg">
-                <CheckCircle className="w-6 h-6 text-emerald-600" />
+                <CheckCircle className="size-6 text-emerald-600" />
               </div>
               <div>
                 <div className="text-2xl font-bold text-emerald-700">{categoryStats.biochemistry}</div>
@@ -323,7 +323,7 @@ export default function LabTechnicianDashboard() {
             </div>
             <div className="flex items-center gap-4 p-4 bg-orange-50/50 border border-orange-100 rounded-lg">
               <div className="p-2 bg-orange-100 rounded-lg">
-                <AlertCircle className="w-6 h-6 text-orange-600" />
+                <AlertCircle className="size-6 text-orange-600" />
               </div>
               <div>
                 <div className="text-2xl font-bold text-orange-700">{categoryStats.microbiology}</div>
@@ -336,3 +336,5 @@ export default function LabTechnicianDashboard() {
     </div>
   );
 }
+
+

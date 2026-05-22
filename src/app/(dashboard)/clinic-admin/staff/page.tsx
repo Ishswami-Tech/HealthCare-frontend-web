@@ -213,7 +213,7 @@ export default function ClinicAdminStaff() {
         header: "Staff Member",
         cell: ({ row }) => (
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/5 font-bold text-primary">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/5 font-bold text-primary">
               {row.original.name.charAt(0)}
             </div>
             <div>
@@ -229,7 +229,7 @@ export default function ClinicAdminStaff() {
         accessorKey: "role",
         header: "Role & Dept",
         cell: ({ row }) => (
-          <div className="space-y-1">
+          <div className="gap-y-1">
             {getRoleBadge(row.original.role)}
             <p className="text-[10px] font-medium text-muted-foreground">
               {row.original.department}
@@ -263,13 +263,13 @@ export default function ClinicAdminStaff() {
         accessorKey: "email",
         header: "Contact",
         cell: ({ row }) => (
-          <div className="space-y-1 text-sm text-muted-foreground">
+          <div className="gap-y-1 text-sm text-muted-foreground">
             <div className="flex items-center gap-1.5">
-              <Mail className="h-3.5 w-3.5" />
+              <Mail className="size-3.5" />
               <span>{row.original.email}</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <Phone className="h-3.5 w-3.5" />
+              <Phone className="size-3.5" />
               <span>{row.original.phone}</span>
             </div>
           </div>
@@ -295,7 +295,7 @@ export default function ClinicAdminStaff() {
               }
               className="bg-neutral-50 font-medium dark:bg-neutral-800 dark:hover:bg-neutral-700"
             >
-              <ShieldCheck className="mr-2 h-4 w-4 text-primary" />
+              <ShieldCheck className="mr-2 size-4 text-primary" />
               Manage Role
             </Button>
           </div>
@@ -308,7 +308,7 @@ export default function ClinicAdminStaff() {
   if (isLoadingStaff) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <Loader2 className="size-10 animate-spin text-primary" />
         <p className="animate-pulse text-muted-foreground">Loading staff database...</p>
       </div>
     );
@@ -323,7 +323,7 @@ export default function ClinicAdminStaff() {
         meta={
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             <span className="font-medium text-primary">{clinicName || "Your clinic"}</span>
-            <span className="h-1 w-1 rounded-full bg-muted-foreground/50" />
+            <span className="size-1 rounded-full bg-muted-foreground/50" />
             <span>{staff.length} staff members</span>
           </div>
         }
@@ -336,7 +336,7 @@ export default function ClinicAdminStaff() {
               onClick={() => setIsAddStaffModalOpen(true)}
               className="h-9 gap-2 px-4 font-semibold"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="size-4" />
               Add Staff
             </Button>
           </div>
@@ -380,9 +380,9 @@ export default function ClinicAdminStaff() {
             color: "text-orange-600 dark:text-orange-400",
             bg: "bg-orange-50 dark:bg-orange-500/10",
           },
-        ].map((stat, index) => (
+        ].map((stat) => (
           <Card
-            key={index}
+            key={stat.label}
             className="border-none bg-white shadow-sm ring-1 ring-neutral-200 transition-shadow hover:shadow-md dark:bg-neutral-900 dark:ring-neutral-800"
           >
             <CardContent className="p-6">
@@ -394,7 +394,7 @@ export default function ClinicAdminStaff() {
                   <p className="mt-1 text-3xl font-black">{stat.value}</p>
                 </div>
                 <div className={cn("rounded-2xl p-3", stat.bg)}>
-                  <stat.icon className={cn("h-6 w-6", stat.color)} />
+                  <stat.icon className={cn("size-6", stat.color)} />
                 </div>
               </div>
             </CardContent>
@@ -406,7 +406,7 @@ export default function ClinicAdminStaff() {
         <div className="flex flex-col justify-between gap-4 p-4 lg:flex-row lg:items-center">
           <div className="flex flex-1 items-center gap-4">
             <div className="relative w-full max-w-md flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search staff name or specialization..."
                 value={searchTerm}
@@ -420,7 +420,7 @@ export default function ClinicAdminStaff() {
             <div className="flex w-full flex-wrap items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-100 p-1 dark:border-neutral-800 dark:bg-neutral-900 sm:w-auto sm:flex-nowrap">
               <Select value={roleFilter} onValueChange={setRoleFilter}>
                 <SelectTrigger className="h-8 w-full border-none bg-transparent shadow-none focus:ring-0 sm:w-[140px]">
-                  <Filter className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Filter className="mr-2 size-3.5 text-muted-foreground" />
                   <SelectValue placeholder="All Roles" />
                 </SelectTrigger>
                 <SelectContent>
@@ -488,3 +488,5 @@ export default function ClinicAdminStaff() {
     </DashboardPageShell>
   );
 }
+
+

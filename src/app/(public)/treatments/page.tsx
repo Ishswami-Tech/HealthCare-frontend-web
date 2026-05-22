@@ -28,7 +28,7 @@ import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { CompactThemeSwitcher } from "@/components/theme/ThemeSwitcher";
 import { PageTransition } from "@/components/ui/animated-wrapper";
 import { LazySection } from "@/components/ui/lazy-section";
-import { SectionSkeleton } from "@/lib/dynamic-imports";
+import { SectionSkeleton } from "@/lib/dynamic-imports-skeletons";
 
 export default function TreatmentsPage() {
   const { t } = useTranslation();
@@ -202,23 +202,23 @@ export default function TreatmentsPage() {
           <div className="absolute inset-0 bg-gradient-to-bl from-accent/3 via-transparent to-primary/5"></div>
 
           {/* Animated Floating Elements */}
-          <div className="absolute top-16 left-8 w-24 h-24 bg-gradient-to-r from-primary/25 to-primary/35 rounded-full blur-xl animate-pulse"></div>
-          <div className="absolute top-32 right-16 w-40 h-40 bg-gradient-to-r from-secondary/20 to-secondary/30 rounded-full blur-2xl animate-pulse delay-1000"></div>
-          <div className="absolute bottom-24 left-1/3 w-32 h-32 bg-gradient-to-r from-accent/15 to-accent/25 rounded-full blur-xl animate-pulse delay-2000"></div>
-          <div className="absolute top-1/2 right-1/4 w-20 h-20 bg-gradient-to-r from-primary/20 to-accent/20 rounded-full blur-lg animate-pulse delay-3000"></div>
+          <div className="absolute top-16 left-8 size-24 bg-gradient-to-r from-primary/25 to-primary/35 rounded-full blur-xl animate-pulse"></div>
+          <div className="absolute top-32 right-16 size-40 bg-gradient-to-r from-secondary/20 to-secondary/30 rounded-full blur-2xl animate-pulse delay-1000"></div>
+          <div className="absolute bottom-24 left-1/3 size-32 bg-gradient-to-r from-accent/15 to-accent/25 rounded-full blur-xl animate-pulse delay-2000"></div>
+          <div className="absolute top-1/2 right-1/4 size-20 bg-gradient-to-r from-primary/20 to-accent/20 rounded-full blur-lg animate-pulse delay-3000"></div>
 
           {/* Geometric Patterns */}
-          <div className="absolute top-20 right-10 w-16 h-16 border border-primary/20 rotate-45 animate-spin-slow"></div>
-          <div className="absolute bottom-32 left-16 w-12 h-12 border border-secondary/20 rotate-12 animate-pulse"></div>
+          <div className="absolute top-20 right-10 size-16 border border-primary/20 rotate-45 animate-spin-slow"></div>
+          <div className="absolute bottom-32 left-16 size-12 border border-secondary/20 rotate-12 animate-pulse"></div>
 
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="max-w-5xl mx-auto text-center">
               <Badge className="bg-gradient-to-r from-orange-100 to-red-100 dark:from-orange-900/50 dark:to-red-900/50 text-orange-800 dark:text-orange-100 border-orange-200 dark:border-orange-700/60 glass interactive mb-8 px-6 py-3 text-sm font-medium">
-                <Heart className="w-4 h-4 mr-2" />
+                <Heart className="size-4 mr-2" />
                 {t("treatments.title")}
               </Badge>
 
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-playfair font-bold text-foreground mb-8 gradient-text leading-tight">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-playfair font-semibold text-foreground mb-8 gradient-text leading-tight">
                 {t("treatments.subtitle")}
               </h1>
 
@@ -228,15 +228,15 @@ export default function TreatmentsPage() {
 
               <div className="flex flex-wrap justify-center gap-4 mb-10">
                 <Badge className="bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/30 dark:to-emerald-900/30 text-green-800 dark:text-green-100 border-green-200 dark:border-green-700/50 glass interactive px-4 py-2">
-                  <CheckCircle className="w-4 h-4 mr-2" />
+                  <CheckCircle className="size-4 mr-2" />
                   {t("stats.livesTransformed")}
                 </Badge>
                 <Badge className="bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-900/30 dark:to-cyan-900/30 text-blue-800 dark:text-blue-100 border-blue-200 dark:border-blue-700/50 glass interactive px-4 py-2">
-                  <Award className="w-4 h-4 mr-2" />
+                  <Award className="size-4 mr-2" />
                   {t("common.governmentCertified")}
                 </Badge>
                 <Badge className="bg-gradient-to-r from-purple-100 to-violet-100 dark:from-purple-900/30 dark:to-violet-900/30 text-purple-800 dark:text-purple-100 border-purple-200 dark:border-purple-700/50 glass interactive px-4 py-2">
-                  <Star className="w-4 h-4 mr-2" />
+                  <Star className="size-4 mr-2" />
                   {t("navigation.rating")}
                 </Badge>
               </div>
@@ -267,10 +267,10 @@ export default function TreatmentsPage() {
               <div className="max-w-7xl mx-auto">
                 <div className="text-center mb-20">
                   <Badge className="bg-gradient-to-r from-primary/10 to-secondary/10 dark:from-primary/20 dark:to-secondary/20 text-primary dark:text-primary/90 border-primary/20 dark:border-primary/30 glass interactive mb-6 px-4 py-2">
-                    <Award className="w-4 h-4 mr-2" />
+                    <Award className="size-4 mr-2" />
                     {t("treatments.labels.mainTreatments")}
                   </Badge>
-                  <h2 className="text-3xl md:text-4xl lg:text-4xl xl:text-5xl font-playfair font-bold text-foreground dark:text-foreground/95 mb-6 gradient-text">
+                  <h2 className="text-3xl md:text-4xl lg:text-4xl xl:text-5xl font-playfair font-semibold text-foreground dark:text-foreground/95 mb-6 gradient-text">
                     {t("treatments.labels.mainTreatmentsTitle")}
                   </h2>
                   <p className="text-lg text-muted-foreground dark:text-muted-foreground/90 max-w-3xl mx-auto leading-relaxed">
@@ -278,7 +278,7 @@ export default function TreatmentsPage() {
                   </p>
                 </div>
 
-                <div className="space-y-16">
+                <div className="gap-y-16">
                   {mainTreatments.map((treatment, index) => {
                     const IconComponent = treatment.icon;
                     const isEven = index % 2 === 0;
@@ -303,12 +303,12 @@ export default function TreatmentsPage() {
                             >
                               {/* Background Pattern */}
                               <div className="absolute inset-0 opacity-5">
-                                <div className="absolute top-4 right-4 w-32 h-32 border border-primary/20 rounded-full"></div>
-                                <div className="absolute bottom-4 left-4 w-24 h-24 border border-secondary/20 rounded-full"></div>
+                                <div className="absolute top-4 right-4 size-32 border border-primary/20 rounded-full"></div>
+                                <div className="absolute bottom-4 left-4 size-24 border border-secondary/20 rounded-full"></div>
                               </div>
 
                               <div
-                                className={`w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-gradient-to-r ${
+                                className={`size-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-gradient-to-r ${
                                   treatment.colorScheme.gradient
                                 } rounded-full flex items-center justify-center mb-6 sm:mb-8 ${
                                   isEven ? "" : "ml-auto"
@@ -316,7 +316,7 @@ export default function TreatmentsPage() {
                                   treatment.colorScheme.hover
                                 } transition-all duration-300 shadow-lg group-hover:scale-110`}
                               >
-                                <IconComponent className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 text-white" />
+                                <IconComponent className="size-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 text-white" />
                               </div>
 
                               <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
@@ -344,7 +344,7 @@ export default function TreatmentsPage() {
                                 !isEven ? "lg:col-start-1" : ""
                               }`}
                             >
-                              <h3 className="text-xl sm:text-2xl md:text-3xl font-playfair font-bold text-foreground mb-3 gradient-text">
+                              <h3 className="text-xl sm:text-2xl md:text-3xl font-playfair font-semibold text-foreground mb-3 gradient-text">
                                 {treatment.title}
                               </h3>
                               <p className="text-base sm:text-lg text-primary font-playfair font-semibold mb-4">
@@ -359,21 +359,19 @@ export default function TreatmentsPage() {
                                   {t("treatments.conditions.title")}
                                 </h4>
                                 <div className="flex flex-wrap gap-2 sm:gap-3">
-                                  {treatment.conditions.map(
-                                    (condition, condIndex) => (
+                                  {treatment.conditions.map((condition) => (
                                       <Badge
-                                        key={condIndex}
+                                        key={condition}
                                         variant="outline"
                                         className="text-muted-foreground border-primary/30 hover:bg-primary/10 transition-colors duration-200 px-3 py-1"
                                       >
                                         {condition}
                                       </Badge>
-                                    )
-                                  )}
+                                  ))}
                                 </div>
                               </div>
 
-                              <div className="space-y-3 sm:space-y-4">
+                              <div className="gap-y-3 sm:gap-y-4">
                                 <Link href={treatment.href} prefetch={false}>
                                   <Button
                                     size="lg"
@@ -381,7 +379,7 @@ export default function TreatmentsPage() {
                                   >
                                     {t("treatments.labels.learnMore")}{" "}
                                     {treatment.title}
-                                    <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2 group-hover:translate-x-1 transition-transform duration-200" />
+                                    <ArrowRight className="size-4 sm:w-5 sm:h-5 ml-2 group-hover:translate-x-1 transition-transform duration-200" />
                                   </Button>
                                 </Link>
                                 <Button
@@ -411,10 +409,10 @@ export default function TreatmentsPage() {
               <div className="max-w-7xl mx-auto">
                 <div className="text-center mb-20">
                   <Badge className="bg-gradient-to-r from-secondary/10 to-accent/10 dark:from-secondary/20 dark:to-accent/20 text-secondary dark:text-secondary/90 border-secondary/20 dark:border-secondary/30 glass interactive mb-6 px-4 py-2">
-                    <Users className="w-4 h-4 mr-2" />
+                    <Users className="size-4 mr-2" />
                     {t("treatments.labels.specializedCare")}
                   </Badge>
-                  <h2 className="text-3xl md:text-4xl lg:text-4xl xl:text-5xl font-playfair font-bold text-foreground mb-6 gradient-text">
+                  <h2 className="text-3xl md:text-4xl lg:text-4xl xl:text-5xl font-playfair font-semibold text-foreground mb-6 gradient-text">
                     {t("treatments.labels.specializedProgramsTitle")}
                   </h2>
                   <p className="text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed">
@@ -423,23 +421,23 @@ export default function TreatmentsPage() {
                 </div>
 
                 <div className="grid sm:grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
-                  {specializedPrograms.map((program, index) => {
+                  {specializedPrograms.map((program) => {
                     const IconComponent = program.icon;
 
                     return (
                       <Card
-                        key={index}
+                        key={program.title}
                         className="hover:shadow-lg transition-all duration-300 border border-border/20 dark:border-border/30 bg-card dark:bg-card/90 glass card-hover"
                       >
                         <CardHeader>
-                          <div className="flex items-center space-x-3 sm:space-x-4 mb-4">
+                          <div className="flex items-center gap-x-3 sm:gap-x-4 mb-4">
                             <div
-                              className={`w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-gradient-to-r ${program.colorScheme.gradient} rounded-full flex items-center justify-center interactive hover:${program.colorScheme.hover} transition-all duration-300`}
+                              className={`size-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-gradient-to-r ${program.colorScheme.gradient} rounded-full flex items-center justify-center interactive hover:${program.colorScheme.hover} transition-all duration-300`}
                             >
-                              <IconComponent className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-white" />
+                              <IconComponent className="size-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-white" />
                             </div>
                             <div>
-                              <h3 className="text-lg md:text-xl font-playfair font-bold text-foreground dark:text-foreground/95 gradient-text">
+                              <h3 className="text-lg md:text-xl font-playfair font-semibold text-foreground dark:text-foreground/95 gradient-text">
                                 {program.title}
                               </h3>
                               <Badge className="bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary/90 border-primary/20 dark:border-primary/30 mt-2">
@@ -454,13 +452,13 @@ export default function TreatmentsPage() {
                             {program.description}
                           </p>
 
-                          <div className="space-y-3 mb-6">
-                            {program.services.map((service, serviceIndex) => (
+                          <div className="gap-y-3 mb-6">
+                            {program.services.map((service) => (
                               <div
-                                key={serviceIndex}
-                                className="flex items-center space-x-2"
+                                key={service}
+                                className="flex items-center gap-x-2"
                               >
-                                <CheckCircle className="w-4 h-4 text-green-500 dark:text-green-400" />
+                                <CheckCircle className="size-4 text-green-500 dark:text-green-400" />
                                 <span className="text-muted-foreground dark:text-muted-foreground/90">
                                   {service}
                                 </span>
@@ -472,7 +470,7 @@ export default function TreatmentsPage() {
                             className={`w-full bg-gradient-to-r ${program.colorScheme.gradient} hover:${program.colorScheme.hover} text-white interactive transition-all duration-300`}
                           >
                             {t("treatments.labels.learnMore")}
-                            <ArrowRight className="w-4 h-4 ml-2" />
+                            <ArrowRight className="size-4 ml-2" />
                           </Button>
                         </CardContent>
                       </Card>
@@ -490,7 +488,7 @@ export default function TreatmentsPage() {
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="max-w-6xl mx-auto">
                 <div className="text-center mb-16">
-                  <h2 className="text-2xl md:text-3xl font-playfair font-bold text-foreground dark:text-foreground/95 mb-4 gradient-text">
+                  <h2 className="text-2xl md:text-3xl font-playfair font-semibold text-foreground dark:text-foreground/95 mb-4 gradient-text">
                     {t("treatments.labels.combinationPackagesTitle")}
                   </h2>
                   <p className="text-base text-muted-foreground dark:text-muted-foreground/90">
@@ -499,14 +497,14 @@ export default function TreatmentsPage() {
                 </div>
 
                 <div className="grid sm:grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
-                  {treatmentPackages.map((pkg, index) => (
+                  {treatmentPackages.map((pkg) => (
                     <Card
-                      key={index}
+                      key={pkg.name}
                       className="hover:shadow-xl transition-all duration-300 border border-border/20 dark:border-border/30 bg-gradient-to-br from-card to-muted/50 dark:from-card/90 dark:to-muted/60 glass card-hover"
                     >
                       <CardHeader>
                         <div className="flex items-center justify-between mb-4">
-                          <h3 className="text-lg md:text-xl font-playfair font-bold text-foreground dark:text-foreground/95 gradient-text">
+                          <h3 className="text-lg md:text-xl font-playfair font-semibold text-foreground dark:text-foreground/95 gradient-text">
                             {pkg.name}
                           </h3>
                           <Badge className="bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary/90 border-primary/20 dark:border-primary/30">
@@ -515,7 +513,7 @@ export default function TreatmentsPage() {
                         </div>
                       </CardHeader>
                       <CardContent>
-                        <div className="space-y-4">
+                        <div className="gap-y-4">
                           <div>
                             <h4 className="text-base font-playfair font-semibold text-foreground dark:text-foreground/95 mb-2">
                               {t("treatments.labels.treatmentsIncluded")}
@@ -550,7 +548,7 @@ export default function TreatmentsPage() {
                             className={`w-full bg-gradient-to-r ${pkg.colorScheme.gradient} hover:${pkg.colorScheme.hover} text-white mt-6 interactive`}
                           >
                             {t("treatments.labels.choosePackage")}
-                            <ArrowRight className="w-4 h-4 ml-2" />
+                            <ArrowRight className="size-4 ml-2" />
                           </Button>
                         </div>
                       </CardContent>
@@ -567,7 +565,7 @@ export default function TreatmentsPage() {
           <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-r from-primary to-primary/80">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="max-w-4xl mx-auto text-center text-white">
-                <h2 className="text-2xl md:text-3xl font-playfair font-bold mb-6 text-white">
+                <h2 className="text-2xl md:text-3xl font-playfair font-semibold mb-6 text-white">
                   {t("common.bookAppointment")}
                 </h2>
                 <p className="text-lg text-white/90 mb-8">
@@ -592,16 +590,16 @@ export default function TreatmentsPage() {
                 </div>
 
                 <div className="mt-8 flex flex-wrap justify-center gap-6 text-white/90">
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle className="w-4 h-4" />
+                  <div className="flex items-center gap-x-2">
+                    <CheckCircle className="size-4" />
                     <span>{t("common.governmentCertified")}</span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Star className="w-4 h-4" />
+                  <div className="flex items-center gap-x-2">
+                    <Star className="size-4" />
                     <span>{t("navigation.rating")}</span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Users className="w-4 h-4" />
+                  <div className="flex items-center gap-x-2">
+                    <Users className="size-4" />
                     <span>{t("stats.livesTransformed")}</span>
                   </div>
                 </div>
@@ -628,3 +626,4 @@ export default function TreatmentsPage() {
     </PageTransition>
   );
 }
+

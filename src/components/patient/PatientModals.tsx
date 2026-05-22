@@ -78,7 +78,7 @@ export function PasswordChangeModal({
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Lock className="w-5 h-5" />
+              <Lock className="size-5" />
               Change Password
             </DialogTitle>
             <DialogDescription>
@@ -86,15 +86,15 @@ export function PasswordChangeModal({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="gap-y-4 py-4">
             {error && (
               <Alert variant="destructive">
-                <AlertCircle className="w-4 h-4" />
+                <AlertCircle className="size-4" />
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
 
-            <div className="space-y-2">
+            <div className="gap-y-2">
               <Label htmlFor="currentPassword">Current Password</Label>
               <Input
                 id="currentPassword"
@@ -108,7 +108,7 @@ export function PasswordChangeModal({
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="gap-y-2">
               <Label htmlFor="newPassword">New Password</Label>
               <Input
                 id="newPassword"
@@ -126,7 +126,7 @@ export function PasswordChangeModal({
               </p>
             </div>
 
-            <div className="space-y-2">
+            <div className="gap-y-2">
               <Label htmlFor="confirmPassword">Confirm New Password</Label>
               <Input
                 id="confirmPassword"
@@ -191,7 +191,7 @@ export function RefillRequestModal({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <RefreshCw className="w-5 h-5" />
+            <RefreshCw className="size-5" />
             Request Prescription Refill
           </DialogTitle>
           <DialogDescription>
@@ -199,10 +199,10 @@ export function RefillRequestModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="gap-y-4 py-4">
           <div className="bg-muted p-3 rounded-lg">
             <p className="text-sm font-medium mb-2">Medications:</p>
-            <ul className="text-sm text-muted-foreground space-y-1">
+            <ul className="text-sm text-muted-foreground gap-y-1">
               {prescription.medications.map((med, idx) => (
                 <li key={idx}>• {med.name}</li>
               ))}
@@ -210,7 +210,7 @@ export function RefillRequestModal({
           </div>
 
           <Alert>
-            <AlertCircle className="w-4 h-4" />
+            <AlertCircle className="size-4" />
             <AlertDescription className="text-sm">
               Prescription refill requests are not available in this build yet.
               Please contact your clinic directly for refill assistance.
@@ -270,7 +270,7 @@ export function DataExportModal({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Download className="w-5 h-5" />
+            <Download className="size-5" />
             Export {getDataTypeName()}
           </DialogTitle>
           <DialogDescription>
@@ -279,9 +279,9 @@ export function DataExportModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="gap-y-4 py-4">
           <Alert>
-            <AlertCircle className="w-4 h-4" />
+            <AlertCircle className="size-4" />
             <AlertDescription className="text-sm">
               Data export is not connected in this build. Use the profile page
               actions only after the backend export endpoint is enabled.
@@ -302,3 +302,4 @@ export function DataExportModal({
     </Dialog>
   );
 }
+

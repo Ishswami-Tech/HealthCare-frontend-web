@@ -212,7 +212,7 @@ export function DashboardLayout({
         "flex items-center justify-center bg-background",
         isInsideShell ? "h-[400px] w-full" : "min-h-screen"
       )}>
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <Loader2 className="size-8 animate-spin text-blue-600" />
       </div>
     );
   }
@@ -223,11 +223,11 @@ export function DashboardLayout({
         "flex items-center justify-center bg-background p-6",
         isInsideShell ? "h-[400px] w-full" : "min-h-screen"
       )}>
-        <div className="max-w-md w-full text-center space-y-6">
-          <Shield className="mx-auto h-12 w-12 text-red-500" />
-          <h2 className="text-2xl font-bold">Access Denied</h2>
+        <div className="max-w-md w-full text-center gap-y-6">
+          <Shield className="mx-auto size-12 text-red-500" />
+          <h2 className="text-2xl font-semibold">Access Denied</h2>
           <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
+            <AlertTriangle className="size-4" />
             <AlertDescription>
               {customUnauthorizedMessage || `Your role (${user?.role}) is not authorized for this area.`}
             </AlertDescription>
@@ -248,7 +248,7 @@ export function DashboardLayout({
         "flex items-center justify-center bg-background",
         isInsideShell ? "h-[400px] w-full" : "min-h-screen"
       )}>
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <Loader2 className="size-8 animate-spin text-blue-600" />
         <p className="ml-2">Redirecting to profile completion...</p>
       </div>
     );
@@ -264,7 +264,7 @@ export function DashboardLayout({
       <div className="h-full w-full">
         {showPermissionWarnings && title.toLowerCase().includes("appointment") && !appointmentPermissions.canViewAppointments && (
           <Alert className="mb-4 bg-yellow-50 border-yellow-200">
-            <AlertTriangle className="h-4 w-4 text-yellow-600" />
+            <AlertTriangle className="size-4 text-yellow-600" />
             <AlertDescription className="text-yellow-800">Limited appointment access.</AlertDescription>
           </Alert>
         )}
@@ -290,7 +290,7 @@ export function DashboardLayout({
               <div className="p-4 md:p-8 max-w-6xl mx-auto">
                 {showPermissionWarnings && title.toLowerCase().includes("appointment") && !appointmentPermissions.canViewAppointments && (
                   <Alert className="mb-4 bg-yellow-50 border-yellow-200">
-                    <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                    <AlertTriangle className="size-4 text-yellow-600" />
                     <AlertDescription className="text-yellow-800">Limited appointment access.</AlertDescription>
                   </Alert>
                 )}
@@ -304,3 +304,5 @@ export function DashboardLayout({
     </DashboardShellContext.Provider>
   );
 }
+
+

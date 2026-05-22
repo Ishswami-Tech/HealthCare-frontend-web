@@ -147,7 +147,7 @@ export function PatientQueueCard({
   if (isAppointmentsPending) {
     return (
       <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm">
-        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+        <Loader2 className="size-4 animate-spin text-primary" />
         <p className="text-sm font-medium text-muted-foreground">Loading queue status...</p>
       </div>
     );
@@ -195,8 +195,8 @@ export function PatientQueueCard({
     return (
       <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
         <div className="mb-3 flex items-start justify-between gap-2">
-          <div className="min-w-0 space-y-0.5">
-            <h3 className="text-base font-bold tracking-tight text-foreground">Join queue</h3>
+          <div className="min-w-0 gap-y-0.5">
+            <h3 className="text-base font-semibold tracking-tight text-foreground">Join queue</h3>
             <p className="text-[11px] text-muted-foreground">
               {hasInPersonAppointment
                 ? "Book a visit, reach the clinic, then scan to join"
@@ -231,7 +231,7 @@ export function PatientQueueCard({
               <>
                 <span
                   className={cn(
-                    "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold",
+                    "flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold",
                     item.chipClass
                   )}
                 >
@@ -239,7 +239,7 @@ export function PatientQueueCard({
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2 text-sm font-semibold">
-                    <Icon className="h-3.5 w-3.5 shrink-0" />
+                    <Icon className="size-3.5 shrink-0" />
                     {item.title}
                   </span>
                   <span
@@ -364,8 +364,8 @@ export function PatientQueueCard({
   return (
     <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
       <div className="mb-2 flex items-start justify-between gap-2">
-        <div className="min-w-0 space-y-0.5">
-          <h3 className="text-base font-bold tracking-tight text-foreground">Live queue</h3>
+        <div className="min-w-0 gap-y-0.5">
+          <h3 className="text-base font-semibold tracking-tight text-foreground">Live queue</h3>
           <p className="text-[11px] text-muted-foreground">Position and check-in status</p>
         </div>
         <Badge
@@ -383,8 +383,8 @@ export function PatientQueueCard({
 
       <div className="mb-3 rounded-xl border border-border/70 bg-muted/25 p-2.5">
         <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 space-y-1">
-            <h4 className="truncate text-[15px] font-bold tracking-tight text-foreground sm:text-base">
+          <div className="min-w-0 gap-y-1">
+            <h4 className="truncate text-[15px] font-semibold tracking-tight text-foreground sm:text-base">
               {queueLabel}
             </h4>
             {showTreatmentLabel ? (
@@ -457,3 +457,5 @@ export function PatientQueueCard({
     </div>
   );
 }
+
+

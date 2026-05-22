@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -131,10 +131,10 @@ interface BookAppointmentDialogProps {
   initialPatientId?: string;
 }
 
-// ””” Consultation catalogue ””””””””””””””””””””””””””””””””””””””””””””””””””
+// â€â€â€ Consultation catalogue â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€
 
 function getConsultationVisual(treatmentType: TreatmentType): ConsultationVisual {
-  const iconClass = "w-5 h-5";
+  const iconClass = "size-5";
   const visuals: Record<string, ConsultationVisual> = {
     GENERAL_CONSULTATION: { icon: <Activity className={iconClass} />, color: theme.badges.blue },
     FOLLOW_UP: { icon: <CheckCircle className={iconClass} />, color: theme.badges.gray },
@@ -165,7 +165,7 @@ function getConsultationVisual(treatmentType: TreatmentType): ConsultationVisual
   return visuals[treatmentType] || { icon: <Activity className={iconClass} />, color: theme.badges.blue };
 }
 
-// ””” Slot grouping helper ””””””””””””””””””””””””””””””””””””””””””””””””””””
+// â€â€â€ Slot grouping helper â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€
 
 function groupSlotsByPeriod(slots: string[]) {
   const morning: string[] = [];
@@ -182,7 +182,7 @@ function groupSlotsByPeriod(slots: string[]) {
   return { morning, afternoon, evening };
 }
 
-// ””” Step indicators ”””””””””””””””””””””””””””””””””””””””””””””””””””””””””
+// â€â€â€ Step indicators â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€
 
 const STEP_ORDER = ["mode", "service", "doctor", "date", "slot", "confirm", "success"] as const;
 type WizardStepId = (typeof STEP_ORDER)[number];
@@ -196,12 +196,12 @@ const STEP_LABELS: Record<WizardStepId, string> = {
   confirm: "Confirm",
   success: "Done",
 };
-/** Each appointment slot is 3 minutes ” 20 bookable slots per hour. */
+/** Each appointment slot is 3 minutes â€ 20 bookable slots per hour. */
 const IN_PERSON_APPOINTMENT_SLOT_DURATION_MINUTES = 3;
 const VIDEO_APPOINTMENT_SLOT_DURATION_MINUTES = 15;
 const VIDEO_CONSULTATION_TREATMENT_TYPE: TreatmentType = "GENERAL_CONSULTATION";
 
-// ””” Component ””””””””””””””””””””””””””””””””””””””””””””””””””””””””””””””
+// â€â€â€ Component â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€
 
 /**
  * Helper to get Today in IST (India Standard Time)
@@ -297,7 +297,7 @@ export function BookAppointmentDialog({
   initialDoctorId,
   initialPatientId,
 }: BookAppointmentDialogProps) {
-  const router = useRouter();
+  const { push, replace } = useRouter();
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const { isConnected, connectionStatus, subscribe } = useWebSocketContext();
@@ -305,10 +305,7 @@ export function BookAppointmentDialog({
   const { hasPermission } = useRBAC();
   const userRole = (session?.user?.role || "").toUpperCase();
 
-  const profileCompletionRedirectUrl = useMemo(
-    () => `${ROUTES.PROFILE_COMPLETION}?redirect=${encodeURIComponent(pathname || "/patient/appointments")}`,
-    [pathname]
-  );
+  const profileCompletionRedirectUrl = `${ROUTES.PROFILE_COMPLETION}?redirect=${encodeURIComponent(pathname || "/patient/appointments")}`;
 
   const postBookingRoute = userRole === "RECEPTIONIST" ? "/receptionist/appointments" : "/patient/appointments";
   const postBookingLabel = userRole === "RECEPTIONIST" ? "Go to appointment manager" : "Go to appointments";
@@ -332,8 +329,8 @@ export function BookAppointmentDialog({
     resolvedClinicId ||
     (userRole !== "PATIENT" ? clinicFallbackId : "");
 
-  // ””” Dialog / Step state ””””””””””””””””””””””””””””””””””””””””””””””””””
-  const [internalOpen, setInternalOpen] = useState(defaultOpen);
+  // â€â€â€ Dialog / Step state â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€
+  const [internalOpen, setInternalOpen] = useState(() => defaultOpen);
   const isControlledOpen = typeof open === "boolean";
   const dialogOpen = isControlledOpen ? open : internalOpen;
   const handleOpenChange = onOpenChange || setInternalOpen;
@@ -344,12 +341,12 @@ export function BookAppointmentDialog({
   const lastAutoSelectedLocationIdRef = useRef("");
   const lastAutoSelectedDoctorIdRef = useRef("");
 
-  // ”” Selections ”””””””””””””””””””””””””””””””””””””””””””””””””””””””””””
+  // â€â€ Selections â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€
   const [selectedLocationId, setSelectedLocationId] = useState(locationId || "");
   const [consultationMode, setConsultationMode] = useState<"IN_PERSON" | "VIDEO" | "">(initialConsultationMode || "IN_PERSON");
   const [selectedServiceId, setSelectedServiceId] = useState(initialServiceId || "");
   const [selectedDoctorId, setSelectedDoctorId] = useState(initialDoctorId || "");
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(getTodayIST());
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => getTodayIST());
   const [selectedSlot, setSelectedSlot] = useState("");
   const [chiefComplaint, setChiefComplaint] = useState("");
   const [urgency, setUrgency] = useState("Normal");
@@ -469,16 +466,16 @@ export function BookAppointmentDialog({
         (metadata?.redirectUrl as string) ||
         (providerResponseMeta?.payment_link as string) ||
         (providerResponse?.payment_link as string);
+      if (!orderId) {
+        throw new Error("Order ID not received from server");
+      }
+
       const resolvedClinicId =
         activeClinicId ||
         (paymentIntent?.clinicId as string) ||
         (metadata?.clinicId as string) ||
         (await getClinicId()) ||
         APP_CONFIG.CLINIC.ID;
-
-      if (!orderId) {
-        throw new Error("Order ID not received from server");
-      }
 
       if (!resolvedClinicId) {
         throw new Error("Clinic context is required for payment verification");
@@ -564,7 +561,7 @@ export function BookAppointmentDialog({
     [activeClinicId, onBooked]
   );
 
-  // ””” Queries ”””””””””””””””””””””””””””””””””””””””””””””””””””””””””””””
+  // â€â€â€ Queries â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€
   const {
     data: activeLocations = [],
     isPending: locationsLoading,
@@ -599,7 +596,7 @@ export function BookAppointmentDialog({
     shouldLoadDoctors ? { enabled: true } : undefined
   );
   // Only RECEPTIONIST needs the full patient list to select a patient.
-  // Patients book for themselves ” calling this admin endpoint as a PATIENT
+  // Patients book for themselves â€ calling this admin endpoint as a PATIENT
   // returns 403 Forbidden. Pass an empty clinicId to disable the query.
   const { data: patientsData = [] } = usePatients(
     isPrivilegedScheduler ? activeClinicId : "",
@@ -622,9 +619,9 @@ export function BookAppointmentDialog({
     }
 
     if (profileCompletionBlocked) {
-      router.replace(profileCompletionRedirectUrl);
+      replace(profileCompletionRedirectUrl);
     }
-  }, [dialogOpen, profileCompletionBlocked, profileCompletionRedirectUrl, router]);
+  }, [dialogOpen, profileCompletionBlocked, profileCompletionRedirectUrl, replace]);
 
   const clinicVideoCallWindow = useMemo(() => {
     const normalizeWindowTime = (value: unknown): string | null => {
@@ -783,7 +780,7 @@ export function BookAppointmentDialog({
     isPending: backendActiveSubscriptionLoading,
   } = useActiveSubscription(targetPatientId, activeClinicId, shouldLoadSubscriptions);
 
-  // ””” Derived ”””””””””””””””””””””””””””””””””””””””””””””””””””””””””””””
+  // â€â€â€ Derived â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€
   const modeAppointmentType: AppointmentType =
     consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON";
   const visibleServices = useMemo(() => {
@@ -1333,7 +1330,7 @@ export function BookAppointmentDialog({
   const slotGroups = useMemo(() => groupSlotsByPeriod(effectiveSlots as string[]), [effectiveSlots]);
   const selectedSlotLabel = useMemo(() => {
     if (!selectedSlot) return "";
-    return `${selectedSlot} · ${appointmentDurationMinutes} min`;
+    return `${selectedSlot} Â· ${appointmentDurationMinutes} min`;
   }, [appointmentDurationMinutes, selectedSlot]);
   const liveSyncMode =
     connectionStatus === "connected"
@@ -1576,7 +1573,7 @@ export function BookAppointmentDialog({
     }
   }, [dialogOpen, doctorsLoading, doctorsList, selectedDoctorId]);
 
-  // ””” Book appointment ”””””””””””””””””””””””””””””””””””””””””””””””””””””
+  // â€â€â€ Book appointment â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€
   const handleBook = useCallback(async () => {
     const appointmentDoctorId = resolvedDoctorId || selectedDoctorId;
     const appointmentLocationId =
@@ -1607,7 +1604,7 @@ export function BookAppointmentDialog({
     ) => {
       dismissToast("subscription-coverage-check");
       showErrorToast(message);
-      router.push(`${patientBillingRoute}?tab=${tab}`);
+      push(`${patientBillingRoute}?tab=${tab}`);
     };
 
     const redirectToSubscriptionPlans = (message?: string) => {
@@ -1970,7 +1967,8 @@ export function BookAppointmentDialog({
     onBooked,
     userRole,
     activeSubscription,
-    router,
+    push,
+    replace,
     queryClient,
     availabilityQueryKey,
     validateLatestAvailability,
@@ -1988,7 +1986,7 @@ export function BookAppointmentDialog({
     selectedSlot,
   ]);
 
-  // ””” Navigation ””””””””””””””””””””””””””””””””””””””””””””””””””””””””””
+  // â€â€â€ Navigation â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€
   const canNext = useMemo(() => {
     if (currentStepId === "mode") {
       return !!consultationMode && (consultationMode === "VIDEO" || !!selectedLocationId || locations.length === 1);
@@ -2026,7 +2024,7 @@ export function BookAppointmentDialog({
     setStep((s) => Math.max(s - 1, 1));
   }, []);
 
-  // ””” QR data ”””””””””””””””””””””””””””””””””””””””””””””””””””””””””””””
+  // â€â€â€ QR data â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€
   // const qrData = useMemo(() => {
     // return JSON.stringify({
       // appointmentId: bookedAppointmentId,
@@ -2039,7 +2037,7 @@ export function BookAppointmentDialog({
 
   // const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`;
 
-  // ””” Render helpers ”””””””””””””””””””””””””””””””””””””””””””””””””””””””
+  // â€â€â€ Render helpers â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€
 
   const renderStepBar = () => (
     <div className="px-1">
@@ -2063,7 +2061,7 @@ export function BookAppointmentDialog({
             >
               <div className="flex flex-col items-center gap-0.5">
                 <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                  className={`size-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
                     done
                       ? "bg-primary text-primary-foreground"
                       : active
@@ -2071,7 +2069,7 @@ export function BookAppointmentDialog({
                         : "bg-muted text-muted-foreground"
                   }`}
                 >
-                  {done ? <Check className="w-3.5 h-3.5" /> : s}
+                  {done ? <Check className="size-3.5" /> : s}
                 </div>
                 <span
                   className={`text-[9px] font-semibold uppercase tracking-wider hidden sm:block ${
@@ -2091,7 +2089,7 @@ export function BookAppointmentDialog({
     </div>
   );
 
-  // ””” Step 1: Location + Mode ”””””””””””””””””””””””””””””””””””””””””””””
+  // â€â€â€ Step 1: Location + Mode â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€
   const renderStep1 = () => (
     <div className="flex flex-col gap-5">
       {consultationMode === "VIDEO" ? (
@@ -2100,14 +2098,14 @@ export function BookAppointmentDialog({
         </div>
       ) : isPatientClinicStillResolving ? (
         <div className="text-center py-6 border border-dashed rounded-xl text-muted-foreground text-sm">
-          <Loader2 className="w-7 h-7 mx-auto mb-2 opacity-60 animate-spin" />
+          <Loader2 className="size-7 mx-auto mb-2 opacity-60 animate-spin" />
           Resolving your clinic...
         </div>
       ) : profileCompletionBlocked ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
-            <div className="space-y-1">
+            <AlertTriangle className="mt-0.5 size-5 shrink-0" />
+            <div className="gap-y-1">
               <p className="font-semibold">Complete your profile first</p>
               <p className="text-xs text-amber-800/90 dark:text-amber-200/90">
                 We need your profile details before loading locations or doctors.
@@ -2121,7 +2119,7 @@ export function BookAppointmentDialog({
                 className="mt-2 h-9 rounded-lg"
                 onClick={() => {
                   handleOpenChange(false);
-                  router.replace(profileCompletionRedirectUrl);
+                  replace(profileCompletionRedirectUrl);
                 }}
               >
                 Complete profile
@@ -2136,14 +2134,14 @@ export function BookAppointmentDialog({
             !activeLocationsFetched ||
             !allLocationsFetched ? (
               <div className="text-center py-6 border border-dashed rounded-xl text-muted-foreground text-sm">
-                <Building className="w-7 h-7 mx-auto mb-2 opacity-30" />
+                <Building className="size-7 mx-auto mb-2 opacity-30" />
                 Loading locations...
             </div>
           ) : (locations as any[]).length === 0 ? (
             <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
               <div className="flex items-start gap-3">
-                <Building className="mt-0.5 h-5 w-5 shrink-0" />
-                <div className="space-y-1">
+                <Building className="mt-0.5 size-5 shrink-0" />
+                <div className="gap-y-1">
                   <p className="font-semibold">Clinic unavailable</p>
                   <p className="text-xs text-amber-800/90 dark:text-amber-200/90">
                     {clinicName ? `${clinicName} has no active locations configured yet.` : "No active locations are configured for this clinic yet."}
@@ -2158,7 +2156,7 @@ export function BookAppointmentDialog({
               </div>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="gap-y-2">
               {hasOnlyInactiveLocations && (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                   No active locations are configured yet. Showing all clinic locations so booking can continue.
@@ -2177,10 +2175,10 @@ export function BookAppointmentDialog({
                       : "border-border bg-card hover:border-primary/30 hover:bg-muted/30"
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                  <div className={`size-9 rounded-xl flex items-center justify-center shrink-0 ${
                     selectedLocationId === loc.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                   }`}>
-                    <MapPin className="w-4 h-4" />
+                    <MapPin className="size-4" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className={`font-semibold text-sm ${ selectedLocationId === loc.id ? "text-primary" : ""}`}>
@@ -2194,7 +2192,7 @@ export function BookAppointmentDialog({
                     )}
                   </div>
                   {selectedLocationId === loc.id && (
-                    <Check className="w-4 h-4 text-primary shrink-0" />
+                    <Check className="size-4 text-primary shrink-0" />
                   )}
                 </button>
               ))}
@@ -2208,8 +2206,8 @@ export function BookAppointmentDialog({
         <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Consultation Mode</p>
         <div className="grid grid-cols-2 gap-3">
           {([
-            { value: "IN_PERSON", label: "In-Person", desc: "Visit the clinic", icon: <Building className="w-5 h-5" /> },
-            { value: "VIDEO", label: "Video Call", desc: "Remote consultation", icon: <Video className="w-5 h-5" /> },
+            { value: "IN_PERSON", label: "In-Person", desc: "Visit the clinic", icon: <Building className="size-5" /> },
+            { value: "VIDEO", label: "Video Call", desc: "Remote consultation", icon: <Video className="size-5" /> },
           ] as const).map(({ value, label, desc, icon }) => (
             <button
               key={value}
@@ -2223,7 +2221,7 @@ export function BookAppointmentDialog({
                   : "border-border bg-card hover:border-primary/30 hover:bg-muted/30"
               }`}
             >
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+              <div className={`size-10 rounded-xl flex items-center justify-center ${
                 consultationMode === value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
               }`}>
                 {icon}
@@ -2339,7 +2337,7 @@ export function BookAppointmentDialog({
       <div className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">What type of consultation do you need?</p>
         {isPrivilegedScheduler && (
-          <div className="space-y-3 rounded-2xl border border-border bg-muted/20 p-4">
+          <div className="gap-y-3 rounded-2xl border border-border bg-muted/20 p-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Select Patient</p>
@@ -2351,13 +2349,13 @@ export function BookAppointmentDialog({
                 onClick={() => setShowQuickCreatePatient((value) => !value)}
                 className="gap-2 self-start"
               >
-                <UserPlus className="h-4 w-4" />
+                <UserPlus className="size-4" />
                 {showQuickCreatePatient ? "Close quick add" : "Register Patient"}
               </Button>
             </div>
 
             <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={patientSearch}
                 onChange={(event) => setPatientSearch(event.target.value)}
@@ -2372,7 +2370,7 @@ export function BookAppointmentDialog({
               </p>
             )}
 
-            <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
+            <div className="max-h-60 gap-y-2 overflow-y-auto pr-1">
               {filteredPatientsList.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border bg-background/60 px-4 py-6 text-center text-sm text-muted-foreground">
                   No patient matches the search.
@@ -2395,7 +2393,7 @@ export function BookAppointmentDialog({
                           : "border-border bg-card hover:border-emerald-300 hover:bg-muted/30"
                       }`}
                     >
-                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+                      <div className={`flex size-10 shrink-0 items-center justify-center rounded-full ${
                         isSelected ? "bg-emerald-600 text-white" : "bg-muted text-muted-foreground"
                       }`}>
                         {String(patient.displayName || "P").charAt(0).toUpperCase()}
@@ -2408,7 +2406,7 @@ export function BookAppointmentDialog({
                           {patient.phone || "No phone"}{patient.email ? ` - ${patient.email}` : ""}
                         </p>
                       </div>
-                      {isSelected && <Check className="h-4 w-4 text-emerald-600" />}
+                      {isSelected && <Check className="size-4 text-emerald-600" />}
                     </button>
                   );
                 })
@@ -2417,10 +2415,10 @@ export function BookAppointmentDialog({
 
             {showQuickCreatePatient && (
               <Card className="border-emerald-200/70 bg-background/80 shadow-sm dark:border-emerald-900/50">
-                <CardContent className="space-y-4 p-4">
+                <CardContent className="gap-y-4 p-4">
                   <div className="flex items-start gap-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300">
-                      <User className="h-4 w-4" />
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300">
+                      <User className="size-4" />
                     </div>
                     <div>
                       <p className="font-semibold">Register Patient</p>
@@ -2431,7 +2429,7 @@ export function BookAppointmentDialog({
                   </div>
 
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-2">
+                    <div className="gap-y-2">
                       <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">First name</Label>
                       <Input
                         value={newPatient.firstName}
@@ -2439,7 +2437,7 @@ export function BookAppointmentDialog({
                         placeholder="John"
                       />
                     </div>
-                    <div className="space-y-2">
+                    <div className="gap-y-2">
                       <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Last name</Label>
                       <Input
                         value={newPatient.lastName}
@@ -2447,7 +2445,7 @@ export function BookAppointmentDialog({
                         placeholder="Doe"
                       />
                     </div>
-                    <div className="space-y-2">
+                    <div className="gap-y-2">
                       <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Phone</Label>
                       <Input
                         value={newPatient.phone}
@@ -2455,7 +2453,7 @@ export function BookAppointmentDialog({
                         placeholder="+91 98765 43210"
                       />
                     </div>
-                    <div className="space-y-2">
+                    <div className="gap-y-2">
                       <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Email</Label>
                       <Input
                         type="email"
@@ -2483,12 +2481,12 @@ export function BookAppointmentDialog({
                       {showQuickCreateAdditionalDetails ? (
                         <>
                           Hide
-                          <ChevronUp className="h-4 w-4" />
+                          <ChevronUp className="size-4" />
                         </>
                       ) : (
                         <>
                           Show
-                          <ChevronDown className="h-4 w-4" />
+                          <ChevronDown className="size-4" />
                         </>
                       )}
                     </Button>
@@ -2496,7 +2494,7 @@ export function BookAppointmentDialog({
 
                   {showQuickCreateAdditionalDetails && (
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="space-y-2">
+                      <div className="gap-y-2">
                         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date of birth</Label>
                         <Input
                           type="date"
@@ -2504,7 +2502,7 @@ export function BookAppointmentDialog({
                           onChange={(event) => setNewPatient((current) => ({ ...current, dateOfBirth: event.target.value }))}
                         />
                       </div>
-                      <div className="space-y-2">
+                      <div className="gap-y-2">
                         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Gender</Label>
                       <Select value={newPatient.gender} onValueChange={(value: string) => setNewPatient((current) => ({ ...current, gender: value }))}>
                           <SelectTrigger className="h-9">
@@ -2517,7 +2515,7 @@ export function BookAppointmentDialog({
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-2 sm:col-span-2">
+                      <div className="gap-y-2 sm:col-span-2">
                         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Address</Label>
                         <Textarea
                           value={newPatient.address}
@@ -2526,7 +2524,7 @@ export function BookAppointmentDialog({
                           className="min-h-20"
                         />
                       </div>
-                      <div className="space-y-2">
+                      <div className="gap-y-2">
                         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Emergency contact</Label>
                         <Input
                           value={newPatient.emergencyContact}
@@ -2534,7 +2532,7 @@ export function BookAppointmentDialog({
                           placeholder="Contact name"
                         />
                       </div>
-                      <div className="space-y-2">
+                      <div className="gap-y-2">
                         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Emergency phone</Label>
                         <Input
                           value={newPatient.emergencyPhone}
@@ -2542,7 +2540,7 @@ export function BookAppointmentDialog({
                           placeholder="+91 98765 43210"
                         />
                       </div>
-                      <div className="space-y-2 sm:col-span-2">
+                      <div className="gap-y-2 sm:col-span-2">
                         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Medical history</Label>
                         <Textarea
                           value={newPatient.medicalHistory}
@@ -2551,7 +2549,7 @@ export function BookAppointmentDialog({
                           className="min-h-20"
                         />
                       </div>
-                      <div className="space-y-2">
+                      <div className="gap-y-2">
                         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Allergies</Label>
                         <Input
                           value={newPatient.allergies}
@@ -2559,7 +2557,7 @@ export function BookAppointmentDialog({
                           placeholder="Comma separated"
                         />
                       </div>
-                      <div className="space-y-2">
+                      <div className="gap-y-2">
                         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current medications</Label>
                         <Textarea
                           value={newPatient.currentMedications}
@@ -2587,12 +2585,12 @@ export function BookAppointmentDialog({
                     >
                       {quickRegisterPatientMutation.isPending ? (
                         <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Creating...
+                          <Loader2 className="size-4 animate-spin" />
+                          Creating…
                         </>
                       ) : (
                         <>
-                          <Plus className="h-4 w-4" />
+                          <Plus className="size-4" />
                           Register Patient
                         </>
                       )}
@@ -2615,7 +2613,7 @@ export function BookAppointmentDialog({
           </div>
         )}
         {servicesLoading ? (
-          <div className="space-y-2">
+          <div className="gap-y-2">
             {Array.from({ length: 4 }).map((_, index) => (
               <div key={index} className="h-16 rounded-xl bg-muted animate-pulse" />
             ))}
@@ -2636,10 +2634,10 @@ export function BookAppointmentDialog({
             </button>
           ))}
         </div>
-        <div className="space-y-2">
+        <div className="gap-y-2">
           {!servicesLoading && filtered.length === 0 ? (
             <div className="text-center py-10 text-muted-foreground border border-dashed rounded-xl">
-              <Activity className="w-8 h-8 mx-auto mb-2 opacity-30" />
+              <Activity className="size-8 mx-auto mb-2 opacity-30" />
               <p className="text-sm">No services available for this mode</p>
             </div>
           ) : null}
@@ -2659,7 +2657,7 @@ export function BookAppointmentDialog({
               {(() => {
                 const visual = getConsultationVisual(t.treatmentType);
                 return (
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+              <div className={`size-10 rounded-xl flex items-center justify-center shrink-0 ${
                 selectedServiceId === t.treatmentType ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
               }`}>
                     {visual.icon}
@@ -2682,7 +2680,7 @@ export function BookAppointmentDialog({
     <div className="flex flex-col gap-3">
       <p className="text-sm text-muted-foreground">Choose your preferred doctor</p>
       {doctorsLoading || !doctorsFetched ? (
-        <div className="space-y-2">
+        <div className="gap-y-2">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-16 rounded-xl bg-muted animate-pulse" />
           ))}
@@ -2690,8 +2688,8 @@ export function BookAppointmentDialog({
       ) : doctorsList.length === 0 ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
           <div className="flex items-start gap-3">
-            <User className="mt-0.5 h-5 w-5 shrink-0" />
-            <div className="space-y-1">
+            <User className="mt-0.5 size-5 shrink-0" />
+            <div className="gap-y-1">
               <p className="font-semibold">No doctors available</p>
               <p className="text-xs text-amber-800/90 dark:text-amber-200/90">
                 {selectedLocationId
@@ -2708,7 +2706,7 @@ export function BookAppointmentDialog({
           </div>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="gap-y-2">
           {doctorsList.map((doctor: any) => (
             <button
               key={doctor.id}
@@ -2723,7 +2721,7 @@ export function BookAppointmentDialog({
                   : "border-border bg-card hover:border-primary/30 hover:bg-muted/30"
               }`}
             >
-              <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 text-sm font-bold ${
+              <div className={`size-11 rounded-full flex items-center justify-center shrink-0 text-sm font-bold ${
                 selectedDoctorId === doctor.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
               }`}>
                 {doctor.image
@@ -2737,7 +2735,7 @@ export function BookAppointmentDialog({
                 <p className="text-xs text-muted-foreground">{doctor.specialization || "General Physician"}</p>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                <span className="w-2 h-2 rounded-full bg-green-500" />
+                <span className="size-2 rounded-full bg-green-500" />
                 <span className="text-xs text-green-600 font-medium">Available</span>
               </div>
             </button>
@@ -2771,7 +2769,7 @@ export function BookAppointmentDialog({
       </div>
       {selectedDate && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-primary/5 border border-primary/20 max-w-sm mx-auto w-full justify-center mt-2">
-          <CalendarIcon className="w-4 h-4 text-primary shrink-0" />
+          <CalendarIcon className="size-4 text-primary shrink-0" />
           <span className="text-sm font-semibold">{format(selectedDate, "EEEE, d MMMM yyyy")}</span>
         </div>
       )}
@@ -2781,16 +2779,16 @@ export function BookAppointmentDialog({
   // Step 4: Slot
   const renderStep4 = () => {
     const periods = [
-      { key: "morning" as const, label: "Morning", icon: <Sun className="w-4 h-4" />, range: "Before 12pm", slots: slotGroups.morning },
-      { key: "afternoon" as const, label: "Afternoon", icon: <CloudSun className="w-4 h-4" />, range: "12pm “ 5pm", slots: slotGroups.afternoon },
-      { key: "evening" as const, label: "Evening", icon: <Moon className="w-4 h-4" />, range: "After 5pm", slots: slotGroups.evening },
+      { key: "morning" as const, label: "Morning", icon: <Sun className="size-4" />, range: "Before 12pm", slots: slotGroups.morning },
+      { key: "afternoon" as const, label: "Afternoon", icon: <CloudSun className="size-4" />, range: "12pm â€œ 5pm", slots: slotGroups.afternoon },
+      { key: "evening" as const, label: "Evening", icon: <Moon className="size-4" />, range: "After 5pm", slots: slotGroups.evening },
     ];
     const visiblePeriods = periods.filter((period) => period.slots.length > 0);
 
     if (consultationMode === "VIDEO") {
       return (
         <div className="flex flex-col gap-4">
-          <div className="rounded-xl border bg-slate-50/80 dark:bg-slate-900/40 border-slate-200/80 dark:border-slate-800 px-3 py-3 space-y-3">
+          <div className="rounded-xl border bg-slate-50/80 dark:bg-slate-900/40 border-slate-200/80 dark:border-slate-800 px-3 py-3 gap-y-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-foreground">
@@ -2814,9 +2812,9 @@ export function BookAppointmentDialog({
                   )}
                 >
                   {liveSyncMode === "live" ? (
-                    <Wifi className="h-3.5 w-3.5" />
+                    <Wifi className="size-3.5" />
                   ) : (
-                    <WifiOff className="h-3.5 w-3.5" />
+                    <WifiOff className="size-3.5" />
                   )}
                   {liveSyncLabel}
                 </span>
@@ -2826,21 +2824,21 @@ export function BookAppointmentDialog({
 
             <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
               <span className="inline-flex items-center gap-1 font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 px-2 py-1 rounded-full border border-blue-200/70 dark:border-blue-900">
-                <Video className="w-3 h-3" /> Video
+                <Video className="size-3" /> Video
               </span>
               <span className="inline-flex items-center gap-1 font-medium bg-slate-50 text-slate-700 dark:bg-slate-950/40 dark:text-slate-300 px-2 py-1 rounded-full border border-slate-200/70 dark:border-slate-800">
-                <Clock className="w-3 h-3" />
+                <Clock className="size-3" />
                 {clinicVideoCallWindow ? `${clinicVideoCallWindow.start}-${clinicVideoCallWindow.end}` : "Hours loading"}
               </span>
               <span className="inline-flex items-center gap-1 font-medium bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300 px-2 py-1 rounded-full border border-violet-200/70 dark:border-violet-900">
-                <CalendarIcon className="w-3 h-3" /> {selectedDate ? format(selectedDate, "d MMM") : ""}
+                <CalendarIcon className="size-3" /> {selectedDate ? format(selectedDate, "d MMM") : ""}
               </span>
               <span className="inline-flex items-center gap-1 font-medium bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 px-2 py-1 rounded-full border border-amber-200/70 dark:border-amber-900">
-                <Clock className="w-3 h-3" /> {appointmentDurationMinutes} min
+                <Clock className="size-3" /> {appointmentDurationMinutes} min
               </span>
               {selectedSlot ? (
                 <span className="inline-flex items-center gap-1 font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 px-2 py-1 rounded-full border border-emerald-200/70 dark:border-emerald-900">
-                  <CheckCircle className="w-3 h-3" /> Selected {selectedSlot}
+                  <CheckCircle className="size-3" /> Selected {selectedSlot}
                 </span>
               ) : null}
             </div>
@@ -2854,11 +2852,11 @@ export function BookAppointmentDialog({
             {selectedSlot ? (
               <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 dark:border-emerald-900 dark:bg-emerald-950/30 px-3 py-2">
                 <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-200">
-                  <CheckCircle className="w-4 h-4" />
+                  <CheckCircle className="size-4" />
                   <span className="text-sm font-semibold">Selected slot: {selectedSlot}</span>
                 </div>
                 <p className="mt-1 text-[11px] text-emerald-700 dark:text-emerald-300">
-                  {selectedDate ? format(selectedDate, "d MMM yyyy") : ""} · {appointmentDurationMinutes} min video call
+                  {selectedDate ? format(selectedDate, "d MMM yyyy") : ""} Â· {appointmentDurationMinutes} min video call
                 </p>
               </div>
             ) : null}
@@ -2876,7 +2874,7 @@ export function BookAppointmentDialog({
 
           {!shouldLoadAvailability ? (
             <div className="flex flex-col items-center py-10 text-muted-foreground text-center border border-dashed rounded-xl">
-              <Video className="w-8 h-8 mb-2 opacity-20" />
+              <Video className="size-8 mb-2 opacity-20" />
               <p className="text-sm font-medium">Select a doctor and date to load availability</p>
               <p className="text-xs mt-1 opacity-60">
                 Availability will appear automatically once the doctor, clinic, and date are selected.
@@ -2884,11 +2882,11 @@ export function BookAppointmentDialog({
             </div>
           ) : showAvailabilityLoader ? (
             <div className="flex items-center gap-2 py-6 text-muted-foreground text-sm justify-center">
-              <Loader2 className="w-5 h-5 animate-spin" /> Checking video availability...
+              <Loader2 className="size-5 animate-spin" /> Checking video availability...
             </div>
           ) : effectiveSlots.length === 0 ? (
             <div className="flex flex-col items-center py-10 text-muted-foreground text-center border border-dashed rounded-xl">
-              <Video className="w-8 h-8 mb-2 opacity-20" />
+              <Video className="size-8 mb-2 opacity-20" />
               <p className="text-sm font-medium">
                 {consultationBlocked ? "Video consultation currently unavailable" : "No video slots available"}
               </p>
@@ -2900,7 +2898,7 @@ export function BookAppointmentDialog({
               {availabilityError && <p className="text-xs mt-4 p-2 bg-red-500/10 rounded-md text-red-500 border border-red-500/20 max-w-[90%] text-center">Error: {(availabilityError as any).message || "Unknown error"}</p>}
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="gap-y-4">
               {visiblePeriods.map((period) => (
                 <div key={period.key} className="transition-all duration-200 ease-out">
                   <div className="flex items-center gap-2 mb-2">
@@ -2961,9 +2959,9 @@ export function BookAppointmentDialog({
                 )}
               >
                 {liveSyncMode === "live" ? (
-                  <Wifi className="h-3.5 w-3.5" />
+                  <Wifi className="size-3.5" />
                 ) : (
-                  <WifiOff className="h-3.5 w-3.5" />
+                  <WifiOff className="size-3.5" />
                 )}
                 {liveSyncLabel}
               </span>
@@ -2972,14 +2970,14 @@ export function BookAppointmentDialog({
           ) : null}
             <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-              <Clock className="w-3 h-3" /> {appointmentDurationMinutes} min per slot
+              <Clock className="size-3" /> {appointmentDurationMinutes} min per slot
             </span>
             <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full">
               20 slots / hour
             </span>
             {selectedSlot ? (
               <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full">
-                <CheckCircle className="w-3 h-3" /> {selectedSlotLabel}
+                <CheckCircle className="size-3" /> {selectedSlotLabel}
               </span>
             ) : null}
           </div>
@@ -2987,7 +2985,7 @@ export function BookAppointmentDialog({
 
         {!shouldLoadAvailability ? (
           <div className="flex flex-col items-center py-10 text-muted-foreground text-center border border-dashed rounded-xl">
-            <Clock className="w-8 h-8 mb-2 opacity-20" />
+            <Clock className="size-8 mb-2 opacity-20" />
             <p className="text-sm font-medium">Select a doctor and date to load availability</p>
             <p className="text-xs mt-1 opacity-60">
               Availability will appear automatically once the doctor, clinic, and date are selected.
@@ -2995,11 +2993,11 @@ export function BookAppointmentDialog({
           </div>
         ) : showAvailabilityLoader ? (
           <div className="flex items-center gap-2 py-6 text-muted-foreground text-sm justify-center">
-            <Loader2 className="w-5 h-5 animate-spin" /> Checking availability...
+            <Loader2 className="size-5 animate-spin" /> Checking availability...
           </div>
         ) : effectiveSlots.length === 0 ? (
           <div className="flex flex-col items-center py-10 text-muted-foreground text-center border border-dashed rounded-xl">
-            <Clock className="w-8 h-8 mb-2 opacity-20" />
+            <Clock className="size-8 mb-2 opacity-20" />
             <p className="text-sm font-medium">
               {consultationBlocked ? "Consultation currently unavailable" : "No slots available"}
             </p>
@@ -3011,7 +3009,7 @@ export function BookAppointmentDialog({
             {availabilityError && <p className="text-xs mt-4 p-2 bg-red-500/10 rounded-md text-red-500 border border-red-500/20 max-w-[90%] text-center">Error: {(availabilityError as any).message || "Unknown error"}</p>}
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="gap-y-4">
             {visiblePeriods.map((period) => (
               <div key={period.key} className="transition-all duration-200 ease-out">
                 <div className="flex items-center gap-2 mb-2">
@@ -3078,7 +3076,7 @@ export function BookAppointmentDialog({
       </div>
 
       {consultationMode === "VIDEO" && shouldCollectVideoPayment && (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30 p-4 space-y-2">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30 p-4 gap-y-2">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">Video visit fee</p>
             <p className="text-lg font-bold text-foreground">INR {videoPaymentAmount.toFixed(0)}</p>
@@ -3094,7 +3092,7 @@ export function BookAppointmentDialog({
                 onCheckedChange={(checked) => setAcceptedVideoPaymentPolicy(checked === true)}
                 className="mt-0.5"
               />
-              <div className="space-y-1">
+              <div className="gap-y-1">
                 <Label
                   htmlFor="video-payment-policy"
                   className="text-sm font-semibold leading-snug text-foreground"
@@ -3142,7 +3140,7 @@ export function BookAppointmentDialog({
 
       {isPatientInPersonBooking && (
         <div
-          className={`rounded-2xl border p-4 space-y-2 ${
+          className={`rounded-2xl border p-4 gap-y-2 ${
             needsSubscriptionPlan
               ? "border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30"
               : "border-blue-200 bg-blue-50/70 dark:border-blue-900 dark:bg-blue-950/30"
@@ -3169,16 +3167,16 @@ export function BookAppointmentDialog({
             }`}
           >
             {isSubscriptionGateLoading
-              ? "We™re checking your plan before booking this in-person appointment."
+              ? "Weâ„¢re checking your plan before booking this in-person appointment."
               : needsSubscriptionPlan
               ? "You need an active plan for this clinic to continue."
-              : "We™ll verify your plan before confirming this appointment."}
+              : "Weâ„¢ll verify your plan before confirming this appointment."}
           </p>
         </div>
       )}
 
       {/* Additional fields */}
-      <div className="space-y-3">
+      <div className="gap-y-3">
         <div>
           <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">
             Chief Complaint
@@ -3212,11 +3210,11 @@ export function BookAppointmentDialog({
   // Step 6: Success + QR Code
   const renderStep6 = () => (
     <div className="flex flex-col items-center gap-5 py-2">
-      <div className="w-14 h-14 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-        <Check className="w-7 h-7 text-green-600 dark:text-green-400" />
+      <div className="size-14 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+        <Check className="size-7 text-green-600 dark:text-green-400" />
       </div>
       <div className="text-center">
-        <h3 className="text-lg font-bold">
+        <h3 className="text-lg font-semibold">
           {consultationMode === "VIDEO" && requiresVideoPayment && !videoPaymentCompleted
             ? "Complete Payment"
             : consultationMode === "VIDEO"
@@ -3235,7 +3233,7 @@ export function BookAppointmentDialog({
       {consultationMode === "VIDEO" ? (
         <div className="flex flex-col items-center gap-3 p-4 rounded-2xl border bg-card w-full max-w-sm">
           <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-            <Video className="w-4 h-4" />
+            <Video className="size-4" />
             {requiresVideoPayment && !videoPaymentCompleted
               ? "Payment required"
               : "Video Appointment Ready"}
@@ -3256,8 +3254,8 @@ export function BookAppointmentDialog({
         </div>
       ) : (
         <div className="flex flex-col gap-3 p-4 rounded-2xl border bg-card w-full max-w-sm">
-          <div className="flex justify-center w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 items-center mx-auto mb-1">
-            <QrCode className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+          <div className="flex justify-center size-12 rounded-full bg-blue-100 dark:bg-blue-900/30 items-center mx-auto mb-1">
+            <QrCode className="size-6 text-blue-600 dark:text-blue-400" />
           </div>
           <div className="text-center">
             <h4 className="font-semibold text-sm">
@@ -3271,7 +3269,7 @@ export function BookAppointmentDialog({
           </div>
 
           {isPatientInPersonFlow && (
-            <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 p-3 text-xs text-blue-900 dark:text-blue-100 space-y-2">
+            <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 p-3 text-xs text-blue-900 dark:text-blue-100 gap-y-2">
               <div className="flex items-start gap-2">
                 <span className="mt-0.5 font-bold">1.</span>
                 <span>Arrive at the clinic before your slot to avoid delays.</span>
@@ -3287,7 +3285,7 @@ export function BookAppointmentDialog({
             </div>
           )}
           {shouldCollectVideoPayment && (
-            <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 p-3 text-xs text-emerald-900 dark:text-emerald-100 space-y-2">
+            <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 p-3 text-xs text-emerald-900 dark:text-emerald-100 gap-y-2">
               <div className="flex items-start gap-2">
                 <span className="mt-0.5 font-bold">1.</span>
                 <span>Select your time and continue to payment.</span>
@@ -3319,14 +3317,14 @@ export function BookAppointmentDialog({
         ) : null)}
       </div>
 
-      <div className="w-full space-y-3 pt-4">
+      <div className="w-full gap-y-3 pt-4">
         {isPatientInPersonFlow && (
           <Button
             className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 text-white font-semibold shadow-glow-subtle transition-all active:scale-95"
             onClick={() => {
               handleOpenChange(false);
               if (pathname !== patientCheckInRoute) {
-                router.push(patientCheckInRoute);
+                push(patientCheckInRoute);
               }
             }}
           >
@@ -3345,7 +3343,7 @@ export function BookAppointmentDialog({
             onClick={() => {
               handleOpenChange(false);
               if (pathname !== postBookingRoute) {
-                router.push(postBookingRoute);
+                push(postBookingRoute);
               }
             }}
           >
@@ -3356,7 +3354,7 @@ export function BookAppointmentDialog({
     </div>
   );
 
-  // ””” Main render ””””””””””””””””””””””””””””””””””””””””””””””””””””””””””
+  // â€â€â€ Main render â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€
 
   const stepContent = useMemo(() => {
     switch (currentStepId) {
@@ -3408,7 +3406,7 @@ export function BookAppointmentDialog({
         <DialogTrigger asChild>
           {trigger || (
             <Button className="flex items-center gap-2 rounded-xl border-0 bg-emerald-600 px-6 py-6 font-semibold text-white shadow-glow-subtle transition-all hover:bg-emerald-700 hover:shadow-glow-medium transform hover:-translate-y-0.5 active:scale-95 focus-visible:ring-2 focus-visible:ring-emerald-500/30">
-              <Plus className="w-5 h-5" />
+              <Plus className="size-5" />
               Book Appointment
             </Button>
           )}
@@ -3431,7 +3429,7 @@ export function BookAppointmentDialog({
             </DialogDescription>
           </DialogHeader>
 
-          {/* Step bar ” hide on success screen */}
+          {/* Step bar â€ hide on success screen */}
           {!isSuccessStep && (
             <div className="mt-3 overflow-x-auto">
               {renderStepBar()}
@@ -3455,7 +3453,7 @@ export function BookAppointmentDialog({
           </AnimatePresence>
         </div>
 
-        {/* Footer ” hide on success screen */}
+        {/* Footer â€ hide on success screen */}
         {!isSuccessStep && (
           <div className="px-4 sm:px-6 py-4 border-t bg-background flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:gap-4 shrink-0">
             <Button
@@ -3463,7 +3461,7 @@ export function BookAppointmentDialog({
               onClick={step > 1 ? goBack : () => handleOpenChange(false)}
               className="h-11 w-full px-6 rounded-xl border-border/50 transition-all active:scale-95 gap-2 sm:w-auto"
             >
-              <ChevronLeft className="w-4 h-4" /> {step > 1 ? "Back" : "Cancel"}
+              <ChevronLeft className="size-4" /> {step > 1 ? "Back" : "Cancel"}
             </Button>
             <div className="hidden flex-1 sm:block" />
 
@@ -3473,7 +3471,7 @@ export function BookAppointmentDialog({
                 disabled={!canNext}
                 className="h-11 w-full px-8 rounded-xl font-semibold bg-primary hover:bg-primary/90 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2 sm:w-auto"
               >
-                Continue <ArrowRight className="w-4 h-4" />
+                Continue <ArrowRight className="size-4" />
               </Button>
             ) : (
               (() => {
@@ -3507,12 +3505,12 @@ export function BookAppointmentDialog({
                   >
                     {(consultationMode === "VIDEO" ? isBooking : isCreatingInPersonAppointment || isSubscriptionGateLoading) ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <Loader2 className="size-4 animate-spin" />
                         {consultationMode === "VIDEO" ? "Preparing appointment..." : "Checking plan..."}
                       </>
                     ) : (
                       <>
-                        <Check className="w-4 h-4" /> {confirmLabel}
+                        <Check className="size-4" /> {confirmLabel}
                       </>
                     )}
                   </Button>
@@ -3526,3 +3524,6 @@ export function BookAppointmentDialog({
     </Dialog>
   );
 }
+
+
+

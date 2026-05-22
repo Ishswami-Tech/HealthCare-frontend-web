@@ -438,7 +438,7 @@ export default function ReceptionistCheckInPage() {
         header: "Doctor",
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
-            <Stethoscope className="h-4 w-4 text-muted-foreground" />
+            <Stethoscope className="size-4 text-muted-foreground" />
             <span>{row.original.doctorName}</span>
           </div>
         ),
@@ -447,13 +447,13 @@ export default function ReceptionistCheckInPage() {
         id: "appointment",
         header: "Appointment",
         cell: ({ row }) => (
-          <div className="space-y-0.5">
+          <div className="gap-y-0.5">
             <div className="flex items-center gap-2">
-              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+              <CalendarIcon className="size-4 text-muted-foreground" />
               <span>{row.original.appointmentDateLabel}</span>
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Clock className="h-3.5 w-3.5" />
+              <Clock className="size-3.5" />
               <span>{row.original.appointmentTimeLabel}</span>
             </div>
           </div>
@@ -464,7 +464,7 @@ export default function ReceptionistCheckInPage() {
         header: "Checked In",
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
-            <HistoryIcon className="h-4 w-4 text-muted-foreground" />
+            <HistoryIcon className="size-4 text-muted-foreground" />
             <span>{row.original.checkedInAtLabel}</span>
           </div>
         ),
@@ -552,7 +552,7 @@ export default function ReceptionistCheckInPage() {
         header: "Doctor",
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
-            <Stethoscope className="h-4 w-4 text-muted-foreground" />
+            <Stethoscope className="size-4 text-muted-foreground" />
             <span>{row.original.doctorName}</span>
           </div>
         ),
@@ -562,7 +562,7 @@ export default function ReceptionistCheckInPage() {
         header: "Date",
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
-            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+            <CalendarIcon className="size-4 text-muted-foreground" />
             <span>{row.original.dateLabel}</span>
           </div>
         ),
@@ -572,7 +572,7 @@ export default function ReceptionistCheckInPage() {
         header: "Time",
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <Clock className="size-4 text-muted-foreground" />
             <span>{row.original.timeLabel}</span>
           </div>
         ),
@@ -612,17 +612,17 @@ export default function ReceptionistCheckInPage() {
                 disabled={checkingInId === row.original.id}
               >
                 {checkingInId === row.original.id ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="size-4 animate-spin" />
                 ) : (
                   <>
-                    <CheckCircle2 className="mr-1 h-4 w-4" />
+                    <CheckCircle2 className="mr-1 size-4" />
                     Confirm Arrival
                   </>
                 )}
               </Button>
             ) : row.original.isConfirmedArrival ? (
               <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-300">
-                <CheckCircle2 className="h-4 w-4" />
+                <CheckCircle2 className="size-4" />
                 Arrived
               </span>
             ) : !hasCheckInLocationForAssignedLocation ? (
@@ -640,7 +640,7 @@ export default function ReceptionistCheckInPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center rounded-xl border border-border bg-card p-6">
-        <Loader2 className="h-10 w-10 animate-spin text-emerald-600 dark:text-emerald-300" />
+        <Loader2 className="size-10 animate-spin text-emerald-600 dark:text-emerald-300" />
       </div>
     );
   }
@@ -652,8 +652,8 @@ export default function ReceptionistCheckInPage() {
         title="Patient Arrival Confirmation"
         description="Confirm today&apos;s and upcoming in-person arrivals. Use the calendar to select one date or multiple dates before moving patients into the consultation flow."
         meta={
-          <span className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <CalendarIcon className="h-4 w-4 text-emerald-500" />
+          <span className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground" suppressHydrationWarning>
+            <CalendarIcon className="size-4 text-emerald-500" />
             {formatDateInIST(new Date(), {
               weekday: "long",
               year: "numeric",
@@ -665,7 +665,7 @@ export default function ReceptionistCheckInPage() {
       />
 
       <Card>
-        <CardContent className="space-y-3 pt-4 sm:space-y-4 sm:pt-5">
+        <CardContent className="gap-y-3 pt-4 sm:gap-y-4 sm:pt-5">
           {isCheckInLocationsLoading ? (
             <div className="rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
               Checking manual check-in setup...
@@ -677,7 +677,7 @@ export default function ReceptionistCheckInPage() {
           ) : null}
 
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search by patient name, doctor, or phone..."
               value={searchTerm}
@@ -689,7 +689,7 @@ export default function ReceptionistCheckInPage() {
           <Tabs
             value={activeTab}
             onValueChange={(value) => setActiveTab(value as "upcoming" | "history")}
-            className="space-y-3"
+            className="gap-y-3"
           >
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <TabsList className="w-full sm:w-auto">
@@ -697,7 +697,7 @@ export default function ReceptionistCheckInPage() {
                   Upcoming
                 </TabsTrigger>
                 <TabsTrigger value="history" className="min-w-0 flex-1 sm:flex-none">
-                  <HistoryIcon className="mr-1.5 h-4 w-4" />
+                  <HistoryIcon className="mr-1.5 size-4" />
                   History
                 </TabsTrigger>
               </TabsList>
@@ -708,11 +708,11 @@ export default function ReceptionistCheckInPage() {
               </p>
             </div>
 
-            <TabsContent value="upcoming" className="space-y-3">
+            <TabsContent value="upcoming" className="gap-y-3">
               <div className="rounded-2xl border border-border/60 bg-muted/30 p-3 sm:p-3.5">
                 <div className="flex flex-col gap-2.5">
                   <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="space-y-1">
+                    <div className="gap-y-1">
                       <p className="text-sm font-semibold">Filter by date</p>
                       <p className="text-xs text-muted-foreground">
                         Pick one or more dates to narrow the manual check-in list.
@@ -744,7 +744,7 @@ export default function ReceptionistCheckInPage() {
                           className="w-full justify-between gap-2 sm:w-[240px] sm:justify-start"
                         >
                           <span className="inline-flex items-center gap-2">
-                            <CalendarIcon className="h-4 w-4" />
+                            <CalendarIcon className="size-4" />
                             <span>{selectedDatesSorted.length > 0 ? "Selected dates" : "Select dates"}</span>
                             {selectedDatesSorted.length > 0 ? (
                               <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground">
@@ -816,14 +816,14 @@ export default function ReceptionistCheckInPage() {
                                 month: "short",
                                 year: "numeric",
                               })}`}
-                              className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+                              className="inline-flex size-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
                               onClick={() =>
                                 setSelectedDates((current) =>
                                   current.filter((item) => formatISODateInIST(item) !== key)
                                 )
                               }
                             >
-                              <X className="h-3 w-3" />
+                              <X className="size-3" />
                             </button>
                           </Badge>
                         );
@@ -842,7 +842,7 @@ export default function ReceptionistCheckInPage() {
               />
             </TabsContent>
 
-            <TabsContent value="history" className="space-y-3">
+            <TabsContent value="history" className="gap-y-3">
               <div className="rounded-2xl border border-border/60 bg-muted/30 p-3 text-sm text-muted-foreground">
                 Historical arrivals are sorted by check-in time. Source shows whether the arrival came from manual check-in or QR scan.
               </div>
@@ -861,3 +861,5 @@ export default function ReceptionistCheckInPage() {
     </DashboardPageShell>
   );
 }
+
+

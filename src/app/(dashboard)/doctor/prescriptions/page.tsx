@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +35,7 @@ import {
   Edit2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
+import { useHydrated } from "@/hooks/utils/useHydrated";
 import { showInfoToast } from "@/hooks/utils/use-toast";
 import {
   usePrescriptions,
@@ -56,6 +57,8 @@ export default function DoctorPrescriptions() {
   const [editingPrescription, setEditingPrescription] = useState<any | null>(null);
   const [showPrescriptionDialog, setShowPrescriptionDialog] = useState(false);
   const [editForm, setEditForm] = useState({ diagnosis: "", notes: "", status: "active", medicines: "" });
+  const isHydrated = useHydrated();
+  const todayDate = isHydrated ? new Date().toDateString() : "";
 
   const { data: prescriptionsData, isPending } = usePrescriptions(doctorId);
   const createMutation = useCreatePrescription();
@@ -154,7 +157,7 @@ export default function DoctorPrescriptions() {
   if (isPending) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <Loader2 className="size-8 animate-spin" />
       </div>
     );
   }
@@ -169,7 +172,7 @@ export default function DoctorPrescriptions() {
           {
             label: "New Prescription",
             onClick: openCreate,
-            icon: <Plus className="w-4 h-4" />,
+            icon: <Plus className="size-4" />,
             disabled: createMutation.isPending,
           },
         ]}
@@ -180,7 +183,7 @@ export default function DoctorPrescriptions() {
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-3 size-4 text-gray-400" />
               <Input
                 placeholder="Search by patient, medicine, or diagnosis..."
                 value={searchQuery}
@@ -218,7 +221,7 @@ export default function DoctorPrescriptions() {
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-blue-100 rounded-lg">
-                <FileText className="w-6 h-6 text-blue-600" />
+                <FileText className="size-6 text-blue-600" />
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -233,7 +236,7 @@ export default function DoctorPrescriptions() {
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-green-100 rounded-lg">
-                <Pill className="w-6 h-6 text-green-600" />
+                <Pill className="size-6 text-green-600" />
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -248,7 +251,7 @@ export default function DoctorPrescriptions() {
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-purple-100 rounded-lg">
-                <User className="w-6 h-6 text-purple-600" />
+                <User className="size-6 text-purple-600" />
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -263,12 +266,13 @@ export default function DoctorPrescriptions() {
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-orange-100 rounded-lg">
-                <Calendar className="w-6 h-6 text-orange-600" />
+                <Calendar className="size-6 text-orange-600" />
               </div>
               <div>
-                <div className="text-2xl font-bold">
+                <div className="text-2xl font-bold" suppressHydrationWarning>
                   {prescriptions.filter((p: any) => {
-                    const today = new Date().toDateString();
+                    if (!todayDate) return false;
+                    const today = todayDate;
                     return new Date(p.date).toDateString() === today;
                   }).length}
                 </div>
@@ -283,7 +287,7 @@ export default function DoctorPrescriptions() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <FileText className="w-5 h-5" />
+            <FileText className="size-5" />
             Prescriptions List
           </CardTitle>
         </CardHeader>
@@ -292,7 +296,7 @@ export default function DoctorPrescriptions() {
             <Empty>
               <EmptyContent>
                 <EmptyMedia>
-                  <FileText className="h-5 w-5" />
+                  <FileText className="size-5" />
                 </EmptyMedia>
                 <EmptyTitle>No prescriptions found</EmptyTitle>
                 <EmptyDescription>
@@ -301,7 +305,7 @@ export default function DoctorPrescriptions() {
               </EmptyContent>
             </Empty>
           ) : (
-            <div className="space-y-4">
+            <div className="gap-y-4">
               {filteredPrescriptions.map((prescription: any) => (
                 <div
                   key={prescription.id}
@@ -322,7 +326,7 @@ export default function DoctorPrescriptions() {
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
                         <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4" />
+                          <Calendar className="size-4" />
                           <span>
                             {formatDateInIST(prescription.date, {
                               year: "numeric",
@@ -332,7 +336,7 @@ export default function DoctorPrescriptions() {
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <User className="w-4 h-4" />
+                          <User className="size-4" />
                           <span>ID: {prescription.patientId}</span>
                         </div>
                       </div>
@@ -349,13 +353,13 @@ export default function DoctorPrescriptions() {
                           Medicines:
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          {prescription.medicines?.map((medicine: string, index: number) => (
+                          {prescription.medicines?.map((medicine: string) => (
                             <Badge
-                              key={index}
+                              key={medicine}
                               variant="outline"
                               className="bg-green-50 text-green-800 border-green-200"
                             >
-                              <Pill className="w-3 h-3 mr-1" />
+                              <Pill className="size-3 mr-1" />
                               {medicine}
                             </Badge>
                           ))}
@@ -374,10 +378,10 @@ export default function DoctorPrescriptions() {
                     </div>
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" onClick={() => handleDownload(prescription)} title="Download PDF">
-                        <Download className="w-4 h-4" />
+                        <Download className="size-4" />
                       </Button>
                       <Button variant="outline" size="sm" disabled={updateMutation.isPending} onClick={() => openEdit(prescription)}>
-                        <Edit2 className="w-4 h-4 mr-1" />
+                        <Edit2 className="size-4 mr-1" />
                         Edit
                       </Button>
                       <Button
@@ -405,11 +409,11 @@ export default function DoctorPrescriptions() {
               {editingPrescription ? "Edit Prescription" : "New Prescription"}
             </DialogTitle>
             <DialogDescription>
-              Create or update a prescription with the patient’s medication plan and clinical notes.
+              Create or update a prescription with the patientâ€™s medication plan and clinical notes.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
+          <div className="gap-y-4 py-2">
+            <div className="gap-y-1.5">
               <Label>Diagnosis / Notes</Label>
               <textarea
                 className="w-full border rounded-md p-2 text-sm min-h-[80px] resize-none focus:outline-none focus:ring-2 focus:ring-ring"
@@ -419,7 +423,7 @@ export default function DoctorPrescriptions() {
               />
             </div>
             {!editingPrescription && (
-              <div className="space-y-1.5">
+              <div className="gap-y-1.5">
                 <Label>Medicines (comma-separated)</Label>
                 <Input
                   placeholder="e.g. Paracetamol 500mg, Amoxicillin 250mg"
@@ -428,7 +432,7 @@ export default function DoctorPrescriptions() {
                 />
               </div>
             )}
-            <div className="space-y-1.5">
+            <div className="gap-y-1.5">
               <Label>Status</Label>
               <Select
                 value={editForm.status}
@@ -453,7 +457,7 @@ export default function DoctorPrescriptions() {
               onClick={handleSavePrescription}
               disabled={createMutation.isPending || updateMutation.isPending}
             >
-              {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save"}
+              {createMutation.isPending || updateMutation.isPending ? "Saving…" : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -461,3 +465,6 @@ export default function DoctorPrescriptions() {
     </DashboardPageShell>
   );
 }
+
+
+

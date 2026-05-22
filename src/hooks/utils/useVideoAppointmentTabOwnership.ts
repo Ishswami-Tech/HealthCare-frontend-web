@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 
 type TabOwnershipAction = "claim" | "release";
 
@@ -10,6 +10,32 @@ type TabOwnershipMessage = {
   action: TabOwnershipAction;
   timestamp: number;
 };
+
+type OwnershipState = {
+  activeOwnerId: string;
+  isOwnershipLost: boolean;
+};
+
+type OwnershipAction =
+  | { type: "SET_OWNER"; ownerId: string }
+  | { type: "SET_LOST"; value: boolean }
+  | { type: "SYNC"; ownerId: string; isLost: boolean };
+
+function ownershipReducer(state: OwnershipState, action: OwnershipAction): OwnershipState {
+  switch (action.type) {
+    case "SET_OWNER":
+      return { ...state, activeOwnerId: action.ownerId };
+    case "SET_LOST":
+      return { ...state, isOwnershipLost: action.value };
+    case "SYNC":
+      return {
+        activeOwnerId: action.ownerId,
+        isOwnershipLost: action.isLost,
+      };
+    default:
+      return state;
+  }
+}
 
 type UseVideoAppointmentTabOwnershipResult = {
   activeOwnerId: string;
@@ -54,12 +80,11 @@ export function useVideoAppointmentTabOwnership(
 ): UseVideoAppointmentTabOwnershipResult {
   const tabIdRef = useRef(createTabId());
   const channelRef = useRef<BroadcastChannel | null>(null);
-  const storageKey = useMemo(
-    () => (appointmentId ? `${STORAGE_PREFIX}${appointmentId}` : ""),
-    [appointmentId]
-  );
-  const [activeOwnerId, setActiveOwnerId] = useState(tabIdRef.current);
-  const [isOwnershipLost, setIsOwnershipLost] = useState(false);
+  const storageKey = appointmentId ? `${STORAGE_PREFIX}${appointmentId}` : "";
+  const [ownershipState, dispatchOwnership] = useReducer(ownershipReducer, {
+    activeOwnerId: tabIdRef.current,
+    isOwnershipLost: false,
+  });
 
   const publish = useCallback(
     (message: TabOwnershipMessage) => {
@@ -86,8 +111,11 @@ export function useVideoAppointmentTabOwnership(
       timestamp: Date.now(),
     };
 
-    setActiveOwnerId(tabIdRef.current);
-    setIsOwnershipLost(false);
+    dispatchOwnership({
+      type: "SYNC",
+      ownerId: tabIdRef.current,
+      isLost: false,
+    });
     publish(message);
   }, [appointmentId, publish]);
 
@@ -133,14 +161,19 @@ export function useVideoAppointmentTabOwnership(
       }
 
       if (message.ownerTabId === tabIdRef.current) {
-        setActiveOwnerId(tabIdRef.current);
+        dispatchOwnership({
+          type: "SYNC",
+          ownerId: tabIdRef.current,
+          isLost: false,
+        });
         return;
       }
 
-      setActiveOwnerId(message.ownerTabId);
-      if (message.action === "claim") {
-        setIsOwnershipLost(true);
-      }
+      dispatchOwnership({
+        type: "SYNC",
+        ownerId: message.ownerTabId,
+        isLost: message.action === "claim",
+      });
     };
 
     const onStorage = (event: StorageEvent) => {
@@ -172,8 +205,8 @@ export function useVideoAppointmentTabOwnership(
   }, [appointmentId, storageKey]);
 
   return {
-    activeOwnerId,
-    isOwnershipLost,
+    activeOwnerId: ownershipState.activeOwnerId,
+    isOwnershipLost: ownershipState.isOwnershipLost,
     claimOwnership,
     releaseOwnership,
   };

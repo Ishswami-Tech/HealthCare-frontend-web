@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import Image from "next/image";
@@ -55,7 +55,8 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
 }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
-  const [currentSrc, setCurrentSrc] = useState(src);
+  const [isUsingFallback, setIsUsingFallback] = useState(false);
+  const currentSrc = isUsingFallback ? fallbackSrc : src;
 
   const handleLoad = () => {
     setIsLoading(false);
@@ -63,13 +64,15 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
   };
 
   const handleError = () => {
-    setHasError(true);
-    setIsLoading(false);
-    if (fallbackSrc && currentSrc !== fallbackSrc) {
-      setCurrentSrc(fallbackSrc);
+    if (fallbackSrc && !isUsingFallback) {
+      setIsUsingFallback(true);
       setHasError(false);
       setIsLoading(true);
+      return;
     }
+
+    setHasError(true);
+    setIsLoading(false);
     onError?.();
   };
 
@@ -82,7 +85,7 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
       }" xmlns="http://www.w3.org/2000/svg">
         <rect width="100%" height="100%" fill="#f3f4f6"/>
         <text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="#9ca3af" font-family="Arial, sans-serif" font-size="14">
-          Loading...
+          Loading…
         </text>
       </svg>`
     )}`;
@@ -127,7 +130,7 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
       {/* Loading skeleton */}
       {isLoading && (
         <div className="absolute inset-0 bg-gray-200 animate-pulse flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-gray-300 border-t-orange-600 rounded-full animate-spin"></div>
+          <div className="size-8 border-2 border-gray-300 border-t-orange-600 rounded-full animate-spin"></div>
         </div>
       )}
 
@@ -135,7 +138,7 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
       {hasError && !isLoading && (
         <div className="absolute inset-0 bg-gray-100 flex flex-col items-center justify-center text-gray-500">
           <svg
-            className="w-12 h-12 mb-2"
+            className="size-12 mb-2"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -181,10 +184,10 @@ export const AvatarImage: React.FC<AvatarImageProps> = ({
   ...props
 }) => {
   const sizeClasses = {
-    sm: "w-8 h-8",
-    md: "w-12 h-12",
-    lg: "w-16 h-16",
-    xl: "w-24 h-24",
+    sm: "size-8",
+    md: "size-12",
+    lg: "size-16",
+    xl: "size-24",
   };
 
   const sizePixels = {
@@ -294,3 +297,5 @@ export const HeroImage: React.FC<HeroImageProps> = ({
     </div>
   );
 };
+
+

@@ -98,14 +98,8 @@ export default function PatientBillingPage() {
   } = useBillingPlans(undefined, !clinicId);
   const createSubscriptionMutation = useCreateSubscription();
   const typedSubscriptions = subscriptions as Subscription[];
-  const plans = useMemo(
-    () => (clinicPlans.length > 0 ? clinicPlans : fallbackPlans),
-    [clinicPlans, fallbackPlans]
-  );
-  const activePlans = useMemo(
-    () => plans.filter((plan) => plan.isActive),
-    [plans]
-  );
+  const plans = clinicPlans.length > 0 ? clinicPlans : fallbackPlans;
+  const activePlans = plans.filter((plan) => plan.isActive);
   const plansPending = clinicId ? clinicPlansPending : fallbackPlansPending;
 
   const openInvoices = invoices.filter(
@@ -350,7 +344,7 @@ export default function PatientBillingPage() {
             onClick={() => handleDownloadPDF(row.original.id)}
             title="Download invoice PDF"
           >
-            <Download className="h-3.5 w-3.5" />
+            <Download className="size-3.5" />
             PDF
           </Button>
         </div>
@@ -439,7 +433,7 @@ export default function PatientBillingPage() {
   ];
 
   return (
-    <PatientPageShell className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
+    <PatientPageShell className="mx-auto max-w-6xl gap-y-4 p-4 sm:p-6">
       <PatientPageHeader
         eyebrow="Payments"
         title="My payments"
@@ -450,7 +444,7 @@ export default function PatientBillingPage() {
         <Card>
           <CardContent className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4">
             <div className="rounded-full bg-amber-100 p-3 dark:bg-amber-950/40">
-              <FileText className="h-5 w-5 text-amber-600 dark:text-amber-300" />
+              <FileText className="size-5 text-amber-600 dark:text-amber-300" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Open Invoices</p>
@@ -462,7 +456,7 @@ export default function PatientBillingPage() {
         <Card>
           <CardContent className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4">
             <div className="rounded-full bg-emerald-100 p-3 dark:bg-emerald-950/40">
-              <CreditCard className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
+              <CreditCard className="size-5 text-emerald-600 dark:text-emerald-300" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Payments</p>
@@ -474,7 +468,7 @@ export default function PatientBillingPage() {
         <Card>
           <CardContent className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4">
             <div className="rounded-full bg-blue-100 p-3 dark:bg-blue-950/40">
-              <Wallet className="h-5 w-5 text-blue-600 dark:text-blue-300" />
+              <Wallet className="size-5 text-blue-600 dark:text-blue-300" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Active Subscriptions</p>
@@ -484,7 +478,7 @@ export default function PatientBillingPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="plans" className="space-y-4">
+      <Tabs defaultValue="plans" className="gap-y-4">
         <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
           <TabsList className="inline-flex w-max min-w-full sm:flex sm:w-full">
             <TabsTrigger
@@ -506,11 +500,11 @@ export default function PatientBillingPage() {
           </TabsList>
         </div>
 
-        <TabsContent value="plans" className="space-y-4 mt-4">
+        <TabsContent value="plans" className="gap-y-4 mt-4">
           {plansPending ? (
             <Card>
               <CardContent className="py-10 text-center">
-                <RefreshCw className="mx-auto mb-3 h-5 w-5 animate-spin text-muted-foreground" />
+                <RefreshCw className="mx-auto mb-3 size-5 animate-spin text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">Loading plans...</p>
               </CardContent>
             </Card>
@@ -518,7 +512,7 @@ export default function PatientBillingPage() {
             <Empty>
               <EmptyContent>
                 <EmptyMedia>
-                  <Wallet className="h-5 w-5" />
+                  <Wallet className="size-5" />
                 </EmptyMedia>
                 <EmptyTitle>No subscription plans are available right now.</EmptyTitle>
                 <EmptyDescription>
@@ -537,12 +531,12 @@ export default function PatientBillingPage() {
               </EmptyContent>
             </Empty>
           ) : (
-            <div className="space-y-4">
+            <div className="gap-y-4">
               {currentActiveSubscription && (
                 <Card className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30">
                   <CardContent className="flex items-start gap-3 py-4">
                     <div className="rounded-full bg-green-100 p-2 dark:bg-green-900/40 shrink-0">
-                      <CheckCircle2 className="h-4 w-4 text-green-700 dark:text-green-300" />
+                      <CheckCircle2 className="size-4 text-green-700 dark:text-green-300" />
                     </div>
                     <div className="min-w-0">
                       <p className="font-semibold text-green-900 dark:text-green-200 text-sm">
@@ -569,9 +563,9 @@ export default function PatientBillingPage() {
                       }`}
                     >
                       {isCurrentPlan && <div className="h-1 w-full bg-green-500" />}
-                      <CardContent className="p-4 sm:p-5 space-y-3">
+                      <CardContent className="p-4 sm:p-5 gap-y-3">
                         <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1 space-y-1">
+                          <div className="min-w-0 flex-1 gap-y-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <p className="font-semibold text-base leading-tight">{plan.name}</p>
                               {isCurrentPlan && (
@@ -598,7 +592,7 @@ export default function PatientBillingPage() {
                         </div>
 
                         <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                          <CheckCircle2 className="size-3.5 text-green-500 shrink-0" />
                           {plan.isUnlimitedAppointments
                             ? "Unlimited visits included"
                             : `${plan.appointmentsIncluded ?? 0} visits included`}
@@ -606,12 +600,12 @@ export default function PatientBillingPage() {
 
                         {Array.isArray(plan.features) && plan.features.length > 0 && (
                           <div className="grid gap-1 pt-1 border-t">
-                            {plan.features.slice(0, 4).map((feature, index) => (
+                            {plan.features.slice(0, 4).map((feature) => (
                               <div
-                                key={`${plan.id}-feature-${index}`}
+                                key={`${plan.id}-feature-${feature}`}
                                 className="flex items-center gap-2 text-xs text-muted-foreground"
                               >
-                                <Check className="h-3.5 w-3.5 text-green-600 shrink-0" />
+                                <Check className="size-3.5 text-green-600 shrink-0" />
                                 <span>{feature}</span>
                               </div>
                             ))}
@@ -621,7 +615,7 @@ export default function PatientBillingPage() {
                         <div className="flex justify-stretch sm:justify-end pt-1">
                           {isCurrentPlan ? (
                             <Button variant="outline" disabled className="w-full sm:w-auto gap-1.5">
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              <CheckCircle2 className="size-4 text-green-600" />
                               Current Plan
                             </Button>
                           ) : (
@@ -639,11 +633,11 @@ export default function PatientBillingPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="invoices" className="space-y-3 mt-4">
+        <TabsContent value="invoices" className="gap-y-3 mt-4">
           {invoicesPending ? (
             <Card>
               <CardContent className="py-10 text-center">
-                <RefreshCw className="mx-auto mb-3 h-5 w-5 animate-spin text-muted-foreground" />
+                <RefreshCw className="mx-auto mb-3 size-5 animate-spin text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">Loading invoices...</p>
               </CardContent>
             </Card>
@@ -651,7 +645,7 @@ export default function PatientBillingPage() {
             <Empty>
               <EmptyContent>
                 <EmptyMedia>
-                  <FileText className="h-5 w-5" />
+                  <FileText className="size-5" />
                 </EmptyMedia>
                 <EmptyTitle>No invoices found.</EmptyTitle>
                 <EmptyDescription>
@@ -669,11 +663,11 @@ export default function PatientBillingPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="payments" className="space-y-3 mt-4">
+        <TabsContent value="payments" className="gap-y-3 mt-4">
           {paymentsPending ? (
             <Card>
               <CardContent className="py-10 text-center">
-                <RefreshCw className="mx-auto mb-3 h-5 w-5 animate-spin text-muted-foreground" />
+                <RefreshCw className="mx-auto mb-3 size-5 animate-spin text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">Loading payments...</p>
               </CardContent>
             </Card>
@@ -681,7 +675,7 @@ export default function PatientBillingPage() {
             <Empty>
               <EmptyContent>
                 <EmptyMedia>
-                  <CreditCard className="h-5 w-5" />
+                  <CreditCard className="size-5" />
                 </EmptyMedia>
                 <EmptyTitle>No payment history found.</EmptyTitle>
                 <EmptyDescription>
@@ -694,11 +688,11 @@ export default function PatientBillingPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="subscriptions" className="space-y-4 mt-4">
+        <TabsContent value="subscriptions" className="gap-y-4 mt-4">
           {subscriptionsPending ? (
             <Card>
               <CardContent className="py-10 text-center">
-                <RefreshCw className="mx-auto mb-3 h-5 w-5 animate-spin text-muted-foreground" />
+                <RefreshCw className="mx-auto mb-3 size-5 animate-spin text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">Loading subscriptions...</p>
               </CardContent>
             </Card>
@@ -706,7 +700,7 @@ export default function PatientBillingPage() {
             <Empty>
               <EmptyContent>
                 <EmptyMedia>
-                  <Wallet className="h-5 w-5" />
+                  <Wallet className="size-5" />
                 </EmptyMedia>
                 <EmptyTitle>You do not have any subscriptions yet.</EmptyTitle>
                 <EmptyDescription>
@@ -765,8 +759,8 @@ export default function PatientBillingPage() {
             <DialogTitle>Confirm Subscription</DialogTitle>
           </DialogHeader>
           {planToConfirm && (
-            <div className="space-y-4 py-4">
-              <div className="bg-muted p-4 rounded-lg space-y-2">
+            <div className="gap-y-4 py-4">
+              <div className="bg-muted p-4 rounded-lg gap-y-2">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <span className="font-semibold text-lg break-words">{planToConfirm.name}</span>
                   <span className="font-bold text-lg whitespace-nowrap">
@@ -812,7 +806,7 @@ export default function PatientBillingPage() {
             <DialogTitle>Complete Subscription Payment</DialogTitle>
           </DialogHeader>
           {pendingSubscriptionPayment && (
-            <div className="space-y-4">
+            <div className="gap-y-4">
               <p className="text-sm text-muted-foreground">
                 Plan:{" "}
                 <span className="font-medium text-foreground">
@@ -844,3 +838,5 @@ export default function PatientBillingPage() {
     </PatientPageShell>
   );
 }
+
+

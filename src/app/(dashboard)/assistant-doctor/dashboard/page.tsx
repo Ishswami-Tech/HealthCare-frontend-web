@@ -41,7 +41,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 export default function AssistantDoctorDashboard() {
-  const router = useRouter();
+  const { push } = useRouter();
   const { session } = useAuth();
   const user = session?.user;
   const clinicId = user?.clinicId;
@@ -225,7 +225,7 @@ export default function AssistantDoctorDashboard() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="size-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -240,9 +240,9 @@ export default function AssistantDoctorDashboard() {
         actionsSlot={
           <Button
             className="gap-2"
-            onClick={() => router.push(workspaceLinks.appointments)}
+            onClick={() => push(workspaceLinks.appointments)}
           >
-            <Calendar className="w-4 h-4" />
+            <Calendar className="size-4" />
             View All Appointments
           </Button>
         }
@@ -309,7 +309,7 @@ export default function AssistantDoctorDashboard() {
         <CardHeader className="flex flex-col gap-3 pb-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <CardTitle className="flex items-center gap-2 text-base">
-              <ShieldCheck className="h-5 w-5 text-emerald-600" />
+              <ShieldCheck className="size-5 text-emerald-600" />
               Assistant-doctor support lane
             </CardTitle>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -323,7 +323,7 @@ export default function AssistantDoctorDashboard() {
         <CardContent className="grid gap-4 md:grid-cols-3">
           <div className="rounded-xl border border-border/70 bg-background/80 p-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <HeartPulse className="h-4 w-4 text-emerald-600" />
+              <HeartPulse className="size-4 text-emerald-600" />
               Coverage status
             </div>
             <div className="mt-2 text-2xl font-bold text-foreground">
@@ -335,7 +335,7 @@ export default function AssistantDoctorDashboard() {
           </div>
           <div className="rounded-xl border border-border/70 bg-background/80 p-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <Users className="h-4 w-4 text-blue-600" />
+              <Users className="size-4 text-blue-600" />
               Primary doctors covered
             </div>
             <div className="mt-2 text-2xl font-bold text-foreground">
@@ -361,7 +361,7 @@ export default function AssistantDoctorDashboard() {
           </div>
           <div className="rounded-xl border border-border/70 bg-background/80 p-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <ClipboardList className="h-4 w-4 text-purple-600" />
+              <ClipboardList className="size-4 text-purple-600" />
               Daily support load
             </div>
             <div className="mt-2 text-2xl font-bold text-foreground">
@@ -373,12 +373,12 @@ export default function AssistantDoctorDashboard() {
           </div>
         </CardContent>
         <CardContent className="flex flex-wrap gap-2 pt-0">
-          <Button className="gap-2" onClick={() => router.push(workspaceLinks.coverage)}>
-            <ShieldCheck className="h-4 w-4" />
+          <Button className="gap-2" onClick={() => push(workspaceLinks.coverage)}>
+            <ShieldCheck className="size-4" />
             Open coverage lane
           </Button>
-          <Button variant="outline" className="gap-2" onClick={() => router.push(workspaceLinks.queue)}>
-            <Activity className="h-4 w-4" />
+          <Button variant="outline" className="gap-2" onClick={() => push(workspaceLinks.queue)}>
+            <Activity className="size-4" />
             Open queue
           </Button>
         </CardContent>
@@ -388,16 +388,16 @@ export default function AssistantDoctorDashboard() {
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
-              <Stethoscope className="w-5 h-5 text-blue-600" />
+              <Stethoscope className="size-5 text-blue-600" />
               Today&apos;s Appointments
             </CardTitle>
             <Button
               variant="ghost"
               size="sm"
               className="gap-1 text-blue-600"
-              onClick={() => router.push(workspaceLinks.appointments)}
+              onClick={() => push(workspaceLinks.appointments)}
             >
-              See all <ArrowRight className="w-3 h-3" />
+              See all <ArrowRight className="size-3" />
             </Button>
           </CardHeader>
           <CardContent>
@@ -405,7 +405,7 @@ export default function AssistantDoctorDashboard() {
               <Empty>
                 <EmptyContent>
                   <EmptyMedia>
-                    <Calendar className="h-5 w-5" />
+                    <Calendar className="size-5" />
                   </EmptyMedia>
                   <EmptyTitle>No appointments scheduled for today</EmptyTitle>
                   <EmptyDescription>
@@ -414,7 +414,7 @@ export default function AssistantDoctorDashboard() {
                 </EmptyContent>
               </Empty>
             ) : (
-              <div className="space-y-3">
+              <div className="gap-y-3">
                 {upcomingAppointments.map((apt: Record<string, unknown>, idx: number) => {
                   const status = String(apt.status ?? "").toUpperCase();
                   const isInProgress = status === "IN_PROGRESS";
@@ -442,7 +442,7 @@ export default function AssistantDoctorDashboard() {
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className={`w-2 h-2 rounded-full ${
+                          className={`size-2 rounded-full ${
                             isInProgress ? "bg-blue-500 animate-pulse" : "bg-slate-300"
                           }`}
                         />
@@ -468,7 +468,7 @@ export default function AssistantDoctorDashboard() {
                           <Button
                             size="sm"
                             className="h-7 text-xs bg-blue-600 hover:bg-blue-700"
-                            onClick={() => router.push("/queue")}
+                            onClick={() => push("/queue")}
                           >
                             Resume
                           </Button>
@@ -482,7 +482,7 @@ export default function AssistantDoctorDashboard() {
           </CardContent>
         </Card>
 
-        <div className="space-y-6">
+        <div className="gap-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Quick Actions</CardTitle>
@@ -491,41 +491,41 @@ export default function AssistantDoctorDashboard() {
               <Button
                 variant="outline"
                 className="flex flex-col h-20 gap-1 border-slate-100 hover:bg-blue-50"
-                onClick={() => router.push("/queue")}
+                onClick={() => push("/queue")}
               >
-                <Activity className="w-5 h-5 text-blue-600" />
+                <Activity className="size-5 text-blue-600" />
                 <span className="text-[11px] font-medium text-slate-600">Queue</span>
               </Button>
               <Button
                 variant="outline"
                 className="flex flex-col h-20 gap-1 border-slate-100 hover:bg-emerald-50"
-                onClick={() => router.push(workspaceLinks.patients)}
+                onClick={() => push(workspaceLinks.patients)}
               >
-                <Users className="w-5 h-5 text-emerald-600" />
+                <Users className="size-5 text-emerald-600" />
                 <span className="text-[11px] font-medium text-slate-600">Patients</span>
               </Button>
               <Button
                 variant="outline"
                 className="flex flex-col h-20 gap-1 border-slate-100 hover:bg-amber-50"
-                onClick={() => router.push(workspaceLinks.prescriptions)}
+                onClick={() => push(workspaceLinks.prescriptions)}
               >
-                <Pill className="w-5 h-5 text-amber-600" />
+                <Pill className="size-5 text-amber-600" />
                 <span className="text-[11px] font-medium text-slate-600">Prescriptions</span>
               </Button>
               <Button
                 variant="outline"
                 className="flex flex-col h-20 gap-1 border-slate-100 hover:bg-purple-50"
-                onClick={() => router.push(workspaceLinks.video)}
+                onClick={() => push(workspaceLinks.video)}
               >
-                <Video className="w-5 h-5 text-purple-600" />
+                <Video className="size-5 text-purple-600" />
                 <span className="text-[11px] font-medium text-slate-600">Video</span>
               </Button>
               <Button
                 variant="outline"
                 className="flex flex-col h-20 gap-1 border-slate-100 hover:bg-emerald-50"
-                onClick={() => router.push(workspaceLinks.coverage)}
+                onClick={() => push(workspaceLinks.coverage)}
               >
-                <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                <ShieldCheck className="size-5 text-emerald-600" />
                 <span className="text-[11px] font-medium text-slate-600">Coverage</span>
               </Button>
             </CardContent>
@@ -534,15 +534,15 @@ export default function AssistantDoctorDashboard() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <Clock className="w-4 h-4 text-slate-500" />
+                <Clock className="size-4 text-slate-500" />
                 Day Summary
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="gap-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Completed</span>
                 <span className="font-semibold text-emerald-600 flex items-center gap-1">
-                  <CheckCircle className="w-3 h-3" /> {stats.completed}
+                  <CheckCircle className="size-3" /> {stats.completed}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
@@ -576,3 +576,5 @@ export default function AssistantDoctorDashboard() {
     </DashboardPageShell>
   );
 }
+
+

@@ -56,7 +56,7 @@ export function LanguageSwitcher({
           className
         )}
       >
-        <Globe className="w-4 h-4" />
+        <Globe className="size-4" />
         <div className="w-16 h-4 bg-gray-200 rounded"></div>
       </div>
     );
@@ -83,7 +83,7 @@ export function LanguageSwitcher({
               variant="ghost"
               size="icon"
               className={cn(
-                "relative transition-all duration-300 h-8 w-8 rounded-full hover:bg-muted/50 active:scale-95",
+                "relative transition-all duration-300 size-8 rounded-full hover:bg-muted/50 active:scale-95",
                 isOpen && "bg-muted/50 scale-95"
               )}
               aria-label="Select language"
@@ -117,7 +117,7 @@ export function LanguageSwitcher({
                     </span>
                   )}
                 </div>
-                {language === code && <Check className="w-3.5 h-3.5 ml-auto text-primary" />}
+                {language === code && <Check className="size-3.5 ml-auto text-primary" />}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
@@ -136,7 +136,7 @@ export function LanguageSwitcher({
           onClick={() => setIsOpen(!isOpen)}
         >
           <div className="flex items-center gap-3">
-            <Globe className="w-5 h-5 text-gray-500" />
+            <Globe className="size-5 text-gray-500" />
             <div className="text-left">
               <div className="font-medium text-gray-900">Language</div>
               <div className="text-sm text-gray-500">
@@ -147,7 +147,7 @@ export function LanguageSwitcher({
           </div>
           <ChevronDown
             className={cn(
-              "w-5 h-5 text-gray-400 transition-transform",
+              "size-5 text-gray-400 transition-transform",
               isOpen && "rotate-180"
             )}
           />
@@ -173,7 +173,7 @@ export function LanguageSwitcher({
                     </div>
                   )}
                 </div>
-                {language === code && <Check className="w-5 h-5" />}
+                {language === code && <Check className="size-5" />}
               </button>
             ))}
           </div>
@@ -202,14 +202,14 @@ export function LanguageSwitcher({
           {showFlag ? (
             <span className="text-lg">{currentFlag}</span>
           ) : (
-            <Globe className="h-4 w-4" />
+            <Globe className="size-4" />
           )}
           {showLabel && (
             <span className="font-medium">
               {showNativeName ? currentName : currentLanguage.name}
             </span>
           )}
-          {showLabel && <ChevronDown className="w-4 h-4" />}
+          {showLabel && <ChevronDown className="size-4" />}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
@@ -231,7 +231,7 @@ export function LanguageSwitcher({
                 </span>
               )}
             </div>
-            {language === code && <Check className="w-4 h-4 ml-auto" />}
+            {language === code && <Check className="size-4 ml-auto" />}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
@@ -312,7 +312,7 @@ export function LanguageSelector({
   if (variant === "compact") {
     return (
       <div className={cn("flex items-center gap-2", className)}>
-        <Languages className="h-4 w-4 text-muted-foreground" />
+        <Languages className="size-4 text-muted-foreground" />
         <div className="flex gap-1">
           {locales.map((localeOption) => (
             <button
@@ -338,7 +338,7 @@ export function LanguageSelector({
 
   // Inline variant
   return (
-    <div className={cn("flex items-center space-x-1", className)}>
+    <div className={cn("flex items-center gap-x-1", className)}>
       {languages.map((lang, index) => (
         <React.Fragment key={lang.code}>
           <button
@@ -379,3 +379,5 @@ export function CompactLanguageSwitcher({ className }: CompactLanguageSwitcherPr
 
 // ✅ Consolidated: All language switching components are in this file
 // No backward compatibility re-exports needed
+
+

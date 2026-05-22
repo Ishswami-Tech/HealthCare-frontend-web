@@ -85,7 +85,7 @@ export function DataTable<TData, TValue>({
   const rangeEnd = data.length === 0 ? 0 : pageIndex * activePageSize + currentPageRows;
 
   return (
-    <div className={cn("min-w-0 space-y-4", className)}>
+    <div className={cn("min-w-0 gap-y-4", className)}>
       {toolbar}
       <div className="w-full rounded-xl border border-border bg-card">
         <Table
@@ -198,3 +198,4 @@ export function DataTable<TData, TValue>({
     </div>
   );
 }
+

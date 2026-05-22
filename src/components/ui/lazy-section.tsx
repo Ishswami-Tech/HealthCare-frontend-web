@@ -1,6 +1,12 @@
-"use client";
+﻿"use client";
 
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense } from 'react';
+
+const DEFAULT_FALLBACK = (
+  <div className="flex items-center justify-center py-20">
+    <div className="animate-spin rounded-full size-12 border-b-2 border-orange-600"></div>
+  </div>
+);
 
 interface LazySectionProps {
   children: React.ReactNode;
@@ -42,44 +48,20 @@ export const LazySection: React.FC<LazySectionProps> = ({
     return () => observer.disconnect();
   }, [threshold, hasLoaded]);
 
-  const defaultFallback = (
-    <div className="flex items-center justify-center py-20">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
-    </div>
-  );
-
   return (
     <div ref={ref} className={className}>
       {isVisible ? (
-        <Suspense fallback={fallback || defaultFallback}>
+        <Suspense fallback={fallback || DEFAULT_FALLBACK}>
           {children}
         </Suspense>
       ) : (
         <div className="py-20">
-          {fallback || defaultFallback}
+          {fallback || DEFAULT_FALLBACK}
         </div>
       )}
     </div>
   );
 };
-
-/**
- * Higher-order component for lazy loading components
- */
-export function withLazyLoading<P extends object>(
-  Component: React.ComponentType<P>,
-  fallback?: React.ReactNode
-) {
-  const LazyComponent = lazy(() => Promise.resolve({ default: Component }));
-  
-  return function WrappedComponent(props: P) {
-    return (
-      <Suspense fallback={fallback || <div>Loading...</div>}>
-        <LazyComponent {...props} />
-      </Suspense>
-    );
-  };
-}
 
 /**
  * Preload component for critical resources
@@ -119,10 +101,7 @@ interface CriticalCSSProps {
 
 export const CriticalCSS: React.FC<CriticalCSSProps> = ({ css }) => {
   return (
-    <style
-      dangerouslySetInnerHTML={{ __html: css }}
-      data-critical="true"
-    />
+    <style data-critical="true">{css}</style>
   );
 };
 
@@ -162,3 +141,5 @@ export const ResourceHints: React.FC = () => {
 
   return null;
 };
+
+

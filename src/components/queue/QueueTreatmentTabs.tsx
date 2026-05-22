@@ -237,8 +237,8 @@ export function QueueTreatmentTabs({
         header: "Patient",
         cell: ({ row }) => (
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-              <Users className="h-4 w-4" />
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+              <Users className="size-4" />
             </div>
             <div className="min-w-0">
               <div className="truncate text-sm font-semibold text-foreground">
@@ -277,7 +277,7 @@ export function QueueTreatmentTabs({
         header: "Wait Time",
         cell: ({ row }) => (
           <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-            <Clock className="h-3 w-3" />
+            <Clock className="size-3" />
             {getQueueWaitLabel(row.original)}
           </span>
         ),
@@ -291,7 +291,7 @@ export function QueueTreatmentTabs({
       <CardHeader className="flex flex-col gap-3 border-b border-border bg-muted/40 px-4 pb-4 pt-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <CardTitle className="flex items-center gap-2 text-xl font-bold tracking-tight text-foreground">
-            <Activity className="h-4 w-4 text-emerald-600" />
+            <Activity className="size-4 text-emerald-600" />
             {title}
           </CardTitle>
           <p className="mt-2 text-sm text-muted-foreground">{description}</p>
@@ -299,15 +299,15 @@ export function QueueTreatmentTabs({
         {actionHref ? (
           <Button asChild variant="outline" className="gap-2">
           <Link href={actionHref} prefetch={false}>
-              <ArrowRightLeft className="h-4 w-4" />
+              <ArrowRightLeft className="size-4" />
               {actionLabel}
             </Link>
           </Button>
         ) : null}
       </CardHeader>
 
-      <CardContent className="space-y-4 p-4">
-        <Tabs value={activeQueue} onValueChange={(value) => setActiveQueue(value as "consultations" | "procedures")} className="space-y-4">
+      <CardContent className="gap-y-4 p-4">
+        <Tabs value={activeQueue} onValueChange={(value) => setActiveQueue(value as "consultations" | "procedures")} className="gap-y-4">
           <TabsList className="grid h-auto grid-cols-2 gap-2 bg-transparent p-0">
             <TabsTrigger
               value="consultations"
@@ -329,7 +329,7 @@ export function QueueTreatmentTabs({
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="consultations" className="space-y-4">
+          <TabsContent value="consultations" className="gap-y-4">
             <div className="flex flex-wrap gap-2">
               {consultationQueueSections.map((section) => (
                 <Badge
@@ -371,7 +371,7 @@ export function QueueTreatmentTabs({
             </div>
           </TabsContent>
 
-          <TabsContent value="procedures" className="space-y-4">
+          <TabsContent value="procedures" className="gap-y-4">
             <div className="flex flex-wrap gap-2">
               {procedureQueueSections.map((section) => (
                 <Badge
@@ -417,3 +417,5 @@ export function QueueTreatmentTabs({
     </Card>
   );
 }
+
+

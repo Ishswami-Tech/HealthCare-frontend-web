@@ -9,9 +9,9 @@ export default function NotFound() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center px-4">
       <div className="max-w-md w-full text-center">
         <div className="mb-8">
-          <h1 className="text-9xl font-bold text-gray-200">404</h1>
+          <h1 className="text-9xl font-semibold text-gray-200">404</h1>
           <div className="relative -mt-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">
+            <h2 className="text-3xl font-semibold text-gray-900 mb-2">
               Page Not Found
             </h2>
             <p className="text-gray-600 mb-8">
@@ -20,10 +20,10 @@ export default function NotFound() {
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="gap-y-4">
           <Button asChild className="w-full">
             <Link href="/" prefetch={false} className="flex items-center justify-center">
-              <Home className="w-4 h-4 mr-2" />
+              <Home className="size-4 mr-2" />
               Go Home
             </Link>
           </Button>
@@ -33,7 +33,7 @@ export default function NotFound() {
             className="w-full"
             onClick={() => window.history.back()}
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            <ArrowLeft className="size-4 mr-2" />
             Go Back
           </Button>
         </div>
@@ -50,3 +50,4 @@ export default function NotFound() {
     </div>
   );
 }
+

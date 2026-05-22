@@ -435,13 +435,13 @@ export function VideoAppointmentMeetSession({
           hasAudioTrack = !!stream.getAudioTracks()[0];
         }
 
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const nextVideoDevices = devices.filter((device) => device.kind === "videoinput");
-        const nextAudioDevices = devices.filter((device) => device.kind === "audioinput");
-
         if (!stream) {
           throw new Error("Unable to open camera or microphone.");
         }
+
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const nextVideoDevices = devices.filter((device) => device.kind === "videoinput");
+        const nextAudioDevices = devices.filter((device) => device.kind === "audioinput");
         const resolvedVideoDeviceId =
           stream.getVideoTracks()[0]?.getSettings()?.deviceId ||
           nextVideoDeviceId ||
@@ -647,11 +647,11 @@ export function VideoAppointmentMeetSession({
   if (isPending || !appointment || isRequesting) {
     return (
       <div className="flex min-h-dvh w-full items-center justify-center bg-[#111315] px-6 text-center text-white">
-        <div className="space-y-4 max-w-xs w-full">
-          <div className="relative mx-auto h-14 w-14">
+        <div className="gap-y-4 max-w-xs w-full">
+          <div className="relative mx-auto size-14">
             <div className="h-full w-full animate-spin rounded-full border-2 border-[#8ab4f8]/20 border-t-[#8ab4f8]" />
             <div className="absolute inset-0 flex items-center justify-center">
-              <Video className="h-6 w-6 text-[#8ab4f8]" />
+              <Video className="size-6 text-[#8ab4f8]" />
             </div>
           </div>
           <div>
@@ -667,8 +667,8 @@ export function VideoAppointmentMeetSession({
     return (
       <div className="flex min-h-dvh w-full items-center justify-center bg-[#111315] px-6 text-center text-white">
         <div className="max-w-sm w-full rounded-2xl border border-[#ea4335]/20 bg-[#ea4335]/10 px-6 py-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#ea4335]/20">
-            <VideoOff className="h-7 w-7 text-[#f28b82]" />
+          <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-[#ea4335]/20">
+            <VideoOff className="size-7 text-[#f28b82]" />
           </div>
           <p className="text-[16px] font-semibold text-white">Unable to join</p>
           <p className="mt-2 text-[13px] text-[#9aa0a6]">
@@ -721,8 +721,8 @@ export function VideoAppointmentMeetSession({
               />
               {!isVideoEnabled && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#1e1f20]">
-                  <div className="flex h-28 w-28 items-center justify-center rounded-full bg-[#3c4043]">
-                    <VideoOff className="h-12 w-12 text-[#9aa0a6]" />
+                  <div className="flex size-28 items-center justify-center rounded-full bg-[#3c4043]">
+                    <VideoOff className="size-12 text-[#9aa0a6]" />
                   </div>
                   <p className="mt-3 text-[13px] text-[#9aa0a6]">Camera is off</p>
                 </div>
@@ -734,17 +734,17 @@ export function VideoAppointmentMeetSession({
                   type="button"
                   onClick={toggleAudio}
                   aria-pressed={isAudioEnabled}
-                  className={`flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all ${isAudioEnabled ? "bg-[#3c4043]/90 text-white hover:bg-[#5f6368]" : "bg-[#ea4335] text-white hover:bg-[#d93025]"}`}
+                  className={`flex size-14 items-center justify-center rounded-full shadow-lg transition-all ${isAudioEnabled ? "bg-[#3c4043]/90 text-white hover:bg-[#5f6368]" : "bg-[#ea4335] text-white hover:bg-[#d93025]"}`}
                 >
-                  {isAudioEnabled ? <Mic className="h-6 w-6" /> : <MicOff className="h-6 w-6" />}
+                  {isAudioEnabled ? <Mic className="size-6" /> : <MicOff className="size-6" />}
                 </button>
                 <button
                   type="button"
                   onClick={toggleVideo}
                   aria-pressed={isVideoEnabled}
-                  className={`flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all ${isVideoEnabled ? "bg-[#3c4043]/90 text-white hover:bg-[#5f6368]" : "bg-[#ea4335] text-white hover:bg-[#d93025]"}`}
+                  className={`flex size-14 items-center justify-center rounded-full shadow-lg transition-all ${isVideoEnabled ? "bg-[#3c4043]/90 text-white hover:bg-[#5f6368]" : "bg-[#ea4335] text-white hover:bg-[#d93025]"}`}
                 >
-                  {isVideoEnabled ? <Video className="h-6 w-6" /> : <VideoOff className="h-6 w-6" />}
+                  {isVideoEnabled ? <Video className="size-6" /> : <VideoOff className="size-6" />}
                 </button>
               </div>
             </div>
@@ -755,7 +755,7 @@ export function VideoAppointmentMeetSession({
             <Select value={selectedAudioDeviceId} onValueChange={handleAudioDeviceChange}>
               <SelectTrigger className="h-10 w-full min-w-0 rounded-xl border border-white/10 bg-[#2d2e30] px-3 text-[12px] text-white focus:ring-1 focus:ring-[#8ab4f8]/40 overflow-hidden">
                 <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
-                  <Mic className="h-3.5 w-3.5 text-[#9aa0a6] shrink-0" />
+                  <Mic className="size-3.5 text-[#9aa0a6] shrink-0" />
                   <span className="truncate min-w-0 flex-1 text-left text-[12px]">
                     <SelectValue placeholder="Microphone" />
                   </span>
@@ -777,7 +777,7 @@ export function VideoAppointmentMeetSession({
             <Select value={selectedVideoDeviceId} onValueChange={handleVideoDeviceChange}>
               <SelectTrigger className="h-10 w-full min-w-0 rounded-xl border border-white/10 bg-[#2d2e30] px-3 text-[12px] text-white focus:ring-1 focus:ring-[#8ab4f8]/40 overflow-hidden">
                 <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
-                  <Video className="h-3.5 w-3.5 text-[#9aa0a6] shrink-0" />
+                  <Video className="size-3.5 text-[#9aa0a6] shrink-0" />
                   <span className="truncate min-w-0 flex-1 text-left text-[12px]">
                     <SelectValue placeholder="Camera" />
                   </span>
@@ -800,7 +800,7 @@ export function VideoAppointmentMeetSession({
 
         {/* ── Right: Meeting info + join ── */}
         <div className="mt-5 flex w-full flex-col lg:mt-0 lg:flex-1 lg:justify-center">
-          <h1 className="text-center text-[26px] sm:text-[30px] lg:text-[38px] font-bold text-white tracking-tight lg:text-left">
+          <h1 className="text-center text-[26px] sm:text-[30px] lg:text-[38px] font-semibold text-white tracking-tight lg:text-left">
             {sessionStateLabel}
           </h1>
           <p className="mt-2 text-center text-[14px] lg:text-[16px] text-[#9aa0a6] lg:text-left">
@@ -809,7 +809,7 @@ export function VideoAppointmentMeetSession({
 
           {/* Provider info — dev only */}
           <div className="mt-3 inline-flex max-w-full items-start gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-left">
-            <Shield className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
+            <Shield className="mt-0.5 size-4 shrink-0 text-emerald-300" />
             <p className="text-[12px] leading-5 text-emerald-50/90">
               Join opens 10 minutes before your visit and stays open for 3 hours after start.
             </p>
@@ -843,7 +843,7 @@ export function VideoAppointmentMeetSession({
                 <span className="relative z-10 flex items-center justify-center gap-2">
                   {isJoiningRoom ? (
                     <>
-                      <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <svg className="size-4 animate-spin" viewBox="0 0 24 24" fill="none">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                       </svg>
@@ -890,7 +890,7 @@ export function VideoAppointmentMeetSession({
               <p className="text-[#9aa0a6]">Scheduled: <span className="text-white/70">{appointmentTimeSlotLabel}</span></p>
             )}
             <p className="flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
-              <Shield className="h-3.5 w-3.5 text-[#34a853]" />
+              <Shield className="size-3.5 text-[#34a853]" />
               <span className="text-[#34a853]">Secure</span>
               <span className="text-[#5f6368]">Session: {appointmentSessionLabel}</span>
             </p>
@@ -900,4 +900,6 @@ export function VideoAppointmentMeetSession({
     </div>
   );
 }
+
+
 

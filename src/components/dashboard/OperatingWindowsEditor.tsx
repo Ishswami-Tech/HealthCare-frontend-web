@@ -67,7 +67,7 @@ export function OperatingWindowsEditor({
             <div className="pt-2 font-semibold text-foreground">
               {DAY_LABEL[day]}
             </div>
-            <div className="space-y-2">
+            <div className="gap-y-2">
               {sessions[day].length > 0 ? (
                 sessions[day].map((session, index) => (
                   <div
@@ -100,7 +100,7 @@ export function OperatingWindowsEditor({
                       onClick={() => onDeleteSession(day, index)}
                       aria-label={`Delete ${DAY_LABEL[day]} session ${index + 1}`}
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="size-3.5" />
                     </Button>
                   </div>
                 ))
@@ -118,7 +118,7 @@ export function OperatingWindowsEditor({
                 onClick={() => onAddSession(day)}
                 aria-label={`Add ${DAY_LABEL[day]} session`}
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="size-4" />
               </Button>
             </div>
           </div>
@@ -127,3 +127,5 @@ export function OperatingWindowsEditor({
     </div>
   );
 }
+
+

@@ -1,6 +1,7 @@
-'use server';
+﻿'use server';
 
 import { authenticatedApi } from './auth.server';
+import { getServerSession } from './auth.server';
 import { isApiError } from '@/lib/utils/error-handler';
 import { formatISODateInIST } from '@/lib/utils';
 import { API_ENDPOINTS } from '../config/config';
@@ -9,8 +10,15 @@ import { API_ENDPOINTS } from '../config/config';
 
 /**
  * Get comprehensive health record for a user
+ * Requires authentication - throws error if not authenticated
  */
 export async function getComprehensiveHealthRecord(userId: string) {
+  // Auth check - required for all EHR operations
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   try {
     const { data } = await authenticatedApi(API_ENDPOINTS.EHR.COMPREHENSIVE(userId));
     return data;
@@ -52,6 +60,11 @@ export async function createMedicalHistory(createDto: {
   status?: string;
   notes?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const payload = {
     userId: createDto.userId,
     condition: createDto.condition,
@@ -71,6 +84,11 @@ export async function createMedicalHistory(createDto: {
  * Get medical history for a user
  */
 export async function getMedicalHistory(userId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.MEDICAL_HISTORY.GET_BY_USER(userId));
   return data;
 }
@@ -87,6 +105,11 @@ export async function updateMedicalHistory(id: string, updates: {
   status?: string;
   notes?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   // Map frontend DTO to backend structure if needed
   const payload = {
     ...updates,
@@ -105,6 +128,11 @@ export async function updateMedicalHistory(id: string, updates: {
  * Delete medical history record
  */
 export async function deleteMedicalHistory(id: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.MEDICAL_HISTORY.DELETE(id), {
     method: 'DELETE',
   });
@@ -124,6 +152,11 @@ export async function createLabReport(createDto: {
   doctorId?: string;
   appointmentId?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const payload = {
     userId: createDto.userId,
     testName: createDto.testName,
@@ -147,6 +180,11 @@ export async function createLabReport(createDto: {
  * Get lab reports for a user
  */
 export async function getLabReports(userId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.LAB_REPORTS.GET_BY_USER(userId));
   return data;
 }
@@ -162,6 +200,11 @@ export async function updateLabReport(id: string, updates: {
   status?: string;
   notes?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const payload: any = { ...updates };
   if (updates.testDate) payload.date = updates.testDate;
   if (updates.results) payload.result = JSON.stringify(updates.results);
@@ -178,6 +221,11 @@ export async function updateLabReport(id: string, updates: {
  * Delete lab report
  */
 export async function deleteLabReport(id: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.LAB_REPORTS.DELETE(id), {
     method: 'DELETE',
   });
@@ -197,6 +245,11 @@ export async function createRadiologyReport(createDto: {
   doctorId?: string;
   appointmentId?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const payload = {
     userId: createDto.userId,
     imageType: createDto.studyType, // MAP
@@ -220,6 +273,11 @@ export async function createRadiologyReport(createDto: {
  * Get radiology reports for a user
  */
 export async function getRadiologyReports(userId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.RADIOLOGY_REPORTS.GET_BY_USER(userId));
   return data;
 }
@@ -235,6 +293,11 @@ export async function updateRadiologyReport(id: string, updates: {
   recommendations?: string;
   images?: string[];
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const payload: any = { ...updates };
   if (updates.studyType) payload.imageType = updates.studyType;
   if (updates.studyDate) payload.date = updates.studyDate;
@@ -251,6 +314,11 @@ export async function updateRadiologyReport(id: string, updates: {
  * Delete radiology report
  */
 export async function deleteRadiologyReport(id: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.RADIOLOGY_REPORTS.DELETE(id), {
     method: 'DELETE',
   });
@@ -270,6 +338,11 @@ export async function createSurgicalRecord(createDto: {
   notes?: string;
   doctorId?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const payload = {
     userId: createDto.userId,
     surgeryName: createDto.procedureName, // MAP
@@ -293,6 +366,11 @@ export async function createSurgicalRecord(createDto: {
  * Get surgical records for a user
  */
 export async function getSurgicalRecords(userId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.SURGICAL_RECORDS.GET_BY_USER(userId));
   return data;
 }
@@ -309,6 +387,11 @@ export async function updateSurgicalRecord(id: string, updates: {
   outcome?: string;
   notes?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const payload: any = { ...updates };
   if (updates.procedureName) payload.surgeryName = updates.procedureName;
   if (updates.procedureDate) payload.date = updates.procedureDate;
@@ -324,6 +407,11 @@ export async function updateSurgicalRecord(id: string, updates: {
  * Delete surgical record
  */
 export async function deleteSurgicalRecord(id: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.SURGICAL_RECORDS.DELETE(id), {
     method: 'DELETE',
   });
@@ -341,6 +429,11 @@ export async function createVital(createDto: {
   recordedBy?: string;
   notes?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const payload = {
     userId: createDto.userId,
     type: createDto.type,
@@ -362,6 +455,11 @@ export async function createVital(createDto: {
  * Get vitals for a user
  */
 export async function getVitals(userId: string, type?: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.VITALS.GET_BY_USER(userId, type));
   return data;
 }
@@ -377,6 +475,11 @@ export async function updateVital(id: string, updates: {
   recordedBy?: string;
   notes?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const payload: any = { ...updates };
   if (updates.value !== undefined) payload.value = String(updates.value);
 
@@ -391,6 +494,11 @@ export async function updateVital(id: string, updates: {
  * Delete vital record
  */
 export async function deleteVital(id: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.VITALS.DELETE(id), {
     method: 'DELETE',
   });
@@ -408,6 +516,11 @@ export async function createAllergy(createDto: {
   status?: 'active' | 'resolved';
   notes?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const payload = {
     userId: createDto.userId,
     allergen: createDto.allergen,
@@ -429,6 +542,11 @@ export async function createAllergy(createDto: {
  * Get allergies for a user
  */
 export async function getAllergies(userId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.ALLERGIES.GET_BY_USER(userId));
   return data;
 }
@@ -444,6 +562,11 @@ export async function updateAllergy(id: string, updates: {
   status?: 'active' | 'resolved';
   notes?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const payload: any = { ...updates };
   if (updates.onsetDate) payload.diagnosedDate = updates.onsetDate;
 
@@ -458,6 +581,11 @@ export async function updateAllergy(id: string, updates: {
  * Delete allergy record
  */
 export async function deleteAllergy(id: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.ALLERGIES.DELETE(id), {
     method: 'DELETE',
   });
@@ -478,6 +606,11 @@ export async function createMedication(createDto: {
   status?: 'active' | 'completed' | 'discontinued';
   notes?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const payload = {
     userId: createDto.userId,
     name: createDto.medicationName, // MAP
@@ -501,6 +634,11 @@ export async function createMedication(createDto: {
  * Get medications for a user
  */
 export async function getMedications(userId: string, activeOnly?: boolean) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.MEDICATIONS.GET_BY_USER(userId, activeOnly));
   return data;
 }
@@ -519,6 +657,11 @@ export async function updateMedication(id: string, updates: {
   status?: 'active' | 'completed' | 'discontinued';
   notes?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const payload: any = { ...updates };
   if (updates.medicationName) payload.name = updates.medicationName;
   if (updates.notes) payload.instructions = updates.notes; // Map notes to instructions if provided
@@ -534,6 +677,11 @@ export async function updateMedication(id: string, updates: {
  * Delete medication record
  */
 export async function deleteMedication(id: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.MEDICATIONS.DELETE(id), {
     method: 'DELETE',
   });
@@ -552,6 +700,11 @@ export async function createImmunization(createDto: {
   nextDueDate?: string;
   notes?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const payload = {
     userId: createDto.userId,
     vaccineName: createDto.vaccineName,
@@ -574,6 +727,11 @@ export async function createImmunization(createDto: {
  * Get immunizations for a user
  */
 export async function getImmunizations(userId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.IMMUNIZATIONS.GET_BY_USER(userId));
   return data;
 }
@@ -590,6 +748,11 @@ export async function updateImmunization(id: string, updateDto: {
   nextDueDate?: string;
   notes?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.IMMUNIZATIONS.UPDATE(id), {
     method: 'PUT',
     body: JSON.stringify(updateDto),
@@ -601,6 +764,11 @@ export async function updateImmunization(id: string, updateDto: {
  * Delete immunization record
  */
 export async function deleteImmunization(id: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.IMMUNIZATIONS.DELETE(id), {
     method: 'DELETE',
   });
@@ -618,6 +786,11 @@ export async function getHealthTrends(
   startDate?: string,
   endDate?: string
 ) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(
     API_ENDPOINTS.EHR.ANALYTICS.HEALTH_TRENDS(userId, vitalType, startDate, endDate)
   );
@@ -628,6 +801,11 @@ export async function getHealthTrends(
  * Get medication adherence for a user
  */
 export async function getMedicationAdherence(userId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.ANALYTICS.MEDICATION_ADHERENCE(userId));
   return data;
 }

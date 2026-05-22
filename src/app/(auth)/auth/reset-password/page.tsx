@@ -29,8 +29,8 @@ import { ROUTES } from "@/lib/config/routes";
 import { Loader2 } from "lucide-react";
 
 export default function ResetPasswordPage() {
-  const searchParams = useSearchParams();
-  const token = searchParams.get("token");
+  const { get: getSearchParam } = useSearchParams();
+  const token = getSearchParam("token");
   const safeToken = token || "";
   const { resetPassword, isResettingPassword } = useAuth();
 
@@ -66,7 +66,7 @@ export default function ResetPasswordPage() {
     return (
       <Card className="w-full max-w-md mx-auto shadow-lg px-4 sm:px-0">
         <CardHeader className="px-4 sm:px-6">
-          <h2 className="text-xl sm:text-2xl font-bold text-center">
+          <h2 className="text-xl sm:text-2xl font-semibold text-center">
             Invalid Reset Link
           </h2>
           <p className="text-xs sm:text-sm text-gray-600 text-center mt-2">
@@ -94,7 +94,7 @@ export default function ResetPasswordPage() {
   return (
     <Card className="w-full max-w-md mx-auto shadow-lg px-4 sm:px-0">
       <CardHeader className="px-4 sm:px-6">
-        <h2 className="text-xl sm:text-2xl font-bold text-center">
+        <h2 className="text-xl sm:text-2xl font-semibold text-center">
           Reset Password
         </h2>
         <p className="text-xs sm:text-sm text-gray-600 text-center mt-2">
@@ -103,7 +103,7 @@ export default function ResetPasswordPage() {
       </CardHeader>
       <CardContent className="px-4 sm:px-6">
         <Form {...form}>
-          <form onSubmit={form.onFormSubmit} className="space-y-4">
+          <form onSubmit={form.onFormSubmit} className="gap-y-4">
             <FormField
               control={form.control}
               name="password"
@@ -145,7 +145,7 @@ export default function ResetPasswordPage() {
             >
               {isResettingPassword ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 size-4 animate-spin" />
                   Resetting...
                 </>
               ) : (
@@ -170,3 +170,5 @@ export default function ResetPasswordPage() {
     </Card>
   );
 }
+
+

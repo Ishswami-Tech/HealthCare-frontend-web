@@ -18,6 +18,7 @@ import {
 const TestimonialsSection = () => {
   const { t } = useTranslation();
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
+  const starKeys = ["one", "two", "three", "four", "five"] as const;
 
   const testimonials = [
     {
@@ -111,10 +112,10 @@ const TestimonialsSection = () => {
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
-            <Heart className="w-4 h-4 mr-2" />
+            <Heart className="size-4 mr-2" />
             {t("testimonials.title")}
           </Badge>
-          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
+          <h2 className="text-3xl md:text-4xl font-playfair font-semibold text-foreground mb-4">
             {t("testimonials.subtitle")}
           </h2>
           <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
@@ -135,30 +136,30 @@ const TestimonialsSection = () => {
                   currentTestimonial === 3 ? 'from-amber-600 to-orange-800' :
                   'from-red-600 to-rose-800'
                 } text-white`}>
-                  <div className="flex items-center space-x-4 mb-6">
-                    <div className="w-20 h-20 bg-primary-foreground/20 rounded-full flex items-center justify-center interactive">
+                  <div className="flex items-center gap-x-4 mb-6">
+                    <div className="size-20 bg-primary-foreground/20 rounded-full flex items-center justify-center interactive">
                       <span className="text-2xl font-bold">
                         {current.name.charAt(0)}
                       </span>
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold">{current.name}</h3>
+                      <h3 className="text-xl font-semibold">{current.name}</h3>
                       <p className="text-primary-foreground/80">
                         {t("testimonials.age")} {current.age},{" "}
                         {current.location}
                       </p>
-                      <div className="flex items-center space-x-1 mt-1">
+                      <div className="flex items-center gap-x-1 mt-1">
                         {[...Array(current.rating)].map((_, i) => (
                           <Star
-                            key={i}
-                            className="w-4 h-4 fill-current text-primary-foreground"
+                            key={starKeys[i] || `star-${i + 1}`}
+                            className="size-4 fill-current text-primary-foreground"
                           />
                         ))}
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="gap-y-4">
                     <div>
                       <h4 className="font-semibold text-primary-foreground/80 mb-1">
                         {t("testimonials.conditionTreated")}:
@@ -183,44 +184,44 @@ const TestimonialsSection = () => {
                     variant="secondary"
                     className="mt-6 bg-primary-foreground text-primary hover:bg-primary-foreground/90 interactive"
                   >
-                    <Play className="w-4 h-4 mr-2" />
+                    <Play className="size-4 mr-2" />
                     {t("testimonials.watchVideo")}
                   </Button>
                 </div>
 
                 {/* Right Side - Testimonial */}
                 <div className="p-8 flex flex-col justify-center">
-                  <Quote className="w-12 h-12 text-primary/60 mb-6 animate-pulse-soft" />
+                  <Quote className="size-12 text-primary/60 mb-6 animate-pulse-soft" />
                   <blockquote className="text-lg text-card-foreground leading-relaxed mb-6 italic">
                     &quot;{current.quote}&quot;
                   </blockquote>
 
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <CheckCircle className="w-5 h-5 text-primary" />
+                    <div className="flex items-center gap-x-2">
+                      <CheckCircle className="size-5 text-primary" />
                       <span className="text-sm font-medium text-primary">
                         {t("testimonials.verifiedPatient")}
                       </span>
                     </div>
 
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center gap-x-2">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={prevTestimonial}
-                        className="rounded-full w-10 h-10 p-0"
+                        className="rounded-full size-10 p-0"
                         aria-label="Previous testimonial"
                       >
-                        <ChevronLeft className="w-4 h-4" />
+                        <ChevronLeft className="size-4" />
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={nextTestimonial}
-                        className="rounded-full w-10 h-10 p-0"
+                        className="rounded-full size-10 p-0"
                         aria-label="Next testimonial"
                       >
-                        <ChevronRight className="w-4 h-4" />
+                        <ChevronRight className="size-4" />
                       </Button>
                     </div>
                   </div>
@@ -231,12 +232,12 @@ const TestimonialsSection = () => {
         </div>
 
         {/* Testimonial Indicators */}
-        <div className="flex justify-center space-x-2 mb-12">
+        <div className="flex justify-center gap-x-2 mb-12">
           {testimonials.map((_, index) => (
             <button
-              key={index}
+              key={`testimonial-${index + 1}`}
               onClick={() => setCurrentTestimonial(index)}
-              className={`w-3 h-3 rounded-full transition-all duration-300 ${
+              className={`size-3 rounded-full transition-all duration-300 ${
                 index === currentTestimonial
                   ? "bg-primary w-8"
                   : "bg-primary/20 hover:bg-primary/30"
@@ -309,3 +310,4 @@ const TestimonialsSection = () => {
 };
 
 export default TestimonialsSection;
+

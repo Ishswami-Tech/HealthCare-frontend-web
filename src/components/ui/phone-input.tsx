@@ -97,6 +97,7 @@ function CountryFlag({ country }: { country: Country }) {
 
 function CountrySelect({ value, onChange, disabled }: CountrySelectProps) {
   const [open, setOpen] = useState(false);
+  const listboxId = React.useId();
 
   const selectedLabel = useMemo(
     () => (value ? getCountryName(value) : "Select country"),
@@ -111,6 +112,7 @@ function CountrySelect({ value, onChange, disabled }: CountrySelectProps) {
           variant="ghost"
           role="combobox"
           aria-expanded={open}
+          aria-controls={listboxId}
           disabled={disabled}
           className={cn(
             "flex h-8 shrink-0 items-center gap-1 rounded-md px-2 hover:bg-accent",
@@ -124,7 +126,7 @@ function CountrySelect({ value, onChange, disabled }: CountrySelectProps) {
           ) : (
             <span className="text-sm">🌐</span>
           )}
-          <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
+          <ChevronsUpDown className="size-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
 
@@ -140,7 +142,7 @@ function CountrySelect({ value, onChange, disabled }: CountrySelectProps) {
       >
         <Command>
           <CommandInput placeholder="Search country..." />
-          <CommandList>
+          <CommandList id={listboxId}>
             <CommandEmpty>No country found.</CommandEmpty>
             <CommandGroup>
               <ScrollArea className="h-64">
@@ -172,7 +174,7 @@ function CountrySelect({ value, onChange, disabled }: CountrySelectProps) {
                       {/* Selected check */}
                       <Check
                         className={cn(
-                          "h-3.5 w-3.5 shrink-0",
+                          "size-3.5 shrink-0",
                           isSelected ? "opacity-100" : "opacity-0",
                         )}
                       />
@@ -227,3 +229,5 @@ const PhoneInputComponent = forwardRef<HTMLInputElement, PhoneInputProps>(
 PhoneInputComponent.displayName = "PhoneInput";
 
 export default PhoneInputComponent;
+
+

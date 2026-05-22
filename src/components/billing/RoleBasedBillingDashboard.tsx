@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -59,7 +59,7 @@ interface RoleBasedBillingDashboardProps {
   onRefetch?: () => void;
 }
 
-// ─── Module-scope StatCard Component ───────────────
+// â”€â”€â”€ Module-scope StatCard Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function StatCard({ 
   label, 
   value, 
@@ -459,7 +459,7 @@ export function RoleBasedBillingDashboard({
               disabled={generateInvoicePDFMutation.isPending}
               onClick={() => setSelectedInvoice(row.original)}
             >
-              <FileText className="mr-1 w-4 h-4" />
+              <FileText className="mr-1 size-4" />
               View Invoice
             </Button>
             {canManageBilling && (
@@ -471,7 +471,7 @@ export function RoleBasedBillingDashboard({
                 disabled={sendInvoiceWhatsAppMutation.isPending}
                 onClick={() => sendInvoiceWhatsAppMutation.mutate(row.original.id)}
               >
-                <MessageCircle className="mr-1 w-4 h-4 text-emerald-600 dark:text-emerald-300" />
+                <MessageCircle className="mr-1 size-4 text-emerald-600 dark:text-emerald-300" />
                 WhatsApp
               </Button>
             )}
@@ -491,7 +491,7 @@ export function RoleBasedBillingDashboard({
 
   return (
     <div className="min-h-screen">
-      <div className="max-w-6xl mx-auto p-6 space-y-8">
+      <div className="max-w-6xl mx-auto p-6 gap-y-8">
         <PatientPageHeader
           eyebrow={isPatient ? "BILLING" : isReceptionist ? "COLLECTIONS" : "BILLING DASHBOARD"}
           title={isPatient ? "My Billing" : isReceptionist ? "Collections & Payments" : "Billing Dashboard"}
@@ -500,12 +500,12 @@ export function RoleBasedBillingDashboard({
             <div className="flex items-center gap-2">
               {canManageBilling && (
                 <Button variant="outline" className="h-10 px-4 rounded-xl flex items-center gap-2" onClick={() => setIsCreateInvoiceOpen(true)}>
-                  <Plus className="w-4 h-4" />
+                  <Plus className="size-4" />
                   New Invoice
                 </Button>
               )}
               <Button className="h-10 px-4 rounded-xl flex items-center gap-2 border-none bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400" onClick={() => onRefetch && onRefetch()}>
-                <RefreshCw className="w-4 h-4" />
+                <RefreshCw className="size-4" />
                 Sync Data
               </Button>
             </div>
@@ -530,44 +530,44 @@ export function RoleBasedBillingDashboard({
                 onClick={() => setActiveTab("plans")}
                 className="shrink-0"
               >
-                View Plans →
+                View Plans â†’
               </Button>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Premium Stat Grid — only for staff/admin */}
+      {/* Premium Stat Grid â€” only for staff/admin */}
       {!isPatient && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <StatCard 
             label="TOTAL INVOICES"
             value={invoices.length}
-            icon={<FileText className="w-4 h-4 text-sky-600 dark:text-sky-300" />}
+            icon={<FileText className="size-4 text-sky-600 dark:text-sky-300" />}
             color="border-sky-200/70 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30"
           />
           <StatCard 
             label="PENDING INVOICES"
             value={pendingInvoicesCount}
-            icon={<AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-300" />}
+            icon={<AlertCircle className="size-4 text-amber-600 dark:text-amber-300" />}
             color="border-amber-200/70 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30"
           />
           <StatCard 
             label="COMPLETED PAYMENTS"
             value={payments.filter(p => p.status === 'COMPLETED').length}
-            icon={<CreditCard className="w-4 h-4 text-emerald-600 dark:text-emerald-300" />}
+            icon={<CreditCard className="size-4 text-emerald-600 dark:text-emerald-300" />}
             color="border-emerald-200/70 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30"
           />
           <StatCard 
             label="PAID REVENUE"
-            value={`₹${(paidAmount ?? 0).toLocaleString('en-IN')}`}
-            icon={<Wallet className="w-4 h-4 text-violet-600 dark:text-violet-300" />}
+            value={`â‚¹${(paidAmount ?? 0).toLocaleString('en-IN')}`}
+            icon={<Wallet className="size-4 text-violet-600 dark:text-violet-300" />}
             color="border-violet-200/70 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30"
           />
         </div>
       )}
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="gap-y-8">
           <TabsList>
             {[...(isPatient ? patientTabs : staffTabs)].map((val) => (
               <TabsTrigger
@@ -583,7 +583,7 @@ export function RoleBasedBillingDashboard({
           {(activeTab === "invoices" || activeTab === "payments") && (
             <div className="flex flex-col gap-3 rounded-2xl border bg-card p-4 md:flex-row md:items-center">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -670,15 +670,15 @@ export function RoleBasedBillingDashboard({
           )}
 
         {!isPatient && (
-          <TabsContent value="overview" className="space-y-4">
+          <TabsContent value="overview" className="gap-y-4">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5" />
+                  <BarChart3 className="size-5" />
                   Overview
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="gap-y-2">
                 <p className="text-sm">Total Paid Revenue: INR {(paidAmount ?? 0).toLocaleString("en-IN")}</p>
                 <p className="text-sm">Total Pending: INR {(pendingAmount ?? 0).toLocaleString("en-IN")}</p>
                 {isPatient && <p className="text-sm">Active Subscriptions: {patientAnalytics.activeSubscriptions}</p>}
@@ -688,22 +688,22 @@ export function RoleBasedBillingDashboard({
         )}
 
         {showPlansTab && (
-        <TabsContent value="plans" className="space-y-4">
+        <TabsContent value="plans" className="gap-y-4">
           {plans.length === 0 ? (
             <Card>
-              <CardContent className="py-8 text-center space-y-3">
+              <CardContent className="py-8 text-center gap-y-3">
                 <p className="font-medium">No subscription plans available right now.</p>
                 <p className="text-sm text-muted-foreground">
                   Please refresh or contact clinic admin to publish billing plans for this clinic.
                 </p>
                   <Button variant="outline" size="lg" className="mt-2 h-11 rounded-xl font-bold" onClick={() => onRefetch && onRefetch()}>
-                    <RefreshCw className="w-4 h-4 mr-2" />
+                    <RefreshCw className="size-4 mr-2" />
                     Reload Plans
                   </Button>
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-4">
+            <div className="gap-y-4">
               {subscribeError ? (
                 <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                   {subscribeError}
@@ -717,7 +717,7 @@ export function RoleBasedBillingDashboard({
                   </CardHeader>
                   <CardContent className="flex-1 flex flex-col pt-0">
                     <div className="flex items-baseline gap-1 mt-1">
-                      <p className="text-3xl font-bold text-[#006951]">₹{(plan.price ?? 0).toLocaleString("en-IN")}</p>
+                      <p className="text-3xl font-bold text-[#006951]">â‚¹{(plan.price ?? 0).toLocaleString("en-IN")}</p>
                       <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">/ {plan.billingCycle.toLowerCase()}</p>
                     </div>
                     <div className="flex items-center gap-2 mt-3">
@@ -754,12 +754,12 @@ export function RoleBasedBillingDashboard({
         )}
 
         {showSubscriptionsTab && (
-        <TabsContent value="subscriptions" className="space-y-4">
+        <TabsContent value="subscriptions" className="gap-y-4">
           {subscriptions.length === 0 ? (
             <Card className="rounded-2xl border-dashed border-border/70 bg-muted/30">
               <CardContent className="py-12 text-center">
-                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                  <CreditCard className="w-6 h-6 text-muted-foreground" />
+                <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-muted">
+                  <CreditCard className="size-6 text-muted-foreground" />
                 </div>
                 <p className="font-semibold text-foreground">No subscriptions found</p>
                 <p className="mt-1 text-sm text-muted-foreground">You haven't subscribed to any billing plans yet.</p>
@@ -771,8 +771,8 @@ export function RoleBasedBillingDashboard({
                 <Card key={sub.id} className="group rounded-2xl border-border/70 shadow-sm ring-1 ring-border/40 transition-all hover:border-emerald-700/30 hover:shadow-md dark:hover:border-emerald-400/30">
                   <CardContent className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-200/60 bg-emerald-50 transition-colors group-hover:bg-emerald-100/60 dark:border-emerald-900 dark:bg-emerald-950/30 dark:group-hover:bg-emerald-900/50">
-                        <CreditCard className="w-6 h-6 text-[#006951]" />
+                      <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-200/60 bg-emerald-50 transition-colors group-hover:bg-emerald-100/60 dark:border-emerald-900 dark:bg-emerald-950/30 dark:group-hover:bg-emerald-900/50">
+                        <CreditCard className="size-6 text-[#006951]" />
                       </div>
                       <div>
                         <p className="font-extrabold text-[#006951] text-base leading-none">{sub.plan?.name || "Subscription Plan"}</p>
@@ -790,7 +790,7 @@ export function RoleBasedBillingDashboard({
                         {sub.status}
                       </Badge>
                       <Button variant="ghost" size="icon" className="rounded-xl transition-colors hover:bg-muted">
-                        <Info className="w-4 h-4 text-muted-foreground" />
+                        <Info className="size-4 text-muted-foreground" />
                       </Button>
                     </div>
                   </CardContent>
@@ -801,12 +801,12 @@ export function RoleBasedBillingDashboard({
         </TabsContent>
         )}
 
-        <TabsContent value="invoices" className="space-y-4">
+        <TabsContent value="invoices" className="gap-y-4">
           {filteredInvoices.length === 0 ? (
             <Card className="rounded-2xl border-dashed border-border/70 bg-muted/30">
               <CardContent className="py-12 text-center">
-                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                  <FileText className="w-6 h-6 text-muted-foreground" />
+                <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-muted">
+                  <FileText className="size-6 text-muted-foreground" />
                 </div>
                 <p className="font-semibold text-foreground">No invoices found</p>
                 <p className="mt-1 text-sm text-muted-foreground">There are no records matching your criteria.</p>
@@ -822,12 +822,12 @@ export function RoleBasedBillingDashboard({
           )}
         </TabsContent>
 
-        <TabsContent value="payments" className="space-y-4">
+        <TabsContent value="payments" className="gap-y-4">
           <PaymentHistory payments={filteredPayments} onRefetch={onRefetch} compact={isPatient} />
         </TabsContent>
 
         {showLedgerTab && (
-          <TabsContent value="ledger" className="space-y-6">
+          <TabsContent value="ledger" className="gap-y-6">
             {!ledger ? (
               <Card className="rounded-2xl border-dashed border-border/70 bg-muted/30">
                 <CardContent className="py-12 text-center text-muted-foreground">
@@ -835,24 +835,24 @@ export function RoleBasedBillingDashboard({
                 </CardContent>
               </Card>
             ) : (
-              <div className="space-y-6">
+              <div className="gap-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <StatCard 
                     label="TOTAL COLLECTIONS"
-                    value={`₹${(ledger.summary.totalCollections ?? 0).toLocaleString("en-IN")}`}
-                    icon={<Wallet className="w-4 h-4 text-sky-600 dark:text-sky-300" />}
+                    value={`â‚¹${(ledger.summary.totalCollections ?? 0).toLocaleString("en-IN")}`}
+                    icon={<Wallet className="size-4 text-sky-600 dark:text-sky-300" />}
                     color="border-sky-200/70 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30"
                   />
                   <StatCard 
                     label="PENDING PAYOUTS"
-                    value={`₹${(ledger.summary.pendingPayouts ?? 0).toLocaleString("en-IN")}`}
-                    icon={<RefreshCw className="w-4 h-4 text-amber-600 dark:text-amber-300" />}
+                    value={`â‚¹${(ledger.summary.pendingPayouts ?? 0).toLocaleString("en-IN")}`}
+                    icon={<RefreshCw className="size-4 text-amber-600 dark:text-amber-300" />}
                     color="border-amber-200/70 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30"
                   />
                   <StatCard 
                     label="PLATFORM REVENUE"
-                    value={`₹${(ledger.summary.totalPlatformRevenue ?? 0).toLocaleString("en-IN")}`}
-                    icon={<BarChart3 className="w-4 h-4 text-violet-600 dark:text-violet-300" />}
+                    value={`â‚¹${(ledger.summary.totalPlatformRevenue ?? 0).toLocaleString("en-IN")}`}
+                    icon={<BarChart3 className="size-4 text-violet-600 dark:text-violet-300" />}
                     color="border-violet-200/70 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30"
                   />
                 </div>
@@ -865,21 +865,21 @@ export function RoleBasedBillingDashboard({
                     <CardContent className="pt-5 flex flex-col gap-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                          <div className="size-2 rounded-full bg-emerald-500" />
                           <span className="text-sm font-medium text-muted-foreground">Appointments</span>
                         </div>
-                        <span className="text-sm font-bold text-foreground">₹{(ledger?.summary.byRevenueModel?.APPOINTMENT ?? 0).toLocaleString("en-IN")}</span>
+                        <span className="text-sm font-bold text-foreground">â‚¹{(ledger?.summary.byRevenueModel?.APPOINTMENT ?? 0).toLocaleString("en-IN")}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-blue-500" />
+                          <div className="size-2 rounded-full bg-blue-500" />
                           <span className="text-sm font-medium text-muted-foreground">Subscriptions</span>
                         </div>
-                        <span className="text-sm font-bold text-foreground">₹{(ledger?.summary.byRevenueModel?.SUBSCRIPTION ?? 0).toLocaleString("en-IN")}</span>
+                        <span className="text-sm font-bold text-foreground">â‚¹{(ledger?.summary.byRevenueModel?.SUBSCRIPTION ?? 0).toLocaleString("en-IN")}</span>
                       </div>
                       <div className="flex items-center justify-between pt-2 border-t border-border/60">
                         <span className="text-sm font-bold text-foreground">Total System Revenue</span>
-                        <span className="text-sm font-bold text-[#006951]">₹{((ledger?.summary.byRevenueModel?.APPOINTMENT || 0) + (ledger?.summary.byRevenueModel?.SUBSCRIPTION || 0)).toLocaleString("en-IN")}</span>
+                        <span className="text-sm font-bold text-[#006951]">â‚¹{((ledger?.summary.byRevenueModel?.APPOINTMENT || 0) + (ledger?.summary.byRevenueModel?.SUBSCRIPTION || 0)).toLocaleString("en-IN")}</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -890,11 +890,11 @@ export function RoleBasedBillingDashboard({
                     </CardHeader>
                     <CardContent className="pt-5 flex flex-col gap-2">
                       <Button variant="outline" size="lg" className="h-11 w-full justify-start rounded-xl font-bold">
-                        <FileText className="mr-2 h-4 w-4 text-muted-foreground" />
+                        <FileText className="mr-2 size-4 text-muted-foreground" />
                         Download PDF Statement
                       </Button>
                       <Button variant="outline" size="lg" className="h-11 w-full justify-start rounded-xl font-bold">
-                        <RefreshCw className="mr-2 h-4 w-4 text-muted-foreground" />
+                        <RefreshCw className="mr-2 size-4 text-muted-foreground" />
                         Reconcile Pending Payouts
                       </Button>
                     </CardContent>
@@ -914,19 +914,19 @@ export function RoleBasedBillingDashboard({
                           <div key={entry.paymentId} className="flex items-center justify-between py-4 group">
                             <div className="flex items-start gap-3">
                               <div className={`mt-0.5 rounded-lg p-1.5 ${entry.revenueModel === 'APPOINTMENT' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-300' : 'bg-sky-50 text-sky-600 dark:bg-sky-950/30 dark:text-sky-300'}`}>
-                                {entry.revenueModel === 'APPOINTMENT' ? <BarChart3 className="w-3.5 h-3.5" /> : <CreditCard className="w-3.5 h-3.5" />}
+                                {entry.revenueModel === 'APPOINTMENT' ? <BarChart3 className="size-3.5" /> : <CreditCard className="size-3.5" />}
                               </div>
                               <div>
                                 <p className="font-bold text-foreground text-[13px]">{entry.paymentId}</p>
                                 <p className="mt-0.5 text-[11px] font-bold uppercase tracking-tight text-muted-foreground">
-                                  {entry.revenueModel} • {entry.provider || 'UNKNOWN'} • {entry.appointmentType || 'OFFLINE'}
+                                  {entry.revenueModel} â€¢ {entry.provider || 'UNKNOWN'} â€¢ {entry.appointmentType || 'OFFLINE'}
                                 </p>
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className="font-bold text-foreground">₹{(entry.amount ?? 0).toLocaleString("en-IN")}</p>
+                              <p className="font-bold text-foreground">â‚¹{(entry.amount ?? 0).toLocaleString("en-IN")}</p>
                               <div className="flex items-center justify-end gap-1.5 mt-0.5">
-                                <div className={`w-1.5 h-1.5 rounded-full ${entry.payoutState === 'PAYMENT_COMPLETED' ? 'bg-emerald-500' : 'bg-orange-500'}`} />
+                                <div className={`size-1.5 rounded-full ${entry.payoutState === 'PAYMENT_COMPLETED' ? 'bg-emerald-500' : 'bg-orange-500'}`} />
                                 <span className="text-[10px] font-bold uppercase text-muted-foreground">{entry.payoutState.replace('_', ' ')}</span>
                               </div>
                             </div>
@@ -950,11 +950,11 @@ export function RoleBasedBillingDashboard({
           <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-6 pt-6">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Paid Revenue</p>
-              <p className="font-bold text-foreground text-xl mt-1">₹{(paidAmount ?? 0).toLocaleString("en-IN")}</p>
+              <p className="font-bold text-foreground text-xl mt-1">â‚¹{(paidAmount ?? 0).toLocaleString("en-IN")}</p>
             </div>
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Monthly Revenue</p>
-              <p className="font-bold text-foreground text-xl mt-1">₹{(analytics.monthlyRevenue ?? 0).toLocaleString("en-IN")}</p>
+              <p className="font-bold text-foreground text-xl mt-1">â‚¹{(analytics.monthlyRevenue ?? 0).toLocaleString("en-IN")}</p>
             </div>
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Active Subscriptions</p>
@@ -1002,7 +1002,7 @@ export function RoleBasedBillingDashboard({
             ) : null}
           </DialogHeader>
           {selectedInvoice && (
-            <div className="space-y-6">
+            <div className="gap-y-6">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-xl border bg-card p-4">
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -1091,7 +1091,7 @@ export function RoleBasedBillingDashboard({
                     onClick={() => sendInvoiceWhatsAppMutation.mutate(selectedInvoice.id)}
                     disabled={sendInvoiceWhatsAppMutation.isPending}
                   >
-                    <MessageCircle className="mr-2 h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+                    <MessageCircle className="mr-2 size-4 text-emerald-600 dark:text-emerald-300" />
                     WhatsApp
                   </Button>
                 )}
@@ -1100,7 +1100,7 @@ export function RoleBasedBillingDashboard({
                   onClick={() => void handleGenerateInvoicePDF(selectedInvoice)}
                   disabled={generateInvoicePDFMutation.isPending}
                 >
-                  <FileText className="mr-2 h-4 w-4" />
+                  <FileText className="mr-2 size-4" />
                   Open PDF
                 </Button>
                 {(selectedInvoice.status === "OPEN" || selectedInvoice.status === "OVERDUE") && (
@@ -1125,7 +1125,7 @@ export function RoleBasedBillingDashboard({
           <DialogHeader>
             <DialogTitle>Create Billing Plan</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="gap-y-3">
             {createPlanError && (
               <p className="text-sm text-destructive">{createPlanError}</p>
             )}
@@ -1183,7 +1183,7 @@ export function RoleBasedBillingDashboard({
               }}
               disabled={createPlanMutation.isPending}
             >
-              {createPlanMutation.isPending ? "Creating..." : "Create Plan"}
+              {createPlanMutation.isPending ? "Creating…" : "Create Plan"}
             </Button>
           </div>
         </DialogContent>
@@ -1195,8 +1195,8 @@ export function RoleBasedBillingDashboard({
             <DialogTitle>Confirm Subscription</DialogTitle>
           </DialogHeader>
           {planToConfirm && (
-            <div className="space-y-4 py-4">
-              <div className="bg-muted p-4 rounded-lg space-y-2">
+            <div className="gap-y-4 py-4">
+              <div className="bg-muted p-4 rounded-lg gap-y-2">
                 <div className="flex justify-between items-center wrap-break-word">
                   <span className="font-semibold text-lg">{planToConfirm?.name}</span>
                   <span className="font-bold text-lg whitespace-nowrap ml-2">INR {(planToConfirm?.price ?? 0).toLocaleString("en-IN")}</span>
@@ -1230,7 +1230,7 @@ export function RoleBasedBillingDashboard({
             <DialogTitle>Complete Subscription Payment</DialogTitle>
           </DialogHeader>
           {pendingSubscriptionPayment && (
-            <div className="space-y-4">
+            <div className="gap-y-4">
               <p className="text-sm text-muted-foreground">
                 Plan: <span className="font-medium text-foreground">{pendingSubscriptionPayment?.planName}</span>
               </p>
@@ -1258,3 +1258,6 @@ export function RoleBasedBillingDashboard({
     </div>
   );
 }
+
+
+

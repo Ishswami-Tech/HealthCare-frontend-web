@@ -79,6 +79,7 @@ const ALLOWED_HOSTS = new Set([
 
 function getMetaContent(html: string, candidates: string[]) {
   const metaTags = html.match(/<meta\b[^>]*>/gi) ?? [];
+  const candidateSet = new Set(candidates);
 
   for (const tag of metaTags) {
     const content = tag.match(/\bcontent\s*=\s*["']([^"']*)["']/i)?.[1]?.trim();
@@ -89,7 +90,7 @@ function getMetaContent(html: string, candidates: string[]) {
     const property = tag.match(/\bproperty\s*=\s*["']([^"']+)["']/i)?.[1]?.trim().toLowerCase();
     const name = tag.match(/\bname\s*=\s*["']([^"']+)["']/i)?.[1]?.trim().toLowerCase();
 
-    if ((property && candidates.includes(property)) || (name && candidates.includes(name))) {
+    if ((property && candidateSet.has(property)) || (name && candidateSet.has(name))) {
       return content;
     }
   }

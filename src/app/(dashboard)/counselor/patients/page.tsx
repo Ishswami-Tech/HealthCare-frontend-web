@@ -101,7 +101,7 @@ export default function CounselorPatients() {
   if (isPending) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <Loader2 className="size-8 animate-spin" />
       </div>
     );
   }
@@ -119,7 +119,7 @@ export default function CounselorPatients() {
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-3 size-4 text-gray-400" />
               <Input
                 placeholder="Search by client name or condition..."
                 value={searchQuery}
@@ -163,7 +163,7 @@ export default function CounselorPatients() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Users className="w-5 h-5" />
+            <Users className="size-5" />
             Clients List
           </CardTitle>
         </CardHeader>
@@ -172,7 +172,7 @@ export default function CounselorPatients() {
             <Empty>
               <EmptyContent>
                 <EmptyMedia>
-                  <Users className="h-5 w-5" />
+                  <Users className="size-5" />
                 </EmptyMedia>
                 <EmptyTitle>No clients found</EmptyTitle>
                 <EmptyDescription>
@@ -181,7 +181,7 @@ export default function CounselorPatients() {
               </EmptyContent>
             </Empty>
           ) : (
-            <div className="space-y-4">
+            <div className="gap-y-4">
               {filteredClients.map((client: any) => (
                 <div
                   key={client.id}
@@ -189,8 +189,8 @@ export default function CounselorPatients() {
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-4 flex-1">
-                      <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                        <Users className="w-5 h-5 text-purple-600" />
+                      <div className="size-10 bg-purple-100 rounded-full flex items-center justify-center">
+                        <Users className="size-5 text-purple-600" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2 mb-1">
@@ -203,7 +203,7 @@ export default function CounselorPatients() {
                         <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                           <span>Sessions: {client.sessionsCompleted}</span>
                           <span className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
+                            <Calendar className="size-3" />
                             Last:{" "}
                             {formatDateInIST(client.lastSession, { day: "2-digit", month: "short", year: "numeric" }, "en-IN")}
                           </span>
@@ -212,7 +212,7 @@ export default function CounselorPatients() {
                     </div>
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm">
-                        <MessageCircle className="w-3 h-3 mr-1" />
+                        <MessageCircle className="size-3 mr-1" />
                         Notes
                       </Button>
                       <Button variant="outline" size="sm">
@@ -238,3 +238,5 @@ export default function CounselorPatients() {
     </DashboardPageShell>
   );
 }
+
+

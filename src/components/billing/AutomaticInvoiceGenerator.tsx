@@ -10,15 +10,16 @@ export function AutomaticInvoiceGenerator() {
       <CardHeader>
         <CardTitle>Automatic Invoice Generator</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="gap-y-3">
         <p className="text-sm text-muted-foreground">
           Automatic generation is available from billing workflows and backend cron jobs.
         </p>
         <Button variant="outline">
-          <Settings className="w-4 h-4 mr-2" />
+          <Settings className="size-4 mr-2" />
           Configure Templates
         </Button>
       </CardContent>
     </Card>
   );
 }
+

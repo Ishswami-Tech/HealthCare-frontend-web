@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -67,8 +67,8 @@ export function ChangePasswordForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
-      <div className="space-y-2">
+    <form onSubmit={handleSubmit} className="gap-y-4 max-w-md">
+      <div className="gap-y-2">
         <Label htmlFor="currentPassword">Current Password</Label>
         <div className="relative">
           <Input
@@ -85,12 +85,12 @@ export function ChangePasswordForm() {
             onClick={() => setShowPasswords(prev => ({ ...prev, current: !prev.current }))}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
           >
-            {showPasswords.current ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            {showPasswords.current ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
           </button>
         </div>
       </div>
 
-      <div className="space-y-2">
+      <div className="gap-y-2">
         <Label htmlFor="newPassword">New Password</Label>
         <div className="relative">
           <Input
@@ -108,7 +108,7 @@ export function ChangePasswordForm() {
             onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
           >
-            {showPasswords.new ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            {showPasswords.new ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
           </button>
         </div>
         <p className="text-xs text-muted-foreground">
@@ -116,7 +116,7 @@ export function ChangePasswordForm() {
         </p>
       </div>
 
-      <div className="space-y-2">
+      <div className="gap-y-2">
         <Label htmlFor="confirmPassword">Confirm New Password</Label>
         <div className="relative">
           <Input
@@ -133,23 +133,23 @@ export function ChangePasswordForm() {
             onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
           >
-            {showPasswords.confirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            {showPasswords.confirm ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
           </button>
         </div>
       </div>
 
       {error && (
         <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
+          <AlertCircle className="size-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {success && (
         <Alert className="border-green-200 bg-green-50 text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-100">
-          <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+          <CheckCircle2 className="size-4 text-green-600 dark:text-green-400" />
           <AlertDescription>
-            Password changed successfully! Redirecting...
+            Password changed successfully! Redirecting…
           </AlertDescription>
         </Alert>
       )}
@@ -157,7 +157,7 @@ export function ChangePasswordForm() {
       <Button type="submit" disabled={isChangingPassword} className="w-full sm:w-auto">
         {isChangingPassword ? (
           <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <Loader2 className="mr-2 size-4 animate-spin" />
             Changing Password...
           </>
         ) : (
@@ -167,3 +167,6 @@ export function ChangePasswordForm() {
     </form>
   );
 }
+
+
+

@@ -1,6 +1,6 @@
-'use server';
+﻿'use server';
 
-import { authenticatedApi } from './auth.server';
+import { authenticatedApi, getServerSession } from './auth.server';
 import { API_ENDPOINTS } from '../config/config';
 
 /**
@@ -14,6 +14,11 @@ export async function registerFCMToken(data: {
   osVersion?: string;
   appVersion?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data: result } = await authenticatedApi(
     API_ENDPOINTS.COMMUNICATION.PUSH.REGISTER_DEVICE_TOKEN,
     {

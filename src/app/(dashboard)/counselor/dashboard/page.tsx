@@ -77,7 +77,7 @@ export default function CounselorDashboard() {
   if (isAppointmentsPending || isAllAppointmentsPending) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <Loader2 className="size-8 animate-spin" />
       </div>
     );
   }
@@ -97,11 +97,11 @@ export default function CounselorDashboard() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Today&apos;s Sessions
             </CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Calendar className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -112,11 +112,11 @@ export default function CounselorDashboard() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Completed Today
             </CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-600" />
+            <CheckCircle className="size-4 text-green-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
@@ -129,11 +129,11 @@ export default function CounselorDashboard() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Total Clients
             </CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <Users className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalClients}</div>
@@ -142,11 +142,11 @@ export default function CounselorDashboard() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Avg. Duration
             </CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <Clock className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -160,26 +160,26 @@ export default function CounselorDashboard() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <MessageCircle className="w-5 h-5" />
+            <MessageCircle className="size-5" />
             Today&apos;s Sessions
           </CardTitle>
         </CardHeader>
         <CardContent>
           {todayAppointments.length === 0 ? (
             <div className="text-center py-12">
-              <Calendar className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+              <Calendar className="size-16 mx-auto text-gray-300 mb-4" />
               <p className="text-gray-500">No sessions scheduled today</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="gap-y-4">
               {todayAppointments.map((session: any) => (
                 <div
                   key={session.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                      <Brain className="w-5 h-5 text-purple-600" />
+                    <div className="size-10 bg-purple-100 rounded-full flex items-center justify-center">
+                      <Brain className="size-5 text-purple-600" />
                     </div>
                     <div>
                       <h4 className="font-semibold">{session.clientName}</h4>
@@ -208,21 +208,21 @@ export default function CounselorDashboard() {
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg">
-              <MessageCircle className="w-6 h-6 text-blue-600" />
+              <MessageCircle className="size-6 text-blue-600" />
               <div>
                 <div className="font-medium">Individual Counseling</div>
                 <div className="text-sm text-gray-600">One-on-one</div>
               </div>
             </div>
             <div className="flex items-center gap-3 p-4 bg-green-50 rounded-lg">
-              <Users className="w-6 h-6 text-green-600" />
+              <Users className="size-6 text-green-600" />
               <div>
                 <div className="font-medium">Family Therapy</div>
                 <div className="text-sm text-gray-600">Group sessions</div>
               </div>
             </div>
             <div className="flex items-center gap-3 p-4 bg-purple-50 rounded-lg">
-              <Brain className="w-6 h-6 text-purple-600" />
+              <Brain className="size-6 text-purple-600" />
               <div>
                 <div className="font-medium">Cognitive Behavioral</div>
                 <div className="text-sm text-gray-600">CBT approach</div>
@@ -234,3 +234,5 @@ export default function CounselorDashboard() {
     </DashboardPageShell>
   );
 }
+
+

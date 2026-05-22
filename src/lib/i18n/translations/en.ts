@@ -1,8 +1,8 @@
-import { TranslationKeys } from '../config';
+﻿import { TranslationKeys } from '../config';
 
 export const en: TranslationKeys = {
   common: {
-    loading: 'Loading...',
+    loading: 'Loading…',
     error: 'Error',
     success: 'Success',
     cancel: 'Cancel',
@@ -122,13 +122,13 @@ export const en: TranslationKeys = {
     transformHealth: 'Transform Your Health with',
     ancientWisdom: 'Ancient Wisdom',
     peopleViewingText: 'people viewing',
-    bookingsIncreasedText: '📈 Bookings Increased',
+    bookingsIncreasedText: 'ðŸ“ˆ Bookings Increased',
     watchJourneysText: 'Watch Journeys',
     virtualTourText: 'Virtual Tour',
     healthAssessmentText: 'Health Assessment',
     govCertified: 'Gov Certified',
     iso9001Short: 'ISO 9001',
-    ratingShort: '4.9★',
+    ratingShort: '4.9â˜…',
     natural: '100% Natural',
     noSideEffects: 'No Side Effects',
     provenResults: 'Proven Results',
@@ -149,7 +149,7 @@ export const en: TranslationKeys = {
     trustIndicators: {
       governmentCertified: 'Gov Certified',
       iso9001: 'ISO 9001',
-      rating: '4.9★',
+      rating: '4.9â˜…',
       liveActivity: 'Live Activity',
       highDemand: 'High Demand',
       peopleViewing: '153 people viewing',
@@ -159,10 +159,10 @@ export const en: TranslationKeys = {
       title: 'Learn About Treatments',
       description: 'Discover the ancient art of Ayurveda and its modern application.',
       watchJourneys: 'Watch Journeys',
-      virtualTour: '🏥 Virtual Tour',
-      healthAssessment: '📋 Health Assessment',
+      virtualTour: 'ðŸ¥ Virtual Tour',
+      healthAssessment: 'ðŸ“‹ Health Assessment',
       todayOnly: 'Today Only',
-      ayurvedicWisdom: '🕉️',
+      ayurvedicWisdom: 'ðŸ•‰ï¸',
       wisdomDescription: 'Ayurvedic Wisdom'
     },
     schedule: 'Clinic Hours',
@@ -982,7 +982,7 @@ export const en: TranslationKeys = {
     twitter: 'Twitter',
     facebook: 'Facebook',
     linkedin: 'LinkedIn',
-    copyright: '© 2024 Dr.Chandrakumar Deshmukh. All rights reserved.',
+    copyright: 'Â© 2024 Dr.Chandrakumar Deshmukh. All rights reserved.',
 
     // Toast Messages
     loginRequired: 'Please login to access the dashboard',
@@ -1320,7 +1320,7 @@ export const en: TranslationKeys = {
       title: 'Emergency Consultation',
       button: 'WhatsApp Now'
     },
-    copyright: '© 2024 Ayurvedic Clinic. All rights reserved.',
+    copyright: 'Â© 2024 Ayurvedic Clinic. All rights reserved.',
     privacy: 'Privacy Policy',
     privacyPolicy: 'Privacy Policy',
     terms: 'Terms of Service',
@@ -2434,3 +2434,4 @@ export const en: TranslationKeys = {
     }
   }
 };
+

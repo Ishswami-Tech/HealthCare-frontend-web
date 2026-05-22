@@ -14,7 +14,8 @@ import {
 
 import { cn } from "@/lib/utils/index"
 import { formatISODateInIST, formatMonthShortInIST } from "@/lib/utils/appointmentUtils"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button-utils"
 
 function Calendar({
   className,

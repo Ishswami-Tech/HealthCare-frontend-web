@@ -2,6 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
+import { trackEvent } from "@/lib/utils/tracking";
 
 // ============================================================================
 // GOOGLE ANALYTICS 4 INTEGRATION
@@ -64,29 +65,6 @@ export const GoogleAnalytics: React.FC<GAProps> = ({ measurementId }) => {
 
 // ============================================================================
 // CONVERSION TRACKING
-// ============================================================================
-
-export const trackEvent = (eventName: string, parameters?: Record<string, any>) => {
-  if (typeof window.gtag !== 'undefined') {
-    window.gtag('event', eventName, {
-      event_category: 'engagement',
-      event_label: parameters?.label || '',
-      value: parameters?.value || 0,
-      ...parameters,
-    });
-  }
-};
-
-export const trackConversion = (conversionType: string, value?: number) => {
-  trackEvent('conversion', {
-    event_category: 'conversion',
-    event_label: conversionType,
-    value: value || 0,
-  });
-};
-
-// ============================================================================
-// HEAT MAPPING & USER BEHAVIOR TRACKING
 // ============================================================================
 
 interface HeatmapProps {
@@ -232,9 +210,19 @@ export const ClickTracker: React.FC<{ children: React.ReactNode }> = ({ children
 export const PerformanceTracker: React.FC = () => {
   useEffect(() => {
     // Track Core Web Vitals
+    const observers: PerformanceObserver[] = [];
+    const loadHandler = () => {
+      const loadTime = performance.timing.loadEventEnd - performance.timing.navigationStart;
+      trackEvent('page_load_time', {
+        event_category: 'performance',
+        event_label: 'load_time',
+        value: Math.round(loadTime),
+      });
+    };
+
     const trackWebVitals = () => {
       // Largest Contentful Paint
-      new PerformanceObserver((list) => {
+      const lcpObserver = new PerformanceObserver((list) => {
         const entries = list.getEntries();
         const lastEntry = entries[entries.length - 1];
         if (lastEntry) {
@@ -244,10 +232,12 @@ export const PerformanceTracker: React.FC = () => {
             value: Math.round(lastEntry.startTime),
           });
         }
-      }).observe({ entryTypes: ['largest-contentful-paint'] });
+      });
+      lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] });
+      observers.push(lcpObserver);
 
       // First Input Delay
-      new PerformanceObserver((list) => {
+      const fidObserver = new PerformanceObserver((list) => {
         const entries = list.getEntries();
         entries.forEach((entry: any) => {
           trackEvent('web_vitals', {
@@ -256,11 +246,13 @@ export const PerformanceTracker: React.FC = () => {
             value: Math.round(entry.processingStart - entry.startTime),
           });
         });
-      }).observe({ entryTypes: ['first-input'] });
+      });
+      fidObserver.observe({ entryTypes: ['first-input'] });
+      observers.push(fidObserver);
 
       // Cumulative Layout Shift
       let clsValue = 0;
-      new PerformanceObserver((list) => {
+      const clsObserver = new PerformanceObserver((list) => {
         const entries = list.getEntries();
         entries.forEach((entry: any) => {
           if (!entry.hadRecentInput) {
@@ -272,20 +264,19 @@ export const PerformanceTracker: React.FC = () => {
           event_label: 'CLS',
           value: Math.round(clsValue * 1000),
         });
-      }).observe({ entryTypes: ['layout-shift'] });
+      });
+      clsObserver.observe({ entryTypes: ['layout-shift'] });
+      observers.push(clsObserver);
     };
 
-    // Track page load time
-    window.addEventListener('load', () => {
-      const loadTime = performance.timing.loadEventEnd - performance.timing.navigationStart;
-      trackEvent('page_load_time', {
-        event_category: 'performance',
-        event_label: 'load_time',
-        value: Math.round(loadTime),
-      });
-    });
+    window.addEventListener('load', loadHandler);
 
     trackWebVitals();
+
+    return () => {
+      window.removeEventListener('load', loadHandler);
+      observers.forEach((observer) => observer.disconnect());
+    };
   }, []);
 
   return null;
@@ -326,3 +317,4 @@ export const AnalyticsProvider: React.FC<AnalyticsProviderProps> = ({
     </>
   );
 };
+

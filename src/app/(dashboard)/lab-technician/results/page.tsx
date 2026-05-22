@@ -98,16 +98,16 @@ export default function LabTechnicianResults() {
   if (isPending) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <Loader2 className="size-8 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 gap-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold">Test Results</h1>
+        <h1 className="text-3xl font-semibold">Test Results</h1>
         <p className="text-gray-600">
           View and manage laboratory test results
         </p>
@@ -118,7 +118,7 @@ export default function LabTechnicianResults() {
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-3 size-4 text-gray-400" />
               <Input
                 placeholder="Search by patient name or test type..."
                 value={searchQuery}
@@ -162,7 +162,7 @@ export default function LabTechnicianResults() {
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-blue-100 rounded-lg">
-                <FileText className="w-6 h-6 text-blue-600" />
+                <FileText className="size-6 text-blue-600" />
               </div>
               <div>
                 <div className="text-2xl font-bold">{testResults.length}</div>
@@ -175,7 +175,7 @@ export default function LabTechnicianResults() {
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-green-100 rounded-lg">
-                <CheckCircle className="w-6 h-6 text-green-600" />
+                <CheckCircle className="size-6 text-green-600" />
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -190,7 +190,7 @@ export default function LabTechnicianResults() {
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-orange-100 rounded-lg">
-                <Clock className="w-6 h-6 text-orange-600" />
+                <Clock className="size-6 text-orange-600" />
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -205,7 +205,7 @@ export default function LabTechnicianResults() {
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-blue-100 rounded-lg">
-                <TestTube2 className="w-6 h-6 text-blue-600" />
+                <TestTube2 className="size-6 text-blue-600" />
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -222,7 +222,7 @@ export default function LabTechnicianResults() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <FileText className="w-5 h-5" />
+            <FileText className="size-5" />
             Test Results List
           </CardTitle>
         </CardHeader>
@@ -231,7 +231,7 @@ export default function LabTechnicianResults() {
             <Empty>
               <EmptyContent>
                 <EmptyMedia>
-                  <FileText className="h-5 w-5" />
+                  <FileText className="size-5" />
                 </EmptyMedia>
                 <EmptyTitle>No test results found</EmptyTitle>
                 <EmptyDescription>
@@ -240,15 +240,15 @@ export default function LabTechnicianResults() {
               </EmptyContent>
             </Empty>
           ) : (
-            <div className="space-y-4">
+            <div className="gap-y-4">
               {filteredResults.map((result: any) => (
                 <div
                   key={result.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <TestTube2 className="w-5 h-5 text-blue-600" />
+                    <div className="size-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <TestTube2 className="size-5 text-blue-600" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2 mb-1">
@@ -262,13 +262,13 @@ export default function LabTechnicianResults() {
                       </p>
                       <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                           <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
+                          <Clock className="size-3" />
                           Collected:{" "}
                           {formatDateInIST(result.collectionDate, { day: "2-digit", month: "short", year: "numeric" }, "en-IN")}
                         </span>
                         {result.completedDate && (
                           <span className="flex items-center gap-1">
-                            <CheckCircle className="w-3 h-3" />
+                            <CheckCircle className="size-3" />
                             Completed:{" "}
                             {formatDateInIST(result.completedDate, { day: "2-digit", month: "short", year: "numeric" }, "en-IN")}
                           </span>
@@ -309,7 +309,7 @@ export default function LabTechnicianResults() {
                         </Button>
                       )}
                       <Button variant="outline" size="sm">
-                        <Download className="w-3 h-3" />
+                        <Download className="size-3" />
                       </Button>
                       <Button variant="outline" size="sm">View</Button>
                     </div>
@@ -323,3 +323,5 @@ export default function LabTechnicianResults() {
     </div>
   );
 }
+
+

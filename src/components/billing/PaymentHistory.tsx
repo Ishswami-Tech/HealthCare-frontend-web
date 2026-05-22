@@ -125,25 +125,25 @@ export function PaymentHistory({ payments, onRefetch, compact = false }: Payment
   );
 
   return (
-    <div className="space-y-4">
+    <div className="gap-y-4">
       {!compact && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <StatCard
             label="TOTAL PAYMENTS"
             value={payments.length}
-            icon={<FileText className="w-4 h-4 text-sky-600 dark:text-sky-300" />}
+            icon={<FileText className="size-4 text-sky-600 dark:text-sky-300" />}
             color="border-sky-200/70 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30"
           />
           <StatCard
             label="TOTAL PAID (COMPLETED)"
             value={`INR ${totalCompleted.toLocaleString("en-IN")}`}
-            icon={<CreditCard className="w-4 h-4 text-emerald-600 dark:text-emerald-300" />}
+            icon={<CreditCard className="size-4 text-emerald-600 dark:text-emerald-300" />}
             color="border-emerald-200/70 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30"
           />
           <StatCard
             label="COMPLETED COUNT"
             value={completedPayments.length}
-            icon={<RefreshCw className="w-4 h-4 text-violet-600 dark:text-violet-300" />}
+            icon={<RefreshCw className="size-4 text-violet-600 dark:text-violet-300" />}
             color="border-violet-200/70 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30"
           />
         </div>
@@ -165,3 +165,4 @@ export function PaymentHistory({ payments, onRefetch, compact = false }: Payment
     </div>
   );
 }
+

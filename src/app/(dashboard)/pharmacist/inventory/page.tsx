@@ -191,16 +191,16 @@ export default function InventoryPage() {
         cell: ({ row }) => (
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" className="flex items-center gap-1">
-              <Eye className="w-3 h-3" />
+              <Eye className="size-3" />
               View
             </Button>
             <Button size="sm" variant="outline" className="flex items-center gap-1">
-              <Edit className="w-3 h-3" />
+              <Edit className="size-3" />
               Update
             </Button>
             {(row.original.status === "critical" || row.original.status === "low") && (
               <Button size="sm" className="flex items-center gap-1">
-                <Plus className="w-3 h-3" />
+                <Plus className="size-3" />
                 Reorder
               </Button>
             )}
@@ -240,7 +240,7 @@ export default function InventoryPage() {
       
           <div className="flex items-center justify-center min-h-screen">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+              <div className="animate-spin rounded-full size-32 border-b-2 border-blue-600 mx-auto"></div>
               <p className="mt-4 text-gray-600">Loading inventory...</p>
             </div>
           </div>
@@ -250,19 +250,19 @@ export default function InventoryPage() {
 
   return (
     
-        <div className="p-6 space-y-6">
+        <div className="p-6 gap-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold">Inventory Management</h1>
+              <h1 className="text-3xl font-semibold">Inventory Management</h1>
               <p className="text-gray-600">Monitor and manage medicine inventory</p>
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" className="flex items-center gap-2">
-                <BarChart3 className="w-4 h-4" />
+                <BarChart3 className="size-4" />
                 Reports
               </Button>
               <Button className="flex items-center gap-2">
-                <Plus className="w-4 h-4" />
+                <Plus className="size-4" />
                 Add Medicine
               </Button>
             </div>
@@ -271,9 +271,9 @@ export default function InventoryPage() {
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Items</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
+            <Package className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalItems}</div>
@@ -284,9 +284,9 @@ export default function InventoryPage() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Low Stock</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+            <AlertTriangle className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">{lowStockItems}</div>
@@ -297,9 +297,9 @@ export default function InventoryPage() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Expiring Soon</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Calendar className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">{expiringItems}</div>
@@ -310,9 +310,9 @@ export default function InventoryPage() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Value</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <DollarSign className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">₹{totalValue.toLocaleString()}</div>
@@ -327,11 +327,11 @@ export default function InventoryPage() {
             <Card className="border-yellow-200/80 dark:border-yellow-900/50">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                  <AlertTriangle className="size-4 text-yellow-600" />
                   Low stock watchlist
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="gap-y-3">
                 {lowStockWatchlist.length > 0 ? (
                   lowStockWatchlist.map((item: any) => (
                     <div key={item.id} className="flex items-center justify-between rounded-lg border px-3 py-2">
@@ -348,7 +348,7 @@ export default function InventoryPage() {
                   <Empty>
                     <EmptyContent>
                       <EmptyMedia>
-                        <AlertTriangle className="h-5 w-5" />
+                        <AlertTriangle className="size-5" />
                       </EmptyMedia>
                       <EmptyTitle>No low stock medicines right now.</EmptyTitle>
                       <EmptyDescription>
@@ -363,11 +363,11 @@ export default function InventoryPage() {
             <Card className="border-red-200/80 dark:border-red-900/50">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <Calendar className="h-4 w-4 text-red-600" />
+                  <Calendar className="size-4 text-red-600" />
                   Expiry watchlist
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="gap-y-3">
                 {expiringWatchlist.length > 0 ? (
                   expiringWatchlist.map((item: any) => (
                     <div key={item.id} className="flex items-center justify-between rounded-lg border px-3 py-2">
@@ -386,7 +386,7 @@ export default function InventoryPage() {
                   <Empty>
                     <EmptyContent>
                       <EmptyMedia>
-                        <Calendar className="h-5 w-5" />
+                        <Calendar className="size-5" />
                       </EmptyMedia>
                       <EmptyTitle>No expiring medicines in the next 90 days.</EmptyTitle>
                       <EmptyDescription>
@@ -405,7 +405,7 @@ export default function InventoryPage() {
               <div className="flex flex-wrap gap-4">
                 <div className="w-full flex-1 min-w-0 sm:min-w-[200px]">
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 size-4" />
                     <Input
                       placeholder="Search medicines..."
                       value={searchTerm}
@@ -481,3 +481,5 @@ export default function InventoryPage() {
     
   );
 }
+
+

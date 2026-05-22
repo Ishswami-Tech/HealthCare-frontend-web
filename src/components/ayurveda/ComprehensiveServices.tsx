@@ -292,10 +292,10 @@ const ComprehensiveServices = () => {
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
-            <Heart className="w-4 h-4 mr-2" />
+            <Heart className="size-4 mr-2" />
             {t("services.title")}
           </Badge>
-          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4 gradient-text">
+          <h2 className="text-3xl md:text-4xl font-playfair font-semibold text-foreground mb-4 gradient-text">
             {t("services.subtitle")}
           </h2>
           <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
@@ -325,14 +325,14 @@ const ComprehensiveServices = () => {
                 <CardHeader
                   className={`bg-gradient-to-br ${category.bgColor} relative overflow-hidden`}
                 >
-                  <div className="absolute top-0 right-0 w-24 h-24 opacity-10">
+                  <div className="absolute top-0 right-0 size-24 opacity-10">
                     <IconComponent className="w-full h-full" />
                   </div>
                   <div className="relative z-10">
                     <div
-                      className={`w-12 h-12 bg-gradient-to-r ${category.color} rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}
+                      className={`size-12 bg-gradient-to-r ${category.color} rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}
                     >
-                      <IconComponent className="w-6 h-6 text-white drop-shadow-sm" />
+                      <IconComponent className="size-6 text-white drop-shadow-sm" />
                     </div>
                     <CardTitle className="text-lg font-playfair font-bold text-card-foreground mb-2">
                       {category.title}
@@ -344,15 +344,15 @@ const ComprehensiveServices = () => {
                 </CardHeader>
 
                 <CardContent className="p-4">
-                  <div className="space-y-2 mb-4">
+                  <div className="gap-y-2 mb-4">
                     {category.conditions
                       .slice(0, isSelected ? category.conditions.length : 3)
                       .map((condition: string, index: number) => (
                         <div
                           key={index}
-                          className="flex items-center space-x-2"
+                          className="flex items-center gap-x-2"
                         >
-                          <ChevronRight className="w-3 h-3 text-primary flex-shrink-0" />
+                          <ChevronRight className="size-3 text-primary flex-shrink-0" />
                           <span className="text-sm text-card-foreground">
                             {condition}
                           </span>
@@ -366,17 +366,17 @@ const ComprehensiveServices = () => {
                     )}
                   </div>
 
-                  <div className="flex space-x-2">
+                  <div className="flex gap-x-2">
                     <Button
                       size="sm"
                       className="flex-1"
                       onClick={() => window.open("tel:+919860370961", "_self")}
                     >
-                      <Phone className="w-3 h-3 mr-1" />
+                      <Phone className="size-3 mr-1" />
                       {t("common.bookAppointment")}
                     </Button>
                     <Button size="sm" variant="outline">
-                      <Calendar className="w-3 h-3" />
+                      <Calendar className="size-3" />
                     </Button>
                   </div>
                 </CardContent>
@@ -388,7 +388,7 @@ const ComprehensiveServices = () => {
         {/* Call to Action */}
         <div className="text-center">
           <div className="bg-primary/5 dark:bg-primary/10 rounded-2xl p-8 border border-primary/20 dark:border-primary/30">
-            <h3 className="text-2xl font-playfair font-bold text-foreground mb-4">
+            <h3 className="text-2xl font-playfair font-semibold text-foreground mb-4">
               {t("treatments.cta.title")}
             </h3>
             <p className="text-muted-foreground mb-6">
@@ -400,11 +400,11 @@ const ComprehensiveServices = () => {
                 className="bg-primary hover:bg-primary/90 text-primary-foreground"
                 onClick={() => window.open("tel:+919860370961", "_self")}
               >
-                <Phone className="w-4 h-4 mr-2" />
+                <Phone className="size-4 mr-2" />
                 {t("common.callNow")}: +91-9860370961
               </Button>
               <Button size="lg" variant="outline">
-                <Calendar className="w-4 h-4 mr-2" />
+                <Calendar className="size-4 mr-2" />
                 {t("common.bookAppointment")}
               </Button>
             </div>
@@ -421,3 +421,4 @@ const ComprehensiveServices = () => {
 };
 
 export default ComprehensiveServices;
+

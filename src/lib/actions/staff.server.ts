@@ -1,6 +1,6 @@
-'use server';
+﻿'use server';
 
-import { authenticatedApi } from './auth.server';
+import { authenticatedApi, getServerSession } from './auth.server';
 import { API_ENDPOINTS } from '../config/config';
 
 // ===== STAFF MANAGEMENT ACTIONS =====
@@ -11,6 +11,11 @@ import { API_ENDPOINTS } from '../config/config';
 export async function getAllStaff(filters?: {
   role?: 'RECEPTIONIST' | 'CLINIC_ADMIN' | 'NURSE';
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams();
   if (filters?.role) {
     params.append('role', filters.role);
@@ -25,6 +30,11 @@ export async function getAllStaff(filters?: {
  * Get staff member by ID
  */
 export async function getStaffById(id: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.STAFF.GET_BY_ID(id));
   return data;
 }
@@ -38,6 +48,11 @@ export async function createStaff(staffData: {
   department?: string;
   employeeId?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.STAFF.CREATE, {
     method: 'POST',
     body: JSON.stringify(staffData),

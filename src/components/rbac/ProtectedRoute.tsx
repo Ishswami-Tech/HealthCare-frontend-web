@@ -112,7 +112,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (isPending) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full size-8 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -159,10 +159,10 @@ const UnauthorizedAccess: React.FC = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+      <div className="max-w-md w-full gap-y-8">
         <div className="text-center">
-          <Lock className="mx-auto h-12 w-12 text-red-500" />
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+          <Lock className="mx-auto size-12 text-red-500" />
+          <h2 className="mt-6 text-3xl font-semibold text-gray-900">
             Access Denied
           </h2>
           <p className="mt-2 text-sm text-gray-600">
@@ -171,7 +171,7 @@ const UnauthorizedAccess: React.FC = () => {
         </div>
 
         <Alert className="border-red-200 bg-red-50">
-          <Lock className="h-4 w-4 text-red-600" />
+          <Lock className="size-4 text-red-600" />
           <AlertTitle className="text-red-800">Unauthorized Access</AlertTitle>
           <AlertDescription className="text-red-700">
             Your current role doesn't have the necessary permissions to view
@@ -180,9 +180,9 @@ const UnauthorizedAccess: React.FC = () => {
           </AlertDescription>
         </Alert>
 
-        <div className="flex space-x-4">
+        <div className="flex gap-x-4">
           <Button onClick={handleGoBack} variant="outline" className="flex-1">
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <ArrowLeft className="size-4 mr-2" />
             Go Back
           </Button>
           <Button onClick={handleGoHome} className="flex-1">
@@ -193,41 +193,6 @@ const UnauthorizedAccess: React.FC = () => {
     </div>
   );
 };
-
-/**
- * Higher-order component for protecting pages
- */
-export function withRoleProtection<P extends object>(
-  Component: React.ComponentType<P>,
-  allowedRoles: Role[]
-) {
-  return function ProtectedPageWrapper(props: P) {
-    return (
-      <ProtectedRoute allowedRoles={allowedRoles}>
-        <Component {...props} />
-      </ProtectedRoute>
-    );
-  };
-}
-
-/**
- * Higher-order component for protecting pages with permissions
- */
-export function withPermissionProtection<P extends object>(
-  Component: React.ComponentType<P>,
-  permission: Permission | Permission[],
-  requireAll: boolean = false
-) {
-  return function ProtectedPageWrapper(props: P) {
-    const permissions = Array.isArray(permission) ? permission : [permission];
-
-    return (
-      <ProtectedRoute permissions={permissions} requireAll={requireAll}>
-        <Component {...props} />
-      </ProtectedRoute>
-    );
-  };
-}
 
 /**
  * Specific route protections for common pages
@@ -324,3 +289,5 @@ export const StaffRouteProtection: React.FC<{ children: React.ReactNode }> = ({
 
 // Export the UnauthorizedAccess component
 export { UnauthorizedAccess };
+
+

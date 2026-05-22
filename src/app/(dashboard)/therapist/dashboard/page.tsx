@@ -111,15 +111,15 @@ export default function TherapistDashboard() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "IN_PROGRESS":
-        return <Play className="w-4 h-4" />;
+        return <Play className="size-4" />;
       case "CONFIRMED":
-        return <CheckCircle className="w-4 h-4" />;
+        return <CheckCircle className="size-4" />;
       case "SCHEDULED":
-        return <Clock className="w-4 h-4" />;
+        return <Clock className="size-4" />;
       case "COMPLETED":
-        return <CheckCircle className="w-4 h-4" />;
+        return <CheckCircle className="size-4" />;
       default:
-        return <Clock className="w-4 h-4" />;
+        return <Clock className="size-4" />;
     }
   };
 
@@ -196,20 +196,20 @@ export default function TherapistDashboard() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Calendar className="w-5 h-5" />
+              <Calendar className="size-5" />
               Recent Appointments
             </CardTitle>
           </CardHeader>
           <CardContent>
             {isPendingAppointments ? (
               <div className="flex items-center justify-center min-h-[200px]">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                <Loader2 className="size-8 animate-spin text-blue-600" />
               </div>
             ) : recentSessions.length === 0 ? (
               <Empty>
                 <EmptyContent>
                   <EmptyMedia>
-                    <Calendar className="h-5 w-5" />
+                    <Calendar className="size-5" />
                   </EmptyMedia>
                   <EmptyTitle>No recent appointments found</EmptyTitle>
                   <EmptyDescription>
@@ -218,15 +218,15 @@ export default function TherapistDashboard() {
                 </EmptyContent>
               </Empty>
             ) : (
-              <div className="space-y-4">
+              <div className="gap-y-4">
                 {recentSessions.map((appointment) => (
                   <div
                     key={appointment.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                        <Brain className="w-5 h-5 text-purple-600" />
+                      <div className="size-10 bg-purple-100 rounded-full flex items-center justify-center">
+                        <Brain className="size-5 text-purple-600" />
                       </div>
                       <div>
                         <h4 className="font-semibold">{appointment.patientName}</h4>
@@ -260,20 +260,20 @@ export default function TherapistDashboard() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
+              <Users className="size-5" />
               Recent Clients
             </CardTitle>
           </CardHeader>
           <CardContent>
             {isPendingClients ? (
               <div className="flex items-center justify-center min-h-[200px]">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                <Loader2 className="size-8 animate-spin text-blue-600" />
               </div>
             ) : clientsArray.length === 0 ? (
               <Empty>
                 <EmptyContent>
                   <EmptyMedia>
-                    <Users className="h-5 w-5" />
+                    <Users className="size-5" />
                   </EmptyMedia>
                   <EmptyTitle>No clients found</EmptyTitle>
                   <EmptyDescription>
@@ -282,15 +282,15 @@ export default function TherapistDashboard() {
                 </EmptyContent>
               </Empty>
             ) : (
-              <div className="space-y-4">
-                {recentPatients.map((client, index) => (
+              <div className="gap-y-4">
+                {recentPatients.map((client) => (
                   <div
-                    key={index}
+                    key={client.name}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                        <Users className="w-5 h-5 text-purple-600" />
+                      <div className="size-10 bg-purple-100 rounded-full flex items-center justify-center">
+                        <Users className="size-5 text-purple-600" />
                       </div>
                       <div>
                         <h4 className="font-semibold">{client.name}</h4>
@@ -298,7 +298,7 @@ export default function TherapistDashboard() {
                         <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                           <span>Sessions: {client.sessionsCompleted}</span>
                           <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
+                            <Clock className="size-3" />
                             Last:{" "}
                             {formatDateInIST(client.lastVisit, { day: "2-digit", month: "short", year: "numeric" }, "en-IN")}
                           </span>
@@ -326,21 +326,21 @@ export default function TherapistDashboard() {
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="flex items-center gap-3 p-4 bg-purple-50 rounded-lg">
-              <Activity className="w-6 h-6 text-purple-600" />
+              <Activity className="size-6 text-purple-600" />
               <div>
                 <div className="font-medium">Cognitive Behavioral Therapy</div>
                 <div className="text-sm text-gray-600">Primary focus</div>
               </div>
             </div>
             <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg">
-              <Brain className="w-6 h-6 text-blue-600" />
+              <Brain className="size-6 text-blue-600" />
               <div>
                 <div className="font-medium">Mindfulness & Meditation</div>
                 <div className="text-sm text-gray-600">Specialty</div>
               </div>
             </div>
             <div className="flex items-center gap-3 p-4 bg-green-50 rounded-lg">
-              <Activity className="w-6 h-6 text-green-600" />
+              <Activity className="size-6 text-green-600" />
               <div>
                 <div className="font-medium">Stress Management</div>
                 <div className="text-sm text-gray-600">Expertise</div>
@@ -352,3 +352,5 @@ export default function TherapistDashboard() {
     </DashboardPageShell>
   );
 }
+
+

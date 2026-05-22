@@ -73,14 +73,14 @@ function DefaultErrorFallback({
     <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 dark:from-red-950/20 dark:via-background dark:to-orange-950/20 flex items-center justify-center px-4">
       <Card className="max-w-md w-full">
         <CardHeader>
-          <div className="mx-auto w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mb-4">
-            <AlertTriangle className="w-8 h-8 text-red-600 dark:text-red-400" />
+          <div className="mx-auto size-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mb-4">
+            <AlertTriangle className="size-8 text-red-600 dark:text-red-400" />
           </div>
           <CardTitle className="text-2xl font-bold text-center">
             Application Error
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="gap-y-4">
           <p className="text-center text-muted-foreground">
             {errorMessage}
           </p>
@@ -90,7 +90,7 @@ function DefaultErrorFallback({
             className="w-full"
             variant="default"
           >
-            <RefreshCw className="w-4 h-4 mr-2" />
+            <RefreshCw className="size-4 mr-2" />
             Try Again
           </Button>
           
@@ -121,14 +121,14 @@ function WebSocketErrorFallback({
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-yellow-50 dark:from-orange-950/20 dark:via-background dark:to-yellow-950/20 flex items-center justify-center px-4">
       <Card className="max-w-md w-full">
         <CardHeader>
-          <div className="mx-auto w-16 h-16 bg-orange-100 dark:bg-orange-900/20 rounded-full flex items-center justify-center mb-4">
-            <WifiOff className="w-8 h-8 text-orange-600 dark:text-orange-400" />
+          <div className="mx-auto size-16 bg-orange-100 dark:bg-orange-900/20 rounded-full flex items-center justify-center mb-4">
+            <WifiOff className="size-8 text-orange-600 dark:text-orange-400" />
           </div>
           <CardTitle className="text-2xl font-bold text-center">
             Connection Error
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="gap-y-4">
           <p className="text-center text-muted-foreground">
             Unable to establish WebSocket connection. Please check your internet connection and try again.
           </p>
@@ -138,7 +138,7 @@ function WebSocketErrorFallback({
             className="w-full"
             variant="default"
           >
-            <RefreshCw className="w-4 h-4 mr-2" />
+            <RefreshCw className="size-4 mr-2" />
             Reconnect
           </Button>
         </CardContent>
@@ -158,14 +158,14 @@ function APIErrorFallback({
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-blue-950/20 dark:via-background dark:to-indigo-950/20 flex items-center justify-center px-4">
       <Card className="max-w-md w-full">
         <CardHeader>
-          <div className="mx-auto w-16 h-16 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center mb-4">
-            <XCircle className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+          <div className="mx-auto size-16 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center mb-4">
+            <XCircle className="size-8 text-blue-600 dark:text-blue-400" />
           </div>
           <CardTitle className="text-2xl font-bold text-center">
             API Error
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="gap-y-4">
           <p className="text-center text-muted-foreground">
             {error ? sanitizeErrorMessage(error) : "An error occurred while communicating with the server."}
           </p>
@@ -175,7 +175,7 @@ function APIErrorFallback({
             className="w-full"
             variant="default"
           >
-            <RefreshCw className="w-4 h-4 mr-2" />
+            <RefreshCw className="size-4 mr-2" />
             Retry
           </Button>
         </CardContent>
@@ -193,7 +193,7 @@ function MinimalErrorFallback({
 }: ErrorFallbackProps) {
   return (
     <div className="flex flex-col items-center justify-center p-4 gap-2">
-      <AlertTriangle className="w-6 h-6 text-destructive" />
+      <AlertTriangle className="size-6 text-destructive" />
       <p className="text-sm text-muted-foreground text-center">
         {error ? sanitizeErrorMessage(error) : "Something went wrong"}
       </p>
@@ -348,3 +348,4 @@ export function MinimalErrorBoundary({
     </ErrorBoundary>
   );
 }
+

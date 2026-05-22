@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 import { load } from "@cashfreepayments/cashfree-js";
@@ -282,15 +282,18 @@ export function PaymentButton({
       (metadata?.redirectUrl as string) ||
       (providerResponseMeta?.payment_link as string) ||
       (providerResponse?.payment_link as string);
-    const resolvedClinicId =
+    let resolvedClinicId =
       clinicId ||
       (paymentIntent?.clinicId as string) ||
       (metadata?.clinicId as string) ||
-      (await getClinicId()) ||
       APP_CONFIG.CLINIC.ID;
 
     if (!orderId) {
       throw new Error("Order ID not received from server");
+    }
+
+    if (!resolvedClinicId) {
+      resolvedClinicId = (await getClinicId()) || APP_CONFIG.CLINIC.ID;
     }
 
     if (!resolvedClinicId) {
@@ -438,8 +441,8 @@ export function PaymentButton({
     >
       {isProcessing ? (
         <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Processing...
+          <Loader2 className="mr-2 size-4 animate-spin" />
+          Processing…
         </>
       ) : (
         children || `Pay INR ${amount.toLocaleString("en-IN")}`
@@ -447,3 +450,5 @@ export function PaymentButton({
     </Button>
   );
 }
+
+

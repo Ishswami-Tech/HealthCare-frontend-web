@@ -57,7 +57,7 @@ export default function ForgotPasswordPage() {
   return (
     <Card className="w-full max-w-md mx-auto shadow-lg px-4 sm:px-0">
       <CardHeader className="px-4 sm:px-6">
-        <h2 className="text-xl sm:text-2xl font-bold text-center">
+        <h2 className="text-xl sm:text-2xl font-semibold text-center">
           Forgot Password
         </h2>
         <p className="text-xs sm:text-sm text-gray-600 text-center mt-2">
@@ -66,7 +66,7 @@ export default function ForgotPasswordPage() {
       </CardHeader>
       <CardContent className="px-4 sm:px-6">
         <Form {...form}>
-          <form onSubmit={form.onFormSubmit} className="space-y-4">
+          <form onSubmit={form.onFormSubmit} className="gap-y-4">
             <FormField
               control={form.control}
               name="email"
@@ -110,3 +110,4 @@ export default function ForgotPasswordPage() {
     </Card>
   );
 }
+

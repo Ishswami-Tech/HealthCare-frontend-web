@@ -9,25 +9,25 @@ import { ROUTES } from "@/lib/config/routes";
 export default function PrivacyPolicyPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-4xl mx-auto gap-y-8">
         <div className="flex items-center justify-between">
             <Link href={ROUTES.LOGIN} prefetch={false}>
             <Button variant="ghost" className="gap-2">
-                <ArrowLeft className="h-4 w-4" />
+                <ArrowLeft className="size-4" />
                 Back to Login
             </Button>
             </Link>
              <div className="flex items-center gap-2 text-blue-600">
-                <Shield className="h-6 w-6" />
+                <Shield className="size-6" />
                 <span className="font-semibold text-lg">Dr Chandrakumar Deshmukh</span>
             </div>
         </div>
 
         <Card className="shadow-lg border-t-4 border-t-blue-600">
-          <CardHeader className="space-y-4 pb-8 border-b">
+          <CardHeader className="gap-y-4 pb-8 border-b">
             <div className="flex items-center gap-3 mb-2">
-                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                    <Lock className="h-5 w-5 text-blue-600" />
+                <div className="size-10 rounded-full bg-blue-100 flex items-center justify-center">
+                    <Lock className="size-5 text-blue-600" />
                 </div>
                 <CardTitle className="text-3xl font-bold text-gray-900">Privacy Policy</CardTitle>
             </div>
@@ -38,10 +38,10 @@ export default function PrivacyPolicyPage() {
               Your privacy is critically important to us. At Dr Chandrakumar Deshmukh, we have a few fundamental principles regarding the collection and processing of your personal health information.
             </p>
           </CardHeader>
-          <CardContent className="space-y-8 pt-8 px-6 sm:px-10">
-            <section className="space-y-3">
+          <CardContent className="gap-y-8 pt-8 px-6 sm:px-10">
+            <section className="gap-y-3">
               <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                 <Eye className="h-5 w-5 text-blue-600" />
+                 <Eye className="size-5 text-blue-600" />
                  1. Information We Collect
               </h2>
               <p className="text-gray-600 leading-relaxed">
@@ -49,15 +49,15 @@ export default function PrivacyPolicyPage() {
               </p>
             </section>
 
-             <section className="space-y-3">
+             <section className="gap-y-3">
               <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                 <FileText className="h-5 w-5 text-blue-600" />
+                 <FileText className="size-5 text-blue-600" />
                  2. How We Use Your Information
               </h2>
               <p className="text-gray-600 leading-relaxed">
                 We use the information we collect to provide, maintain, and improve our services, such as to:
               </p>
-              <ul className="list-disc list-inside text-gray-600 space-y-2 ml-2">
+              <ul className="list-disc list-inside text-gray-600 gap-y-2 ml-2">
                   <li>Facilitate medical appointments and consultations.</li>
                   <li>Send you technically important notices, updates, security alerts, and support messages.</li>
                   <li>Respond to your comments, questions, and requests.</li>
@@ -65,9 +65,9 @@ export default function PrivacyPolicyPage() {
               </ul>
             </section>
 
-             <section className="space-y-3">
+             <section className="gap-y-3">
               <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                 <Lock className="h-5 w-5 text-blue-600" />
+                 <Lock className="size-5 text-blue-600" />
                  3. Data Security
               </h2>
               <p className="text-gray-600 leading-relaxed">
@@ -75,9 +75,9 @@ export default function PrivacyPolicyPage() {
               </p>
             </section>
 
-             <section className="space-y-3">
+             <section className="gap-y-3">
               <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                 <Shield className="h-5 w-5 text-blue-600" />
+                 <Shield className="size-5 text-blue-600" />
                  4. Your Rights
               </h2>
               <p className="text-gray-600 leading-relaxed">
@@ -85,9 +85,9 @@ export default function PrivacyPolicyPage() {
               </p>
             </section>
 
-            <section className="space-y-3">
+            <section className="gap-y-3">
               <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                 <FileText className="h-5 w-5 text-blue-600" />
+                 <FileText className="size-5 text-blue-600" />
                  5. Appointment and Billing Notices
               </h2>
               <p className="text-gray-600 leading-relaxed">
@@ -107,4 +107,6 @@ export default function PrivacyPolicyPage() {
     </div>
   );
 }
+
+
 

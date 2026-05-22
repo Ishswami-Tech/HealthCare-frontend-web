@@ -58,7 +58,7 @@ function ModernDashboardCardComponent({
       borderColor,
       className
     )}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">
           {title}
         </CardTitle>
@@ -68,10 +68,10 @@ function ModernDashboardCardComponent({
               {badge.text}
             </Badge>
           )}
-          {Icon && <Icon className={cn('h-4 w-4', iconColor)} />}
+          {Icon && <Icon className={cn('size-4', iconColor)} />}
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="gap-y-3">
         <div className="flex items-center justify-between">
           <div className="text-2xl font-bold">
             {value}
@@ -96,7 +96,7 @@ function ModernDashboardCardComponent({
         )}
         
         {progress && (
-          <div className="space-y-1">
+          <div className="gap-y-1">
             <div className="flex justify-between text-xs">
               <span>Progress</span>
               <span>{progress.value}%</span>
@@ -261,7 +261,7 @@ export function DashboardHeaderCard({
   return (
     <div className={cn('flex items-center justify-between', className)}>
       <div>
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+        <h1 className="text-3xl font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
           {title}
         </h1>
         {subtitle && (
@@ -278,3 +278,5 @@ export function DashboardHeaderCard({
     </div>
   );
 }
+
+

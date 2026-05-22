@@ -141,10 +141,10 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
 
   const getTrendIcon = (current: number, previous: number) => {
     if (current > previous)
-      return <TrendingUp className={`w-4 h-4 ${theme.iconColors.red}`} />;
+      return <TrendingUp className={`size-4 ${theme.iconColors.red}`} />;
     if (current < previous)
-      return <TrendingDown className={`w-4 h-4 ${theme.iconColors.green}`} />;
-    return <Minus className={`w-4 h-4 ${theme.iconColors.gray}`} />;
+      return <TrendingDown className={`size-4 ${theme.iconColors.green}`} />;
+    return <Minus className={`size-4 ${theme.iconColors.gray}`} />;
   };
 
   const vitalHistoryColumns = useMemo<ColumnDef<(typeof vitalHistoryRows)[number]>[]>(
@@ -250,19 +250,19 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
           actions={[
             {
               label: "Upload report",
-              icon: <Upload className="h-4 w-4" />,
+              icon: <Upload className="size-4" />,
               variant: "outline",
             },
             {
               label: "Export records",
-              icon: <Download className="h-4 w-4" />,
+              icon: <Download className="size-4" />,
               variant: "outline",
             },
           ]}
         />
       )}
 
-          <Tabs defaultValue="history" className="space-y-6">
+          <Tabs defaultValue="history" className="gap-y-6">
             <TabsList className="max-w-full overflow-x-auto h-auto p-1 justify-start scrollbar-hide">
               <TabsTrigger value="history" className="text-xs sm:text-sm px-3 sm:px-4">History</TabsTrigger>
               <TabsTrigger value="prescriptions" className="text-xs sm:text-sm px-3 sm:px-4">Prescriptions</TabsTrigger>
@@ -273,20 +273,20 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
             </TabsList>
 
             <TabsContent value="history">
-              <div className="space-y-4">
+              <div className="gap-y-4">
                 <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Clock className="w-5 h-5" />
+                      <Clock className="size-5" />
                       Medical History Timeline
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
+                    <div className="gap-y-4">
                       <div className="flex gap-4">
                         <div className="relative flex-1">
                           <Search
-                            className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${theme.textColors.muted}`}
+                            className={`absolute left-3 top-1/2 transform -translate-y-1/2 size-4 ${theme.textColors.muted}`}
                           />
                           <Input
                             placeholder="Search medical history..."
@@ -296,12 +296,12 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                           />
                         </div>
                         <Button variant="outline" className="h-11 rounded-xl">
-                          <Filter className="w-4 h-4 mr-2" />
+                          <Filter className="size-4 mr-2" />
                           Filter
                         </Button>
                       </div>
 
-                      <div className="space-y-4">
+                      <div className="gap-y-4">
                         {filteredMedicalHistory.length === 0 ? (
                           <EmptyState
                             title={searchTerm ? "No matching records" : "No medical history"}
@@ -366,7 +366,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                                   className="rounded-xl"
                                   onClick={() => handleViewRecord(record)}
                                 >
-                                  <Eye className="w-4 h-4" />
+                                  <Eye className="size-4" />
                                 </Button>
                                 <Button 
                                   variant="outline" 
@@ -374,7 +374,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                                   className="rounded-xl"
                                   onClick={(e) => handleDownload(e, "Medical Record")}
                                 >
-                                  <Download className="w-4 h-4" />
+                                  <Download className="size-4" />
                                 </Button>
                               </div>
                             </div>
@@ -389,16 +389,16 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
             </TabsContent>
 
             <TabsContent value="prescriptions">
-              <div className="space-y-4">
+              <div className="gap-y-4">
                 <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Pill className="w-5 h-5" />
+                      <Pill className="size-5" />
                       Ayurvedic Prescriptions
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-6">
+                    <div className="gap-y-6">
                       {prescriptions.map((prescription: PatientPrescriptionEntry) => (
                         <div key={prescription.id} className="rounded-2xl border border-border/70 p-3 sm:p-4 dark:border-border/60">
                           <div className="flex items-center justify-between mb-4">
@@ -420,21 +420,21 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                                 {prescription.status}
                               </Badge>
                               <Button variant="outline" size="sm" className="rounded-xl">
-                                <Download className="w-4 h-4" />
+                                <Download className="size-4" />
                               </Button>
                             </div>
                           </div>
 
-                          <div className="space-y-3">
+                          <div className="gap-y-3">
                             <h4 className="font-medium">Medications:</h4>
-                            {prescription.medications.map((med, index: number) => (
+                            {prescription.medications.map((med) => (
                               <div
-                                key={index}
+                                key={med.name}
                                 className={`flex items-center justify-between p-2.5 sm:p-3 ${theme.containers.featureGreen} rounded-lg`}
                               >
                                 <div className="flex items-center gap-3">
                                   <Leaf
-                                    className={`w-4 h-4 ${theme.iconColors.green}`}
+                                    className={`size-4 ${theme.iconColors.green}`}
                                   />
                                   <div>
                                     <h5
@@ -482,16 +482,16 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
             </TabsContent>
 
             <TabsContent value="reports">
-              <div className="space-y-4">
+              <div className="gap-y-4">
                 <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <TestTube className="w-5 h-5" />
+                      <TestTube className="size-5" />
                       Laboratory Reports
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-6">
+                    <div className="gap-y-6">
                       {labReports.map((report: PatientLabReportEntry) => (
                         <div key={report.id} className="border rounded-lg p-3 sm:p-4">
                           <div className="flex items-center justify-between mb-4">
@@ -511,17 +511,17 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                                 {report.status}
                               </Badge>
                               <Button variant="outline" size="sm">
-                                <Eye className="w-4 h-4" />
+                                <Eye className="size-4" />
                               </Button>
                             </div>
                           </div>
 
-                          <div className="space-y-3">
+                          <div className="gap-y-3">
                             <h4 className="font-medium">Results:</h4>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
-                              {report.results.map((result, index: number) => (
+                              {report.results.map((result) => (
                                 <div
-                                  key={index}
+                                  key={result.parameter}
                                   className="p-3 border rounded-lg"
                                 >
                                   <div className="flex items-center justify-between mb-1">
@@ -556,23 +556,23 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
             </TabsContent>
 
             <TabsContent value="vitals">
-              <div className="space-y-4">
+              <div className="gap-y-4">
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Heart className="w-5 h-5" />
+                      <Heart className="size-5" />
                       Vital Signs Tracking
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-6">
+                    <div className="gap-y-6">
                       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                         <div
                           className={`p-3 sm:p-4 ${theme.containers.featureRed} rounded-lg`}
                         >
                           <div className="flex items-center gap-2 mb-2">
                             <Heart
-                              className={`w-5 h-5 ${theme.iconColors.red}`}
+                              className={`size-5 ${theme.iconColors.red}`}
                             />
                             <span
                               className={`font-medium ${theme.textColors.heading}`}
@@ -597,7 +597,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                         >
                           <div className="flex items-center gap-2 mb-2">
                             <Pulse
-                              className={`w-5 h-5 ${theme.iconColors.blue}`}
+                              className={`size-5 ${theme.iconColors.blue}`}
                             />
                             <span
                               className={`font-medium ${theme.textColors.heading}`}
@@ -622,7 +622,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                         >
                           <div className="flex items-center gap-2 mb-2">
                             <Scale
-                              className={`w-5 h-5 ${theme.iconColors.green}`}
+                              className={`size-5 ${theme.iconColors.green}`}
                             />
                             <span
                               className={`font-medium ${theme.textColors.heading}`}
@@ -647,7 +647,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                         >
                           <div className="flex items-center gap-2 mb-2">
                             <Thermometer
-                              className={`w-5 h-5 ${theme.iconColors.blue}`}
+                              className={`size-5 ${theme.iconColors.blue}`}
                             />
                             <span
                               className={`font-medium ${theme.textColors.heading}`}
@@ -690,16 +690,16 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
             </TabsContent>
 
             <TabsContent value="allergies">
-              <div className="space-y-4">
+              <div className="gap-y-4">
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <AlertTriangle className="w-5 h-5" />
+                      <AlertTriangle className="size-5" />
                       Known Allergies & Sensitivities
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
+                    <div className="gap-y-4">
                       {allergies.length === 0 ? (
                         <EmptyState
                           title="No allergies recorded"
@@ -741,7 +741,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
 
                       <div className={`p-4 border rounded-xl ${theme.containers.featureYellow}`}>
                         <div className="flex items-start gap-2">
-                          <AlertTriangle className={`w-5 h-5 ${theme.iconColors.yellow} mt-0.5`} />
+                          <AlertTriangle className={`size-5 ${theme.iconColors.yellow} mt-0.5`} />
                           <div className={`text-sm ${theme.textColors.warning}`}>
                             <p className="font-medium mb-1">Important:</p>
                             <p>
@@ -759,11 +759,11 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
             </TabsContent>
 
             <TabsContent value="diet">
-              <div className="space-y-4">
+              <div className="gap-y-4">
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Leaf className="w-5 h-5" />
+                      <Leaf className="size-5" />
                       Diet Plan
                     </CardTitle>
                   </CardHeader>
@@ -789,7 +789,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                   variant="outline"
                   className="h-20 flex flex-col items-center justify-center gap-2"
                 >
-                  <TestTube className="w-6 h-6" />
+                  <TestTube className="size-6" />
                   <span className="text-sm">Lab Report</span>
                 </Button>
                 <Button
@@ -797,7 +797,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                   className="h-20 flex flex-col items-center justify-center gap-2"
                 >
                   <Image
-                    className="w-6 h-6"
+                    className="size-6"
                     aria-label="Medical imaging icon"
                   />
                   <span className="text-sm">X-Ray/Scan</span>
@@ -806,14 +806,14 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                   variant="outline"
                   className="h-20 flex flex-col items-center justify-center gap-2"
                 >
-                  <Pill className="w-6 h-6" />
+                  <Pill className="size-6" />
                   <span className="text-sm">Prescription</span>
                 </Button>
                 <Button
                   variant="outline"
                   className="h-20 flex flex-col items-center justify-center gap-2"
                 >
-                  <File className="w-6 h-6" />
+                  <File className="size-6" />
                   <span className="text-sm">Other Document</span>
                 </Button>
               </div>
@@ -876,7 +876,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
               handleDownload(e, "Medical Record");
               setIsViewDialogOpen(false);
             }}>
-              <Download className="w-4 h-4 mr-2" />
+              <Download className="size-4 mr-2" />
               Download Report
             </Button>
           </DialogFooter>
@@ -887,3 +887,5 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
 
   return embedded ? content : <PatientPageShell>{content}</PatientPageShell>;
 }
+
+

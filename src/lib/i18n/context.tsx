@@ -4,6 +4,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useTransition,
   useState,
   ReactNode,
 } from "react";
@@ -104,42 +105,47 @@ function storeLanguage(language: SupportedLanguage) {
   }
 }
 
+function resolveInitialLanguage(
+  initialLanguage?: SupportedLanguage
+): SupportedLanguage {
+  const storedLanguage = getStoredLanguage();
+  const detectedLanguage = detectBrowserLanguage();
+  return storedLanguage || initialLanguage || detectedLanguage || DEFAULT_LANGUAGE;
+}
+
 export function LanguageProvider({
   children,
   initialLanguage,
 }: LanguageProviderProps) {
-  const [language, setLanguageState] = useState<SupportedLanguage>(
-    initialLanguage || DEFAULT_LANGUAGE
+  const [language, setLanguageState] = useState<SupportedLanguage>(() =>
+    resolveInitialLanguage(initialLanguage)
   );
-  const [isLoading, setIsLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
 
-  // Initialize language on mount
   useEffect(() => {
-    const storedLanguage = getStoredLanguage();
-    const detectedLanguage = detectBrowserLanguage();
-
-    const finalLanguage =
-      storedLanguage || detectedLanguage || DEFAULT_LANGUAGE;
-
-    setLanguageState(finalLanguage);
-    setIsLoading(false);
-
-    // Store the detected/default language if none was stored
-    if (!storedLanguage) {
-      storeLanguage(finalLanguage);
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = language;
+      document.documentElement.dir = SUPPORTED_LANGUAGES[language].dir;
     }
-  }, []);
+
+    const storedLanguage = getStoredLanguage();
+    if (storedLanguage !== language) {
+      storeLanguage(language);
+    }
+  }, [language]);
 
   const setLanguage = (newLanguage: SupportedLanguage) => {
     if (Object.keys(SUPPORTED_LANGUAGES).includes(newLanguage)) {
-      setLanguageState(newLanguage);
-      storeLanguage(newLanguage);
+      startTransition(() => {
+        setLanguageState(newLanguage);
+        storeLanguage(newLanguage);
 
-      // Update document language attribute
-      if (typeof document !== "undefined") {
-        document.documentElement.lang = newLanguage;
-        document.documentElement.dir = SUPPORTED_LANGUAGES[newLanguage].dir;
-      }
+        // Update document language attribute
+        if (typeof document !== "undefined") {
+          document.documentElement.lang = newLanguage;
+          document.documentElement.dir = SUPPORTED_LANGUAGES[newLanguage].dir;
+        }
+      });
     }
   };
 
@@ -159,7 +165,7 @@ export function LanguageProvider({
     setLanguage,
     t,
     tArray,
-    isLoading,
+    isLoading: isPending,
     supportedLanguages: SUPPORTED_LANGUAGES,
   };
 

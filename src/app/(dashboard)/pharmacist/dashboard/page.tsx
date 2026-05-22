@@ -34,14 +34,14 @@ import { ColumnDef } from "@tanstack/react-table";
 import { Input } from "@/components/ui/input";
 
 export default function PharmacistDashboard() {
-  const router = useRouter();
+  const { push } = useRouter();
   const { session } = useAuth();
 
   const handleDispense = useCallback(
     (prescriptionId: string) => {
-      router.push(`/pharmacist/prescriptions?prescriptionId=${prescriptionId}`);
+      push(`/pharmacist/prescriptions?prescriptionId=${prescriptionId}`);
     },
-    [router]
+    [push]
   );
   const user = session?.user;
   const clinicId = user?.clinicId;
@@ -160,19 +160,19 @@ export default function PharmacistDashboard() {
           <Button
             size="icon"
             variant="outline"
-            className="h-8 w-8"
-            onClick={() => router.push(`/pharmacist/prescriptions?prescriptionId=${row.original.id}`)}
+            className="size-8"
+            onClick={() => push(`/pharmacist/prescriptions?prescriptionId=${row.original.id}`)}
           >
-            <Eye className="h-4 w-4" />
+            <Eye className="size-4" />
           </Button>
           {row.getValue("status") === "ready_to_dispense" && (
             <Button
               size="icon"
-              className="h-8 w-8 bg-emerald-600 hover:bg-emerald-700"
+              className="size-8 bg-emerald-600 hover:bg-emerald-700"
               onClick={() => handleDispense(row.original.id as string)}
               title="Dispense prescription"
             >
-              <Check className="h-4 w-4" />
+              <Check className="size-4" />
             </Button>
           )}
         </div>
@@ -183,25 +183,25 @@ export default function PharmacistDashboard() {
   if ((prescriptionsPending || inventoryPending) && (prescriptions.length === 0 && inventory.length === 0)) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="size-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="p-4 space-y-4 sm:p-6 sm:space-y-5">
+    <div className="p-4 gap-y-4 sm:p-6 sm:gap-y-5">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Pharmacy Dashboard</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Pharmacy Dashboard</h1>
           <p className="text-muted-foreground">Manage prescriptions and medical inventory</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" onClick={() => router.push('/pharmacist/inventory')}>
-            <Search className="w-4 h-4" />
+          <Button variant="outline" className="gap-2" onClick={() => push('/pharmacist/inventory')}>
+            <Search className="size-4" />
             Find Medicine
           </Button>
-          <Button className="gap-2" onClick={() => router.push('/pharmacist/inventory?action=add')}>
-            <Plus className="w-4 h-4" />
+          <Button className="gap-2" onClick={() => push('/pharmacist/inventory?action=add')}>
+            <Plus className="size-4" />
             Add Stock
           </Button>
         </div>
@@ -261,15 +261,15 @@ export default function PharmacistDashboard() {
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="flex items-center gap-2">
-              <Pill className="w-5 h-5 text-emerald-600" />
+              <Pill className="size-5 text-emerald-600" />
               Prescription Queue
             </CardTitle>
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-              <Button variant="ghost" size="sm" className="gap-1 text-emerald-600 sm:w-auto" onClick={() => router.push('/pharmacist/prescriptions')}>
-                See all <ArrowRight className="w-3 h-3" />
+              <Button variant="ghost" size="sm" className="gap-1 text-emerald-600 sm:w-auto" onClick={() => push('/pharmacist/prescriptions')}>
+                See all <ArrowRight className="size-3" />
               </Button>
               <div className="relative w-full sm:w-64">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
                 <Input
                   placeholder="Search patient..."
                   className="h-9 pl-8"
@@ -290,23 +290,23 @@ export default function PharmacistDashboard() {
         </Card>
 
         {/* Low Stock & Quick Actions */}
-        <div className="space-y-6">
+        <div className="gap-y-6">
           <Card className="border-red-100">
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2 text-red-700">
-                <AlertTriangle className="w-4 h-4" />
+                <AlertTriangle className="size-4" />
                 Inventory Alerts
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {inventory.filter((i: any) => (i.currentStock || i.quantity) < (i.minStock || i.minThreshold)).slice(0, 3).map((item: any, idx: number) => (
-                  <div key={idx} className="flex items-center justify-between text-sm p-3 bg-red-50 rounded-md border border-red-100">
+              <div className="gap-y-4">
+                {inventory.filter((i: any) => (i.currentStock || i.quantity) < (i.minStock || i.minThreshold)).slice(0, 3).map((item: any) => (
+                  <div key={item.id || item.name || item.medicineName} className="flex items-center justify-between text-sm p-3 bg-red-50 rounded-md border border-red-100">
                     <div>
                       <p className="font-semibold text-red-900">{item.name || item.medicineName}</p>
                       <p className="text-xs text-red-700">Stock: {item.currentStock || item.quantity} {item.unit || 'units'}</p>
                     </div>
-                    <Button size="sm" variant="outline" className="h-7 text-xs border-red-200 hover:bg-red-100 text-red-700" onClick={() => router.push(`/pharmacist/inventory?action=add&item=${encodeURIComponent(item.id || item.name || '')}`)}>
+                    <Button size="sm" variant="outline" className="h-7 text-xs border-red-200 hover:bg-red-100 text-red-700" onClick={() => push(`/pharmacist/inventory?action=add&item=${encodeURIComponent(item.id || item.name || '')}`)}>
                       Restock
                     </Button>
                   </div>
@@ -315,7 +315,7 @@ export default function PharmacistDashboard() {
                   <Empty>
                     <EmptyContent>
                       <EmptyMedia>
-                        <AlertTriangle className="h-5 w-5" />
+                        <AlertTriangle className="size-5" />
                       </EmptyMedia>
                       <EmptyTitle>All inventory levels normal</EmptyTitle>
                       <EmptyDescription>
@@ -333,20 +333,20 @@ export default function PharmacistDashboard() {
               <CardTitle className="text-base">Pharmacy Operations</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-3">
-              <Button variant="outline" className="flex flex-col items-center justify-center h-20 gap-1 border-slate-100 hover:bg-emerald-50 dark:hover:bg-emerald-900/10" onClick={() => router.push('/pharmacist/inventory')}>
-                <Package className="w-5 h-5 text-emerald-600" />
+              <Button variant="outline" className="flex flex-col items-center justify-center h-20 gap-1 border-slate-100 hover:bg-emerald-50 dark:hover:bg-emerald-900/10" onClick={() => push('/pharmacist/inventory')}>
+                <Package className="size-5 text-emerald-600" />
                 <span className="text-[11px] font-medium text-slate-600">Inventory</span>
               </Button>
-              <Button variant="outline" className="flex flex-col items-center justify-center h-20 gap-1 border-slate-100 hover:bg-blue-50 dark:hover:bg-blue-900/10" onClick={() => router.push('/pharmacist/inventory')}>
-                <TrendingUp className="w-5 h-5 text-blue-600" />
+              <Button variant="outline" className="flex flex-col items-center justify-center h-20 gap-1 border-slate-100 hover:bg-blue-50 dark:hover:bg-blue-900/10" onClick={() => push('/pharmacist/inventory')}>
+                <TrendingUp className="size-5 text-blue-600" />
                 <span className="text-[11px] font-medium text-slate-600">Analytics</span>
               </Button>
-              <Button variant="outline" className="flex flex-col items-center justify-center h-20 gap-1" onClick={() => router.push('/pharmacist/prescriptions')}>
-                <Clock className="w-5 h-5 text-amber-600" />
+              <Button variant="outline" className="flex flex-col items-center justify-center h-20 gap-1" onClick={() => push('/pharmacist/prescriptions')}>
+                <Clock className="size-5 text-amber-600" />
                 <span className="text-[10px]">History</span>
               </Button>
-              <Button variant="outline" className="flex flex-col items-center justify-center h-20 gap-1" onClick={() => router.push('/pharmacist/inventory?filter=expiring')}>
-                <AlertTriangle className="w-5 h-5 text-red-600" />
+              <Button variant="outline" className="flex flex-col items-center justify-center h-20 gap-1" onClick={() => push('/pharmacist/inventory?filter=expiring')}>
+                <AlertTriangle className="size-5 text-red-600" />
                 <span className="text-[10px]">Expiry</span>
               </Button>
             </CardContent>
@@ -356,3 +356,5 @@ export default function PharmacistDashboard() {
     </div>
   );
 }
+
+

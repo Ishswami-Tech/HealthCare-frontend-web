@@ -159,23 +159,23 @@ export default function AgnikarmaPage() {
           <div className="absolute inset-0 bg-gradient-to-bl from-orange-400/3 via-transparent to-red-400/5"></div>
 
           {/* Floating Elements */}
-          <div className="absolute top-20 left-8 w-20 h-20 bg-gradient-to-r from-orange-400/20 to-red-400/20 rounded-full blur-xl animate-pulse"></div>
-          <div className="absolute top-32 right-16 w-32 h-32 bg-gradient-to-r from-red-400/15 to-orange-400/15 rounded-full blur-2xl animate-pulse delay-1000"></div>
-          <div className="absolute bottom-24 left-1/3 w-24 h-24 bg-gradient-to-r from-orange-300/10 to-red-300/10 rounded-full blur-xl animate-pulse delay-2000"></div>
-          <div className="absolute top-1/2 right-1/4 w-16 h-16 bg-gradient-to-r from-orange-500/20 to-red-500/20 rounded-full blur-lg animate-pulse delay-3000"></div>
+          <div className="absolute top-20 left-8 size-20 bg-gradient-to-r from-orange-400/20 to-red-400/20 rounded-full blur-xl animate-pulse"></div>
+          <div className="absolute top-32 right-16 size-32 bg-gradient-to-r from-red-400/15 to-orange-400/15 rounded-full blur-2xl animate-pulse delay-1000"></div>
+          <div className="absolute bottom-24 left-1/3 size-24 bg-gradient-to-r from-orange-300/10 to-red-300/10 rounded-full blur-xl animate-pulse delay-2000"></div>
+          <div className="absolute top-1/2 right-1/4 size-16 bg-gradient-to-r from-orange-500/20 to-red-500/20 rounded-full blur-lg animate-pulse delay-3000"></div>
 
           {/* Geometric Shapes */}
-          <div className="absolute top-16 right-8 w-12 h-12 border border-orange-400/20 rotate-45 animate-spin-slow"></div>
-          <div className="absolute bottom-32 left-12 w-8 h-8 border border-red-400/20 rotate-12 animate-pulse"></div>
+          <div className="absolute top-16 right-8 size-12 border border-orange-400/20 rotate-45 animate-spin-slow"></div>
+          <div className="absolute bottom-32 left-12 size-8 border border-red-400/20 rotate-12 animate-pulse"></div>
 
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="max-w-5xl mx-auto text-center">
               <Badge className="bg-gradient-to-r from-orange-100 to-red-100 dark:from-orange-900/50 dark:to-red-900/50 text-orange-800 dark:text-orange-100 border-orange-200 dark:border-orange-700/60 glass interactive mb-8 px-6 py-3 text-sm font-medium">
-                <Flame className="w-4 h-4 mr-2" />
+                <Flame className="size-4 mr-2" />
                 {t("agnikarma.badge")}
               </Badge>
 
-              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-5xl xl:text-6xl font-playfair font-bold text-foreground mb-8 gradient-text leading-tight">
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-5xl xl:text-6xl font-playfair font-semibold text-foreground mb-8 gradient-text leading-tight">
                 {t("agnikarma.title")}
               </h1>
 
@@ -185,16 +185,16 @@ export default function AgnikarmaPage() {
 
               <div className="flex flex-wrap justify-center gap-4 mb-10">
                 <Badge className="bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/50 dark:to-emerald-900/50 text-green-800 dark:text-green-100 border-green-200 dark:border-green-700/60 glass interactive px-4 py-2">
-                  <CheckCircle className="w-4 h-4 mr-2" />
+                  <CheckCircle className="size-4 mr-2" />
                   92% {t("common.success")}{" "}
                   {t("agnikarma.comparison.successRate")}
                 </Badge>
                 <Badge className="bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-900/50 dark:to-cyan-900/50 text-blue-800 dark:text-blue-100 border-blue-200 dark:border-blue-700/60 glass interactive px-4 py-2">
-                  <Zap className="w-4 h-4 mr-2" />
+                  <Zap className="size-4 mr-2" />
                   {t("agnikarma.advantages.instantResults.title")}
                 </Badge>
                 <Badge className="bg-gradient-to-r from-purple-100 to-violet-100 dark:from-purple-900/50 dark:to-violet-900/50 text-purple-800 dark:text-purple-100 border-purple-200 dark:border-purple-700/60 glass interactive px-4 py-2">
-                  <Shield className="w-4 h-4 mr-2" />
+                  <Shield className="size-4 mr-2" />
                   {t("agnikarma.advantages.zeroSideEffects.title")}
                 </Badge>
               </div>
@@ -224,10 +224,10 @@ export default function AgnikarmaPage() {
             <div className="max-w-6xl mx-auto">
               <div className="text-center mb-20">
                 <Badge className="bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-900/30 dark:to-cyan-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
-                  <Award className="w-4 h-4 mr-2" />
+                  <Award className="size-4 mr-2" />
                   {t("agnikarma.scientificFoundation.title")}
                 </Badge>
-                <h2 className="text-4xl md:text-5xl lg:text-6xl font-playfair font-bold text-foreground mb-6 gradient-text">
+                <h2 className="text-4xl md:text-5xl lg:text-6xl font-playfair font-semibold text-foreground mb-6 gradient-text">
                   {t("agnikarma.scientificFoundation.title")}
                 </h2>
                 <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
@@ -239,14 +239,14 @@ export default function AgnikarmaPage() {
                 <Card className="text-center hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-hidden glass card-hover group">
                   <CardContent className="p-6 sm:p-8">
                     <div className="relative">
-                      <div className="absolute top-4 right-4 w-20 h-20 border border-primary/20 rounded-full"></div>
-                      <div className="absolute bottom-4 left-4 w-16 h-16 border border-secondary/20 rounded-full"></div>
+                      <div className="absolute top-4 right-4 size-20 border border-primary/20 rounded-full"></div>
+                      <div className="absolute bottom-4 left-4 size-16 border border-secondary/20 rounded-full"></div>
 
-                      <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
-                        <Award className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
+                        <Award className="size-8 sm:w-10 sm:h-10 text-white" />
                       </div>
                     </div>
-                    <h3 className="text-lg sm:text-xl font-bold text-foreground mb-3 sm:mb-4 gradient-text">
+                    <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-3 sm:mb-4 gradient-text">
                       {t("agnikarma.scientificFoundation.ancientText.title")}
                     </h3>
                     <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
@@ -260,14 +260,14 @@ export default function AgnikarmaPage() {
                 <Card className="text-center hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-hidden glass card-hover group">
                   <CardContent className="p-6 sm:p-8">
                     <div className="relative">
-                      <div className="absolute top-4 right-4 w-20 h-20 border border-primary/20 rounded-full"></div>
-                      <div className="absolute bottom-4 left-4 w-16 h-16 border border-secondary/20 rounded-full"></div>
+                      <div className="absolute top-4 right-4 size-20 border border-primary/20 rounded-full"></div>
+                      <div className="absolute bottom-4 left-4 size-16 border border-secondary/20 rounded-full"></div>
 
-                      <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
-                        <CheckCircle className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
+                        <CheckCircle className="size-8 sm:w-10 sm:h-10 text-white" />
                       </div>
                     </div>
-                    <h3 className="text-lg sm:text-xl font-bold text-foreground mb-3 sm:mb-4 gradient-text">
+                    <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-3 sm:mb-4 gradient-text">
                       {t(
                         "agnikarma.scientificFoundation.modernValidation.title"
                       )}
@@ -283,14 +283,14 @@ export default function AgnikarmaPage() {
                 <Card className="text-center hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-hidden glass card-hover group">
                   <CardContent className="p-6 sm:p-8">
                     <div className="relative">
-                      <div className="absolute top-4 right-4 w-20 h-20 border border-primary/20 rounded-full"></div>
-                      <div className="absolute bottom-4 left-4 w-16 h-16 border border-secondary/20 rounded-full"></div>
+                      <div className="absolute top-4 right-4 size-20 border border-primary/20 rounded-full"></div>
+                      <div className="absolute bottom-4 left-4 size-16 border border-secondary/20 rounded-full"></div>
 
-                      <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-r from-orange-500 to-red-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
-                        <Target className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-orange-500 to-red-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
+                        <Target className="size-8 sm:w-10 sm:h-10 text-white" />
                       </div>
                     </div>
-                    <h3 className="text-lg sm:text-xl font-bold text-foreground mb-3 sm:mb-4 gradient-text">
+                    <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-3 sm:mb-4 gradient-text">
                       {t(
                         "agnikarma.scientificFoundation.precisionTechnology.title"
                       )}
@@ -306,14 +306,14 @@ export default function AgnikarmaPage() {
                 <Card className="text-center hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-hidden glass card-hover group">
                   <CardContent className="p-6 sm:p-8">
                     <div className="relative">
-                      <div className="absolute top-4 right-4 w-20 h-20 border border-primary/20 rounded-full"></div>
-                      <div className="absolute bottom-4 left-4 w-16 h-16 border border-secondary/20 rounded-full"></div>
+                      <div className="absolute top-4 right-4 size-20 border border-primary/20 rounded-full"></div>
+                      <div className="absolute bottom-4 left-4 size-16 border border-secondary/20 rounded-full"></div>
 
-                      <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
-                        <Shield className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
+                        <Shield className="size-8 sm:w-10 sm:h-10 text-white" />
                       </div>
                     </div>
-                    <h3 className="text-lg sm:text-xl font-bold text-foreground mb-3 sm:mb-4 gradient-text">
+                    <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-3 sm:mb-4 gradient-text">
                       {t(
                         "agnikarma.scientificFoundation.zeroSideEffects.title"
                       )}
@@ -336,10 +336,10 @@ export default function AgnikarmaPage() {
             <div className="max-w-6xl mx-auto">
               <div className="text-center mb-20">
                 <Badge className="bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/30 dark:to-emerald-900/30 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
-                  <Flame className="w-4 h-4 mr-2" />
+                  <Flame className="size-4 mr-2" />
                   {t("agnikarma.processSteps.title")}
                 </Badge>
-                <h2 className="text-4xl md:text-5xl lg:text-6xl font-playfair font-bold text-foreground mb-6 gradient-text">
+                <h2 className="text-4xl md:text-5xl lg:text-6xl font-playfair font-semibold text-foreground mb-6 gradient-text">
                   {t("agnikarma.processSteps.title")}
                 </h2>
                 <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
@@ -347,13 +347,13 @@ export default function AgnikarmaPage() {
                 </p>
               </div>
 
-              <div className="space-y-8 sm:space-y-10">
-                {processSteps.map((step, index) => {
+              <div className="gap-y-8 sm:gap-y-10">
+                {processSteps.map((step) => {
                   const IconComponent = step.icon;
 
                   return (
                     <Card
-                      key={index}
+                      key={step.step}
                       className="bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-hidden glass card-hover group hover:shadow-3xl transition-all duration-500"
                     >
                       <CardContent className="p-0">
@@ -361,21 +361,21 @@ export default function AgnikarmaPage() {
                           <div
                             className={`bg-gradient-to-br ${step.colorScheme.gradient} text-white p-6 sm:p-8 flex flex-col justify-center relative overflow-hidden shadow-lg`}
                           >
-                            <div className="absolute top-4 right-4 w-32 h-32 border border-white/30 rounded-full"></div>
-                            <div className="absolute bottom-4 left-4 w-24 h-24 border border-white/30 rounded-full"></div>
+                            <div className="absolute top-4 right-4 size-32 border border-white/30 rounded-full"></div>
+                            <div className="absolute bottom-4 left-4 size-24 border border-white/30 rounded-full"></div>
 
                             <div className="text-center lg:text-left relative z-10">
-                              <div className="text-4xl sm:text-5xl font-bold mb-3 text-white drop-shadow-lg bg-black/20 rounded-full w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center mx-auto lg:mx-0">
+                              <div className="text-4xl sm:text-5xl font-bold mb-3 text-white drop-shadow-lg bg-black/20 rounded-full size-16 sm:w-20 sm:h-20 flex items-center justify-center mx-auto lg:mx-0">
                                 {step.step}
                               </div>
-                              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white/30 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto lg:mx-0 mb-4 shadow-lg">
-                                <IconComponent className="w-8 h-8 sm:w-10 sm:h-10 text-white drop-shadow-md" />
+                              <div className="size-16 sm:w-20 sm:h-20 bg-white/30 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto lg:mx-0 mb-4 shadow-lg">
+                                <IconComponent className="size-8 sm:w-10 sm:h-10 text-white drop-shadow-md" />
                               </div>
                             </div>
                           </div>
 
                           <div className="lg:col-span-3 p-6 sm:p-8 flex flex-col justify-center">
-                            <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-4 gradient-text">
+                            <h3 className="text-2xl sm:text-3xl font-semibold text-foreground mb-4 gradient-text">
                               {step.title}
                             </h3>
                             <p className="text-lg sm:text-xl text-muted-foreground leading-relaxed">
@@ -398,10 +398,10 @@ export default function AgnikarmaPage() {
             <div className="max-w-6xl mx-auto">
               <div className="text-center mb-20">
                 <Badge className="bg-gradient-to-r from-primary/10 to-secondary/10 text-primary border-primary/20 glass interactive mb-6 px-4 py-2">
-                  <Heart className="w-4 h-4 mr-2" />
+                  <Heart className="size-4 mr-2" />
                   {t("agnikarma.conditions.title")}
                 </Badge>
-                <h2 className="text-4xl md:text-5xl lg:text-6xl font-playfair font-bold text-foreground mb-6 gradient-text">
+                <h2 className="text-4xl md:text-5xl lg:text-6xl font-playfair font-semibold text-foreground mb-6 gradient-text">
                   {t("agnikarma.conditions.title")}
                 </h2>
                 <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
@@ -431,9 +431,9 @@ export default function AgnikarmaPage() {
                     </div>
 
                     {/* Table Rows */}
-                    {conditionsData.map((item, index) => (
+                    {conditionsData.map((item) => (
                       <Card
-                        key={index}
+                        key={item.condition}
                         className="hover:shadow-xl transition-all duration-300 bg-card/80 backdrop-blur-sm shadow-lg border border-border/50 glass card-hover"
                       >
                         <CardContent className="p-4 sm:p-6">
@@ -442,7 +442,7 @@ export default function AgnikarmaPage() {
                               {item.condition}
                             </div>
                             <div className="text-center">
-                              <div className="flex items-center justify-center space-x-1 sm:space-x-2">
+                              <div className="flex items-center justify-center gap-x-1 sm:gap-x-2">
                                 <Progress
                                   value={Number(item.successRate)}
                                   className="w-12 h-2 sm:w-16 sm:h-2"
@@ -461,7 +461,7 @@ export default function AgnikarmaPage() {
                             <div className="text-center">
                               <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-lg p-2 border border-blue-200 dark:border-blue-800/30">
                                 <div className="flex items-center justify-center mb-1">
-                                  <Heart className="w-3 h-3 text-blue-600 mr-1" />
+                                  <Heart className="size-3 text-blue-600 mr-1" />
                                   <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
                                     Success Story
                                   </span>
@@ -480,24 +480,24 @@ export default function AgnikarmaPage() {
               </div>
 
               {/* Mobile Card View */}
-              <div className="lg:hidden space-y-4">
-                {conditionsData.map((item, index) => (
+              <div className="lg:hidden gap-y-4">
+                {conditionsData.map((item) => (
                   <Card
-                    key={index}
+                    key={item.condition}
                     className="hover:shadow-xl transition-all duration-300 bg-card/80 backdrop-blur-sm shadow-lg border border-border/50 glass card-hover"
                   >
                     <CardContent className="p-6">
-                      <div className="space-y-4">
+                      <div className="gap-y-4">
                         {/* Condition Title */}
                         <div className="text-center">
-                          <h3 className="text-lg font-bold text-foreground mb-2">
+                          <h3 className="text-lg font-semibold text-foreground mb-2">
                             {item.condition}
                           </h3>
                         </div>
 
                         {/* Success Rate */}
                         <div className="text-center">
-                          <div className="flex items-center justify-center space-x-2 mb-1">
+                          <div className="flex items-center justify-center gap-x-2 mb-1">
                             <Progress
                               value={Number(item.successRate)}
                               className="w-20 h-3"
@@ -535,7 +535,7 @@ export default function AgnikarmaPage() {
                         <div className="text-center pt-3">
                           <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-lg p-3 border border-blue-200 dark:border-blue-800/30">
                             <div className="flex items-center justify-center mb-2">
-                              <Heart className="w-4 h-4 text-blue-600 mr-2" />
+                              <Heart className="size-4 text-blue-600 mr-2" />
                               <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
                                 Patient Success Story
                               </span>
@@ -560,10 +560,10 @@ export default function AgnikarmaPage() {
             <div className="max-w-6xl mx-auto">
               <div className="text-center mb-16">
                 <Badge className="bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-900/30 dark:to-cyan-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
-                  <Heart className="w-4 h-4 mr-2" />
+                  <Heart className="size-4 mr-2" />
                   Patient Success Stories
                 </Badge>
-                <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-bold text-foreground mb-6 gradient-text">
+                <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-semibold text-foreground mb-6 gradient-text">
                   Real Results, Real Stories
                 </h2>
                 <p className="text-lg md:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">
@@ -573,30 +573,30 @@ export default function AgnikarmaPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {conditionsData.map((item, index) => (
+                {conditionsData.map((item) => (
                   <Card
-                    key={index}
+                    key={item.condition}
                     className="hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-lg border border-border/50 overflow-hidden glass card-hover group"
                   >
                     <CardContent className="p-6">
                       <div className="text-center">
-                        <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <Heart className="w-6 h-6 text-white" />
+                        <div className="size-12 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <Heart className="size-6 text-white" />
                         </div>
-                        <h3 className="text-lg font-bold text-foreground mb-3">
+                        <h3 className="text-lg font-semibold text-foreground mb-3">
                           {item.condition}
                         </h3>
                         <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800/30">
                           <p className="text-sm text-blue-800 dark:text-blue-200 font-medium leading-relaxed mb-3">
                             &ldquo;{item.patientStory}&rdquo;
                           </p>
-                          <div className="flex items-center justify-center space-x-4 text-xs text-blue-600">
+                          <div className="flex items-center justify-center gap-x-4 text-xs text-blue-600">
                             <span className="flex items-center">
-                              <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+                              <div className="size-2 bg-green-500 rounded-full mr-1"></div>
                               {item.successRate}% Success
                             </span>
                             <span className="flex items-center">
-                              <div className="w-2 h-2 bg-orange-500 rounded-full mr-1"></div>
+                              <div className="size-2 bg-orange-500 rounded-full mr-1"></div>
                               {item.avgSessions}
                             </span>
                           </div>
@@ -616,10 +616,10 @@ export default function AgnikarmaPage() {
             <div className="max-w-6xl mx-auto">
               <div className="text-center mb-20">
                 <Badge className="bg-gradient-to-r from-orange-100 to-red-100 dark:from-orange-900/30 dark:to-red-900/30 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
-                  <Star className="w-4 h-4 mr-2" />
+                  <Star className="size-4 mr-2" />
                   {t("agnikarma.advantages.title")}
                 </Badge>
-                <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-bold text-foreground mb-6 gradient-text">
+                <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-semibold text-foreground mb-6 gradient-text">
                   {t("agnikarma.advantages.title")}
                 </h2>
                 <p className="text-lg md:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">
@@ -628,26 +628,26 @@ export default function AgnikarmaPage() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10">
-                {advantages.map((advantage, index) => {
+                {advantages.map((advantage) => {
                   const IconComponent = advantage.icon;
 
                   return (
                     <Card
-                      key={index}
+                      key={advantage.title}
                       className="text-center hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-hidden glass card-hover group"
                     >
                       <CardContent className="p-8 sm:p-10">
                         <div className="relative">
-                          <div className="absolute top-4 right-4 w-20 h-20 border border-primary/20 rounded-full"></div>
-                          <div className="absolute bottom-4 left-4 w-16 h-16 border border-secondary/20 rounded-full"></div>
+                          <div className="absolute top-4 right-4 size-20 border border-primary/20 rounded-full"></div>
+                          <div className="absolute bottom-4 left-4 size-16 border border-secondary/20 rounded-full"></div>
 
                           <div
-                            className={`w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-r ${advantage.colorScheme.gradient} rounded-full flex items-center justify-center mx-auto mb-6 sm:mb-8 relative z-10`}
+                            className={`size-16 sm:w-20 sm:h-20 bg-gradient-to-r ${advantage.colorScheme.gradient} rounded-full flex items-center justify-center mx-auto mb-6 sm:mb-8 relative z-10`}
                           >
-                            <IconComponent className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+                            <IconComponent className="size-8 sm:w-10 sm:h-10 text-white" />
                           </div>
                         </div>
-                        <h3 className="text-xl sm:text-2xl font-bold text-foreground mb-4 sm:mb-6 gradient-text">
+                        <h3 className="text-xl sm:text-2xl font-semibold text-foreground mb-4 sm:mb-6 gradient-text">
                           {advantage.title}
                         </h3>
                         <p className="text-base sm:text-lg text-muted-foreground leading-relaxed">
@@ -772,7 +772,7 @@ export default function AgnikarmaPage() {
         <section className="py-16 sm:py-20 md:py-24 bg-gradient-to-r from-orange-600 to-red-700 dark:from-orange-700 dark:to-red-800">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-4xl mx-auto text-center text-white">
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-playfair font-bold mb-6 sm:mb-8">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-playfair font-semibold mb-6 sm:mb-8">
                 {t("agnikarma.cta.title")}
               </h2>
               <p className="text-xl sm:text-2xl text-orange-100 dark:text-orange-200 mb-8 sm:mb-10 px-4">
@@ -797,16 +797,16 @@ export default function AgnikarmaPage() {
               </div>
 
               <div className="mt-8 sm:mt-10 flex flex-wrap justify-center gap-6 sm:gap-8 text-orange-100 dark:text-orange-200 text-base sm:text-lg">
-                <div className="flex items-center space-x-2">
-                  <Zap className="w-4 h-4" />
+                <div className="flex items-center gap-x-2">
+                  <Zap className="size-4" />
                   <span>{t("agnikarma.cta.features.instantRelief")}</span>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Shield className="w-4 h-4" />
+                <div className="flex items-center gap-x-2">
+                  <Shield className="size-4" />
                   <span>{t("agnikarma.cta.features.zeroSideEffects")}</span>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Star className="w-4 h-4" />
+                <div className="flex items-center gap-x-2">
+                  <Star className="size-4" />
                   <span>{t("agnikarma.cta.features.successRate")}</span>
                 </div>
               </div>
@@ -817,3 +817,4 @@ export default function AgnikarmaPage() {
     </PageTransition>
   );
 }
+

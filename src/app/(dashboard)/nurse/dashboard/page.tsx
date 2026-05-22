@@ -95,7 +95,7 @@ export default function NurseDashboard() {
         const latestVitals = (row.original.vitals as any[])?.[row.original.vitals.length - 1];
         if (!latestVitals) return <span className="text-xs text-muted-foreground">None recorded</span>;
         return (
-          <div className="text-xs space-y-1">
+          <div className="text-xs gap-y-1">
             <div className="flex gap-2">
               <span className="text-muted-foreground">BP:</span>
               <span className="font-medium">{latestVitals.bloodPressure}</span>
@@ -136,7 +136,7 @@ export default function NurseDashboard() {
   if (isPatientsPending && patients.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="size-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -196,12 +196,12 @@ export default function NurseDashboard() {
       <Card>
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="flex items-center gap-2">
-            <Heart className="w-5 h-5 text-red-600" />
+            <Heart className="size-5 text-red-600" />
             Patient Care List
           </CardTitle>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             <div className="relative w-full sm:w-64">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
               <Input
                 placeholder="Search patients..."
                 className="h-9 pl-8"
@@ -235,7 +235,7 @@ export default function NurseDashboard() {
         <Card className="bg-blue-50/50 border-blue-100">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2 text-blue-800">
-              <Stethoscope className="w-4 h-4" />
+              <Stethoscope className="size-4" />
               Vital Monitoring
             </CardTitle>
           </CardHeader>
@@ -247,7 +247,7 @@ export default function NurseDashboard() {
         <Card className="bg-green-50/50 border-green-100">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2 text-green-800">
-              <Heart className="w-4 h-4" />
+              <Heart className="size-4" />
               Medication Schedule
             </CardTitle>
           </CardHeader>
@@ -259,7 +259,7 @@ export default function NurseDashboard() {
         <Card className="bg-purple-50/50 border-purple-100">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2 text-purple-800">
-              <Activity className="w-4 h-4" />
+              <Activity className="size-4" />
               Care Documentation
             </CardTitle>
           </CardHeader>
@@ -271,3 +271,5 @@ export default function NurseDashboard() {
     </DashboardPageShell>
   );
 }
+
+

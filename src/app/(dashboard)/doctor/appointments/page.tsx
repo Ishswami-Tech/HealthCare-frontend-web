@@ -207,11 +207,11 @@ function extractAppointments(value: unknown): any[] {
 }
 
 const WORKFLOW_ACTION_BUTTON_CLASS = "h-9 rounded-xl px-3 gap-2";
-const WORKFLOW_ICON_BUTTON_CLASS = "h-9 w-9 rounded-xl";
+const WORKFLOW_ICON_BUTTON_CLASS = "size-9 rounded-xl";
 const WORKFLOW_PANEL_CLASS = "rounded-2xl border border-border bg-muted/20 p-4";
 
 export default function DoctorAppointments() {
-  const router = useRouter();
+  const { push } = useRouter();
   const { session } = useAuth();
   const user = session?.user;
   const { clinicId } = useClinicContext();
@@ -409,7 +409,7 @@ export default function DoctorAppointments() {
         cell: ({ row }) => {
           const app = row.original;
           return (
-            <div className="space-y-1">
+            <div className="gap-y-1">
               <div className="text-sm font-medium text-foreground">{app.type}</div>
               <div className="text-xs text-muted-foreground">
                 {app.appointmentDate}  {app.time}  {app.duration}
@@ -432,7 +432,7 @@ export default function DoctorAppointments() {
         cell: ({ row }) => {
           const app = row.original;
           return (
-            <div className="min-w-0 space-y-1">
+            <div className="min-w-0 gap-y-1">
               <div className="text-sm text-foreground line-clamp-1">{app.chiefComplaint}</div>
               <div className="text-xs text-muted-foreground">
                 {app.patientPhone || app.patientEmail || "Not available"}
@@ -455,15 +455,15 @@ export default function DoctorAppointments() {
                 onClick={() => setSelectedAppointment(app)}
                 aria-label={`View details for ${app.patientName}`}
               >
-                <Eye className="w-4 h-4" />
+                <Eye className="size-4" />
               </Button>
               {app.status === APPOINTMENT_STATUS.CONFIRMED && app.type === "VIDEO_CALL" && (
                 <Button
                   size="sm"
                   className={WORKFLOW_ACTION_BUTTON_CLASS}
-                  onClick={() => router.push(buildVideoSessionRoute(app.id))}
+                  onClick={() => push(buildVideoSessionRoute(app.id))}
                 >
-                  <Play className="mr-1 h-4 w-4" />
+                  <Play className="mr-1 size-4" />
                   Join Session
                 </Button>
               )}
@@ -473,7 +473,7 @@ export default function DoctorAppointments() {
                   className={WORKFLOW_ACTION_BUTTON_CLASS}
                   onClick={() => startConsultation(app.id, app.doctorId)}
                 >
-                  <Play className="mr-1 h-4 w-4" />
+                  <Play className="mr-1 size-4" />
                   Start
                 </Button>
               )}
@@ -483,9 +483,9 @@ export default function DoctorAppointments() {
                     variant="outline"
                     size="sm"
                     className={WORKFLOW_ACTION_BUTTON_CLASS}
-                    onClick={() => router.push(buildVideoSessionRoute(app.id))}
+                    onClick={() => push(buildVideoSessionRoute(app.id))}
                   >
-                    <Video className="mr-1 h-4 w-4" />
+                    <Video className="mr-1 size-4" />
                     Open video
                   </Button>
                   <Button
@@ -500,7 +500,7 @@ export default function DoctorAppointments() {
                     }
                     disabled={completeAppointmentMutation.isPending}
                   >
-                    <CheckCircle className="mr-1 h-4 w-4" />
+                    <CheckCircle className="mr-1 size-4" />
                     Complete
                   </Button>
                 </>
@@ -510,7 +510,7 @@ export default function DoctorAppointments() {
         },
       },
     ],
-    [completeAppointmentMutation.isPending, consultationNotes, diagnosis, prescription, router]
+    [completeAppointmentMutation.isPending, consultationNotes, diagnosis, prescription, push]
   );
 
   const startConsultation = async (
@@ -524,7 +524,7 @@ export default function DoctorAppointments() {
         doctorId,
       });
       if (options?.openVideoAfterStart) {
-        router.push(buildVideoSessionRoute(appointmentId));
+        push(buildVideoSessionRoute(appointmentId));
       }
     } catch (error: unknown) {
       console.error("Failed to start consultation", {
@@ -658,7 +658,7 @@ export default function DoctorAppointments() {
     <>
       {isLoadingAppointments ? (
         <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          <Loader2 className="size-8 animate-spin text-blue-600" />
         </div>
       ) : (
         <DashboardPageShell>
@@ -677,7 +677,7 @@ export default function DoctorAppointments() {
                   {...(user?.id ? { initialDoctorId: user.id } : {})}
                   trigger={
                     <Button className="rounded-xl border-0 bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-500/30">
-                      <Calendar className="mr-2 h-4 w-4" />
+                      <Calendar className="mr-2 size-4" />
                       Book Appointment
                     </Button>
                   }
@@ -692,7 +692,7 @@ export default function DoctorAppointments() {
             <DashboardMetricCard
               label="Active"
               value={activeAppointmentsCount}
-              icon={<Clock className="h-3.5 w-3.5 text-slate-600" />}
+              icon={<Clock className="size-3.5 text-slate-600" />}
               accentClassName="border-l-slate-400"
               valueClassName="text-sm font-semibold text-slate-600 sm:text-base"
               compact
@@ -700,7 +700,7 @@ export default function DoctorAppointments() {
             <DashboardMetricCard
               label="In Progress"
               value={appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.IN_PROGRESS).length}
-              icon={<Play className="h-3.5 w-3.5 text-blue-600" />}
+              icon={<Play className="size-3.5 text-blue-600" />}
               accentClassName="border-l-blue-400"
               valueClassName="text-sm font-semibold text-blue-600 sm:text-base"
               compact
@@ -708,7 +708,7 @@ export default function DoctorAppointments() {
             <DashboardMetricCard
               label="Completed"
               value={completedAppointmentsCount}
-              icon={<CheckCircle className="h-3.5 w-3.5 text-purple-600" />}
+              icon={<CheckCircle className="size-3.5 text-purple-600" />}
               accentClassName="border-l-purple-400"
               valueClassName="text-sm font-semibold text-purple-600 sm:text-base"
               compact
@@ -716,7 +716,7 @@ export default function DoctorAppointments() {
             <DashboardMetricCard
               label="Cancelled"
               value={cancelledAppointmentsCount}
-              icon={<XCircle className="h-3.5 w-3.5 text-rose-600" />}
+              icon={<XCircle className="size-3.5 text-rose-600" />}
               accentClassName="border-l-rose-400"
               valueClassName="text-sm font-semibold text-rose-600 sm:text-base"
               compact
@@ -724,7 +724,7 @@ export default function DoctorAppointments() {
             <DashboardMetricCard
               label="No Show"
               value={noShowAppointmentsCount}
-              icon={<AlertCircle className="h-3.5 w-3.5 text-orange-600" />}
+              icon={<AlertCircle className="size-3.5 text-orange-600" />}
               accentClassName="border-l-orange-400"
               valueClassName="text-sm font-semibold text-orange-600 sm:text-base"
               compact
@@ -732,7 +732,7 @@ export default function DoctorAppointments() {
             <DashboardMetricCard
               label="Total"
               value={totalAppointmentsCount}
-              icon={<Calendar className="h-3.5 w-3.5 text-violet-600" />}
+              icon={<Calendar className="size-3.5 text-violet-600" />}
               accentClassName="border-l-violet-400"
               valueClassName="text-sm font-semibold text-violet-600 sm:text-base"
               compact
@@ -745,9 +745,9 @@ export default function DoctorAppointments() {
               <CardTitle className="text-base font-semibold">Filter Appointments</CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4 pt-0">
-              <div className="space-y-3">
+              <div className="gap-y-3">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                  <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-500" />
                   <Input
                     placeholder="Search by patient name, appointment type, or complaint..."
                     value={searchTerm}
@@ -797,8 +797,8 @@ export default function DoctorAppointments() {
           <Dialog open={!!selectedAppointment} onOpenChange={(open) => !open && setSelectedAppointment(null)}>
             <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto p-0">
               {selectedAppointment && (
-                <div className="space-y-4 p-5 sm:p-6">
-                  <DialogHeader className="space-y-2 border-b border-border pb-4">
+                <div className="gap-y-4 p-5 sm:p-6">
+                  <DialogHeader className="gap-y-2 border-b border-border pb-4">
                     <DialogTitle className="flex flex-col gap-1 text-left sm:flex-row sm:items-center sm:justify-between">
                       <span>Patient Details: {selectedAppointment.patientName}</span>
                       <span className="text-sm font-normal text-muted-foreground">
@@ -826,7 +826,7 @@ export default function DoctorAppointments() {
                     </div>
                   </div>
 
-                  <Tabs defaultValue="patient-info" className="space-y-4">
+                  <Tabs defaultValue="patient-info" className="gap-y-4">
                     <TabsList className="grid h-11 w-full grid-cols-3 rounded-xl bg-muted p-1">
                       <TabsTrigger value="patient-info">Patient Info</TabsTrigger>
                       <TabsTrigger value="consultation" disabled={selectedAppointmentIsClosed}>Consultation</TabsTrigger>
@@ -835,16 +835,16 @@ export default function DoctorAppointments() {
 
                     <TabsContent value="patient-info">
                       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                        <div className="space-y-4">
+                        <div className="gap-y-4">
                           <div>
                             <h4 className="mb-2 font-semibold">Contact Information</h4>
-                            <div className="space-y-2 text-sm">
+                            <div className="gap-y-2 text-sm">
                               <div className="flex items-center gap-2">
-                                <Phone className="h-4 w-4" />
+                                <Phone className="size-4" />
                                 <span>{selectedAppointment.patientPhone || "Not available"}</span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <MessageSquare className="h-4 w-4" />
+                                <MessageSquare className="size-4" />
                                 <span>{selectedAppointment.patientEmail || "Not available"}</span>
                               </div>
                             </div>
@@ -865,7 +865,7 @@ export default function DoctorAppointments() {
                           </div>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="gap-y-4">
                           {selectedAppointment.vitalSigns && (
                             <div>
                               <h4 className="mb-2 font-semibold">Vital Signs</h4>
@@ -944,14 +944,14 @@ export default function DoctorAppointments() {
                         >
                           {updateAppointmentMutation.isPending ? (
                             <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              <Loader2 className="mr-2 size-4 animate-spin" />
                               Saving draft...
                             </>
                           ) : selectedAppointmentIsClosed ? (
                             "Read only"
                           ) : (
                             <>
-                              <FileText className="mr-2 h-4 w-4" />
+                              <FileText className="mr-2 size-4" />
                               Save Draft
                             </>
                           )}
@@ -981,7 +981,7 @@ export default function DoctorAppointments() {
                         </div>
 
                         <div className={WORKFLOW_PANEL_CLASS}>
-                          <div className="space-y-2">
+                          <div className="gap-y-2">
                             <p className="text-sm font-medium text-foreground">Workflow actions</p>
                             <p className="text-sm text-muted-foreground">
                               Save a draft first if you want to preserve interim notes before finalizing the prescription.
@@ -994,7 +994,7 @@ export default function DoctorAppointments() {
                             onClick={() => selectedAppointment && saveConsultationDraft(selectedAppointment.id)}
                             disabled={updateAppointmentMutation.isPending || selectedAppointmentIsClosed}
                           >
-                            {updateAppointmentMutation.isPending ? "Saving..." : selectedAppointmentIsClosed ? "Read only" : "Save as Draft"}
+                            {updateAppointmentMutation.isPending ? "Saving…" : selectedAppointmentIsClosed ? "Read only" : "Save as Draft"}
                           </Button>
                           <Button
                             className="h-10 w-full rounded-xl"
@@ -1011,14 +1011,14 @@ export default function DoctorAppointments() {
                           >
                             {completeAppointmentMutation.isPending ? (
                               <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Saving...
+                                <Loader2 className="mr-2 size-4 animate-spin" />
+                                Saving…
                               </>
                             ) : selectedAppointmentIsClosed ? (
                               "Read only"
                             ) : (
                               <>
-                                <CheckCircle className="mr-2 h-4 w-4" />
+                                <CheckCircle className="mr-2 size-4" />
                                 Generate Prescription
                               </>
                             )}
@@ -1038,5 +1038,8 @@ export default function DoctorAppointments() {
     </>
   );
 }
+
+
+
 
 

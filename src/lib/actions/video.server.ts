@@ -26,6 +26,11 @@ export async function generateVideoToken(data: {
     avatar?: string;
   };
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.TOKEN, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -43,6 +48,11 @@ export async function startVideoConsultation(data: {
   userId: string;
   userRole: 'patient' | 'doctor' | 'receptionist' | 'clinic_admin';
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.CONSULTATION.START, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -60,12 +70,17 @@ export async function endVideoConsultation(data: {
   endReason?: string;
   meetingNotes?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   // Map endReason to meetingNotes if notes are not provided, to ensure reason is captured
   const payload = {
     ...data,
     meetingNotes: data.meetingNotes || data.endReason
   };
-  
+
   const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.CONSULTATION.END, {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -78,6 +93,10 @@ export async function endVideoConsultation(data: {
  */
 export async function getConsultationStatus(appointmentId: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const { data: response } = await authenticatedApi(
       API_ENDPOINTS.VIDEO.CONSULTATION.STATUS(appointmentId),
       { cache: 'no-store' }
@@ -126,6 +145,10 @@ export async function reportConsultationIssue(appointmentId: string, data: {
   severity?: 'low' | 'medium' | 'high';
   timestamp?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   const { data: response } = await authenticatedApi(
     API_ENDPOINTS.VIDEO.CONSULTATION.REPORT(appointmentId),
     {
@@ -145,6 +168,10 @@ export async function shareMedicalImage(appointmentId: string, data: {
   description?: string;
   sharedWith: string[];
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.CONSULTATION.SHARE_IMAGE(appointmentId), {
     method: 'POST',
     body: JSON.stringify(data),
@@ -168,6 +195,10 @@ export async function getVideoConsultationHistory(filters?: {
   page?: number;
   limit?: number;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   const params = new URLSearchParams();
   if (filters?.userId) {
     params.append('userId', filters.userId);
@@ -198,6 +229,10 @@ export async function manageParticipant(data: {
   action: 'mute' | 'unmute' | 'remove' | 'promote' | 'demote';
   userId: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.PARTICIPANTS.MANAGE, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -210,6 +245,10 @@ export async function manageParticipant(data: {
  */
 export async function getParticipants(appointmentId: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.PARTICIPANTS.GET(appointmentId), {});
     return response;
   } catch (error) {
@@ -224,6 +263,10 @@ export async function getParticipants(appointmentId: string) {
  * Get consultation analytics
  */
 export async function getConsultationAnalytics(appointmentId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.ANALYTICS(appointmentId), {});
   return response;
 }
@@ -234,6 +277,10 @@ export async function getConsultationAnalytics(appointmentId: string) {
  * Get video service health status
  */
 export async function getVideoHealth() {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.HEALTH, {});
   return response;
 }
@@ -241,6 +288,10 @@ export async function getVideoHealth() {
 // ===== VIDEO PROVIDER SETTINGS =====
 
 export async function getGlobalVideoProviderSetting() {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   const { data: response } = await authenticatedApi<VideoProviderSettingResponse>(
     API_ENDPOINTS.VIDEO.ADMIN.GET_PROVIDER_SETTINGS,
     {}
@@ -249,6 +300,10 @@ export async function getGlobalVideoProviderSetting() {
 }
 
 export async function updateGlobalVideoProviderSetting(provider: VideoProviderType) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   const { data: response } = await authenticatedApi<VideoProviderSettingResponse>(
     API_ENDPOINTS.VIDEO.ADMIN.UPDATE_PROVIDER_SETTINGS,
     {
@@ -323,8 +378,10 @@ export async function sendChatMessage(
     replyToId?: string;
   }
 ) {
-  const consultationId = await getConsultationId(appointmentId);
-  const session = await getServerSession();
+  const [consultationId, session] = await Promise.all([
+    getConsultationId(appointmentId),
+    getServerSession(),
+  ]);
   const userId = session?.user?.id || '';
   
   if (!userId) {
@@ -357,6 +414,10 @@ export async function getChatMessages(
   }
 ) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const consultationId = await getConsultationId(appointmentId);
     const params = new URLSearchParams();
     if (filters?.limit) params.append('limit', filters.limit.toString());
@@ -380,8 +441,10 @@ export async function updateTypingIndicator(
   appointmentId: string,
   isTyping: boolean
 ) {
-  const consultationId = await getConsultationId(appointmentId);
-  const session = await getServerSession();
+  const [consultationId, session] = await Promise.all([
+    getConsultationId(appointmentId),
+    getServerSession(),
+  ]);
   const userId = session?.user?.id || '';
   
   if (!userId) {
@@ -418,8 +481,10 @@ export interface WaitingRoomParticipant {
  * Join waiting room
  */
 export async function joinWaitingRoom(appointmentId: string) {
-  const consultationId = await getConsultationId(appointmentId);
-  const session = await getServerSession();
+  const [consultationId, session] = await Promise.all([
+    getConsultationId(appointmentId),
+    getServerSession(),
+  ]);
   const userId = session?.user?.id || '';
   
   if (!userId) {
@@ -453,8 +518,10 @@ export async function joinWaitingRoom(appointmentId: string) {
  * Leave waiting room
  */
 export async function leaveWaitingRoom(appointmentId: string) {
-  const consultationId = await getConsultationId(appointmentId);
-  const session = await getServerSession();
+  const [consultationId, session] = await Promise.all([
+    getConsultationId(appointmentId),
+    getServerSession(),
+  ]);
   const userId = session?.user?.id || '';
   
   if (!userId) {
@@ -480,6 +547,10 @@ export async function leaveWaitingRoom(appointmentId: string) {
  */
 export async function getWaitingRoomQueue(appointmentId: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const consultationId = await getConsultationId(appointmentId);
     const { data: response } = await authenticatedApi(
       API_ENDPOINTS.VIDEO.WAITING_ROOM.GET_QUEUE(consultationId), {}
@@ -504,8 +575,10 @@ export async function admitFromWaitingRoom(
   appointmentId: string,
   userId: string
 ) {
-  const consultationId = await getConsultationId(appointmentId);
-  const session = await getServerSession();
+  const [consultationId, session] = await Promise.all([
+    getConsultationId(appointmentId),
+    getServerSession(),
+  ]);
   const doctorId = session?.user?.id || '';
   
   if (!doctorId) {
@@ -576,8 +649,10 @@ export async function createMedicalNote(
     treatmentPlan?: unknown;
   }
 ) {
-  const consultationId = await getConsultationId(appointmentId);
-  const session = await getServerSession();
+  const [consultationId, session] = await Promise.all([
+    getConsultationId(appointmentId),
+    getServerSession(),
+  ]);
   const userId = session?.user?.id || '';
   
   if (!userId) {
@@ -614,6 +689,10 @@ export async function updateMedicalNote(
     treatmentPlan?: unknown;
   }
 ) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.NOTES.UPDATE(noteId), {
     method: 'PATCH',
     body: JSON.stringify(data),
@@ -632,6 +711,10 @@ export async function getMedicalNotes(
   }
 ) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const consultationId = await getConsultationId(appointmentId);
     const params = new URLSearchParams();
     if (filters?.noteType) params.append('noteType', filters.noteType);
@@ -652,6 +735,10 @@ export async function getMedicalNotes(
  * Delete medical note
  */
 export async function deleteMedicalNote(_appointmentId: string, noteId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   const { data: response } = await authenticatedApi(
     API_ENDPOINTS.VIDEO.NOTES.DELETE(noteId),
     {
@@ -721,8 +808,10 @@ export async function updateQualityMetrics(
   appointmentId: string,
   metrics: Partial<CallQualityMetrics>
 ) {
-  const consultationId = await getConsultationId(appointmentId);
-  const session = await getServerSession();
+  const [consultationId, session] = await Promise.all([
+    getConsultationId(appointmentId),
+    getServerSession(),
+  ]);
   const userId = session?.user?.id || '';
   
   if (!userId) {
@@ -749,8 +838,10 @@ export async function updateQualityMetrics(
  * Get call quality metrics
  */
 export async function getCallQuality(appointmentId: string, userId?: string) {
-  const consultationId = await getConsultationId(appointmentId);
-  const session = await getServerSession();
+  const [consultationId, session] = await Promise.all([
+    getConsultationId(appointmentId),
+    getServerSession(),
+  ]);
   const userIdParam = userId || session?.user?.id || '';
   if (!userIdParam) {
     throw new Error('User ID is required to load call quality metrics.');
@@ -795,8 +886,10 @@ export async function createAnnotation(
     thickness?: number;
   }
 ) {
-  const consultationId = await getConsultationId(appointmentId);
-  const session = await getServerSession();
+  const [consultationId, session] = await Promise.all([
+    getConsultationId(appointmentId),
+    getServerSession(),
+  ]);
   const userId = session?.user?.id || '';
   
   if (!userId) {
@@ -823,6 +916,10 @@ export async function createAnnotation(
  * Get annotations for consultation
  */
 export async function getAnnotations(appointmentId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   const consultationId = await getConsultationId(appointmentId);
   const { data: response } = await authenticatedApi(
     API_ENDPOINTS.VIDEO.ANNOTATION.GET(consultationId)
@@ -885,6 +982,10 @@ export async function createTranscription(
     confidence?: number;
   }
 ) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   const consultationId = await getConsultationId(appointmentId);
   // Backend expects transcript (string), not speaker/speakerRole/text separately
   // Combine text into transcript string
@@ -941,6 +1042,10 @@ export async function getTranscription(
   }
 ) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const consultationId = await getConsultationId(appointmentId);
     if (filters?.query) {
       // Use search endpoint
@@ -1004,8 +1109,10 @@ export async function getTranscription(
  * Save transcript to EHR
  */
 export async function saveTranscriptToEHR(appointmentId: string) {
-  const consultationId = await getConsultationId(appointmentId);
-  const session = await getServerSession();
+  const [consultationId, session] = await Promise.all([
+    getConsultationId(appointmentId),
+    getServerSession(),
+  ]);
   const userId = session?.user?.id || '';
   
   if (!userId) {
@@ -1030,6 +1137,10 @@ export async function saveTranscriptToEHR(appointmentId: string) {
  * Get current virtual background settings
  */
 export async function getVirtualBackgroundSettings(appointmentId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   const { data: response } = await authenticatedApi(
     API_ENDPOINTS.VIDEO.VIRTUAL_BACKGROUND.GET(appointmentId),
     {}
@@ -1041,6 +1152,10 @@ export async function getVirtualBackgroundSettings(appointmentId: string) {
  * Get available virtual background presets
  */
 export async function getVirtualBackgroundPresets() {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   const { data: response } = await authenticatedApi(
     API_ENDPOINTS.VIDEO.VIRTUAL_BACKGROUND.PRESETS,
     {}
@@ -1098,6 +1213,10 @@ export async function manageParticipantEnhanced(
     reason?: string;
   }
 ) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
   const { data: response } = await authenticatedApi(
     API_ENDPOINTS.VIDEO.PARTICIPANTS.MANAGE,
     {
@@ -1112,11 +1231,22 @@ export async function manageParticipantEnhanced(
 }
 
 export async function listAllVideoSessions() {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized');
+  }
+
   const { listAllVideoSessions: runListAllVideoSessions } = await import('./video.admin.server');
   return runListAllVideoSessions();
 }
 
 export async function terminateVideoSession(sessionId: string, reason?: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized');
+  }
+
   const { terminateVideoSession: runTerminateVideoSession } = await import('./video.admin.server');
   return runTerminateVideoSession(sessionId, reason);
 }
+

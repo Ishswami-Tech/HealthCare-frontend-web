@@ -54,8 +54,8 @@ const Footer = () => {
         <div className="grid lg:grid-cols-4 md:grid-cols-2 gap-8">
           {/* Company Info */}
           <div className="lg:col-span-1">
-            <div className="flex items-center space-x-3 mb-6">
-              <div className="w-16 h-16 flex items-center justify-center overflow-hidden rounded-2xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
+            <div className="flex items-center gap-x-3 mb-6">
+              <div className="size-16 flex items-center justify-center overflow-hidden rounded-2xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
                 <img
                   src="/assets/logo/logowithoutbackground.png"
                   alt={t("clinic.name")}
@@ -68,7 +68,7 @@ const Footer = () => {
                 />
               </div>
               <div>
-                <h3 className="font-playfair text-xl font-bold">
+                <h3 className="font-playfair text-xl font-semibold">
                   {t("clinic.name")}
                 </h3>
                 <p className="text-primary text-sm">{t("footer.tagline")}</p>
@@ -80,50 +80,50 @@ const Footer = () => {
             </p>
 
             {/* Trust Badges */}
-            <div className="space-y-2 mb-6">
+            <div className="gap-y-2 mb-6">
               <Badge className="bg-primary text-primary-foreground border-primary">
-                <CheckCircle className="w-3 h-3 mr-1" />
+                <CheckCircle className="size-3 mr-1" />
                 {t("stats.certifications.governmentCertified.title")}
               </Badge>
               <Badge className="bg-primary text-primary-foreground border-primary">
-                <Award className="w-3 h-3 mr-1" />
+                <Award className="size-3 mr-1" />
                 {t("stats.certifications.iso9001.title")}
               </Badge>
               <Badge className="bg-primary text-primary-foreground border-primary">
-                <Star className="w-3 h-3 mr-1" />
+                <Star className="size-3 mr-1" />
                 {t("stats.patientRating")}
               </Badge>
             </div>
 
             {/* Social Links */}
-            <div className="flex space-x-4">
+            <div className="flex gap-x-4">
               <Button
                 size="sm"
                 variant="outline"
-                className="rounded-full w-10 h-10 p-0 border-border text-muted-foreground hover:text-foreground hover:border-primary"
+                className="rounded-full size-10 p-0 border-border text-muted-foreground hover:text-foreground hover:border-primary"
               >
-                <Facebook className="w-4 h-4" />
+                <Facebook className="size-4" />
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                className="rounded-full w-10 h-10 p-0 border-border text-muted-foreground hover:text-foreground hover:border-primary"
+                className="rounded-full size-10 p-0 border-border text-muted-foreground hover:text-foreground hover:border-primary"
               >
-                <Instagram className="w-4 h-4" />
+                <Instagram className="size-4" />
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                className="rounded-full w-10 h-10 p-0 border-border text-muted-foreground hover:text-foreground hover:border-primary"
+                className="rounded-full size-10 p-0 border-border text-muted-foreground hover:text-foreground hover:border-primary"
               >
-                <Youtube className="w-4 h-4" />
+                <Youtube className="size-4" />
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                className="rounded-full w-10 h-10 p-0 border-border text-muted-foreground hover:text-foreground hover:border-primary"
+                className="rounded-full size-10 p-0 border-border text-muted-foreground hover:text-foreground hover:border-primary"
               >
-                <Twitter className="w-4 h-4" />
+                <Twitter className="size-4" />
               </Button>
             </div>
           </div>
@@ -133,7 +133,7 @@ const Footer = () => {
             <h4 className="font-semibold text-lg mb-6 text-primary">
               {t("footer.quickLinks.title")}
             </h4>
-            <ul className="space-y-3">
+            <ul className="gap-y-3">
               {quickLinks.map((link) => (
                 <li key={link.name}>
                   <Link
@@ -150,7 +150,7 @@ const Footer = () => {
             <h4 className="font-semibold text-lg mb-4 mt-8 text-orange-400">
               {t("footer.services.title")}
             </h4>
-            <ul className="space-y-3">
+            <ul className="gap-y-3">
               {treatments.map((treatment) => (
                 <li key={treatment.name}>
                   <Link
@@ -170,13 +170,13 @@ const Footer = () => {
             <h4 className="font-semibold text-lg mb-6 text-primary">
               {t("footer.conditions.title")}
             </h4>
-            <ul className="space-y-3">
+            <ul className="gap-y-3">
               {conditions.map((condition) => (
                 <li
                   key={condition}
-                  className="text-muted-foreground flex items-center space-x-2"
+                  className="text-muted-foreground flex items-center gap-x-2"
                 >
-                  <CheckCircle className="w-4 h-4 text-primary shrink-0" />
+                  <CheckCircle className="size-4 text-primary shrink-0" />
                   <span>{condition}</span>
                 </li>
               ))}
@@ -189,16 +189,16 @@ const Footer = () => {
               {t("footer.contact.title")}
             </h4>
 
-            <div className="space-y-4">
-              <div className="flex items-start space-x-3">
-                <MapPin className="w-5 h-5 text-primary shrink-0 mt-1" />
+            <div className="gap-y-4">
+              <div className="flex items-start gap-x-3">
+                <MapPin className="size-5 text-primary shrink-0 mt-1" />
                 <div>
                   <p className="text-muted-foreground">{t("clinic.address")}</p>
                 </div>
               </div>
 
-              <div className="flex items-center space-x-3">
-                <Phone className="w-5 h-5 text-primary" />
+              <div className="flex items-center gap-x-3">
+                <Phone className="size-5 text-primary" />
                 <div>
                   <p className="text-muted-foreground">{t("clinic.phone")}</p>
                   <p className="text-sm text-muted-foreground">
@@ -207,13 +207,13 @@ const Footer = () => {
                 </div>
               </div>
 
-              <div className="flex items-center space-x-3">
-                <Mail className="w-5 h-5 text-primary" />
+              <div className="flex items-center gap-x-3">
+                <Mail className="size-5 text-primary" />
                 <p className="text-muted-foreground">{t("clinic.email")}</p>
               </div>
 
-              <div className="flex items-start space-x-3">
-                <Clock className="w-5 h-5 text-primary shrink-0 mt-1" />
+              <div className="flex items-start gap-x-3">
+                <Clock className="size-5 text-primary shrink-0 mt-1" />
                 <div>
                   <p className="text-muted-foreground">
                     {t("clinic.mondayToFriday")}
@@ -231,7 +231,7 @@ const Footer = () => {
                 size="sm"
                 className="bg-primary hover:bg-primary/90 text-primary-foreground w-full"
               >
-                <MessageCircle className="w-4 h-4 mr-2" />
+                <MessageCircle className="size-4 mr-2" />
                 {t("footer.emergency.button")}
               </Button>
             </div>
@@ -242,7 +242,7 @@ const Footer = () => {
       {/* Bottom Footer */}
       <div className="border-t border-border">
         <div className="container mx-auto px-4 py-6">
-          <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-y-4 md:gap-y-0">
             <div className="text-muted-foreground text-sm">
               {t("footer.copyright")}
             </div>
@@ -290,3 +290,4 @@ const Footer = () => {
 };
 
 export default Footer;
+

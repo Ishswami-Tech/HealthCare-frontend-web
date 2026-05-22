@@ -279,20 +279,20 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
           actions={[
             {
               label: "Refill unavailable",
-              icon: <Bell className="h-4 w-4" />,
+              icon: <Bell className="size-4" />,
               variant: "outline",
               disabled: true,
             },
             {
               label: "Ordering unavailable",
-              icon: <ShoppingCart className="h-4 w-4" />,
+              icon: <ShoppingCart className="size-4" />,
               disabled: true,
             },
           ]}
         />
       )}
 
-      <Tabs defaultValue="prescriptions" className="space-y-6">
+      <Tabs defaultValue="prescriptions" className="gap-y-6">
         <TabsList className="max-w-full overflow-x-auto h-auto p-1 justify-start scrollbar-hide">
           <TabsTrigger value="prescriptions" className="text-xs sm:text-sm px-3 sm:px-4">Current Prescriptions</TabsTrigger>
           <TabsTrigger value="plan" className="text-xs sm:text-sm px-3 sm:px-4">Medication Plan</TabsTrigger>
@@ -300,12 +300,12 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
           <TabsTrigger value="history" className="text-xs sm:text-sm px-3 sm:px-4">Prescription History</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="prescriptions" className="space-y-4">
+        <TabsContent value="prescriptions" className="gap-y-4">
           <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
             <CardContent className="p-4">
               <div className="flex flex-col gap-3 sm:flex-row">
                 <div className="relative flex-1">
-                  <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${theme.textColors.muted}`} />
+                  <Search className={`absolute left-3 top-1/2 -translate-y-1/2 size-4 ${theme.textColors.muted}`} />
                   <Input
                     placeholder="Search prescriptions..."
                     value={searchTerm}
@@ -332,7 +332,7 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
                     </SelectContent>
                   </Select>
                   <Button variant="outline" className="h-11 rounded-xl px-3 sm:px-4">
-                    <Filter className="w-4 h-4 sm:mr-2" />
+                    <Filter className="size-4 sm:mr-2" />
                     <span className="hidden sm:inline">Filter</span>
                   </Button>
                 </div>
@@ -351,12 +351,12 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
               icon={Pill}
             />
           ) : (
-            <div className="space-y-6">
+            <div className="gap-y-6">
               {filteredPrescriptions.map((prescription) => (
                 <Card key={prescription.id} className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
                   <CardHeader>
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="space-y-1">
+                      <div className="gap-y-1">
                         <h3 className="text-base sm:text-lg font-semibold">Prescription #{prescription.id}</h3>
                         <p className={`text-xs sm:text-sm ${theme.textColors.secondary}`}>
                           Prescribed by {prescription.doctor} • {formatDateInIST(prescription.date)}
@@ -366,13 +366,13 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
                         <Badge className={`${getStatusColor(prescription.status)} text-[10px] sm:text-xs`}>
                           {prescription.status}
                         </Badge>
-                        <Button variant="outline" size="sm" className="h-8 w-8 p-0 rounded-lg sm:h-9 sm:w-auto sm:px-3 sm:rounded-xl" disabled>
-                          <Download className="w-4 h-4" />
+                        <Button variant="outline" size="sm" className="size-8 p-0 rounded-lg sm:h-9 sm:w-auto sm:px-3 sm:rounded-xl" disabled>
+                          <Download className="size-4" />
                         </Button>
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="gap-y-4">
                     <div>
                       <h4 className="font-medium mb-3">Medicines</h4>
                       <div className="grid gap-3">
@@ -383,8 +383,8 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
                           >
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                               <div className="flex items-start gap-3">
-                                <Leaf className={`w-4 h-4 sm:w-5 sm:h-5 ${theme.iconColors.green} mt-1`} />
-                                <div className="space-y-1">
+                                <Leaf className={`size-4 sm:w-5 sm:h-5 ${theme.iconColors.green} mt-1`} />
+                                <div className="gap-y-1">
                                   <h5 className={`text-sm sm:text-base font-semibold ${theme.textColors.success}`}>{medication.name}</h5>
                                   <p className={`text-xs sm:text-sm ${theme.textColors.success}`}>
                                     {medication.dosage} • {medication.duration}
@@ -457,7 +457,7 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <Button variant="outline" size="sm" className="flex-1 sm:flex-initial h-9 sm:h-auto rounded-xl" disabled>
-                          <Bell className="w-4 h-4 mr-1" />
+                          <Bell className="size-4 mr-1" />
                           <span className="text-xs sm:text-sm">Refill</span>
                         </Button>
                         {prescription.pendingAmount > 0 ? (
@@ -466,12 +466,12 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
                             amount={prescription.pendingAmount}
                             className="flex-1 sm:flex-initial rounded-xl bg-emerald-600 hover:bg-emerald-700 h-9 sm:h-auto"
                           >
-                            <ShoppingCart className="w-4 h-4 mr-1" />
+                            <ShoppingCart className="size-4 mr-1" />
                             <span className="text-xs sm:text-sm">Pay ₹{prescription.pendingAmount.toLocaleString()}</span>
                           </PaymentButton>
                         ) : (
                           <Button variant="outline" size="sm" className="flex-1 sm:flex-initial h-9 sm:h-auto rounded-xl" disabled>
-                            <Package className="w-4 h-4 mr-1" />
+                            <Package className="size-4 mr-1" />
                             <span className="text-xs sm:text-sm">Ready</span>
                           </Button>
                         )}
@@ -489,11 +489,11 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
           )}
         </TabsContent>
 
-        <TabsContent value="plan" className="space-y-4">
+        <TabsContent value="plan" className="gap-y-4">
           <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Bell className="w-5 h-5" />
+                <Bell className="size-5" />
                 Current Medication Plan
               </CardTitle>
             </CardHeader>
@@ -505,12 +505,12 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
                   icon={Bell}
                 />
               ) : (
-                <div className="space-y-4">
+                <div className="gap-y-4">
                   {medicationPlan.map((entry) => (
                     <div key={entry.id} className="flex flex-col gap-3 rounded-2xl border border-border/70 p-3 sm:p-4 sm:flex-row sm:items-center sm:justify-between dark:border-border/60">
                       <div className="flex items-center gap-3 sm:gap-4">
-                        <div className={`w-10 h-10 sm:w-12 sm:h-12 ${theme.containers.featureBlue} rounded-full flex items-center justify-center`}>
-                          <Clock className={`w-5 h-5 sm:w-6 sm:h-6 ${theme.iconColors.blue}`} />
+                        <div className={`size-10 sm:w-12 sm:h-12 ${theme.containers.featureBlue} rounded-full flex items-center justify-center`}>
+                          <Clock className={`size-5 sm:w-6 sm:h-6 ${theme.iconColors.blue}`} />
                         </div>
                         <div>
                           <h4 className={`text-sm sm:text-base font-semibold ${theme.textColors.heading}`}>{entry.name}</h4>
@@ -531,7 +531,7 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
             <CardHeader>
               <CardTitle>Reminder Settings</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="gap-y-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">Medication Reminders</p>
@@ -558,7 +558,7 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
           <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <MapPin className="w-5 h-5" />
+                <MapPin className="size-5" />
                 Medicine Desk Queue
               </CardTitle>
             </CardHeader>
@@ -570,11 +570,11 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
                   icon={ShoppingCart}
                 />
               ) : (
-                <div className="space-y-4">
+                <div className="gap-y-4">
                   {medicineDeskQueue.map((prescription) => (
                     <div key={prescription.id} className="rounded-2xl border border-border/70 p-3 sm:p-4 dark:border-border/60">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="space-y-1">
+                        <div className="gap-y-1">
                           <h3 className="text-sm sm:text-base font-semibold">Prescription #{prescription.id}</h3>
                           <p className={`text-xs sm:text-sm ${theme.textColors.secondary}`}>
                             {prescription.doctor} • {formatDateInIST(prescription.date)}
@@ -620,12 +620,12 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
                             amount={prescription.pendingAmount}
                             className="rounded-xl bg-emerald-600 hover:bg-emerald-700 w-full sm:w-auto h-10 sm:h-auto"
                           >
-                            <ShoppingCart className="mr-1 h-4 w-4" />
+                            <ShoppingCart className="mr-1 size-4" />
                             Pay ₹{prescription.pendingAmount.toLocaleString()}
                           </PaymentButton>
                         ) : (
                           <Button variant="outline" size="sm" className="rounded-xl w-full sm:w-auto h-10 sm:h-auto" disabled>
-                            <Package className="mr-1 h-4 w-4" />
+                            <Package className="mr-1 size-4" />
                             Waiting for handover
                           </Button>
                         )}
@@ -642,7 +642,7 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
           <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Package className="w-5 h-5" />
+                <Package className="size-5" />
                 Prescription History
               </CardTitle>
             </CardHeader>
@@ -654,11 +654,11 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
                   icon={FileText}
                 />
               ) : (
-                <div className="space-y-4">
+                <div className="gap-y-4">
                   {displayPrescriptions.map((prescription) => (
                     <div key={prescription.id} className="p-3 sm:p-4 border rounded-xl">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
-                        <div className="space-y-1">
+                        <div className="gap-y-1">
                           <h3 className="text-sm sm:text-base font-semibold">Prescription #{prescription.id}</h3>
                           <p className={`text-xs sm:text-sm ${theme.textColors.secondary}`}>
                             {prescription.doctor} • {formatDateInIST(prescription.date)}
@@ -701,3 +701,5 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
 
   return embedded ? content : <PatientPageShell>{content}</PatientPageShell>;
 }
+
+

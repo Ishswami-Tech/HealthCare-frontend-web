@@ -8,25 +8,25 @@ import { ArrowLeft, Shield, AlertTriangle, FileText, Info } from "lucide-react";
 export default function DisclaimerPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-4xl mx-auto gap-y-8">
         <div className="flex items-center justify-between">
             <Link href="/" prefetch={false}>
             <Button variant="ghost" className="gap-2">
-                <ArrowLeft className="h-4 w-4" />
+                <ArrowLeft className="size-4" />
                 Back to Home
             </Button>
             </Link>
              <div className="flex items-center gap-2 text-blue-600">
-                <Shield className="h-6 w-6" />
+                <Shield className="size-6" />
                 <span className="font-semibold text-lg">Dr Chandrakumar Deshmukh</span>
             </div>
         </div>
 
         <Card className="shadow-lg border-t-4 border-t-blue-600">
-          <CardHeader className="space-y-4 pb-8 border-b">
+          <CardHeader className="gap-y-4 pb-8 border-b">
             <div className="flex items-center gap-3 mb-2">
-                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                    <AlertTriangle className="h-5 w-5 text-blue-600" />
+                <div className="size-10 rounded-full bg-blue-100 flex items-center justify-center">
+                    <AlertTriangle className="size-5 text-blue-600" />
                 </div>
                 <CardTitle className="text-3xl font-bold text-gray-900">Disclaimer</CardTitle>
             </div>
@@ -37,10 +37,10 @@ export default function DisclaimerPage() {
               Important information regarding the use of the Dr Chandrakumar Deshmukh platform and services.
             </p>
           </CardHeader>
-          <CardContent className="space-y-8 pt-8 px-6 sm:px-10">
-            <section className="space-y-3">
+          <CardContent className="gap-y-8 pt-8 px-6 sm:px-10">
+            <section className="gap-y-3">
               <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                 <Info className="h-5 w-5 text-blue-600" />
+                 <Info className="size-5 text-blue-600" />
                  1. Medical Information Disclaimer
               </h2>
               <p className="text-gray-600 leading-relaxed">
@@ -48,9 +48,9 @@ export default function DisclaimerPage() {
               </p>
             </section>
 
-             <section className="space-y-3">
+             <section className="gap-y-3">
               <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                 <AlertTriangle className="h-5 w-5 text-blue-600" />
+                 <AlertTriangle className="size-5 text-blue-600" />
                  2. No Emergency Services
               </h2>
               <p className="text-gray-600 leading-relaxed">
@@ -58,9 +58,9 @@ export default function DisclaimerPage() {
               </p>
             </section>
 
-             <section className="space-y-3">
+             <section className="gap-y-3">
               <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                 <FileText className="h-5 w-5 text-blue-600" />
+                 <FileText className="size-5 text-blue-600" />
                  3. Accuracy of Information
               </h2>
               <p className="text-gray-600 leading-relaxed">
@@ -68,9 +68,9 @@ export default function DisclaimerPage() {
               </p>
             </section>
 
-             <section className="space-y-3">
+             <section className="gap-y-3">
               <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                 <Shield className="h-5 w-5 text-blue-600" />
+                 <Shield className="size-5 text-blue-600" />
                  4. Limitation of Liability
               </h2>
               <p className="text-gray-600 leading-relaxed">
@@ -90,4 +90,6 @@ export default function DisclaimerPage() {
     </div>
   );
 }
+
+
 

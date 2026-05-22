@@ -174,7 +174,7 @@ export default function DoshaChart({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-6">
+        <div className="gap-y-6">
           {/* Chart */}
           <div className="w-full">
             {type === "radar" ? renderRadarChart() : renderPieChart()}
@@ -203,7 +203,7 @@ export default function DoshaChart({
                 >
                   <div className="flex items-center gap-2 mb-2">
                     <div
-                      className="w-3 h-3 rounded-full"
+                      className="size-3 rounded-full"
                       style={{ backgroundColor: dosha.color }}
                     />
                     <h4 className="font-semibold text-sm">{t(dosha.name)}</h4>
@@ -263,3 +263,4 @@ export default function DoshaChart({
     </Card>
   );
 }
+

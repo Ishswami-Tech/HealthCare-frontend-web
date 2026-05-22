@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import { cn } from "@/lib/utils/index";
@@ -62,7 +62,7 @@ export function BackendStatusIndicator() {
   };
 
   const getOverallLabel = () => {
-    if (!healthStatus) return "Connecting...";
+    if (!healthStatus) return "Connecting…";
     const status = getOverallStatus();
     if (status === "active") return "100% Operational";
     if (status === "warning") return "Services Degraded";
@@ -125,7 +125,7 @@ export function BackendStatusIndicator() {
   );
 
   const detailed = (
-    <div className="space-y-2">
+    <div className="gap-y-2">
       <div className="flex items-center justify-between">
         <h4 className="font-medium text-sm">Backend Services Status</h4>
         <button
@@ -137,14 +137,14 @@ export function BackendStatusIndicator() {
         >
           <RefreshCw
             className={cn(
-              "h-4 w-4",
+              "size-4",
               isFetching && "animate-spin"
             )}
           />
         </button>
       </div>
 
-      <div className="space-y-1">
+      <div className="gap-y-1">
         {services.map((service) => {
           const statusColor =
             {
@@ -161,7 +161,7 @@ export function BackendStatusIndicator() {
               className="flex items-center justify-between text-xs"
             >
               <div className="flex items-center gap-2">
-                <service.icon className={cn("h-3 w-3", statusColor)} />
+                <service.icon className={cn("size-3", statusColor)} />
                 <span className={cn("font-medium", statusColor)}>
                   {service.name}
                 </span>
@@ -285,3 +285,6 @@ export function BackendStatusWidget({ className }: { className?: string }) {
     </>
   );
 }
+
+
+

@@ -1,5 +1,5 @@
-/**
- * ✅ Enterprise Loading Components
+﻿/**
+ * âœ… Enterprise Loading Components
  * Uses shadcn Spinner as single source of truth
  * Follows DRY, SOLID, KISS principles
  * 
@@ -48,7 +48,7 @@ const SPINNER_COLORS = {
 } as const;
 
 /**
- * ✅ LoadingSpinner - Primary loading indicator
+ * âœ… LoadingSpinner - Primary loading indicator
  * Uses shadcn Spinner underneath
  */
 export function LoadingSpinner({
@@ -82,10 +82,10 @@ export interface PageLoadingProps {
 }
 
 /**
- * ✅ PageLoading - Full page loading state (non-blocking)
+ * âœ… PageLoading - Full page loading state (non-blocking)
  * Use in loading.tsx or Suspense fallbacks
  */
-export function PageLoading({ text = "Loading...", className }: PageLoadingProps) {
+export function PageLoading({ text = "Loading…", className }: PageLoadingProps) {
   return (
     <div className={cn(
       "flex flex-col items-center justify-center min-h-[50vh] gap-4",
@@ -107,7 +107,7 @@ export interface InlineLoaderProps {
 }
 
 /**
- * ✅ InlineLoader - Compact spinner for buttons/inputs
+ * âœ… InlineLoader - Compact spinner for buttons/inputs
  */
 export function InlineLoader({ size = "sm", className }: InlineLoaderProps) {
   return <Spinner className={cn(size === "sm" ? "size-4" : "size-5", className)} />;
@@ -128,10 +128,10 @@ export function Skeleton({ className, animate = true }: SkeletonProps) {
 
 export function SkeletonCard({ className }: { className?: string }) {
   return (
-    <div className={cn("p-6 border rounded-lg space-y-4", className)}>
+    <div className={cn("p-6 border rounded-lg gap-y-4", className)}>
       <div className="flex items-center justify-between">
         <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-6 w-6 rounded-full" />
+        <Skeleton className="size-6 rounded-full" />
       </div>
       <Skeleton className="h-8 w-16" />
       <Skeleton className="h-3 w-32" />
@@ -141,7 +141,7 @@ export function SkeletonCard({ className }: { className?: string }) {
 
 export function SkeletonTable({ rows = 5, cols = 4, className }: { rows?: number; cols?: number; className?: string }) {
   return (
-    <div className={cn("space-y-3", className)}>
+    <div className={cn("gap-y-3", className)}>
       <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
         {Array.from({ length: cols }).map((_, i) => <Skeleton key={i} className="h-4" />)}
       </div>
@@ -156,11 +156,11 @@ export function SkeletonTable({ rows = 5, cols = 4, className }: { rows?: number
 
 export function SkeletonList({ items = 5, className }: { items?: number; className?: string }) {
   return (
-    <div className={cn("space-y-3", className)}>
+    <div className={cn("gap-y-3", className)}>
       {Array.from({ length: items }).map((_, i) => (
         <div key={i} className="flex items-center gap-4">
-          <Skeleton className="h-12 w-12 rounded-full" />
-          <div className="flex-1 space-y-2">
+          <Skeleton className="size-12 rounded-full" />
+          <div className="flex-1 gap-y-2">
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-3/4" />
           </div>
@@ -267,7 +267,7 @@ export interface ConnectionStatusProps {
 const CONNECTION_CONFIG = {
   connected: { icon: CheckCircle, color: "text-green-600", bg: "bg-green-100 dark:bg-green-900/20", text: "Connected" },
   disconnected: { icon: WifiOff, color: "text-gray-500", bg: "bg-gray-100 dark:bg-gray-800", text: "Disconnected" },
-  connecting: { icon: Spinner, color: "text-yellow-600", bg: "bg-yellow-100 dark:bg-yellow-900/20", text: "Connecting..." },
+  connecting: { icon: Spinner, color: "text-yellow-600", bg: "bg-yellow-100 dark:bg-yellow-900/20", text: "Connecting…" },
   error: { icon: AlertTriangle, color: "text-red-600", bg: "bg-red-100 dark:bg-red-900/20", text: "Error" },
 } as const;
 
@@ -308,7 +308,7 @@ export function ProgressIndicator({
   const height = size === "sm" ? "h-1.5" : "h-2";
 
   return (
-    <div className={cn("space-y-1.5", className)}>
+    <div className={cn("gap-y-1.5", className)}>
       {(label || showPercentage) && (
         <div className="flex items-center justify-between text-xs">
           {label && <span className="text-muted-foreground">{label}</span>}
@@ -335,7 +335,7 @@ export interface LoadingButtonProps extends React.ComponentProps<typeof Button> 
 }
 
 /**
- * ✅ Button with built-in loading state
+ * âœ… Button with built-in loading state
  */
 export function LoadingButton({
   loading,
@@ -357,3 +357,6 @@ export function LoadingButton({
     </Button>
   );
 }
+
+
+

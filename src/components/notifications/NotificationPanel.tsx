@@ -94,11 +94,11 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
           className={cn("relative", className)}
           aria-label="Notifications"
         >
-          <Bell className="h-5 w-5" />
+          <Bell className="size-5" />
           {unreadCount > 0 && (
             <Badge
               variant="destructive"
-              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+              className="absolute -top-1 -right-1 size-5 flex items-center justify-center p-0 text-xs"
             >
               {unreadCount > 99 ? "99+" : unreadCount}
             </Badge>
@@ -120,9 +120,9 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
                   className="h-8 text-xs"
                 >
                   {isMarkingAll ? (
-                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    <Loader2 className="size-3 animate-spin mr-1" />
                   ) : (
-                    <CheckCheck className="h-3 w-3 mr-1" />
+                    <CheckCheck className="size-3 mr-1" />
                   )}
                   Mark all read
                 </Button>
@@ -149,18 +149,18 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
           <ScrollArea className="flex-1">
             {isLoading ? (
               <div className="flex items-center justify-center h-32">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <Loader2 className="size-6 animate-spin text-muted-foreground" />
               </div>
             ) : error ? (
               <div className="flex flex-col items-center justify-center h-32 p-4 text-center">
-                <AlertCircle className="h-6 w-6 text-destructive mb-2" />
+                <AlertCircle className="size-6 text-destructive mb-2" />
                 <p className="text-sm text-muted-foreground">
                   Failed to load notifications
                 </p>
               </div>
             ) : filteredNotifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-32 p-4 text-center">
-                <Inbox className="h-8 w-8 text-muted-foreground mb-2" />
+                <Inbox className="size-8 text-muted-foreground mb-2" />
                 <p className="text-sm text-muted-foreground">
                   {filter === "unread"
                     ? "No unread notifications"
@@ -168,7 +168,7 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
                 </p>
               </div>
             ) : (
-              <div className="p-2 space-y-1">
+              <div className="p-2 gap-y-1">
                 {filteredNotifications.map((notification) => (
                   <NotificationItem
                     key={notification.id}
@@ -199,3 +199,5 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
     </Popover>
   );
 }
+
+

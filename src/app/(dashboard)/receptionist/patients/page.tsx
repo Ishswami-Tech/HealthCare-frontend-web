@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Role } from "@/types/auth.types";
@@ -273,7 +273,7 @@ export default function ReceptionistPatients() {
         header: "Patient",
         cell: ({ row }) => (
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-blue-100 to-green-100 dark:from-blue-950/50 dark:to-emerald-950/50">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-blue-100 to-green-100 dark:from-blue-950/50 dark:to-emerald-950/50">
               <span className="font-semibold text-blue-800 dark:text-blue-200">
                 {row.original.name.charAt(0).toUpperCase()}
               </span>
@@ -320,12 +320,12 @@ export default function ReceptionistPatients() {
               size="sm"
               onClick={() => setSelectedPatient(row.original.patient)}
             >
-              <Eye className="mr-1 h-4 w-4" />
+              <Eye className="mr-1 size-4" />
               View
             </Button>
             <Button asChild size="sm">
               <Link href="/receptionist/appointments#appointment-manager" prefetch={false}>
-                <Calendar className="mr-1 h-4 w-4" />
+                <Calendar className="mr-1 size-4" />
                 Book
               </Link>
             </Button>
@@ -454,16 +454,16 @@ export default function ReceptionistPatients() {
 
   return (
     
-        <div className="p-6 space-y-6">
+        <div className="p-6 gap-y-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold">Patient Management</h1>
+            <h1 className="text-3xl font-semibold">Patient Management</h1>
             <Dialog
               open={showNewPatientDialog}
               onOpenChange={setShowNewPatientDialog}
             >
               <DialogTrigger asChild>
                 <Button className="flex items-center gap-2">
-                  <Plus className="w-4 h-4" />
+                  <Plus className="size-4" />
                   Register Patient
                 </Button>
               </DialogTrigger>
@@ -471,7 +471,7 @@ export default function ReceptionistPatients() {
                 <DialogHeader className="shrink-0 border-b border-slate-200/50 bg-background/70 p-5 pb-4 backdrop-blur-md dark:border-slate-800/60">
                   <div className="flex items-center gap-3">
                     <div className="rounded-xl bg-emerald-100 p-2.5 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-                      <User className="w-5 h-5" />
+                      <User className="size-5" />
                     </div>
                     <div>
                       <DialogTitle className="text-xl font-bold leading-tight text-foreground">Register Patient</DialogTitle>
@@ -481,18 +481,18 @@ export default function ReceptionistPatients() {
                 </DialogHeader>
 
                 <div className="flex-1 overflow-y-auto p-5 pt-3">
-                  <div className="space-y-4">
+                  <div className="gap-y-4">
                     {/* Identity & Contact Section */}
                     <section className="group/section rounded-xl border border-slate-100 bg-card/60 p-3.5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900/30">
                       <div className="flex items-center gap-2 mb-2.5">
                         <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg group-hover/section:bg-emerald-100 transition-colors">
-                          <Shield className="w-3.5 h-3.5" />
+                          <Shield className="size-3.5" />
                         </div>
-                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Personal Information</h3>
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Personal Information</h3>
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-2.5">
-                        <div className="space-y-1">
+                        <div className="gap-y-1">
                           <Label htmlFor="firstName" className="text-[11px] font-semibold text-slate-700 flex items-center gap-1">
                             First Name <span className="text-emerald-500">*</span>
                           </Label>
@@ -505,7 +505,7 @@ export default function ReceptionistPatients() {
                             required
                           />
                         </div>
-                        <div className="space-y-1">
+                        <div className="gap-y-1">
                           <Label htmlFor="lastName" className="text-[11px] font-semibold text-slate-700 flex items-center gap-1">
                             Last Name <span className="text-emerald-500">*</span>
                           </Label>
@@ -518,12 +518,12 @@ export default function ReceptionistPatients() {
                             required
                           />
                         </div>
-                        <div className="space-y-1">
+                        <div className="gap-y-1">
                           <Label htmlFor="phone" className="text-[11px] font-semibold text-slate-700 flex items-center gap-1">
                             Phone Number <span className="text-emerald-500">*</span>
                           </Label>
                           <div className="relative group/input">
-                            <Phone className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within/input:text-emerald-500 transition-colors" />
+                            <Phone className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-slate-400 group-focus-within/input:text-emerald-500 transition-colors" />
                             <Input
                               id="phone"
                               placeholder="+1 (555) 000-0000"
@@ -534,10 +534,10 @@ export default function ReceptionistPatients() {
                             />
                           </div>
                         </div>
-                        <div className="space-y-1">
+                        <div className="gap-y-1">
                           <Label htmlFor="email" className="text-[11px] font-semibold text-slate-700">Email Address</Label>
                           <div className="relative group/input">
-                            <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within/input:text-emerald-500 transition-colors" />
+                            <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-slate-400 group-focus-within/input:text-emerald-500 transition-colors" />
                             <Input
                               id="email"
                               type="email"
@@ -548,7 +548,7 @@ export default function ReceptionistPatients() {
                             />
                           </div>
                         </div>
-                        <div className="space-y-1">
+                        <div className="gap-y-1">
                           <Label htmlFor="dateOfBirth" className="text-[11px] font-semibold text-slate-700">Date of Birth</Label>
                           <Input
                             id="dateOfBirth"
@@ -558,7 +558,7 @@ export default function ReceptionistPatients() {
                             onChange={(e) => setNewPatient({ ...newPatient, dateOfBirth: e.target.value })}
                           />
                         </div>
-                        <div className="space-y-1">
+                        <div className="gap-y-1">
                           <Label htmlFor="gender" className="text-[11px] font-semibold text-slate-700">Gender</Label>
                           <Select
                             value={newPatient.gender}
@@ -596,12 +596,12 @@ export default function ReceptionistPatients() {
                         {showAdditionalPatientDetails ? (
                           <>
                             Hide
-                            <ChevronUp className="h-4 w-4" />
+                            <ChevronUp className="size-4" />
                           </>
                         ) : (
                           <>
                             Show
-                            <ChevronDown className="h-4 w-4" />
+                            <ChevronDown className="size-4" />
                           </>
                         )}
                       </Button>
@@ -613,11 +613,11 @@ export default function ReceptionistPatients() {
                         <section className="group/section rounded-xl border border-slate-100 bg-card/60 p-3.5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900/30">
                           <div className="flex items-center gap-2 mb-2.5">
                             <div className="p-1.5 bg-sky-50 text-sky-600 rounded-lg group-hover/section:bg-sky-100 transition-colors">
-                              <MapPin className="w-3.5 h-3.5" />
+                              <MapPin className="size-3.5" />
                             </div>
-                            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Location</h3>
+                            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Location</h3>
                           </div>
-                          <div className="space-y-1">
+                          <div className="gap-y-1">
                             <Label htmlFor="address" className="text-[11px] font-semibold text-slate-700">Full Home Address</Label>
                             <Textarea
                               id="address"
@@ -633,12 +633,12 @@ export default function ReceptionistPatients() {
                         <section className="group/section rounded-xl border border-slate-100 bg-card/60 p-3.5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900/30">
                           <div className="flex items-center gap-2 mb-2.5">
                             <div className="p-1.5 bg-rose-50 text-rose-600 rounded-lg group-hover/section:bg-rose-100 transition-colors">
-                              <AlertCircle className="w-3.5 h-3.5" />
+                              <AlertCircle className="size-3.5" />
                             </div>
-                            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Emergency Details</h3>
+                            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Emergency Details</h3>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-2.5">
-                            <div className="space-y-1">
+                            <div className="gap-y-1">
                               <Label htmlFor="emergencyContact" className="text-[11px] font-semibold text-slate-700">Contact Name</Label>
                               <Input
                                 id="emergencyContact"
@@ -648,7 +648,7 @@ export default function ReceptionistPatients() {
                                 onChange={(e) => setNewPatient({ ...newPatient, emergencyContact: e.target.value })}
                               />
                             </div>
-                            <div className="space-y-1">
+                            <div className="gap-y-1">
                               <Label htmlFor="emergencyPhone" className="text-[11px] font-semibold text-slate-700">Contact Phone</Label>
                               <Input
                                 id="emergencyPhone"
@@ -665,12 +665,12 @@ export default function ReceptionistPatients() {
                         <section className="group/section rounded-xl border border-slate-100 bg-card/60 p-3.5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900/30">
                           <div className="flex items-center gap-2 mb-2.5">
                             <div className="p-1.5 bg-amber-50 text-amber-600 rounded-lg group-hover/section:bg-amber-100 transition-colors">
-                              <ClipboardList className="w-3.5 h-3.5" />
+                              <ClipboardList className="size-3.5" />
                             </div>
-                            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Medical profile</h3>
+                            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Medical profile</h3>
                           </div>
-                          <div className="space-y-3">
-                            <div className="space-y-1">
+                          <div className="gap-y-3">
+                            <div className="gap-y-1">
                               <Label htmlFor="medicalHistory" className="text-[11px] font-semibold text-slate-700">Past Observations / History</Label>
                               <Textarea
                                 id="medicalHistory"
@@ -680,7 +680,7 @@ export default function ReceptionistPatients() {
                                 onChange={(e) => setNewPatient({ ...newPatient, medicalHistory: e.target.value })}
                               />
                             </div>
-                            <div className="space-y-1">
+                            <div className="gap-y-1">
                               <Label htmlFor="allergies" className="text-[11px] font-semibold text-slate-700">Known Allergies</Label>
                               <Input
                                 id="allergies"
@@ -690,7 +690,7 @@ export default function ReceptionistPatients() {
                                 onChange={(e) => setNewPatient({ ...newPatient, allergies: e.target.value })}
                               />
                             </div>
-                            <div className="space-y-1">
+                            <div className="gap-y-1">
                               <Label htmlFor="currentMedications" className="text-[11px] font-semibold text-slate-700">Current Medications</Label>
                               <Textarea
                                 id="currentMedications"
@@ -728,13 +728,13 @@ export default function ReceptionistPatients() {
                     >
                       {quickRegisterPatientMutation.isPending ? (
                         <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          Registering...
+                          <Loader2 className="size-3.5 animate-spin" />
+                          Registering…
                         </>
                       ) : (
                         <>
                           Register Patient
-                          <ArrowRight className="w-3.5 h-3.5 ml-1 opacity-60" />
+                          <ArrowRight className="size-3.5 ml-1 opacity-60" />
                         </>
                       )}
                     </Button>
@@ -747,11 +747,11 @@ export default function ReceptionistPatients() {
           {/* Stats Overview */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   Total Patients
                 </CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
+                <Users className="size-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{patientsPage.total || patients.length}</div>
@@ -760,11 +760,11 @@ export default function ReceptionistPatients() {
             </Card>
 
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   Active Patients
                 </CardTitle>
-                <UserCheck className="h-4 w-4 text-green-600" />
+                <UserCheck className="size-4 text-green-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
@@ -777,36 +777,34 @@ export default function ReceptionistPatients() {
             </Card>
 
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   New This Month
                 </CardTitle>
-                <UserPlus className="h-4 w-4 text-blue-600" />
+                <UserPlus className="size-4 text-blue-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-blue-600">
-                  {
-                    patients.filter((p: any) => {
-                      if (!p.createdAt) return false;
-                      const created = new Date(p.createdAt);
-                      const now = new Date();
-                      return (
-                        created.getMonth() === now.getMonth() &&
-                        created.getFullYear() === now.getFullYear()
-                      );
-                    }).length
-                  }
+                <div className="text-2xl font-bold text-blue-600" suppressHydrationWarning>
+                  {patients.filter((p: any) => {
+                    if (!p.createdAt) return false;
+                    const created = new Date(p.createdAt);
+                    const now = new Date();
+                    return (
+                      created.getMonth() === now.getMonth() &&
+                      created.getFullYear() === now.getFullYear()
+                    );
+                  }).length}
                 </div>
-                <p className="text-xs text-muted-foreground">Loaded page registrations</p>
+                <p className="text-xs text-muted-foreground" suppressHydrationWarning>Loaded page registrations</p>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   Inactive Patients
                 </CardTitle>
-                <AlertCircle className="h-4 w-4 text-orange-600" />
+                <AlertCircle className="size-4 text-orange-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-orange-600">
@@ -825,7 +823,7 @@ export default function ReceptionistPatients() {
             <CardContent>
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-muted-foreground" />
                   <Input
                     placeholder="Search by name, phone, or email..."
                     value={searchTerm}
@@ -912,7 +910,7 @@ export default function ReceptionistPatients() {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 bg-linear-to-br from-blue-100 to-green-100 rounded-full flex items-center justify-center">
+                      <div className="size-16 bg-linear-to-br from-blue-100 to-green-100 rounded-full flex items-center justify-center">
                         <span className="text-blue-800 font-semibold text-xl">
                           {patient.name.charAt(0)}
                         </span>
@@ -924,26 +922,26 @@ export default function ReceptionistPatients() {
                         <div className="flex items-center gap-4 text-sm text-gray-600">
                           {patient.phone && (
                             <span className="flex items-center gap-1">
-                              <Phone className="w-3 h-3" />
+                              <Phone className="size-3" />
                               {patient.phone}
                             </span>
                           )}
                           {patient.email && (
                             <span className="flex items-center gap-1">
-                              <Mail className="w-3 h-3" />
+                              <Mail className="size-3" />
                               {patient.email}
                             </span>
                           )}
                           {patient.age && (
                             <span>
                               {patient.age} years{" "}
-                              {patient.gender ? `• ${patient.gender}` : ""}
+                              {patient.gender ? `â€¢ ${patient.gender}` : ""}
                             </span>
                           )}
                         </div>
                         {patient.address && (
                           <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-                            <MapPin className="w-3 h-3" />
+                            <MapPin className="size-3" />
                             <span>{patient.address}</span>
                           </div>
                         )}
@@ -964,7 +962,7 @@ export default function ReceptionistPatients() {
                       </div>
                     </div>
 
-                    <div className="text-right space-y-2">
+                    <div className="text-right gap-y-2">
                       <div className="text-sm">
                         {patient.lastVisit && (
                           <div>
@@ -994,7 +992,7 @@ export default function ReceptionistPatients() {
                               size="sm"
                               onClick={() => setSelectedPatient(patient)}
                             >
-                              <Eye className="w-4 h-4 mr-1" />
+                              <Eye className="size-4 mr-1" />
                               View
                             </Button>
                           </DialogTrigger>
@@ -1005,7 +1003,7 @@ export default function ReceptionistPatients() {
                               </DialogTitle>
                             </DialogHeader>
                             {selectedPatient && (
-                              <div className="space-y-6">
+                              <div className="gap-y-6">
                                 {/* Personal Information */}
                                 <Card>
                                   <CardHeader>
@@ -1064,11 +1062,11 @@ export default function ReceptionistPatients() {
                                 <Card>
                                   <CardHeader>
                                     <CardTitle className="text-lg flex items-center gap-2">
-                                      <Heart className="w-5 h-5" />
+                                      <Heart className="size-5" />
                                       Medical Information
                                     </CardTitle>
                                   </CardHeader>
-                                  <CardContent className="space-y-4">
+                                  <CardContent className="gap-y-4">
                                     {selectedPatient.bloodGroup && (
                                       <div>
                                         <strong>Blood Group:</strong>{" "}
@@ -1078,20 +1076,16 @@ export default function ReceptionistPatients() {
                                     {selectedPatient.allergies && (
                                       <div>
                                         <strong>Allergies:</strong>
-                                        <div className="mt-1 space-y-1">
+                                        <div className="mt-1 gap-y-1">
                                           {Array.isArray(
                                             selectedPatient.allergies
                                           ) ? (
-                                            selectedPatient.allergies.map(
-                                              (
-                                                allergy: string,
-                                                index: number
-                                              ) => (
+                                            selectedPatient.allergies.map((allergy: string) => (
                                                 <div
-                                                  key={index}
+                                                  key={allergy}
                                                   className="flex items-center gap-2"
                                                 >
-                                                  <AlertCircle className="w-4 h-4 text-red-500" />
+                                                  <AlertCircle className="size-4 text-red-500" />
                                                   <span className="text-sm">
                                                     {allergy}
                                                   </span>
@@ -1148,7 +1142,7 @@ export default function ReceptionistPatients() {
 
                         <Button asChild size="sm">
                           <Link href="/receptionist/appointments#appointment-manager" prefetch={false}>
-                            <Calendar className="w-4 h-4 mr-1" />
+                            <Calendar className="size-4 mr-1" />
                             Book
                           </Link>
                         </Button>
@@ -1164,7 +1158,7 @@ export default function ReceptionistPatients() {
             <Empty>
               <EmptyContent>
                 <EmptyMedia>
-                  <Users className="h-5 w-5" />
+                  <Users className="size-5" />
                 </EmptyMedia>
                 <EmptyTitle>No patients found</EmptyTitle>
                 <EmptyDescription>
@@ -1187,7 +1181,7 @@ export default function ReceptionistPatients() {
                 </DialogTitle>
               </DialogHeader>
               {selectedPatient && (
-                <div className="space-y-6">
+                <div className="gap-y-6">
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-lg">
@@ -1230,11 +1224,11 @@ export default function ReceptionistPatients() {
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-lg flex items-center gap-2">
-                        <Heart className="w-5 h-5" />
+                        <Heart className="size-5" />
                         Medical Information
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-4 text-sm">
+                    <CardContent className="gap-y-4 text-sm">
                       <div>
                         <strong>Blood Group:</strong> {selectedPatient.bloodGroup || "N/A"}
                       </div>
@@ -1299,3 +1293,6 @@ export default function ReceptionistPatients() {
     
   );
 }
+
+
+

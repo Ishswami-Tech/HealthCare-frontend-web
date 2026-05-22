@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -63,25 +63,25 @@ export function GlobalHealthStatusButton({
         <Button
           onClick={() => setIsOpen(true)}
           className={cn(
-            'fixed z-40 shadow-lg rounded-full h-14 w-14 p-0 relative',
+            'fixed z-40 shadow-lg rounded-full size-14 p-0 relative',
             positionClasses[position],
             healthColors[overallHealth],
             className
           )}
-          title={`View System Health Status${isConnected ? ' (Real-time)' : connectionStatus === 'connecting' ? ' (Connecting...)' : ' (Offline)'}`}
+          title={`View System Health Status${isConnected ? ' (Real-time)' : connectionStatus === 'connecting' ? ' (Connecting…)' : ' (Offline)'}`}
         >
-          <Activity className="h-6 w-6 text-white" />
+          <Activity className="size-6 text-white" />
           {overallHealth !== 'healthy' && (
             <Badge
               variant="destructive"
-              className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
+              className="absolute -top-1 -right-1 size-5 p-0 flex items-center justify-center text-xs"
             >
               !
             </Badge>
           )}
           {/* Connection status indicator */}
           <div className={cn(
-            'absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white',
+            'absolute bottom-0 right-0 size-3 rounded-full border-2 border-white',
             isConnected ? 'bg-green-500' : connectionStatus === 'connecting' ? 'bg-yellow-500' : 'bg-red-500',
             (isConnected || connectionStatus === 'connecting') && 'animate-pulse'
           )} />
@@ -102,7 +102,7 @@ export function GlobalHealthStatusButton({
         variant="outline"
         className={cn('flex items-center gap-2', className)}
       >
-        <Activity className="h-4 w-4" />
+        <Activity className="size-4" />
         <span>System Health</span>
         {overallHealth !== 'healthy' && (
           <Badge
@@ -121,4 +121,6 @@ export function GlobalHealthStatusButton({
     </>
   );
 }
+
+
 

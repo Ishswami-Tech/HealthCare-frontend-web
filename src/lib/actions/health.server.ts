@@ -1,8 +1,9 @@
-'use server';
+﻿'use server';
 
 import { fetchWithAbort, FetchTimeoutError } from '@/lib/utils/fetch-with-abort';
 import { APP_CONFIG, API_ENDPOINTS } from '@/lib/config/config';
 import type { DetailedHealthStatus } from '@/hooks/query/useHealth';
+import { getServerSession } from './auth.server';
 
 const createUnavailableStatus = (error: string): DetailedHealthStatus => ({
   database: { status: 'unavailable', isHealthy: false },
@@ -14,6 +15,11 @@ const createUnavailableStatus = (error: string): DetailedHealthStatus => ({
 });
 
 export async function getDetailedHealthStatus(): Promise<DetailedHealthStatus> {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const healthUrl = `${APP_CONFIG.API.HEALTH_BASE_URL}${API_ENDPOINTS.HEALTH.DETAILED}`;
 
   try {
@@ -95,6 +101,11 @@ export async function getDetailedHealthStatus(): Promise<DetailedHealthStatus> {
 }
 
 export async function getFrontendSystemMetrics() {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const os = await import('os');
   return {
     uptime: os.uptime(),

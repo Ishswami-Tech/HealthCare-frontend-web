@@ -82,15 +82,15 @@ export default function CounselorAppointments() {
   if (isPending) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <Loader2 className="size-8 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 gap-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Appointments</h1>
+        <h1 className="text-3xl font-semibold">Appointments</h1>
         <p className="text-gray-600">Manage counseling sessions and appointments</p>
       </div>
 
@@ -98,7 +98,7 @@ export default function CounselorAppointments() {
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-3 size-4 text-gray-400" />
               <Input
                 placeholder="Search by client name or notes..."
                 value={searchQuery}
@@ -133,21 +133,21 @@ export default function CounselorAppointments() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Calendar className="w-5 h-5" />
+            <Calendar className="size-5" />
             Appointments List
           </CardTitle>
         </CardHeader>
         <CardContent>
           {filteredAppointments.length === 0 ? (
             <div className="text-center py-12">
-              <Calendar className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+              <Calendar className="size-16 mx-auto text-gray-300 mb-4" />
               <p className="text-gray-500">No appointments found</p>
               <p className="text-sm text-gray-400 mt-1">
                 Try adjusting your search or filters
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="gap-y-4">
               {filteredAppointments.map((appointment: any) => (
                 <div
                   key={appointment.id}
@@ -155,8 +155,8 @@ export default function CounselorAppointments() {
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-4 flex-1">
-                      <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                        <MessageCircle className="w-5 h-5 text-purple-600" />
+                      <div className="size-10 bg-purple-100 rounded-full flex items-center justify-center">
+                        <MessageCircle className="size-5 text-purple-600" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2 mb-1">
@@ -170,11 +170,11 @@ export default function CounselorAppointments() {
                         </p>
                         <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                           <span className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
+                            <Calendar className="size-3" />
                             {formatDateInIST(appointment.date)}
                           </span>
                           <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
+                            <Clock className="size-3" />
                             {getReceptionistAppointmentTimeLabel(appointment as Record<string, unknown>)}
                           </span>
                         </div>
@@ -230,3 +230,5 @@ export default function CounselorAppointments() {
     </div>
   );
 }
+
+

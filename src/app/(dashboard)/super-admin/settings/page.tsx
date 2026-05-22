@@ -315,16 +315,16 @@ export default function SuperAdminSettings() {
   if (clinicsLoading) {
     return (
       <div className="p-6 flex min-h-[400px] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="size-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="p-4 space-y-4 sm:p-6 sm:space-y-5">
+    <div className="p-4 gap-y-4 sm:p-6 sm:gap-y-5">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">System Settings</h1>
+          <h1 className="text-3xl font-semibold">System Settings</h1>
           <p className="text-sm text-muted-foreground">
             Manage global defaults, clinic overrides, and operational controls from one place.
           </p>
@@ -343,7 +343,7 @@ export default function SuperAdminSettings() {
             </SelectContent>
           </Select>
           <Button className="flex items-center gap-2" onClick={save} disabled={updateClinic.isPending || !selectedClinic?.id}>
-            {updateClinic.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {updateClinic.isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
             Save All Changes
           </Button>
         </div>
@@ -352,13 +352,13 @@ export default function SuperAdminSettings() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Globe className="h-5 w-5" />
+            <Globe className="size-5" />
             Global Video Provider
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="gap-y-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto] md:items-end">
-            <div className="space-y-2">
+            <div className="gap-y-2">
               <Label htmlFor="globalVideoProvider">Default provider for all clinics</Label>
               <Select value={globalVideoProvider} onValueChange={value => setGlobalVideoProvider(value as VideoProviderType)}>
                 <SelectTrigger id="globalVideoProvider">
@@ -380,9 +380,9 @@ export default function SuperAdminSettings() {
               disabled={updateGlobalVideoProvider.isPending}
             >
               {updateGlobalVideoProvider.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="size-4 animate-spin" />
               ) : (
-                <Save className="h-4 w-4" />
+                <Save className="size-4" />
               )}
               Save Global Provider
             </Button>
@@ -390,22 +390,22 @@ export default function SuperAdminSettings() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="general" className="space-y-6">
+      <Tabs defaultValue="general" className="gap-y-6">
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
           <TabsTrigger value="general" className="flex items-center gap-2">
-            <Globe className="h-4 w-4" />
+            <Globe className="size-4" />
             General
           </TabsTrigger>
           <TabsTrigger value="security" className="flex items-center gap-2">
-            <Shield className="h-4 w-4" />
+            <Shield className="size-4" />
             Security
           </TabsTrigger>
           <TabsTrigger value="notifications" className="flex items-center gap-2">
-            <Bell className="h-4 w-4" />
+            <Bell className="size-4" />
             Notifications
           </TabsTrigger>
           <TabsTrigger value="appearance" className="flex items-center gap-2">
-            <Palette className="h-4 w-4" />
+            <Palette className="size-4" />
             Appearance
           </TabsTrigger>
         </TabsList>
@@ -414,40 +414,40 @@ export default function SuperAdminSettings() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Globe className="h-5 w-5" />
+                <Globe className="size-5" />
                 General Settings
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="gap-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
+                <div className="gap-y-2">
                   <Label htmlFor="siteName">Site Name</Label>
                   <Input id="siteName" value={systemSettings.siteName} onChange={e => updateSystemSetting("siteName", e.target.value)} />
                 </div>
-                <div className="space-y-2">
+                <div className="gap-y-2">
                   <Label htmlFor="supportEmail">Support Email</Label>
                   <Input id="supportEmail" type="email" value={systemSettings.supportEmail} onChange={e => updateSystemSetting("supportEmail", e.target.value)} />
                 </div>
               </div>
-              <div className="space-y-2">
+              <div className="gap-y-2">
                 <Label htmlFor="siteDescription">Site Description</Label>
                 <Textarea id="siteDescription" value={systemSettings.siteDescription} onChange={e => updateSystemSetting("siteDescription", e.target.value)} rows={3} />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
+                <div className="gap-y-2">
                   <Label htmlFor="maxFileSize">Max File Size (MB)</Label>
                   <Input id="maxFileSize" type="number" value={systemSettings.maxFileSize} onChange={e => updateSystemSetting("maxFileSize", e.target.value)} />
                 </div>
-                <div className="space-y-2">
+                <div className="gap-y-2">
                   <Label htmlFor="sessionTimeout">Session Timeout (minutes)</Label>
                   <Input id="sessionTimeout" type="number" value={systemSettings.sessionTimeout} onChange={e => updateSystemSetting("sessionTimeout", e.target.value)} />
                 </div>
-                <div className="space-y-2">
+                <div className="gap-y-2">
                   <Label htmlFor="defaultLanguage">Default Language</Label>
                   <Input id="defaultLanguage" value={systemSettings.defaultLanguage} onChange={e => updateSystemSetting("defaultLanguage", e.target.value)} />
                 </div>
               </div>
-              <div className="space-y-2">
+              <div className="gap-y-2">
                 <Label htmlFor="clinicVideoProvider">Clinic Video Provider</Label>
                 <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
                   <div>
@@ -484,7 +484,7 @@ export default function SuperAdminSettings() {
                     : `This clinic inherits the global provider (${globalVideoProvider}).`}
                 </p>
               </div>
-              <div className="space-y-4">
+              <div className="gap-y-4">
                 {[
                   ["Maintenance Mode", "Temporarily disable access", "maintenanceMode", systemSettings.maintenanceMode],
                   ["User Registration", "Allow new users to register", "registrationEnabled", systemSettings.registrationEnabled],
@@ -512,26 +512,26 @@ export default function SuperAdminSettings() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
+                <Shield className="size-5" />
                 Security Settings
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="gap-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
+                <div className="gap-y-2">
                   <Label htmlFor="passwordExpiry">Password Expiry (days)</Label>
                   <Input id="passwordExpiry" type="number" value={securitySettings.passwordExpiry} onChange={e => updateSecuritySetting("passwordExpiry", e.target.value)} />
                 </div>
-                <div className="space-y-2">
+                <div className="gap-y-2">
                   <Label htmlFor="maxLoginAttempts">Max Login Attempts</Label>
                   <Input id="maxLoginAttempts" type="number" value={securitySettings.maxLoginAttempts} onChange={e => updateSecuritySetting("maxLoginAttempts", e.target.value)} />
                 </div>
               </div>
-              <div className="space-y-2">
+              <div className="gap-y-2">
                 <Label htmlFor="ipWhitelist">IP Whitelist (comma-separated)</Label>
                 <Textarea id="ipWhitelist" value={securitySettings.ipWhitelist} onChange={e => updateSecuritySetting("ipWhitelist", e.target.value)} rows={3} />
               </div>
-              <div className="space-y-4">
+              <div className="gap-y-4">
                 {[
                   ["Two-Factor Authentication Required", "Require 2FA for admin users", "twoFactorRequired", securitySettings.twoFactorRequired],
                   ["Audit Logging", "Record all critical actions", "auditLogging", securitySettings.auditLogging],
@@ -559,11 +559,11 @@ export default function SuperAdminSettings() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Bell className="h-5 w-5" />
+                <Bell className="size-5" />
                 Notification Settings
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="gap-y-4">
               {[
                 ["Appointment Reminders", "Send appointment reminders to patients", "appointmentReminders", notificationSettings.appointmentReminders],
                 ["System Alerts", "Receive alerts for system issues", "systemAlerts", notificationSettings.systemAlerts],
@@ -595,7 +595,7 @@ export default function SuperAdminSettings() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Palette className="h-5 w-5" />
+                <Palette className="size-5" />
                 Appearance Settings
               </CardTitle>
             </CardHeader>
@@ -610,3 +610,5 @@ export default function SuperAdminSettings() {
     </div>
   );
 }
+
+

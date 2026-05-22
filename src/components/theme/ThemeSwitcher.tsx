@@ -5,6 +5,7 @@ import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n/context"; // ✅ Use consolidated i18n
+import { useHydrated } from "@/hooks/utils/useHydrated";
 
 interface ThemeSwitcherProps {
   className?: string;
@@ -13,11 +14,7 @@ interface ThemeSwitcherProps {
 export function ThemeSwitcher({ className }: ThemeSwitcherProps) {
   const { theme, setTheme } = useTheme();
   const { t } = useTranslation();
-  const [mounted, setMounted] = React.useState(false);
-
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useHydrated();
 
   // Prevent hydration mismatch by not rendering until mounted
   if (!mounted) {
@@ -27,7 +24,7 @@ export function ThemeSwitcher({ className }: ThemeSwitcherProps) {
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="w-10 h-10 rounded-md bg-gray-700 animate-pulse"
+              className="size-10 rounded-md bg-gray-700 animate-pulse"
             />
           ))}
         </div>
@@ -65,7 +62,7 @@ export function ThemeSwitcher({ className }: ThemeSwitcherProps) {
               type="button"
               onClick={() => setTheme(themeOption.value)}
               className={cn(
-                "relative flex items-center justify-center w-10 h-10 rounded-md transition-all duration-200",
+                "relative flex items-center justify-center size-10 rounded-md transition-all duration-200",
                 "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800",
                 isActive
                   ? `${themeOption.activeColor} shadow-sm`
@@ -74,7 +71,7 @@ export function ThemeSwitcher({ className }: ThemeSwitcherProps) {
               aria-label={`Switch to ${themeOption.name} theme`}
               title={themeOption.name}
             >
-              <Icon className="h-4 w-4" />
+              <Icon className="size-4" />
             </button>
           );
         })}
@@ -87,11 +84,7 @@ export function ThemeSwitcher({ className }: ThemeSwitcherProps) {
 export function ThemeSwitcherWithLabels({ className }: ThemeSwitcherProps) {
   const { theme, setTheme } = useTheme();
   const { t } = useTranslation();
-  const [mounted, setMounted] = React.useState(false);
-
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useHydrated();
 
   // Prevent hydration mismatch by not rendering until mounted
   if (!mounted) {
@@ -147,7 +140,7 @@ export function ThemeSwitcherWithLabels({ className }: ThemeSwitcherProps) {
               )}
               aria-label={`Switch to ${themeOption.name} theme`}
             >
-              <Icon className="h-4 w-4" />
+              <Icon className="size-4" />
               <span className="text-sm font-medium">{themeOption.name}</span>
             </button>
           );
@@ -160,16 +153,12 @@ export function ThemeSwitcherWithLabels({ className }: ThemeSwitcherProps) {
 // Compact version for mobile (Toggle)
 export function CompactThemeSwitcher({ className }: ThemeSwitcherProps) {
   const { theme, setTheme, systemTheme } = useTheme();
-  const [mounted, setMounted] = React.useState(false);
-
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useHydrated();
 
   if (!mounted) {
     return (
       <div className={cn("flex items-center", className)}>
-        <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse" />
+        <div className="size-8 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse" />
       </div>
     );
   }
@@ -182,14 +171,16 @@ export function CompactThemeSwitcher({ className }: ThemeSwitcherProps) {
       type="button"
       onClick={() => setTheme(isDark ? "light" : "dark")}
       className={cn(
-        "relative flex items-center justify-center w-8 h-8 rounded-full transition-all duration-300 ease-in-out",
+        "relative flex items-center justify-center size-8 rounded-full transition-all duration-300 ease-in-out",
         "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1",
         "bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300",
         className
       )}
       aria-label="Toggle theme"
     >
-      {isDark ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+      {isDark ? <Moon className="size-4" /> : <Sun className="size-4" />}
     </button>
   );
 }
+
+

@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
+import { useHydrated } from '@/hooks/utils/useHydrated';
 import {
   scrollReveal,
   scrollRevealLeft,
@@ -125,11 +126,7 @@ export const HoverAnimation: React.FC<HoverAnimationProps> = ({
   type = 'scale',
   disabled = false,
 }) => {
-  const [mounted, setMounted] = React.useState(false);
-
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useHydrated();
 
   if (disabled || !mounted) {
     return <div className={cn(className)}>{children}</div>;
@@ -252,7 +249,7 @@ export const LoadingAnimation: React.FC<LoadingAnimationProps> = ({
           {fallback || (
             <div className="flex items-center justify-center p-8">
               <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                <div className="animate-spin rounded-full size-8 border-b-2 border-primary"></div>
               </div>
             </div>
           )}
@@ -293,7 +290,7 @@ export const CounterAnimation: React.FC<CounterAnimationProps> = ({
   suffix = '',
   prefix = '',
 }) => {
-  const [count, setCount] = React.useState(from);
+  const [count, setCount] = React.useState(() => from);
 
   React.useEffect(() => {
     const start = Date.now();
@@ -357,3 +354,4 @@ export const Parallax: React.FC<ParallaxProps> = ({
     </motion.div>
   );
 };
+

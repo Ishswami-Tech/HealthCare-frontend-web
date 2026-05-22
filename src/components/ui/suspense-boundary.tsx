@@ -1,5 +1,5 @@
-/**
- * ✅ Granular Suspense Boundaries
+﻿/**
+ * âœ… Granular Suspense Boundaries
  * For better loading states and streaming
  * Uses consolidated loading components
  */
@@ -48,7 +48,7 @@ export function CompactSuspense({ children }: { children: ReactNode }) {
       fallback={
         <div className="flex items-center gap-2 p-2">
           <InlineLoader size="sm" />
-          <span className="text-xs text-muted-foreground">Loading...</span>
+          <span className="text-xs text-muted-foreground">Loading…</span>
         </div>
       }
     >
@@ -97,7 +97,7 @@ export function CardSuspense({ children }: { children: ReactNode }) {
         <div className="p-6 border rounded-lg">
           <div className="flex items-center gap-2">
             <InlineLoader size="md" />
-            <span className="text-sm text-muted-foreground">Loading...</span>
+            <span className="text-sm text-muted-foreground">Loading…</span>
           </div>
         </div>
       }
@@ -117,7 +117,7 @@ export function TableRowSuspense({ children }: { children: ReactNode }) {
         <tr>
           <td colSpan={100} className="p-4 text-center">
             <InlineLoader size="sm" className="inline-block" />
-            <span className="ml-2 text-sm text-muted-foreground">Loading...</span>
+            <span className="ml-2 text-sm text-muted-foreground">Loading…</span>
           </td>
         </tr>
       }
@@ -126,4 +126,5 @@ export function TableRowSuspense({ children }: { children: ReactNode }) {
     </SuspenseBoundary>
   );
 }
+
 

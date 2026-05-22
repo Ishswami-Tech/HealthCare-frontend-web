@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
@@ -291,12 +291,12 @@ export default function EHRSystem() {
           <div className="flex gap-2">
             <PatientProtectedComponent action="view">
               <Button variant="outline" size="sm" onClick={() => setSelectedPatientId(row.original.id)}>
-                <Eye className="h-3 w-3" />
+                <Eye className="size-3" />
               </Button>
             </PatientProtectedComponent>
             <PatientProtectedComponent action="update">
               <Button variant="outline" size="sm" onClick={() => setSelectedPatientId(row.original.id)}>
-                <Edit className="h-3 w-3" />
+                <Edit className="size-3" />
               </Button>
             </PatientProtectedComponent>
           </div>
@@ -341,10 +341,10 @@ export default function EHRSystem() {
   return (
     <MedicalRecordsRouteProtection>
       
-        <div className="p-6 space-y-6">
+        <div className="p-6 gap-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold">
+              <h1 className="text-3xl font-semibold">
                   Electronic Health Records
                 </h1>
                 <p className="text-gray-600">
@@ -360,7 +360,7 @@ export default function EHRSystem() {
                     className="flex items-center gap-2"
                     disabled={createMedicalRecordMutation.isPending}
                   >
-                    <Upload className="w-4 h-4" />
+                    <Upload className="size-4" />
                     {createMedicalRecordMutation.isPending
                       ? "Importing..."
                       : "Import Records"}
@@ -375,9 +375,9 @@ export default function EHRSystem() {
                     onClick={() => handleCreateMedicalRecord({})}
                     disabled={createMedicalRecordMutation.isPending}
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="size-4" />
                     {createMedicalRecordMutation.isPending
-                      ? "Creating..."
+                      ? "Creating…"
                       : "New Patient Record"}
                   </Button>
                 </ProtectedComponent>
@@ -387,11 +387,11 @@ export default function EHRSystem() {
             {/* EHR Statistics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
                     Total Patients
                   </CardTitle>
-                  <Users className="h-4 w-4 text-blue-600" />
+                  <Users className="size-4 text-blue-600" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-blue-600">
@@ -402,11 +402,11 @@ export default function EHRSystem() {
               </Card>
 
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
                     Active Records
                   </CardTitle>
-                  <FileText className="h-4 w-4 text-green-600" />
+                  <FileText className="size-4 text-green-600" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-green-600">
@@ -419,11 +419,11 @@ export default function EHRSystem() {
               </Card>
 
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
                     Records Updated Today
                   </CardTitle>
-                  <TrendingUp className="h-4 w-4 text-purple-600" />
+                  <TrendingUp className="size-4 text-purple-600" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-purple-600">
@@ -434,11 +434,11 @@ export default function EHRSystem() {
               </Card>
 
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
                     Critical Alerts
                   </CardTitle>
-                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                  <AlertTriangle className="size-4 text-red-600" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-red-600">
@@ -451,7 +451,7 @@ export default function EHRSystem() {
               </Card>
             </div>
 
-            <Tabs defaultValue="overview" className="space-y-6">
+            <Tabs defaultValue="overview" className="gap-y-6">
               <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="patients">Patient Records</TabsTrigger>
@@ -466,27 +466,27 @@ export default function EHRSystem() {
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
-                        <Clock className="w-5 h-5" />
+                        <Clock className="size-5" />
                         Recent Patient Activity
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-4">
+                      <div className="gap-y-4">
                         {recentPatients.map((patient) => (
                           <div
                             key={patient.id}
                             className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
                           >
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                                <User className="w-5 h-5 text-blue-600" />
+                              <div className="size-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                <User className="size-5 text-blue-600" />
                               </div>
                               <div>
                                 <h4 className="font-semibold">
                                   {patient.name}
                                 </h4>
                                 <p className="text-sm text-gray-600">
-                                  ID: {patient.id} • Age: {patient.age}
+                                  ID: {patient.id} â€¢ Age: {patient.age}
                                 </p>
                                 <p className="text-xs text-gray-500">
                                   Last visit: {patient.lastVisit}
@@ -505,7 +505,7 @@ export default function EHRSystem() {
                         ))}
 
                         <Button variant="outline" className="w-full">
-                          <Eye className="w-4 h-4 mr-2" />
+                          <Eye className="size-4 mr-2" />
                           View All Patients
                         </Button>
                       </div>
@@ -516,16 +516,16 @@ export default function EHRSystem() {
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
-                        <Shield className="w-5 h-5" />
+                        <Shield className="size-5" />
                         System Health & Performance
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-4">
+                      <div className="gap-y-4">
                         <div className="flex items-center justify-between">
                           <span>Database Connection</span>
                           <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            <div className="size-2 bg-green-500 rounded-full"></div>
                             <span className="text-sm text-green-600">
                               Online
                             </span>
@@ -535,7 +535,7 @@ export default function EHRSystem() {
                         <div className="flex items-center justify-between">
                           <span>Backup Status</span>
                           <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            <div className="size-2 bg-green-500 rounded-full"></div>
                             <span className="text-sm text-green-600">
                               Up to date
                             </span>
@@ -545,7 +545,7 @@ export default function EHRSystem() {
                         <div className="flex items-center justify-between">
                           <span>System Load</span>
                           <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                            <div className="size-2 bg-yellow-500 rounded-full"></div>
                             <span className="text-sm text-yellow-600">
                               Moderate (65%)
                             </span>
@@ -555,7 +555,7 @@ export default function EHRSystem() {
                         <div className="flex items-center justify-between">
                           <span>Security Status</span>
                           <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            <div className="size-2 bg-green-500 rounded-full"></div>
                             <span className="text-sm text-green-600">
                               Secure
                             </span>
@@ -590,7 +590,7 @@ export default function EHRSystem() {
                           className="h-20 flex flex-col items-center justify-center gap-2"
                           onClick={() => handleCreateMedicalRecord({})}
                         >
-                          <Plus className="w-6 h-6" />
+                          <Plus className="size-6" />
                           <span className="text-sm">New Patient</span>
                         </Button>
                       </PatientProtectedComponent>
@@ -602,10 +602,10 @@ export default function EHRSystem() {
                           onClick={() => handleSearchPatients(searchTerm)}
                           disabled={searchPatientsMutation.isPending}
                         >
-                          <Search className="w-6 h-6" />
+                          <Search className="size-6" />
                           <span className="text-sm">
                             {searchPatientsMutation.isPending
-                              ? "Searching..."
+                              ? "Searching…"
                               : "Search Records"}
                           </span>
                         </Button>
@@ -619,7 +619,7 @@ export default function EHRSystem() {
                           className="h-20 flex flex-col items-center justify-center gap-2"
                           disabled={createMedicalRecordMutation.isPending}
                         >
-                          <Upload className="w-6 h-6" />
+                          <Upload className="size-6" />
                           <span className="text-sm">Import Data</span>
                         </Button>
                       </ProtectedComponent>
@@ -631,7 +631,7 @@ export default function EHRSystem() {
                           variant="outline"
                           className="h-20 flex flex-col items-center justify-center gap-2"
                         >
-                          <Download className="w-6 h-6" />
+                          <Download className="size-6" />
                           <span className="text-sm">Export Reports</span>
                         </Button>
                       </ProtectedComponent>
@@ -644,15 +644,15 @@ export default function EHRSystem() {
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Users className="w-5 h-5" />
+                      <Users className="size-5" />
                       Patient Records Management
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
+                    <div className="gap-y-4">
                       <div className="flex gap-4">
                         <div className="relative flex-1">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-gray-500" />
                           <Input
                             placeholder="Search by patient name, ID, or condition..."
                             value={searchTerm}
@@ -661,11 +661,11 @@ export default function EHRSystem() {
                           />
                         </div>
                         <Button variant="outline">
-                          <Filter className="w-4 h-4 mr-2" />
+                          <Filter className="size-4 mr-2" />
                           Filter
                         </Button>
                         <Button>
-                          <Plus className="w-4 h-4 mr-2" />
+                          <Plus className="size-4 mr-2" />
                           Add Patient
                         </Button>
                       </div>
@@ -695,12 +695,12 @@ export default function EHRSystem() {
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <AlertTriangle className="w-5 h-5" />
+                      <AlertTriangle className="size-5" />
                       Critical Alerts & Notifications
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
+                    <div className="gap-y-4">
                       {criticalAlerts.map((alert) => (
                         <div
                           key={alert.id}
@@ -719,7 +719,7 @@ export default function EHRSystem() {
                                 </Badge>
                               </div>
                               <div className="flex items-center gap-2 mb-1">
-                                <Clipboard className="w-4 h-4 text-red-600" />
+                                <Clipboard className="size-4 text-red-600" />
                                 <span className="text-sm font-medium text-red-700">
                                   {alert.type}
                                 </span>
@@ -740,7 +740,7 @@ export default function EHRSystem() {
                                     setSelectedPatientId(alert.patient)
                                   }
                                 >
-                                  <Eye className="w-3 h-3 mr-1" />
+                                  <Eye className="size-3 mr-1" />
                                   View
                                 </Button>
                               </PatientProtectedComponent>
@@ -754,7 +754,7 @@ export default function EHRSystem() {
                                     // Handle resolve alert
                                   }}
                                 >
-                                  <CheckCircle className="w-3 h-3 mr-1" />
+                                  <CheckCircle className="size-3 mr-1" />
                                   Resolve
                                 </Button>
                               </ProtectedComponent>
@@ -765,7 +765,7 @@ export default function EHRSystem() {
 
                       <div className="p-4 bg-gray-50 rounded-lg">
                         <div className="flex items-center gap-2">
-                          <CheckCircle className="w-5 h-5 text-green-600" />
+                          <CheckCircle className="size-5 text-green-600" />
                           <span className="font-medium">
                             All other patients are stable
                           </span>
@@ -780,11 +780,11 @@ export default function EHRSystem() {
               </TabsContent>
 
               <TabsContent value="analytics">
-                <div className="space-y-6">
+                <div className="gap-y-6">
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
-                        <TrendingUp className="w-5 h-5" />
+                        <TrendingUp className="size-5" />
                         EHR Analytics Dashboard
                       </CardTitle>
                     </CardHeader>
@@ -835,7 +835,7 @@ export default function EHRSystem() {
                     </CardHeader>
                     <CardContent>
                       <div className="text-center p-8 text-gray-500">
-                        <TrendingUp className="w-16 h-16 mx-auto mb-4" />
+                        <TrendingUp className="size-16 mx-auto mb-4" />
                         <h3 className="text-lg font-medium mb-2">
                           Advanced Analytics Coming Soon
                         </h3>
@@ -853,12 +853,12 @@ export default function EHRSystem() {
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Settings className="w-5 h-5" />
+                      <Settings className="size-5" />
                       EHR System Settings
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-6">
+                    <div className="gap-y-6">
                       <div>
                         <h4 className="font-semibold mb-4">Data Management</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -866,14 +866,14 @@ export default function EHRSystem() {
                             variant="outline"
                             className="h-16 flex flex-col items-center justify-center gap-2"
                           >
-                            <Database className="w-6 h-6" />
+                            <Database className="size-6" />
                             <span className="text-sm">Backup Settings</span>
                           </Button>
                           <Button
                             variant="outline"
                             className="h-16 flex flex-col items-center justify-center gap-2"
                           >
-                            <Shield className="w-6 h-6" />
+                            <Shield className="size-6" />
                             <span className="text-sm">Security Settings</span>
                           </Button>
                         </div>
@@ -888,14 +888,14 @@ export default function EHRSystem() {
                             variant="outline"
                             className="h-16 flex flex-col items-center justify-center gap-2"
                           >
-                            <Zap className="w-6 h-6" />
+                            <Zap className="size-6" />
                             <span className="text-sm">Performance</span>
                           </Button>
                           <Button
                             variant="outline"
                             className="h-16 flex flex-col items-center justify-center gap-2"
                           >
-                            <Bell className="w-6 h-6" />
+                            <Bell className="size-6" />
                             <span className="text-sm">Alert Settings</span>
                           </Button>
                         </div>
@@ -905,7 +905,7 @@ export default function EHRSystem() {
                         <h4 className="font-semibold mb-2">
                           System Information
                         </h4>
-                        <div className="space-y-2 text-sm text-gray-600">
+                        <div className="gap-y-2 text-sm text-gray-600">
                           <div className="flex justify-between">
                             <span>EHR System Version:</span>
                             <span>v2.4.1</span>
@@ -920,7 +920,7 @@ export default function EHRSystem() {
                           </div>
                           <div className="flex justify-between">
                             <span>HIPAA Compliance:</span>
-                            <span className="text-green-600">✓ Certified</span>
+                            <span className="text-green-600">âœ“ Certified</span>
                           </div>
                         </div>
                       </div>
@@ -934,3 +934,6 @@ export default function EHRSystem() {
     </MedicalRecordsRouteProtection>
   );
 }
+
+
+

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * React 19 useFormStatus Hook Integration
  * Form submit button with automatic loading state
  */
@@ -52,7 +52,7 @@ export const FormStatusButton = forwardRef<HTMLButtonElement, FormStatusButtonPr
         {...props}
       >
         {pending && showSpinner && (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          <Loader2 className="mr-2 size-4 animate-spin" />
         )}
         {pending ? (loadingText || children) : children}
       </Button>
@@ -75,10 +75,12 @@ export function FormStatusIndicator() {
     <div className="flex items-center gap-2 text-sm text-muted-foreground">
       {pending && (
         <>
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <span>Submitting...</span>
+          <Loader2 className="size-4 animate-spin" />
+          <span>Submitting…</span>
         </>
       )}
     </div>
   );
 }
+
+

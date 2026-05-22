@@ -9,16 +9,12 @@ export {
   AppointmentProtectedComponent,
   PatientProtectedComponent,
   QueueProtectedComponent,
-  withPermission,
-  useConditionalRender,
 } from './ProtectedComponent';
 
 // Protected Routes
 export {
   ProtectedRoute,
   UnauthorizedAccess,
-  withRoleProtection,
-  withPermissionProtection,
   AppointmentRouteProtection,
   PatientRouteProtection,
   QueueRouteProtection,
@@ -29,6 +25,16 @@ export {
   DoctorRouteProtection,
   StaffRouteProtection,
 } from './ProtectedRoute';
+
+export {
+  withPermission,
+  useConditionalRender,
+} from './protected-helpers';
+
+export {
+  withRoleProtection,
+  withPermissionProtection,
+} from './protected-route-helpers';
 
 // Specialized Components - These components don't exist in SpecializedComponents.tsx
 // They can be created using ProtectedComponent with role checks if needed

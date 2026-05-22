@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useReducer } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, Info, Loader2, QrCode, Clock, Stethoscope } from "lucide-react";
@@ -41,6 +41,82 @@ import { normalizeAppointmentStatus } from "@/lib/utils/appointmentUtils";
 
 type CheckInCoordinates = { lat: number; lng: number };
 
+type CheckInState = {
+  isProcessing: boolean;
+  successData: QrCheckInAppointment | null;
+  manualCode: string;
+  eligibleAppointments: QrCheckInSelectionCandidate[];
+  pendingQrCode: string;
+  pendingCoordinates: CheckInCoordinates | null;
+  selectingAppointment: boolean;
+};
+
+type CheckInAction =
+  | { type: "SET_MANUAL_CODE"; value: string }
+  | { type: "START_PROCESSING" }
+  | { type: "SHOW_SUCCESS"; appointment: QrCheckInAppointment }
+  | {
+      type: "SHOW_SELECTION";
+      appointments: QrCheckInSelectionCandidate[];
+      qrCode: string;
+      coordinates: CheckInCoordinates;
+    }
+  | { type: "STOP_PROCESSING" }
+  | { type: "BEGIN_APPOINTMENT_SELECTION" }
+  | { type: "CLEAR_SELECTION" }
+  | { type: "SHOW_ERROR" };
+
+const initialCheckInState: CheckInState = {
+  isProcessing: false,
+  successData: null,
+  manualCode: "",
+  eligibleAppointments: [],
+  pendingQrCode: "",
+  pendingCoordinates: null,
+  selectingAppointment: false,
+};
+
+function checkInReducer(state: CheckInState, action: CheckInAction): CheckInState {
+  switch (action.type) {
+    case "SET_MANUAL_CODE":
+      return { ...state, manualCode: action.value };
+    case "START_PROCESSING":
+      return { ...state, isProcessing: true };
+    case "SHOW_SUCCESS":
+      return {
+        ...state,
+        isProcessing: false,
+        successData: action.appointment,
+        selectingAppointment: false,
+      };
+    case "SHOW_SELECTION":
+      return {
+        ...state,
+        eligibleAppointments: action.appointments,
+        pendingQrCode: action.qrCode,
+        pendingCoordinates: action.coordinates,
+        selectingAppointment: true,
+        isProcessing: false,
+      };
+    case "STOP_PROCESSING":
+      return { ...state, isProcessing: false };
+    case "BEGIN_APPOINTMENT_SELECTION":
+      return { ...state, selectingAppointment: false, isProcessing: true };
+    case "CLEAR_SELECTION":
+      return {
+        ...state,
+        selectingAppointment: false,
+        eligibleAppointments: [],
+        pendingQrCode: "",
+        pendingCoordinates: null,
+      };
+    case "SHOW_ERROR":
+      return { ...state, isProcessing: false };
+    default:
+      return state;
+  }
+}
+
 function getCurrentCoordinates(): Promise<CheckInCoordinates> {
   return new Promise((resolve, reject) => {
     if (!("geolocation" in navigator)) {
@@ -64,16 +140,19 @@ function getCurrentCoordinates(): Promise<CheckInCoordinates> {
 }
 
 export default function PatientCheckInPage() {
-  const router = useRouter();
+  const { push } = useRouter();
   const { data: appointmentsData, isPending: isAppointmentsPending } = useMyAppointments();
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [successData, setSuccessData] = useState<QrCheckInAppointment | null>(null);
-  const [manualCode, setManualCode] = useState("");
-  const [eligibleAppointments, setEligibleAppointments] = useState<QrCheckInSelectionCandidate[]>([]);
-  const [pendingQrCode, setPendingQrCode] = useState("");
-  const [pendingCoordinates, setPendingCoordinates] = useState<CheckInCoordinates | null>(null);
-  const [selectingAppointment, setSelectingAppointment] = useState(false);
+  const [state, dispatch] = useReducer(checkInReducer, initialCheckInState);
   const scanLocationQrAndCheckInMutation = useScanLocationQrAndCheckIn();
+  const {
+    isProcessing,
+    successData,
+    manualCode,
+    eligibleAppointments,
+    pendingQrCode,
+    pendingCoordinates,
+    selectingAppointment,
+  } = state;
   const hasEligibleAppointment = useMemo(() => {
     const appointments = Array.isArray((appointmentsData as any)?.appointments)
       ? (appointmentsData as any).appointments
@@ -101,7 +180,7 @@ export default function PatientCheckInPage() {
 
   const handleScanSuccess = async (decodedText: string) => {
     if (isProcessing) return;
-    setIsProcessing(true);
+    dispatch({ type: "START_PROCESSING" });
     if ("vibrate" in navigator) navigator.vibrate(100);
 
     try {
@@ -112,7 +191,7 @@ export default function PatientCheckInPage() {
       });
 
       if (result.success && result.appointment) {
-        setSuccessData(result.appointment);
+        dispatch({ type: "SHOW_SUCCESS", appointment: result.appointment });
         showSuccessToast("Check-in successful!", {
           id: TOAST_IDS.APPOINTMENT.CHECK_IN,
         });
@@ -124,11 +203,12 @@ export default function PatientCheckInPage() {
         Array.isArray(result.appointments) &&
         result.appointments.length > 0
       ) {
-        setEligibleAppointments(result.appointments);
-        setPendingQrCode(decodedText);
-        setPendingCoordinates(coordinates);
-        setSelectingAppointment(true);
-        setIsProcessing(false);
+        dispatch({
+          type: "SHOW_SELECTION",
+          appointments: result.appointments,
+          qrCode: decodedText,
+          coordinates,
+        });
         showInfoToast("Multiple appointments found. Please select one.", {
           id: TOAST_IDS.APPOINTMENT.CHECK_IN,
         });
@@ -139,16 +219,15 @@ export default function PatientCheckInPage() {
         result.error || "Failed to check in. Please try again or ask reception.",
         { id: TOAST_IDS.APPOINTMENT.CHECK_IN }
       );
-      setIsProcessing(false);
+      dispatch({ type: "SHOW_ERROR" });
     } catch (error) {
       showErrorToast(error, { id: TOAST_IDS.APPOINTMENT.CHECK_IN });
-      setIsProcessing(false);
+      dispatch({ type: "SHOW_ERROR" });
     }
   };
 
   const handleSelectAppointment = async (appointmentId: string) => {
-    setSelectingAppointment(false);
-    setIsProcessing(true);
+    dispatch({ type: "BEGIN_APPOINTMENT_SELECTION" });
 
     try {
       const result = await scanLocationQrAndCheckInMutation.mutateAsync({
@@ -158,7 +237,7 @@ export default function PatientCheckInPage() {
       });
 
       if (result.success && result.appointment) {
-        setSuccessData(result.appointment);
+        dispatch({ type: "SHOW_SUCCESS", appointment: result.appointment });
         showSuccessToast("Check-in successful!", {
           id: TOAST_IDS.APPOINTMENT.CHECK_IN,
         });
@@ -168,10 +247,10 @@ export default function PatientCheckInPage() {
       showErrorToast(result.error || "Failed to check in.", {
         id: TOAST_IDS.APPOINTMENT.CHECK_IN,
       });
-      setIsProcessing(false);
+      dispatch({ type: "SHOW_ERROR" });
     } catch (error) {
       showErrorToast(error, { id: TOAST_IDS.APPOINTMENT.CHECK_IN });
-      setIsProcessing(false);
+      dispatch({ type: "SHOW_ERROR" });
     }
   };
 
@@ -187,22 +266,22 @@ export default function PatientCheckInPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-sm text-center space-y-6 sm:space-y-8"
+          className="w-full max-w-sm text-center gap-y-6 sm:gap-y-8"
         >
           <div
-            className={`relative mx-auto w-20 h-20 sm:w-24 sm:h-24 ${theme.badges.emerald} rounded-full flex items-center justify-center shadow-inner border-none`}
+            className={`relative mx-auto size-20 sm:w-24 sm:h-24 ${theme.badges.emerald} rounded-full flex items-center justify-center shadow-inner border-none`}
           >
             <motion.div
-              initial={{ scale: 0 }}
+              initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: "spring", stiffness: 200, damping: 15 }}
             >
-              <CheckCircle2 className={`h-8 w-8 sm:h-10 sm:w-10 ${theme.iconColors.emerald}`} />
+              <CheckCircle2 className={`size-8 sm:h-10 sm:w-10 ${theme.iconColors.emerald}`} />
             </motion.div>
           </div>
 
-          <div className="space-y-2">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Check-in Confirmed!</h1>
+          <div className="gap-y-2">
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Check-in Confirmed!</h1>
             <p className="text-muted-foreground text-xs sm:text-sm font-medium">
               You&apos;re all set for your visit.
             </p>
@@ -241,7 +320,7 @@ export default function PatientCheckInPage() {
 
           <Button
             className="w-full h-12 sm:h-14 rounded-2xl text-sm sm:text-base font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-glow-subtle hover:shadow-glow-medium"
-            onClick={() => router.push("/patient/dashboard")}
+            onClick={() => push("/patient/dashboard")}
           >
             Go to Dashboard
           </Button>
@@ -264,13 +343,13 @@ export default function PatientCheckInPage() {
             <Empty>
               <EmptyContent>
                 <EmptyMedia>
-                  <Info className={`h-5 w-5 ${theme.iconColors.blue}`} />
+                  <Info className={`size-5 ${theme.iconColors.blue}`} />
                 </EmptyMedia>
                 <EmptyTitle>No eligible appointment is available for check-in right now.</EmptyTitle>
                 <EmptyDescription>
                   Please book an appointment first. Once you arrive at the clinic, you can open this page again to scan the QR code.
                 </EmptyDescription>
-                <Button onClick={() => router.push("/patient/appointments?openBooking=1")}>
+                <Button onClick={() => push("/patient/appointments?openBooking=1")}>
                   Book appointment
                 </Button>
               </EmptyContent>
@@ -283,15 +362,15 @@ export default function PatientCheckInPage() {
 
   if (selectingAppointment && eligibleAppointments.length > 0) {
     return (
-      <div className="max-w-xl mx-auto space-y-6 py-4">
+      <div className="max-w-xl mx-auto gap-y-6 py-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Select Appointment</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Select Appointment</h1>
           <p className="text-muted-foreground text-sm">
             You have multiple appointments today. Please select which one to check in for.
           </p>
         </div>
 
-        <div className="space-y-3">
+        <div className="gap-y-3">
           {eligibleAppointments.map((apt) => {
             const derivedDoctorName = `${apt.doctor?.firstName || ""} ${apt.doctor?.lastName || ""}`.trim();
             const doctorName = (apt.doctorName ?? apt.doctor?.name ?? derivedDoctorName) || "Doctor";
@@ -309,13 +388,13 @@ export default function PatientCheckInPage() {
                 onClick={() => void handleSelectAppointment(apt.id)}
               >
                 <div className="flex items-center justify-between">
-                  <div className="space-y-1">
+                  <div className="gap-y-1">
                     <div className="flex items-center gap-2">
-                      <Stethoscope className="h-4 w-4 text-muted-foreground" />
+                      <Stethoscope className="size-4 text-muted-foreground" />
                       <span className="font-semibold">{doctorName}</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Clock className="h-3.5 w-3.5" />
+                      <Clock className="size-3.5" />
                       <span>{timeStr}</span>
                       {apt.type && (
                         <>
@@ -336,9 +415,7 @@ export default function PatientCheckInPage() {
           variant="ghost"
           className="w-full"
           onClick={() => {
-            setSelectingAppointment(false);
-            setEligibleAppointments([]);
-            setPendingQrCode("");
+            dispatch({ type: "CLEAR_SELECTION" });
           }}
         >
           Cancel
@@ -375,7 +452,7 @@ export default function PatientCheckInPage() {
                 </div>
 
                 <div className={`flex items-start gap-3 ${theme.containers.featureBlue} p-4 rounded-xl w-full max-w-sm`}>
-                  <Info className={`h-4 w-4 ${theme.iconColors.blue} shrink-0 mt-0.5`} />
+                  <Info className={`size-4 ${theme.iconColors.blue} shrink-0 mt-0.5`} />
                   <p className={`text-[11px] ${theme.textColors.info} leading-relaxed font-medium`}>
                     Check-in is allowed only when your device is within the clinic&apos;s configured geofence, the location code is valid, and a matching appointment exists for today.
                   </p>
@@ -386,14 +463,14 @@ export default function PatientCheckInPage() {
                 key="processing-layout"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="flex flex-col items-center justify-center p-16 text-center space-y-6"
+                className="flex flex-col items-center justify-center p-16 text-center gap-y-6"
               >
                 <div className="relative">
                   <div className="absolute inset-0 blur-2xl bg-primary/20 scale-150 rounded-full animate-pulse" />
-                  <Loader2 className="h-10 w-10 text-primary animate-spin relative z-10" />
+                  <Loader2 className="size-10 text-primary animate-spin relative z-10" />
                 </div>
-                <div className="space-y-1">
-                  <h3 className="text-lg font-bold">Connecting</h3>
+                <div className="gap-y-1">
+                  <h3 className="text-lg font-semibold">Connecting</h3>
                   <p className="text-muted-foreground text-xs">Syncing your arrival data securely</p>
                 </div>
               </motion.div>
@@ -414,8 +491,8 @@ export default function PatientCheckInPage() {
             <DrawerContent className="bg-background border rounded-t-4xl">
               <div className="mx-auto w-full max-w-sm">
                 <DrawerHeader className="text-left mt-4">
-                  <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mb-4 border">
-                    <QrCode className="h-6 w-6" />
+                  <div className="size-12 rounded-2xl bg-muted flex items-center justify-center mb-4 border">
+                    <QrCode className="size-6" />
                   </div>
                   <DrawerTitle className="text-2xl font-bold">Enter Location Code</DrawerTitle>
                   <DrawerDescription className="text-muted-foreground font-medium">
@@ -423,11 +500,13 @@ export default function PatientCheckInPage() {
                   </DrawerDescription>
                 </DrawerHeader>
                 <div className="p-4 pb-0">
-                  <form id="manual-checkin-form" onSubmit={handleManualCheckIn} className="space-y-6">
+                  <form id="manual-checkin-form" onSubmit={handleManualCheckIn} className="gap-y-6">
                     <Input
                       placeholder="Enter location code"
                       value={manualCode}
-                      onChange={(e) => setManualCode(e.target.value.toUpperCase())}
+                      onChange={(e) =>
+                        dispatch({ type: "SET_MANUAL_CODE", value: e.target.value.toUpperCase() })
+                      }
                       className="h-12 sm:h-14 rounded-xl bg-muted/50 px-3 text-center text-xs font-bold uppercase tracking-wide sm:text-lg sm:tracking-widest"
                       maxLength={160}
                       autoComplete="off"
@@ -441,7 +520,7 @@ export default function PatientCheckInPage() {
                     className="w-full h-14 rounded-xl text-base font-bold"
                     disabled={manualCode.length < 4 || isProcessing}
                   >
-                    {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : "Validate & Check-in"}
+                    {isProcessing ? <Loader2 className="size-5 animate-spin" /> : "Validate & Check-in"}
                   </Button>
                   <DrawerClose asChild>
                     <Button variant="outline" className="h-14 rounded-xl font-bold">
@@ -457,3 +536,5 @@ export default function PatientCheckInPage() {
     </DashboardLayout>
   );
 }
+
+

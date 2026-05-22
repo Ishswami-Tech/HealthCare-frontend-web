@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAuth } from "@/hooks/auth/useAuth";
@@ -57,7 +57,7 @@ const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "obj
 const toNumber = (v: unknown, fb: number) => Number.isFinite(Number(v)) ? Number(v) : fb;
 const normalizeTime = (v: unknown, fb: string) => typeof v === "string" && /^([01]\d|2[0-3]):([0-5]\d)$/.test(v.trim()) ? v.trim() : fb;
 const parseSessions = (v: unknown): ClinicOperatingSession[] => Array.isArray(v) ? v.map(x => isRecord(x) ? ({ start: normalizeTime(x.start,"11:00"), end: normalizeTime(x.end,"14:00") }) : null).filter((x): x is ClinicOperatingSession => !!x) : isRecord(v) ? [{ start: normalizeTime(v.start,"11:00"), end: normalizeTime(v.end,"14:00") }] : [];
-const FORM_FIELD_CLASS = "space-y-2";
+const FORM_FIELD_CLASS = "gap-y-2";
 const FORM_INPUT_CLASS = "h-10";
 const TIME_INPUT_CLASS =
   "h-10 w-full min-w-0 rounded-md border border-indigo-200 bg-white px-3 text-sm font-medium leading-none tabular-nums shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:border-indigo-400 focus-visible:ring-2 focus-visible:ring-indigo-200/70 dark:border-indigo-900/70 dark:bg-background [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-70 [&::-webkit-datetime-edit-fields-wrapper]:p-0 [&::-webkit-datetime-edit]:p-0 [&::-webkit-datetime-edit-hour-field]:px-0.5 [&::-webkit-datetime-edit-minute-field]:px-0.5 [&::-webkit-datetime-edit-ampm-field]:px-1";
@@ -115,7 +115,7 @@ function ToggleRow({
 }) {
   return (
     <div className="flex min-h-11 items-center justify-between gap-3 rounded-lg border border-border bg-muted/20 px-3 py-2">
-      <div className="min-w-0 space-y-1">
+      <div className="min-w-0 gap-y-1">
         <Label className="text-sm leading-5">{label}</Label>
         {description ? <p className="text-xs leading-5 text-muted-foreground">{description}</p> : null}
       </div>
@@ -199,7 +199,7 @@ export default function ClinicAdminSettingsPage() {
   const [ready, setReady] = useState(false);
   const [clinicForm, setClinicForm] = useState<ClinicForm>({ name:"",address:"",city:"",state:"",country:"India",zipCode:"",phone:"",email:"",website:"",description:"",timezone:"Asia/Kolkata",currency:"INR",language:"en",operatingHours:"Mon-Sun multi-session OPD" });
   const [settings, setSettings] = useState<SettingsForm>({ appointmentDuration:30,maxAdvanceBooking:30,minAdvanceBooking:2,cancellationWindow:24,videoCallWindowStart:"10:00",videoCallWindowEnd:"14:00",noShowWindowMinutes:15,noShowFee:0,cancellationFee:0,allowRescheduling:true,allowCancellation:true,autoConfirmation:true,walkInAllowed:true,emailNotifications:true,smsNotifications:true,pushNotifications:false,appointmentReminders:true,cancellationAlerts:true,paymentMethodsText:"Cash, Card, UPI",autoBilling:false,clinicPaused:false,pauseReason:"",generalConsultationEnabled:true,videoConsultationEnabled:true,emergencyOnly:false });
-  const [sessions, setSessions] = useState<Record<ClinicOperatingDayKey, ClinicOperatingSession[]>>(defaultSessions());
+  const [sessions, setSessions] = useState<Record<ClinicOperatingDayKey, ClinicOperatingSession[]>>(() => defaultSessions());
   const [doctorCtrl, setDoctorCtrl] = useState<Record<string, ClinicDoctorConsultationControl>>({});
   const [assistantCoverage, setAssistantCoverage] = useState<AssistantCoverageState>({});
   const videoCallPreview = useMemo(() => {
@@ -243,9 +243,13 @@ export default function ClinicAdminSettingsPage() {
     const parsed = defaultSessions(); DAYS.forEach(d => { if (dayWin[d] !== undefined) parsed[d] = parseSessions(dayWin[d]); });
     const mapped: Record<string, ClinicDoctorConsultationControl> = {};
     Object.entries(docMap).forEach(([id,v]) => { if (isRecord(v)) mapped[id] = { isPaused: Boolean(v.isPaused ?? v.paused ?? false), pauseReason: typeof v.pauseReason==="string"?v.pauseReason:"", generalConsultationEnabled: Boolean(v.generalConsultationEnabled ?? true), videoConsultationEnabled: Boolean(v.videoConsultationEnabled ?? true), emergencyOnly: Boolean(v.emergencyOnly ?? false) }; });
-    setClinicForm({ name: clinic.name||"", address: clinic.address||"", city: (clinic as any).city||"", state: (clinic as any).state||"", country: (clinic as any).country||"India", zipCode: (clinic as any).zipCode||"", phone: clinic.phone||"", email: clinic.email||"", website: clinic.website||"", description: clinic.description||"", timezone: clinic.timezone||"Asia/Kolkata", currency: clinic.currency||"INR", language: clinic.language||"en", operatingHours: clinic.operatingHours||"Mon-Sun multi-session OPD" });
-    setSettings({ appointmentDuration: toNumber(appt.appointmentDuration,30), maxAdvanceBooking: toNumber(appt.maxAdvanceBooking,30), minAdvanceBooking: toNumber(appt.minAdvanceBooking,2), cancellationWindow: toNumber(appt.cancellationWindow,24), videoCallWindowStart: normalizeTime(isRecord(appt.videoCallWindow) ? appt.videoCallWindow.start : undefined, "10:00"), videoCallWindowEnd: normalizeTime(isRecord(appt.videoCallWindow) ? appt.videoCallWindow.end : undefined, "14:00"), noShowWindowMinutes: toNumber(appt.noShowWindowMinutes,15), noShowFee: toNumber(policy.noShowFee,0), cancellationFee: toNumber(policy.cancellationFee,0), allowRescheduling: typeof appt.allowRescheduling==="boolean"?appt.allowRescheduling:true, allowCancellation: typeof appt.allowCancellation==="boolean"?appt.allowCancellation:true, autoConfirmation: typeof appt.autoConfirmation==="boolean"?appt.autoConfirmation:true, walkInAllowed: typeof appt.walkInAllowed==="boolean"?appt.walkInAllowed:true, emailNotifications: typeof notif.email==="boolean"?notif.email:typeof notifSet.emailNotifications==="boolean"?notifSet.emailNotifications:true, smsNotifications: typeof notif.sms==="boolean"?notif.sms:typeof notifSet.smsNotifications==="boolean"?notifSet.smsNotifications:true, pushNotifications: typeof notif.push==="boolean"?notif.push:typeof notifSet.pushNotifications==="boolean"?notifSet.pushNotifications:false, appointmentReminders: typeof notifSet.appointmentReminders==="boolean"?notifSet.appointmentReminders:true, cancellationAlerts: typeof notifSet.cancellationAlerts==="boolean"?notifSet.cancellationAlerts:true, paymentMethodsText: Array.isArray(pay.paymentMethods)?pay.paymentMethods.join(", "):"Cash, Card, UPI", autoBilling: typeof pay.autoBilling==="boolean"?pay.autoBilling:false, clinicPaused: Boolean(opd.isOpdPaused ?? opd.clinicPaused ?? false), pauseReason: typeof opd.pauseReason==="string"?opd.pauseReason:"", generalConsultationEnabled: Boolean(opd.generalConsultationEnabled ?? true), videoConsultationEnabled: Boolean(opd.videoConsultationEnabled ?? true), emergencyOnly: Boolean(opd.emergencyOnly ?? false) });
-    setSessions(parsed); setDoctorCtrl(mapped); setReady(true);
+    const newClinicForm: ClinicForm = { name: clinic.name||"", address: clinic.address||"", city: (clinic as any).city||"", state: (clinic as any).state||"", country: (clinic as any).country||"India", zipCode: (clinic as any).zipCode||"", phone: clinic.phone||"", email: clinic.email||"", website: clinic.website||"", description: clinic.description||"", timezone: clinic.timezone||"Asia/Kolkata", currency: clinic.currency||"INR", language: clinic.language||"en", operatingHours: clinic.operatingHours||"Mon-Sun multi-session OPD" };
+    const newSettings: SettingsForm = { appointmentDuration: toNumber(appt.appointmentDuration,30), maxAdvanceBooking: toNumber(appt.maxAdvanceBooking,30), minAdvanceBooking: toNumber(appt.minAdvanceBooking,2), cancellationWindow: toNumber(appt.cancellationWindow,24), videoCallWindowStart: normalizeTime(isRecord(appt.videoCallWindow) ? appt.videoCallWindow.start : undefined, "10:00"), videoCallWindowEnd: normalizeTime(isRecord(appt.videoCallWindow) ? appt.videoCallWindow.end : undefined, "14:00"), noShowWindowMinutes: toNumber(appt.noShowWindowMinutes,15), noShowFee: toNumber(policy.noShowFee,0), cancellationFee: toNumber(policy.cancellationFee,0), allowRescheduling: typeof appt.allowRescheduling==="boolean"?appt.allowRescheduling:true, allowCancellation: typeof appt.allowCancellation==="boolean"?appt.allowCancellation:true, autoConfirmation: typeof appt.autoConfirmation==="boolean"?appt.autoConfirmation:true, walkInAllowed: typeof appt.walkInAllowed==="boolean"?appt.walkInAllowed:true, emailNotifications: typeof notif.email==="boolean"?notif.email:typeof notifSet.emailNotifications==="boolean"?notifSet.emailNotifications:true, smsNotifications: typeof notif.sms==="boolean"?notif.sms:typeof notifSet.smsNotifications==="boolean"?notifSet.smsNotifications:true, pushNotifications: typeof notif.push==="boolean"?notif.push:typeof notifSet.pushNotifications==="boolean"?notifSet.pushNotifications:false, appointmentReminders: typeof notifSet.appointmentReminders==="boolean"?notifSet.appointmentReminders:true, cancellationAlerts: typeof notifSet.cancellationAlerts==="boolean"?notifSet.cancellationAlerts:true, paymentMethodsText: Array.isArray(pay.paymentMethods)?pay.paymentMethods.join(", "):"Cash, Card, UPI", autoBilling: typeof pay.autoBilling==="boolean"?pay.autoBilling:false, clinicPaused: Boolean(opd.isOpdPaused ?? opd.clinicPaused ?? false), pauseReason: typeof opd.pauseReason==="string"?opd.pauseReason:"", generalConsultationEnabled: Boolean(opd.generalConsultationEnabled ?? true), videoConsultationEnabled: Boolean(opd.videoConsultationEnabled ?? true), emergencyOnly: Boolean(opd.emergencyOnly ?? false) };
+    setClinicForm(newClinicForm);
+    setSettings(newSettings);
+    setSessions(parsed);
+    setDoctorCtrl(mapped);
+    setReady(true);
   }, [clinic, ready]);
 
   useEffect(() => {
@@ -348,7 +352,7 @@ export default function ClinicAdminSettingsPage() {
     return (
       <PatientPageShell className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
         <div className="flex min-h-[420px] items-center justify-center rounded-xl border border-border bg-card">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Loader2 className="size-8 animate-spin text-primary" />
         </div>
       </PatientPageShell>
     );
@@ -376,22 +380,22 @@ export default function ClinicAdminSettingsPage() {
         meta={
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             <span>{doctors.length} doctors</span>
-            <span className="h-1 w-1 rounded-full bg-muted-foreground/50" />
+            <span className="size-1 rounded-full bg-muted-foreground/50" />
             <span>{assistantDoctors.length} assistant doctors</span>
           </div>
         }
         actions={[
           {
-            label: isSaving ? "Saving..." : "Save Changes",
+            label: isSaving ? "Saving…" : "Save Changes",
             onClick: save,
             disabled: isSaving,
-            icon: isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />,
+            icon: isSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />,
           },
         ]}
       />
 
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="space-y-3">
+        <div className="gap-y-3">
           <Card className={PROFILE_CARD_CLASS}>
             <CardHeader className={COMPACT_CARD_HEADER}>
               <CardTitle>Clinic Profile</CardTitle>
@@ -453,13 +457,13 @@ export default function ClinicAdminSettingsPage() {
         </Card>
         </div>
 
-        <div className="space-y-3">
+        <div className="gap-y-3">
           <Card className={BOOKING_CARD_CLASS}>
             <CardHeader className={COMPACT_CARD_HEADER}>
               <CardTitle>Booking Policy</CardTitle>
               <CardDescription>Appointment limits and patient self-service rules.</CardDescription>
             </CardHeader>
-            <CardContent className={`${COMPACT_CARD_CONTENT} space-y-3`}>
+            <CardContent className={`${COMPACT_CARD_CONTENT} gap-y-3`}>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
                 <SettingField label="Duration (minutes)">
                   <Input className={FORM_INPUT_CLASS} type="number" value={settings.appointmentDuration} onChange={(e) => setSF("appointmentDuration", toNumber(e.target.value, 30))} />
@@ -503,7 +507,7 @@ export default function ClinicAdminSettingsPage() {
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {videoCallPreview.label} · {videoCallPreview.slotDuration} minute video slots
+                  {videoCallPreview.label} Â· {videoCallPreview.slotDuration} minute video slots
                 </p>
                 <p
                   className={`mt-1 text-xs ${
@@ -529,7 +533,7 @@ export default function ClinicAdminSettingsPage() {
               <CardTitle>Emergency / OPD Controls</CardTitle>
               <CardDescription>Temporarily restrict clinic consultations.</CardDescription>
             </CardHeader>
-            <CardContent className={`${COMPACT_CARD_CONTENT} space-y-3`}>
+            <CardContent className={`${COMPACT_CARD_CONTENT} gap-y-3`}>
               <ToggleRow label="Pause Clinic OPD" checked={settings.clinicPaused} onCheckedChange={(value) => setSF("clinicPaused", value)} />
               <SettingField label="Pause Reason">
                 <Input className={FORM_INPUT_CLASS} value={settings.pauseReason} onChange={(e) => setSF("pauseReason", e.target.value)} />
@@ -559,7 +563,7 @@ export default function ClinicAdminSettingsPage() {
               <CardTitle>Billing</CardTitle>
               <CardDescription>Payment methods and policy fees.</CardDescription>
             </CardHeader>
-            <CardContent className={`${COMPACT_CARD_CONTENT} space-y-3`}>
+            <CardContent className={`${COMPACT_CARD_CONTENT} gap-y-3`}>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
                 <SettingField label="Currency">
                   <Input className={FORM_INPUT_CLASS} value={clinicForm.currency} onChange={(e) => setCF("currency", e.target.value)} />
@@ -590,7 +594,7 @@ export default function ClinicAdminSettingsPage() {
             <Empty>
               <EmptyContent>
                 <EmptyMedia>
-                  <Stethoscope className="h-5 w-5" />
+                  <Stethoscope className="size-5" />
                 </EmptyMedia>
                 <EmptyTitle>No doctors found.</EmptyTitle>
                 <EmptyDescription>
@@ -606,22 +610,22 @@ export default function ClinicAdminSettingsPage() {
                     <TableHead className="w-[240px] px-3">Doctor</TableHead>
                     <TableHead className="w-[68px] px-2 text-center">
                       <IconTableHead label="Pause Doctor">
-                        <Ban className="h-4 w-4" />
+                        <Ban className="size-4" />
                       </IconTableHead>
                     </TableHead>
                     <TableHead className="w-[68px] px-2 text-center">
                       <IconTableHead label="General Consultation">
-                        <Stethoscope className="h-4 w-4" />
+                        <Stethoscope className="size-4" />
                       </IconTableHead>
                     </TableHead>
                     <TableHead className="w-[68px] px-2 text-center">
                       <IconTableHead label="Video Consultation">
-                        <Video className="h-4 w-4" />
+                        <Video className="size-4" />
                       </IconTableHead>
                     </TableHead>
                     <TableHead className="w-[68px] px-2 text-center">
                       <IconTableHead label="Emergency Only">
-                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTriangle className="size-4" />
                       </IconTableHead>
                     </TableHead>
                     <TableHead className="min-w-[220px] px-3">Pause Reason</TableHead>
@@ -674,7 +678,7 @@ export default function ClinicAdminSettingsPage() {
             <Empty>
               <EmptyContent>
                 <EmptyMedia>
-                  <Plus className="h-5 w-5" />
+                  <Plus className="size-5" />
                 </EmptyMedia>
                 <EmptyTitle>No assistant doctors found.</EmptyTitle>
                 <EmptyDescription>
@@ -686,7 +690,7 @@ export default function ClinicAdminSettingsPage() {
             assistantDoctors.map((assistant) => {
               const coverage = assistantCoverage[assistant.id] || { assistantDoctorId: assistant.id, primaryDoctorIds: [], isActive: false };
               return (
-                <div key={assistant.id} className="space-y-2 rounded-lg border border-fuchsia-200 bg-white/80 p-3 dark:border-fuchsia-900/70 dark:bg-background/40">
+                <div key={assistant.id} className="gap-y-2 rounded-lg border border-fuchsia-200 bg-white/80 p-3 dark:border-fuchsia-900/70 dark:bg-background/40">
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate font-semibold">{assistant.name}</p>
@@ -702,7 +706,7 @@ export default function ClinicAdminSettingsPage() {
                       <Empty>
                         <EmptyContent>
                           <EmptyMedia>
-                            <Stethoscope className="h-5 w-5" />
+                            <Stethoscope className="size-5" />
                           </EmptyMedia>
                           <EmptyTitle>No primary doctors found.</EmptyTitle>
                           <EmptyDescription>
@@ -736,3 +740,6 @@ export default function ClinicAdminSettingsPage() {
     </PatientPageShell>
   );
 }
+
+
+

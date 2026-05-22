@@ -87,7 +87,7 @@ export function WhatsAppButton({
           aria-label={t("common.whatsappMessage")}
         >
           <div className="flex items-center gap-2">
-            <MessageCircle className="w-6 h-6" />
+            <MessageCircle className="size-6" />
             {showText && (
               <span className="font-medium whitespace-nowrap">
                 {t("common.whatsappMessage")}
@@ -118,7 +118,7 @@ export function WhatsAppButton({
         )}
         aria-label={t("common.whatsappMessage")}
       >
-        <MessageCircle className="w-4 h-4" />
+        <MessageCircle className="size-4" />
         {showText && <span className="text-sm font-medium">WhatsApp</span>}
       </button>
     );
@@ -134,7 +134,7 @@ export function WhatsAppButton({
       )}
       aria-label={t("common.whatsappMessage")}
     >
-      <MessageCircle className="w-5 h-5" />
+      <MessageCircle className="size-5" />
       {showText && <span>{t("common.whatsappMessage")}</span>}
     </button>
   );
@@ -192,8 +192,8 @@ function WhatsAppChat({
       {/* Header */}
       <div className="bg-green-500 text-white p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-            <MessageCircle className="w-5 h-5" />
+          <div className="size-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+            <MessageCircle className="size-5" />
           </div>
           <div>
             <h3 className="font-semibold">{clinicName}</h3>
@@ -205,13 +205,13 @@ function WhatsAppChat({
           className="p-1 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
           aria-label="Close chat"
         >
-          <X className="w-5 h-5" />
+          <X className="size-5" />
         </button>
       </div>
 
       {/* Chat Body */}
       <div className="p-4 max-h-96 overflow-y-auto">
-        <div className="space-y-3">
+        <div className="gap-y-3">
           {/* Welcome message */}
           <div className="bg-gray-100 rounded-lg p-3">
             <p className="text-sm text-gray-800">
@@ -224,7 +224,7 @@ function WhatsAppChat({
           </div>
 
           {/* Quick message buttons */}
-          <div className="space-y-2">
+          <div className="gap-y-2">
             <p className="text-xs text-gray-500 font-medium">Quick messages:</p>
             {quickMessages.map((msg, index) => (
               <button
@@ -270,10 +270,11 @@ function WhatsAppChat({
             className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             aria-label="Send message"
           >
-            <Send className="w-4 h-4" />
+            <Send className="size-4" />
           </button>
         </div>
       </div>
     </div>
   );
 }
+

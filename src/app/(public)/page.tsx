@@ -11,8 +11,8 @@ import {
   TestimonialsSection,
   TrustBuilding,
   ComprehensiveCTA,
-  SectionSkeleton,
 } from "@/lib/dynamic-imports";
+import { SectionSkeleton } from "@/lib/dynamic-imports-skeletons";
 import WhyChooseUsSection from "@/components/ayurveda/WhyChooseUsSection";
 import SpecializationsSection from "@/components/ayurveda/SpecializationsSection";
 import { AuthRedirect } from "@/components/auth/AuthRedirect";

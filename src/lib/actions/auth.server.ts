@@ -1,4 +1,4 @@
-'use server';
+﻿'use server';
 
 import {
   Role,
@@ -17,20 +17,13 @@ import { getDashboardByRole, ROUTES } from '@/lib/config/routes';
 import { calculateProfileCompletion } from '@/lib/config/profile';
 import { cookies, headers as getHeaders } from 'next/headers';
 import { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
+import { createHash } from 'crypto';
 import { logger } from '@/lib/utils/logger';
 import { isApiError } from '@/lib/utils/error-handler';
 import { fetchWithAbort } from '@/lib/utils/fetch-with-abort';
-import { revalidatePath, revalidateTag } from 'next/cache';
+import { revalidatePath } from 'next/cache';
 import { clinicApiClient } from '@/lib/api/client';
 import { normalizeClinicId } from '@/lib/utils/clinic-id';
-
-export async function revalidateCache(tag: string) {
-  try {
-    (revalidateTag as any)(tag, 'max');
-  } catch (error: unknown) {
-    logger.warn(`Failed to revalidate tag: ${tag}`, { error });
-  }
-}
 
 import { APP_CONFIG, API_ENDPOINTS } from '@/lib/config/config';
 
@@ -109,9 +102,7 @@ function normalizeAuthUserPayload(
   };
 }
 
-let hasLoggedEnvironment = false;
-if ((APP_CONFIG.IS_DEVELOPMENT || APP_CONFIG.FEATURES.DEBUG) && !hasLoggedEnvironment) {
-  hasLoggedEnvironment = true;
+if (APP_CONFIG.IS_DEVELOPMENT || APP_CONFIG.FEATURES.DEBUG) {
   logger.info('Environment configuration', { 
     environment: APP_CONFIG.ENVIRONMENT,
     apiUrl: API_URL,
@@ -152,30 +143,50 @@ async function checkApiConnection(): Promise<boolean> {
   }
 }
 
-const COOKIE_OPTIONS: Partial<ResponseCookie> = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict',
-  path: '/',
-  maxAge: 60 * 60 * 24 * 7,
-};
+function cookieOptions(): Partial<ResponseCookie> {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    path: '/',
+    maxAge: 60 * 60 * 24 * 7,
+  };
+}
 
-const SESSION_TOKEN_OPTIONS: Partial<ResponseCookie> = {
-  ...COOKIE_OPTIONS,
-  maxAge: 60 * 60 * 5,
-};
+function sessionTokenOptions(): Partial<ResponseCookie> {
+  return {
+    ...cookieOptions(),
+    maxAge: 60 * 60 * 5,
+  };
+}
 
-const REFRESH_TOKEN_OPTIONS: Partial<ResponseCookie> = {
-  ...COOKIE_OPTIONS,
-  maxAge: 60 * 60 * 24 * 30,
-};
+function refreshTokenOptions(): Partial<ResponseCookie> {
+  return {
+    ...cookieOptions(),
+    maxAge: 60 * 60 * 24 * 30,
+  };
+}
 
 const INVALID_REFRESH_TOKEN_TTL_MS = 5 * 60 * 1000;
-const invalidRefreshTokenCache = new Map<string, number>();
+const INVALID_REFRESH_TOKEN_COOKIE = 'invalid_refresh_token';
 
-const accessTokenOptions = SESSION_TOKEN_OPTIONS;
-const refreshTokenOptions = REFRESH_TOKEN_OPTIONS;
-const sessionOptions = COOKIE_OPTIONS;
+function getRefreshTokenFingerprint(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+function getInvalidRefreshTokenMarker(value?: string): { fingerprint: string; invalidUntil: number } | null {
+  if (!value) {
+    return null;
+  }
+
+  const [fingerprint, invalidUntilValue] = value.split(':');
+  const invalidUntil = Number(invalidUntilValue);
+  if (!fingerprint || !Number.isFinite(invalidUntil)) {
+    return null;
+  }
+
+  return { fingerprint, invalidUntil };
+}
 
 function parseJwtPayload(token: string): Record<string, unknown> | null {
   try {
@@ -530,18 +541,13 @@ export async function getServerSession(): Promise<Session | null> {
     const cookieClinicId = normalizeClinicId(cookieStore.get('clinic_id')?.value);
 
     if (process.env.NODE_ENV === 'development') {
-      const now = Date.now();
-      const lastLog = (global as unknown as Record<string, number>).__lastSessionCheckLog || 0;
-      if (now - lastLog > 500) {
-        (global as unknown as Record<string, number>).__lastSessionCheckLog = now;
-        logger.debug('getServerSession - Checking cookies', {
-          hasAccessToken: !!accessToken,
-          hasRefreshToken: !!refreshTokenValue,
-          hasSessionId: !!sessionId,
-          userRole,
-          profileComplete
-        });
-      }
+      logger.debug('getServerSession - Checking cookies', {
+        hasAccessToken: !!accessToken,
+        hasRefreshToken: !!refreshTokenValue,
+        hasSessionId: !!sessionId,
+        userRole,
+        profileComplete
+      });
     }
 
     if (accessToken && refreshTokenValue && shouldRefreshJwt(accessToken)) {
@@ -643,7 +649,7 @@ export async function getServerSession(): Promise<Session | null> {
         cookieStore.set({
           name: 'clinic_id',
           value: payloadClinicId,
-          ...sessionOptions,
+          ...cookieOptions(),
         });
       }
 
@@ -687,7 +693,7 @@ export async function getServerSession(): Promise<Session | null> {
             cookieStore.set({
               name: 'profile_complete',
               value: 'true',
-              ...sessionOptions,
+              ...cookieOptions(),
             });
           } else if (!authoritativeProfileComplete) {
             const backendProfileComplete = await fetchAuthoritativeProfileComplete(accessToken, sessionId);
@@ -696,7 +702,7 @@ export async function getServerSession(): Promise<Session | null> {
               cookieStore.set({
                 name: 'profile_complete',
                 value: 'true',
-                ...sessionOptions,
+                ...cookieOptions(),
               });
             }
           }
@@ -739,7 +745,7 @@ export async function getServerSession(): Promise<Session | null> {
           cookieStore.set({
             name: 'profile_complete',
             value: 'true',
-            ...sessionOptions,
+            ...cookieOptions(),
           });
         }
       } else {
@@ -809,6 +815,11 @@ export async function getServerSession(): Promise<Session | null> {
     throw error;
   }
 }
+
+export async function auth(): Promise<Session | null> {
+  return getServerSession();
+}
+
 
 export async function getClientInfo(): Promise<{ ipAddress: string; userAgent: string }> {
   try {
@@ -880,14 +891,14 @@ export async function setSession(data: {
           cookieStore.set({
              name: 'access_token',
              value: accessTokenValue,
-             ...accessTokenOptions,
+             ...sessionTokenOptions(),
           });
        }
        if (refreshTokenValue) {
           cookieStore.set({
              name: 'refresh_token',
              value: refreshTokenValue,
-             ...refreshTokenOptions,
+             ...refreshTokenOptions(),
           });
        }
        
@@ -895,7 +906,7 @@ export async function setSession(data: {
           cookieStore.set({
              name: 'session_id',
              value: newSessionId,
-             ...sessionOptions,
+             ...cookieOptions(),
           });
        }
 
@@ -903,7 +914,7 @@ export async function setSession(data: {
          cookieStore.set({
            name: 'clinic_id',
            value: tokenClinicId,
-           ...sessionOptions,
+           ...cookieOptions(),
          });
        }
        
@@ -960,31 +971,31 @@ export async function setSession(data: {
   cookieStore.set({
     name: 'access_token',
     value: accessTokenValue,
-    ...accessTokenOptions,
+    ...sessionTokenOptions(),
   });
   
   cookieStore.set({
     name: 'refresh_token',
     value: refreshTokenValue,
-    ...refreshTokenOptions,
+    ...refreshTokenOptions(),
   });
   
   cookieStore.set({
     name: 'session_id',
     value: data.session_id,
-    ...sessionOptions,
+    ...cookieOptions(),
   });
   
   cookieStore.set({
     name: 'user_role',
     value: data.user.role,
-    ...sessionOptions,
+    ...cookieOptions(),
   });
   
   cookieStore.set({
     name: 'profile_complete',
     value: String(resolveProfileComplete(data.user as unknown as Record<string, unknown>)),
-    ...sessionOptions,
+    ...cookieOptions(),
   });
 
   const normalizedClinicId = normalizeClinicId(data.user.clinicId);
@@ -993,7 +1004,7 @@ export async function setSession(data: {
     cookieStore.set({
       name: 'clinic_id',
       value: normalizedClinicId,
-      ...sessionOptions,
+      ...cookieOptions(),
     });
   }
 
@@ -1003,7 +1014,7 @@ export async function setSession(data: {
 export async function clearSession() {
   const cookieStore = await cookies();
   const expiredOptions: Partial<ResponseCookie> = {
-    ...COOKIE_OPTIONS,
+    ...cookieOptions(),
     maxAge: 0,
   };
   
@@ -1063,6 +1074,12 @@ export async function clearSession() {
 
   cookieStore.set({
     name: 'user_name',
+    value: '',
+    ...expiredOptions,
+  });
+
+  cookieStore.set({
+    name: INVALID_REFRESH_TOKEN_COOKIE,
     value: '',
     ...expiredOptions,
   });
@@ -1474,14 +1491,18 @@ export async function refreshToken(): Promise<Session | null> {
       throw new Error('No refresh token available');
     }
 
-    const invalidUntil = invalidRefreshTokenCache.get(refreshTokenValue);
-    if (invalidUntil && invalidUntil > Date.now()) {
+    const invalidMarker = getInvalidRefreshTokenMarker(cookieStore.get(INVALID_REFRESH_TOKEN_COOKIE)?.value);
+    const refreshTokenFingerprint = getRefreshTokenFingerprint(refreshTokenValue);
+    if (
+      invalidMarker?.fingerprint === refreshTokenFingerprint &&
+      invalidMarker.invalidUntil > Date.now()
+    ) {
       await clearSession();
       return null;
     }
 
-    if (invalidUntil && invalidUntil <= Date.now()) {
-      invalidRefreshTokenCache.delete(refreshTokenValue);
+    if (invalidMarker && invalidMarker.invalidUntil <= Date.now()) {
+      cookieStore.delete(INVALID_REFRESH_TOKEN_COOKIE);
     }
 
     const response = await clinicApiClient.refreshToken({ refreshToken: refreshTokenValue });
@@ -1499,7 +1520,14 @@ export async function refreshToken(): Promise<Session | null> {
     const cookieStore = await cookies();
     const refreshTokenValue = cookieStore.get('refresh_token')?.value;
     if (refreshTokenValue && isSessionInvalidError(error)) {
-      invalidRefreshTokenCache.set(refreshTokenValue, Date.now() + INVALID_REFRESH_TOKEN_TTL_MS);
+      cookieStore.set(
+        INVALID_REFRESH_TOKEN_COOKIE,
+        `${getRefreshTokenFingerprint(refreshTokenValue)}:${Date.now() + INVALID_REFRESH_TOKEN_TTL_MS}`,
+        {
+          ...cookieOptions(),
+          maxAge: Math.ceil(INVALID_REFRESH_TOKEN_TTL_MS / 1000),
+        }
+      );
     }
     if (isTransientSessionError(error)) {
       logger.warn('Token refresh failed transiently', {
@@ -1539,11 +1567,23 @@ export async function logout() {
 
 
 export async function getUserSessions() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized');
+  }
+
+
    const response = await clinicApiClient.getUserSessions();
    return response.data;
 }
 
 export async function terminateAllSessions() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized');
+  }
+
+
   await clinicApiClient.logout({ allDevices: true });
   await clearSession();
 }
@@ -1575,7 +1615,7 @@ async function setAuthCookies(data: {
     cookieStore.set({
       name: 'access_token',
       value: accessTokenValue,
-      ...accessTokenOptions,
+      ...sessionTokenOptions(),
     });
   }
 
@@ -1583,7 +1623,7 @@ async function setAuthCookies(data: {
     cookieStore.set({
       name: 'refresh_token',
       value: refreshTokenValue,
-      ...refreshTokenOptions,
+      ...refreshTokenOptions(),
     });
   }
 
@@ -1591,7 +1631,7 @@ async function setAuthCookies(data: {
     cookieStore.set({
       name: 'session_id',
       value: sessionIdValue,
-      ...sessionOptions,
+      ...cookieOptions(),
     });
   }
 
@@ -1599,7 +1639,7 @@ async function setAuthCookies(data: {
     cookieStore.set({
       name: 'user_role',
       value: data.user.role,
-      ...sessionOptions,
+      ...cookieOptions(),
     });
   }
 
@@ -1613,7 +1653,7 @@ async function setAuthCookies(data: {
     cookieStore.set({
       name: 'clinic_id',
       value: normalizedClinicId,
-      ...sessionOptions,
+      ...cookieOptions(),
     });
   }
 
@@ -1622,7 +1662,7 @@ async function setAuthCookies(data: {
     cookieStore.set({
       name: 'clinic_name',
       value: clinicName,
-      ...sessionOptions,
+      ...cookieOptions(),
     });
   }
 
@@ -1634,7 +1674,7 @@ async function setAuthCookies(data: {
     cookieStore.set({
       name: 'first_name',
       value: firstName,
-      ...sessionOptions,
+      ...cookieOptions(),
     });
   }
 
@@ -1642,7 +1682,7 @@ async function setAuthCookies(data: {
     cookieStore.set({
       name: 'last_name',
       value: lastName,
-      ...sessionOptions,
+      ...cookieOptions(),
     });
   }
 
@@ -1650,7 +1690,7 @@ async function setAuthCookies(data: {
     cookieStore.set({
       name: 'user_name',
       value: name,
-      ...sessionOptions,
+      ...cookieOptions(),
     });
   }
 
@@ -1664,7 +1704,7 @@ async function setAuthCookies(data: {
     cookieStore.set({
       name: 'profile_complete',
       value: profileComplete,
-      ...sessionOptions,
+      ...cookieOptions(),
     });
   }
 }
@@ -1678,6 +1718,11 @@ export async function authenticatedApi<T = unknown>(
   } = {}
 ): Promise<{ status: number; data: T }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized');
+    }
+
     const response = await clinicApiClient.request<T>(endpoint, options);
     return { 
       status: response.statusCode || 200, 
@@ -1964,6 +2009,12 @@ export async function appleLogin(token: string, clinicId?: string | undefined): 
 
 
 export async function setProfileComplete(complete: boolean) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized');
+  }
+
+
   const cookieStore = await cookies();
   const secure = process.env.NODE_ENV === 'production';
   
@@ -1979,3 +2030,5 @@ export async function setProfileComplete(complete: boolean) {
 
   revalidatePath('/', 'layout');
 }
+
+

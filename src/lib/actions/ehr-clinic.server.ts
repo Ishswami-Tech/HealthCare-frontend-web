@@ -1,4 +1,4 @@
-'use server';
+﻿'use server';
 
 /**
  * EHR Clinic Server Actions
@@ -12,16 +12,15 @@
 
 import { authenticatedApi, getServerSession } from './auth.server';
 import { API_ENDPOINTS } from '@/lib/config/config';
-import { APP_CONFIG } from '@/lib/config/config';
 import { logger } from '@/lib/utils/logger';
 
 /**
  * 🔒 Get the validated clinicId from server session
- * Falls back to APP_CONFIG.CLINIC.ID for single-clinic deployments
+ * Clinic context must come from the authenticated session.
  */
 async function getSessionClinicId(): Promise<string> {
   const session = await getServerSession();
-  const clinicId = session?.user?.clinicId || APP_CONFIG.CLINIC.ID;
+  const clinicId = session?.user?.clinicId;
   if (!clinicId) {
     throw new Error('No clinic context available. Please log in again.');
   }
@@ -33,6 +32,11 @@ async function getSessionClinicId(): Promise<string> {
  */
 export async function getComprehensiveEHR(userId: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized');
+    }
+
     const { data } = await authenticatedApi(API_ENDPOINTS.EHR_CLINIC.COMPREHENSIVE(userId), {
       method: 'GET',
     });
@@ -53,6 +57,10 @@ export async function getClinicPatientRecords(clinicId?: string, filters?: {
   search?: string;
 }) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized');
+    }
     // 🔒 TENANT ISOLATION: Use session clinicId, ignore parameter
     const validatedClinicId = await getSessionClinicId();
     if (clinicId && clinicId !== validatedClinicId) {
@@ -84,6 +92,10 @@ export async function getClinicPatientRecords(clinicId?: string, filters?: {
  */
 export async function getClinicEHRAnalytics(clinicId?: string, period?: 'day' | 'week' | 'month' | 'year') {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized');
+    }
     // 🔒 TENANT ISOLATION: Use session clinicId, ignore parameter
     const validatedClinicId = await getSessionClinicId();
     if (clinicId && clinicId !== validatedClinicId) {
@@ -113,6 +125,10 @@ export async function getClinicPatientSummary(clinicId?: string, filters?: {
   limit?: number;
 }) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized');
+    }
     // 🔒 TENANT ISOLATION: Use session clinicId, ignore parameter
     const validatedClinicId = await getSessionClinicId();
     if (clinicId && clinicId !== validatedClinicId) {
@@ -149,6 +165,10 @@ export async function searchClinicEHRRecords(clinicId?: string, query?: string, 
   limit?: number;
 }) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized');
+    }
     // 🔒 TENANT ISOLATION: Use session clinicId, ignore parameter
     const validatedClinicId = await getSessionClinicId();
     if (clinicId && clinicId !== validatedClinicId) {
@@ -187,6 +207,10 @@ export async function getClinicCriticalAlerts(clinicId?: string, filters?: {
   limit?: number;
 }) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized');
+    }
     // 🔒 TENANT ISOLATION: Use session clinicId, ignore parameter
     const validatedClinicId = await getSessionClinicId();
     if (clinicId && clinicId !== validatedClinicId) {

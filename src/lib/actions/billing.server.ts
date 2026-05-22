@@ -3,7 +3,7 @@
 
 'use server';
 
-import { authenticatedApi, publicApi } from './auth.server';
+import { authenticatedApi, publicApi, getServerSession } from './auth.server';
 import { z } from 'zod';
 import { API_ENDPOINTS } from '../config/config';
 import { nowIso as nowIsoTimestamp } from '@/lib/utils/date-time';
@@ -224,6 +224,10 @@ export async function getBillingPlans(_clinicId?: string): Promise<{
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const extractPlans = (value: unknown): unknown[] => {
       if (Array.isArray(value)) return value;
       if (!value || typeof value !== 'object') return [];
@@ -291,6 +295,10 @@ export async function getBillingPlan(id: string): Promise<{
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const { data } = await authenticatedApi(API_ENDPOINTS.BILLING.PLANS.GET_BY_ID(id));
     if (!data || typeof data !== 'object') {
       return { success: false, error: 'Invalid billing plan response' };
@@ -307,6 +315,10 @@ export async function createBillingPlan(data: CreateBillingPlanData): Promise<{
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const payload = {
       name: data.name,
       ...(data.description ? { description: data.description } : {}),
@@ -355,6 +367,10 @@ export async function updateBillingPlan(
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const payload: Record<string, unknown> = {};
     if (data.name !== undefined) payload.name = data.name;
     if (data.description !== undefined) payload.description = data.description;
@@ -393,6 +409,10 @@ export async function deleteBillingPlan(id: string): Promise<{
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     await authenticatedApi(API_ENDPOINTS.BILLING.PLANS.DELETE(id), {
       method: 'DELETE',
     });
@@ -410,6 +430,10 @@ export async function getSubscriptions(userId: string): Promise<{
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const normalizedUserId = (userId || '').trim();
     if (!normalizedUserId) {
       return { success: true, subscriptions: [] };
@@ -436,6 +460,10 @@ export async function getClinicSubscriptions(): Promise<{
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const { data } = await authenticatedApi(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.GET_CLINIC_SUBSCRIPTIONS);
     return {
       success: true,
@@ -459,6 +487,10 @@ export async function getActiveSubscription(
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const endpoint = `${API_ENDPOINTS.BILLING.SUBSCRIPTIONS.GET_ACTIVE(userId)}?clinicId=${encodeURIComponent(clinicId)}`;
     const { data } = await authenticatedApi(endpoint);
     if (!data) {
@@ -479,6 +511,10 @@ export async function createSubscription(data: CreateSubscriptionData): Promise<
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const payload = {
       userId: data.userId,
       clinicId: data.clinicId,
@@ -521,6 +557,10 @@ export async function cancelSubscription(
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const { data: response } = await authenticatedApi(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.CANCEL(id), {
       method: 'POST',
       body: JSON.stringify({ immediate }),
@@ -540,6 +580,10 @@ export async function getSubscriptionUsageStats(id: string): Promise<{
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const { data } = await authenticatedApi(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.USAGE_STATS(id));
     return { success: true, stats: data as SubscriptionUsageStats };
   } catch (error) {
@@ -557,6 +601,10 @@ export async function getInvoices(userId: string): Promise<{
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const normalizedUserId = (userId || '').trim();
     if (!normalizedUserId) {
       return { success: true, invoices: [] };
@@ -583,6 +631,10 @@ export async function getClinicInvoices(): Promise<{
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const { data } = await authenticatedApi(API_ENDPOINTS.BILLING.INVOICES.GET_CLINIC_INVOICES);
     return {
       success: true,
@@ -607,6 +659,10 @@ export async function createInvoice(data: CreateInvoiceData): Promise<{
     raw?: unknown;
   }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const validated = createInvoiceSchema.parse(data);
     const { data: response } = await authenticatedApi(API_ENDPOINTS.BILLING.INVOICES.CREATE, {
       method: 'POST',
@@ -653,6 +709,10 @@ export async function markInvoiceAsPaid(id: string): Promise<{
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const { data: response } = await authenticatedApi(API_ENDPOINTS.BILLING.INVOICES.MARK_PAID(id), {
       method: 'POST',
     });
@@ -670,6 +730,10 @@ export async function sendInvoiceViaWhatsApp(invoiceId: string): Promise<{
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     await authenticatedApi(API_ENDPOINTS.BILLING.INVOICES.SEND_WHATSAPP(invoiceId), {
       method: 'POST',
     });
@@ -687,6 +751,10 @@ export async function generateInvoicePDF(id: string): Promise<{
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const { data } = await authenticatedApi(API_ENDPOINTS.BILLING.INVOICES.GENERATE_PDF(id), {
       method: 'POST',
     });
@@ -711,6 +779,10 @@ export async function getPayments(userId: string): Promise<{
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const normalizedUserId = (userId || '').trim();
     if (!normalizedUserId) {
       return { success: true, payments: [] };
@@ -744,6 +816,10 @@ export async function getClinicPayments(filters?: {
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const params = new URLSearchParams();
     if (filters?.status) params.set('status', filters.status);
     if (filters?.revenueModel) params.set('revenueModel', filters.revenueModel);
@@ -780,6 +856,10 @@ export async function getClinicLedger(filters?: {
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const params = new URLSearchParams();
     if (filters?.status) params.set('status', filters.status);
     if (filters?.revenueModel) params.set('revenueModel', filters.revenueModel);
@@ -802,6 +882,10 @@ export async function createPayment(data: CreatePaymentData): Promise<{
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const validated = createPaymentSchema.parse(data);
     const { data: response } = await authenticatedApi(API_ENDPOINTS.BILLING.PAYMENTS.CREATE, {
       method: 'POST',
@@ -831,6 +915,10 @@ export async function createPaymentIntent(
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const provider = request.provider ?? 'cashfree';
     const providerQuery = `?provider=${provider}`;
 
@@ -912,6 +1000,10 @@ export async function verifyPaymentCallback(params: {
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const queryParams = new URLSearchParams({
       clinicId: params.clinicId,
       paymentId: params.paymentId || params.orderId,
@@ -949,6 +1041,10 @@ export async function getAppointmentPayoutStatus(appointmentId: string): Promise
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const { data } = await authenticatedApi(
       API_ENDPOINTS.BILLING.APPOINTMENT_PAYMENTS.PAYOUT_STATUS(appointmentId)
     );
@@ -967,6 +1063,10 @@ export async function releaseAppointmentPayout(appointmentId: string): Promise<{
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const { data } = await authenticatedApi(
       API_ENDPOINTS.BILLING.APPOINTMENT_PAYMENTS.RELEASE_PAYOUT(appointmentId),
       {
@@ -991,6 +1091,10 @@ export async function reconcilePayment(
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const { data } = await authenticatedApi(
       API_ENDPOINTS.BILLING.PAYMENTS.RECONCILE(paymentId),
       {
@@ -1012,6 +1116,10 @@ export async function bookAppointmentWithSubscription(
   appointmentId: string
 ): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const { data } = await authenticatedApi(
       API_ENDPOINTS.BILLING.SUBSCRIPTIONS.BOOK_APPOINTMENT(subscriptionId, appointmentId),
       { method: 'POST' }
@@ -1038,6 +1146,10 @@ export async function checkSubscriptionCoverage(
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const endpoint =
       `${API_ENDPOINTS.BILLING.SUBSCRIPTIONS.CHECK_COVERAGE(subscriptionId)}?` +
       `appointmentType=${encodeURIComponent(appointmentType)}&detailed=true`;
@@ -1064,6 +1176,10 @@ export async function createInPersonAppointmentWithSubscription(data: {
   notes?: string;
 }): Promise<{ success: boolean; appointment?: any; error?: string }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const { subscriptionId, ...payload } = data;
     const { data: response } = await authenticatedApi(
       API_ENDPOINTS.BILLING.SUBSCRIPTIONS.BOOK_INPERSON(subscriptionId),
@@ -1092,6 +1208,10 @@ export async function getBillingAnalytics(_clinicId: string): Promise<{
   error?: string;
 }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
     const { data } = await authenticatedApi(API_ENDPOINTS.BILLING.ANALYTICS.REVENUE);
     return { success: true, analytics: data as BillingAnalytics };
   } catch (error) {

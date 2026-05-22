@@ -10,9 +10,9 @@ export const metadata: Metadata = {
 export default function SettingsPage() {
   return (
     <div className="container max-w-4xl py-8">
-      <div className="space-y-6">
+      <div className="gap-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
           <p className="text-muted-foreground mt-2">
             Manage your account settings and security preferences
           </p>
@@ -35,3 +35,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+

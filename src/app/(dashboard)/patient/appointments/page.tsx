@@ -61,15 +61,16 @@ const TREATMENT_CATEGORIES: TreatmentCategory[] = [
 ];
 
 export default function PatientAppointments() {
-  const router = useRouter();
+  const { push } = useRouter();
   const { session } = useAuth();
   useWebSocketQuerySync();
   const searchParams = useSearchParams();
-  const queryClinicId = searchParams.get("clinicId") || undefined;
-  const queryLocationId = searchParams.get("locationId") || undefined;
-  const queryClinicName = searchParams.get("clinicName") || undefined;
-  const bookingMode = searchParams.get("mode");
-  const shouldOpenBooking = searchParams.get("openBooking") === "1";
+  const { get } = searchParams;
+  const queryClinicId = get("clinicId") || undefined;
+  const queryLocationId = get("locationId") || undefined;
+  const queryClinicName = get("clinicName") || undefined;
+  const bookingMode = get("mode");
+  const shouldOpenBooking = get("openBooking") === "1";
   const defaultConsultationMode =
     bookingMode?.toUpperCase() === "VIDEO" ? "VIDEO" : undefined;
   const sessionClinicId = session?.user?.clinicId || "";
@@ -128,7 +129,7 @@ export default function PatientAppointments() {
                 className="h-10 gap-2 rounded-xl border-sky-200 bg-sky-50 px-4 text-sky-700 hover:bg-sky-100 hover:text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-300"
                 onClick={() => {
                   if (hasInPersonAppointment) {
-                    router.push("/patient/check-in");
+                    push("/patient/check-in");
                     return;
                   }
                   openQrGate({
@@ -136,14 +137,14 @@ export default function PatientAppointments() {
                   });
                 }}
               >
-                <QrCode className="h-4 w-4" />
+                <QrCode className="size-4" />
                 Scan QR
               </Button>
               <Button
                 className="h-10 gap-2 rounded-xl border-0 bg-emerald-600 px-4 font-semibold text-white hover:bg-emerald-700"
                 onClick={() => setIsBookingDialogOpen(true)}
               >
-                <BookOpen className="h-4 w-4" />
+                <BookOpen className="size-4" />
                 Book Appointment
               </Button>
             </div>
@@ -186,8 +187,8 @@ export default function PatientAppointments() {
         <Card className="border border-border bg-card shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-amber-100 bg-amber-50">
-                <Leaf className="h-4 w-4 text-amber-600" />
+              <div className="flex size-7 items-center justify-center rounded-lg border border-amber-100 bg-amber-50">
+                <Leaf className="size-4 text-amber-600" />
               </div>
               Ayurvedic Treatment Categories
             </CardTitle>
@@ -196,7 +197,7 @@ export default function PatientAppointments() {
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
               {TREATMENT_CATEGORIES.map(({ icon: Icon, title, description, containerClass, iconClass }) => (
                 <div key={title} className={`rounded-xl border p-4 shadow-sm transition-all hover:shadow-md ${containerClass}`}>
-                  <Icon className={`mb-3 h-8 w-8 ${iconClass}`} />
+                  <Icon className={`mb-3 size-8 ${iconClass}`} />
                   <h3 className="mb-2 font-semibold">{title}</h3>
                   <p className={`mb-3 text-sm ${theme.textColors.secondary}`}>{description}</p>
                   <Button
@@ -223,11 +224,11 @@ export default function PatientAppointments() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div className="space-y-4">
+              <div className="gap-y-4">
                 <h4 className="text-lg font-semibold">Traditional Therapies</h4>
-                <div className="space-y-3">
+                <div className="gap-y-3">
                   <div className="flex items-start gap-3">
-                    <Droplets className={`mt-0.5 h-5 w-5 ${theme.iconColors.cyan}`} />
+                    <Droplets className={`mt-0.5 size-5 ${theme.iconColors.cyan}`} />
                     <div>
                       <h5 className="font-medium">Panchakarma</h5>
                       <p className={`text-sm ${theme.textColors.secondary}`}>
@@ -236,7 +237,7 @@ export default function PatientAppointments() {
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
-                    <Waves className={`mt-0.5 h-5 w-5 ${theme.iconColors.cyan}`} />
+                    <Waves className={`mt-0.5 size-5 ${theme.iconColors.cyan}`} />
                     <div>
                       <h5 className="font-medium">Shirodhara</h5>
                       <p className={`text-sm ${theme.textColors.secondary}`}>
@@ -245,7 +246,7 @@ export default function PatientAppointments() {
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
-                    <Wind className={`mt-0.5 h-5 w-5 ${theme.iconColors.blue}`} />
+                    <Wind className={`mt-0.5 size-5 ${theme.iconColors.blue}`} />
                     <div>
                       <h5 className="font-medium">Abhyanga</h5>
                       <p className={`text-sm ${theme.textColors.secondary}`}>
@@ -256,11 +257,11 @@ export default function PatientAppointments() {
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="gap-y-4">
                 <h4 className="text-lg font-semibold">Diagnostic Methods</h4>
-                <div className="space-y-3">
+                <div className="gap-y-3">
                   <div className="flex items-start gap-3">
-                    <Heart className={`mt-0.5 h-5 w-5 ${theme.iconColors.red}`} />
+                    <Heart className={`mt-0.5 size-5 ${theme.iconColors.red}`} />
                     <div>
                       <h5 className="font-medium">Nadi Pariksha</h5>
                       <p className={`text-sm ${theme.textColors.secondary}`}>
@@ -269,7 +270,7 @@ export default function PatientAppointments() {
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
-                    <Leaf className={`mt-0.5 h-5 w-5 ${theme.iconColors.green}`} />
+                    <Leaf className={`mt-0.5 size-5 ${theme.iconColors.green}`} />
                     <div>
                       <h5 className="font-medium">Prakriti Analysis</h5>
                       <p className={`text-sm ${theme.textColors.secondary}`}>
@@ -278,7 +279,7 @@ export default function PatientAppointments() {
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
-                    <Sun className={`mt-0.5 h-5 w-5 ${theme.iconColors.yellow}`} />
+                    <Sun className={`mt-0.5 size-5 ${theme.iconColors.yellow}`} />
                     <div>
                       <h5 className="font-medium">Vikriti Assessment</h5>
                       <p className={`text-sm ${theme.textColors.secondary}`}>
@@ -296,3 +297,5 @@ export default function PatientAppointments() {
     </DashboardLayout>
   );
 }
+
+

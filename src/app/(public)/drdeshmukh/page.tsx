@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, type ElementType, type ReactNode, type SVGProps } from "react";
+import { useState, type ElementType, type ReactNode, type SVGProps } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import {
   CalendarDays,
   Check,
@@ -337,7 +338,7 @@ function ServiceLink({
     <a
       href={href}
       target={isWebLink(href) ? "_blank" : undefined}
-      rel={isWebLink(href) ? "noreferrer" : undefined}
+      rel="noreferrer noopener"
       className={className}
       {...props}
     >
@@ -350,14 +351,12 @@ export default function DrDeshmukhPage() {
   const [pageCopied, setPageCopied] = useState(false);
   const [activeServiceId, setActiveServiceId] = useState<string | null>(null);
   const [copiedTarget, setCopiedTarget] = useState<string | null>(null);
-  const [previews, setPreviews] = useState<Record<string, LinkPreview>>({});
 
   const activeService = services.find((service) => service.id === activeServiceId) ?? null;
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadPreviews() {
+  const { data: previews = {} } = useQuery({
+    queryKey: ["drdeshmukh-link-previews"],
+    queryFn: async () => {
       const results = await Promise.allSettled(
         services.map(async (service) => {
           if (service.previewKind === "map") {
@@ -380,8 +379,6 @@ export default function DrDeshmukhPage() {
         })
       );
 
-      if (cancelled) return;
-
       const nextPreviews: Record<string, LinkPreview> = {};
       for (const result of results) {
         if (result.status === "fulfilled" && result.value) {
@@ -390,15 +387,9 @@ export default function DrDeshmukhPage() {
         }
       }
 
-      setPreviews(nextPreviews);
-    }
-
-    void loadPreviews();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+      return nextPreviews;
+    },
+  });
 
   const handleCopy = async (text: string, target: string) => {
     await navigator.clipboard.writeText(text);
@@ -458,7 +449,7 @@ export default function DrDeshmukhPage() {
                 alt={doctor.name}
                 width={36}
                 height={36}
-                className="h-9 w-9 object-cover"
+                className="size-9 object-cover"
                 priority
               />
             </div>
@@ -475,12 +466,12 @@ export default function DrDeshmukhPage() {
           >
             {pageCopied ? (
               <>
-                <Check className="h-4 w-4" />
+                <Check className="size-4" />
                 Copied
               </>
             ) : (
               <>
-                <Share2 className="h-4 w-4" />
+                <Share2 className="size-4" />
                 Share
               </>
             )}
@@ -502,8 +493,8 @@ export default function DrDeshmukhPage() {
               />
             </div>
 
-            <div className="space-y-3 px-4 pb-4 pt-1 text-center md:px-6 md:py-5 md:pl-2 md:text-left">
-              <div className="space-y-1">
+            <div className="gap-y-3 px-4 pb-4 pt-1 text-center md:px-6 md:py-5 md:pl-2 md:text-left">
+              <div className="gap-y-1">
                 <h2 className="text-lg font-semibold leading-tight text-slate-900 dark:text-slate-100 sm:text-2xl">
                   {doctor.name}
                 </h2>
@@ -525,14 +516,14 @@ export default function DrDeshmukhPage() {
                     <ServiceLink
                       key={link.label}
                       href={link.href}
-                      className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                      className={`flex size-10 items-center justify-center rounded-full ${
                         link.label === "Instagram"
                           ? "bg-gradient-to-br from-fuchsia-500 via-pink-500 to-rose-500"
                           : link.bg
                       } text-white shadow-sm transition-transform hover:scale-105 sm:h-11 sm:w-11`}
                       aria-label={link.label}
                     >
-                      <Icon className="h-5 w-5" />
+                      <Icon className="size-5" />
                     </ServiceLink>
                   );
                 })}
@@ -541,7 +532,7 @@ export default function DrDeshmukhPage() {
           </div>
         </section>
 
-        <section className="mt-5 space-y-2">
+        <section className="mt-5 gap-y-2">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-base font-semibold text-sky-700 dark:text-sky-300 sm:text-lg">Links</h3>
             <p className="hidden rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700 dark:bg-sky-500/15 dark:text-sky-300 sm:block">
@@ -549,7 +540,7 @@ export default function DrDeshmukhPage() {
             </p>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="gap-y-1.5">
             {services.map((service, serviceIndex) => {
               const thumbnail =
                 service.previewKind === "map"
@@ -570,7 +561,7 @@ export default function DrDeshmukhPage() {
                   )}`}
                 >
                   <ServiceLink href={service.href} className="flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3">
-                    <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl ring-1 ring-slate-200 dark:ring-slate-700 sm:h-11 sm:w-11">
+                    <div className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-xl ring-1 ring-slate-200 dark:ring-slate-700 sm:h-11 sm:w-11">
                       {service.previewKind === "map" || previews[service.id]?.image ? (
                         <img
                           src={thumbnail}
@@ -583,7 +574,7 @@ export default function DrDeshmukhPage() {
                           className={`flex h-full w-full items-center justify-center ${getServiceAccentClass(serviceIndex)}`}
                           aria-hidden="true"
                         >
-                          <service.icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                          <service.icon className="size-4 sm:h-5 sm:w-5" />
                         </div>
                       )}
                     </div>
@@ -614,7 +605,7 @@ export default function DrDeshmukhPage() {
                     aria-label={`More actions for ${service.title}`}
                     onClick={() => setActiveServiceId(service.id)}
                   >
-                    <MoreVertical className="h-5 w-5" />
+                    <MoreVertical className="size-5" />
                   </Button>
                 </div>
               );
@@ -643,10 +634,10 @@ export default function DrDeshmukhPage() {
               <DialogClose asChild>
                 <button
                   type="button"
-                  className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                  className="absolute right-3 top-3 inline-flex size-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
                   aria-label="Close dialog"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="size-4" />
                 </button>
               </DialogClose>
 
@@ -672,7 +663,7 @@ export default function DrDeshmukhPage() {
                       className={`flex h-full w-full items-center justify-center ${getServiceAccentClass(services.findIndex((service) => service.id === activeService.id))}`}
                       aria-hidden="true"
                     >
-                      <activeService.icon className="h-5 w-5" />
+                      <activeService.icon className="size-5" />
                     </div>
                   )}
                 </div>
@@ -696,7 +687,7 @@ export default function DrDeshmukhPage() {
               </div>
             </div>
 
-            <div className="max-h-[calc(100vh-13rem)] space-y-4 overflow-y-auto px-4 py-4">
+            <div className="max-h-[calc(100vh-13rem)] gap-y-4 overflow-y-auto px-4 py-4">
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
                 <div className="flex items-center gap-2">
                   <p className="min-w-0 flex-1 truncate text-xs text-slate-500 dark:text-slate-400">
@@ -711,9 +702,9 @@ export default function DrDeshmukhPage() {
                     aria-label="Copy link"
                   >
                     {copiedTarget === `service:${activeService.id}` ? (
-                      <Check className="h-4 w-4 text-emerald-600" />
+                      <Check className="size-4 text-emerald-600" />
                     ) : (
-                      <Copy className="h-4 w-4" />
+                      <Copy className="size-4" />
                     )}
                   </Button>
                 </div>
@@ -723,14 +714,14 @@ export default function DrDeshmukhPage() {
                 <button
                   type="button"
                   onClick={() => handleShareLink(activeService)}
-                  className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-slate-900 text-white shadow-sm transition-transform hover:scale-105 dark:bg-slate-100 dark:text-slate-900"
+                  className="flex size-8 flex-none items-center justify-center rounded-full bg-slate-900 text-white shadow-sm transition-transform hover:scale-105 dark:bg-slate-100 dark:text-slate-900"
                   aria-label="Share link"
                   title="Share link"
                 >
                   {copiedTarget === `share:${activeService.id}` ? (
-                    <Check className="h-3.5 w-3.5 text-emerald-600" />
+                    <Check className="size-3.5 text-emerald-600" />
                   ) : (
-                    <Share2 className="h-3.5 w-3.5" />
+                    <Share2 className="size-3.5" />
                   )}
                   <span className="sr-only">Share link</span>
                 </button>
@@ -738,14 +729,14 @@ export default function DrDeshmukhPage() {
                 <button
                   type="button"
                   onClick={() => handleCopy(resolveHref(activeService.href), `service:${activeService.id}`)}
-                  className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-sky-500 text-white shadow-sm transition-transform hover:scale-105 dark:bg-sky-400 dark:text-slate-950"
+                  className="flex size-8 flex-none items-center justify-center rounded-full bg-sky-500 text-white shadow-sm transition-transform hover:scale-105 dark:bg-sky-400 dark:text-slate-950"
                   aria-label="Copy link"
                   title="Copy link"
                 >
                   {copiedTarget === `service:${activeService.id}` ? (
-                    <Check className="h-3.5 w-3.5 text-emerald-600" />
+                    <Check className="size-3.5 text-emerald-600" />
                   ) : (
-                    <Copy className="h-3.5 w-3.5" />
+                    <Copy className="size-3.5" />
                   )}
                   <span className="sr-only">Copy link</span>
                 </button>
@@ -753,21 +744,21 @@ export default function DrDeshmukhPage() {
                 <button
                   type="button"
                   onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(resolveHref(activeService.href))}`, "_blank", "noreferrer")}
-                  className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[#1877F2] text-white shadow-sm transition-transform hover:scale-105"
+                  className="flex size-8 flex-none items-center justify-center rounded-full bg-[#1877F2] text-white shadow-sm transition-transform hover:scale-105"
                   aria-label="Share on Facebook"
                   title="Share on Facebook"
                 >
-                  <FacebookIcon className="h-3.5 w-3.5" />
+                  <FacebookIcon className="size-3.5" />
                   <span className="sr-only">Share on Facebook</span>
                 </button>
 
                 <ServiceLink
                   href={doctor.socialLinks.instagram}
-                  className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-gradient-to-br from-fuchsia-500 via-pink-500 to-rose-500 text-white shadow-sm transition-transform hover:scale-105"
+                  className="flex size-8 flex-none items-center justify-center rounded-full bg-gradient-to-br from-fuchsia-500 via-pink-500 to-rose-500 text-white shadow-sm transition-transform hover:scale-105"
                   aria-label="Instagram"
                   title="Instagram"
                 >
-                  <InstagramIcon className="h-3.5 w-3.5" />
+                  <InstagramIcon className="size-3.5" />
                   <span className="sr-only">Instagram</span>
                 </ServiceLink>
 
@@ -775,21 +766,21 @@ export default function DrDeshmukhPage() {
                   href={`https://wa.me/?text=${encodeURIComponent(getShareText(activeService))}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[#25D366] text-white shadow-sm transition-transform hover:scale-105"
+                  className="flex size-8 flex-none items-center justify-center rounded-full bg-[#25D366] text-white shadow-sm transition-transform hover:scale-105"
                   aria-label="Share on WhatsApp"
                   title="Share on WhatsApp"
                 >
-                  <WhatsAppIcon className="h-3.5 w-3.5" />
+                  <WhatsAppIcon className="size-3.5" />
                   <span className="sr-only">Share on WhatsApp</span>
                 </a>
 
                 <ServiceLink
                   href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(resolveHref(activeService.href))}`}
-                  className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[#0A66C2] text-white shadow-sm transition-transform hover:scale-105"
+                  className="flex size-8 flex-none items-center justify-center rounded-full bg-[#0A66C2] text-white shadow-sm transition-transform hover:scale-105"
                   aria-label="Share on LinkedIn"
                   title="Share on LinkedIn"
                 >
-                  <LinkedInIcon className="h-3.5 w-3.5" />
+                  <LinkedInIcon className="size-3.5" />
                   <span className="sr-only">Share on LinkedIn</span>
                 </ServiceLink>
               <ServiceLink
@@ -798,7 +789,7 @@ export default function DrDeshmukhPage() {
                 aria-label="Open here"
                 title="Open here"
               >
-                <ExternalLink className="h-2.5 w-2.5" />
+                <ExternalLink className="size-2.5" />
                 <span>Open here</span>
               </ServiceLink>
               </div>
@@ -828,3 +819,5 @@ export default function DrDeshmukhPage() {
     </div>
   );
 }
+
+

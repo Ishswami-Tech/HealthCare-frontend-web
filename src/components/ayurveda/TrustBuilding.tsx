@@ -113,17 +113,17 @@ const TrustBuilding = () => {
   ];
 
   return (
-    <div className="space-y-20">
+    <div className="gap-y-20">
       {/* FAQ Section */}
       <section className="py-20 bg-gradient-to-br from-background via-background/95 to-muted/20 dark:from-background dark:via-background/95 dark:to-muted/30">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-16">
               <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
-                <Shield className="w-4 h-4 mr-2" />
+                <Shield className="size-4 mr-2" />
                 {t("trust.title")}
               </Badge>
-              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
+              <h2 className="text-3xl md:text-4xl font-playfair font-semibold text-foreground mb-4">
                 {t("trust.faq.title")}
               </h2>
               <p className="text-lg text-muted-foreground">
@@ -131,24 +131,24 @@ const TrustBuilding = () => {
               </p>
             </div>
 
-            <div className="space-y-4">
-              {faqs.map((faq, index) => {
-                const IconComponent = Shield; // Default icon
-                const isOpen = openFaq === index;
+            <div className="gap-y-4">
+                  {faqs.map((faq, index) => {
+                    const IconComponent = Shield; // Default icon
+                    const isOpen = openFaq === index;
 
-                return (
-                  <Card
-                    key={index}
-                    className="bg-card/80 dark:bg-card/90 shadow-lg border border-border/50 overflow-hidden backdrop-blur-sm"
-                  >
+                    return (
+                      <Card
+                        key={faq.question}
+                        className="bg-card/80 dark:bg-card/90 shadow-lg border border-border/50 overflow-hidden backdrop-blur-sm"
+                      >
                     <CardHeader
                       className="cursor-pointer hover:bg-muted/50 dark:hover:bg-muted/30 transition-colors duration-200"
                       onClick={() => setOpenFaq(isOpen ? null : index)}
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
+                        <div className="flex items-center gap-x-4">
                           <div
-                            className={`w-12 h-12 bg-gradient-to-r ${
+                            className={`size-12 bg-gradient-to-r ${
                               index === 0
                                 ? "from-pink-600 to-rose-800"
                                 : index === 1
@@ -160,16 +160,16 @@ const TrustBuilding = () => {
                                 : "from-green-600 to-teal-800"
                             } rounded-full flex items-center justify-center`}
                           >
-                            <IconComponent className="w-6 h-6 text-white" />
+                            <IconComponent className="size-6 text-white" />
                           </div>
                           <h3 className="text-lg font-semibold text-foreground">
                             {faq.question}
                           </h3>
                         </div>
                         {isOpen ? (
-                          <ChevronUp className="w-5 h-5 text-muted-foreground" />
+                          <ChevronUp className="size-5 text-muted-foreground" />
                         ) : (
-                          <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                          <ChevronDown className="size-5 text-muted-foreground" />
                         )}
                       </div>
                     </CardHeader>
@@ -196,10 +196,10 @@ const TrustBuilding = () => {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
               <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
-                <Target className="w-4 h-4 mr-2" />
+                <Target className="size-4 mr-2" />
                 Comprehensive Guarantee Matrix
               </Badge>
-              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
+              <h2 className="text-3xl md:text-4xl font-playfair font-semibold text-foreground mb-4">
                 Our Promise to You - Guaranteed Results
               </h2>
               <p className="text-lg text-muted-foreground">
@@ -219,10 +219,10 @@ const TrustBuilding = () => {
                 </div>
 
                 {/* Table Rows */}
-                <div className="space-y-2">
-                  {guarantees.map((item, index) => (
+                <div className="gap-y-2">
+                  {guarantees.map((item) => (
                     <Card
-                      key={index}
+                      key={item.condition}
                       className="hover:shadow-md transition-shadow duration-300 rounded-none border-x border-b border-border bg-card/80 dark:bg-card/90 backdrop-blur-sm"
                     >
                       <CardContent className="p-4">
@@ -242,7 +242,7 @@ const TrustBuilding = () => {
                             {item.measurement}
                           </div>
                           <div className="text-center">
-                            <div className="flex items-center justify-center space-x-2">
+                            <div className="flex items-center justify-center gap-x-2">
                               <Progress
                                 value={90} // Hardcoded success rate
                                 className="w-16 h-2"
@@ -265,10 +265,10 @@ const TrustBuilding = () => {
               <Card className="bg-gradient-to-r from-orange-50/80 to-yellow-50/80 dark:from-orange-900/20 dark:to-yellow-900/20 border-orange-200 dark:border-orange-800 shadow-xl backdrop-blur-sm">
                 <CardContent className="p-8">
                   <div className="text-center">
-                    <div className="w-16 h-16 bg-gradient-to-r from-orange-600 to-yellow-700 dark:from-orange-500 dark:to-yellow-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                      <TrendingUp className="w-8 h-8 text-white" />
+                    <div className="size-16 bg-gradient-to-r from-orange-600 to-yellow-700 dark:from-orange-500 dark:to-yellow-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <TrendingUp className="size-8 text-white" />
                     </div>
-                    <h3 className="text-2xl font-bold text-foreground mb-4">
+                    <h3 className="text-2xl font-semibold text-foreground mb-4">
                       Instant Results Challenge
                     </h3>
                     <p className="text-lg text-muted-foreground mb-6">
@@ -276,20 +276,20 @@ const TrustBuilding = () => {
                       additional support&quot;
                     </p>
                     <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                      <div className="flex items-center space-x-2">
-                        <CheckCircle className="w-4 h-4 text-primary" />
+                      <div className="flex items-center gap-x-2">
+                        <CheckCircle className="size-4 text-primary" />
                         <span>Live pain scale rating with witnesses</span>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <CheckCircle className="w-4 h-4 text-primary" />
+                      <div className="flex items-center gap-x-2">
+                        <CheckCircle className="size-4 text-primary" />
                         <span>Immediate mobility tests documented</span>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <CheckCircle className="w-4 h-4 text-primary" />
+                      <div className="flex items-center gap-x-2">
+                        <CheckCircle className="size-4 text-primary" />
                         <span>Patient satisfaction survey</span>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <CheckCircle className="w-4 h-4 text-primary" />
+                      <div className="flex items-center gap-x-2">
+                        <CheckCircle className="size-4 text-primary" />
                         <span>Public transparency in outcomes</span>
                       </div>
                     </div>
@@ -307,10 +307,10 @@ const TrustBuilding = () => {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
               <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
-                <Award className="w-4 h-4 mr-2" />
+                <Award className="size-4 mr-2" />
                 Certifications & Accreditations
               </Badge>
-              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
+              <h2 className="text-3xl md:text-4xl font-playfair font-semibold text-foreground mb-4">
                 Internationally Recognized Excellence
               </h2>
               <p className="text-lg text-muted-foreground">
@@ -325,12 +325,12 @@ const TrustBuilding = () => {
 
                 return (
                   <Card
-                    key={index}
+                    key={cert.name}
                     className="text-center hover:shadow-lg transition-all duration-300 border border-border/50 bg-card/80 dark:bg-card/90 backdrop-blur-sm"
                   >
                     <CardContent className="p-8">
                       <div
-                        className={`w-16 h-16 bg-gradient-to-r ${
+                        className={`size-16 bg-gradient-to-r ${
                           index === 0
                             ? "from-cyan-600 to-sky-800 dark:from-cyan-500 dark:to-sky-700"
                             : index === 1
@@ -340,9 +340,9 @@ const TrustBuilding = () => {
                             : "from-slate-700 to-zinc-900 dark:from-slate-600 dark:to-zinc-800"
                         } rounded-full flex items-center justify-center mx-auto mb-6`}
                       >
-                        <IconComponent className="w-8 h-8 text-white" />
+                        <IconComponent className="size-8 text-white" />
                       </div>
-                      <h3 className="text-lg font-bold text-foreground mb-2">
+                      <h3 className="text-lg font-semibold text-foreground mb-2">
                         {cert.name}
                       </h3>
                       <p className="text-muted-foreground text-sm">
@@ -391,3 +391,4 @@ const TrustBuilding = () => {
 };
 
 export default TrustBuilding;
+

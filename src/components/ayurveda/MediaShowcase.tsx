@@ -136,10 +136,10 @@ const MediaShowcase = () => {
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
-            <Play className="w-4 h-4 mr-2" />
+            <Play className="size-4 mr-2" />
             {t("mediaShowcase.title")}
           </Badge>
-          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
+          <h2 className="text-3xl md:text-4xl font-playfair font-semibold text-foreground mb-4">
             {t("mediaShowcase.subtitle")}
           </h2>
           <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
@@ -150,8 +150,8 @@ const MediaShowcase = () => {
         {/* YouTube Videos Section */}
         <div className="mb-16">
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-2xl font-bold text-foreground flex items-center">
-              <Video className="w-6 h-6 mr-2 text-primary" />
+            <h3 className="text-2xl font-semibold text-foreground flex items-center">
+              <Video className="size-6 mr-2 text-primary" />
               {t("mediaShowcase.youtube.title")}
             </h3>
             <Button
@@ -163,7 +163,7 @@ const MediaShowcase = () => {
                 )
               }
             >
-              <ExternalLink className="w-4 h-4 mr-2" />
+              <ExternalLink className="size-4 mr-2" />
               {t("mediaShowcase.youtube.viewChannel")}
             </Button>
           </div>
@@ -183,6 +183,7 @@ const MediaShowcase = () => {
                         className="w-full h-full"
                         style={{ border: 0 }}
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        sandbox="allow-scripts allow-presentation"
                         allowFullScreen
                       />
                     ) : (
@@ -199,8 +200,8 @@ const MediaShowcase = () => {
                           className="absolute inset-0 flex items-center justify-center group-hover:scale-110 transition-transform duration-300"
                           aria-label={`Play video: ${video.title}`}
                         >
-                          <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center shadow-lg">
-                            <Play className="w-6 h-6 text-white ml-1" />
+                          <div className="size-16 bg-primary rounded-full flex items-center justify-center shadow-lg">
+                            <Play className="size-6 text-white ml-1" />
                           </div>
                         </button>
                         <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
@@ -223,12 +224,12 @@ const MediaShowcase = () => {
                     {video.description}
                   </p>
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <div className="flex items-center space-x-1">
-                      <Eye className="w-3 h-3" />
+                    <div className="flex items-center gap-x-1">
+                      <Eye className="size-3" />
                       <span>{video.views} views</span>
                     </div>
                     <Button size="sm" variant="ghost" className="h-6 px-2">
-                      <ExternalLink className="w-3 h-3" />
+                      <ExternalLink className="size-3" />
                     </Button>
                   </div>
                 </CardContent>
@@ -240,8 +241,8 @@ const MediaShowcase = () => {
         {/* Instagram Posts Section */}
         <div>
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-2xl font-bold text-foreground flex items-center">
-              <Camera className="w-6 h-6 mr-2 text-primary" />
+            <h3 className="text-2xl font-semibold text-foreground flex items-center">
+              <Camera className="size-6 mr-2 text-primary" />
               {t("mediaShowcase.instagram.title")}
             </h3>
             <Button
@@ -253,7 +254,7 @@ const MediaShowcase = () => {
                 )
               }
             >
-              <ExternalLink className="w-4 h-4 mr-2" />
+              <ExternalLink className="size-4 mr-2" />
               {t("mediaShowcase.instagram.followUs")}
             </Button>
           </div>
@@ -273,7 +274,7 @@ const MediaShowcase = () => {
                   />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
                   <div className="absolute top-2 right-2">
-                    <Camera className="w-5 h-5 text-white drop-shadow-lg" />
+                    <Camera className="size-5 text-white drop-shadow-lg" />
                   </div>
                 </div>
                 <CardContent className="p-4">
@@ -281,24 +282,24 @@ const MediaShowcase = () => {
                     {post.caption}
                   </p>
                   <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-                    <div className="flex items-center space-x-3">
-                      <div className="flex items-center space-x-1">
-                        <Heart className="w-3 h-3" />
+                    <div className="flex items-center gap-x-3">
+                      <div className="flex items-center gap-x-1">
+                        <Heart className="size-3" />
                         <span>{post.likes}</span>
                       </div>
-                      <div className="flex items-center space-x-1">
-                        <MessageCircle className="w-3 h-3" />
+                      <div className="flex items-center gap-x-1">
+                        <MessageCircle className="size-3" />
                         <span>{post.comments}</span>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="w-3 h-3" />
+                    <div className="flex items-center gap-x-1">
+                      <Calendar className="size-3" />
                       <span>{post.date}</span>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    {post.hashtags.slice(0, 2).map((tag, index) => (
-                      <span key={index} className="text-xs text-primary">
+                    {post.hashtags.slice(0, 2).map((tag) => (
+                      <span key={tag} className="text-xs text-primary">
                         {tag}
                       </span>
                     ))}
@@ -313,7 +314,7 @@ const MediaShowcase = () => {
         <div className="text-center mt-16">
           <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20 shadow-xl">
             <CardContent className="p-8">
-              <h3 className="text-2xl font-bold text-foreground mb-4">
+              <h3 className="text-2xl font-semibold text-foreground mb-4">
                 {t("mediaShowcase.cta.title")}
               </h3>
               <p className="text-muted-foreground mb-6">
@@ -325,7 +326,7 @@ const MediaShowcase = () => {
                   className="bg-primary hover:bg-primary/90 text-primary-foreground"
                   onClick={() => window.open("tel:+919860370961", "_self")}
                 >
-                  <Play className="w-4 h-4 mr-2" />
+                  <Play className="size-4 mr-2" />
                   {t("common.freeConsultation")}
                 </Button>
                 <Button
@@ -338,7 +339,7 @@ const MediaShowcase = () => {
                     )
                   }
                 >
-                  <Camera className="w-4 h-4 mr-2" />
+                  <Camera className="size-4 mr-2" />
                   {t("mediaShowcase.cta.followJourney")}
                 </Button>
               </div>
@@ -351,3 +352,4 @@ const MediaShowcase = () => {
 };
 
 export default MediaShowcase;
+

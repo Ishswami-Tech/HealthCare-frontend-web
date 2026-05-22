@@ -90,16 +90,25 @@ export function useMutationOperation<TData, TVariables, TError = Error>(
    * ✅ Execute mutation with consistent error handling
    * Follows DRY - single implementation for all mutation operations
    */
-  const handleSuccess = useCallback(
-    (data: TData, variables: TVariables) => {
+  const wrappedMutationFn = useCallback(
+    (variables: TVariables) =>
+      dedupeRequest("mutation", [toastId, variables], () => mutationFn(variables)),
+    [mutationFn, toastId]
+  );
+
+  const mutation = useMutation<TData, TError, TVariables>({
+    mutationFn: wrappedMutationFn,
+    onSuccess: async (data, variables) => {
       // ✅ Invalidate queries
       if (invalidateQueries.length > 0) {
-        invalidateQueries.forEach((queryKey) => {
-          queryClientRef.current.invalidateQueries({
-            queryKey: Array.isArray(queryKey) ? queryKey : [queryKey],
-            exact: false,
-          });
-        });
+        await Promise.all(
+          invalidateQueries.map((queryKey) =>
+            queryClientRef.current.invalidateQueries({
+              queryKey: Array.isArray(queryKey) ? queryKey : [queryKey],
+              exact: false,
+            })
+          )
+        );
       }
 
       // ✅ Always clear a loading toast for this operation, even when success
@@ -115,14 +124,10 @@ export function useMutationOperation<TData, TVariables, TError = Error>(
 
       // ✅ Call success callback
       if (onSuccess) {
-        onSuccess(data, variables);
+        await onSuccess(data, variables);
       }
     },
-    [toastId, successMessage, invalidateQueries, showToast, showLoading, onSuccess]
-  );
-
-  const handleError = useCallback(
-    (error: TError, variables: TVariables) => {
+    onError: (error, variables) => {
       // ✅ Consistent error handling
       if (showLoading || showToast) {
         dismissToast(toastId);
@@ -150,19 +155,6 @@ export function useMutationOperation<TData, TVariables, TError = Error>(
         onError(error, variables);
       }
     },
-    [toastId, errorMessage, showToast, showLoading, onError]
-  );
-
-  const wrappedMutationFn = useCallback(
-    (variables: TVariables) =>
-      dedupeRequest("mutation", [toastId, variables], () => mutationFn(variables)),
-    [mutationFn, toastId]
-  );
-
-  const mutation = useMutation<TData, TError, TVariables>({
-    mutationFn: wrappedMutationFn,
-    onSuccess: handleSuccess,
-    onError: handleError,
     ...mutationOptions,
   });
 

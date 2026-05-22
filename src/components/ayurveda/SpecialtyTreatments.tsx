@@ -123,10 +123,10 @@ const SpecialtyTreatments = () => {
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
-            <Star className="w-4 h-4 mr-2" />
+            <Star className="size-4 mr-2" />
             Our Specialties
           </Badge>
-          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
+          <h2 className="text-3xl md:text-4xl font-playfair font-semibold text-foreground mb-4">
             Specialized Treatments
           </h2>
           <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
@@ -148,14 +148,14 @@ const SpecialtyTreatments = () => {
                 <CardHeader
                   className={`bg-gradient-to-br ${specialty.bgColor} relative overflow-hidden p-6`}
                 >
-                  <div className="absolute top-0 right-0 w-32 h-32 opacity-10">
+                  <div className="absolute top-0 right-0 size-32 opacity-10">
                     <IconComponent className="w-full h-full" />
                   </div>
                   <div className="relative z-10">
                     <div
-                      className={`w-14 h-14 bg-gradient-to-r ${specialty.color} rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}
+                      className={`size-14 bg-gradient-to-r ${specialty.color} rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}
                     >
-                      <IconComponent className="w-7 h-7 text-white" />
+                      <IconComponent className="size-7 text-white" />
                     </div>
                     <CardTitle className="text-lg font-playfair font-bold text-foreground mb-2 line-clamp-2">
                       {specialty.title}
@@ -174,9 +174,9 @@ const SpecialtyTreatments = () => {
                       Key Features
                     </h4>
                     <div className="grid grid-cols-1 gap-2">
-                      {specialty.features.map((feature, index) => (
-                        <div key={index} className="flex items-start space-x-2">
-                          <CheckCircle className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                      {specialty.features.map((feature) => (
+                        <div key={feature} className="flex items-start gap-x-2">
+                          <CheckCircle className="size-4 text-primary flex-shrink-0 mt-0.5" />
                           <span className="text-xs text-muted-foreground line-clamp-2">
                             {feature}
                           </span>
@@ -216,17 +216,17 @@ const SpecialtyTreatments = () => {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="space-y-2">
+                  <div className="gap-y-2">
                     <Button
                       size="sm"
                       className="w-full"
                       onClick={() => window.open("tel:+919860370961", "_self")}
                     >
-                      <Phone className="w-3 h-3 mr-1" />
+                      <Phone className="size-3 mr-1" />
                       Consult Now
                     </Button>
                     <Button size="sm" variant="outline" className="w-full">
-                      <Calendar className="w-3 h-3 mr-1" />
+                      <Calendar className="size-3 mr-1" />
                       Book
                     </Button>
                   </div>
@@ -241,10 +241,10 @@ const SpecialtyTreatments = () => {
           <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20 shadow-xl">
             <CardContent className="p-8">
               <div className="max-w-3xl mx-auto">
-                <div className="w-16 h-16 bg-gradient-to-r from-primary to-primary/80 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Award className="w-8 h-8 text-white" />
+                <div className="size-16 bg-gradient-to-r from-primary to-primary/80 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Award className="size-8 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-foreground mb-4">
+                <h3 className="text-2xl font-semibold text-foreground mb-4">
                   Ready to Start Your Healing Journey?
                 </h3>
                 <p className="text-lg text-card-foreground mb-6">
@@ -258,11 +258,11 @@ const SpecialtyTreatments = () => {
                     className="bg-primary hover:bg-primary/90 text-primary-foreground"
                     onClick={() => window.open("tel:+919860370961", "_self")}
                   >
-                    <Phone className="w-4 h-4 mr-2" />
+                    <Phone className="size-4 mr-2" />
                     Call for Consultation
                   </Button>
                   <Button size="lg" variant="outline">
-                    <Users className="w-4 h-4 mr-2" />
+                    <Users className="size-4 mr-2" />
                     Join Retreat
                   </Button>
                 </div>
@@ -276,3 +276,4 @@ const SpecialtyTreatments = () => {
 };
 
 export default SpecialtyTreatments;
+

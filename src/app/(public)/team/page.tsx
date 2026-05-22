@@ -30,7 +30,7 @@ import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { CompactThemeSwitcher } from "@/components/theme/ThemeSwitcher";
 import { PageTransition } from "@/components/ui/animated-wrapper";
 import { LazySection } from "@/components/ui/lazy-section";
-import { SectionSkeleton } from "@/lib/dynamic-imports";
+import { SectionSkeleton } from "@/lib/dynamic-imports-skeletons";
 import { getIconColorScheme } from "@/lib/config/color-palette";
 
 export default function TeamPage() {
@@ -186,17 +186,17 @@ export default function TeamPage() {
         {/* Ultra-Advanced Background Elements */}
         <div className="fixed inset-0 -z-10 overflow-hidden">
           {/* Dynamic floating orbs with enhanced effects */}
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-orange-400/30 to-red-400/30 rounded-full blur-3xl animate-pulse shadow-2xl shadow-orange-500/20"></div>
-          <div className="absolute top-3/4 right-1/4 w-80 h-80 bg-gradient-to-r from-blue-400/30 to-purple-400/30 rounded-full blur-3xl animate-pulse shadow-2xl shadow-blue-500/20 animation-delay-2000"></div>
-          <div className="absolute bottom-1/4 left-1/3 w-64 h-64 bg-gradient-to-r from-green-400/30 to-teal-400/30 rounded-full blur-3xl animate-pulse shadow-2xl shadow-green-500/20 animation-delay-4000"></div>
-          <div className="absolute top-1/2 right-1/3 w-72 h-72 bg-gradient-to-r from-pink-400/25 to-rose-400/25 rounded-full blur-3xl animate-pulse shadow-2xl shadow-pink-500/20 animation-delay-6000"></div>
+          <div className="absolute top-1/4 left-1/4 size-96 bg-gradient-to-r from-orange-400/30 to-red-400/30 rounded-full blur-3xl animate-pulse shadow-2xl shadow-orange-500/20"></div>
+          <div className="absolute top-3/4 right-1/4 size-80 bg-gradient-to-r from-blue-400/30 to-purple-400/30 rounded-full blur-3xl animate-pulse shadow-2xl shadow-blue-500/20 animation-delay-2000"></div>
+          <div className="absolute bottom-1/4 left-1/3 size-64 bg-gradient-to-r from-green-400/30 to-teal-400/30 rounded-full blur-3xl animate-pulse shadow-2xl shadow-green-500/20 animation-delay-4000"></div>
+          <div className="absolute top-1/2 right-1/3 size-72 bg-gradient-to-r from-pink-400/25 to-rose-400/25 rounded-full blur-3xl animate-pulse shadow-2xl shadow-pink-500/20 animation-delay-6000"></div>
 
           {/* Enhanced geometric patterns */}
           <div className="absolute top-0 left-0 w-full h-full opacity-10">
-            <div className="absolute top-20 left-20 w-32 h-32 border-2 border-orange-400/40 rotate-45 animate-spin shadow-lg shadow-orange-500/30 animation-duration-20s"></div>
-            <div className="absolute top-40 right-32 w-24 h-24 border-2 border-blue-400/40 rotate-12 animate-spin shadow-lg shadow-blue-500/30 animation-duration-15s animation-reverse"></div>
-            <div className="absolute bottom-32 left-1/3 w-40 h-40 border-2 border-green-400/40 rotate-45 animate-spin shadow-lg shadow-green-500/30 animation-duration-25s"></div>
-            <div className="absolute top-1/2 right-1/4 w-28 h-28 border-2 border-purple-400/40 rotate-12 animate-spin shadow-lg shadow-purple-500/30 animation-duration-18s animation-reverse"></div>
+            <div className="absolute top-20 left-20 size-32 border-2 border-orange-400/40 rotate-45 animate-spin shadow-lg shadow-orange-500/30 animation-duration-20s"></div>
+            <div className="absolute top-40 right-32 size-24 border-2 border-blue-400/40 rotate-12 animate-spin shadow-lg shadow-blue-500/30 animation-duration-15s animation-reverse"></div>
+            <div className="absolute bottom-32 left-1/3 size-40 border-2 border-green-400/40 rotate-45 animate-spin shadow-lg shadow-green-500/30 animation-duration-25s"></div>
+            <div className="absolute top-1/2 right-1/4 size-28 border-2 border-purple-400/40 rotate-12 animate-spin shadow-lg shadow-purple-500/30 animation-duration-18s animation-reverse"></div>
           </div>
 
           {/* Animated grid overlay with enhanced effects */}
@@ -204,13 +204,13 @@ export default function TeamPage() {
 
           {/* Floating particles */}
           <div className="absolute inset-0">
-            {[...Array(20)].map((_, i) => (
+            {Array.from({ length: 20 }, (_, particle) => particle + 1).map((particle) => (
               <div
-                key={i}
-                className="absolute w-2 h-2 bg-gradient-to-r from-orange-400 to-red-400 rounded-full opacity-60 animate-bounce"
+                key={particle}
+                className="absolute size-2 bg-gradient-to-r from-orange-400 to-red-400 rounded-full opacity-60 animate-bounce"
                 style={{
-                  left: `${20 + i * 4}%`,
-                  top: `${10 + i * 3}%`,
+                  left: `${20 + (particle - 1) * 4}%`,
+                  top: `${10 + (particle - 1) * 3}%`,
                 }}
               />
             ))}
@@ -228,19 +228,19 @@ export default function TeamPage() {
           <section className="relative py-12 sm:py-16 md:py-20 bg-gradient-to-br from-background via-background/95 to-muted/30 overflow-hidden">
             {/* Hero background effects */}
             <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-red-500/5"></div>
-            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-96 h-96 bg-gradient-to-r from-orange-400/10 to-red-400/10 rounded-full blur-3xl"></div>
+            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 size-96 bg-gradient-to-r from-orange-400/10 to-red-400/10 rounded-full blur-3xl"></div>
 
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
               <div className="max-w-6xl mx-auto text-center">
                 <div className="mb-8 animate-fade-in-down">
                   <Badge className="bg-gradient-to-r from-orange-100 to-red-100 dark:from-orange-900/50 dark:to-red-900/50 text-orange-800 dark:text-orange-100 border-orange-200 dark:border-orange-700/60 px-6 py-3 text-sm font-semibold backdrop-blur-sm glass shadow-md shadow-orange-500/20">
-                    <Sparkles className="w-5 h-5 mr-3 animate-pulse" />
+                    <Sparkles className="size-5 mr-3 animate-pulse" />
                     {t("team.badge")}
-                    <Sparkles className="w-5 h-5 ml-3 animate-pulse" />
+                    <Sparkles className="size-5 ml-3 animate-pulse" />
                   </Badge>
                 </div>
 
-                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-playfair font-bold text-foreground mb-6 leading-tight animate-fade-in-up">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-playfair font-semibold text-foreground mb-6 leading-tight animate-fade-in-up">
                   <span className="bg-gradient-to-r from-orange-600 via-red-600 to-pink-600 bg-clip-text text-transparent drop-shadow-2xl relative">
                     {t("team.title")}
                     <div className="absolute -inset-1 bg-gradient-to-r from-orange-600/20 via-red-600/20 to-pink-600/20 blur-xl -z-10"></div>
@@ -253,15 +253,15 @@ export default function TeamPage() {
 
                 <div className="flex flex-wrap justify-center gap-4 mb-12 animate-fade-in-up animation-delay-400">
                   <Badge className="bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/50 dark:to-emerald-900/50 text-green-800 dark:text-green-100 border-green-200 dark:border-green-700/60 px-4 py-2 text-sm font-semibold shadow-md shadow-green-500/30 hover:shadow-green-500/50 transition-all duration-300 hover:scale-105">
-                    <Shield className="w-5 h-5 mr-3" />
+                    <Shield className="size-5 mr-3" />
                     Government Certified
                   </Badge>
                   <Badge className="bg-gradient-to-r from-purple-100 to-violet-100 dark:from-purple-900/50 dark:to-violet-900/50 text-purple-800 dark:text-purple-100 border-purple-200 dark:border-purple-700/60 px-4 py-2 text-sm font-semibold shadow-md shadow-purple-500/30 hover:shadow-purple-500/50 transition-all duration-300 hover:scale-105">
-                    <Microscope className="w-5 h-5 mr-3" />
+                    <Microscope className="size-5 mr-3" />
                     Published Researchers
                   </Badge>
                   <Badge className="bg-gradient-to-r from-orange-100 to-red-100 dark:from-orange-900/50 dark:to-red-900/50 text-orange-800 dark:text-orange-100 border-orange-200 dark:border-orange-700/60 px-4 py-2 text-sm font-semibold shadow-md shadow-orange-500/30 hover:shadow-orange-500/50 transition-all duration-300 hover:scale-105">
-                    <Crown className="w-5 h-5 mr-3" />
+                    <Crown className="size-5 mr-3" />
                     Certified Teachers
                   </Badge>
                 </div>
@@ -272,7 +272,7 @@ export default function TeamPage() {
                     size="lg"
                     className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white text-base px-6 py-3 rounded-lg font-semibold shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 transition-all duration-300 hover:scale-105"
                   >
-                    <Zap className="w-5 h-5 mr-3" />
+                    <Zap className="size-5 mr-3" />
                     Meet Our Team
                   </Button>
                   <Button
@@ -280,7 +280,7 @@ export default function TeamPage() {
                     variant="outline"
                     className="border-2 border-orange-500/50 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 text-base px-6 py-3 rounded-lg font-semibold backdrop-blur-sm transition-all duration-300 hover:scale-105"
                   >
-                    <Users className="w-5 h-5 mr-3" />
+                    <Users className="size-5 mr-3" />
                     View Expertise
                   </Button>
                 </div>
@@ -294,12 +294,12 @@ export default function TeamPage() {
           <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-muted/30 via-background to-muted/20 relative overflow-hidden">
             {/* Section background effects */}
             <div className="absolute inset-0 bg-gradient-to-br from-orange-500/3 via-transparent to-red-500/3"></div>
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-blue-400/5 to-purple-400/5 rounded-full blur-3xl"></div>
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 size-96 bg-gradient-to-r from-blue-400/5 to-purple-400/5 rounded-full blur-3xl"></div>
 
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
               <div className="max-w-7xl mx-auto">
                 <div className="text-center mb-12 lg:mb-16">
-                  <h2 className="text-2xl md:text-3xl lg:text-4xl font-playfair font-bold text-foreground mb-4 gradient-text">
+                  <h2 className="text-2xl md:text-3xl lg:text-4xl font-playfair font-semibold text-foreground mb-4 gradient-text">
                     Our Excellence in Numbers
                   </h2>
                   <p className="text-base md:text-lg text-muted-foreground max-w-3xl mx-auto">
@@ -308,14 +308,14 @@ export default function TeamPage() {
                 </div>
 
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-                  {teamStats.map((stat, index) => {
+                {teamStats.map((stat, index) => {
                     const IconComponent = stat.icon;
 
                     return (
                       <Card
-                        key={index}
+                        key={stat.label}
                         className="group text-center hover:shadow-xl dark:hover:shadow-2xl transition-all duration-300 border-0 bg-gradient-to-br from-card/90 to-muted/30 dark:from-card/95 dark:to-muted/40 glass backdrop-blur-sm hover:scale-110 hover:-translate-y-4 relative overflow-hidden"
-                        onMouseEnter={() => setHoveredCard(index)}
+                        onMouseEnter={() => setHoveredCard(teamStats.indexOf(stat))}
                         onMouseLeave={() => setHoveredCard(null)}
                       >
                         {/* Glowing border effect */}
@@ -325,9 +325,9 @@ export default function TeamPage() {
 
                         <CardContent className="p-4 lg:p-6 relative z-10">
                           <div
-                            className={`w-16 h-16 lg:w-20 lg:h-20 bg-gradient-to-r ${stat.gradient} rounded-3xl flex items-center justify-center mx-auto mb-4 interactive transition-all duration-300 group-hover:scale-110 group-hover:rotate-12 shadow-md shadow-blue-500/30 group-hover:shadow-blue-500/50`}
+                            className={`size-16 lg:w-20 lg:h-20 bg-gradient-to-r ${stat.gradient} rounded-3xl flex items-center justify-center mx-auto mb-4 interactive transition-all duration-300 group-hover:scale-110 group-hover:rotate-12 shadow-md shadow-blue-500/30 group-hover:shadow-blue-500/50`}
                           >
-                            <IconComponent className="w-8 h-8 lg:w-10 lg:h-10 text-white drop-shadow-lg" />
+                            <IconComponent className="size-8 lg:w-10 lg:h-10 text-white drop-shadow-lg" />
                           </div>
                           <div className="text-3xl lg:text-4xl font-bold text-foreground mb-2 gradient-text group-hover:scale-110 transition-transform duration-300">
                             {stat.number}
@@ -364,12 +364,12 @@ export default function TeamPage() {
           <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-background via-muted/20 to-background relative overflow-hidden">
             {/* Section background effects */}
             <div className="absolute inset-0 bg-gradient-to-br from-orange-500/3 via-transparent to-red-500/3"></div>
-            <div className="absolute top-1/4 right-1/4 w-80 h-80 bg-gradient-to-r from-purple-400/5 to-pink-400/5 rounded-full blur-3xl"></div>
+            <div className="absolute top-1/4 right-1/4 size-80 bg-gradient-to-r from-purple-400/5 to-pink-400/5 rounded-full blur-3xl"></div>
 
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
               <div className="max-w-8xl mx-auto">
                 <div className="text-center mb-16 lg:mb-20">
-                  <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-bold text-foreground mb-6 gradient-text">
+                  <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-semibold text-foreground mb-6 gradient-text">
                     Chief Medical Officers
                   </h2>
                   <p className="text-lg md:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">
@@ -384,7 +384,7 @@ export default function TeamPage() {
 
                     return (
                       <Card
-                        key={index}
+                        key={doctor.name}
                         className="group hover:shadow-xl dark:hover:shadow-2xl transition-all duration-300 border-0 bg-gradient-to-br from-card/90 to-muted/30 dark:from-card/95 dark:to-muted/40 glass backdrop-blur-sm hover:scale-105 relative overflow-hidden"
                         onMouseEnter={() => setHoveredCard(index + 10)}
                         onMouseLeave={() => setHoveredCard(null)}
@@ -401,11 +401,11 @@ export default function TeamPage() {
                             >
                               <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
                               <div className="absolute top-4 right-4">
-                                <Diamond className="w-6 h-6 text-white/30 animate-pulse" />
+                                <Diamond className="size-6 text-white/30 animate-pulse" />
                               </div>
 
-                              <div className="w-28 h-28 lg:w-32 lg:h-32 bg-white/20 rounded-3xl flex items-center justify-center mb-8 interactive backdrop-blur-sm border border-white/30 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 shadow-lg shadow-white/20">
-                                <IconComponent className="w-16 h-16 lg:w-18 lg:h-18 text-white drop-shadow-lg" />
+                              <div className="size-28 lg:w-32 lg:h-32 bg-white/20 rounded-3xl flex items-center justify-center mb-8 interactive backdrop-blur-sm border border-white/30 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 shadow-lg shadow-white/20">
+                                <IconComponent className="size-16 lg:w-18 lg:h-18 text-white drop-shadow-lg" />
                               </div>
 
                               <div className="text-center relative z-10">
@@ -420,7 +420,7 @@ export default function TeamPage() {
 
                             <div className="md:col-span-2 p-8 lg:p-10">
                               <div className="mb-6">
-                                <h3 className="text-2xl lg:text-3xl font-bold text-foreground mb-4 gradient-text group-hover:scale-105 transition-transform duration-300">
+                                <h3 className="text-2xl lg:text-3xl font-semibold text-foreground mb-4 gradient-text group-hover:scale-105 transition-transform duration-300">
                                   {doctor.name}
                                 </h3>
                                 <p className="text-muted-foreground mb-4 font-semibold text-lg">
@@ -431,10 +431,10 @@ export default function TeamPage() {
                                 </Badge>
                               </div>
 
-                              <div className="space-y-6">
+                              <div className="gap-y-6">
                                 <div className="group/credential">
-                                  <h4 className="font-bold text-foreground mb-4 flex items-center text-lg">
-                                    <CheckCircle className="w-5 h-5 mr-3 text-green-500 group-hover/credential:scale-110 transition-transform duration-300" />
+                                  <h4 className="font-semibold text-foreground mb-4 flex items-center text-lg">
+                                    <CheckCircle className="size-5 mr-3 text-green-500 group-hover/credential:scale-110 transition-transform duration-300" />
                                     Credentials:
                                   </h4>
                                   <p className="text-sm text-muted-foreground leading-relaxed bg-muted/30 p-4 rounded-xl backdrop-blur-sm border border-muted/50">
@@ -443,8 +443,8 @@ export default function TeamPage() {
                                 </div>
 
                                 <div className="group/achievement">
-                                  <h4 className="font-bold text-foreground mb-4 flex items-center text-lg">
-                                    <Star className="w-5 h-5 mr-3 text-yellow-500 group-hover/achievement:scale-110 transition-transform duration-300" />
+                                  <h4 className="font-semibold text-foreground mb-4 flex items-center text-lg">
+                                    <Star className="size-5 mr-3 text-yellow-500 group-hover/achievement:scale-110 transition-transform duration-300" />
                                     Key Achievements:
                                   </h4>
                                   <p className="text-sm text-muted-foreground leading-relaxed bg-muted/30 p-4 rounded-xl backdrop-blur-sm border border-muted/50">
@@ -469,12 +469,12 @@ export default function TeamPage() {
           <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-muted/30 via-background to-muted/20 relative overflow-hidden">
             {/* Section background effects */}
             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/3 via-transparent to-purple-500/3"></div>
-            <div className="absolute bottom-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-indigo-400/5 to-purple-400/5 rounded-full blur-3xl"></div>
+            <div className="absolute bottom-1/4 left-1/4 size-96 bg-gradient-to-r from-indigo-400/5 to-purple-400/5 rounded-full blur-3xl"></div>
 
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
               <div className="max-w-8xl mx-auto">
                 <div className="text-center mb-16 lg:mb-20">
-                  <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-bold text-foreground mb-6 gradient-text">
+                  <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-semibold text-foreground mb-6 gradient-text">
                     {t("team.advisoryBoard.title")}
                   </h2>
                   <p className="text-lg md:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">
@@ -485,7 +485,7 @@ export default function TeamPage() {
                 <div className="grid md:grid-cols-2 gap-8 lg:gap-10">
                   {advisoryBoard.map((advisor, index) => (
                     <Card
-                      key={index}
+                      key={advisor.name}
                       className="group hover:shadow-xl dark:hover:shadow-2xl transition-all duration-300 border-0 bg-gradient-to-br from-card/90 to-muted/30 dark:from-card/95 dark:to-muted/40 glass backdrop-blur-sm hover:scale-105 relative overflow-hidden"
                       onMouseEnter={() => setHoveredCard(index + 20)}
                       onMouseLeave={() => setHoveredCard(null)}
@@ -494,9 +494,9 @@ export default function TeamPage() {
                       <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 opacity-0 group-hover:opacity-20 transition-opacity duration-500 rounded-xl blur-sm"></div>
 
                       <CardHeader className="pb-4 relative z-10">
-                        <div className="flex items-center space-x-4">
-                          <div className="w-16 h-16 lg:w-20 lg:h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-3xl flex items-center justify-center interactive group-hover:scale-110 group-hover:rotate-12 transition-all duration-300 shadow-md shadow-blue-500/30 group-hover:shadow-blue-500/50">
-                            <User className="w-8 h-8 lg:w-10 lg:h-10 text-white drop-shadow-lg" />
+                        <div className="flex items-center gap-x-4">
+                          <div className="size-16 lg:w-20 lg:h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-3xl flex items-center justify-center interactive group-hover:scale-110 group-hover:rotate-12 transition-all duration-300 shadow-md shadow-blue-500/30 group-hover:shadow-blue-500/50">
+                            <User className="size-8 lg:w-10 lg:h-10 text-white drop-shadow-lg" />
                           </div>
                           <div className="flex-1">
                             <CardTitle className="text-lg lg:text-xl text-foreground mb-2 group-hover:scale-105 transition-transform duration-300">
@@ -533,18 +533,18 @@ export default function TeamPage() {
             <div className="absolute inset-0 bg-grid-pattern opacity-15"></div>
 
             {/* Enhanced background effects */}
-            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-white/10 to-white/5 rounded-full blur-3xl animate-pulse"></div>
-            <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-gradient-to-r from-white/8 to-white/3 rounded-full blur-3xl animate-pulse animation-delay-2000"></div>
+            <div className="absolute top-1/4 left-1/4 size-96 bg-gradient-to-r from-white/10 to-white/5 rounded-full blur-3xl animate-pulse"></div>
+            <div className="absolute bottom-1/4 right-1/4 size-80 bg-gradient-to-r from-white/8 to-white/3 rounded-full blur-3xl animate-pulse animation-delay-2000"></div>
 
             {/* Floating particles */}
             <div className="absolute inset-0">
-              {[...Array(15)].map((_, i) => (
+              {Array.from({ length: 15 }, (_, particle) => particle + 1).map((particle) => (
                 <div
-                  key={i}
-                  className="absolute w-3 h-3 bg-white/20 rounded-full animate-bounce"
+                  key={particle}
+                  className="absolute size-3 bg-white/20 rounded-full animate-bounce"
                   style={{
-                    left: `${15 + i * 5}%`,
-                    top: `${20 + i * 4}%`,
+                    left: `${15 + (particle - 1) * 5}%`,
+                    top: `${20 + (particle - 1) * 4}%`,
                   }}
                 />
               ))}
@@ -554,13 +554,13 @@ export default function TeamPage() {
               <div className="max-w-6xl mx-auto text-center text-white">
                 <div className="mb-8">
                   <Badge className="bg-white/20 text-white border-white/30 px-6 py-3 text-base font-semibold backdrop-blur-sm mb-6">
-                    <Sparkles className="w-5 h-5 mr-3 animate-pulse" />
+                    <Sparkles className="size-5 mr-3 animate-pulse" />
                     Ready to Transform Your Health?
-                    <Sparkles className="w-5 h-5 ml-3 animate-pulse" />
+                    <Sparkles className="size-5 ml-3 animate-pulse" />
                   </Badge>
                 </div>
 
-                <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-bold mb-6 drop-shadow-2xl leading-tight">
+                <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-semibold mb-6 drop-shadow-2xl leading-tight">
                   {t("team.cta.title")}
                 </h2>
                 <p className="text-lg md:text-xl lg:text-2xl text-white/95 mb-6 leading-relaxed drop-shadow-lg max-w-4xl mx-auto">
@@ -575,7 +575,7 @@ export default function TeamPage() {
                     size="lg"
                     className="bg-white text-orange-600 hover:bg-orange-50 text-lg px-8 py-4 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 border-2 border-white/20"
                   >
-                    <Zap className="w-6 h-6 mr-4" />
+                    <Zap className="size-6 mr-4" />
                     {t("team.cta.bookConsultation")}
                   </Button>
                   <Button
@@ -583,31 +583,31 @@ export default function TeamPage() {
                     variant="outline"
                     className="border-3 border-white text-white hover:bg-white/15 text-lg px-8 py-4 rounded-xl font-bold backdrop-blur-sm transition-all duration-300 hover:scale-105 bg-white/5"
                   >
-                    <Users className="w-6 h-6 mr-4" />
+                    <Users className="size-6 mr-4" />
                     {t("team.cta.scheduleMeeting")}
                   </Button>
                 </div>
 
                 <div className="flex flex-wrap justify-center gap-6 lg:gap-8 text-white/95">
-                  <div className="flex items-center space-x-3 group">
-                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                      <Users className="w-6 h-6" />
+                  <div className="flex items-center gap-x-3 group">
+                    <div className="size-10 bg-white/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                      <Users className="size-6" />
                     </div>
                     <span className="font-semibold text-base">
                       {t("team.cta.features.experience")}
                     </span>
                   </div>
-                  <div className="flex items-center space-x-3 group">
-                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                      <Award className="w-6 h-6" />
+                  <div className="flex items-center gap-x-3 group">
+                    <div className="size-10 bg-white/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                      <Award className="size-6" />
                     </div>
                     <span className="font-semibold text-base">
                       {t("team.cta.features.research")}
                     </span>
                   </div>
-                  <div className="flex items-center space-x-3 group">
-                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                      <Globe className="w-6 h-6" />
+                  <div className="flex items-center gap-x-3 group">
+                    <div className="size-10 bg-white/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                      <Globe className="size-6" />
                     </div>
                     <span className="font-semibold text-base">
                       {t("team.cta.features.recognition")}
@@ -624,18 +624,18 @@ export default function TeamPage() {
           <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-background via-muted/20 to-background relative overflow-hidden">
             {/* Section background effects */}
             <div className="absolute inset-0 bg-gradient-to-br from-green-500/3 via-transparent to-teal-500/3"></div>
-            <div className="absolute top-1/2 right-1/3 w-96 h-96 bg-gradient-to-r from-emerald-400/5 to-teal-400/5 rounded-full blur-3xl"></div>
+            <div className="absolute top-1/2 right-1/3 size-96 bg-gradient-to-r from-emerald-400/5 to-teal-400/5 rounded-full blur-3xl"></div>
 
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
               <div className="max-w-8xl mx-auto">
                 <div className="text-center mb-16 lg:mb-20">
                   <Badge className="bg-gradient-to-r from-green-500/20 to-teal-500/20 text-green-600 dark:text-green-400 border-green-200/50 dark:border-green-800/50 px-4 py-2 text-sm font-semibold backdrop-blur-sm mb-6">
-                    <Sparkles className="w-5 h-5 mr-3 animate-pulse" />
+                    <Sparkles className="size-5 mr-3 animate-pulse" />
                     Treatment Demonstrations
-                    <Sparkles className="w-5 h-5 ml-3 animate-pulse" />
+                    <Sparkles className="size-5 ml-3 animate-pulse" />
                   </Badge>
 
-                  <h2 className="text-2xl md:text-3xl lg:text-4xl font-playfair font-bold text-foreground mb-4 gradient-text">
+                  <h2 className="text-2xl md:text-3xl lg:text-4xl font-playfair font-semibold text-foreground mb-4 gradient-text">
                     {t("team.videos.title")}
                   </h2>
                   <p className="text-lg md:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">
@@ -660,3 +660,4 @@ export default function TeamPage() {
     </PageTransition>
   );
 }
+

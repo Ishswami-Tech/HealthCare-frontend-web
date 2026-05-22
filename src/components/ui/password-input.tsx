@@ -23,14 +23,14 @@ function PasswordInput({ className, ...props }: React.ComponentProps<"input">) {
         type="button"
         variant="ghost"
         size="sm"
-        className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0 hover:bg-transparent"
+        className="absolute right-1 top-1/2 -translate-y-1/2 size-7 p-0 hover:bg-transparent"
         onClick={() => setShowPassword(!showPassword)}
         tabIndex={-1}
       >
         {showPassword ? (
-          <EyeOff className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+          <EyeOff className="size-4 text-muted-foreground hover:text-foreground" />
         ) : (
-          <Eye className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+          <Eye className="size-4 text-muted-foreground hover:text-foreground" />
         )}
       </Button>
     </div>
@@ -38,3 +38,4 @@ function PasswordInput({ className, ...props }: React.ComponentProps<"input">) {
 }
 
 export { PasswordInput }
+

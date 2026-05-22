@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Clinic Communication Server Actions
  * Handles clinic-specific communication settings and configuration
  */

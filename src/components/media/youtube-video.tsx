@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Play, Pause, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { extractYouTubeVideoId } from "@/components/media/youtube-video-utils";
 
 interface YouTubeVideoProps {
   videoId: string;
@@ -16,29 +17,6 @@ interface YouTubeVideoProps {
   onPlay?: () => void;
   onPause?: () => void;
   onEnd?: () => void;
-}
-
-// Helper function to extract video ID from various YouTube URL formats
-export function extractYouTubeVideoId(url: string): string | null {
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
-    /youtube\.com\/v\/([^&\n?#]+)/,
-    /youtube\.com\/watch\?.*v=([^&\n?#]+)/,
-  ];
-
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match && match[1]) {
-      return match[1];
-    }
-  }
-
-  // If it's already just a video ID
-  if (/^[a-zA-Z0-9_-]{11}$/.test(url)) {
-    return url;
-  }
-
-  return null;
 }
 
 export function YouTubeVideo({
@@ -133,7 +111,7 @@ export function YouTubeVideo({
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
             <div className="text-gray-400 mb-2">
-              <Play className="w-12 h-12 mx-auto" />
+              <Play className="size-12 mx-auto" />
             </div>
             <p className="text-gray-600 font-medium">Video unavailable</p>
             <p className="text-gray-500 text-sm mt-1">
@@ -155,7 +133,7 @@ export function YouTubeVideo({
     >
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
-          <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+          <Loader2 className="size-8 animate-spin text-gray-400" />
         </div>
       )}
 
@@ -166,6 +144,7 @@ export function YouTubeVideo({
         className="absolute inset-0 w-full h-full"
         frameBorder="0"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        sandbox="allow-scripts allow-presentation"
         allowFullScreen
         onLoad={handleIframeLoad}
         onError={handleIframeError}
@@ -174,16 +153,16 @@ export function YouTubeVideo({
 
       {/* Custom overlay controls (optional) */}
       {showCustomControls && (
-        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute inset-0 bg-gray-950/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             onClick={isPlaying ? handlePause : handlePlay}
             className="bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full p-4 transition-all transform hover:scale-110"
             aria-label={isPlaying ? "Pause video" : "Play video"}
           >
             {isPlaying ? (
-              <Pause className="w-8 h-8 text-gray-900" />
+              <Pause className="size-8 text-gray-900" />
             ) : (
-              <Play className="w-8 h-8 text-gray-900 ml-1" />
+              <Play className="size-8 text-gray-900 ml-1" />
             )}
           </button>
         </div>
@@ -231,7 +210,7 @@ export function YouTubeVideoGrid({
   if (!videos || videos.length === 0) {
     return (
       <div className={cn("text-center py-12", className)}>
-        <Play className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+        <Play className="size-12 text-gray-400 mx-auto mb-4" />
         <p className="text-gray-600">No videos available</p>
       </div>
     );
@@ -240,7 +219,7 @@ export function YouTubeVideoGrid({
   return (
     <div className={cn("grid gap-6", gridClasses[columns], className)}>
       {videos.map((video) => (
-        <div key={video.id} className="space-y-3">
+        <div key={video.id} className="gap-y-3">
           <YouTubeVideo
             videoId={video.videoId}
             title={video.title}
@@ -257,3 +236,4 @@ export function YouTubeVideoGrid({
     </div>
   );
 }
+

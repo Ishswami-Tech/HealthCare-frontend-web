@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 
 export default function FinanceBillingDashboard() {
-  const router = useRouter();
+  const { push } = useRouter();
   const clinicId = useCurrentClinicId();
 
   useWebSocketQuerySync();
@@ -112,38 +112,38 @@ export default function FinanceBillingDashboard() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="size-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="p-4 space-y-4 sm:p-6 sm:space-y-5">
+    <div className="p-4 gap-y-4 sm:p-6 sm:gap-y-5">
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Finance & Billing</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Finance & Billing</h1>
           <p className="text-muted-foreground">Revenue overview and financial management</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <Button
             variant="outline"
             className="gap-2"
-            onClick={() => router.push("/billing?tab=invoices")}
+            onClick={() => push("/billing?tab=invoices")}
           >
-            <FileText className="w-4 h-4" />
+            <FileText className="size-4" />
             Invoices
           </Button>
           <Button
             variant="outline"
             className="gap-2"
-            onClick={() => router.push("/billing?tab=analytics")}
+            onClick={() => push("/billing?tab=analytics")}
           >
-            <BarChart3 className="w-4 h-4" />
+            <BarChart3 className="size-4" />
             Analytics
           </Button>
-          <Button className="gap-2" onClick={() => router.push("/billing?tab=reports")}>
-            <TrendingUp className="w-4 h-4" />
+          <Button className="gap-2" onClick={() => push("/billing?tab=reports")}>
+            <TrendingUp className="size-4" />
             Reports
           </Button>
         </div>
@@ -203,16 +203,16 @@ export default function FinanceBillingDashboard() {
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
-              <Receipt className="w-5 h-5 text-blue-600" />
+              <Receipt className="size-5 text-blue-600" />
               Recent Invoices
             </CardTitle>
             <Button
               variant="ghost"
               size="sm"
               className="gap-1 text-blue-600"
-              onClick={() => router.push("/billing?tab=invoices")}
+              onClick={() => push("/billing?tab=invoices")}
             >
-              See all <ArrowRight className="w-3 h-3" />
+              See all <ArrowRight className="size-3" />
             </Button>
           </CardHeader>
           <CardContent>
@@ -220,14 +220,14 @@ export default function FinanceBillingDashboard() {
               <Empty className="min-h-[200px] border-border/70 bg-muted/20">
                 <EmptyContent>
                   <EmptyMedia variant="icon">
-                    <FileText className="h-5 w-5" />
+                    <FileText className="size-5" />
                   </EmptyMedia>
                   <EmptyTitle>No invoices found</EmptyTitle>
                   <EmptyDescription>Invoices will appear here once created.</EmptyDescription>
                 </EmptyContent>
               </Empty>
             ) : (
-              <div className="space-y-2">
+              <div className="gap-y-2">
                 {recentInvoices.map((inv) => {
                   const isOverdue =
                     (inv.status === "OPEN" || inv.status === "OVERDUE") &&
@@ -238,7 +238,16 @@ export default function FinanceBillingDashboard() {
                     <div
                       key={inv.id}
                       className="flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
-                      onClick={() => router.push("/billing?tab=invoices")}
+                      onClick={() => push("/billing?tab=invoices")}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          push("/billing?tab=invoices");
+                        }
+                      }}
+                      suppressHydrationWarning
                     >
                       <div>
                         <p className="text-sm font-medium">
@@ -270,6 +279,7 @@ export default function FinanceBillingDashboard() {
                           {isOverdue ? "OVERDUE" : inv.status}
                         </Badge>
                         <button
+                          type="button"
                           id={`download-invoice-${inv.id}`}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -282,7 +292,7 @@ export default function FinanceBillingDashboard() {
                           title="Download PDF"
                           className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded"
                         >
-                          <Download className="h-3.5 w-3.5" />
+                          <Download className="size-3.5" />
                         </button>
                       </div>
                     </div>
@@ -294,7 +304,7 @@ export default function FinanceBillingDashboard() {
         </Card>
 
         {/* Quick Actions + Recent Payments */}
-        <div className="space-y-6">
+        <div className="gap-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Finance Actions</CardTitle>
@@ -303,33 +313,33 @@ export default function FinanceBillingDashboard() {
               <Button
                 variant="outline"
                 className="flex flex-col h-20 gap-1 border-slate-100 hover:bg-blue-50"
-                onClick={() => router.push("/billing?tab=invoices")}
+                onClick={() => push("/billing?tab=invoices")}
               >
-                <FileText className="w-5 h-5 text-blue-600" />
+                <FileText className="size-5 text-blue-600" />
                 <span className="text-[11px] font-medium text-slate-600">Invoices</span>
               </Button>
               <Button
                 variant="outline"
                 className="flex flex-col h-20 gap-1 border-slate-100 hover:bg-emerald-50"
-                onClick={() => router.push("/billing?tab=analytics")}
+                onClick={() => push("/billing?tab=analytics")}
               >
-                <BarChart3 className="w-5 h-5 text-emerald-600" />
+                <BarChart3 className="size-5 text-emerald-600" />
                 <span className="text-[11px] font-medium text-slate-600">Analytics</span>
               </Button>
               <Button
                 variant="outline"
                 className="flex flex-col h-20 gap-1 border-slate-100 hover:bg-amber-50"
-                onClick={() => router.push("/billing?tab=reports")}
+                onClick={() => push("/billing?tab=reports")}
               >
-                <TrendingUp className="w-5 h-5 text-amber-600" />
+                <TrendingUp className="size-5 text-amber-600" />
                 <span className="text-[11px] font-medium text-slate-600">Reports</span>
               </Button>
               <Button
                 variant="outline"
                 className="flex flex-col h-20 gap-1 border-slate-100 hover:bg-purple-50"
-                onClick={() => router.push("/billing?tab=payments")}
+                onClick={() => push("/billing?tab=payments")}
               >
-                <CreditCard className="w-5 h-5 text-purple-600" />
+                <CreditCard className="size-5 text-purple-600" />
                 <span className="text-[11px] font-medium text-slate-600">Payments</span>
               </Button>
             </CardContent>
@@ -338,7 +348,7 @@ export default function FinanceBillingDashboard() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-slate-500" />
+                <CreditCard className="size-4 text-slate-500" />
                 Recent Payments
               </CardTitle>
             </CardHeader>
@@ -348,7 +358,7 @@ export default function FinanceBillingDashboard() {
                   No recent payments
                 </p>
               ) : (
-                <div className="space-y-2">
+                <div className="gap-y-2">
                   {recentPayments.map((p) => (
                     <div
                       key={p.id}
@@ -380,3 +390,5 @@ export default function FinanceBillingDashboard() {
     </div>
   );
 }
+
+

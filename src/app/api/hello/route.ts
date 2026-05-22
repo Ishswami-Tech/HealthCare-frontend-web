@@ -13,3 +13,4 @@ export type ApiResponse<T> = {
     details?: Record<string, unknown>;
   };
 };
+

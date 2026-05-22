@@ -1,6 +1,7 @@
-'use server';
+﻿'use server';
 
-import { authenticatedApi, revalidateCache } from './auth.server';
+import { authenticatedApi, getServerSession } from './auth.server';
+import { revalidateCache } from '@/lib/utils/revalidate-cache';
 import { API_ENDPOINTS } from '../config/config';
 
 function unsupportedDoctorRoute(feature: string): never {
@@ -63,6 +64,11 @@ export async function getDoctors(clinicId: string, filters?: {
   offset?: number;
   locationId?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
@@ -88,6 +94,11 @@ export async function getDoctors(clinicId: string, filters?: {
  * Get doctor by ID
  */
 export async function getDoctorById(doctorId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.GET_BY_ID(doctorId), {});
   return data;
 }
@@ -111,6 +122,11 @@ export async function createDoctor(doctorData: {
     isAvailable: boolean;
   }[];
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.CREATE, {
     method: 'POST',
     body: JSON.stringify(doctorData),
@@ -152,6 +168,11 @@ export async function deleteDoctor(doctorId: string) {
  * Get doctor schedule
  */
 export async function getDoctorSchedule(clinicId: string, doctorId: string, date?: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   if (!clinicId || !doctorId) {
     return null;
   }
@@ -172,6 +193,11 @@ export async function updateDoctorSchedule(doctorId: string, schedule: {
   endTime: string;
   isAvailable: boolean;
 }[], clinicId?: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
   const workingHours = schedule.reduce<Record<string, { start: string; end: string } | null>>(
     (acc, item) => {
@@ -220,6 +246,11 @@ export async function getDoctorAppointments(doctorId: string, filters?: {
   status?: string;
   limit?: number;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
@@ -246,6 +277,11 @@ export async function getDoctorPatients(clinicId: string, filters?: {
   limit?: number;
   offset?: number;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {

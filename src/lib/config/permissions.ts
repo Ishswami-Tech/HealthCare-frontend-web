@@ -99,12 +99,10 @@ export async function hasAnyPermission(
   }
 ): Promise<boolean> {
   try {
-    for (const permission of permissions) {
-      if (await hasPermission(userId, permission, context)) {
-        return true;
-      }
-    }
-    return false;
+    const results = await Promise.all(
+      permissions.map((permission) => hasPermission(userId, permission, context))
+    );
+    return results.some(Boolean);
   } catch (error) {
     console.error('Any permission check failed:', error);
     return false;
@@ -124,12 +122,10 @@ export async function hasAllPermissions(
   }
 ): Promise<boolean> {
   try {
-    for (const permission of permissions) {
-      if (!(await hasPermission(userId, permission, context))) {
-        return false;
-      }
-    }
-    return true;
+    const results = await Promise.all(
+      permissions.map((permission) => hasPermission(userId, permission, context))
+    );
+    return results.every(Boolean);
   } catch (error) {
     console.error('All permission check failed:', error);
     return false;

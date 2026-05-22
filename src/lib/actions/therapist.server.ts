@@ -1,6 +1,6 @@
-'use server';
+﻿'use server';
 
-import { authenticatedApi } from './auth.server';
+import { authenticatedApi, getServerSession } from './auth.server';
 import { cookies } from 'next/headers';
 import type { TherapistAppointment, TherapistPatient, TherapistSession } from '@/types/medical-records.types';
 import { nowIso } from '@/lib/utils/date-time';
@@ -32,6 +32,11 @@ export async function getAppointments(
     endDate?: string;
   }
 ): Promise<{ appointments: TherapistAppointment[] }> {
+  const authSession = await getServerSession();
+  if (!authSession?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   if (!therapistId) return { appointments: [] };
 
   const params = new URLSearchParams();
@@ -62,6 +67,11 @@ export async function getAppointmentsByPatientId(
     endDate?: string;
   }
 ): Promise<{ appointments: TherapistAppointment[] }> {
+  const authSession = await getServerSession();
+  if (!authSession?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams();
   params.append('doctorId', therapistId);
   params.append('patientId', patientId);
@@ -92,6 +102,11 @@ export async function getClients(
     offset?: number;
   }
 ): Promise<unknown> {
+  const authSession = await getServerSession();
+  if (!authSession?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const clinicId = await getClinicId();
   if (!clinicId) return { clients: [] };
 
@@ -120,6 +135,11 @@ export async function getClientsByTherapistId(
   _therapistId: string,
   clientId: string
 ): Promise<{ client: TherapistPatient }> {
+  const authSession = await getServerSession();
+  if (!authSession?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi<TherapistPatient>(
     `/patients/${clientId}`
   );
@@ -132,6 +152,11 @@ export async function getClientsByTherapistId(
 export async function createAppointment(
   appointmentData: TherapistAppointment
 ): Promise<{ appointment: TherapistAppointment }> {
+  const authSession = await getServerSession();
+  if (!authSession?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi<{ appointment: TherapistAppointment } | TherapistAppointment>(
     '/appointments',
     {
@@ -160,6 +185,11 @@ export async function updateAppointment(
   appointmentId: string,
   updates: Partial<TherapistAppointment>
 ): Promise<{ appointment: TherapistAppointment }> {
+  const authSession = await getServerSession();
+  if (!authSession?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi<{ appointment: TherapistAppointment } | TherapistAppointment>(
     `/appointments/${appointmentId}`,
     {
@@ -176,6 +206,11 @@ export async function updateAppointment(
  * Delete (cancel) therapy appointment — PATCH /appointments/:id/status with CANCELLED
  */
 export async function deleteAppointment(appointmentId: string): Promise<void> {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   await authenticatedApi(`/appointments/${appointmentId}/status`, {
     method: 'PATCH',
     body: JSON.stringify({ status: 'CANCELLED' }),
@@ -194,6 +229,11 @@ export async function updateClientSession(
     nextSessionDate?: string;
   }
 ): Promise<{ session: TherapistSession }> {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi<TherapistSession>(
     '/ehr/medical-history',
     {
@@ -209,7 +249,7 @@ export async function updateClientSession(
     }
   );
 
-  const session: TherapistSession = {
+  const therapistSession: TherapistSession = {
     ...(data as any),
     id: (data as any).id || (data as any)._id,
     therapistId: _therapistId,
@@ -219,5 +259,5 @@ export async function updateClientSession(
     ...(sessionData.nextSessionDate ? { nextSessionDate: sessionData.nextSessionDate } : {}),
   };
 
-  return { session };
+  return { session: therapistSession };
 }

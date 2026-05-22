@@ -317,7 +317,7 @@
 
   /* Google Meet UI Utilities */
   .meet-control-button {
-    @apply h-10 w-10 sm:h-12 sm:w-12 rounded-full flex items-center justify-center transition-colors duration-150 border border-[#3c4043] bg-[#3c4043] text-white shadow-none hover:bg-[#4a4d51] hover:border-[#4a4d51];
+    @apply size-10 sm:h-12 sm:w-12 rounded-full flex items-center justify-center transition-colors duration-150 border border-[#3c4043] bg-[#3c4043] text-white shadow-none hover:bg-[#4a4d51] hover:border-[#4a4d51];
   }
   .dark .meet-control-button {
     @apply border-[#3c4043] bg-[#3c4043] text-white shadow-none hover:bg-[#4a4d51] hover:border-[#4a4d51];
@@ -345,7 +345,7 @@
   }
 
   .meet-info-button {
-    @apply h-10 w-10 flex items-center justify-center rounded-full transition-colors bg-transparent text-white hover:bg-[#303134] hover:text-white;
+    @apply size-10 flex items-center justify-center rounded-full transition-colors bg-transparent text-white hover:bg-[#303134] hover:text-white;
   }
   .dark .meet-info-button {
     @apply bg-transparent text-white hover:bg-[#303134] hover:text-white;
@@ -772,22 +772,22 @@ html[lang="mr"] span {
 
 /* Icon size utilities */
 .icon-xs {
-  @apply w-3 h-3;
+  @apply size-3;
 }
 .icon-sm {
-  @apply w-4 h-4;
+  @apply size-4;
 }
 .icon-md {
-  @apply w-5 h-5;
+  @apply size-5;
 }
 .icon-lg {
-  @apply w-6 h-6;
+  @apply size-6;
 }
 .icon-xl {
-  @apply w-8 h-8;
+  @apply size-8;
 }
 .icon-2xl {
-  @apply w-10 h-10;
+  @apply size-10;
 }
 
 /* Medical icon styles */
@@ -1251,7 +1251,7 @@ html {
 
 /* Status indicators */
 .status-dot {
-  @apply w-2 h-2 rounded-full;
+  @apply size-2 rounded-full;
 }
 
 .status-dot.online {
@@ -1302,7 +1302,7 @@ html {
 
 @layer components {
   .call-control-button {
-    @apply rounded-full w-10 h-10 flex items-center justify-center bg-[#3c4043] border-[#3c4043] text-white transition-colors duration-200 cursor-pointer;
+    @apply rounded-full size-10 flex items-center justify-center bg-[#3c4043] border-[#3c4043] text-white transition-colors duration-200 cursor-pointer;
   }
   .call-control-button:hover {
     @apply bg-[#444649];
@@ -1325,7 +1325,7 @@ html {
   }
 
   .call-info-button {
-    @apply rounded-full w-12 h-12 flex items-center justify-center bg-transparent border border-transparent text-white transition-colors duration-150 cursor-pointer;
+    @apply rounded-full size-12 flex items-center justify-center bg-transparent border border-transparent text-white transition-colors duration-150 cursor-pointer;
   }
   .call-info-button:hover {
     @apply bg-[#303134];
@@ -1814,3 +1814,4 @@ html5-qrcode {
     line-height: 1.15;
   }
 }
+

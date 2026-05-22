@@ -117,11 +117,11 @@ export default function ReceptionistProfile() {
 
   return (
     
-        <div className="p-6 space-y-6">
+        <div className="p-6 gap-y-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold">My Profile</h1>
+            <h1 className="text-3xl font-semibold">My Profile</h1>
             <Button className="flex items-center gap-2">
-              <Save className="w-4 h-4" />
+              <Save className="size-4" />
               Save Changes
             </Button>
           </div>
@@ -131,39 +131,39 @@ export default function ReceptionistProfile() {
             <CardContent className="p-6">
               <div className="flex items-center gap-6">
                 <div className="relative">
-                  <div className="flex h-24 w-24 items-center justify-center rounded-full bg-linear-to-br from-green-100 to-blue-100 dark:from-emerald-950/50 dark:to-blue-950/50">
+                  <div className="flex size-24 items-center justify-center rounded-full bg-linear-to-br from-green-100 to-blue-100 dark:from-emerald-950/50 dark:to-blue-950/50">
                     <span className="text-3xl font-semibold text-green-800 dark:text-green-200">
                       {profileData.personalInfo.firstName.charAt(0)}
                     </span>
                   </div>
                   <Button 
                     size="sm" 
-                    className="absolute -bottom-1 -right-1 rounded-full w-8 h-8 p-0"
+                    className="absolute -bottom-1 -right-1 rounded-full size-8 p-0"
                   >
-                    <Camera className="w-3 h-3" />
+                    <Camera className="size-3" />
                   </Button>
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-2xl font-bold">
+                  <h2 className="text-2xl font-semibold">
                     {profileData.personalInfo.firstName} {profileData.personalInfo.lastName}
                   </h2>
                   <div className="mt-2 flex items-center gap-4 text-muted-foreground">
                     <span className="flex items-center gap-1">
-                      <Award className="w-4 h-4" />
+                      <Award className="size-4" />
                       {profileData.workInfo.position}
                     </span>
                     <span className="flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
+                      <Clock className="size-4" />
                       {profileData.workInfo.experience}
                     </span>
                     <span className="flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
+                      <Clock className="size-4" />
                       {profileData.workInfo.experience || "—"}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-3">
-                    {profileData.workInfo.skills.slice(0, 3).map((skill, index) => (
-                      <Badge key={index} variant="outline">{skill}</Badge>
+                    {profileData.workInfo.skills.slice(0, 3).map((skill) => (
+                      <Badge key={skill} variant="outline">{skill}</Badge>
                     ))}
                     {profileData.workInfo.skills.length > 3 && (
                       <Badge variant="outline">+{profileData.workInfo.skills.length - 3} more</Badge>
@@ -186,7 +186,7 @@ export default function ReceptionistProfile() {
             </CardContent>
           </Card>
 
-          <Tabs defaultValue="personal" className="space-y-6">
+          <Tabs defaultValue="personal" className="gap-y-6">
             <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
               <TabsTrigger value="personal">Personal Info</TabsTrigger>
               <TabsTrigger value="work">Work Info</TabsTrigger>
@@ -199,11 +199,11 @@ export default function ReceptionistProfile() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <UserCheck className="w-5 h-5" />
+                    <UserCheck className="size-5" />
                     Personal Information
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="gap-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="firstName">First Name</Label>
@@ -311,15 +311,15 @@ export default function ReceptionistProfile() {
             </TabsContent>
 
             <TabsContent value="work">
-              <div className="space-y-6">
+              <div className="gap-y-6">
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Award className="w-5 h-5" />
+                      <Award className="size-5" />
                       Work Information
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="gap-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label>Employee ID</Label>
@@ -369,8 +369,8 @@ export default function ReceptionistProfile() {
                     <div>
                       <Label>Skills & Competencies</Label>
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {profileData.workInfo.skills.map((skill, index) => (
-                          <Badge key={index} variant="outline">{skill}</Badge>
+                        {profileData.workInfo.skills.map((skill) => (
+                          <Badge key={skill} variant="outline">{skill}</Badge>
                         ))}
                       </div>
                     </div>
@@ -380,13 +380,13 @@ export default function ReceptionistProfile() {
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Shield className="w-5 h-5" />
+                      <Shield className="size-5" />
                       System Access & Permissions
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="gap-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-3">
+                      <div className="gap-y-3">
                         <div className="flex items-center justify-between">
                           <span>Schedule Appointments</span>
                           <Badge className={profileData.systemAccess.canScheduleAppointments ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'}>
@@ -406,7 +406,7 @@ export default function ReceptionistProfile() {
                           </Badge>
                         </div>
                       </div>
-                      <div className="space-y-3">
+                      <div className="gap-y-3">
                         <div className="flex items-center justify-between">
                           <span>Access Reports</span>
                           <Badge className={profileData.systemAccess.canAccessReports ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'}>
@@ -436,7 +436,7 @@ export default function ReceptionistProfile() {
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-center py-12 text-muted-foreground">
-                    <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                    <TrendingUp className="size-12 mx-auto mb-4 opacity-30" />
                     <p className="font-medium">Performance analytics not yet available</p>
                     <p className="text-sm mt-1">Stats will appear here once the analytics backend is configured.</p>
                   </div>
@@ -448,11 +448,11 @@ export default function ReceptionistProfile() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Activity className="w-5 h-5" />
+                    <Activity className="size-5" />
                     System Preferences
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="gap-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="language">Language</Label>
@@ -521,10 +521,10 @@ export default function ReceptionistProfile() {
                     </div>
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="gap-y-4">
                     <h4 className="font-semibold">Notification Preferences</h4>
                     
-                    <div className="space-y-3">
+                    <div className="gap-y-3">
                       <div className="flex items-center justify-between">
                         <div>
                           <Label>Email Notifications</Label>
@@ -586,15 +586,15 @@ export default function ReceptionistProfile() {
             </TabsContent>
 
             <TabsContent value="security">
-              <div className="space-y-6">
+              <div className="gap-y-6">
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Shield className="w-5 h-5" />
+                      <Shield className="size-5" />
                       Change Password
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="gap-y-4">
                     <div>
                       <Label htmlFor="newPassword">New Password</Label>
                       <div className="relative">
@@ -610,7 +610,7 @@ export default function ReceptionistProfile() {
                           className="absolute right-0 top-0 h-full px-3"
                           onClick={() => setShowPassword(!showPassword)}
                         >
-                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                         </Button>
                       </div>
                     </div>
@@ -634,7 +634,7 @@ export default function ReceptionistProfile() {
                     <CardTitle>Security Information</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3 text-sm">
+                    <div className="gap-y-3 text-sm">
                       <div className="flex justify-between">
                         <span>Last Password Change:</span>
                         <span className="text-muted-foreground">45 days ago</span>
@@ -667,3 +667,5 @@ export default function ReceptionistProfile() {
     
   );
 }
+
+

@@ -46,8 +46,8 @@ const DailyCallSurface = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex h-full w-full min-h-[100dvh] items-center justify-center bg-[#111315] px-6 text-center text-white">
-        <div className="space-y-4 max-w-xs w-full">
-          <div className="relative mx-auto h-14 w-14">
+        <div className="gap-y-4 max-w-xs w-full">
+          <div className="relative mx-auto size-14">
             <div className="h-full w-full animate-spin rounded-full border-2 border-[#8ab4f8]/20 border-t-[#8ab4f8]" />
           </div>
           <div>
@@ -134,7 +134,7 @@ async function loadRoomData(appointmentId: string): Promise<RoomData> {
 function EmptyState({ title, description }: { title: string; description: string }) {
   return (
     <div className="flex min-h-[180px] items-center justify-center rounded-lg bg-[#f8f9fa] border border-[#dadce0] p-6 text-center">
-      <div className="space-y-2">
+      <div className="gap-y-2">
         <p className="text-[14px] font-medium text-[#202124]">{title}</p>
         <p className="text-[13px] text-[#5f6368]">{description}</p>
       </div>
@@ -322,7 +322,7 @@ export function VideoAppointmentRoomWorkspace({
                       onClick={handleShareInvite}
                       className="gap-2 rounded-full border-white/10 bg-transparent text-white hover:bg-white/10"
                     >
-                      <Share2 className="h-4 w-4" />
+                      <Share2 className="size-4" />
                       Share link
                     </Button>
                     {onLeave && (
@@ -331,7 +331,7 @@ export function VideoAppointmentRoomWorkspace({
                         onClick={onLeave}
                         className="gap-2 rounded-full border-white/10 bg-transparent text-white hover:bg-white/10"
                       >
-                        <ArrowLeft className="h-4 w-4" />
+                        <ArrowLeft className="size-4" />
                         Leave room
                       </Button>
                     )}
@@ -342,7 +342,7 @@ export function VideoAppointmentRoomWorkspace({
                   onClick={() => setIsInviteMenuOpen((value) => !value)}
                   className="gap-2 rounded-full border-white/10 bg-[#1e1f20]/92 text-white shadow-xl backdrop-blur-md hover:bg-[#2d2e30]"
                 >
-                  <Share2 className="h-4 w-4" />
+                  <Share2 className="size-4" />
                   Invite
                 </Button>
               </div>
@@ -352,7 +352,7 @@ export function VideoAppointmentRoomWorkspace({
           <div className="flex min-h-[calc(100dvh-1.5rem)] flex-col gap-4 bg-[#f8f9fa] p-4 text-[#202124]">
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] bg-white px-4 py-3 shadow-sm border border-[#e8eaed]">
               <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1a73e8] text-white text-sm font-semibold">
+                <div className="flex size-10 items-center justify-center rounded-full bg-[#1a73e8] text-white text-sm font-semibold">
                   {presenterLabel
                     .split(" ")
                     .slice(0, 2)
@@ -382,7 +382,7 @@ export function VideoAppointmentRoomWorkspace({
                   onClick={handleShareInvite}
                   className="gap-2 rounded-full border-[#e8eaed] bg-white text-[#202124] hover:bg-[#f8f9fa]"
                 >
-                  <Share2 className="h-4 w-4" />
+                  <Share2 className="size-4" />
                   Share link
                 </Button>
                 {onLeave && (
@@ -391,7 +391,7 @@ export function VideoAppointmentRoomWorkspace({
                     onClick={onLeave}
                     className="gap-2 rounded-full border-[#e8eaed] bg-white text-[#202124] hover:bg-[#f8f9fa]"
                   >
-                    <ArrowLeft className="h-4 w-4" />
+                    <ArrowLeft className="size-4" />
                     Leave room
                   </Button>
                 )}
@@ -400,11 +400,11 @@ export function VideoAppointmentRoomWorkspace({
 
             <div className="grid flex-1 gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,0.85fr)]">
               <div className="flex min-h-[420px] items-center justify-center rounded-[24px] border border-[#e8eaed] bg-white p-6 text-center shadow-sm">
-                <div className="space-y-3">
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white/10">
-                    <PlayCircle className="h-8 w-8" />
+                <div className="gap-y-3">
+                  <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-white/10">
+                    <PlayCircle className="size-8" />
                   </div>
-                  <div className="space-y-1">
+                  <div className="gap-y-1">
                     <p className="text-base font-semibold">Backend video API room</p>
                     <p className="text-sm text-[#5f6368]">
                       {access.meetingUrl ? "Meeting link available from the backend." : "Waiting for the backend to generate a meeting link."}
@@ -427,15 +427,15 @@ export function VideoAppointmentRoomWorkspace({
                 </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="gap-y-3">
                 <Card className="border-[#e8eaed] bg-white text-[#202124] shadow-sm">
                   <CardHeader className="pb-3">
                     <CardTitle className="flex items-center gap-2 text-base text-[#202124]">
-                      <Shield className="h-4 w-4 text-[#1a73e8]" />
+                      <Shield className="size-4 text-[#1a73e8]" />
                       Session status
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-2 text-sm text-[#202124]">
+                  <CardContent className="gap-y-2 text-sm text-[#202124]">
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-[#5f6368]">Duration</span>
                       <span className="font-semibold text-[#202124]">{appointmentDuration ? `${appointmentDuration} min` : "TBD"}</span>
@@ -461,3 +461,5 @@ export function VideoAppointmentRoomWorkspace({
     </div>
   );
 }
+
+

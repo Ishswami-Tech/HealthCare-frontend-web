@@ -80,9 +80,9 @@ export function MinimalStatusIndicator({ className }: { className?: string }) {
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
       >
-        <span className="relative flex h-2.5 w-2.5">
+        <span className="relative flex size-2.5">
           <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", statusColor)}></span>
-          <span className={cn("relative inline-flex rounded-full h-2.5 w-2.5", statusColor)}></span>
+          <span className={cn("relative inline-flex rounded-full size-2.5", statusColor)}></span>
         </span>
         <span className={cn("text-xs font-medium tracking-wide", textColor)}>
           {label}
@@ -91,3 +91,4 @@ export function MinimalStatusIndicator({ className }: { className?: string }) {
     </Link>
   );
 }
+

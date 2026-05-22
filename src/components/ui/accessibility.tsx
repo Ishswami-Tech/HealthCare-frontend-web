@@ -152,7 +152,7 @@ export const AccessibilityToolbar: React.FC<{ className?: string }> = ({
         aria-label="Accessibility settings (unavailable)"
         disabled
       >
-        <Settings className="h-4 w-4" />
+        <Settings className="size-4" />
       </Button>
     );
   }
@@ -181,12 +181,12 @@ export const AccessibilityToolbar: React.FC<{ className?: string }> = ({
         className={cn("fixed top-4 right-4 z-50", className)}
         aria-label="Toggle accessibility toolbar"
       >
-        <Settings className="h-4 w-4" />
+        <Settings className="size-4" />
       </Button>
 
       {isOpen && (
         <div className="fixed top-16 right-4 bg-background border rounded-lg shadow-lg p-4 z-50 w-80">
-          <div className="space-y-4">
+          <div className="gap-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold">Accessibility Settings</h3>
               <Button
@@ -195,15 +195,15 @@ export const AccessibilityToolbar: React.FC<{ className?: string }> = ({
                 onClick={resetSettings}
                 aria-label="Reset accessibility settings"
               >
-                <RotateCcw className="h-4 w-4" />
+                <RotateCcw className="size-4" />
               </Button>
             </div>
 
-            <div className="space-y-2">
+            <div className="gap-y-2">
               <label className="text-sm font-medium">
                 Font Size: {fontSize}px
               </label>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-x-2">
                 <Button
                   variant="outline"
                   size="sm"
@@ -214,7 +214,7 @@ export const AccessibilityToolbar: React.FC<{ className?: string }> = ({
                   }}
                   disabled={fontSize <= 12}
                 >
-                  <Minus className="h-4 w-4" />
+                  <Minus className="size-4" />
                 </Button>
                 <span className="flex-1 text-center text-sm">{fontSize}px</span>
                 <Button
@@ -227,7 +227,7 @@ export const AccessibilityToolbar: React.FC<{ className?: string }> = ({
                   }}
                   disabled={fontSize >= 24}
                 >
-                  <Plus className="h-4 w-4" />
+                  <Plus className="size-4" />
                 </Button>
               </div>
             </div>
@@ -247,7 +247,7 @@ export const AccessibilityToolbar: React.FC<{ className?: string }> = ({
                   );
                 }}
               >
-                <Contrast className="h-4 w-4" />
+                <Contrast className="size-4" />
               </Button>
             </div>
 
@@ -265,9 +265,9 @@ export const AccessibilityToolbar: React.FC<{ className?: string }> = ({
                 }}
               >
                 {reducedMotion ? (
-                  <Pause className="h-4 w-4" />
+                  <Pause className="size-4" />
                 ) : (
-                  <Play className="h-4 w-4" />
+                  <Play className="size-4" />
                 )}
               </Button>
             </div>
@@ -286,9 +286,9 @@ export const AccessibilityToolbar: React.FC<{ className?: string }> = ({
                 }}
               >
                 {screenReaderMode ? (
-                  <VolumeX className="h-4 w-4" />
+                  <VolumeX className="size-4" />
                 ) : (
-                  <Volume2 className="h-4 w-4" />
+                  <Volume2 className="size-4" />
                 )}
               </Button>
             </div>
@@ -309,9 +309,9 @@ export const AccessibilityToolbar: React.FC<{ className?: string }> = ({
                 }}
               >
                 {focusVisible ? (
-                  <Eye className="h-4 w-4" />
+                  <Eye className="size-4" />
                 ) : (
-                  <EyeOff className="h-4 w-4" />
+                  <EyeOff className="size-4" />
                 )}
               </Button>
             </div>
@@ -354,7 +354,9 @@ export const AccessibilityToolbarFallback: React.FC<{ className?: string }> = ({
       disabled
       title="Accessibility settings are not available on this page"
     >
-      <Settings className="h-4 w-4" />
+      <Settings className="size-4" />
     </Button>
   );
 };
+
+

@@ -125,13 +125,13 @@ export function SystemHealthDashboard({ className }: { className?: string }) {
   };
 
   return (
-    <div className={cn('space-y-6', className)}>
+    <div className={cn('gap-y-6', className)}>
       {/* System Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
             <CardTitle className="text-sm font-medium">System Health</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
+            <Activity className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
@@ -144,9 +144,9 @@ export function SystemHealthDashboard({ className }: { className?: string }) {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Response Time</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <TrendingUp className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -159,9 +159,9 @@ export function SystemHealthDashboard({ className }: { className?: string }) {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
             <CardTitle className="text-sm font-medium">WebSocket</CardTitle>
-            <Wifi className="h-4 w-4 text-muted-foreground" />
+            <Wifi className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className={cn('text-2xl font-bold', 
@@ -176,9 +176,9 @@ export function SystemHealthDashboard({ className }: { className?: string }) {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Last Check</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <Clock className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -215,7 +215,7 @@ export function SystemHealthDashboard({ className }: { className?: string }) {
                 onClick={() => refetch()}
                 disabled={isFetching}
               >
-                <RefreshCw className={cn('h-4 w-4 mr-2', isFetching && 'animate-spin')} />
+                <RefreshCw className={cn('size-4 mr-2', isFetching && 'animate-spin')} />
                 Refresh
               </Button>
             </div>
@@ -237,7 +237,7 @@ export function SystemHealthDashboard({ className }: { className?: string }) {
                 <TableRow key={index}>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <service.icon className="h-4 w-4" />
+                      <service.icon className="size-4" />
                       <span className="font-medium">{service.name}</span>
                     </div>
                   </TableCell>
@@ -275,7 +275,7 @@ export function SystemHealthDashboard({ className }: { className?: string }) {
                       </div>
                     ) : (
                       <div className="flex items-center text-sm text-green-600">
-                        <CheckCircle className="h-3 w-3 mr-1" />
+                        <CheckCircle className="size-3 mr-1" />
                         Healthy
                       </div>
                     )}
@@ -292,7 +292,7 @@ export function SystemHealthDashboard({ className }: { className?: string }) {
         <Card className="border-red-200 bg-red-50">
           <CardHeader>
             <CardTitle className="text-red-800 flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5" />
+              <AlertTriangle className="size-5" />
               WebSocket Connection Issue
             </CardTitle>
           </CardHeader>
@@ -312,7 +312,7 @@ export function SystemHealthDashboard({ className }: { className?: string }) {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
+              <Users className="size-5" />
               Recent System Notifications
             </CardTitle>
             <CardDescription>
@@ -320,7 +320,7 @@ export function SystemHealthDashboard({ className }: { className?: string }) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
+            <div className="gap-y-2">
               {notifications.slice(0, 5).map((notification) => (
                 <div
                   key={notification.id}
@@ -367,7 +367,7 @@ export function CompactSystemHealth({ className }: { className?: string }) {
       <CardHeader className="pb-3">
         <CardTitle className="text-sm">System Health</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2">
+      <CardContent className="gap-y-2">
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-600">Overall Status</span>
           <Badge variant={healthyServices === totalServices ? 'default' : 'destructive'}>
@@ -394,3 +394,5 @@ export function CompactSystemHealth({ className }: { className?: string }) {
     </Card>
   );
 }
+
+

@@ -61,14 +61,24 @@ export function GoogleMaps({
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
+  const isActiveRef = useRef(true);
+  const infoWindowRef = useRef<any>(null);
   const mapInstanceRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
+  const [listenerVersion, setListenerVersion] = useState(0);
 
   const lat = latitude || DEFAULT_CLINIC.coordinates.lat;
   const lng = longitude || DEFAULT_CLINIC.coordinates.lng;
 
   // Initialize Google Maps
   useEffect(() => {
+    // Synchronous flag that React Doctor can analyze statically
+    isActiveRef.current = true;
+
     const initMap = async () => {
+      // Guard: component unmounted before async operations complete
+      if (!isActiveRef.current || !mapRef.current) return;
+
       try {
         // Check if Google Maps API is loaded
         if (typeof window.google === "undefined") {
@@ -76,7 +86,9 @@ export function GoogleMaps({
           await loadGoogleMapsAPI();
         }
 
-        if (!mapRef.current || !(window as any).google) return;
+        // Double-check after async operation
+        if (!isActiveRef.current || !mapRef.current) return;
+        if (!(window as any).google) return;
 
         // Create map instance
         const map = new (window as any).google.maps.Map(mapRef.current, {
@@ -111,6 +123,7 @@ export function GoogleMaps({
             scaledSize: new (window as any).google.maps.Size(32, 32),
           },
         });
+        markerRef.current = marker;
 
         // Create info window if enabled
         if (showInfoWindow) {
@@ -139,24 +152,53 @@ export function GoogleMaps({
             `,
           });
 
-          marker.addListener("click", () => {
-            infoWindow.open(map, marker);
-          });
+          infoWindowRef.current = infoWindow;
 
           // Open info window by default
           infoWindow.open(map, marker);
         }
 
         mapInstanceRef.current = map;
-        setIsLoading(false);
+        setListenerVersion((current) => current + 1);
+
+        // Only update state if still active
+        if (isActiveRef.current) {
+          setIsLoading(false);
+        }
       } catch (error) {
-        console.error("Failed to initialize Google Maps:", error);
-        setHasError(true);
-        setIsLoading(false);
+        // Only update state if still active
+        if (isActiveRef.current) {
+          console.error("Failed to initialize Google Maps:", error);
+          setHasError(true);
+          setIsLoading(false);
+        }
       }
     };
 
     initMap();
+
+    // Synchronous cleanup function - React Doctor can analyze this statically
+    return () => {
+      // Immediately mark as inactive to prevent async state updates
+      isActiveRef.current = false;
+
+      if (infoWindowRef.current) {
+        try {
+          infoWindowRef.current.close();
+        } catch {
+          // InfoWindow might already be closed
+        }
+        infoWindowRef.current = null;
+      }
+      if (markerRef.current && (window as any).google?.maps?.event) {
+        (window as any).google.maps.event.clearInstanceListeners(markerRef.current);
+        markerRef.current = null;
+      }
+      if (mapInstanceRef.current && (window as any).google?.maps?.event) {
+        (window as any).google.maps.event.clearInstanceListeners(mapInstanceRef.current);
+        mapInstanceRef.current = null;
+      }
+    };
   }, [
     lat,
     lng,
@@ -167,6 +209,29 @@ export function GoogleMaps({
     clinicHours,
     showInfoWindow,
   ]);
+
+  useEffect(() => {
+    if (
+      !showInfoWindow ||
+      !markerRef.current ||
+      !mapInstanceRef.current ||
+      !infoWindowRef.current ||
+      !(window as any).google?.maps?.event
+    ) {
+      return undefined;
+    }
+
+    const map = mapInstanceRef.current;
+    const marker = markerRef.current;
+    const infoWindow = infoWindowRef.current;
+    const clickListener = (window as any).google.maps.event.addListener(marker, "click", () => {
+      infoWindow.open(map, marker);
+    });
+
+    return () => {
+      (window as any).google.maps.event.removeListener(clickListener);
+    };
+  }, [showInfoWindow, listenerVersion]);
 
   const loadGoogleMapsAPI = (): Promise<void> => {
     return new Promise((resolve, reject) => {

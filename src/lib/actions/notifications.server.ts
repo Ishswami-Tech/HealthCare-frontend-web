@@ -1,7 +1,9 @@
-'use server';
+﻿'use server';
 
-import { authenticatedApi } from './auth.server';
+import { after } from 'next/server';
+import { authenticatedApi, getServerSession } from './auth.server';
 import { API_ENDPOINTS } from '../config/config';
+import { logNotificationFetchWarning } from '@/lib/utils/notifications-logger';
 
 // ===== NOTIFICATIONS MANAGEMENT =====
 
@@ -16,10 +18,15 @@ export async function getUserNotifications(userId?: string, filters?: {
   offset?: number;
 }) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     if (!userId) {
       return [];
     }
-    
+
     const params = new URLSearchParams();
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
@@ -28,14 +35,17 @@ export async function getUserNotifications(userId?: string, filters?: {
         }
       });
     }
-    
+
     // Use correct CHAT.HISTORY endpoint
     const endpoint = `${API_ENDPOINTS.COMMUNICATION.CHAT.HISTORY(userId)}${params.toString() ? `?${params.toString()}` : ''}`;
     const { data } = await authenticatedApi(endpoint);
     return data;
   } catch (error) {
-    // Non-blocking: Return empty array on error (session issues, endpoint not available, etc.)
-    console.warn('Failed to fetch notifications:', error instanceof Error ? error.message : 'Unknown error');
+    // Non-blocking: Log after response using `after()` so it doesn't delay the user-visible response
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    after(() => {
+      logNotificationFetchWarning(errorMessage);
+    });
     return [];
   }
 }
@@ -44,6 +54,11 @@ export async function getUserNotifications(userId?: string, filters?: {
  * Mark notification as read - Use COMMUNICATION endpoint
  */
 export async function markNotificationAsRead(notificationId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   // Use communication history endpoint for marking as read
   const { data } = await authenticatedApi(`${API_ENDPOINTS.COMMUNICATION.BASE}/history/${notificationId}/read`, {
     method: 'PATCH',
@@ -55,6 +70,11 @@ export async function markNotificationAsRead(notificationId: string) {
  * Mark all notifications as read - Use COMMUNICATION endpoint
  */
 export async function markAllNotificationsAsRead(userId?: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   // Use communication history endpoint
   const params = userId ? `?userId=${userId}` : '';
   const { data } = await authenticatedApi(`${API_ENDPOINTS.COMMUNICATION.BASE}/history/mark-all-read${params}`, {
@@ -67,6 +87,11 @@ export async function markAllNotificationsAsRead(userId?: string) {
  * Delete notification - Use COMMUNICATION endpoint
  */
 export async function deleteNotification(notificationId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   // Use communication endpoint for deletion
   const { data } = await authenticatedApi(`${API_ENDPOINTS.COMMUNICATION.BASE}/${notificationId}`, {
     method: 'DELETE',
@@ -78,6 +103,11 @@ export async function deleteNotification(notificationId: string) {
  * Get notification settings - Use NOTIFICATION_PREFERENCES endpoint
  */
 export async function getMyNotificationPreferences(userId?: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   if (userId) {
     const { data } = await authenticatedApi(API_ENDPOINTS.NOTIFICATION_PREFERENCES.GET_BY_USER(userId));
     return data;
@@ -90,6 +120,11 @@ export async function getMyNotificationPreferences(userId?: string) {
  * Get notification preferences for a specific user
  */
 export async function getUserNotificationPreferences(userId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.NOTIFICATION_PREFERENCES.GET_BY_USER(userId));
   return data;
 }
@@ -110,6 +145,11 @@ export async function createNotificationPreferences(settings: {
     marketing?: boolean;
   };
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.NOTIFICATION_PREFERENCES.CREATE, {
     method: 'POST',
     body: JSON.stringify(settings),
@@ -133,6 +173,11 @@ export async function updateNotificationPreferences(settings: {
     marketing?: boolean;
   };
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const userId = settings.userId;
   if (!userId) {
     throw new Error('UserId is required to update notification settings');
@@ -148,6 +193,11 @@ export async function updateNotificationPreferences(settings: {
  * Delete notification preferences - resets to defaults
  */
 export async function deleteNotificationPreferences(userId?: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const endpoint = userId
     ? API_ENDPOINTS.NOTIFICATION_PREFERENCES.DELETE(userId)
     : API_ENDPOINTS.NOTIFICATION_PREFERENCES.DELETE('me');

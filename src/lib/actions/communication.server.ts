@@ -1,7 +1,7 @@
-'use server';
+﻿'use server';
 
-import { authenticatedApi } from './auth.server';
-import { API_ENDPOINTS, APP_CONFIG } from '../config/config';
+import { authenticatedApi, getServerSession } from './auth.server';
+import { API_ENDPOINTS } from '../config/config';
 
 // ===== UNIFIED COMMUNICATION =====
 
@@ -20,6 +20,11 @@ export async function sendUnifiedCommunication(data: {
   category?: string;
   scheduledAt?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data: response } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.SEND, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -37,6 +42,11 @@ export async function sendAppointmentReminder(data: {
   reminderType?: 'push' | 'email' | 'sms' | 'whatsapp' | 'all';
   reminderTime?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data: response } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.APPOINTMENT_REMINDER, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -54,6 +64,11 @@ export async function sendPrescriptionReady(data: {
   patientId: string;
   notificationType?: 'push' | 'email' | 'sms' | 'whatsapp' | 'all';
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data: response } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.PRESCRIPTION_READY, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -75,6 +90,11 @@ export async function sendPushNotification(data: {
   sound?: string;
   badge?: number;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data: response } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.PUSH.SEND, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -93,6 +113,11 @@ export async function sendMultiplePushNotifications(data: {
     data?: Record<string, any>;
   }>;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data: response } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.PUSH.SEND_MULTIPLE, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -109,6 +134,11 @@ export async function sendTopicPushNotification(data: {
   body: string;
   data?: Record<string, any>;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data: response } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.PUSH.SEND_TOPIC, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -124,6 +154,11 @@ export async function subscribeToTopic(data: {
   topic: string;
   deviceToken?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data: response } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.PUSH.SUBSCRIBE, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -139,6 +174,11 @@ export async function unsubscribeFromTopic(data: {
   topic: string;
   deviceToken?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data: response } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.PUSH.UNSUBSCRIBE, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -164,6 +204,11 @@ export async function sendEmail(data: {
     contentType?: string;
   }>;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data: response } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.EMAIL.SEND, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -186,6 +231,11 @@ export async function backupChat(data: {
     receiverId: string;
   }>;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data: response } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.CHAT.BACKUP, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -202,6 +252,11 @@ export async function getChatHistory(userId: string, filters?: {
   limit?: number;
   offset?: number;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
@@ -224,6 +279,11 @@ export async function getChatStats(filters?: {
   startDate?: string;
   endDate?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
@@ -248,6 +308,11 @@ export async function getCommunicationStats(filters?: {
   endDate?: string;
   channel?: 'push' | 'email' | 'sms' | 'whatsapp';
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
@@ -266,6 +331,11 @@ export async function getCommunicationStats(filters?: {
  * Get communication service health status
  */
 export async function getCommunicationHealth() {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data: response } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.HEALTH);
   return response;
 }
@@ -279,121 +349,16 @@ export async function testCommunication(data: {
   recipientEmail?: string;
   recipientPhone?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data: response } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.TEST, {
     method: 'POST',
     body: JSON.stringify(data),
   });
   return response;
-}
-
-// ===== CONTACT FORM =====
-
-/**
- * Submit contact form
- */
-export async function submitContactForm(data: {
-  name: string;
-  email: string;
-  phone: string;
-  condition?: string;
-  message: string;
-  type?: 'contact' | 'consultation';
-}) {
-  // Use public API call for contact form
-  const API_URL = APP_CONFIG.API.BASE_URL;
-  const CLINIC_ID = APP_CONFIG.CLINIC.ID;
-  
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  
-  if (CLINIC_ID) {
-    headers['X-Clinic-ID'] = CLINIC_ID;
-  }
-
-  // Use fetchWithAbort directly to avoid "No tokens found" error for public users
-  const { fetchWithAbort } = await import('@/lib/utils/fetch-with-abort');
-  
-  // Note: We're using the unified communication endpoint.
-  // Ideally this should be a public endpoint like /contact/submit
-  // If this endpoint requires auth, this call will fail with 401 from backend,
-  // but it won't crash the frontend with "No tokens found".
-  const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.COMMUNICATION.SEND}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      type: 'email',
-      title: `Contact Form Submission - ${data.type === 'consultation' ? 'Consultation Request' : 'General Inquiry'}`,
-      message: `
-        Name: ${data.name}
-        Email: ${data.email}
-        Phone: ${data.phone}
-        ${data.condition ? `Health Condition: ${data.condition}` : ''}
-        
-        Message:
-        ${data.message}
-      `,
-      category: data.type === 'consultation' ? 'consultation_request' : 'contact_form',
-      priority: 'normal',
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to submit form: ${response.statusText}`);
-  }
-
-  const result = await response.json();
-  return result.data || result;
-}
-
-/**
- * Submit consultation booking request
- */
-export async function submitConsultationBooking(data: {
-  name: string;
-  phone: string;
-  preferredDate?: string;
-  preferredTime?: string;
-  reason?: string;
-}) {
-  // Use public API call for consultation booking
-  const API_URL = APP_CONFIG.API.BASE_URL;
-  const CLINIC_ID = APP_CONFIG.CLINIC.ID;
-  
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  
-  if (CLINIC_ID) {
-    headers['X-Clinic-ID'] = CLINIC_ID;
-  }
-
-  const { fetchWithAbort } = await import('@/lib/utils/fetch-with-abort');
-
-  const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.COMMUNICATION.SEND}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      type: 'email',
-      title: 'Consultation Booking Request',
-      message: `
-        Name: ${data.name}
-        Phone: ${data.phone}
-        ${data.preferredDate ? `Preferred Date: ${data.preferredDate}` : ''}
-        ${data.preferredTime ? `Preferred Time: ${data.preferredTime}` : ''}
-        ${data.reason ? `Reason: ${data.reason}` : ''}
-      `,
-      category: 'consultation_booking',
-      priority: 'high',
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to submit booking: ${response.statusText}`);
-  }
-
-  const result = await response.json();
-  return result.data || result;
 }
 
 /**
@@ -407,6 +372,11 @@ export async function registerFCMToken(data: {
   osVersion?: string;
   appVersion?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data: result } = await authenticatedApi(
     API_ENDPOINTS.COMMUNICATION.PUSH.REGISTER_DEVICE_TOKEN,
     {
@@ -428,6 +398,11 @@ export async function sendSMS(messageData: {
   templateId?: string;
   variables?: Record<string, string>;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.SEND, {
     method: 'POST',
     body: JSON.stringify({
@@ -450,6 +425,11 @@ export async function sendWhatsAppMessage(messageData: {
   variables?: Record<string, string>;
   mediaUrl?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.SEND, {
     method: 'POST',
     body: JSON.stringify({
@@ -466,6 +446,11 @@ export async function sendWhatsAppMessage(messageData: {
  * Get message templates
  */
 export async function getMessageTemplates(type?: 'sms' | 'email' | 'whatsapp') {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = type ? `?type=${type}` : '';
   const { data } = await authenticatedApi(`/communication/templates${params}`);
   return data;
@@ -482,6 +467,11 @@ export async function createMessageTemplate(templateData: {
   variables?: string[];
   category?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi('/communication/templates', {
     method: 'POST',
     body: JSON.stringify(templateData),
@@ -500,6 +490,11 @@ export async function updateMessageTemplate(templateId: string, updates: {
   category?: string;
   isActive?: boolean;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(`/communication/templates/${templateId}`, {
     method: 'PATCH',
     body: JSON.stringify(updates),
@@ -511,6 +506,11 @@ export async function updateMessageTemplate(templateId: string, updates: {
  * Delete message template
  */
 export async function deleteMessageTemplate(templateId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(`/communication/templates/${templateId}`, {
     method: 'DELETE',
   });
@@ -528,6 +528,11 @@ export async function getMessageHistory(filters?: {
   endDate?: string;
   limit?: number;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
@@ -546,41 +551,12 @@ export async function getMessageHistory(filters?: {
  * Get messaging statistics
  */
 export async function getMessagingStats(period: 'day' | 'week' | 'month' | 'year' = 'month') {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(`${API_ENDPOINTS.COMMUNICATION.STATS}?period=${period}`);
   return data;
 }
 
-/**
- * Schedule message
- */
-export async function scheduleMessage(_messageData: {
-  type: 'sms' | 'email' | 'whatsapp';
-  to: string | string[];
-  content: string;
-  subject?: string;
-  scheduledFor: string;
-  templateId?: string;
-  variables?: Record<string, string>;
-}) {
-  // No scheduled messaging endpoint exists in the backend yet
-  return null;
-}
-
-/**
- * Cancel scheduled message
- */
-export async function cancelScheduledMessage(_messageId: string) {
-  // No scheduled messaging endpoint exists in the backend yet
-  return null;
-}
-
-/**
- * Get scheduled messages
- */
-export async function getScheduledMessages(_filters?: {
-  type?: 'sms' | 'email' | 'whatsapp';
-  status?: 'pending' | 'sent' | 'cancelled';
-}) {
-  // No scheduled messaging endpoint exists in the backend yet
-  return null;
-}

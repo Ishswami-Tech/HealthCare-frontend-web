@@ -22,6 +22,7 @@ import { PatientClinicalRecordView } from "@/components/patient/PatientClinicalR
 import { usePatientStore } from "@/stores";
 import { getAppointmentDateTimeValue } from "@/lib/utils/appointmentUtils";
 import { formatDateInIST } from "@/lib/utils/date-time";
+import { useCurrentTimestamp } from "@/hooks/utils/useClientDate";
 import { useDebouncedCallback } from "@/lib/utils/performance";
 import {
   Calendar,
@@ -114,7 +115,7 @@ function EhrDrawerContent({ patient }: { patient: RecordLike }) {
       <div className="px-6 pb-6">
         {isEhrLoading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            <Loader2 className="size-8 animate-spin text-blue-600" />
           </div>
         ) : (
           <PatientClinicalRecordView
@@ -245,7 +246,7 @@ export default function DoctorPatients() {
         cell: ({ row }) => {
           const patient = row.original;
           return (
-            <div className="space-y-1 text-sm">
+            <div className="gap-y-1 text-sm">
               <div className="text-foreground">{patient.phone || "No phone"}</div>
               <div className="text-muted-foreground">{patient.email || "No email"}</div>
             </div>
@@ -267,7 +268,7 @@ export default function DoctorPatients() {
         cell: ({ row }) => {
           const patient = row.original;
           return (
-            <div className="space-y-1 text-sm">
+            <div className="gap-y-1 text-sm">
               <div className="text-foreground">{patient.totalVisits !== undefined ? `${patient.totalVisits} total` : "—"}</div>
               <div className="text-muted-foreground">
                 {patient.lastVisit ? `Last: ${formatDateInIST(patient.lastVisit)}` : "No visit"}
@@ -282,7 +283,7 @@ export default function DoctorPatients() {
         cell: ({ row }) => (
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={() => setSelectedPatient(row.original)}>
-              <Eye className="mr-1 h-4 w-4" />
+              <Eye className="mr-1 size-4" />
               View EHR
             </Button>
             <Button
@@ -295,7 +296,7 @@ export default function DoctorPatients() {
                 })
               }
             >
-              <Calendar className="h-3 w-3" />
+              <Calendar className="size-3" />
               Schedule
             </Button>
           </div>
@@ -336,7 +337,7 @@ export default function DoctorPatients() {
   if (isPendingPatients) {
     return (
       <div className="flex min-h-[400px] items-center justify-center p-6">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <Loader2 className="size-8 animate-spin text-blue-600" />
       </div>
     );
   }
@@ -353,9 +354,9 @@ export default function DoctorPatients() {
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-6">
         <Card className="border-l-4 border-l-emerald-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Patients</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <Users className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalPatientsCount}</div>
@@ -364,9 +365,9 @@ export default function DoctorPatients() {
         </Card>
 
         <Card className="border-l-4 border-l-blue-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
             <CardTitle className="text-sm font-medium">This Week</CardTitle>
-            <Calendar className="h-4 w-4 text-blue-600" />
+            <Calendar className="size-4 text-blue-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">{stats.upcomingAppointments}</div>
@@ -375,9 +376,9 @@ export default function DoctorPatients() {
         </Card>
 
         <Card className="border-l-4 border-l-amber-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Follow-ups</CardTitle>
-            <Clock className="h-4 w-4 text-orange-600" />
+            <Clock className="size-4 text-orange-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-600">{stats.followUps}</div>
@@ -386,9 +387,9 @@ export default function DoctorPatients() {
         </Card>
 
         <Card className="border-l-4 border-l-green-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Recovery Rate</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-600" />
+            <TrendingUp className="size-4 text-green-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{stats.recoveryRate}%</div>
@@ -404,7 +405,7 @@ export default function DoctorPatients() {
         <CardContent>
           <div className="flex flex-col gap-4 md:flex-row">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-500" />
               <Input placeholder="Search by name or condition..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
             </div>
             <Select
@@ -483,3 +484,5 @@ export default function DoctorPatients() {
     </DashboardPageShell>
   );
 }
+
+

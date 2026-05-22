@@ -1,6 +1,6 @@
-'use server';
+﻿'use server';
 
-import { authenticatedApi } from './auth.server';
+import { authenticatedApi, getServerSession } from './auth.server';
 import { API_ENDPOINTS } from '../config/config';
 
 // ===== ANALYTICS & REPORTING =====
@@ -10,6 +10,11 @@ import { API_ENDPOINTS } from '../config/config';
  * Get dashboard analytics
  */
 export async function getDashboardAnalytics(period: 'day' | 'week' | 'month' | 'year' = 'month', _clinicId?: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams({ period });
 
   const { data } = await authenticatedApi(`${API_ENDPOINTS.ANALYTICS.DASHBOARD}?${params.toString()}`);
@@ -26,6 +31,11 @@ export async function getAppointmentAnalytics(filters?: {
   doctorId?: string;
   clinicId?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
@@ -49,6 +59,11 @@ export async function getPatientAnalytics(filters?: {
   ageGroup?: string;
   gender?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
@@ -71,6 +86,11 @@ export async function getRevenueAnalytics(filters?: {
   clinicId?: string;
   serviceId?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
@@ -87,6 +107,11 @@ export async function getRevenueAnalytics(filters?: {
  * Get doctor performance analytics
  */
 export async function getDoctorPerformanceAnalytics(doctorId?: string, period: 'day' | 'week' | 'month' | 'year' = 'month') {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams({ period });
   if (doctorId) params.append('doctorId', doctorId);
   
@@ -98,6 +123,11 @@ export async function getDoctorPerformanceAnalytics(doctorId?: string, period: '
  * Get clinic performance analytics
  */
 export async function getClinicPerformanceAnalytics(_clinicId?: string, period: 'day' | 'week' | 'month' | 'year' = 'month') {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams({ period });
   // 🔒 clinicId is auto-provided via X-Clinic-ID header — query param ignored by backend
   
@@ -113,6 +143,11 @@ export async function getServiceUtilizationAnalytics(filters?: {
   clinicId?: string;
   serviceCategory?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
@@ -133,6 +168,11 @@ export async function getWaitTimeAnalytics(filters?: {
   clinicId?: string;
   doctorId?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
@@ -153,6 +193,11 @@ export async function getPatientSatisfactionAnalytics(filters?: {
   clinicId?: string;
   doctorId?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
@@ -178,6 +223,11 @@ export async function generateAppointmentReport(filters: {
   doctorId?: string;
   status?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.REPORTS.APPOINTMENTS, {
     method: 'POST',
     body: JSON.stringify(filters),
@@ -195,6 +245,11 @@ export async function generatePatientReport(filters: {
   clinicId?: string;
   includeDetails?: boolean;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.REPORTS.PATIENTS, {
     method: 'POST',
     body: JSON.stringify(filters),
@@ -212,6 +267,11 @@ export async function generateRevenueReport(filters: {
   clinicId?: string;
   groupBy?: 'day' | 'week' | 'month';
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.REPORTS.REVENUE, {
     method: 'POST',
     body: JSON.stringify(filters),
@@ -229,6 +289,11 @@ export async function generateDoctorPerformanceReport(filters: {
   doctorId?: string;
   clinicId?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.REPORTS.DOCTORS_PERFORMANCE, {
     method: 'POST',
     body: JSON.stringify(filters),
@@ -245,6 +310,11 @@ export async function generateClinicSummaryReport(filters: {
   format: 'pdf' | 'excel' | 'csv';
   clinicId?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.REPORTS.CLINICS_SUMMARY, {
     method: 'POST',
     body: JSON.stringify(filters),
@@ -260,6 +330,11 @@ export async function getReportHistory(filters?: {
   status?: 'pending' | 'completed' | 'failed';
   limit?: number;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
@@ -278,6 +353,11 @@ export async function getReportHistory(filters?: {
  * Download report
  */
 export async function downloadReport(reportId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.REPORTS.DOWNLOAD(reportId));
   return data;
 }
@@ -286,6 +366,11 @@ export async function downloadReport(reportId: string) {
  * Delete report
  */
 export async function deleteReport(reportId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.REPORTS.DELETE(reportId), {
     method: 'DELETE',
   });
@@ -302,6 +387,11 @@ export async function getCustomAnalytics(query: {
   startDate: string;
   endDate: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.ANALYTICS.CUSTOM, {
     method: 'POST',
     body: JSON.stringify(query),
@@ -321,6 +411,11 @@ export async function saveCustomAnalyticsQuery(queryData: {
     filters?: Record<string, any>;
   };
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.ANALYTICS.CUSTOM_QUERIES.CREATE, {
     method: 'POST',
     body: JSON.stringify(queryData),
@@ -332,6 +427,11 @@ export async function saveCustomAnalyticsQuery(queryData: {
  * Get saved analytics queries
  */
 export async function getSavedAnalyticsQueries() {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.ANALYTICS.CUSTOM_QUERIES.GET_ALL);
   return data;
 }
@@ -347,6 +447,11 @@ export async function getQueueAnalytics(filters?: {
   doctorId?: string;
   clinicId?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
@@ -363,6 +468,11 @@ export async function getQueueAnalytics(filters?: {
  * Export analytics data
  */
 export async function exportAnalyticsData(format: 'csv' | 'excel' | 'pdf', data: any) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data: result } = await authenticatedApi(API_ENDPOINTS.ANALYTICS.EXPORT, {
     method: 'POST',
     body: JSON.stringify({ format, data }),

@@ -93,15 +93,15 @@ export default function SupportStaffDashboard() {
   if (isPending) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="size-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="p-4 space-y-4 sm:p-6 sm:space-y-5">
+    <div className="p-4 gap-y-4 sm:p-6 sm:gap-y-5">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Support Dashboard</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Support Dashboard</h1>
         <p className="text-muted-foreground">
           Welcome back, {user?.name || "Support"}! Here's your support overview.
         </p>
@@ -149,7 +149,7 @@ export default function SupportStaffDashboard() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-orange-600" />
+            <AlertTriangle className="size-5 text-orange-600" />
             Support Queue
           </CardTitle>
           <Badge variant="outline">{activeRequests.length} Pending</Badge>
@@ -159,28 +159,28 @@ export default function SupportStaffDashboard() {
             <Empty className="min-h-[220px] border-border/70 bg-muted/20">
               <EmptyContent>
                 <EmptyMedia variant="icon">
-                  <MessageSquare className="h-5 w-5" />
+                  <MessageSquare className="size-5" />
                 </EmptyMedia>
                 <EmptyTitle>No active support requests</EmptyTitle>
                 <EmptyDescription>New requests will appear here once users submit them.</EmptyDescription>
               </EmptyContent>
             </Empty>
           ) : (
-            <div className="space-y-4">
+            <div className="gap-y-4">
               {activeRequests.map((request) => (
                 <div
                   key={request.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
-                      <Headphones className="w-5 h-5 text-blue-600" />
+                    <div className="size-10 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
+                      <Headphones className="size-5 text-blue-600" />
                     </div>
                     <div>
                       <h4 className="font-semibold leading-none mb-1">{request.type}</h4>
                       <p className="text-sm text-muted-foreground">{request.requester}</p>
                       <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
+                        <Clock className="size-3" />
                         {request.time}
                       </p>
                     </div>
@@ -229,3 +229,5 @@ export default function SupportStaffDashboard() {
     </div>
   );
 }
+
+

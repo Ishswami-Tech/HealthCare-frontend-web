@@ -149,7 +149,7 @@ export function AddStaffModal({ open, onOpenChange, onSuccess }: AddStaffModalPr
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-primary/10 rounded-lg text-primary">
-              <UserPlus className="w-5 h-5" />
+              <UserPlus className="size-5" />
             </div>
             <DialogTitle className="text-2xl font-bold">Create Staff Member</DialogTitle>
           </div>
@@ -159,7 +159,7 @@ export function AddStaffModal({ open, onOpenChange, onSuccess }: AddStaffModalPr
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="gap-y-6 py-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -169,7 +169,7 @@ export function AddStaffModal({ open, onOpenChange, onSuccess }: AddStaffModalPr
                     <FormLabel>First Name</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <User className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
                         <Input placeholder="John" className="pl-9" {...field} />
                       </div>
                     </FormControl>
@@ -185,7 +185,7 @@ export function AddStaffModal({ open, onOpenChange, onSuccess }: AddStaffModalPr
                     <FormLabel>Last Name</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <User className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
                         <Input placeholder="Doe" className="pl-9" {...field} />
                       </div>
                     </FormControl>
@@ -202,7 +202,7 @@ export function AddStaffModal({ open, onOpenChange, onSuccess }: AddStaffModalPr
                     <FormLabel>Email Address</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Mail className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
                         <Input placeholder="john.doe@example.com" type="email" className="pl-9" {...field} />
                       </div>
                     </FormControl>
@@ -219,7 +219,7 @@ export function AddStaffModal({ open, onOpenChange, onSuccess }: AddStaffModalPr
                     <FormLabel>Password</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Lock className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
                         <Input placeholder="********" type="password" className="pl-9" {...field} />
                       </div>
                     </FormControl>
@@ -236,7 +236,7 @@ export function AddStaffModal({ open, onOpenChange, onSuccess }: AddStaffModalPr
                     <FormLabel>Phone Number</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Phone className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Phone className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
                         <Input placeholder="+919876543210" className="pl-9" {...field} />
                       </div>
                     </FormControl>
@@ -288,12 +288,12 @@ export function AddStaffModal({ open, onOpenChange, onSuccess }: AddStaffModalPr
                 {showAdditionalDetails ? (
                   <>
                     Hide
-                    <ChevronUp className="h-4 w-4" />
+                    <ChevronUp className="size-4" />
                   </>
                 ) : (
                   <>
                     Show
-                    <ChevronDown className="h-4 w-4" />
+                    <ChevronDown className="size-4" />
                   </>
                 )}
               </Button>
@@ -346,7 +346,7 @@ export function AddStaffModal({ open, onOpenChange, onSuccess }: AddStaffModalPr
                                 ) : (
                                   <span>Pick a date</span>
                                 )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                <CalendarIcon className="ml-auto size-4 opacity-50" />
                               </Button>
                             </FormControl>
                           </PopoverTrigger>
@@ -378,7 +378,7 @@ export function AddStaffModal({ open, onOpenChange, onSuccess }: AddStaffModalPr
                           <FormLabel>Specialization</FormLabel>
                           <FormControl>
                             <div className="relative">
-                              <Briefcase className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                              <Briefcase className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
                               <Input placeholder="e.g. Cardiology" className="pl-9" {...field} />
                             </div>
                           </FormControl>
@@ -417,7 +417,7 @@ export function AddStaffModal({ open, onOpenChange, onSuccess }: AddStaffModalPr
                         <FormLabel>Address</FormLabel>
                         <FormControl>
                           <div className="relative">
-                            <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <MapPin className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
                             <Input placeholder="Enter residential address" className="pl-9" {...field} />
                           </div>
                         </FormControl>
@@ -484,7 +484,7 @@ export function AddStaffModal({ open, onOpenChange, onSuccess }: AddStaffModalPr
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="mr-2 size-4 animate-spin" />
                     Adding Staff...
                   </>
                 ) : (
@@ -498,3 +498,5 @@ export function AddStaffModal({ open, onOpenChange, onSuccess }: AddStaffModalPr
     </Dialog>
   );
 }
+
+

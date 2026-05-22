@@ -193,7 +193,7 @@ export default function DoctorProfile() {
                 onClick={handleSaveProfile}
                 disabled={updateProfileMutation.isPending || isLoading}
               >
-                {updateProfileMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {updateProfileMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
                 Save Changes
               </Button>
             }
@@ -204,39 +204,39 @@ export default function DoctorProfile() {
             <CardContent className="p-6">
               <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
                 <div className="relative">
-                  <div className="w-24 h-24 bg-linear-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center dark:from-blue-950 dark:to-purple-950">
+                  <div className="size-24 bg-linear-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center dark:from-blue-950 dark:to-purple-950">
                     <span className="text-blue-800 font-semibold text-3xl dark:text-blue-200">
                       {profileData.personalInfo.firstName.charAt(0)}
                     </span>
                   </div>
                   <Button 
                     size="sm" 
-                    className="absolute -bottom-1 -right-1 rounded-full w-8 h-8 p-0"
+                    className="absolute -bottom-1 -right-1 rounded-full size-8 p-0"
                   >
-                    <Camera className="w-3 h-3" />
+                    <Camera className="size-3" />
                   </Button>
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-2xl font-bold">
+                  <h2 className="text-2xl font-semibold">
                     Dr. {profileData.personalInfo.firstName} {profileData.personalInfo.lastName}
                   </h2>
                   <div className="flex flex-wrap items-center gap-4 mt-2 text-muted-foreground">
                     <span className="flex items-center gap-1">
-                      <Stethoscope className="w-4 h-4" />
+                      <Stethoscope className="size-4" />
                       {profileData.professionalInfo.specializations[0]}
                     </span>
                     <span className="flex items-center gap-1">
-                      <Award className="w-4 h-4" />
+                      <Award className="size-4" />
                       {profileData.professionalInfo.experience} experience
                     </span>
                     <span className="flex items-center gap-1">
-                      <Stethoscope className="w-4 h-4" />
+                      <Stethoscope className="size-4" />
                       {stats.specializations} specialization{stats.specializations !== 1 ? 's' : ''}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-3">
-                    {profileData.professionalInfo.specializations.map((spec, index) => (
-                      <Badge key={index} variant="outline">{spec}</Badge>
+                    {profileData.professionalInfo.specializations.map((spec) => (
+                      <Badge key={spec} variant="outline">{spec}</Badge>
                     ))}
                   </div>
                 </div>
@@ -256,7 +256,7 @@ export default function DoctorProfile() {
             </CardContent>
           </Card>
 
-          <Tabs defaultValue="personal" className="space-y-6">
+          <Tabs defaultValue="personal" className="gap-y-6">
               <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
               <TabsTrigger value="personal">Personal Info</TabsTrigger>
               <TabsTrigger value="professional">Professional</TabsTrigger>
@@ -269,11 +269,11 @@ export default function DoctorProfile() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <UserCheck className="w-5 h-5" />
+                    <UserCheck className="size-5" />
                     Personal Information
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="gap-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="firstName">First Name</Label>
@@ -363,15 +363,15 @@ export default function DoctorProfile() {
             </TabsContent>
 
             <TabsContent value="professional">
-              <div className="space-y-6">
+              <div className="gap-y-6">
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Award className="w-5 h-5" />
+                      <Award className="size-5" />
                       Professional Information
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="gap-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="medicalLicense">Medical License</Label>
@@ -395,12 +395,12 @@ export default function DoctorProfile() {
                       <Label>Specializations</Label>
                       <div className="flex flex-wrap gap-2 mt-2">
                         {profileData.professionalInfo.specializations.map((spec, index) => (
-                          <Badge key={index} variant="outline" className="flex items-center gap-1">
+                          <Badge key={spec} variant="outline" className="flex items-center gap-1">
                             {spec}
                             <Button 
                               size="sm" 
                               variant="ghost" 
-                              className="w-4 h-4 p-0 hover:bg-red-100"
+                              className="size-4 p-0 hover:bg-red-100"
                               onClick={() => {
                                 const newSpecs = profileData.professionalInfo.specializations.filter((_, i) => i !== index);
                                 updateProfessionalInfo('specializations', newSpecs);
@@ -419,8 +419,8 @@ export default function DoctorProfile() {
                     <div>
                       <Label>Languages Spoken</Label>
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {profileData.professionalInfo.languagesSpoken.map((lang, index) => (
-                          <Badge key={index} variant="outline">{lang}</Badge>
+                        {profileData.professionalInfo.languagesSpoken.map((lang) => (
+                          <Badge key={lang} variant="outline">{lang}</Badge>
                         ))}
                       </div>
                     </div>
@@ -431,17 +431,17 @@ export default function DoctorProfile() {
                   <CardHeader>
                     <CardTitle>Education & Certifications</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="gap-y-4">
                     <div>
                       <h4 className="font-semibold mb-2">Education</h4>
-                      {profileData.professionalInfo.education.map((edu, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 border rounded-lg mb-2">
+                      {profileData.professionalInfo.education.map((edu) => (
+                        <div key={`${edu.degree}-${edu.institution}-${edu.year}`} className="flex items-center justify-between p-3 border rounded-lg mb-2">
                           <div>
                             <div className="font-medium">{edu.degree}</div>
                             <div className="text-sm text-gray-600">{edu.institution} • {edu.year}</div>
                           </div>
                           <Button variant="ghost" size="sm">
-                            <Edit className="w-4 h-4" />
+                            <Edit className="size-4" />
                           </Button>
                         </div>
                       ))}
@@ -450,11 +450,11 @@ export default function DoctorProfile() {
 
                     <div>
                       <h4 className="font-semibold mb-2">Certifications</h4>
-                      {profileData.professionalInfo.certifications.map((cert, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 border rounded-lg mb-2">
+                      {profileData.professionalInfo.certifications.map((cert) => (
+                        <div key={cert} className="flex items-center justify-between p-3 border rounded-lg mb-2">
                           <div className="font-medium">{cert}</div>
                           <Button variant="ghost" size="sm">
-                            <Edit className="w-4 h-4" />
+                            <Edit className="size-4" />
                           </Button>
                         </div>
                       ))}
@@ -469,11 +469,11 @@ export default function DoctorProfile() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Stethoscope className="w-5 h-5" />
+                    <Stethoscope className="size-5" />
                     Consultation Settings
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="gap-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <Label htmlFor="consultationFee">Consultation Fee (₹)</Label>
@@ -504,7 +504,7 @@ export default function DoctorProfile() {
                     </div>
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="gap-y-4">
                     <div className="flex items-center justify-between">
                       <div>
                         <Label>Online Consultation</Label>
@@ -557,12 +557,12 @@ export default function DoctorProfile() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Clock className="w-5 h-5" />
+                    <Clock className="size-5" />
                     Weekly Availability
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
+                  <div className="gap-y-4">
                     {Object.entries(profileData.availability).map(([day, schedule]) => (
                       <div key={day} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
                         <div className="font-medium capitalize">{day}</div>
@@ -606,18 +606,18 @@ export default function DoctorProfile() {
             </TabsContent>
 
             <TabsContent value="reviews">
-              <div className="space-y-6">
+              <div className="gap-y-6">
                 {/* Rating Summary */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Star className="w-5 h-5" />
+                      <Star className="size-5" />
                       Patient Reviews & Ratings
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-center py-6 text-muted-foreground">
-                      <Star className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                      <Star className="size-10 mx-auto mb-3 opacity-30" />
                       <p className="text-sm">Rating data not yet available</p>
                     </div>
                   </CardContent>
@@ -629,16 +629,16 @@ export default function DoctorProfile() {
                     <CardTitle>Recent Reviews</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {recentReviews.map((review, index) => (
-                        <div key={index} className="border rounded-lg p-4">
+                    <div className="gap-y-4">
+                      {recentReviews.map((review) => (
+                        <div key={`${review.patientName}-${review.date}`} className="border rounded-lg p-4">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
                                 <span className="font-medium">{review.patientName}</span>
                                 <div className="flex">
-                                  {[...Array(review.rating)].map((_, i) => (
-                                    <Star key={i} className="w-4 h-4 text-yellow-500 fill-current" />
+                                  {Array.from({ length: review.rating }, (_, star) => star + 1).map((star) => (
+                                    <Star key={`star-${review.patientName}-${review.date}-${star}`} className="size-4 text-yellow-500 fill-current" />
                                   ))}
                                 </div>
                               </div>
@@ -660,3 +660,4 @@ export default function DoctorProfile() {
     
   );
 }
+

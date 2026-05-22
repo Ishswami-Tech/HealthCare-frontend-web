@@ -1,6 +1,6 @@
-'use server';
+﻿'use server';
 
-import { authenticatedApi } from './auth.server';
+import { authenticatedApi, getServerSession } from './auth.server';
 import { cookies } from 'next/headers';
 import type { CounselorAppointment, CounselorClient, CounselorSession } from '@/types/medical-records.types';
 import { nowIso } from '@/lib/utils/date-time';
@@ -32,6 +32,12 @@ export async function getCounselorAppointments(
     endDate?: string;
   }
 ): Promise<{ appointments: CounselorAppointment[] }> {
+  // Auth check - required for all counselor operations
+  const authSession = await getServerSession();
+  if (!authSession?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   if (!counselorId) return { appointments: [] };
 
   const params = new URLSearchParams();
@@ -64,6 +70,11 @@ export async function getCounselorClients(
     clientId?: string;
   }
 ): Promise<unknown> {
+  const authSession = await getServerSession();
+  if (!authSession?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const clinicId = await getClinicId();
   if (!clinicId) return { clients: [] };
 
@@ -93,6 +104,11 @@ export async function getCounselorClients(
 export async function createCounselorAppointment(
   appointmentData: CounselorAppointment
 ): Promise<{ appointment: CounselorAppointment }> {
+  const authSession = await getServerSession();
+  if (!authSession?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi<{ appointment: CounselorAppointment } | CounselorAppointment>(
     '/appointments',
     {
@@ -121,6 +137,11 @@ export async function updateCounselorAppointment(
   appointmentId: string,
   updates: Partial<CounselorAppointment>
 ): Promise<{ appointment: CounselorAppointment }> {
+  const authSession = await getServerSession();
+  if (!authSession?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi<{ appointment: CounselorAppointment } | CounselorAppointment>(
     `/appointments/${appointmentId}`,
     {
@@ -137,6 +158,11 @@ export async function updateCounselorAppointment(
  * Delete (cancel) counseling appointment — PATCH /appointments/:id/status with CANCELLED
  */
 export async function deleteCounselorAppointment(appointmentId: string): Promise<void> {
+  const authSession = await getServerSession();
+  if (!authSession?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   await authenticatedApi(`/appointments/${appointmentId}/status`, {
     method: 'PATCH',
     body: JSON.stringify({ status: 'CANCELLED' }),
@@ -155,6 +181,11 @@ export async function updateCounselorClientSession(
     nextSessionDate?: string;
   }
 ): Promise<{ session: CounselorSession }> {
+  const authSession = await getServerSession();
+  if (!authSession?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi<CounselorSession>(
     '/ehr/medical-history',
     {
@@ -170,7 +201,7 @@ export async function updateCounselorClientSession(
     }
   );
   
-  const session: CounselorSession = {
+  const counselorSession: CounselorSession = {
     ...(data as any),
     id: (data as any).id || (data as any)._id,
     counselorId: _counselorId,
@@ -180,5 +211,5 @@ export async function updateCounselorClientSession(
     ...(sessionData.nextSessionDate ? { nextSessionDate: sessionData.nextSessionDate } : {}),
   };
 
-  return { session };
+  return { session: counselorSession };
 }

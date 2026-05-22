@@ -1,6 +1,6 @@
-'use server';
+﻿'use server';
 
-import { authenticatedApi } from './auth.server';
+import { authenticatedApi, getServerSession } from './auth.server';
 import { updatePrescription as updatePrescriptionAction } from './prescriptions.server';
 import { API_ENDPOINTS } from '../config/config';
 
@@ -15,6 +15,11 @@ export async function getPatientMedicalRecords(patientId: string, filters?: {
   endDate?: string;
   limit?: number;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
@@ -41,6 +46,11 @@ export async function createMedicalRecord(recordData: {
   doctorId?: string;
   appointmentId?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.MEDICAL_RECORDS.CREATE, {
     method: 'POST',
     body: JSON.stringify(recordData),
@@ -56,6 +66,11 @@ export async function updateMedicalRecord(recordId: string, updates: {
   content?: string;
   fileUrl?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.MEDICAL_RECORDS.UPDATE(recordId), {
     method: 'PATCH',
     body: JSON.stringify(updates),
@@ -67,6 +82,11 @@ export async function updateMedicalRecord(recordId: string, updates: {
  * Delete medical record
  */
 export async function deleteMedicalRecord(recordId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.MEDICAL_RECORDS.DELETE(recordId), {
     method: 'DELETE',
   });
@@ -77,6 +97,11 @@ export async function deleteMedicalRecord(recordId: string) {
  * Get medical record by ID
  */
 export async function getMedicalRecordById(recordId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.MEDICAL_RECORDS.GET_BY_ID(recordId));
   return data;
 }
@@ -85,6 +110,11 @@ export async function getMedicalRecordById(recordId: string) {
  * Upload medical record file
  */
 export async function uploadMedicalRecordFile(recordId: string, file: File) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const formData = new FormData();
   formData.append('file', file);
   
@@ -102,6 +132,11 @@ export async function uploadMedicalRecordFile(recordId: string, file: File) {
  * Get medical record templates
  */
 export async function getMedicalRecordTemplates(type?: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = type ? `?type=${type}` : '';
   const { data } = await authenticatedApi(`${API_ENDPOINTS.MEDICAL_RECORDS.TEMPLATES.GET}${params}`);
   return data;
@@ -121,6 +156,11 @@ export async function createMedicalRecordTemplate(templateData: {
     options?: string[];
   }>;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.MEDICAL_RECORDS.TEMPLATES.CREATE, {
     method: 'POST',
     body: JSON.stringify(templateData),
@@ -134,6 +174,11 @@ export async function createMedicalRecordTemplate(templateData: {
  * Get patient prescriptions
  */
 export async function getPatientPrescriptions(patientId: string, status?: 'active' | 'completed' | 'cancelled') {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = status ? `?status=${status}` : '';
   const { data } = await authenticatedApi(`${API_ENDPOINTS.PRESCRIPTIONS.GET_BY_PATIENT(patientId)}${params}`);
   return data;
@@ -155,6 +200,11 @@ export async function createPrescription(prescriptionData: {
   }>;
   notes?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.PRESCRIPTIONS.CREATE, {
     method: 'POST',
     body: JSON.stringify(prescriptionData),
@@ -176,6 +226,11 @@ export async function updatePrescription(prescriptionId: string, updates: {
   notes?: string;
   status?: 'active' | 'completed' | 'cancelled' | 'PENDING' | 'FILLED' | 'CANCELLED';
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   return updatePrescriptionAction(prescriptionId, updates);
 }
 
@@ -183,6 +238,11 @@ export async function updatePrescription(prescriptionId: string, updates: {
  * Get prescription by ID
  */
 export async function getPrescriptionById(prescriptionId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.PRESCRIPTIONS.GET_BY_ID(prescriptionId));
   return data;
 }
@@ -191,6 +251,11 @@ export async function getPrescriptionById(prescriptionId: string) {
  * Generate prescription PDF
  */
 export async function generatePrescriptionPDF(prescriptionId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.PRESCRIPTIONS.GET_BY_ID(prescriptionId));
   const prescription = data as { pdfUrl?: string; url?: string } | undefined;
   const pdfUrl = prescription?.pdfUrl || prescription?.url;
@@ -212,6 +277,11 @@ export async function getMedicines(filters?: {
   type?: 'CLASSICAL' | 'PROPRIETARY' | 'HERBAL';
   category?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
@@ -239,6 +309,11 @@ export async function createMedicine(medicineData: {
   dosageForm?: string;
   strength?: string;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.MEDICINES.CREATE, {
     method: 'POST',
     body: JSON.stringify(medicineData),
@@ -261,6 +336,11 @@ export async function updateMedicine(medicineId: string, updates: Partial<{
   dosageForm: string;
   strength: string;
 }>) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.MEDICINES.UPDATE(medicineId), {
     method: 'PATCH',
     body: JSON.stringify(updates),
@@ -272,6 +352,11 @@ export async function updateMedicine(medicineId: string, updates: Partial<{
  * Delete medicine
  */
 export async function deleteMedicine(medicineId: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.MEDICINES.DELETE(medicineId), {
     method: 'DELETE',
   });
@@ -282,6 +367,11 @@ export async function deleteMedicine(medicineId: string) {
  * Search medicines
  */
 export async function searchMedicines(query: string, limit: number = 20) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(`${API_ENDPOINTS.MEDICINES.SEARCH}?q=${encodeURIComponent(query)}&limit=${limit}`);
   return data;
 }
@@ -290,6 +380,11 @@ export async function searchMedicines(query: string, limit: number = 20) {
  * Get medicine interactions
  */
 export async function getMedicineInteractions(medicineIds: string[]) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.MEDICINES.INTERACTIONS, {
     method: 'POST',
     body: JSON.stringify({ medicineIds }),
@@ -301,6 +396,11 @@ export async function getMedicineInteractions(medicineIds: string[]) {
  * Get medicine inventory
  */
 export async function getMedicineInventory(clinicId?: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const params = clinicId ? `?clinicId=${clinicId}` : '';
   const { data } = await authenticatedApi(`${API_ENDPOINTS.MEDICINES.INVENTORY.GET}${params}`);
   return data;
@@ -315,6 +415,11 @@ export async function updateMedicineInventory(medicineId: string, inventoryData:
   batchNumber?: string;
   cost?: number;
 }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data } = await authenticatedApi(API_ENDPOINTS.MEDICINES.INVENTORY.UPDATE(medicineId), {
     method: 'PATCH',
     body: JSON.stringify(inventoryData),

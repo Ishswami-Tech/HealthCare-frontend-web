@@ -43,15 +43,15 @@ export function AssistantDoctorWorkspaceShell({
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {actions.map((action) => (
               <Card key={action.href} className="border-border/60 bg-muted/20 shadow-none">
-                <CardContent className="space-y-3 p-4">
-                  <div className="space-y-1">
+                <CardContent className="gap-y-3 p-4">
+                  <div className="gap-y-1">
                     <h2 className="text-base font-semibold text-foreground">{action.label}</h2>
                     <p className="text-sm text-muted-foreground">{action.description}</p>
                   </div>
                   <Button asChild className="w-full gap-2">
                     <Link href={action.href} prefetch={false}>
                       Open workspace
-                      <ArrowRight className="h-4 w-4" />
+                      <ArrowRight className="size-4" />
                     </Link>
                   </Button>
                 </CardContent>
@@ -63,3 +63,5 @@ export function AssistantDoctorWorkspaceShell({
     </DashboardPageShell>
   );
 }
+
+

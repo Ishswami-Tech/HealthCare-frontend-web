@@ -67,13 +67,13 @@ const HeroSection = () => {
         </div>
 
         {/* Floating Orbs with Attractive Colors */}
-        <div className="absolute top-10 left-4 sm:top-20 sm:left-10 w-20 h-20 sm:w-32 sm:h-32 lg:w-40 lg:h-40 bg-gradient-to-r from-primary/20 to-primary/30 dark:from-primary/30 dark:to-primary/40 rounded-full blur-2xl animate-pulse-soft" />
-        <div className="absolute bottom-10 right-4 sm:bottom-20 sm:right-10 w-24 h-24 sm:w-40 sm:h-40 lg:w-48 lg:h-48 bg-gradient-to-r from-secondary/15 to-secondary/25 dark:from-secondary/25 dark:to-secondary/35 rounded-full blur-2xl animate-pulse-soft" />
-        <div className="absolute top-1/2 left-1/6 sm:left-1/4 w-16 h-16 sm:w-24 sm:h-24 lg:w-32 lg:h-32 bg-gradient-to-r from-accent/10 to-accent/20 dark:from-accent/20 dark:to-accent/30 rounded-full blur-xl animate-pulse-soft" />
+        <div className="absolute top-10 left-4 sm:top-20 sm:left-10 size-20 sm:w-32 sm:h-32 lg:w-40 lg:h-40 bg-gradient-to-r from-primary/20 to-primary/30 dark:from-primary/30 dark:to-primary/40 rounded-full blur-2xl animate-pulse-soft" />
+        <div className="absolute bottom-10 right-4 sm:bottom-20 sm:right-10 size-24 sm:w-40 sm:h-40 lg:w-48 lg:h-48 bg-gradient-to-r from-secondary/15 to-secondary/25 dark:from-secondary/25 dark:to-secondary/35 rounded-full blur-2xl animate-pulse-soft" />
+        <div className="absolute top-1/2 left-1/6 sm:left-1/4 size-16 sm:w-24 sm:h-24 lg:w-32 lg:h-32 bg-gradient-to-r from-accent/10 to-accent/20 dark:from-accent/20 dark:to-accent/30 rounded-full blur-xl animate-pulse-soft" />
 
         {/* Additional Floating Elements for Richness */}
-        <div className="absolute top-1/4 right-1/4 w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 bg-gradient-to-r from-primary/15 to-secondary/20 dark:from-primary/25 dark:to-secondary/30 rounded-full blur-lg animate-pulse-soft" />
-        <div className="absolute bottom-1/3 left-1/3 w-14 h-14 sm:w-18 sm:h-18 lg:w-24 lg:h-24 bg-gradient-to-r from-accent/12 to-primary/18 dark:from-accent/22 dark:to-primary/28 rounded-full blur-lg animate-pulse-soft" />
+        <div className="absolute top-1/4 right-1/4 size-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 bg-gradient-to-r from-primary/15 to-secondary/20 dark:from-primary/25 dark:to-secondary/30 rounded-full blur-lg animate-pulse-soft" />
+        <div className="absolute bottom-1/3 left-1/3 size-14 sm:w-18 sm:h-18 lg:w-24 lg:h-24 bg-gradient-to-r from-accent/12 to-primary/18 dark:from-accent/22 dark:to-primary/28 rounded-full blur-lg animate-pulse-soft" />
 
         {/* Subtle Grid Pattern */}
         <div className="absolute inset-0 opacity-[0.01] dark:opacity-[0.02]">
@@ -89,8 +89,8 @@ const HeroSection = () => {
 
             {/* Enhanced Main Headline with Responsive Typography */}
             <ScrollReveal direction="up">
-              <div className="space-y-4 mt-8 sm:space-y-5 lg:space-y-6 mb-8 sm:mb-10 lg:mb-12 text-center lg:text-left">
-                <h1 className="text-4xl md:text-5xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-bold leading-[1.1]">
+              <div className="gap-y-4 mt-8 sm:gap-y-5 lg:gap-y-6 mb-8 sm:mb-10 lg:mb-12 text-center lg:text-left">
+                <h1 className="text-4xl md:text-5xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-semibold leading-[1.1]">
                   <div className="block text-slate-900 dark:text-slate-100 mb-2 sm:mb-3">
                     {t("hero.title1")}
                   </div>
@@ -113,9 +113,9 @@ const HeroSection = () => {
                 </div>
 
                 {/* Responsive Decorative Elements */}
-                <div className="flex items-center justify-center lg:justify-start space-x-4 sm:space-x-5 lg:space-x-8 mt-6 sm:mt-8 lg:mt-10">
+                <div className="flex items-center justify-center lg:justify-start gap-x-4 sm:gap-x-5 lg:gap-x-8 mt-6 sm:mt-8 lg:mt-10">
                   <div className="h-1 sm:h-1.5 w-12 sm:w-16 lg:w-20 bg-gradient-to-r from-orange-500 to-amber-500 rounded-full" />
-                  <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 text-amber-500 animate-pulse" />
+                  <Sparkles className="size-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 text-amber-500 animate-pulse" />
                   <div className="h-1 sm:h-1.5 w-12 sm:w-16 lg:w-20 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-full" />
                 </div>
               </div>
@@ -131,25 +131,25 @@ const HeroSection = () => {
             {/* Compact Key Benefits */}
             <ScrollReveal direction="up" delay={0.4}>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-7 lg:gap-8 mb-8 sm:mb-10 lg:mb-12 max-w-4xl mx-auto lg:mx-0 justify-center lg:justify-start">
-                <div className="glass card-hover group flex items-center space-x-4 p-4 sm:p-5 lg:p-6 rounded-xl border border-border/50">
+                <div className="glass card-hover group flex items-center gap-x-4 p-4 sm:p-5 lg:p-6 rounded-xl border border-border/50">
                   <div className="p-2 rounded-md bg-muted/50 group-hover:scale-110 transition-transform duration-300">
-                    <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+                    <Clock className="size-5 sm:w-6 sm:h-6 text-primary" />
                   </div>
                   <span className="text-base sm:text-lg font-semibold text-foreground">
                     {t("hero.benefits.yearsExperience")}
                   </span>
                 </div>
-                <div className="glass card-hover group flex items-center space-x-4 p-4 sm:p-5 lg:p-6 rounded-xl border border-border/50">
+                <div className="glass card-hover group flex items-center gap-x-4 p-4 sm:p-5 lg:p-6 rounded-xl border border-border/50">
                   <div className="p-2 rounded-md bg-muted/50 group-hover:scale-110 transition-transform duration-300">
-                    <Users className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+                    <Users className="size-5 sm:w-6 sm:h-6 text-primary" />
                   </div>
                   <span className="text-base sm:text-lg font-semibold text-foreground">
                     {t("hero.benefits.patientsHealed")}
                   </span>
                 </div>
-                <div className="glass card-hover group flex items-center space-x-4 p-4 sm:p-5 lg:p-6 rounded-xl sm:col-span-2 lg:col-span-1 border border-border/50">
+                <div className="glass card-hover group flex items-center gap-x-4 p-4 sm:p-5 lg:p-6 rounded-xl sm:col-span-2 lg:col-span-1 border border-border/50">
                   <div className="p-2 rounded-md bg-muted/50 group-hover:scale-110 transition-transform duration-300">
-                    <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+                    <Shield className="size-5 sm:w-6 sm:h-6 text-primary" />
                   </div>
                   <span className="text-base sm:text-lg font-semibold text-foreground">
                     {t("hero.benefits.governmentCertified")}
@@ -163,17 +163,17 @@ const HeroSection = () => {
               <HoverAnimation type="lift">
                 <div className="glass-dark card-hover rounded-2xl p-8 sm:p-10 lg:p-12 mb-10 sm:mb-12 lg:mb-16 shadow-minimal-lg">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center gap-x-3">
                       <div className="relative">
-                        <div className="w-4 h-4 bg-gradient-to-r from-red-500 to-pink-500 rounded-full animate-pulse" />
-                        <div className="absolute inset-0 w-4 h-4 bg-gradient-to-r from-red-500 to-pink-500 rounded-full animate-ping opacity-75" />
+                        <div className="size-4 bg-gradient-to-r from-red-500 to-pink-500 rounded-full animate-pulse" />
+                        <div className="absolute inset-0 size-4 bg-gradient-to-r from-red-500 to-pink-500 rounded-full animate-ping opacity-75" />
                       </div>
                       <span className="font-bold text-slate-800 dark:text-slate-200 text-base">
                         {t("hero.trustIndicators.liveActivity")}
                       </span>
                     </div>
                     <Badge className="bg-gradient-to-r from-emerald-100 to-green-100 dark:from-emerald-900/30 dark:to-green-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-700 px-3 py-1">
-                      <TrendingUp className="w-4 h-4 mr-2" />
+                      <TrendingUp className="size-4 mr-2" />
                       {t("hero.trustIndicators.highDemand")}
                     </Badge>
                   </div>
@@ -218,14 +218,14 @@ const HeroSection = () => {
                       {/* Shimmer Effect */}
                       <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
 
-                      <div className="relative z-10 flex items-center justify-center space-x-2 sm:space-x-3">
+                      <div className="relative z-10 flex items-center justify-center gap-x-2 sm:gap-x-3">
                         <div className="text-lg sm:text-xl animate-pulse">
                           🔥
                         </div>
                         <span className="font-semibold">
                           {t("hero.primaryCta")}
                         </span>
-                        <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform duration-300" />
+                        <ArrowRight className="size-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform duration-300" />
                       </div>
                     </Button>
                   </div>
@@ -240,9 +240,9 @@ const HeroSection = () => {
                       size="lg"
                       className="relative overflow-hidden bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-2 border-orange-200 dark:border-orange-700 text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:border-orange-300 dark:hover:border-orange-600 font-semibold text-lg sm:text-xl lg:text-2xl px-10 sm:px-12 lg:px-16 py-5 sm:py-6 lg:py-8 rounded-xl sm:rounded-2xl shadow-md hover:shadow-lg transition-all duration-300"
                     >
-                      <div className="flex items-center justify-center space-x-2 sm:space-x-3">
+                      <div className="flex items-center justify-center gap-x-2 sm:gap-x-3">
                         <div className="p-1.5 sm:p-2 rounded-full bg-gradient-to-r from-orange-100 to-amber-100 dark:from-orange-900/30 dark:to-amber-900/30 group-hover:scale-110 transition-transform duration-300">
-                          <Phone className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600 dark:text-orange-400" />
+                          <Phone className="size-4 sm:w-5 sm:h-5 text-orange-600 dark:text-orange-400" />
                         </div>
                         <span className="font-medium">
                           {t("hero.secondaryCta")}
@@ -265,9 +265,9 @@ const HeroSection = () => {
                     variant="ghost"
                     className="group relative overflow-hidden bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-600 hover:text-blue-700 dark:hover:text-blue-300 px-6 py-4 sm:py-5 rounded-lg transition-all duration-300 shadow-sm hover:shadow-md"
                   >
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center gap-x-2">
                       <div className="p-1 rounded-full bg-blue-100 dark:bg-blue-900/30 group-hover:scale-110 transition-transform duration-300">
-                        <Play className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                        <Play className="size-3.5 text-blue-600 dark:text-blue-400" />
                       </div>
                       <span className="text-base font-semibold">
                         {t("hero.watchJourneysText")}
@@ -282,7 +282,7 @@ const HeroSection = () => {
                     variant="ghost"
                     className="group relative overflow-hidden bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:border-amber-300 dark:hover:border-amber-600 hover:text-amber-700 dark:hover:text-amber-300 px-6 py-4 sm:py-5 rounded-lg transition-all duration-300 shadow-sm hover:shadow-md"
                   >
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center gap-x-2">
                       <div className="p-1 rounded-full bg-amber-100 dark:bg-amber-900/30 group-hover:scale-110 transition-transform duration-300">
                         <span className="text-sm">🏥</span>
                       </div>
@@ -299,7 +299,7 @@ const HeroSection = () => {
                     variant="ghost"
                     className="group relative overflow-hidden bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-900/20 hover:border-green-300 dark:hover:border-green-600 hover:text-green-700 dark:hover:text-green-300 px-6 py-4 sm:py-5 rounded-lg transition-all duration-300 shadow-sm hover:shadow-md"
                   >
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center gap-x-2">
                       <div className="p-1 rounded-full bg-green-100 dark:bg-green-900/30 group-hover:scale-110 transition-transform duration-300">
                         <span className="text-sm">📋</span>
                       </div>
@@ -314,13 +314,13 @@ const HeroSection = () => {
           </div>
 
           {/* Enhanced Right Content - Visual - Takes up 1/3 of the space */}
-          <div className="relative lg:col-span-1 space-y-4 sm:space-y-6 lg:space-y-8 pt-4 sm:pt-6 lg:pt-8">
+          <div className="relative lg:col-span-1 gap-y-4 sm:gap-y-6 lg:gap-y-8 pt-4 sm:pt-6 lg:pt-8">
             {/* Trust Indicators - Moved from left */}
             <StaggerContainer className="flex flex-wrap justify-center lg:justify-start gap-2 sm:gap-3 lg:gap-4">
               <StaggerItem>
                 <HoverAnimation type="scale">
                   <Badge className="glass interactive px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-medium rounded-full border text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700">
-                    <CheckCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-1" />
+                    <CheckCircle className="size-2.5 sm:w-3 sm:h-3 mr-1" />
                     <span className="hidden xs:inline">
                       {t("hero.trustIndicators.governmentCertified")}
                     </span>
@@ -331,7 +331,7 @@ const HeroSection = () => {
               <StaggerItem>
                 <HoverAnimation type="scale">
                   <Badge className="glass interactive px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-medium rounded-full border text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700">
-                    <Award className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-1" />
+                    <Award className="size-2.5 sm:w-3 sm:h-3 mr-1" />
                     <span className="hidden xs:inline">
                       {t("hero.trustIndicators.iso9001")}
                     </span>
@@ -342,7 +342,7 @@ const HeroSection = () => {
               <StaggerItem>
                 <HoverAnimation type="scale">
                   <Badge className="glass interactive px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-medium rounded-full border text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700">
-                    <Star className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-1" />
+                    <Star className="size-2.5 sm:w-3 sm:h-3 mr-1" />
                     <span className="hidden xs:inline">
                       {t("hero.trustIndicators.rating")}
                     </span>
@@ -355,19 +355,19 @@ const HeroSection = () => {
             {/* Quick Benefits List - Moved from left */}
             <ScrollReveal direction="up" delay={0.35}>
               <div className="flex flex-wrap justify-center lg:justify-start gap-3 sm:gap-4 lg:gap-5 max-w-2xl mx-auto lg:mx-0">
-                <div className="glass interactive flex items-center space-x-2 px-3 py-2 rounded-full text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700">
+                <div className="glass interactive flex items-center gap-x-2 px-3 py-2 rounded-full text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700">
                   <div className="status-dot online" />
                   <span className="text-xs font-medium">
                     {t("hero.natural")}
                   </span>
                 </div>
-                <div className="glass interactive flex items-center space-x-2 px-3 py-2 rounded-full text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700">
+                <div className="glass interactive flex items-center gap-x-2 px-3 py-2 rounded-full text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700">
                   <div className="status-dot online" />
                   <span className="text-xs font-medium">
                     {t("hero.noSideEffects")}
                   </span>
                 </div>
-                <div className="glass interactive flex items-center space-x-2 px-3 py-2 rounded-full text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700">
+                <div className="glass interactive flex items-center gap-x-2 px-3 py-2 rounded-full text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700">
                   <div className="status-dot online" />
                   <span className="text-xs font-medium">
                     {t("hero.provenResults")}
@@ -385,10 +385,10 @@ const HeroSection = () => {
                   <div className="absolute inset-0 opacity-10 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2240%22%20height%3D%2240%22%20viewBox%3D%220%200%2040%2040%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cg%20fill%3D%22%23f97316%22%20fill-opacity%3D%220.3%22%3E%3Cpath%20d%3D%22M20%2020c0-5.5-4.5-10-10-10s-10%204.5-10%2010%204.5%2010%2010%2010%2010-4.5%2010-10zm0%200c0%205.5%204.5%2010%2010%2010s10-4.5%2010-10-4.5-10-10-10-10%204.5-10%2010z%22/%3E%3C/g%3E%3C/svg%3E')]" />
 
                   <div className="text-center relative z-10 p-3">
-                    <div className="w-16 h-16 sm:w-18 sm:h-18 bg-gradient-to-br from-orange-200 to-amber-200 dark:from-orange-800 dark:to-amber-800 rounded-full flex items-center justify-center mb-3 mx-auto shadow-xl hover:scale-110 transition-transform duration-500">
+                    <div className="size-16 sm:w-18 sm:h-18 bg-gradient-to-br from-orange-200 to-amber-200 dark:from-orange-800 dark:to-amber-800 rounded-full flex items-center justify-center mb-3 mx-auto shadow-xl hover:scale-110 transition-transform duration-500">
                       <span className="text-2xl sm:text-3xl">🕉️</span>
                     </div>
-                    <h3 className="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-200 mb-1">
+                    <h3 className="text-base sm:text-lg font-semibold text-slate-800 dark:text-slate-200 mb-1">
                       {t("hero.ayurvedicWisdomText")}
                     </h3>
                     <p className="text-slate-600 dark:text-slate-300 px-1 text-xs leading-relaxed">
@@ -437,20 +437,20 @@ const HeroSection = () => {
 
             {/* Enhanced Floating Elements - More Compact */}
             <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-gradient-to-r from-emerald-500 to-green-500 text-white p-1.5 sm:p-2 rounded-full shadow-lg animate-bounce hover:scale-110 transition-transform duration-300">
-              <MessageCircle className="w-3 h-3 sm:w-4 sm:h-4" />
+              <MessageCircle className="size-3 sm:w-4 sm:h-4" />
             </div>
 
             <div className="absolute -bottom-1 -left-1 sm:-bottom-2 sm:-left-2 bg-gradient-to-r from-amber-500 to-yellow-500 text-white p-1.5 sm:p-2 rounded-full shadow-lg animate-bounce delay-1000 hover:scale-110 transition-transform duration-300">
-              <Award className="w-3 h-3 sm:w-4 sm:h-4" />
+              <Award className="size-3 sm:w-4 sm:h-4" />
             </div>
 
             {/* Additional Floating Elements - More Compact */}
             <div className="absolute top-1/4 -left-1 sm:-left-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white p-1.5 sm:p-2 rounded-full shadow-lg animate-pulse hover:scale-110 transition-transform duration-300">
-              <Heart className="w-3 h-3 sm:w-4 sm:h-4" />
+              <Heart className="size-3 sm:w-4 sm:h-4" />
             </div>
 
             <div className="absolute bottom-1/4 -right-1 sm:-right-2 bg-gradient-to-r from-indigo-500 to-blue-500 text-white p-1.5 sm:p-2 rounded-full shadow-lg animate-pulse delay-500 hover:scale-110 transition-transform duration-300">
-              <Zap className="w-3 h-3 sm:w-4 sm:h-4" />
+              <Zap className="size-3 sm:w-4 sm:h-4" />
             </div>
           </div>
         </div>
@@ -460,3 +460,4 @@ const HeroSection = () => {
 };
 
 export default HeroSection;
+

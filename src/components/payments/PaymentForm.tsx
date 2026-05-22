@@ -35,7 +35,7 @@ export function PaymentForm({
           </CardDescription>
         </CardHeader>
       <CardContent>
-        <div className="space-y-6">
+        <div className="gap-y-6">
           <div className="rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
             This checkout creates a real backend payment intent and then redirects to the configured provider.
           </div>
@@ -64,3 +64,4 @@ export function PaymentForm({
     </Card>
   );
 }
+

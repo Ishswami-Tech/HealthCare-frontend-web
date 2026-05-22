@@ -102,10 +102,10 @@ const TreatmentOverview = () => {
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
-            <Heart className="w-4 h-4 mr-2" />
+            <Heart className="size-4 mr-2" />
             {t("treatments.title")}
           </Badge>
-          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
+          <h2 className="text-3xl md:text-4xl font-playfair font-semibold text-foreground mb-4">
             {t("treatments.subtitle")}
           </h2>
           <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
@@ -125,14 +125,14 @@ const TreatmentOverview = () => {
                 <CardHeader
                   className={`bg-gradient-to-br ${treatment.bgColor} relative overflow-hidden`}
                 >
-                  <div className="absolute top-0 right-0 w-32 h-32 opacity-10">
+                  <div className="absolute top-0 right-0 size-32 opacity-10">
                     <IconComponent className="w-full h-full" />
                   </div>
                   <div className="relative z-10">
                     <div
-                      className={`w-16 h-16 bg-gradient-to-r ${treatment.color} rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}
+                      className={`size-16 bg-gradient-to-r ${treatment.color} rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}
                     >
-                      <IconComponent className="w-8 h-8 text-white" />
+                      <IconComponent className="size-8 text-white" />
                     </div>
                     <CardTitle className="text-2xl font-playfair font-bold text-card-foreground mb-2">
                       {treatment.title}
@@ -154,12 +154,12 @@ const TreatmentOverview = () => {
                       {t("treatments.labels.keyBenefits")}
                     </h4>
                     <div className="grid grid-cols-2 gap-2">
-                      {treatment.features.map((feature, index) => (
+                      {treatment.features.map((feature) => (
                         <div
-                          key={index}
-                          className="flex items-center space-x-2"
+                          key={feature}
+                          className="flex items-center gap-x-2"
                         >
-                          <CheckCircle className="w-4 h-4 text-green-500 dark:text-green-400 flex-shrink-0" />
+                          <CheckCircle className="size-4 text-green-500 dark:text-green-400 flex-shrink-0" />
                           <span className="text-sm text-gray-600 dark:text-gray-300">
                             {feature}
                           </span>
@@ -176,9 +176,9 @@ const TreatmentOverview = () => {
                     <div className="flex flex-wrap gap-2">
                       {treatment.conditions
                         .slice(0, 2)
-                        .map((condition, index) => (
+                        .map((condition) => (
                           <Badge
-                            key={index}
+                            key={condition}
                             variant="outline"
                             className="text-xs"
                           >
@@ -198,8 +198,8 @@ const TreatmentOverview = () => {
                   {/* Stats */}
                   <div className="grid grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
                     <div className="text-center">
-                      <div className="flex items-center justify-center space-x-1 mb-1">
-                        <Star className="w-4 h-4 text-yellow-500" />
+                      <div className="flex items-center justify-center gap-x-1 mb-1">
+                        <Star className="size-4 text-yellow-500" />
                         <span className="font-bold text-lg text-gray-900">
                           {treatment.successRate}%
                         </span>
@@ -209,8 +209,8 @@ const TreatmentOverview = () => {
                       </span>
                     </div>
                     <div className="text-center">
-                      <div className="flex items-center justify-center space-x-1 mb-1">
-                        <Clock className="w-4 h-4 text-blue-500" />
+                      <div className="flex items-center justify-center gap-x-1 mb-1">
+                        <Clock className="size-4 text-blue-500" />
                         <span className="font-bold text-lg text-gray-900">
                           {treatment.duration}
                         </span>
@@ -222,13 +222,13 @@ const TreatmentOverview = () => {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="space-y-3">
+                  <div className="gap-y-3">
                     <Link href={treatment.href} prefetch={false}>
                       <Button
                         className={`w-full bg-gradient-to-r ${treatment.color} hover:opacity-90 text-white group-hover:shadow-lg transition-all duration-300`}
                       >
                         {t("treatments.labels.learnMore")}
-                        <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-300" />
+                        <ArrowRight className="size-4 ml-2 group-hover:translate-x-1 transition-transform duration-300" />
                       </Button>
                     </Link>
                     <Button
@@ -247,7 +247,7 @@ const TreatmentOverview = () => {
         {/* Call to Action */}
         <div className="text-center">
           <div className="bg-gradient-to-r from-orange-500 to-red-600 rounded-2xl p-8 text-white">
-            <h3 className="text-2xl font-playfair font-bold mb-4">
+            <h3 className="text-2xl font-playfair font-semibold mb-4">
               {t("treatments.cta.title")}
             </h3>
             <p className="text-orange-100 mb-6 max-w-2xl mx-auto">
@@ -277,3 +277,4 @@ const TreatmentOverview = () => {
 };
 
 export default TreatmentOverview;
+

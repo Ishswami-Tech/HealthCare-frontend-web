@@ -26,8 +26,6 @@ import {
   getCommunicationStats,
   getCommunicationHealth,
   testCommunication,
-  submitContactForm,
-  submitConsultationBooking,
   sendSMS,
   sendWhatsAppMessage,
   getMessageTemplates,
@@ -36,10 +34,14 @@ import {
   deleteMessageTemplate,
   getMessageHistory,
   getMessagingStats,
+} from '@/lib/actions/communication.server';
+import {
+  submitContactForm,
+  submitConsultationBooking,
   scheduleMessage,
   cancelScheduledMessage,
   getScheduledMessages,
-} from '@/lib/actions/communication.server';
+} from '@/lib/utils/communication-public';
 import { TOAST_IDS } from '@/hooks/utils/use-toast';
 
 

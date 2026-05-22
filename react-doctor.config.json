@@ -1,0 +1,14 @@
+{
+  "serverAuthFunctionNames": [
+    "authenticatedApi",
+    "getServerSession",
+    "requestUserApi",
+    "executeAction",
+    "unsupportedDoctorRoute",
+    "get",
+    "post",
+    "put",
+    "patch",
+    "delete"
+  ]
+}

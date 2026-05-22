@@ -45,6 +45,8 @@ export {
   type ClinicLocation,
 } from './auth.types';
 
+export type { TherapyType } from './therapy.types';
+
 // ============================================================================
 // API RESPONSE TYPES
 // ============================================================================

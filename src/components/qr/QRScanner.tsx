@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+﻿import { useEffect, useRef, useState, useCallback } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { Button } from "@/components/ui/button";
 import { showErrorToast } from "@/hooks/utils/use-toast";
@@ -161,7 +161,7 @@ export function QRScanner({
         {/* Actual Video Area */}
         <div
           id={regionId}
-          className="absolute inset-0 z-0 bg-black"
+          className="absolute inset-0 z-0 bg-gray-950"
           style={{
             height: '100%',
             width: '100%',
@@ -178,10 +178,10 @@ export function QRScanner({
               exit={{ opacity: 0 }}
               className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-950 z-20 p-6 text-center"
             >
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-6">
-                <Camera className="h-8 w-8" />
+              <div className="size-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-6">
+                <Camera className="size-8" />
               </div>
-              <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">Enable Camera</h3>
+              <h3 className="text-xl font-semibold text-zinc-900 dark:text-white mb-2">Enable Camera</h3>
               <p className="text-zinc-500 text-sm mb-8 max-w-[200px] mx-auto">
                 Scan the clinic QR code to verify your check-in.
               </p>
@@ -202,8 +202,8 @@ export function QRScanner({
               exit={{ opacity: 0 }}
               className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-50/80 dark:bg-zinc-950/80 backdrop-blur-md z-30 transition-colors"
             >
-              <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
-              <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Initializing...</p>
+              <Loader2 className="size-10 text-primary animate-spin mb-4" />
+              <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Initializing…</p>
             </motion.div>
           )}
 
@@ -221,10 +221,10 @@ export function QRScanner({
               }} />
               
               {/* Sleek Corners */}
-              <div className="absolute top-[15%] left-[15%] w-8 h-8 border-t-[3px] border-l-[3px] border-primary rounded-tl-lg" />
-              <div className="absolute top-[15%] right-[15%] w-8 h-8 border-t-[3px] border-r-[3px] border-primary rounded-tr-lg" />
-              <div className="absolute bottom-[15%] left-[15%] w-8 h-8 border-b-[3px] border-l-[3px] border-primary rounded-bl-lg" />
-              <div className="absolute bottom-[15%] right-[15%] w-8 h-8 border-b-[3px] border-r-[3px] border-primary rounded-br-lg" />
+              <div className="absolute top-[15%] left-[15%] size-8 border-t-[3px] border-l-[3px] border-primary rounded-tl-lg" />
+              <div className="absolute top-[15%] right-[15%] size-8 border-t-[3px] border-r-[3px] border-primary rounded-tr-lg" />
+              <div className="absolute bottom-[15%] left-[15%] size-8 border-b-[3px] border-l-[3px] border-primary rounded-bl-lg" />
+              <div className="absolute bottom-[15%] right-[15%] size-8 border-b-[3px] border-r-[3px] border-primary rounded-br-lg" />
 
               {/* Minimal Laser */}
               <motion.div 
@@ -294,3 +294,6 @@ export function QRScanner({
     </div>
   );
 }
+
+
+

@@ -1,6 +1,7 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
+import type { Reducer } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -206,6 +207,37 @@ const TIME_INPUT_CLASS =
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
+// --- Holiday Reducer ---
+type NewHolidayState = { date: string; title: string; type: string };
+type HolidayAction =
+  | { type: "SET_HOLIDAYS"; holidays: HolidayRecord[] }
+  | { type: "ADD_HOLIDAY"; holiday: HolidayRecord }
+  | { type: "REMOVE_HOLIDAY"; id: string }
+  | { type: "UPDATE_NEW_HOLIDAY"; field: keyof NewHolidayState; value: string }
+  | { type: "RESET_NEW_HOLIDAY" };
+
+function holidayReducer(state: { holidays: HolidayRecord[]; newHoliday: NewHolidayState }, action: HolidayAction) {
+  switch (action.type) {
+    case "SET_HOLIDAYS":
+      return { ...state, holidays: action.holidays };
+    case "ADD_HOLIDAY":
+      return { ...state, holidays: [...state.holidays, action.holiday] };
+    case "REMOVE_HOLIDAY":
+      return { ...state, holidays: state.holidays.filter((h) => h.id !== action.id) };
+    case "UPDATE_NEW_HOLIDAY":
+      return { ...state, newHoliday: { ...state.newHoliday, [action.field]: action.value } };
+    case "RESET_NEW_HOLIDAY":
+      return { ...state, newHoliday: { date: "", title: "", type: "Public Holiday" } };
+    default:
+      return state;
+  }
+}
+
+const initialHolidayState = {
+  holidays: [] as HolidayRecord[],
+  newHoliday: { date: "", title: "", type: "Public Holiday" } as NewHolidayState,
+};
+
 const toTime = (value: unknown, fallback: string) =>
   typeof value === "string" && /^([01]\d|2[0-3]):([0-5]\d)$/.test(value.trim())
     ? value.trim()
@@ -301,7 +333,7 @@ function SummaryCard({
 }) {
   return (
     <Card className="border-border bg-card/90 shadow-sm">
-      <CardContent className="space-y-1 p-4">
+      <CardContent className="gap-y-1 p-4">
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           {label}
         </p>
@@ -370,35 +402,15 @@ export default function ClinicAdminSchedule() {
     });
   }, [doctors, scheduleData, selectedDoctorId]);
 
-  const [localSchedules, setLocalSchedules] =
-    useState<DoctorScheduleRecord[]>(doctorSchedules);
-
-  useEffect(() => {
-    setLocalSchedules(doctorSchedules);
-  }, [doctorSchedules]);
-
-  useEffect(() => {
-    if (!localSchedules.length) {
-      setSelectedDoctorId("");
-      return;
-    }
-
-    const firstDoctor = localSchedules[0];
-    if (!firstDoctor) {
-      setSelectedDoctorId("");
-      return;
-    }
-
-    const nextDoctorId =
-      (selectedDoctorId &&
-        localSchedules.some((doctor) => doctor.id === selectedDoctorId) &&
-        selectedDoctorId) ||
-      firstDoctor.id;
-
-    if (nextDoctorId !== selectedDoctorId) {
-      setSelectedDoctorId(nextDoctorId);
-    }
-  }, [localSchedules, selectedDoctorId]);
+  const [scheduleDrafts, setScheduleDrafts] = useState<Record<string, DoctorScheduleDay[]>>({});
+  const localSchedules = useMemo<DoctorScheduleRecord[]>(
+    () =>
+      doctorSchedules.map((doctor) => ({
+        ...doctor,
+        schedules: scheduleDrafts[doctor.id] ?? doctor.schedules,
+      })),
+    [doctorSchedules, scheduleDrafts]
+  );
 
   const selectedDoctor = useMemo(
     () =>
@@ -408,12 +420,7 @@ export default function ClinicAdminSchedule() {
     [localSchedules, selectedDoctorId]
   );
 
-  const [holidays, setHolidays] = useState<HolidayRecord[]>([]);
-  const [newHoliday, setNewHoliday] = useState({
-    date: "",
-    title: "",
-    type: "Public Holiday",
-  });
+  const [{ holidays: holidayList, newHoliday }, dispatchHolidays] = useReducer(holidayReducer, initialHolidayState);
   const [holidayDate, setHolidayDate] = useState<Date | undefined>(undefined);
 
   useEffect(() => {
@@ -421,11 +428,10 @@ export default function ClinicAdminSchedule() {
     const appointmentSettings = isRecord(settings?.appointmentSettings)
       ? settings?.appointmentSettings
       : null;
-    if (!appointmentSettings) {
-      return;
-    }
+    if (!appointmentSettings) return;
 
-    setHolidays(normalizeHolidayRecords((appointmentSettings as Record<string, unknown>).holidayClosures));
+    const parsed = normalizeHolidayRecords((appointmentSettings as Record<string, unknown>).holidayClosures);
+    dispatchHolidays({ type: "SET_HOLIDAYS", holidays: parsed });
   }, [clinic]);
 
   const scheduleConflicts = useMemo(() => {
@@ -467,33 +473,18 @@ export default function ClinicAdminSchedule() {
     field: keyof DoctorScheduleDay,
     value: string | boolean | number
   ) => {
-    if (!selectedDoctor) {
-      return;
-    }
-
-    const updatedSchedules = localSchedules.map((doctor) => {
-      if (doctor.id !== selectedDoctor.id) {
-        return doctor;
-      }
-
-      const currentSchedule = doctor.schedules[dayIndex];
-      if (!currentSchedule) {
-        return doctor;
-      }
-
-      const nextSchedules = [...doctor.schedules];
-      nextSchedules[dayIndex] = {
-        ...currentSchedule,
-        [field]: value as never,
-      };
+    if (!selectedDoctor) return;
+    setScheduleDrafts((previousDrafts) => {
+      const currentSchedules = previousDrafts[selectedDoctor.id] ?? selectedDoctor.schedules;
+      const nextSchedules = currentSchedules.map((schedule, index) =>
+        index === dayIndex ? ({ ...schedule, [field]: value } as DoctorScheduleDay) : schedule
+      );
 
       return {
-        ...doctor,
-        schedules: nextSchedules,
+        ...previousDrafts,
+        [selectedDoctor.id]: nextSchedules,
       };
     });
-
-    setLocalSchedules(updatedSchedules);
   };
 
   const handleSaveSchedule = async () => {
@@ -504,7 +495,7 @@ export default function ClinicAdminSchedule() {
       return;
     }
 
-    if (!selectedDoctor || !selectedDoctorId) {
+    if (!selectedDoctor) {
       showErrorToast("Please select a doctor", {
         id: TOAST_IDS.GLOBAL.ERROR,
       });
@@ -513,7 +504,7 @@ export default function ClinicAdminSchedule() {
 
     try {
       await updateScheduleMutation.mutateAsync({
-        doctorId: selectedDoctorId,
+        doctorId: selectedDoctor.id,
         schedule: sanitizeSchedulePayload(selectedDoctor.schedules),
         ...(clinicId ? { clinicId } : {}),
       });
@@ -523,7 +514,7 @@ export default function ClinicAdminSchedule() {
         const appointmentSettings = isRecord(baseSettings.appointmentSettings)
           ? (baseSettings.appointmentSettings as Record<string, unknown>)
           : {};
-        const holidayClosures = holidays.map((holiday) => ({
+        const holidayClosures = holidayList.map((holiday) => ({
           date: holiday.date,
           title: holiday.title,
           type: holiday.type,
@@ -553,23 +544,17 @@ export default function ClinicAdminSchedule() {
   };
 
   const addHoliday = () => {
-    if (!newHoliday.date || !newHoliday.title) {
-      return;
-    }
-
-    setHolidays([
-      ...holidays,
-      {
-        id: Date.now().toString(),
-        ...newHoliday,
-      },
-    ]);
-    setNewHoliday({ date: "", title: "", type: "Public Holiday" });
+    if (!newHoliday.date || !newHoliday.title) return;
+    dispatchHolidays({
+      type: "ADD_HOLIDAY",
+      holiday: { id: Date.now().toString(), ...newHoliday },
+    });
+    dispatchHolidays({ type: "RESET_NEW_HOLIDAY" });
     setHolidayDate(undefined);
   };
 
   const removeHoliday = (id: string) => {
-    setHolidays(holidays.filter((holiday) => holiday.id !== id));
+    dispatchHolidays({ type: "REMOVE_HOLIDAY", id });
   };
 
   const totalAvailableDays = selectedDoctor
@@ -596,7 +581,7 @@ export default function ClinicAdminSchedule() {
     return (
       <DashboardPageShell className="mx-auto max-w-7xl px-4 pb-6 pt-0 sm:px-6 lg:px-8">
         <div className="flex min-h-[420px] items-center justify-center rounded-xl border border-border bg-card shadow-sm">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+          <Loader2 className="size-8 animate-spin text-emerald-600" />
         </div>
       </DashboardPageShell>
     );
@@ -617,7 +602,7 @@ export default function ClinicAdminSchedule() {
               {localSchedules.length} doctors
             </Badge>
             <Badge variant="outline" className="rounded-full">
-              {holidays.length} holidays
+              {holidayList.length} holidays
             </Badge>
           </>
         }
@@ -635,12 +620,12 @@ export default function ClinicAdminSchedule() {
             >
               {updateScheduleMutation.isPending ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Saving…
                 </>
               ) : (
                 <>
-                  <Save className="mr-2 h-4 w-4" />
+                  <Save className="mr-2 size-4" />
                   Save Changes
                 </>
               )}
@@ -652,7 +637,7 @@ export default function ClinicAdminSchedule() {
       {!scheduleWritesSupported ? (
         <Card className={ALERT_CARD_CLASS}>
           <CardContent className="flex items-start gap-3 p-4 text-amber-900 dark:text-amber-100">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <AlertCircle className="mt-0.5 size-4 shrink-0" />
             <div className="text-sm">
               Clinic context is required to save doctor schedules.
             </div>
@@ -683,44 +668,44 @@ export default function ClinicAdminSchedule() {
         />
       </div>
 
-      <Tabs defaultValue="doctor-schedules" className="space-y-3">
+      <Tabs defaultValue="doctor-schedules" className="gap-y-3">
         <TabsList className="grid h-auto w-full grid-cols-1 gap-1 rounded-xl border border-border bg-card p-1 sm:grid-cols-3">
           <TabsTrigger
             value="doctor-schedules"
             className="flex h-10 items-center gap-2 rounded-lg"
           >
-            <Stethoscope className="h-4 w-4" />
+            <Stethoscope className="size-4" />
             Doctor Schedules
           </TabsTrigger>
           <TabsTrigger
             value="holidays"
             className="flex h-10 items-center gap-2 rounded-lg"
           >
-            <CalendarDays className="h-4 w-4" />
+            <CalendarDays className="size-4" />
             Holidays
           </TabsTrigger>
           <TabsTrigger
             value="conflicts"
             className="flex h-10 items-center gap-2 rounded-lg"
           >
-            <AlertCircle className="h-4 w-4" />
+            <AlertCircle className="size-4" />
             Conflicts
           </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="doctor-schedules" className="space-y-3">
+      <TabsContent value="doctor-schedules" className="gap-y-3">
         <Card className={SCHEDULER_CARD_CLASS}>
             <CardHeader className={COMPACT_CARD_HEADER}>
               <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
+                <Calendar className="size-5" />
                 Doctor Schedule Planner
               </CardTitle>
             </CardHeader>
-            <CardContent className={`${COMPACT_CARD_CONTENT} space-y-5`}>
+            <CardContent className={`${COMPACT_CARD_CONTENT} gap-y-5`}>
               <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
-                <div className="space-y-4">
+                <div className="gap-y-4">
                   <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="space-y-2 sm:col-span-2">
+                    <div className="gap-y-2 sm:col-span-2">
                       <Label>Select Doctor</Label>
                       <Select
                         value={selectedDoctor?.id || ""}
@@ -743,7 +728,7 @@ export default function ClinicAdminSchedule() {
                       </Select>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="gap-y-2">
                       <Label>Current State</Label>
                       <div className="flex min-h-10 items-center justify-between gap-3 rounded-md border border-emerald-200 bg-emerald-50/80 px-3 py-2 text-sm font-medium text-emerald-900 shadow-sm dark:border-emerald-900/70 dark:bg-emerald-950/20 dark:text-emerald-100">
                         <div className="min-w-0">
@@ -775,7 +760,7 @@ export default function ClinicAdminSchedule() {
                           >
                             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                               <div className="flex items-center gap-3">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-200">
+                                <div className="flex size-10 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-200">
                                   {schedule.day.slice(0, 2)}
                                 </div>
                                 <div>
@@ -802,7 +787,7 @@ export default function ClinicAdminSchedule() {
                             </div>
 
                             <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr_1fr_auto] lg:items-end">
-                              <div className="space-y-2">
+                              <div className="gap-y-2">
                                 <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                   Start Time
                                 </Label>
@@ -816,7 +801,7 @@ export default function ClinicAdminSchedule() {
                                   disabled={!schedule.available}
                                 />
                               </div>
-                              <div className="space-y-2">
+                              <div className="gap-y-2">
                                 <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                   End Time
                                 </Label>
@@ -830,7 +815,7 @@ export default function ClinicAdminSchedule() {
                                   disabled={!schedule.available}
                                 />
                               </div>
-                              <div className="space-y-2">
+                              <div className="gap-y-2">
                                 <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                   Slot Duration
                                 </Label>
@@ -889,12 +874,12 @@ export default function ClinicAdminSchedule() {
                   </div>
                 </div>
 
-              <div className="space-y-3">
+              <div className="gap-y-3">
                 <Card className={INFO_CARD_CLASS}>
                   <CardHeader className={COMPACT_CARD_HEADER}>
                     <CardTitle>Doctor Snapshot</CardTitle>
                   </CardHeader>
-                  <CardContent className={`${COMPACT_CARD_CONTENT} space-y-3`}>
+                  <CardContent className={`${COMPACT_CARD_CONTENT} gap-y-3`}>
                     <div className="rounded-lg border border-emerald-100 bg-white/80 px-3 py-2 dark:border-emerald-900/60 dark:bg-background/40">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                         Selected Doctor
@@ -932,7 +917,7 @@ export default function ClinicAdminSchedule() {
                   <CardHeader className={COMPACT_CARD_HEADER}>
                     <CardTitle>Consultation Durations</CardTitle>
                   </CardHeader>
-                  <CardContent className={`${COMPACT_CARD_CONTENT} space-y-2`}>
+                  <CardContent className={`${COMPACT_CARD_CONTENT} gap-y-2`}>
                     {[
                       ["General Consultation", "15 min"],
                       ["Nadi Pariksha", "45 min"],
@@ -958,7 +943,7 @@ export default function ClinicAdminSchedule() {
                   <CardHeader className={COMPACT_CARD_HEADER}>
                     <CardTitle>Quick Notes</CardTitle>
                   </CardHeader>
-                  <CardContent className={`${COMPACT_CARD_CONTENT} space-y-2`}>
+                  <CardContent className={`${COMPACT_CARD_CONTENT} gap-y-2`}>
                     <div className="rounded-lg border border-emerald-100 bg-white/80 px-3 py-2 text-sm dark:border-emerald-900/60 dark:bg-background/40">
                       Use the select field to switch doctors and update weekly hours before saving.
                     </div>
@@ -973,7 +958,7 @@ export default function ClinicAdminSchedule() {
         </Card>
       </TabsContent>
 
-        <TabsContent value="holidays" className="space-y-3">
+        <TabsContent value="holidays" className="gap-y-3">
           <div className="grid gap-3 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
             <Card className={HOLIDAY_CARD_CLASS}>
               <CardHeader className={COMPACT_CARD_HEADER}>
@@ -982,9 +967,9 @@ export default function ClinicAdminSchedule() {
                   Pick the date, choose the holiday type, and add a clear title before saving.
                 </p>
               </CardHeader>
-              <CardContent className={`${COMPACT_CARD_CONTENT} space-y-4`}>
+              <CardContent className={`${COMPACT_CARD_CONTENT} gap-y-4`}>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
+                  <div className="gap-y-2">
                     <Label>Date</Label>
                     <Popover>
                       <PopoverTrigger asChild>
@@ -993,7 +978,7 @@ export default function ClinicAdminSchedule() {
                           variant="outline"
                           className="h-10 w-full justify-start border-emerald-200 bg-white/80 text-left font-normal text-foreground shadow-sm hover:bg-emerald-50 dark:border-emerald-900/60 dark:bg-background/40 dark:hover:bg-emerald-950/20"
                         >
-                          <Calendar className="mr-2 h-4 w-4 text-emerald-600" />
+                          <Calendar className="mr-2 size-4 text-emerald-600" />
                           {holidayDate
                             ? formatDateInIST(holidayDate, {
                                 month: "2-digit",
@@ -1012,10 +997,11 @@ export default function ClinicAdminSchedule() {
                           selected={holidayDate}
                           onSelect={(date) => {
                             setHolidayDate(date);
-                            setNewHoliday((current) => ({
-                              ...current,
-                              date: date ? formatDateKeyInIST(date) : "",
-                            }));
+                            dispatchHolidays({
+                              type: "UPDATE_NEW_HOLIDAY",
+                              field: "date",
+                              value: date ? formatDateKeyInIST(date) : "",
+                            });
                           }}
                           initialFocus
                           className="border-0 p-2 [--cell-size:--spacing(8)] sm:[--cell-size:--spacing(9)]"
@@ -1037,12 +1023,12 @@ export default function ClinicAdminSchedule() {
                         : "Use the calendar to select one holiday date."}
                     </p>
                   </div>
-                  <div className="space-y-2">
+                  <div className="gap-y-2">
                     <Label>Holiday Type</Label>
                     <Select
                       value={newHoliday.type}
                       onValueChange={(value) =>
-                        setNewHoliday({ ...newHoliday, type: value })
+                        dispatchHolidays({ type: "UPDATE_NEW_HOLIDAY", field: "type", value })
                       }
                     >
                       <SelectTrigger className="h-10">
@@ -1067,16 +1053,17 @@ export default function ClinicAdminSchedule() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
+                <div className="gap-y-2">
                   <Label>Holiday Title</Label>
                   <Input
                     value={newHoliday.title}
                     onChange={(event) =>
-                      setNewHoliday({
-                        ...newHoliday,
-                      title: event.target.value,
-                    })
-                  }
+                      dispatchHolidays({
+                        type: "UPDATE_NEW_HOLIDAY",
+                        field: "title",
+                        value: event.target.value,
+                      })
+                    }
                     placeholder="e.g., Diwali, Independence Day, Clinic Shutdown"
                     className="h-10"
                   />
@@ -1089,7 +1076,7 @@ export default function ClinicAdminSchedule() {
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                     Holiday Preview
                   </p>
-                  <div className="mt-2 space-y-2">
+                  <div className="mt-2 gap-y-2">
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-sm font-medium text-foreground">
                         {newHoliday.title || "Holiday title"}
@@ -1120,7 +1107,7 @@ export default function ClinicAdminSchedule() {
                   disabled={!newHoliday.date || !newHoliday.title}
                   className="h-10 w-full rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
                 >
-                  <Plus className="mr-2 h-4 w-4" />
+                  <Plus className="mr-2 size-4" />
                   Save Holiday
                 </Button>
               </CardContent>
@@ -1131,9 +1118,9 @@ export default function ClinicAdminSchedule() {
                 <CardTitle>Scheduled Holidays</CardTitle>
               </CardHeader>
               <CardContent className={COMPACT_CARD_CONTENT}>
-                <div className="space-y-3">
-                  {holidays.length > 0 ? (
-                    holidays.map((holiday) => (
+                <div className="gap-y-3">
+                  {holidayList.length > 0 ? (
+                    holidayList.map((holiday) => (
                       <div
                         key={holiday.id}
                         className="flex flex-col gap-3 rounded-xl border border-amber-100 bg-white/80 p-4 shadow-sm dark:border-amber-900/60 dark:bg-background/40 sm:flex-row sm:items-center sm:justify-between"
@@ -1161,14 +1148,14 @@ export default function ClinicAdminSchedule() {
                             onClick={() => removeHoliday(holiday.id)}
                             className="border-rose-200 text-rose-700 hover:bg-rose-50 dark:border-rose-900 dark:text-rose-300 dark:hover:bg-rose-950/30"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="size-4" />
                           </Button>
                         </div>
                       </div>
                     ))
                   ) : (
                     <div className="rounded-xl border border-dashed border-amber-200 bg-white/70 px-4 py-8 text-center dark:border-amber-900/60 dark:bg-background/30">
-                      <CalendarDays className="mx-auto mb-3 h-10 w-10 text-amber-400" />
+                      <CalendarDays className="mx-auto mb-3 size-10 text-amber-400" />
                       <p className="font-medium text-foreground">
                         No holidays scheduled
                       </p>
@@ -1183,23 +1170,23 @@ export default function ClinicAdminSchedule() {
           </div>
         </TabsContent>
 
-        <TabsContent value="conflicts" className="space-y-3">
+        <TabsContent value="conflicts" className="gap-y-3">
           <Card className={CONFLICT_CARD_CLASS}>
             <CardHeader className={COMPACT_CARD_HEADER}>
               <CardTitle className="flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 text-rose-600 dark:text-rose-300" />
+                <AlertCircle className="size-5 text-rose-600 dark:text-rose-300" />
                 Schedule Conflicts
               </CardTitle>
             </CardHeader>
             <CardContent className={COMPACT_CARD_CONTENT}>
-              <div className="space-y-4">
+              <div className="gap-y-4">
                 {scheduleConflicts.length > 0 ? (
                   scheduleConflicts.map((conflict) => (
                     <div
                       key={conflict.id}
                       className="flex items-start gap-3 rounded-xl border border-rose-200 bg-white/80 p-4 shadow-sm dark:border-rose-900/60 dark:bg-background/40"
                     >
-                      <AlertCircle className="mt-0.5 h-5 w-5 text-rose-600 dark:text-rose-300" />
+                      <AlertCircle className="mt-0.5 size-5 text-rose-600 dark:text-rose-300" />
                       <div className="flex-1">
                         <h3 className="font-semibold text-rose-900 dark:text-rose-100">
                           {conflict.title}
@@ -1215,7 +1202,7 @@ export default function ClinicAdminSchedule() {
                   ))
                 ) : (
                   <div className="rounded-xl border border-emerald-200 bg-white/80 px-4 py-8 text-center dark:border-emerald-900/60 dark:bg-background/40">
-                    <CheckCircle className="mx-auto mb-3 h-10 w-10 text-emerald-600 dark:text-emerald-300" />
+                    <CheckCircle className="mx-auto mb-3 size-10 text-emerald-600 dark:text-emerald-300" />
                     <h3 className="text-lg font-semibold text-emerald-900 dark:text-emerald-100">
                       All Clear
                     </h3>
@@ -1232,3 +1219,6 @@ export default function ClinicAdminSchedule() {
     </DashboardPageShell>
   );
 }
+
+
+

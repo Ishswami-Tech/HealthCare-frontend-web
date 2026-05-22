@@ -248,19 +248,19 @@ export default function AnalyticsDashboard() {
 
   const getTrendIcon = (trend: string) => {
     return trend === "up" ? (
-      <TrendingUp className="w-4 h-4 text-green-500" />
+      <TrendingUp className="size-4 text-green-500" />
     ) : (
-      <TrendingDown className="w-4 h-4 text-red-500" />
+      <TrendingDown className="size-4 text-red-500" />
     );
   };
 
 
   return (
     
-      <div className="p-6 space-y-6">
+      <div className="p-6 gap-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
+              <h1 className="text-3xl font-semibold">Analytics Dashboard</h1>
               <p className="text-gray-600">
                 Comprehensive healthcare analytics and insights
               </p>
@@ -278,11 +278,11 @@ export default function AnalyticsDashboard() {
                 </SelectContent>
               </Select>
               <Button variant="outline" className="flex items-center gap-2">
-                <RefreshCw className="w-4 h-4" />
+                <RefreshCw className="size-4" />
                 Refresh
               </Button>
               <Button className="flex items-center gap-2">
-                <Download className="w-4 h-4" />
+                <Download className="size-4" />
                 Export Report
               </Button>
             </div>
@@ -292,7 +292,7 @@ export default function AnalyticsDashboard() {
           {isLoading && (
             <div className="flex items-center justify-center py-12">
               <div className="flex items-center gap-2">
-                <RefreshCw className="w-5 h-5 animate-spin" />
+                <RefreshCw className="size-5 animate-spin" />
                 <span>Loading analytics data...</span>
               </div>
             </div>
@@ -302,7 +302,7 @@ export default function AnalyticsDashboard() {
           {!isLoading && !clinicId && (
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
-                <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+                <AlertTriangle className="size-12 text-yellow-500 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">
                   No Clinic Context
                 </h3>
@@ -319,79 +319,79 @@ export default function AnalyticsDashboard() {
               {/* Key Performance Indicators */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
                       Total Patients
                     </CardTitle>
-                    <Users className="h-4 w-4 text-blue-600" />
+                    <Users className="size-4 text-blue-600" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-blue-600">
                       {overallStats.totalPatients.toLocaleString()}
                     </div>
                     <div className="flex items-center text-xs text-muted-foreground">
-                      <TrendingUp className="w-3 h-3 text-green-500 mr-1" />
+                      <TrendingUp className="size-3 text-green-500 mr-1" />
                       +15.2% from last month
                     </div>
                   </CardContent>
                 </Card>
 
                 <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
                       Appointments
                     </CardTitle>
-                    <Calendar className="h-4 w-4 text-green-600" />
+                    <Calendar className="size-4 text-green-600" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-green-600">
                       {overallStats.totalAppointments.toLocaleString()}
                     </div>
                     <div className="flex items-center text-xs text-muted-foreground">
-                      <TrendingUp className="w-3 h-3 text-green-500 mr-1" />
+                      <TrendingUp className="size-3 text-green-500 mr-1" />
                       91.4% completion rate
                     </div>
                   </CardContent>
                 </Card>
 
                 <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
                       Total Revenue
                     </CardTitle>
-                    <DollarSign className="h-4 w-4 text-purple-600" />
+                    <DollarSign className="size-4 text-purple-600" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-purple-600">
                       ₹{(overallStats.totalRevenue / 100000).toFixed(1)}L
                     </div>
                     <div className="flex items-center text-xs text-muted-foreground">
-                      <TrendingUp className="w-3 h-3 text-green-500 mr-1" />
+                      <TrendingUp className="size-3 text-green-500 mr-1" />
                       +22.5% from last month
                     </div>
                   </CardContent>
                 </Card>
 
                 <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
                       Satisfaction
                     </CardTitle>
-                    <Star className="h-4 w-4 text-yellow-600" />
+                    <Star className="size-4 text-yellow-600" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-yellow-600">
                       {overallStats.patientSatisfaction}/5.0
                     </div>
                     <div className="flex items-center text-xs text-muted-foreground">
-                      <TrendingUp className="w-3 h-3 text-green-500 mr-1" />
+                      <TrendingUp className="size-3 text-green-500 mr-1" />
                       +0.2 from last month
                     </div>
                   </CardContent>
                 </Card>
               </div>
 
-              <Tabs defaultValue="overview" className="space-y-6">
+              <Tabs defaultValue="overview" className="gap-y-6">
                 <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 xl:grid-cols-6">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="performance">Performance</TabsTrigger>
@@ -409,12 +409,12 @@ export default function AnalyticsDashboard() {
                     <Card>
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                          <TrendingUp className="w-5 h-5" />
+                          <TrendingUp className="size-5" />
                           Key Performance Metrics
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="space-y-4">
+                        <div className="gap-y-4">
                           {performanceMetrics.map((metric, index) => (
                             <div
                               key={index}
@@ -446,12 +446,12 @@ export default function AnalyticsDashboard() {
                     <Card>
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                          <Building2 className="w-5 h-5" />
+                          <Building2 className="size-5" />
                           Department Performance
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="space-y-4">
+                        <div className="gap-y-4">
                           {departmentStats.map((dept, index) => (
                             <div key={index} className="p-3 border rounded-lg">
                               <div className="flex items-center justify-between mb-2">
@@ -478,7 +478,7 @@ export default function AnalyticsDashboard() {
                                 <div>
                                   <p className="text-gray-600">Satisfaction</p>
                                   <p className="font-semibold flex items-center gap-1">
-                                    <Star className="w-3 h-3 text-yellow-500 fill-current" />
+                                    <Star className="size-3 text-yellow-500 fill-current" />
                                     {dept.satisfaction}
                                   </p>
                                 </div>
@@ -494,7 +494,7 @@ export default function AnalyticsDashboard() {
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
-                        <Zap className="w-5 h-5" />
+                        <Zap className="size-5" />
                         System Health & Operational Metrics
                       </CardTitle>
                     </CardHeader>
@@ -553,11 +553,11 @@ export default function AnalyticsDashboard() {
                 </TabsContent>
 
                 <TabsContent value="performance">
-                  <div className="space-y-6">
+                  <div className="gap-y-6">
                     <Card>
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                          <BarChart3 className="w-5 h-5" />
+                          <BarChart3 className="size-5" />
                           Appointment Performance Analytics
                         </CardTitle>
                       </CardHeader>
@@ -617,7 +617,7 @@ export default function AnalyticsDashboard() {
                           <CardTitle>Peak Hours Analysis</CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="space-y-3">
+                          <div className="gap-y-3">
                             <div className="flex items-center justify-between">
                               <span>Morning (9-12 PM)</span>
                               <div className="flex items-center gap-2">
@@ -664,7 +664,7 @@ export default function AnalyticsDashboard() {
                         </CardHeader>
                         <CardContent>
                           <div className="text-center p-8 text-gray-500">
-                            <LineChart className="w-16 h-16 mx-auto mb-4" />
+                            <LineChart className="size-16 mx-auto mb-4" />
                             <h3 className="text-lg font-medium mb-2">
                               Interactive Charts Coming Soon
                             </h3>
@@ -680,11 +680,11 @@ export default function AnalyticsDashboard() {
                 </TabsContent>
 
                 <TabsContent value="patients">
-                  <div className="space-y-6">
+                  <div className="gap-y-6">
                     <Card>
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                          <Users className="w-5 h-5" />
+                          <Users className="size-5" />
                           Patient Demographics
                         </CardTitle>
                       </CardHeader>
@@ -694,7 +694,7 @@ export default function AnalyticsDashboard() {
                             <h4 className="font-semibold mb-4">
                               Age Distribution
                             </h4>
-                            <div className="space-y-3">
+                            <div className="gap-y-3">
                               {patientDemographics.ageGroups.map(
                                 (group, index) => (
                                   <div
@@ -728,7 +728,7 @@ export default function AnalyticsDashboard() {
                             <h4 className="font-semibold mb-4">
                               Geographic Distribution
                             </h4>
-                            <div className="space-y-3">
+                            <div className="gap-y-3">
                               {patientDemographics.locationDistribution.map(
                                 (location, index) => (
                                   <div
@@ -736,7 +736,7 @@ export default function AnalyticsDashboard() {
                                     className="flex items-center justify-between"
                                   >
                                     <span className="flex items-center gap-2">
-                                      <MapPin className="w-3 h-3 text-gray-500" />
+                                      <MapPin className="size-3 text-gray-500" />
                                       {location.city}
                                     </span>
                                     <div className="flex items-center gap-2">
@@ -768,21 +768,21 @@ export default function AnalyticsDashboard() {
                           </h4>
                           <div className="flex items-center gap-6">
                             <div className="flex items-center gap-2">
-                              <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
+                              <div className="size-4 bg-blue-500 rounded-full"></div>
                               <span>
                                 Male:{" "}
                                 {patientDemographics.genderDistribution.male}%
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <div className="w-4 h-4 bg-pink-500 rounded-full"></div>
+                              <div className="size-4 bg-pink-500 rounded-full"></div>
                               <span>
                                 Female:{" "}
                                 {patientDemographics.genderDistribution.female}%
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <div className="w-4 h-4 bg-gray-400 rounded-full"></div>
+                              <div className="size-4 bg-gray-400 rounded-full"></div>
                               <span>
                                 Other:{" "}
                                 {patientDemographics.genderDistribution.other}%
@@ -844,12 +844,12 @@ export default function AnalyticsDashboard() {
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
-                        <Stethoscope className="w-5 h-5" />
+                        <Stethoscope className="size-5" />
                         Treatment Effectiveness Analysis
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-6">
+                      <div className="gap-y-6">
                         {treatmentEffectiveness.map((treatment, index) => (
                           <div key={index} className="p-4 border rounded-lg">
                             <div className="flex items-start justify-between mb-4">
@@ -902,11 +902,11 @@ export default function AnalyticsDashboard() {
                 </TabsContent>
 
                 <TabsContent value="digital">
-                  <div className="space-y-6">
+                  <div className="gap-y-6">
                     <Card>
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                          <Smartphone className="w-5 h-5" />
+                          <Smartphone className="size-5" />
                           Digital Channel Performance
                         </CardTitle>
                       </CardHeader>
@@ -916,7 +916,7 @@ export default function AnalyticsDashboard() {
                             <h4 className="font-semibold mb-4">
                               Channel Usage
                             </h4>
-                            <div className="space-y-3">
+                            <div className="gap-y-3">
                               {digitalEngagement.channelUsage.map(
                                 (channel, index) => (
                                   <div
@@ -925,13 +925,13 @@ export default function AnalyticsDashboard() {
                                   >
                                     <span className="flex items-center gap-2">
                                       {channel.channel === "Mobile App" && (
-                                        <Smartphone className="w-4 h-4 text-blue-600" />
+                                        <Smartphone className="size-4 text-blue-600" />
                                       )}
                                       {channel.channel === "Website" && (
-                                        <Globe className="w-4 h-4 text-green-600" />
+                                        <Globe className="size-4 text-green-600" />
                                       )}
                                       {channel.channel === "Phone Booking" && (
-                                        <Activity className="w-4 h-4 text-purple-600" />
+                                        <Activity className="size-4 text-purple-600" />
                                       )}
                                       {channel.channel}
                                     </span>
@@ -959,7 +959,7 @@ export default function AnalyticsDashboard() {
                             <h4 className="font-semibold mb-4">
                               Popular Features
                             </h4>
-                            <div className="space-y-3">
+                            <div className="gap-y-3">
                               {digitalEngagement.popularFeatures.map(
                                 (feature, index) => (
                                   <div
@@ -993,14 +993,14 @@ export default function AnalyticsDashboard() {
                           <CardTitle>User Experience Metrics</CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="space-y-4">
+                          <div className="gap-y-4">
                             <div className="flex items-center justify-between">
                               <span>Page Load Speed</span>
                               <div className="flex items-center gap-2">
                                 <div className="text-green-600 font-semibold">
                                   2.3s
                                 </div>
-                                <CheckCircle className="w-4 h-4 text-green-500" />
+                                <CheckCircle className="size-4 text-green-500" />
                               </div>
                             </div>
                             <div className="flex items-center justify-between">
@@ -1009,7 +1009,7 @@ export default function AnalyticsDashboard() {
                                 <div className="text-green-600 font-semibold">
                                   98%
                                 </div>
-                                <CheckCircle className="w-4 h-4 text-green-500" />
+                                <CheckCircle className="size-4 text-green-500" />
                               </div>
                             </div>
                             <div className="flex items-center justify-between">
@@ -1018,7 +1018,7 @@ export default function AnalyticsDashboard() {
                                 <div className="text-green-600 font-semibold">
                                   0.2%
                                 </div>
-                                <CheckCircle className="w-4 h-4 text-green-500" />
+                                <CheckCircle className="size-4 text-green-500" />
                               </div>
                             </div>
                             <div className="flex items-center justify-between">
@@ -1027,7 +1027,7 @@ export default function AnalyticsDashboard() {
                                 <div className="text-green-600 font-semibold">
                                   4.6/5
                                 </div>
-                                <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                                <Star className="size-4 text-yellow-500 fill-current" />
                               </div>
                             </div>
                           </div>
@@ -1039,7 +1039,7 @@ export default function AnalyticsDashboard() {
                           <CardTitle>Conversion Funnel</CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="space-y-3">
+                          <div className="gap-y-3">
                             <div className="flex items-center justify-between">
                               <span>Website Visitors</span>
                               <span className="font-semibold">10,000</span>
@@ -1071,32 +1071,32 @@ export default function AnalyticsDashboard() {
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
-                        <FileText className="w-5 h-5" />
+                        <FileText className="size-5" />
                         Custom Reports & Data Export
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-6">
+                      <div className="gap-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <Button
                             variant="outline"
                             className="h-20 flex flex-col items-center justify-center gap-2"
                           >
-                            <Calendar className="w-6 h-6" />
+                            <Calendar className="size-6" />
                             <span className="text-sm">Monthly Report</span>
                           </Button>
                           <Button
                             variant="outline"
                             className="h-20 flex flex-col items-center justify-center gap-2"
                           >
-                            <Users className="w-6 h-6" />
+                            <Users className="size-6" />
                             <span className="text-sm">Patient Report</span>
                           </Button>
                           <Button
                             variant="outline"
                             className="h-20 flex flex-col items-center justify-center gap-2"
                           >
-                            <DollarSign className="w-6 h-6" />
+                            <DollarSign className="size-6" />
                             <span className="text-sm">Revenue Report</span>
                           </Button>
                         </div>
@@ -1154,11 +1154,11 @@ export default function AnalyticsDashboard() {
 
                           <div className="flex gap-2">
                             <Button className="flex items-center gap-2">
-                              <Download className="w-4 h-4" />
+                              <Download className="size-4" />
                               Generate Report
                             </Button>
                             <Button variant="outline">
-                              <Eye className="w-4 h-4 mr-2" />
+                              <Eye className="size-4 mr-2" />
                               Preview
                             </Button>
                           </div>
@@ -1174,3 +1174,5 @@ export default function AnalyticsDashboard() {
     
   );
 }
+
+

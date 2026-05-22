@@ -23,10 +23,10 @@ export default function Error({
     <div className="min-h-screen bg-linear-to-br from-red-50 via-white to-orange-50 flex items-center justify-center px-4">
       <div className="max-w-md w-full text-center">
         <div className="mb-8">
-          <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-            <AlertTriangle className="w-8 h-8 text-red-600" />
+          <div className="mx-auto size-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+            <AlertTriangle className="size-8 text-red-600" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl font-semibold text-gray-900 mb-2">
             Something went wrong
           </h1>
           <p className="text-gray-600 mb-8">
@@ -34,17 +34,17 @@ export default function Error({
           </p>
         </div>
 
-        <div className="space-y-4">
+        <div className="gap-y-4">
           <Button onClick={reset} className="w-full" asChild={false}>
             <span className="flex items-center justify-center">
-              <RefreshCw className="w-4 h-4 mr-2" />
+              <RefreshCw className="size-4 mr-2" />
               Try Again
             </span>
           </Button>
           
           <Button variant="outline" asChild className="w-full">
             <Link href="/" prefetch={false} className="flex items-center justify-center">
-              <Home className="w-4 h-4 mr-2" />
+              <Home className="size-4 mr-2" />
               Go Home
             </Link>
           </Button>
@@ -78,3 +78,4 @@ export default function Error({
     </div>
   );
 }
+

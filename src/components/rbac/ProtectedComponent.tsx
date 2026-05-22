@@ -64,7 +64,7 @@ export const ProtectedComponent: React.FC<ProtectedComponentProps> = ({
     if (showFallback) {
       return (
         <Alert className="border-amber-200 bg-amber-50">
-          <Lock className="h-4 w-4 text-amber-600" />
+          <Lock className="size-4 text-amber-600" />
           <AlertDescription className="text-amber-800">
             You don't have permission to access this feature.
           </AlertDescription>
@@ -76,58 +76,6 @@ export const ProtectedComponent: React.FC<ProtectedComponentProps> = ({
   }
 
   return <>{children}</>;
-};
-
-/**
- * Higher-order component for protecting components with permissions
- */
-export function withPermission<P extends object>(
-  Component: React.ComponentType<P>,
-  permission: Permission | Permission[],
-  requireAll: boolean = false
-) {
-  return function ProtectedComponentWrapper(props: P) {
-    const permissions = Array.isArray(permission) ? permission : [permission];
-    
-    return (
-      <ProtectedComponent 
-        permissions={permissions} 
-        requireAll={requireAll}
-        showFallback={true}
-      >
-        <Component {...props} />
-      </ProtectedComponent>
-    );
-  };
-}
-
-/**
- * Hook for conditional rendering based on permissions
- */
-export const useConditionalRender = () => {
-  const rbac = useRBAC();
-
-  return {
-    renderIf: (condition: boolean, component: React.ReactNode) => {
-      return condition ? component : null;
-    },
-    
-    renderWithPermission: (permission: Permission, component: React.ReactNode) => {
-      return rbac.hasPermission(permission) ? component : null;
-    },
-    
-    renderWithAnyPermission: (permissions: Permission[], component: React.ReactNode) => {
-      return rbac.hasAnyPermission(permissions) ? component : null;
-    },
-    
-    renderWithAllPermissions: (permissions: Permission[], component: React.ReactNode) => {
-      return rbac.hasAllPermissions(permissions) ? component : null;
-    },
-    
-    renderWithAccess: (resource: string, action: string, component: React.ReactNode) => {
-      return rbac.canAccess(resource, action) ? component : null;
-    },
-  };
 };
 
 // Specific protected components for common use cases
@@ -305,3 +253,4 @@ export const QueueProtectedComponent: React.FC<{
 
   return <>{children}</>;
 };
+

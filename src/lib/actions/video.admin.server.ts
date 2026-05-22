@@ -1,6 +1,6 @@
-'use server';
+﻿'use server';
 
-import { authenticatedApi } from './auth.server';
+import { authenticatedApi, getServerSession } from './auth.server';
 import { API_ENDPOINTS } from '../config/config';
 import type { ListAllVideoSessionsResponse } from '@/types/video.types';
 
@@ -8,6 +8,11 @@ import type { ListAllVideoSessionsResponse } from '@/types/video.types';
  * List all active video sessions (Super Admin only)
  */
 export async function listAllVideoSessions(): Promise<ListAllVideoSessionsResponse> {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data: response } = await authenticatedApi(
     API_ENDPOINTS.VIDEO.ADMIN.LIST_SESSIONS,
     {}
@@ -19,6 +24,11 @@ export async function listAllVideoSessions(): Promise<ListAllVideoSessionsRespon
  * Force-terminate an active video session (Super Admin only)
  */
 export async function terminateVideoSession(sessionId: string, reason?: string) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
   const { data: response } = await authenticatedApi(
     API_ENDPOINTS.VIDEO.ADMIN.TERMINATE_SESSION(sessionId),
     {

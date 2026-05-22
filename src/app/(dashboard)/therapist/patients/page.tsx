@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,6 @@ import { usePatientStore } from "@/stores";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { formatDateInIST, nowIso } from '@/lib/utils/date-time';
 import { ServerPagination } from "@/components/ui/pagination";
-import { useDebouncedCallback } from "@/lib/utils/performance";
 
 export default function TherapistPatients() {
   useAuth();
@@ -26,19 +25,11 @@ export default function TherapistPatients() {
 
   // State for filters and search
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [page, setPage] = useState(1);
   const pageSize = 10;
   const clients = usePatientStore((state) => state.collections.therapist);
-  const debouncedSetSearch = useDebouncedCallback((value: string) => {
-    setDebouncedSearchQuery(value);
-  }, 300);
-
-  useEffect(() => {
-    debouncedSetSearch(searchQuery);
-    setPage(1);
-  }, [searchQuery, debouncedSetSearch]);
+  const debouncedSearchQuery = useDeferredValue(searchQuery);
 
   // Fetch real data using hook
   const clientsQuery = useTherapistClients(therapistId, {
@@ -119,11 +110,14 @@ export default function TherapistPatients() {
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-3 size-4 text-gray-400" />
               <Input
                 placeholder="Search by client name or condition..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
                 className="pl-10"
               />
             </div>
@@ -164,20 +158,20 @@ export default function TherapistPatients() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Users className="w-5 h-5" />
+            <Users className="size-5" />
             Clients List
           </CardTitle>
         </CardHeader>
         <CardContent>
           {isPending ? (
             <div className="flex items-center justify-center min-h-[200px]">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+              <Loader2 className="size-8 animate-spin text-blue-600" />
             </div>
           ) : clients.length === 0 ? (
             <Empty>
               <EmptyContent>
                 <EmptyMedia>
-                  <Users className="h-5 w-5" />
+                  <Users className="size-5" />
                 </EmptyMedia>
                 <EmptyTitle>No clients found</EmptyTitle>
                 <EmptyDescription>
@@ -186,7 +180,7 @@ export default function TherapistPatients() {
               </EmptyContent>
             </Empty>
           ) : (
-            <div className="space-y-4">
+            <div className="gap-y-4">
               {clients.map((client) => {
                 const status = getStatusValue(client.status);
                 return (
@@ -196,19 +190,19 @@ export default function TherapistPatients() {
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-4 flex-1">
-                      <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                        <Users className="w-5 h-5 text-purple-600" />
+                      <div className="size-10 bg-purple-100 rounded-full flex items-center justify-center">
+                        <Users className="size-5 text-purple-600" />
                       </div>
                       <div>
                         <h4 className="font-semibold">{client.name || "Unknown Client"}</h4>
                         <p className="text-sm text-gray-600">{client.condition || "N/A"}</p>
                         <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                           <span className="flex items-center gap-1">
-                            <Brain className="w-3 h-3" />
+                            <Brain className="size-3" />
                             {client.sessionsCompleted || 0} sessions
                           </span>
                           <span className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
+                            <Calendar className="size-3" />
                             Last:{" "}
                             {formatLastVisit(client.lastVisit)}
                           </span>
@@ -216,7 +210,7 @@ export default function TherapistPatients() {
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right" suppressHydrationWarning>
                     <Badge className={getStatusColor(status)}>
                       {status.toUpperCase()}
                     </Badge>
@@ -265,3 +259,5 @@ export default function TherapistPatients() {
     </DashboardPageShell>
   );
 }
+
+

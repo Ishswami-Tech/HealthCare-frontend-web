@@ -148,19 +148,19 @@ export function BillingNotifications({ onMarkAsRead, onClearAll }: BillingNotifi
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case "payment_received":
-        return <DollarSign className="w-5 h-5 text-green-600" />;
+        return <DollarSign className="size-5 text-green-600" />;
       case "invoice_created":
-        return <Receipt className="w-5 h-5 text-blue-600" />;
+        return <Receipt className="size-5 text-blue-600" />;
       case "subscription_renewed":
-        return <TrendingUp className="w-5 h-5 text-purple-600" />;
+        return <TrendingUp className="size-5 text-purple-600" />;
       case "payment_failed":
-        return <AlertCircle className="w-5 h-5 text-red-600" />;
+        return <AlertCircle className="size-5 text-red-600" />;
       case "invoice_overdue":
-        return <AlertCircle className="w-5 h-5 text-orange-600" />;
+        return <AlertCircle className="size-5 text-orange-600" />;
       case "subscription_cancelled":
-        return <X className="w-5 h-5 text-gray-600" />;
+        return <X className="size-5 text-gray-600" />;
       default:
-        return <Bell className="w-5 h-5 text-blue-600" />;
+        return <Bell className="size-5 text-blue-600" />;
     }
   };
 
@@ -207,14 +207,14 @@ export function BillingNotifications({ onMarkAsRead, onClearAll }: BillingNotifi
           aria-label={`Notifications (${unreadCount} unread)`}
         >
           {unreadCount > 0 ? (
-            <BellRing className="w-5 h-5 text-blue-600" />
+            <BellRing className="size-5 text-blue-600" />
           ) : (
-            <Bell className="w-5 h-5 text-gray-600" />
+            <Bell className="size-5 text-gray-600" />
           )}
           {unreadCount > 0 && (
             <Badge
               variant="destructive"
-              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs"
+              className="absolute -top-1 -right-1 size-5 flex items-center justify-center text-xs"
             >
               {unreadCount > 9 ? "9+" : unreadCount}
             </Badge>
@@ -249,7 +249,7 @@ export function BillingNotifications({ onMarkAsRead, onClearAll }: BillingNotifi
                   size="sm"
                   onClick={() => setShowNotifications(false)}
                 >
-                  <X className="w-4 h-4" />
+                  <X className="size-4" />
                 </Button>
               </div>
 
@@ -257,7 +257,7 @@ export function BillingNotifications({ onMarkAsRead, onClearAll }: BillingNotifi
               <div className="max-h-[450px] overflow-y-auto">
                 {notifications.length === 0 ? (
                   <div className="p-8 text-center text-muted-foreground">
-                    <Bell className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                    <Bell className="mx-auto size-12 mb-4 opacity-50" />
                     <p>No notifications</p>
                   </div>
                 ) : (
@@ -313,7 +313,7 @@ export function BillingNotifications({ onMarkAsRead, onClearAll }: BillingNotifi
                                       handleMarkAsRead(notification.id);
                                     }}
                                   >
-                                    <CheckCircle className="w-4 h-4" />
+                                    <CheckCircle className="size-4" />
                                   </Button>
                                 )}
                                 <Button
@@ -324,7 +324,7 @@ export function BillingNotifications({ onMarkAsRead, onClearAll }: BillingNotifi
                                     handleDeleteNotification(notification.id);
                                   }}
                                 >
-                                  <X className="w-4 h-4" />
+                                  <X className="size-4" />
                                 </Button>
                               </div>
                             </div>
@@ -369,3 +369,5 @@ export function BillingNotifications({ onMarkAsRead, onClearAll }: BillingNotifi
     </>
   );
 }
+
+

@@ -119,7 +119,7 @@ export function AyurvedaNavigation({
   if (variant === "mobile") {
     return (
       <nav
-        className={cn("space-y-2", className)}
+        className={cn("gap-y-2", className)}
         role="navigation"
         aria-label="Main navigation"
       >
@@ -159,7 +159,7 @@ export function AyurvedaNavigation({
   // Header variant
   return (
     <nav
-      className={cn("hidden md:flex items-center space-x-8", className)}
+      className={cn("hidden md:flex items-center gap-x-8", className)}
       role="navigation"
       aria-label="Main navigation"
     >
@@ -170,7 +170,7 @@ export function AyurvedaNavigation({
           className="text-foreground hover:text-primary font-medium transition-colors relative group"
         >
           {t(`navigation.${item.key}`)}
-          <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full"></span>
+          <span className="absolute -bottom-1 left-0 size-0.5 bg-primary transition-all group-hover:w-full"></span>
         </a>
       ))}
     </nav>
@@ -203,8 +203,8 @@ export function AyurvedaHeader({
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex items-center">
-            <a href="/" className="flex items-center space-x-3">
-              <div className="w-14 h-14 flex items-center justify-center overflow-hidden shrink-0 rounded-2xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
+            <a href="/" className="flex items-center gap-x-3">
+              <div className="size-14 flex items-center justify-center overflow-hidden shrink-0 rounded-2xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
                 <img
                   src="/assets/logo/logowithoutbackground.png"
                   alt={t("navigation.clinicName")}
@@ -217,7 +217,7 @@ export function AyurvedaHeader({
                 />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-foreground">
+                <h1 className="text-lg font-semibold text-foreground">
                   {t("header.clinicName")}
                 </h1>
                 <p className="text-xs text-primary">
@@ -231,7 +231,7 @@ export function AyurvedaHeader({
           <AyurvedaNavigation />
 
           {/* CTA Button */}
-          <div className="hidden md:flex items-center space-x-4">
+          <div className="hidden md:flex items-center gap-x-4">
             <a
               href="/contact"
               className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg font-medium transition-colors"
@@ -250,7 +250,7 @@ export function AyurvedaHeader({
               aria-label="Toggle mobile menu"
             >
               <svg
-                className="w-6 h-6"
+                className="size-6"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -310,14 +310,14 @@ export function AyurvedaFooter({ className }: AyurvedaFooterProps) {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Clinic Info */}
           <div className="col-span-1 md:col-span-2">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
+            <div className="flex items-center gap-x-3 mb-4">
+              <div className="size-12 bg-primary rounded-full flex items-center justify-center">
                 <span className="text-primary-foreground font-bold text-xl">
                   {t("footer.logo")}
                 </span>
               </div>
               <div>
-                <h3 className="text-xl font-bold">{t("footer.clinicName")}</h3>
+                <h3 className="text-xl font-semibold">{t("footer.clinicName")}</h3>
                 <p className="text-primary">{t("footer.tagline")}</p>
               </div>
             </div>
@@ -343,7 +343,7 @@ export function AyurvedaFooter({ className }: AyurvedaFooterProps) {
             <h4 className="text-lg font-semibold mb-4 text-primary">
               {t("footer.services.title")}
             </h4>
-            <div className="space-y-2 text-sm">
+            <div className="gap-y-2 text-sm">
               <p className="text-muted-foreground">
                 {t("footer.services.panchakarma")}
               </p>
@@ -367,7 +367,7 @@ export function AyurvedaFooter({ className }: AyurvedaFooterProps) {
           <p className="text-muted-foreground text-sm">
             {t("footer.copyright")}
           </p>
-          <div className="flex space-x-6 mt-4 md:mt-0">
+          <div className="flex gap-x-6 mt-4 md:mt-0">
             <a
               href="/privacy"
               className="text-muted-foreground hover:text-foreground text-sm transition-colors"
@@ -392,3 +392,4 @@ export function AyurvedaFooter({ className }: AyurvedaFooterProps) {
     </footer>
   );
 }
+

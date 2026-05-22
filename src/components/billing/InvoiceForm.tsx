@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Invoice } from "@/types/billing.types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +33,7 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
   const [quantity, setQuantity] = useState<number>(invoice?.items?.[0]?.quantity || 1);
   const [unitPrice, setUnitPrice] = useState<number>(invoice?.items?.[0]?.unitPrice || 0);
 
-  const lineTotal = useMemo(() => quantity * unitPrice, [quantity, unitPrice]);
+  const lineTotal = quantity * unitPrice;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,8 +67,8 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
   return (
     <Card className="border-0 shadow-none">
       <CardContent className="p-0">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
+        <form onSubmit={handleSubmit} className="gap-y-4">
+          <div className="gap-y-2">
             <Label>Description</Label>
             <Input
               value={description}
@@ -77,7 +77,7 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
+            <div className="gap-y-2">
               <Label>Quantity</Label>
               <Input
                 type="number"
@@ -86,7 +86,7 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
                 onChange={(e) => setQuantity(Number(e.target.value) || 1)}
               />
             </div>
-            <div className="space-y-2">
+            <div className="gap-y-2">
               <Label>Unit Price</Label>
               <Input
                 type="number"
@@ -96,7 +96,7 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
               />
             </div>
           </div>
-          <div className="space-y-2">
+          <div className="gap-y-2">
             <Label>Total Amount</Label>
             <Input
               type="number"
@@ -105,7 +105,7 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
               onChange={(e) => setAmount(Number(e.target.value) || 0)}
             />
           </div>
-          <div className="space-y-2">
+          <div className="gap-y-2">
             <Label>Due Date</Label>
             <Input
               type="date"
@@ -118,7 +118,7 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
               Cancel
             </Button>
             <Button type="submit" disabled={createInvoice.isPending || !userId || !clinicId}>
-              {createInvoice.isPending ? "Saving..." : "Save Invoice"}
+              {createInvoice.isPending ? "Saving…" : "Save Invoice"}
             </Button>
           </div>
         </form>
@@ -126,3 +126,5 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
     </Card>
   );
 }
+
+

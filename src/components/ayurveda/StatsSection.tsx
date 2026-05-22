@@ -84,10 +84,10 @@ const StatsSection = () => {
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <Badge className="bg-primary/10 text-primary border-primary/20 mb-4 glass animate-fade-in-down">
-            <TrendingUp className="w-4 h-4 mr-2" />
+            <TrendingUp className="size-4 mr-2" />
             {t("stats.provenResultsExcellence")}
           </Badge>
-          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4 gradient-text">
+          <h2 className="text-3xl md:text-4xl font-playfair font-semibold text-foreground mb-4 gradient-text">
             {t("stats.transformingLives")}
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
@@ -96,18 +96,18 @@ const StatsSection = () => {
         </div>
         {/* Main Stats */}
         <StaggerContainer className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
-          {stats.map((stat, index) => {
+          {stats.map((stat) => {
             const IconComponent = stat.icon;
 
             return (
-              <StaggerItem key={index}>
+              <StaggerItem key={stat.label}>
                 <HoverAnimation type="lift">
                   <Card className="text-center hover:shadow-lg transition-all duration-300 border-0 bg-card glass card-hover">
                     <CardContent className="p-6">
                       <div
-                        className={`w-16 h-16 bg-gradient-to-r ${stat.color} rounded-full flex items-center justify-center mx-auto mb-4 interactive`}
+                        className={`size-16 bg-gradient-to-r ${stat.color} rounded-full flex items-center justify-center mx-auto mb-4 interactive`}
                       >
-                        <IconComponent className="w-8 h-8 text-white" />
+                        <IconComponent className="size-8 text-white" />
                       </div>
                       <div className="text-3xl font-bold text-foreground mb-2 gradient-text">
                         {stat.number.includes("+") ? (
@@ -149,11 +149,11 @@ const StatsSection = () => {
           <div className="text-center mb-12">
             <HoverAnimation type="scale">
               <Badge className="bg-primary/10 text-primary border-primary/20 mb-4 glass interactive">
-                <CheckCircle className="w-4 h-4 mr-2" />
+                <CheckCircle className="size-4 mr-2" />
                 {t("stats.trustedCertified")}
               </Badge>
             </HoverAnimation>
-            <h3 className="text-2xl font-playfair font-bold text-foreground mb-8 gradient-text">
+            <h3 className="text-2xl font-playfair font-semibold text-foreground mb-8 gradient-text">
               {t("stats.recognizedExcellence")}
             </h3>
           </div>
@@ -164,11 +164,11 @@ const StatsSection = () => {
             const IconComponent = cert.icon;
 
             return (
-              <StaggerItem key={index}>
+              <StaggerItem key={cert.title}>
                 <HoverAnimation type="lift">
                   <div className="text-center p-6 rounded-lg bg-card border border-border hover:border-primary/20 hover:shadow-md transition-all duration-300 glass card-hover">
                     <div
-                      className={`w-12 h-12 bg-gradient-to-r ${
+                      className={`size-12 bg-gradient-to-r ${
                         index === 0
                           ? "from-cyan-500 to-teal-700"
                           : index === 1
@@ -178,7 +178,7 @@ const StatsSection = () => {
                           : "from-slate-600 to-gray-800"
                       } rounded-full flex items-center justify-center mx-auto mb-4 interactive`}
                     >
-                      <IconComponent className="w-6 h-6 text-white" />
+                      <IconComponent className="size-6 text-white" />
                     </div>
                     <h4 className="font-semibold text-foreground mb-2">
                       {cert.title}
@@ -197,20 +197,20 @@ const StatsSection = () => {
         <div className="mt-16 text-center">
           <div className="bg-gradient-to-r from-primary/5 to-primary/10 rounded-2xl p-8 border border-primary/20 glass">
             <div className="flex flex-wrap justify-center items-center gap-8 text-sm text-muted-foreground">
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-primary rounded-full animate-pulse"></div>
+              <div className="flex items-center gap-x-2">
+                <div className="size-3 bg-primary rounded-full animate-pulse"></div>
                 <span>{t("stats.currentlyTreating")}</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <TrendingUp className="w-4 h-4 text-primary" />
+              <div className="flex items-center gap-x-2">
+                <TrendingUp className="size-4 text-primary" />
                 <span>{t("stats.bookingIncrease")}</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <Heart className="w-4 h-4 text-primary" />
+              <div className="flex items-center gap-x-2">
+                <Heart className="size-4 text-primary" />
                 <span>{t("stats.featuredChannels")}</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <Users className="w-4 h-4 text-primary" />
+              <div className="flex items-center gap-x-2">
+                <Users className="size-4 text-primary" />
                 <span>{t("stats.peopleViewing")}</span>
               </div>
             </div>
@@ -222,3 +222,4 @@ const StatsSection = () => {
 };
 
 export default StatsSection;
+

@@ -37,19 +37,14 @@ export function useFCM(): UseFCMReturn {
   const { session } = useAuth();
   const { addNotification } = useNotificationStore();
   const [token, setToken] = useState<string | null>(null);
-  const [permission, setPermission] = useState<NotificationPermission | null>(null);
+  const [permission, setPermission] = useState<NotificationPermission | null>(() =>
+    typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : null
+  );
   const [isRegistered, setIsRegistered] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isSupported = typeof window !== 'undefined' && 'Notification' in window && isFirebaseConfigured();
-
-  // Check notification permission status
-  useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      setPermission(Notification.permission);
-    }
-  }, []);
 
   // Initialize Firebase on mount
   useEffect(() => {

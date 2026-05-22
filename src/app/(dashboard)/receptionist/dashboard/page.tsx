@@ -105,13 +105,13 @@ function getReceptionQueueLaneLabel(entry: CanonicalQueueEntry): string {
 function getQueueStatusIcon(status: string) {
   switch (String(status || "").toUpperCase()) {
     case "WAITING":
-      return <Clock className="h-3 w-3" />;
+      return <Clock className="size-3" />;
     case "IN_PROGRESS":
-      return <Activity className="h-3 w-3" />;
+      return <Activity className="size-3" />;
     case "CONFIRMED":
-      return <CheckCircle className="h-3 w-3" />;
+      return <CheckCircle className="size-3" />;
     default:
-      return <AlertCircle className="h-3 w-3" />;
+      return <AlertCircle className="size-3" />;
   }
 }
 
@@ -354,8 +354,8 @@ export default function ReceptionistDashboard() {
 
           return (
             <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-                <Users className="h-4 w-4" />
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                <Users className="size-4" />
               </div>
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold text-foreground">
@@ -401,7 +401,7 @@ export default function ReceptionistDashboard() {
           if (!waitValue) return <span className="text-muted-foreground">-</span>;
           return (
             <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-              <Clock className="h-3 w-3" />
+              <Clock className="size-3" />
               {waitValue}m
             </span>
           );
@@ -545,14 +545,14 @@ export default function ReceptionistDashboard() {
           <>
             <Button asChild variant="outline">
               <Link href="/receptionist/check-in" prefetch={false}>
-                <QrCode className="w-4 h-4 mr-2" />
+                <QrCode className="size-4 mr-2" />
                 Confirm Arrival
               </Link>
             </Button>
             <BookAppointmentDialog 
               trigger={
                 <Button className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
-                  <Plus className="w-4 h-4" />
+                  <Plus className="size-4" />
                   Register Walk-in
                 </Button>
               }
@@ -611,7 +611,7 @@ export default function ReceptionistDashboard() {
               <span className="text-[10px] font-medium text-emerald-700/70 dark:text-emerald-200/70">pts/hr</span>
             </span>
           }
-          icon={<Activity className="w-4 h-4 text-emerald-600" />}
+          icon={<Activity className="size-4 text-emerald-600" />}
           accentClassName="border-emerald-200 bg-emerald-50 shadow-md dark:border-emerald-500/20 dark:bg-emerald-500/10"
           labelClassName="text-emerald-700 dark:text-emerald-300 text-[10px] tracking-[0.18em]"
           valueClassName="mt-1"
@@ -627,12 +627,12 @@ export default function ReceptionistDashboard() {
         />
       </div>
 
-      <div className="space-y-6">
+      <div className="gap-y-6">
         <Card className="overflow-hidden border-l-4 border-l-emerald-400 shadow-sm">
           <CardHeader className="flex flex-col gap-3 border-b border-border bg-muted/40 px-4 pb-4 pt-4 sm:flex-row sm:items-end sm:justify-between">
             <CardTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-                <Activity className="w-4 h-4" />
+              <div className="flex size-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                <Activity className="size-4" />
               </div>
               Live Queue
             </CardTitle>
@@ -654,7 +654,7 @@ export default function ReceptionistDashboard() {
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="space-y-3 p-3 sm:p-4">
+          <CardContent className="gap-y-3 p-3 sm:p-4">
             {highlightedQueuePatient ? (
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 px-3 py-3 shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -733,11 +733,11 @@ export default function ReceptionistDashboard() {
         <Card>
           <CardHeader className="border-b border-border/70 bg-muted/30 px-4 py-3">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              <Users className="w-5 h-5" />
+              <Users className="size-5" />
               Doctor Backlog
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 px-4 py-3">
+          <CardContent className="gap-y-3 px-4 py-3">
             {doctorBacklog.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 {appointmentsError
@@ -761,13 +761,13 @@ export default function ReceptionistDashboard() {
         <Card>
           <CardHeader className="border-b border-border/70 bg-muted/30 px-4 py-3">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              <Clock className="w-5 h-5" />
+              <Clock className="size-5" />
               Medicine Desk Queue
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4 py-3">
             {medicineDesk.length > 0 ? (
-              <div className="space-y-2.5">
+              <div className="gap-y-2.5">
                 {medicineDesk.map((entry) => (
                   <div
                     key={entry.id}
@@ -781,7 +781,7 @@ export default function ReceptionistDashboard() {
                           )}
                       </div>
                       <div className="text-xs text-muted-foreground flex items-center gap-2">
-                        <Clock className="w-3 h-3" />
+                        <Clock className="size-3" />
                         {entry.queuePosition ? getQueuePositionLabel({ position: entry.queuePosition }) : "Medicine handover pending"}
                       </div>
                     </div>
@@ -807,7 +807,7 @@ export default function ReceptionistDashboard() {
                         {entry.paymentStatus !== "PAID" && entry.pendingAmount > 0 && (
                           <Button size="sm" variant="ghost" asChild className="h-8 gap-1 text-slate-600 dark:text-slate-300">
                             <Link href="/billing?tab=invoices" prefetch={false}>
-                              <Receipt className="w-3.5 h-3.5" />
+                              <Receipt className="size-3.5" />
                               Billing
                             </Link>
                           </Button>
@@ -819,7 +819,7 @@ export default function ReceptionistDashboard() {
                             onClick={() => handleDispense(entry.id)}
                             disabled={dispenseMutation.isPending}
                           >
-                            <CheckCircle className="w-3.5 h-3.5" />
+                            <CheckCircle className="size-3.5" />
                             Handover
                           </Button>
                         )}
@@ -832,7 +832,7 @@ export default function ReceptionistDashboard() {
               <Empty className="gap-1.5 p-3 md:p-4">
                 <EmptyContent className="gap-1.5">
                   <EmptyMedia className="mb-0">
-                    <Pill className="h-4 w-4" />
+                    <Pill className="size-4" />
                   </EmptyMedia>
                   <EmptyTitle className="text-sm font-semibold leading-tight">
                     No active medicine desk handovers right now.
@@ -850,11 +850,11 @@ export default function ReceptionistDashboard() {
           <Card className="overflow-hidden border-l-4 border-l-slate-400 shadow-sm">
             <CardHeader className="border-b border-border bg-muted/40 px-4 py-2.5">
               <CardTitle className="flex items-center gap-2 text-sm">
-                <CheckCircle className="w-4 h-4 text-emerald-600" />
+                <CheckCircle className="size-4 text-emerald-600" />
                 Reception Intake
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-3 space-y-2">
+            <CardContent className="p-3 gap-y-2">
               <p className="text-xs text-muted-foreground">
                 Confirm arrivals for the doctor queue.
               </p>
@@ -867,18 +867,18 @@ export default function ReceptionistDashboard() {
           <Card className="overflow-hidden border-l-4 border-l-blue-400 shadow-sm">
             <CardHeader className="border-b border-border bg-muted/40 px-4 py-2.5">
               <CardTitle className="flex items-center gap-2 text-sm">
-                <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-300" />
+                <Calendar className="size-4 text-blue-600 dark:text-blue-300" />
                 Schedule Patients
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-3 space-y-2">
+            <CardContent className="p-3 gap-y-2">
               <p className="text-xs text-muted-foreground">
                 Book walk-ins or assisted front-desk appointments.
               </p>
               <BookAppointmentDialog
                 trigger={
                   <Button size="sm" className="w-full bg-blue-600 text-white hover:bg-blue-700">
-                    <Plus className="w-4 h-4 mr-2" />
+                    <Plus className="size-4 mr-2" />
                     Create Appointment
                   </Button>
                 }
@@ -890,11 +890,11 @@ export default function ReceptionistDashboard() {
           <Card className="overflow-hidden border-l-4 border-l-emerald-400 shadow-sm">
             <CardHeader className="border-b border-border bg-muted/40 px-4 py-2.5">
               <CardTitle className="flex items-center gap-2 text-sm">
-                <Clock className="w-4 h-4 text-emerald-600" />
+                <Clock className="size-4 text-emerald-600" />
                 Queue View
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-3 space-y-2">
+            <CardContent className="p-3 gap-y-2">
               <p className="text-xs text-muted-foreground">
                 Review backlog, queue, and live consultation state.
               </p>
@@ -908,3 +908,5 @@ export default function ReceptionistDashboard() {
     </DashboardPageShell>
   );
 }
+
+

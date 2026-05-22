@@ -40,7 +40,7 @@ const MobileHeader: React.FC<MobileHeaderProps> = ({
       className
     )}>
       <div className="flex items-center justify-between p-4">
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center gap-x-3">
           {leftAction}
           <div className="min-w-0 flex-1">
             <h1 className="text-lg font-semibold truncate">{title}</h1>
@@ -50,7 +50,7 @@ const MobileHeader: React.FC<MobileHeaderProps> = ({
           </div>
         </div>
         {rightAction && (
-          <div className="flex items-center space-x-2 flex-shrink-0">
+          <div className="flex items-center gap-x-2 flex-shrink-0">
             {rightAction}
           </div>
         )}
@@ -141,14 +141,14 @@ function MobileCardStack<T>({
     const deltaX = touchStartX.current - touchEndX.current;
     const minSwipeDistance = 50;
 
-    if (Math.abs(deltaX) > minSwipeDistance) {
+      if (Math.abs(deltaX) > minSwipeDistance) {
       if (deltaX > 0) {
         // Swiped left
         if (onSwipeLeft && items[currentIndex]) {
           onSwipeLeft(items[currentIndex], currentIndex);
         }
         if (currentIndex < items.length - 1) {
-          setCurrentIndex(currentIndex + 1);
+          setCurrentIndex((prev) => Math.min(items.length - 1, prev + 1));
         }
       } else {
         // Swiped right
@@ -156,7 +156,7 @@ function MobileCardStack<T>({
           onSwipeRight(items[currentIndex], currentIndex);
         }
         if (currentIndex > 0) {
-          setCurrentIndex(currentIndex - 1);
+          setCurrentIndex((prev) => Math.max(0, prev - 1));
         }
       }
     }
@@ -171,17 +171,17 @@ function MobileCardStack<T>({
   }
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("gap-y-4", className)}>
       {/* Navigation dots */}
-      <div className="flex justify-center space-x-2">
+      <div className="flex justify-center gap-x-2">
         {items.map((_, index) => (
           <button
             key={index}
             aria-label={`Go to slide ${index + 1}`}
             title={`Go to slide ${index + 1}`}
-            onClick={() => setCurrentIndex(index)}
+            onClick={() => setCurrentIndex(() => index)}
             className={cn(
-              "w-2 h-2 rounded-full transition-colors",
+              "size-2 rounded-full transition-colors",
               index === currentIndex ? "bg-primary" : "bg-muted"
             )}
           />
@@ -203,10 +203,10 @@ function MobileCardStack<T>({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
+          onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
           disabled={currentIndex === 0}
         >
-          <ChevronLeft className="h-4 w-4 mr-1" />
+          <ChevronLeft className="size-4 mr-1" />
           Previous
         </Button>
         <span className="text-sm text-muted-foreground self-center">
@@ -215,11 +215,11 @@ function MobileCardStack<T>({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setCurrentIndex(Math.min(items.length - 1, currentIndex + 1))}
+          onClick={() => setCurrentIndex((prev) => Math.min(items.length - 1, prev + 1))}
           disabled={currentIndex === items.length - 1}
         >
           Next
-          <ChevronRight className="h-4 w-4 ml-1" />
+          <ChevronRight className="size-4 ml-1" />
         </Button>
       </div>
     </div>
@@ -272,11 +272,11 @@ const MobilePatientCardComponent: React.FC<MobilePatientCardProps> = ({
 
   return (
     <Card className={cn("border-l-4", getPriorityColor(), className)}>
-      <CardContent className="p-4 space-y-4">
+      <CardContent className="p-4 gap-y-4">
         {/* Header */}
         <div className="flex items-start justify-between">
-          <div className="flex items-start space-x-3">
-            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+          <div className="flex items-start gap-x-3">
+            <div className="size-12 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
               {patient.avatar ? (
                 <Image 
                   src={patient.avatar} 
@@ -287,12 +287,12 @@ const MobilePatientCardComponent: React.FC<MobilePatientCardProps> = ({
                   loading="lazy"
                 />
               ) : (
-                <User className="h-6 w-6 text-primary" />
+                <User className="size-6 text-primary" />
               )}
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="font-semibold text-foreground truncate">{patient.name}</h3>
-              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-x-2 text-sm text-muted-foreground">
                 {patient.age && <span>Age {patient.age}</span>}
                 {patient.age && patient.condition && <span>•</span>}
                 {patient.condition && <span className="truncate">{patient.condition}</span>}
@@ -312,14 +312,14 @@ const MobilePatientCardComponent: React.FC<MobilePatientCardProps> = ({
         {/* Details */}
         <div className="grid grid-cols-2 gap-3 text-sm">
           {patient.time && (
-            <div className="flex items-center space-x-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
+            <div className="flex items-center gap-x-2">
+              <Clock className="size-4 text-muted-foreground" />
               <span>{patient.time}</span>
             </div>
           )}
           {patient.doctor && (
-            <div className="flex items-center space-x-2">
-              <User className="h-4 w-4 text-muted-foreground" />
+            <div className="flex items-center gap-x-2">
+              <User className="size-4 text-muted-foreground" />
               <span className="truncate">{patient.doctor}</span>
             </div>
           )}
@@ -327,7 +327,7 @@ const MobilePatientCardComponent: React.FC<MobilePatientCardProps> = ({
 
         {/* Actions */}
         <div className="flex items-center justify-between pt-2 border-t">
-          <div className="flex space-x-2">
+          <div className="flex gap-x-2">
             {patient.phone && (
               <Button 
                 size="sm" 
@@ -335,7 +335,7 @@ const MobilePatientCardComponent: React.FC<MobilePatientCardProps> = ({
                 className="flex-1"
                 onClick={() => onAction?.("call", patient.id)}
               >
-                <Phone className="h-4 w-4 mr-1" />
+                <Phone className="size-4 mr-1" />
                 Call
               </Button>
             )}
@@ -344,7 +344,7 @@ const MobilePatientCardComponent: React.FC<MobilePatientCardProps> = ({
               variant="outline"
               onClick={() => onAction?.("message", patient.id)}
             >
-              <MessageSquare className="h-4 w-4 mr-1" />
+              <MessageSquare className="size-4 mr-1" />
               Message
             </Button>
             <Button 
@@ -352,7 +352,7 @@ const MobilePatientCardComponent: React.FC<MobilePatientCardProps> = ({
               variant="outline"
               onClick={() => onAction?.("video", patient.id)}
             >
-              <Video className="h-4 w-4 mr-1" />
+              <Video className="size-4 mr-1" />
               Video
             </Button>
           </div>
@@ -389,16 +389,16 @@ const MobileQuickActions: React.FC<MobileQuickActionsProps> = ({ actions, classN
     <div className={cn("fixed bottom-20 right-4 z-40", className)}>
       {/* Action items */}
       {isOpen && (
-        <div className="space-y-2 mb-2">
+        <div className="gap-y-2 mb-2">
           {actions.slice(0, -1).map((action, index) => (
-            <div key={index} className="flex items-center justify-end space-x-2">
+            <div key={index} className="flex items-center justify-end gap-x-2">
               <div className="bg-background/90 backdrop-blur rounded-lg px-3 py-1 border shadow-lg">
                 <span className="text-sm font-medium whitespace-nowrap">{action.label}</span>
               </div>
               <Button
                 size="sm"
                 variant="secondary"
-                className="w-12 h-12 rounded-full shadow-lg"
+                className="size-12 rounded-full shadow-lg"
                 onClick={() => {
                   action.onClick();
                   setIsOpen(false);
@@ -414,7 +414,7 @@ const MobileQuickActions: React.FC<MobileQuickActionsProps> = ({ actions, classN
       {/* Main FAB */}
       <Button
         size="lg"
-        className="w-14 h-14 rounded-full shadow-lg"
+        className="size-14 rounded-full shadow-lg"
         onClick={() => {
           if (actions.length === 1) {
             actions[0]?.onClick();
@@ -426,9 +426,9 @@ const MobileQuickActions: React.FC<MobileQuickActionsProps> = ({ actions, classN
         {actions.length === 1 ? (
           actions[0]?.icon
         ) : isOpen ? (
-          <X className="h-6 w-6" />
+          <X className="size-6" />
         ) : (
-          actions[actions.length - 1]?.icon || <Menu className="h-6 w-6" />
+          actions[actions.length - 1]?.icon || <Menu className="size-6" />
         )}
       </Button>
     </div>
@@ -490,22 +490,25 @@ const MobileStatsGrid: React.FC<MobileStatsGridProps> = ({ stats, className }) =
 
 // Responsive Breakpoint Hook
 const useBreakpoint = () => {
-  const [breakpoint, setBreakpoint] = React.useState<"sm" | "md" | "lg" | "xl" | "2xl">("lg");
-
-  React.useEffect(() => {
-    const updateBreakpoint = () => {
-      const width = window.innerWidth;
-      if (width < 640) setBreakpoint("sm");
-      else if (width < 768) setBreakpoint("md");
-      else if (width < 1024) setBreakpoint("lg");
-      else if (width < 1280) setBreakpoint("xl");
-      else setBreakpoint("2xl");
-    };
-
-    updateBreakpoint();
-    window.addEventListener("resize", updateBreakpoint);
-    return () => window.removeEventListener("resize", updateBreakpoint);
+  const subscribe = React.useCallback((callback: () => void) => {
+    window.addEventListener("resize", callback);
+    return () => window.removeEventListener("resize", callback);
   }, []);
+
+  const getBreakpoint = React.useCallback(() => {
+    const width = window.innerWidth;
+    if (width < 640) return "sm";
+    if (width < 768) return "md";
+    if (width < 1024) return "lg";
+    if (width < 1280) return "xl";
+    return "2xl";
+  }, []);
+
+  const breakpoint = React.useSyncExternalStore(
+    subscribe,
+    getBreakpoint,
+    () => "lg"
+  );
 
   return {
     breakpoint,
@@ -534,3 +537,4 @@ export type {
   MobileQuickActionsProps,
   MobileStatsGridProps,
 };
+

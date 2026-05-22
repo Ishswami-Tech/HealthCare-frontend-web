@@ -37,15 +37,15 @@ function StatusServiceRow({ service }: { service: ServiceStatus }) {
         {/* Icon & Name */}
         <div className="flex items-center gap-4">
           <div className={cn(
-            "relative flex h-10 w-10 items-center justify-center rounded-lg border transition-colors shadow-sm",
+            "relative flex size-10 items-center justify-center rounded-lg border transition-colors shadow-sm",
             "bg-muted/50 dark:bg-slate-900/80 border-border dark:border-slate-800",
             isHealthy && "text-emerald-500 dark:text-emerald-500",
             isWarning && "text-amber-500 dark:text-amber-500",
             isError && "text-red-500 dark:text-red-500",
             isLoading && "text-blue-500 dark:text-blue-500"
           )}>
-            <service.icon className="h-5 w-5" />
-            {isHealthy && <div className="absolute top-1 right-1 h-1 w-1 rounded-full bg-emerald-500 shadow-[0_0_8px_2px_rgba(16,185,129,0.4)]" />}
+            <service.icon className="size-5" />
+            {isHealthy && <div className="absolute top-1 right-1 size-1 rounded-full bg-emerald-500 shadow-[0_0_8px_2px_rgba(16,185,129,0.4)]" />}
           </div>
           <div>
             <h3 className="font-semibold text-sm sm:text-base text-foreground dark:text-slate-100">{service.name}</h3>
@@ -103,10 +103,10 @@ function StatusPill({ status }: { status: string }) {
         isError && "border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400 dark:bg-red-500/5",
         isLoading && "border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400 dark:bg-blue-500/5"
      )}>
-        {isLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-        {isHealthy && <CheckCircle2 className="h-3.5 w-3.5" />}
-        {isWarning && <AlertTriangle className="h-3.5 w-3.5" />}
-        {isError && <XCircle className="h-3.5 w-3.5" />}
+        {isLoading && <Loader2 className="size-3.5 animate-spin" />}
+        {isHealthy && <CheckCircle2 className="size-3.5" />}
+        {isWarning && <AlertTriangle className="size-3.5" />}
+        {isError && <XCircle className="size-3.5" />}
 
         <span className="uppercase">
           {isLoading ? "SYNCING" : isHealthy ? "OPERATIONAL" : isWarning ? "DEGRADED" : "OFFLINE"}
@@ -142,7 +142,7 @@ export default function StatusPage() {
   const { data: healthStatus, refetch, isFetching, lastUpdate } = useDetailedHealthStatus();
 
   // Track app uptime in the browser so refreshes do not reset the timer.
-  const [appUptime, setAppUptime] = useState(0);
+  const [appUptime, setAppUptime] = useState(() => 0);
 
   useEffect(() => {
     const storageKey = "status-page-app-started-at";
@@ -156,8 +156,6 @@ export default function StatusPage() {
     const interval = setInterval(() => {
       setAppUptime(Math.floor((Date.now() - startedAt) / 1000));
     }, 1000);
-
-    setAppUptime(Math.floor((Date.now() - startedAt) / 1000));
 
     return () => clearInterval(interval);
   }, []);
@@ -263,8 +261,8 @@ export default function StatusPage() {
       {/* Main Content (Header removed to avoid double-header issue) */}
       <div className="container mx-auto max-w-4xl px-6 py-6 relative z-10">
           <div className="flex justify-between items-center mb-8">
-              <h1 className="text-2xl font-bold flex items-center gap-2">
-                  <Activity className="h-6 w-6 text-primary" />
+              <h1 className="text-2xl font-semibold flex items-center gap-2">
+                  <Activity className="size-6 text-primary" />
                   System Status
               </h1>
               <Button
@@ -276,7 +274,7 @@ export default function StatusPage() {
                 disabled={isFetching}
                 className="gap-2"
               >
-                 <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
+                 <RefreshCw className={cn("size-4", isFetching && "animate-spin")} />
                  Refresh
               </Button>
           </div>
@@ -301,7 +299,7 @@ export default function StatusPage() {
                     </span>
                 </div>
                 <div className="mt-8 flex items-center gap-3 text-sm text-muted-foreground dark:text-slate-400">
-                   <Activity className="h-4 w-4" />
+                   <Activity className="size-4" />
                    <span>Monitoring {services.length} core services, infrastructure, build and deployment</span>
                 </div>
             </div>
@@ -310,7 +308,7 @@ export default function StatusPage() {
                  {/* Backend Server Uptime */}
                  <div className="text-center">
                     <div className="flex items-center justify-center gap-2 mb-1">
-                        <Server className="h-3 w-3 text-muted-foreground" />
+                        <Server className="size-3 text-muted-foreground" />
                         <h2 className="text-xs font-semibold text-muted-foreground dark:text-slate-500 uppercase tracking-widest">Backend Server</h2>
                     </div>
                     <div className="text-2xl font-bold font-mono text-foreground dark:text-slate-200">
@@ -323,7 +321,7 @@ export default function StatusPage() {
                  {/* Frontend App Uptime */}
                  <div className="text-center">
                     <div className="flex items-center justify-center gap-2 mb-1">
-                        <Clock className="h-3 w-3 text-muted-foreground" />
+                        <Clock className="size-3 text-muted-foreground" />
                         <h2 className="text-xs font-semibold text-muted-foreground dark:text-slate-500 uppercase tracking-widest">App Uptime</h2>
                     </div>
                     <div className="text-xl font-bold font-mono text-foreground dark:text-slate-300">
@@ -334,7 +332,7 @@ export default function StatusPage() {
         </div>
 
         {/* Services List */}
-        <div className="space-y-4">
+        <div className="gap-y-4">
            {services.map((service) => (
               <StatusServiceRow key={service.name} service={service} />
            ))}
@@ -344,4 +342,6 @@ export default function StatusPage() {
     </div>
   );
 }
+
+
 

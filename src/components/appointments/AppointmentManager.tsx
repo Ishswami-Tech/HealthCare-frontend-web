@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
@@ -117,6 +117,240 @@ function getPaginationWindow(currentPage: number, totalPages: number): Array<num
   }, []);
 }
 
+function formatAppointmentManagerDate(date: string): string {
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return "Date TBD";
+  return formatDateInIST(parsed, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+interface StatCardProps {
+  label: string;
+  value: number;
+  icon: React.ReactNode;
+  iconBg: string;
+  iconBorder: string;
+  iconColor: string;
+  cardBorder: string;
+  cardHover: string;
+  className?: string;
+}
+
+function StatCard({
+  label,
+  value,
+  icon,
+  iconBg,
+  iconBorder,
+  iconColor,
+  cardBorder,
+  cardHover,
+  className,
+}: StatCardProps) {
+  return (
+    <div className={`flex items-center gap-3 rounded-2xl border ${cardBorder} bg-card p-3 transition-all ${cardHover} hover:shadow-sm sm:p-4 ${className || ""}`}>
+      <div className={`rounded-xl ${iconBg} border p-2 ${iconBorder} ${iconColor}`}>{icon}</div>
+      <div>
+        <p className="text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">{value}</p>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
+      </div>
+    </div>
+  );
+}
+
+interface AppointmentCardProps {
+  apt: AppointmentWithRelations;
+  expandedCard: string | null;
+  checkInRoute: string;
+  cancellingAppointment: boolean;
+  onCancelAppointment: (id: string) => void;
+  handleJoinVideo: (appointment: any) => void;
+  onExpand: (id: string | null) => void;
+  onSelect: (apt: AppointmentWithRelations | null) => void;
+  onReschedule: (apt: AppointmentWithRelations) => void;
+}
+
+function AppointmentCard({
+  apt,
+  expandedCard,
+  checkInRoute,
+  cancellingAppointment,
+  onCancelAppointment,
+  handleJoinVideo,
+  onExpand,
+  onSelect,
+  onReschedule,
+}: AppointmentCardProps) {
+  const viewState = getAppointmentViewState(apt);
+  const effectiveStatus = viewState.normalizedStatus;
+  const cfg = (STATUS_CONFIG[effectiveStatus] ?? STATUS_CONFIG["SCHEDULED"]) as { label: string; color: string; dot: string; bg: string };
+  const statusLabel = viewState.displayStatusLabel;
+  const isExpanded = expandedCard === apt.id;
+  const appointmentDateTime = getAppointmentDateTimeValue(apt);
+  const normalizedAppointment = normalizePatientAppointment(apt);
+  const doctorName = (apt as any).doctorLabel || normalizedAppointment.doctorName;
+  const locationName = (apt as any).locationLabel || normalizedAppointment.locationName;
+  const appointmentTypeLabel =
+    apt.type === "VIDEO_CALL"
+      ? "Video Consultation"
+      : apt.type === "IN_PERSON"
+        ? "In-Person Visit"
+        : String(apt.type || "Appointment").replace(/_/g, " ");
+  const displayTimeLabel = getReceptionistAppointmentTimeLabel(
+    apt as unknown as Record<string, unknown>
+  );
+  const rawTimeValue = apt.time || "";
+  const normalizedDate = appointmentDateTime?.toISOString() || apt.date;
+  const displayDuration = getDisplayAppointmentDuration(apt);
+
+  const isCancelled = effectiveStatus === "CANCELLED" || effectiveStatus === "NO_SHOW";
+  const isConfirmed = effectiveStatus === "CONFIRMED";
+  return (
+    <div className={`overflow-hidden rounded-2xl border transition-all duration-200 hover:shadow-md ${
+      isCancelled
+        ? "bg-red-50 border-red-200 dark:bg-red-950/25 dark:border-red-900/50 hover:border-red-300"
+        : isConfirmed
+          ? "bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900/60 hover:border-emerald-300"
+        : `bg-card border-border hover:border-emerald-200 ${isExpanded ? "shadow-md border-emerald-300" : ""}`
+    }`}>
+      {/* Card header */}
+      <div
+        className="cursor-pointer p-3 sm:p-4"
+        onClick={() => {
+          onExpand(isExpanded ? null : apt.id);
+          onSelect(isExpanded ? null : apt);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onExpand(isExpanded ? null : apt.id);
+            onSelect(isExpanded ? null : apt);
+          }
+        }}
+        role="button"
+        tabIndex={0}
+      >
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Avatar */}
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-100 text-sm font-bold text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/40 dark:text-emerald-300 sm:h-10 sm:w-10">
+              {doctorName.charAt(0)}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold leading-tight">{doctorName}</p>
+              <p className="truncate text-xs leading-tight opacity-60">{apt.location?.name || "â€”"}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 shrink-0 self-start sm:self-auto">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-1 text-[11px] font-semibold shadow-sm">
+              {apt.type === "VIDEO_CALL" ? <Video className="size-3.5" /> : <Stethoscope className="size-3.5" />}
+              {apt.type === "VIDEO_CALL"
+                ? "Video"
+                : apt.type === "IN_PERSON"
+                  ? "In-Person"
+                  : apt.type.replace(/_/g, " ")}
+            </span>
+            {/* Status badge */}
+            <span className={`inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-1 text-[11px] font-semibold shadow-sm ${cfg.color}`}>
+              <span className={`size-1.5 rounded-full ${cfg.dot}`} />
+              {statusLabel}
+            </span>
+            <ChevronDown className={`size-4 opacity-40 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+          </div>
+        </div>
+
+        {/* Date/time row */}
+        <div className="mt-2.5 flex flex-wrap items-center gap-2.5 text-[11px] opacity-70">
+          <span className="flex items-center gap-1.5">
+            <Calendar className="size-3.5" />
+            {formatAppointmentManagerDate(normalizedDate)}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Clock className="size-3.5" />
+            {displayTimeLabel}
+          </span>
+          {displayDuration && (
+            <span className="flex items-center gap-1.5">
+              <Timer className="size-3.5" />
+              {displayDuration} min
+            </span>
+          )}
+        </div>
+
+        {/* Appointment type and location */}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium">
+            {appointmentTypeLabel}
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium">
+            <span className="size-1.5 rounded-full bg-emerald-500" />
+            {locationName || "Location pending"}
+          </span>
+        </div>
+      </div>
+
+      {/* Expanded details */}
+      {isExpanded && (
+        <div className="border-t border-border/60 bg-muted/30 p-3 sm:p-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Status</p>
+                <p className="text-sm font-medium">{statusLabel}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Check-in Route</p>
+                <p className="text-sm font-medium">{checkInRoute}</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Time Slot</p>
+                <p className="text-sm font-medium">{rawTimeValue || "Not set"}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Actions</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onReschedule(apt)}
+                    disabled={cancellingAppointment}
+                  >
+                    Reschedule
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onCancelAppointment(apt.id)}
+                    disabled={cancellingAppointment}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => handleJoinVideo(apt)}
+                  >
+                    Join Video
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface AppointmentManagerProps {
   filterType?: "VIDEO_CALL" | "IN_PERSON";
   defaultConsultationMode?: "VIDEO" | "IN_PERSON";
@@ -175,7 +409,7 @@ export default function AppointmentManager({
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 5;
 
-  // ─── Data Fetching ────────────────────────────────────────────────────────
+  // â”€â”€â”€ Data Fetching â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   
   // Choose hook based on view role
   // Sanitize filters to avoid undefined properties breaking exactOptionalPropertyTypes
@@ -232,7 +466,7 @@ export default function AppointmentManager({
 
   const allAppointments = fetchedAppointments;
   const patientScopedAppointments = useMemo(() => {
-    // Admin views already fetch filtered by clinic/patient — don't re-filter.
+    // Admin views already fetch filtered by clinic/patient â€” don't re-filter.
     if (isAdminView) return allAppointments;
 
     // Patient view uses /appointments/my-appointments (already server scoped).
@@ -241,6 +475,11 @@ export default function AppointmentManager({
   }, [allAppointments, isAdminView]);
 
   const handleRefreshAppointments = useCallback(async () => {
+    if (onRefreshAppointments) {
+      void onRefreshAppointments();
+      return;
+    }
+
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["appointments"], exact: false }),
       queryClient.invalidateQueries({ queryKey: ["appointment"], exact: false }),
@@ -248,11 +487,6 @@ export default function AppointmentManager({
       queryClient.invalidateQueries({ queryKey: ["userUpcomingAppointments"], exact: false }),
       queryClient.invalidateQueries({ queryKey: ["appointmentStats"], exact: false }),
     ]);
-
-    if (onRefreshAppointments) {
-      await onRefreshAppointments();
-      return;
-    }
 
     await refetch();
   }, [onRefreshAppointments, queryClient, refetch]);
@@ -330,14 +564,6 @@ export default function AppointmentManager({
 
   const totalPages = Math.max(1, Math.ceil(filteredAppointments.length / ITEMS_PER_PAGE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
-
-  useEffect(() => {
-    setCurrentPage((previousPage) => Math.min(previousPage, totalPages));
-  }, [totalPages]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [statusFilter, searchQuery, dateFilter.start, dateFilter.end, filterType, isAdminView]);
 
   // Stats
   const stats = useMemo(() => {
@@ -471,247 +697,9 @@ export default function AppointmentManager({
     }
   }, [isRealTimeEnabled, isConnected]);
 
-  const StatCard = ({
-    label,
-    value,
-    icon,
-    iconBg,
-    iconBorder,
-    iconColor,
-    cardBorder,
-    cardHover,
-    className,
-  }: {
-    label: string;
-    value: number;
-    icon: React.ReactNode;
-    color?: string;
-    iconBg: string;
-    iconBorder: string;
-    iconColor: string;
-    cardBorder: string;
-    cardHover: string;
-    className?: string;
-  }) => (
-    <div className={`flex items-center gap-3 rounded-2xl border ${cardBorder} bg-card p-3 transition-all ${cardHover} hover:shadow-sm sm:p-4 ${className || ""}`}>
-      <div className={`rounded-xl ${iconBg} border p-2 ${iconBorder} ${iconColor}`}>{icon}</div>
-      <div>
-        <p className="text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">{value}</p>
-        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
-      </div>
-    </div>
-  );
-
-  const AppointmentCard = ({ apt }: { apt: AppointmentWithRelations }) => {
-    const viewState = getAppointmentViewState(apt);
-    const effectiveStatus = viewState.normalizedStatus;
-    const cfg = (STATUS_CONFIG[effectiveStatus] ?? STATUS_CONFIG["SCHEDULED"]) as { label: string; color: string; dot: string; bg: string };
-    const statusLabel = viewState.displayStatusLabel;
-    const isExpanded = expandedCard === apt.id;
-    const appointmentDateTime = getAppointmentDateTimeValue(apt);
-    const normalizedAppointment = normalizePatientAppointment(apt);
-    const doctorName = (apt as any).doctorLabel || normalizedAppointment.doctorName;
-    const locationName = (apt as any).locationLabel || normalizedAppointment.locationName;
-    const appointmentTypeLabel =
-      apt.type === "VIDEO_CALL"
-        ? "Video Consultation"
-        : apt.type === "IN_PERSON"
-          ? "In-Person Visit"
-          : String(apt.type || "Appointment").replace(/_/g, " ");
-    const displayTimeLabel = getReceptionistAppointmentTimeLabel(
-      apt as unknown as Record<string, unknown>
-    );
-    const rawTimeValue = apt.time || "";
-    const normalizedDate = appointmentDateTime?.toISOString() || apt.date;
-    const displayDuration = getDisplayAppointmentDuration(apt);
-
-    const isCancelled = effectiveStatus === "CANCELLED" || effectiveStatus === "NO_SHOW";
-    const isConfirmed = effectiveStatus === "CONFIRMED";
-    return (
-      <div className={`overflow-hidden rounded-2xl border transition-all duration-200 hover:shadow-md ${
-        isCancelled
-          ? "bg-red-50 border-red-200 dark:bg-red-950/25 dark:border-red-900/50 hover:border-red-300"
-          : isConfirmed
-            ? "bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900/60 hover:border-emerald-300"
-          : `bg-card border-border hover:border-emerald-200 ${isExpanded ? "shadow-md border-emerald-300" : ""}`
-      }`}>
-        {/* Card header */}
-        <div
-          className="cursor-pointer p-3 sm:p-4"
-          onClick={() => {
-            setExpandedCard(isExpanded ? null : apt.id);
-            setSelectedAppointment(isExpanded ? null : apt as AppointmentWithRelations);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              setExpandedCard(isExpanded ? null : apt.id);
-              setSelectedAppointment(isExpanded ? null : apt as AppointmentWithRelations);
-            }
-          }}
-          role="button"
-          tabIndex={0}
-        >
-          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex items-center gap-3 min-w-0">
-              {/* Avatar */}
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-100 text-sm font-bold text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/40 dark:text-emerald-300 sm:h-10 sm:w-10">
-                {doctorName.charAt(0)}
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold leading-tight">{doctorName}</p>
-                <p className="truncate text-xs leading-tight opacity-60">{apt.location?.name || "—"}</p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 shrink-0 self-start sm:self-auto">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-1 text-[11px] font-semibold shadow-sm">
-                {apt.type === "VIDEO_CALL" ? <Video className="w-3.5 h-3.5" /> : <Stethoscope className="w-3.5 h-3.5" />}
-                {apt.type === "VIDEO_CALL"
-                  ? "Video"
-                  : apt.type === "IN_PERSON"
-                    ? "In-Person"
-                    : apt.type.replace(/_/g, " ")}
-              </span>
-              {/* Status badge */}
-              <span className={`inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-1 text-[11px] font-semibold shadow-sm ${cfg.color}`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-                {statusLabel}
-              </span>
-              <ChevronDown className={`w-4 h-4 opacity-40 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
-            </div>
-          </div>
-
-          {/* Date/time row */}
-          <div className="mt-2.5 flex flex-wrap items-center gap-2.5 text-[11px] opacity-70">
-            <span className="flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5" />
-              {formatDate(normalizedDate)}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5" />
-              {displayTimeLabel}
-            </span>
-            {displayDuration && (
-              <span className="flex items-center gap-1.5">
-                <Timer className="w-3.5 h-3.5" />
-                {displayDuration} min
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Expanded body */}
-        {isExpanded && (
-          <div className="mt-0 border-t border-border/60 px-3 pb-3 pt-0 sm:px-4 sm:pb-4">
-            <div className="space-y-3 pt-2.5">
-              {/* Details grid */}
-              <div className="grid grid-cols-2 gap-2.5 text-xs">
-                {(apt as any).chiefComplaint && (
-                  <div className="col-span-2 rounded-lg bg-background/70 p-2 ring-1 ring-border/40">
-                    <p className="font-semibold mb-0.5 opacity-60">Chief Complaint</p>
-                    <p className="font-medium">{(apt as any).chiefComplaint}</p>
-                  </div>
-                )}
-                {(apt as any).urgency && (
-                  <div className="rounded-lg bg-background/70 p-2 ring-1 ring-border/40">
-                    <p className="font-semibold mb-0.5 opacity-60">Urgency</p>
-                    <p className="font-medium capitalize">{(apt as any).urgency.toLowerCase()}</p>
-                  </div>
-                )}
-                {apt.type && (
-                  <div className="rounded-lg bg-background/70 p-2 ring-1 ring-border/40">
-                    <p className="font-semibold mb-0.5 opacity-60">Type</p>
-                    <p className="font-medium">
-                      {apt.type === "VIDEO_CALL"
-                        ? "Video Consultation"
-                        : apt.type === "IN_PERSON"
-                          ? "In-Person Visit"
-                          : apt.type.replace(/_/g, " ")}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Actions — unified to avoid duplicate buttons */}
-              <div className="mt-3 flex flex-wrap gap-2.5">
-                {effectiveStatus === "SCHEDULED" && (
-                  <Button
-                    variant="outline"
-                    className="h-9 flex-1 rounded-lg border-border/50 bg-background/50 px-4 text-sm transition-all active:scale-95 hover:bg-accent/50 sm:flex-none"
-                    onClick={() => {
-                      setSelectedAppointment(apt as AppointmentWithRelations);
-                      setRescheduleData({
-                        date: normalizedDate ? formatISODateInIST(normalizedDate) : "",
-                        time: rawTimeValue || "",
-                      });
-                      setIsRescheduleDialogOpen(true);
-                    }}
-                  >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Reschedule
-                  </Button>
-                )}
-                {effectiveStatus === "SCHEDULED" && apt.type !== "VIDEO_CALL" && (
-                  <Button
-                    className="h-9 flex-1 rounded-lg bg-emerald-600 px-4 text-sm text-white shadow-sm transition-all active:scale-95 hover:bg-emerald-700"
-                    onClick={() => {
-                      window.location.href = checkInRoute;
-                    }}
-                  >
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Go To Check-In
-                  </Button>
-                )}
-                {effectiveStatus === "SCHEDULED" && (
-                  <Button
-                    variant="outline"
-                    className="h-9 flex-1 rounded-lg border-red-200/50 bg-red-50/30 px-4 text-sm text-red-600 transition-all active:scale-95 hover:bg-red-100/50 hover:text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-400 sm:flex-none"
-                    onClick={() => handleCancelAppointment(getEffectiveAppointmentId(apt))}
-                    disabled={cancellingAppointment}
-                  >
-                    <XCircle className="w-4 h-4 mr-2" />
-                    Cancel
-                  </Button>
-                )}
-                {apt.type === "VIDEO_CALL" &&
-                  isVideoAppointmentJoinable(apt) && (
-                  <Button
-                    className="h-9 flex-1 rounded-lg bg-primary px-4 text-sm text-white shadow-sm transition-all active:scale-95 hover:bg-primary/90"
-                    onClick={() => void handleJoinVideo(apt)}
-                  >
-                    <Video className="w-4 h-4 mr-2" />
-                    Join Video
-                  </Button>
-                )}
-                {apt.type === "VIDEO_CALL" &&
-                  !isTerminalAppointment(apt) &&
-                  !isVideoAppointmentPaymentCompleted(apt) && (
-                  <PaymentButton
-                    appointmentId={getEffectiveAppointmentId(apt)}
-                    amount={apt.invoice?.amount || 500}
-                    appointmentType="VIDEO_CALL"
-                    className="h-9 flex-1 rounded-lg bg-blue-600 px-4 text-sm text-white shadow-sm transition-all active:scale-95 hover:bg-blue-700"
-                    onSuccess={() => {
-                      void refetch();
-                      setCurrentPage(1);
-                    }}
-                  >
-                    <CreditCard className="w-4 h-4 mr-2" />
-                    Complete Payment
-                  </PaymentButton>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
   if (isAppointmentsLoading) {
     return (
-      <div className="space-y-4 p-6">
+      <div className="gap-y-4 p-6">
         <div className="h-8 w-64 bg-muted animate-pulse rounded-lg" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map(i => <div key={i} className="h-20 bg-muted animate-pulse rounded-2xl" />)}
@@ -726,16 +714,16 @@ export default function AppointmentManager({
       <CardHeader className="pb-1.5 sm:pb-2">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <CardTitle className="flex items-center gap-2 text-lg font-bold sm:text-xl">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 sm:h-8 sm:w-8">
-               <Calendar className="w-5 h-5 text-emerald-600" />
+            <div className="flex size-7 items-center justify-center rounded-lg bg-emerald-100 sm:h-8 sm:w-8">
+               <Calendar className="size-5 text-emerald-600" />
             </div>
             Current Appointments
           </CardTitle>
           <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-start sm:gap-3 lg:w-auto lg:justify-end">
             {isRealTimeEnabled && (
               <span className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${isConnected ? "border-green-200 bg-green-50 text-green-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? "bg-green-500 animate-pulse" : "bg-amber-500"}`} />
-                {isConnected ? "Live" : "Connecting..."}
+                <span className={`size-1.5 rounded-full ${isConnected ? "bg-green-500 animate-pulse" : "bg-amber-500"}`} />
+                {isConnected ? "Live" : "Connecting…"}
               </span>
             )}
 
@@ -749,7 +737,7 @@ export default function AppointmentManager({
                 <Button
                   className="h-9 w-full gap-2 rounded-xl border-0 bg-emerald-600 px-4 text-sm font-bold text-white shadow-md transition-all active:scale-95 hover:bg-emerald-700 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-emerald-500/30 sm:w-auto sm:px-5"
                 >
-                  <CalendarPlus className="h-4 w-4" />
+                  <CalendarPlus className="size-4" />
                   Book Appointment
                 </Button>
                 }
@@ -763,8 +751,8 @@ export default function AppointmentManager({
               disabled={appointmentsFetching}
               title="Refresh Appointments"
             >
-              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/60 dark:text-sky-200">
-                <RefreshCw className={`w-3.5 h-3.5 ${appointmentsFetching ? "animate-spin" : ""}`} />
+              <span className="inline-flex size-5 items-center justify-center rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/60 dark:text-sky-200">
+                <RefreshCw className={`size-3.5 ${appointmentsFetching ? "animate-spin" : ""}`} />
               </span>
               <span className="font-medium">Refresh</span>
             </Button>
@@ -772,14 +760,14 @@ export default function AppointmentManager({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4 sm:space-y-5">
+      <CardContent className="gap-y-4 sm:gap-y-5">
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4 lg:gap-4">
           <StatCard
             label="Total"
             value={stats.total}
-            icon={<Stethoscope className="w-5 h-5" />}
+            icon={<Stethoscope className="size-5" />}
             iconBg="bg-blue-50 dark:bg-blue-950/30"
             iconBorder="border-blue-100 dark:border-blue-900"
             iconColor="text-blue-600"
@@ -790,7 +778,7 @@ export default function AppointmentManager({
           <StatCard
             label="Upcoming"
             value={stats.upcoming}
-            icon={<Calendar className="w-5 h-5" />}
+            icon={<Calendar className="size-5" />}
             iconBg="bg-emerald-50 dark:bg-emerald-950/30"
             iconBorder="border-emerald-100 dark:border-emerald-900"
             iconColor="text-emerald-600"
@@ -801,7 +789,7 @@ export default function AppointmentManager({
           <StatCard
             label="In Progress"
             value={stats.inProgress}
-            icon={<Zap className="w-5 h-5" />}
+            icon={<Zap className="size-5" />}
             iconBg="bg-amber-50 dark:bg-amber-950/30"
             iconBorder="border-amber-100 dark:border-amber-900"
             iconColor="text-amber-600"
@@ -812,7 +800,7 @@ export default function AppointmentManager({
           <StatCard
             label="Completed"
             value={stats.completed}
-            icon={<CheckCircle className="w-5 h-5" />}
+            icon={<CheckCircle className="size-5" />}
             iconBg="bg-violet-50 dark:bg-violet-950/30"
             iconBorder="border-violet-100 dark:border-violet-900"
             iconColor="text-violet-600"
@@ -823,10 +811,10 @@ export default function AppointmentManager({
       </div>
 
       {/* Search and Filters (REPLICATING DASHBOARD EXACTLY) */}
-      <div className="mb-6 space-y-3.5 sm:mb-8 sm:space-y-4">
+      <div className="mb-6 gap-y-3.5 sm:mb-8 sm:gap-y-4">
         {/* 1. Search Bar */}
         <div className="relative w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -880,7 +868,7 @@ export default function AppointmentManager({
                   !dateFilter.start && "text-muted-foreground"
                 )}
               >
-                <Calendar className="mr-2 h-4 w-4 opacity-50" />
+                <Calendar className="mr-2 size-4 opacity-50" />
                 {formatDateValue(dateFilter.start, "From date")}
               </Button>
             </PopoverTrigger>
@@ -903,7 +891,7 @@ export default function AppointmentManager({
                   !dateFilter.end && "text-muted-foreground"
                 )}
               >
-                <Calendar className="mr-2 h-4 w-4 opacity-50" />
+                <Calendar className="mr-2 size-4 opacity-50" />
                 {formatDateValue(dateFilter.end, "To date")}
               </Button>
             </PopoverTrigger>
@@ -941,7 +929,7 @@ export default function AppointmentManager({
       {/* Appointments list */}
       {filteredAppointments.length === 0 ? (
         <div className="rounded-2xl border-2 border-dashed bg-muted/20 py-12 text-center">
-          <Calendar className="w-12 h-12 mx-auto mb-3 text-muted-foreground/40" />
+          <Calendar className="size-12 mx-auto mb-3 text-muted-foreground/40" />
           <p className="font-semibold text-muted-foreground">
             {allAppointments.length === 0 ? "No appointments yet" : "No appointments match your filters"}
           </p>
@@ -958,7 +946,7 @@ export default function AppointmentManager({
               {...(propPatientId ? { initialPatientId: propPatientId } : {})}
               trigger={
                 <Button className="mt-4 gap-2">
-                  <CalendarPlus className="w-4 h-4" />
+                  <CalendarPlus className="size-4" />
                   Book Appointment
                 </Button>
               }
@@ -966,7 +954,7 @@ export default function AppointmentManager({
           )}
         </div>
       ) : (
-        <div className="space-y-2.5 sm:space-y-3">
+        <div className="gap-y-2.5 sm:gap-y-3">
           <div className="flex items-center justify-between">
             <p className="text-xs font-medium text-muted-foreground">
               Showing {filteredAppointments.length === 0 ? 0 : (safeCurrentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(safeCurrentPage * ITEMS_PER_PAGE, filteredAppointments.length)} of {filteredAppointments.length}
@@ -975,7 +963,25 @@ export default function AppointmentManager({
           {filteredAppointments
             .slice((safeCurrentPage - 1) * ITEMS_PER_PAGE, safeCurrentPage * ITEMS_PER_PAGE)
             .map((apt) => (
-              <AppointmentCard key={apt.id} apt={apt} />
+              <AppointmentCard
+                key={apt.id}
+                apt={apt}
+                expandedCard={expandedCard}
+                checkInRoute={checkInRoute}
+                cancellingAppointment={cancellingAppointment}
+                onCancelAppointment={handleCancelAppointment}
+                handleJoinVideo={handleJoinVideo}
+                onExpand={setExpandedCard}
+                onSelect={setSelectedAppointment}
+                onReschedule={(apt) => {
+                  setSelectedAppointment(apt);
+                  setRescheduleData({
+                    date: formatISODateInIST(apt.date),
+                    time: apt.time || "",
+                  });
+                  setIsRescheduleDialogOpen(true);
+                }}
+              />
             ))}
           {filteredAppointments.length > ITEMS_PER_PAGE && (
             <div className="flex flex-wrap items-center justify-center gap-2 pt-3 sm:pt-4">
@@ -1000,7 +1006,7 @@ export default function AppointmentManager({
                     key={page}
                     onClick={() => setCurrentPage(page)}
                     className={cn(
-                      "h-8 w-8 rounded-lg text-sm font-semibold transition-all sm:h-9 sm:w-9",
+                      "size-8 rounded-lg text-sm font-semibold transition-all sm:h-9 sm:w-9",
                       page === safeCurrentPage
                         ? "bg-emerald-600 text-white shadow-sm"
                         : "border border-border/60 text-muted-foreground hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200"
@@ -1029,14 +1035,14 @@ export default function AppointmentManager({
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <RefreshCw className="w-5 h-5 text-primary" />
+              <RefreshCw className="size-5 text-primary" />
               Reschedule Appointment
             </DialogTitle>
             <DialogDescription>
               Choose a new date and time for your appointment.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="gap-y-4 py-2">
             <div>
               <label className="text-sm font-medium mb-1.5 block">New Date</label>
               <Popover>
@@ -1048,11 +1054,11 @@ export default function AppointmentManager({
                       !rescheduleData.date && "text-muted-foreground"
                     )}
                   >
-                    <Calendar className="mr-2 h-4 w-4" />
+                    <Calendar className="mr-2 size-4" />
                     {formatDateValue(rescheduleData.date, "Pick a new date")}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0" align="start" suppressHydrationWarning>
                   <CalendarPicker
                     mode="single"
                     selected={parseDateValue(rescheduleData.date)}
@@ -1136,3 +1142,6 @@ export default function AppointmentManager({
     </Card>
   );
 }
+
+
+

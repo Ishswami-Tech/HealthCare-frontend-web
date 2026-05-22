@@ -1,6 +1,7 @@
-'use server';
+﻿'use server';
 
-import { authenticatedApi, revalidateCache } from './auth.server';
+import { authenticatedApi, getServerSession } from './auth.server';
+import { revalidateCache } from '@/lib/utils/revalidate-cache';
 import { API_ENDPOINTS } from '@/lib/config/config';
 import { logger } from '@/lib/utils/logger';
 
@@ -18,6 +19,11 @@ export async function getQueue(filters?: {
   date?: string;
 }) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const query = new URLSearchParams();
     const canonicalTreatmentType = filters?.treatmentType || filters?.type;
     if (canonicalTreatmentType) query.set('treatmentType', canonicalTreatmentType);
@@ -41,6 +47,11 @@ export async function getQueue(filters?: {
  */
 export async function getQueueFilters() {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.FILTERS, {});
     return data;
   } catch (error) {
@@ -54,6 +65,11 @@ export async function getQueueFilters() {
  */
 export async function getQueueStats(locationId: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     if (!locationId) {
       logger.error('getQueueStats: locationId is required', new Error('Missing locationId'));
       return null;
@@ -71,6 +87,11 @@ export async function getQueueStats(locationId: string) {
  */
 export async function updateQueueStatus(patientId: string, status: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.UPDATE_STATUS(patientId), {
       method: 'PATCH',
       body: JSON.stringify({ status })
@@ -89,6 +110,11 @@ export async function updateQueueStatus(patientId: string, status: string) {
  */
 export async function callNextPatient(doctorId: string, appointmentId: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.CALL_NEXT, {
       method: 'POST',
       body: JSON.stringify({ doctorId, appointmentId })
@@ -111,6 +137,11 @@ export async function addToQueue(queueData: {
   queueType: string;
 }) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.ADD, {
       method: 'POST',
       body: JSON.stringify(queueData)
@@ -129,6 +160,11 @@ export async function addToQueue(queueData: {
  */
 export async function removeFromQueue(queueId: string, reason?: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.REMOVE(queueId), {
       method: 'DELETE',
       body: reason ? JSON.stringify({ reason }) : null
@@ -148,6 +184,11 @@ export async function removeFromQueue(queueId: string, reason?: string) {
  */
 export async function bulkCancelQueueEntries(queueIds: string[], reason: string = 'Cleaning up stale queue entries') {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     if (!queueIds || queueIds.length === 0) return { success: true, count: 0 };
     
     logger.info(`Bulk cancelling ${queueIds.length} queue entries`);
@@ -176,6 +217,11 @@ export async function bulkCancelQueueEntries(queueIds: string[], reason: string 
  */
 export async function reorderQueue(doctorId: string, date: string, newOrder: string[]) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.REORDER, {
       method: 'POST',
       body: JSON.stringify({ doctorId, date, newOrder })
@@ -194,6 +240,11 @@ export async function reorderQueue(doctorId: string, date: string, newOrder: str
  */
 export async function getQueueHistory(filters?: Record<string, any>) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const queryParams = new URLSearchParams(filters).toString();
     const endpoint = queryParams ? `${API_ENDPOINTS.QUEUE.HISTORY}?${queryParams}` : API_ENDPOINTS.QUEUE.HISTORY;
     const { data } = await authenticatedApi(endpoint, {});
@@ -209,6 +260,11 @@ export async function getQueueHistory(filters?: Record<string, any>) {
  */
 export async function getQueueAnalytics(period: 'day' | 'week' | 'month' | 'year' = 'day') {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const { data } = await authenticatedApi(`${API_ENDPOINTS.QUEUE.ANALYTICS}?period=${period}`, {});
     return data;
   } catch (error) {
@@ -222,6 +278,11 @@ export async function getQueueAnalytics(period: 'day' | 'week' | 'month' | 'year
  */
 export async function updateQueuePosition(queueId: string, newPosition: number) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.UPDATE_POSITION(queueId), {
       method: 'PATCH',
       body: JSON.stringify({ position: newPosition })
@@ -239,6 +300,11 @@ export async function updateQueuePosition(queueId: string, newPosition: number) 
  */
 export async function pauseQueue(doctorId: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.PAUSE, {
       method: 'POST',
       body: JSON.stringify({ doctorId })
@@ -257,6 +323,11 @@ export async function pauseQueue(doctorId: string) {
  */
 export async function resumeQueue(doctorId: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.RESUME, {
       method: 'POST',
       body: JSON.stringify({ doctorId })
@@ -275,6 +346,11 @@ export async function resumeQueue(doctorId: string) {
  */
 export async function getQueueConfig() {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.CONFIG, {});
     return data;
   } catch (error) {
@@ -288,6 +364,11 @@ export async function getQueueConfig() {
  */
 export async function updateQueueConfig(config: any) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.CONFIG, {
       method: 'PATCH',
       body: JSON.stringify(config)
@@ -304,6 +385,11 @@ export async function updateQueueConfig(config: any) {
  */
 export async function getQueueNotifications(userId?: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const endpoint = userId ? `${API_ENDPOINTS.QUEUE.NOTIFICATIONS.GET}?userId=${userId}` : API_ENDPOINTS.QUEUE.NOTIFICATIONS.GET;
     const { data } = await authenticatedApi(endpoint, {});
     return data;
@@ -318,6 +404,11 @@ export async function getQueueNotifications(userId?: string) {
  */
 export async function markQueueNotificationAsRead(notificationId: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.NOTIFICATIONS.MARK_READ(notificationId), {
       method: 'PATCH'
     });
@@ -333,6 +424,11 @@ export async function markQueueNotificationAsRead(notificationId: string) {
  */
 export async function sendQueueNotification(notificationData: any) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.NOTIFICATIONS.SEND, {
       method: 'POST',
       body: JSON.stringify(notificationData)
@@ -349,6 +445,11 @@ export async function sendQueueNotification(notificationData: any) {
  */
 export async function getQueueWaitTimes(queueType?: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const endpoint = queueType ? `${API_ENDPOINTS.QUEUE.WAIT_TIMES}?type=${queueType}` : API_ENDPOINTS.QUEUE.WAIT_TIMES;
     const { data } = await authenticatedApi(endpoint, {});
     return data;
@@ -363,6 +464,11 @@ export async function getQueueWaitTimes(queueType?: string) {
  */
 export async function estimateWaitTime(queueType: string, priority?: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.ESTIMATE_WAIT_TIME, {
       method: 'POST',
       body: JSON.stringify({ queueType, priority })
@@ -379,6 +485,11 @@ export async function estimateWaitTime(queueType: string, priority?: string) {
  */
 export async function getQueueCapacity(queueType: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const { data } = await authenticatedApi(`${API_ENDPOINTS.QUEUE.CAPACITY}?type=${queueType}`, {});
     return data;
   } catch (error) {
@@ -392,6 +503,11 @@ export async function getQueueCapacity(queueType: string) {
  */
 export async function updateQueueCapacity(queueType: string, capacity: number) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.CAPACITY, {
       method: 'PATCH',
       body: JSON.stringify({ queueType, capacity })
@@ -408,6 +524,11 @@ export async function updateQueueCapacity(queueType: string, capacity: number) {
  */
 export async function getQueuePerformanceMetrics(filters?: Record<string, any>) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const queryParams = new URLSearchParams(filters).toString();
     const endpoint = queryParams ? `${API_ENDPOINTS.QUEUE.PERFORMANCE}?${queryParams}` : API_ENDPOINTS.QUEUE.PERFORMANCE;
     const { data } = await authenticatedApi(endpoint, {});
@@ -428,6 +549,11 @@ export async function exportQueueData(filters: {
   queueType?: string;
 }) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.EXPORT, {
       method: 'POST',
       body: JSON.stringify(filters)
@@ -444,6 +570,11 @@ export async function exportQueueData(filters: {
  */
 export async function getQueueAlerts() {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.ALERTS.GET, {});
     return data;
   } catch (error) {
@@ -462,6 +593,11 @@ export async function createQueueAlert(alertData: {
   enabled: boolean;
 }) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.ALERTS.CREATE, {
       method: 'POST',
       body: JSON.stringify(alertData)
@@ -481,6 +617,11 @@ export async function updateQueueAlert(alertId: string, updates: {
   enabled?: boolean;
 }) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.ALERTS.UPDATE(alertId), {
       method: 'PATCH',
       body: JSON.stringify(updates)
@@ -497,6 +638,11 @@ export async function updateQueueAlert(alertId: string, updates: {
  */
 export async function deleteQueueAlert(alertId: string) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.ALERTS.DELETE(alertId), {
       method: 'DELETE'
     });
@@ -518,6 +664,11 @@ export async function transferQueueEntry(
   notes?: string
 ) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.TRANSFER(entryId), {
       method: 'PATCH',
       body: JSON.stringify({ targetQueue, treatmentType, notes }),

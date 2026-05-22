@@ -414,9 +414,9 @@ export default function ReceptionistAppointmentsPage() {
             disabled={activeDoctorId === row.original.doctorId || row.original.confirmed === 0}
           >
             {activeDoctorId === row.original.doctorId ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <Loader2 className="size-3.5 animate-spin" />
             ) : (
-              <Bell className="h-3.5 w-3.5" />
+              <Bell className="size-3.5" />
             )}
             Call Next
           </Button>
@@ -563,9 +563,9 @@ export default function ReceptionistAppointmentsPage() {
                 disabled={activeActionId === appointment.id}
               >
                 {activeActionId === appointment.id ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <Loader2 className="size-3 animate-spin" />
                 ) : (
-                  <UserCheck className="h-3 w-3 mr-1" />
+                  <UserCheck className="size-3 mr-1" />
                 )}
                 Confirm
               </Button>
@@ -573,14 +573,14 @@ export default function ReceptionistAppointmentsPage() {
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0">
-                  <MoreHorizontal className="h-4 w-4" />
+                <Button variant="ghost" className="size-8 p-0">
+                  <MoreHorizontal className="size-4" />
                 </Button>
               </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>Actions</DropdownMenuLabel>
                 <DropdownMenuItem onClick={() => setSelectedAppointment(appointment)}>
-                  <Eye className="mr-2 h-4 w-4" /> View Details
+                  <Eye className="mr-2 size-4" /> View Details
                 </DropdownMenuItem>
                 
                 {canReassign && (
@@ -593,7 +593,7 @@ export default function ReceptionistAppointmentsPage() {
                         disabled={doc.id === appointment.doctorId}
                         onClick={() => handleReassignDoctor(appointment.id, doc.id)}
                       >
-                        <UserMinus className="mr-2 h-4 w-4" /> {doc.name}
+                        <UserMinus className="mr-2 size-4" /> {doc.name}
                       </DropdownMenuItem>
                     ))}
                   </>
@@ -629,7 +629,7 @@ export default function ReceptionistAppointmentsPage() {
         actionsSlot={
           <Button asChild variant="outline">
             <Link href="/receptionist/check-in" prefetch={false}>
-              <QrCode className="w-4 h-4 mr-2" />
+              <QrCode className="size-4 mr-2" />
               QR Check-In
             </Link>
           </Button>
@@ -646,20 +646,20 @@ export default function ReceptionistAppointmentsPage() {
       </div>
 
 
-      <div className="space-y-6">
+      <div className="gap-y-6">
         <div>
           <Card>
-            <CardHeader className="border-b bg-muted/40 dark:bg-muted/20 px-4 py-3 space-y-3">
+            <CardHeader className="border-b bg-muted/40 dark:bg-muted/20 px-4 py-3 gap-y-3">
               {/* Row 1: Title + Live badge */}
               <div className="flex items-center justify-between gap-3">
                 <CardTitle className="text-base font-bold inline-flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center">
-                    <Calendar className="h-4 w-4 text-emerald-600" />
+                  <div className="size-7 rounded-lg bg-emerald-100 flex items-center justify-center">
+                    <Calendar className="size-4 text-emerald-600" />
                   </div>
                   Appointment Queue Workspace
                 </CardTitle>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground bg-background px-3 py-1.5 rounded-full border border-border shadow-sm shrink-0">
-                  <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <div className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   Live Sync Active
                 </div>
               </div>
@@ -668,7 +668,7 @@ export default function ReceptionistAppointmentsPage() {
               <div className="flex flex-wrap items-center gap-2">
                 {/* Search */}
                 <div className="relative w-52 shrink-0">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
                   <Input
                     placeholder="Search patient, doctor..."
                     className="pl-8 h-9 text-sm border-border bg-background focus:ring-emerald-500/20"
@@ -743,7 +743,7 @@ export default function ReceptionistAppointmentsPage() {
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="h-9 text-sm px-3 shrink-0 border-border bg-background gap-1.5 font-normal">
-                      <Calendar className="h-3.5 w-3.5 text-emerald-500" />
+                      <Calendar className="size-3.5 text-emerald-500" />
                       {selectedCalendarDate ? format(selectedCalendarDate, "dd MMM yyyy") : "All dates"}
                     </Button>
                   </PopoverTrigger>
@@ -785,8 +785,8 @@ export default function ReceptionistAppointmentsPage() {
           <CardHeader className="border-b border-border px-4 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-blue-600/10 flex items-center justify-center">
-                  <Stethoscope className="w-4 h-4 text-blue-600" />
+                <div className="size-8 rounded-xl bg-blue-600/10 flex items-center justify-center">
+                  <Stethoscope className="size-4 text-blue-600" />
                 </div>
                 <div>
                   <CardTitle className="text-base font-bold text-foreground">
@@ -805,7 +805,7 @@ export default function ReceptionistAppointmentsPage() {
           <CardContent className="p-4">
             {doctorBacklog.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-muted/30 py-10 text-muted-foreground">
-                <Stethoscope className="w-8 h-8 text-muted-foreground/50" />
+                <Stethoscope className="size-8 text-muted-foreground/50" />
                 <p className="text-sm font-medium">No active doctor queues at the moment</p>
               </div>
             ) : (
@@ -885,3 +885,5 @@ export default function ReceptionistAppointmentsPage() {
     </DashboardPageShell>
   );
 }
+
+

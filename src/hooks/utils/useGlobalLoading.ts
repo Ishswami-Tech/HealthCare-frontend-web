@@ -1,5 +1,5 @@
-/**
- * ✅ useGlobalLoading Hook
+﻿/**
+ * âœ… useGlobalLoading Hook
  * Enterprise-level global loading state management
  * Uses Zustand (useAppStore) as single source of truth
  * 
@@ -25,19 +25,19 @@ export interface UseGlobalLoadingReturn {
 }
 
 /**
- * ✅ useGlobalLoading - Global loading state hook
+ * âœ… useGlobalLoading - Global loading state hook
  * 
  * @example
  * ```tsx
  * const { isLoading, startLoading, stopLoading, withLoading } = useGlobalLoading();
  * 
  * // Manual control
- * startLoading("Saving...");
+ * startLoading("Saving…");
  * await saveData();
  * stopLoading();
  * 
  * // Or automatic
- * await withLoading(saveData, "Saving...");
+ * await withLoading(saveData, "Saving…");
  * ```
  */
 export function useGlobalLoading(): UseGlobalLoadingReturn {
@@ -46,7 +46,7 @@ export function useGlobalLoading(): UseGlobalLoadingReturn {
   const setLoading = useAppStore((s) => s.setLoading);
 
   const startLoading = useCallback(
-    (msg?: string) => setLoading(true, msg || "Loading..."),
+    (msg?: string) => setLoading(true, msg || "Loading…"),
     [setLoading]
   );
 
@@ -77,7 +77,8 @@ export function useGlobalLoading(): UseGlobalLoadingReturn {
 }
 
 /**
- * ✅ Selector for loading state (performance optimized)
+ * âœ… Selector for loading state (performance optimized)
  */
 export const useIsLoading = () => useAppStore((s) => s.isLoading);
 export const useLoadingMessage = () => useAppStore((s) => s.loadingMessage);
+

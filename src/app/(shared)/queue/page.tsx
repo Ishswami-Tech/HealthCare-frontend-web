@@ -127,6 +127,27 @@ type QueueDisplayItem = CanonicalQueueEntry & {
   waitTime?: string | number;
 };
 
+async function pollQueueSync(
+  refetchQueue: () => Promise<unknown>,
+  maxAttempts: number,
+  delayMs: number,
+  isSynced: (entries: QueueDisplayItem[]) => boolean
+): Promise<boolean> {
+  const response = await refetchQueue();
+  const currentEntries = extractQueueDisplayItems((response as { data?: unknown })?.data);
+
+  if (isSynced(currentEntries)) {
+    return true;
+  }
+
+  if (maxAttempts <= 1) {
+    return false;
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
+  return pollQueueSync(refetchQueue, maxAttempts - 1, delayMs, isSynced);
+}
+
 function QueueMobileCard({
   item,
   onOpenActions,
@@ -476,10 +497,13 @@ export default function QueuePage() {
     []
   );
 
-  const rawQueueById = useMemo(
-    () => new Map(rawQueueEntries.map((item) => [item.id, item])),
-    [rawQueueEntries]
-  );
+  const rawQueueById = useMemo(() => {
+    const index: Record<string, any> = {};
+    for (const item of rawQueueEntries) {
+      index[item.id] = item;
+    }
+    return index;
+  }, [rawQueueEntries]);
 
   const matchesTreatmentFilter = useCallback(
     (item: QueueDisplayItem) => {
@@ -597,6 +621,14 @@ export default function QueuePage() {
       const waitValue = typeof rawWait === 'number' ? rawWait : parseInt(String(rawWait), 10) || 0;
       return sum + waitValue;
     }, 0);
+    const inProgressCount = scopedQueueEntries.reduce(
+      (count: number, item: QueueDisplayItem) => count + (item.status === QUEUE_STATUS.IN_PROGRESS ? 1 : 0),
+      0
+    );
+    const completedTodayCount = scopedQueueEntries.reduce(
+      (count: number, item: QueueDisplayItem) => count + (item.status === QUEUE_STATUS.COMPLETED ? 1 : 0),
+      0
+    );
 
     const averageWaitTime =
       (useApiQueueStats && typeof apiQueueStats?.averageWaitTime === "number"
@@ -613,11 +645,11 @@ export default function QueuePage() {
       inProgress:
         useApiQueueStats && typeof apiQueueStats?.inProgress === "number"
           ? apiQueueStats.inProgress
-          : scopedQueueEntries.filter((item: QueueDisplayItem) => item.status === QUEUE_STATUS.IN_PROGRESS).length,
+          : inProgressCount,
       completedToday:
         useApiQueueStats && typeof apiQueueStats?.completedToday === "number"
           ? apiQueueStats.completedToday
-          : scopedQueueEntries.filter((item: QueueDisplayItem) => item.status === QUEUE_STATUS.COMPLETED).length,
+          : completedTodayCount,
     };
   }, [activeTreatmentFilter, queueStats, scopedQueueEntries, userRole]);
 
@@ -665,7 +697,7 @@ export default function QueuePage() {
   }, []);
 
   const hasReliableAppointmentReference = useCallback((item: QueueDisplayItem) => {
-    const rawItem = rawQueueById.get(item.id) as Record<string, unknown> | undefined;
+    const rawItem = rawQueueById[item.id];
     const rawAppointmentId =
       (typeof rawItem?.appointmentId === "string" && rawItem.appointmentId) ||
       (typeof (rawItem?.appointment as Record<string, unknown> | undefined)?.id === "string"
@@ -685,22 +717,16 @@ export default function QueuePage() {
       setTransferringId(entryId);
       try {
         await transferQueueEntryMutation.mutateAsync({ entryId, targetQueue, treatmentType });
-        let transferSynced = false;
-        for (let attempt = 0; attempt < 8; attempt += 1) {
-          const response = await refetchQueue();
-          const currentEntries = extractQueueDisplayItems((response as { data?: unknown })?.data);
-          const movedEntry = currentEntries.find((item) => item.id === entryId);
-          if (movedEntry) {
-            const queueMatch =
-              normalizeQueueToken(movedEntry.queueCategory) === normalizeQueueToken(targetQueue) ||
-              matchesQueueSection(movedEntry, treatmentType);
-            if (queueMatch) {
-              transferSynced = true;
-              break;
-            }
-          }
-          await new Promise((resolve) => setTimeout(resolve, 400));
-        }
+        const transferSynced = await pollQueueSync(refetchQueue, 8, 400, (entries) =>
+          entries.some((item) => {
+            if (item.id !== entryId) return false;
+
+            return (
+              normalizeQueueToken(item.queueCategory) === normalizeQueueToken(targetQueue) ||
+              matchesQueueSection(item, treatmentType)
+            );
+          })
+        );
 
         if (!transferSynced) {
           throw new Error("Transfer request was accepted but backend queue sync is still pending.");
@@ -744,26 +770,20 @@ export default function QueuePage() {
         doctorId: selectedDoctorId,
         reason: "Queue doctor assignment by reception",
       });
-      let reassignmentSynced = false;
-      for (let attempt = 0; attempt < 8; attempt += 1) {
-        const response = await refetchQueue();
-        const currentEntries = extractQueueDisplayItems((response as { data?: unknown })?.data);
-        const queueEntry = currentEntries.find((item) => item.id === assigningQueueItem.id);
-        if (queueEntry) {
-          const backendDoctorIds = [
-            queueEntry.assignedDoctorId,
-            queueEntry.primaryDoctorId,
-            queueEntry.queueOwnerId,
+      const selectedDoctorIdValue = String(selectedDoctorId);
+      const reassignmentSynced = await pollQueueSync(refetchQueue, 8, 400, (entries) =>
+        entries.some((item) => {
+          if (item.id !== assigningQueueItem.id) return false;
+
+          return [
+            item.assignedDoctorId,
+            item.primaryDoctorId,
+            item.queueOwnerId,
           ]
             .filter(Boolean)
-            .map((value) => String(value));
-          if (backendDoctorIds.includes(String(selectedDoctorId))) {
-            reassignmentSynced = true;
-            break;
-          }
-        }
-        await new Promise((resolve) => setTimeout(resolve, 400));
-      }
+            .some((value) => String(value) === selectedDoctorIdValue);
+        })
+      );
 
       if (!reassignmentSynced) {
         throw new Error("Reassignment request succeeded but backend queue sync is still pending.");
@@ -861,20 +881,6 @@ export default function QueuePage() {
     }
   }, [activeQueue, activeQueueTabs]);
 
-  function QueueRowActions({ item }: { item: QueueDisplayItem }) {
-    return (
-      <div className="flex min-w-0 flex-row flex-nowrap items-center justify-end gap-1.5 overflow-hidden">
-        <Button
-          size="sm"
-          className="h-8 shrink-0 whitespace-nowrap border-emerald-200 bg-emerald-600 px-2.5 text-[11px] text-white shadow-sm hover:bg-emerald-700"
-          onClick={() => setSelectedQueueActionItem(item)}
-        >
-          <span>Actions</span>
-        </Button>
-      </div>
-    );
-  }
-
   const baseQueueColumns = useMemo<ColumnDef<QueueDisplayItem>[]>(
     () => [
       {
@@ -917,7 +923,7 @@ export default function QueuePage() {
           if (!waitValue) return <span className="text-muted-foreground">-</span>;
           return (
             <span className="flex min-w-[44px] items-center gap-1 text-[10px] font-medium text-muted-foreground">
-              <Clock className="h-3 w-3" />
+              <Clock className="size-3" />
               {waitValue}m
             </span>
           );
@@ -927,8 +933,14 @@ export default function QueuePage() {
         id: "actions",
         header: "Actions",
         cell: ({ row }) => (
-          <div className="flex justify-center">
-            <QueueRowActions item={row.original} />
+          <div className="flex min-w-0 flex-row flex-nowrap items-center justify-end gap-1.5 overflow-hidden">
+            <Button
+              size="sm"
+              className="h-8 shrink-0 whitespace-nowrap border-emerald-200 bg-emerald-600 px-2.5 text-[11px] text-white shadow-sm hover:bg-emerald-700"
+              onClick={() => setSelectedQueueActionItem(row.original)}
+            >
+              <span>Actions</span>
+            </Button>
           </div>
         ),
       },
@@ -975,7 +987,7 @@ export default function QueuePage() {
     }
 
     return (
-      <div className="space-y-2 md:hidden">
+      <div className="gap-y-2 md:hidden">
         {items.map((item) => (
           <QueueMobileCard key={item.id} item={item} onOpenActions={setSelectedQueueActionItem} />
         ))}
@@ -1001,10 +1013,10 @@ export default function QueuePage() {
   // Keep returns after all hooks to avoid hook-order mismatch.
   if (isLoading) {
     return (
-      <div className="p-6 space-y-6 max-w-full overflow-hidden">
+      <div className="p-6 gap-y-6 max-w-full overflow-hidden">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-3xl font-bold">Queue Management</h1>
+            <h1 className="text-3xl font-semibold">Queue Management</h1>
             <p className="text-gray-600">Synchronizing live queue...</p>
           </div>
         </div>
@@ -1054,17 +1066,17 @@ export default function QueuePage() {
   function getStatusIcon(status: string) {
     switch (status) {
       case QUEUE_STATUS.WAITING:
-        return <Clock className="w-4 h-4" />;
+        return <Clock className="size-4" />;
       case QUEUE_STATUS.IN_PROGRESS:
-        return <Play className="w-4 h-4" />;
+        return <Play className="size-4" />;
       case QUEUE_STATUS.CONFIRMED:
-        return <UserCheck className="w-4 h-4" />;
+        return <UserCheck className="size-4" />;
       case QUEUE_STATUS.COMPLETED:
-        return <CheckCircle className="w-4 h-4" />;
+        return <CheckCircle className="size-4" />;
       default:
-        return <AlertCircle className="w-4 h-4" />;
+        return <AlertCircle className="size-4" />;
     }
-  }
+  }
 
   return (
     <DashboardPageShell className="p-4 md:p-6">
@@ -1074,7 +1086,7 @@ export default function QueuePage() {
         description={`${queuePermissions.canManageQueue ? "Monitor and manage patient queues" : "View patient queue status"} ${queueScopeLabel}`}
         meta={
           <div className="flex items-center gap-2 rounded-full border border-emerald-200/60 bg-emerald-50/80 px-3 py-1.5 text-emerald-700 shadow-sm backdrop-blur-sm">
-            <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="size-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-[11px] font-bold tracking-wide uppercase">Live Sync</span>
           </div>
         }
@@ -1085,7 +1097,7 @@ export default function QueuePage() {
         <div className="mb-6 p-4 rounded-xl border border-amber-200/50 bg-amber-50/10 backdrop-blur-sm flex items-center justify-between animate-in fade-in slide-in-from-top-4 duration-500">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-amber-500/20 text-amber-500">
-              <AlertCircle className="w-5 h-5" />
+              <AlertCircle className="size-5" />
             </div>
             <div>
               <h3 className="text-sm font-semibold text-amber-200">Stale Queue Entries Detected</h3>
@@ -1107,9 +1119,9 @@ export default function QueuePage() {
       )}
 
       <Card className="mb-5 border-border/60 bg-background/90 shadow-sm backdrop-blur-sm">
-        <CardHeader className="space-y-2 px-4 pb-2 pt-4">
+        <CardHeader className="gap-y-2 px-4 pb-2 pt-4">
           <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-            <Activity className="h-5 w-5" />
+            <Activity className="size-5" />
             Treatment Type Filter
           </CardTitle>
           <p className="text-xs text-muted-foreground">
@@ -1162,7 +1174,7 @@ export default function QueuePage() {
                       {queueStatsSummary.totalInQueue}
                     </p>
                   </div>
-                  <Users className="h-8 w-8 text-blue-600" />
+                  <Users className="size-8 text-blue-600" />
                 </div>
               </CardContent>
             </Card>
@@ -1177,7 +1189,7 @@ export default function QueuePage() {
                       {queueStatsSummary.averageWaitTime}m
                     </p>
                   </div>
-                  <Timer className="h-8 w-8 text-yellow-600" />
+                  <Timer className="size-8 text-yellow-600" />
                 </div>
               </CardContent>
             </Card>
@@ -1192,7 +1204,7 @@ export default function QueuePage() {
                       {queueStatsSummary.inProgress}
                     </p>
                   </div>
-                  <Activity className="h-8 w-8 text-green-600" />
+                  <Activity className="size-8 text-green-600" />
                 </div>
               </CardContent>
             </Card>
@@ -1207,7 +1219,7 @@ export default function QueuePage() {
                       {queueStatsSummary.completedToday}
                     </p>
                   </div>
-                  <CheckCircle className="h-8 w-8 text-blue-600" />
+                  <CheckCircle className="size-8 text-blue-600" />
                 </div>
               </CardContent>
             </Card>
@@ -1219,7 +1231,7 @@ export default function QueuePage() {
       <Tabs
         value={activeQueue}
         onValueChange={setActiveQueue}
-        className="space-y-5"
+        className="gap-y-5"
       >
         <TabsList className="flex h-auto flex-wrap gap-1.5 bg-transparent p-0">
           {activeQueueTabs.map((tab) => (
@@ -1239,12 +1251,12 @@ export default function QueuePage() {
           ))}
         </TabsList>
 
-        <TabsContent value="consultations" className="space-y-4">
+        <TabsContent value="consultations" className="gap-y-4">
           <Card className="border-border/60 bg-background/90 shadow-sm backdrop-blur-sm">
             <CardHeader className="flex flex-col gap-3 px-4 pb-2 pt-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-                  <Stethoscope className="h-5 w-5" />
+                  <Stethoscope className="size-5" />
                   Consultation Queue Types
                 <Badge variant="secondary">
                     {selectedConsultationItems.length}
@@ -1255,7 +1267,7 @@ export default function QueuePage() {
                 </p>
               </div>
             </CardHeader>
-            <CardContent className="space-y-3 px-4 pb-4 pt-2">
+            <CardContent className="gap-y-3 px-4 pb-4 pt-2">
               <div className="flex flex-wrap gap-2">
                 {consultationQueueSections.map((section) => (
                   <Badge
@@ -1294,7 +1306,7 @@ export default function QueuePage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="therapies" className="space-y-6">
+        <TabsContent value="therapies" className="gap-y-6">
           <Card className="border-border/60 bg-background/90 shadow-sm backdrop-blur-sm">
             <CardHeader className="flex flex-col gap-3 px-4 pb-2 pt-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
@@ -1309,7 +1321,7 @@ export default function QueuePage() {
                 </p>
               </div>
             </CardHeader>
-            <CardContent className="space-y-3 px-4 pb-4 pt-2">
+            <CardContent className="gap-y-3 px-4 pb-4 pt-2">
               <div className="flex flex-wrap gap-2">
                 {procedureQueueSections.map((section) => (
                   <Badge
@@ -1366,7 +1378,7 @@ export default function QueuePage() {
             </DialogDescription>
           </DialogHeader>
           {selectedQueueActionItem ? (
-            <div className="space-y-4">
+            <div className="gap-y-4">
               <div className="rounded-xl border border-border bg-muted/20 p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -1402,7 +1414,7 @@ export default function QueuePage() {
                     !selectedQueueActionItem.appointmentId || reassignAppointmentMutation.isPending
                   }
                 >
-                  <Users className="h-4 w-4" />
+                  <Users className="size-4" />
                   Assign Doctor
                 </Button>
                 <Button
@@ -1414,7 +1426,7 @@ export default function QueuePage() {
                   }}
                   disabled={transferringId === selectedQueueActionItem.id}
                 >
-                  <ArrowRightLeft className="h-4 w-4" />
+                  <ArrowRightLeft className="size-4" />
                   Move to
                 </Button>
               </div>
@@ -1439,7 +1451,7 @@ export default function QueuePage() {
             </DialogDescription>
           </DialogHeader>
           {transferringQueueItem ? (
-            <div className="space-y-3">
+            <div className="gap-y-3">
               <div className="rounded-xl border border-border bg-muted/20 p-3">
                 <div className="truncate text-center text-sm font-semibold text-foreground">
                   {getQueuePatientDisplayName(transferringQueueItem)}
@@ -1493,7 +1505,7 @@ export default function QueuePage() {
               Assign a doctor to this active queue appointment.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="gap-y-3">
             <p className="text-sm text-muted-foreground">
               {assigningQueueItem?.patientName || "Patient"} is currently unassigned. Select a doctor.
             </p>
@@ -1529,7 +1541,7 @@ export default function QueuePage() {
             <Button onClick={() => void handleAssignDoctor()} disabled={reassignAppointmentMutation.isPending || !selectedDoctorId}>
               {reassignAppointmentMutation.isPending ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 size-4 animate-spin" />
                   Assigning...
                 </>
               ) : (
@@ -1542,6 +1554,8 @@ export default function QueuePage() {
     </DashboardPageShell>
   );
 }
+
+
 
 
 

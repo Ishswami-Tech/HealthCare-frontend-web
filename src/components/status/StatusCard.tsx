@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo } from "react";
 import { Area, AreaChart, ResponsiveContainer, YAxis } from "recharts";
@@ -66,12 +66,12 @@ export function StatusCard({ name, icon: Icon, status, responseTime, className }
       <div className="flex justify-between items-start mb-4">
         <div className="flex items-center gap-3">
           <div className={cn("p-2 rounded-lg bg-background/50 backdrop-blur-md", theme.border, "border")}>
-            <Icon className="h-5 w-5" style={{ color: theme.stroke }} />
+            <Icon className="size-5" style={{ color: theme.stroke }} />
           </div>
           <div>
             <h3 className="font-semibold text-sm text-foreground/80">{name}</h3>
             <p className="text-xs font-medium uppercase tracking-wider" style={{ color: theme.stroke }}>
-              {status === 'loading' ? 'Checking...' : status}
+              {status === 'loading' ? 'Checking…' : status}
             </p>
           </div>
         </div>
@@ -108,3 +108,5 @@ export function StatusCard({ name, icon: Icon, status, responseTime, className }
     </motion.div>
   );
 }
+
+

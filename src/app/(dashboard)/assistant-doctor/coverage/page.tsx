@@ -22,7 +22,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 export default function AssistantDoctorCoveragePage() {
-  const router = useRouter();
+  const { push } = useRouter();
   const { session } = useAuth();
   useWebSocketQuerySync();
   const user = session?.user;
@@ -42,19 +42,21 @@ export default function AssistantDoctorCoveragePage() {
           ? raw.data.doctors
           : [];
 
-    return arr
-      .map((doctorValue) => {
-        const doctorRecord = isRecord(doctorValue) ? doctorValue : {};
-        const nestedDoctor = isRecord(doctorRecord.doctor) ? doctorRecord.doctor : {};
-        const nestedUser = isRecord(nestedDoctor.user) ? nestedDoctor.user : {};
+    return arr.reduce<DoctorListItem[]>((acc, doctorValue) => {
+      const doctorRecord = isRecord(doctorValue) ? doctorValue : {};
+      const nestedDoctor = isRecord(doctorRecord.doctor) ? doctorRecord.doctor : {};
+      const nestedUser = isRecord(nestedDoctor.user) ? nestedDoctor.user : {};
 
-        return {
-          id: String(nestedDoctor.id ?? doctorRecord.id ?? ""),
-          name: String(doctorRecord.name ?? nestedUser.name ?? "Doctor"),
-          role: String(doctorRecord.role ?? nestedUser.role ?? "").toUpperCase(),
-        };
-      })
-      .filter((doctor) => !!doctor.id);
+      const id = String(nestedDoctor.id ?? doctorRecord.id ?? "");
+      if (!id) return acc;
+
+      acc.push({
+        id,
+        name: String(doctorRecord.name ?? nestedUser.name ?? "Doctor"),
+        role: String(doctorRecord.role ?? nestedUser.role ?? "").toUpperCase(),
+      });
+      return acc;
+    }, []);
   }, [doctorsData]);
 
   const primaryDoctors = useMemo(
@@ -96,8 +98,8 @@ export default function AssistantDoctorCoveragePage() {
           </Badge>
         }
         actionsSlot={
-          <Button className="gap-2" onClick={() => router.push("/assistant-doctor/dashboard")}>
-            <ArrowRight className="h-4 w-4" />
+          <Button className="gap-2" onClick={() => push("/assistant-doctor/dashboard")}>
+            <ArrowRight className="size-4" />
             Back to dashboard
           </Button>
         }
@@ -105,9 +107,9 @@ export default function AssistantDoctorCoveragePage() {
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="border-emerald-200/70 bg-emerald-50/60 shadow-sm">
-          <CardHeader className="space-y-2">
+          <CardHeader className="gap-y-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <ShieldCheck className="h-5 w-5 text-emerald-600" />
+              <ShieldCheck className="size-5 text-emerald-600" />
               Current coverage
             </CardTitle>
             <CardDescription>Coverage comes from the clinic admin configuration.</CardDescription>
@@ -123,9 +125,9 @@ export default function AssistantDoctorCoveragePage() {
         </Card>
 
         <Card className="border-blue-200/70 bg-blue-50/60 shadow-sm">
-          <CardHeader className="space-y-2">
+          <CardHeader className="gap-y-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Users className="h-5 w-5 text-blue-600" />
+              <Users className="size-5 text-blue-600" />
               Primary doctors
             </CardTitle>
             <CardDescription>Doctors this assistant can cover in the clinic.</CardDescription>
@@ -147,21 +149,21 @@ export default function AssistantDoctorCoveragePage() {
         </Card>
 
         <Card className="border-purple-200/70 bg-purple-50/60 shadow-sm">
-          <CardHeader className="space-y-2">
+          <CardHeader className="gap-y-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Activity className="h-5 w-5 text-purple-600" />
+              <Activity className="size-5 text-purple-600" />
               Support lane
             </CardTitle>
             <CardDescription>Use the live queue and shared doctor views for handoffs.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <Button className="w-full justify-between gap-2" onClick={() => router.push("/queue")}>
+          <CardContent className="gap-y-3">
+            <Button className="w-full justify-between gap-2" onClick={() => push("/queue")}>
               Open queue
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight className="size-4" />
             </Button>
-            <Button variant="outline" className="w-full justify-between gap-2" onClick={() => router.push("/assistant-doctor/appointments")}>
+            <Button variant="outline" className="w-full justify-between gap-2" onClick={() => push("/assistant-doctor/appointments")}>
               Open appointments
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight className="size-4" />
             </Button>
           </CardContent>
         </Card>
@@ -169,3 +171,5 @@ export default function AssistantDoctorCoveragePage() {
     </DashboardPageShell>
   );
 }
+
+

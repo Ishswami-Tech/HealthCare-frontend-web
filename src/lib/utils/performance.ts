@@ -97,14 +97,11 @@ export function useVirtualScroll({
     [scrollTop, containerHeight, itemHeight, itemCount, overscan]
   );
 
-  const visibleItems = useMemo(
-    () => Array.from({ length: endIndex - startIndex + 1 }, (_, i) => startIndex + i),
-    [startIndex, endIndex]
-  );
+  const visibleItems = Array.from({ length: endIndex - startIndex + 1 }, (_, i) => startIndex + i);
 
-  const offsetY = useMemo(() => startIndex * itemHeight, [startIndex, itemHeight]);
+  const offsetY = startIndex * itemHeight;
 
-  const totalHeight = useMemo(() => itemCount * itemHeight, [itemCount, itemHeight]);
+  const totalHeight = itemCount * itemHeight;
 
   const handleScroll = useThrottledCallback((e: React.UIEvent<HTMLDivElement>) => {
     setScrollTop(e.currentTarget.scrollTop);

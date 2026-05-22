@@ -1,4 +1,4 @@
-'use server';
+﻿'use server';
 
 import { authenticatedApi, getServerSession } from './auth.server';
 import { logger } from '@/lib/utils/logger';

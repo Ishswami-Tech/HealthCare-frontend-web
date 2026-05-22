@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useReducer } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,31 +12,76 @@ import { syncAppointmentInCache } from "@/lib/utils/appointment-cache";
 type VerifyState = "loading" | "success" | "failed";
 const ALLOWED_PROVIDERS = new Set(["cashfree"]);
 
+type CallbackState = {
+  state: VerifyState;
+  message: string;
+  secondsLeft: number | null;
+};
+
+type CallbackAction =
+  | { type: "FAILED"; message: string }
+  | { type: "SUCCESS"; message: string; secondsLeft: number }
+  | { type: "TICK" }
+  | { type: "RESET_SECONDS" };
+
+const initialCallbackState: CallbackState = {
+  state: "loading",
+  message: "Verifying payment...",
+  secondsLeft: null,
+};
+
+function callbackReducer(state: CallbackState, action: CallbackAction): CallbackState {
+  switch (action.type) {
+    case "FAILED":
+      return {
+        state: "failed",
+        message: action.message,
+        secondsLeft: null,
+      };
+    case "SUCCESS":
+      return {
+        state: "success",
+        message: action.message,
+        secondsLeft: action.secondsLeft,
+      };
+    case "TICK":
+      return {
+        ...state,
+        secondsLeft: state.secondsLeft === null ? null : state.secondsLeft - 1,
+      };
+    case "RESET_SECONDS":
+      return {
+        ...state,
+        secondsLeft: null,
+      };
+    default:
+      return state;
+  }
+}
+
 export default function PaymentCallbackPage() {
-  const router = useRouter();
+  const { replace } = useRouter();
   const queryClient = useQueryClient();
-  const searchParams = useSearchParams();
-  const [state, setState] = useState<VerifyState>("loading");
-  const [message, setMessage] = useState("Verifying payment...");
-  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  const { get: getSearchParam } = useSearchParams();
+  const [{ state, message, secondsLeft }, dispatch] = useReducer(callbackReducer, initialCallbackState);
 
   const params = useMemo(() => {
     const orderId =
-      searchParams.get("orderId") ||
-      searchParams.get("order_id") ||
-      searchParams.get("cf_order_id") ||
+      getSearchParam("orderId") ||
+      getSearchParam("order_id") ||
+      getSearchParam("cf_order_id") ||
       "";
     const paymentId =
-      searchParams.get("paymentId") ||
-      searchParams.get("payment_id") ||
+      getSearchParam("paymentId") ||
+      getSearchParam("payment_id") ||
       orderId;
-    const rawProvider = (searchParams.get("provider") || "cashfree").toLowerCase();
+    const rawProvider = (getSearchParam("provider") || "cashfree").toLowerCase();
     const provider = ALLOWED_PROVIDERS.has(rawProvider) ? rawProvider : "cashfree";
-    const clinicId = searchParams.get("clinicId") || "";
-    const appointmentId = searchParams.get("appointmentId") || "";
-    const appointmentType = (searchParams.get("appointmentType") || "").toUpperCase();
+    const clinicId = getSearchParam("clinicId") || "";
+    const appointmentId = getSearchParam("appointmentId") || "";
+    const appointmentType = (getSearchParam("appointmentType") || "").toUpperCase();
     return { orderId, paymentId, provider, clinicId, appointmentId, appointmentType };
-  }, [searchParams]);
+  }, [getSearchParam]);
 
   const redirectPath =
     params.appointmentType === "VIDEO_CALL"
@@ -48,14 +93,12 @@ export default function PaymentCallbackPage() {
   useEffect(() => {
     const verify = async () => {
       if (!params.orderId) {
-        setState("failed");
-        setMessage("Missing order ID in callback URL.");
+        dispatch({ type: "FAILED", message: "Missing order ID in callback URL." });
         return;
       }
 
       if (!params.clinicId) {
-        setState("failed");
-        setMessage("Missing clinic context for payment verification.");
+        dispatch({ type: "FAILED", message: "Missing clinic context for payment verification." });
         return;
       }
 
@@ -111,17 +154,19 @@ export default function PaymentCallbackPage() {
           });
         }
 
-        setState("success");
-        setSecondsLeft(3);
-        setMessage("Payment verified. Redirecting shortly...");
+        dispatch({
+          type: "SUCCESS",
+          message: "Payment verified. Redirecting shortly...",
+          secondsLeft: 3,
+        });
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
         }
-        setState("failed");
-        setMessage(
-          error instanceof Error ? error.message : "Unable to verify payment."
-        );
+        dispatch({
+          type: "FAILED",
+          message: error instanceof Error ? error.message : "Unable to verify payment.",
+        });
       }
     };
 
@@ -130,7 +175,9 @@ export default function PaymentCallbackPage() {
 
   useEffect(() => {
     if (state !== "success") {
-      setSecondsLeft(null);
+      if (secondsLeft !== null) {
+        dispatch({ type: "RESET_SECONDS" });
+      }
       return;
     }
 
@@ -139,40 +186,40 @@ export default function PaymentCallbackPage() {
     }
 
     if (secondsLeft <= 0) {
-      router.replace(redirectPath);
+      replace(redirectPath);
       return;
     }
 
     const timer = window.setTimeout(() => {
-      setSecondsLeft((current) => (current === null ? null : current - 1));
+      dispatch({ type: "TICK" });
     }, 1000);
 
     return () => window.clearTimeout(timer);
-  }, [state, secondsLeft, redirectPath, router]);
+  }, [replace, redirectPath, secondsLeft, state]);
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-xl border bg-card p-6 text-center space-y-4">
+      <div className="w-full max-w-md rounded-xl border bg-card p-6 text-center gap-y-4">
         {state === "loading" && (
-          <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+          <Loader2 className="mx-auto size-8 animate-spin text-primary" />
         )}
         {state === "success" && (
-          <CheckCircle2 className="mx-auto h-8 w-8 text-green-600" />
+          <CheckCircle2 className="mx-auto size-8 text-green-600" />
         )}
         {state === "failed" && (
-          <XCircle className="mx-auto h-8 w-8 text-red-600" />
+          <XCircle className="mx-auto size-8 text-red-600" />
         )}
 
         <h1 className="text-lg font-semibold">Payment Callback</h1>
         <p className="text-sm text-muted-foreground">{message}</p>
         {state === "success" && (
-          <div className="space-y-3">
+          <div className="gap-y-3">
             <p className="text-sm font-medium text-primary">
               Payment is confirmed. You will be redirected in {secondsLeft ?? 0} seconds.
             </p>
             <Button
               className="w-full"
-              onClick={() => router.replace(redirectPath)}
+              onClick={() => replace(redirectPath)}
             >
               Go to {params.appointmentType === "VIDEO_CALL" ? "video appointments" : params.appointmentId ? "appointments" : "billing"}
             </Button>
@@ -182,3 +229,5 @@ export default function PaymentCallbackPage() {
     </div>
   );
 }
+
+

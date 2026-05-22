@@ -129,7 +129,7 @@ export default function PharmacySystem() {
       
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+            <div className="animate-spin rounded-full size-32 border-b-2 border-blue-600 mx-auto"></div>
             <p className="mt-4 text-gray-600">Loading pharmacy system...</p>
           </div>
         </div>
@@ -333,35 +333,35 @@ export default function PharmacySystem() {
   const getCategoryIcon = (category: string) => {
     switch (category.toLowerCase()) {
       case "digestive health":
-        return <Droplets className="w-4 h-4 text-blue-600" />;
+        return <Droplets className="size-4 text-blue-600" />;
       case "stress & immunity":
-        return <Leaf className="w-4 h-4 text-green-600" />;
+        return <Leaf className="size-4 text-green-600" />;
       case "mental wellness":
-        return <Sun className="w-4 h-4 text-yellow-600" />;
+        return <Sun className="size-4 text-yellow-600" />;
       case "respiratory":
-        return <Moon className="w-4 h-4 text-purple-600" />;
+        return <Moon className="size-4 text-purple-600" />;
       default:
-        return <Pill className="w-4 h-4 text-gray-600" />;
+        return <Pill className="size-4 text-gray-600" />;
     }
   };
 
   return (
     
-      <div className="p-6 space-y-6">
+      <div className="p-6 gap-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold">Pharmacy Management System</h1>
+              <h1 className="text-3xl font-semibold">Pharmacy Management System</h1>
               <p className="text-gray-600">
                 Ayurvedic medicines inventory and order management
               </p>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" className="flex items-center gap-2">
-                <Package className="w-4 h-4" />
+                <Package className="size-4" />
                 Restock Alert
               </Button>
               <Button className="flex items-center gap-2">
-                <Plus className="w-4 h-4" />
+                <Plus className="size-4" />
                 Add Medicine
               </Button>
             </div>
@@ -370,11 +370,11 @@ export default function PharmacySystem() {
           {/* Pharmacy Statistics */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   Total Medicines
                 </CardTitle>
-                <Pill className="h-4 w-4 text-blue-600" />
+                <Pill className="size-4 text-blue-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-600">
@@ -385,9 +385,9 @@ export default function PharmacySystem() {
             </Card>
 
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">In Stock</CardTitle>
-                <CheckCircle className="h-4 w-4 text-green-600" />
+                <CheckCircle className="size-4 text-green-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
@@ -400,9 +400,9 @@ export default function PharmacySystem() {
             </Card>
 
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Low Stock</CardTitle>
-                <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                <AlertTriangle className="size-4 text-yellow-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-yellow-600">
@@ -413,11 +413,11 @@ export default function PharmacySystem() {
             </Card>
 
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   Today's Orders
                 </CardTitle>
-                <ShoppingCart className="h-4 w-4 text-purple-600" />
+                <ShoppingCart className="size-4 text-purple-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-purple-600">
@@ -428,7 +428,7 @@ export default function PharmacySystem() {
             </Card>
           </div>
 
-          <Tabs defaultValue="inventory" className="space-y-6">
+          <Tabs defaultValue="inventory" className="gap-y-6">
             <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
               <TabsTrigger value="inventory">Medicine Inventory</TabsTrigger>
               <TabsTrigger value="orders">Orders</TabsTrigger>
@@ -441,15 +441,15 @@ export default function PharmacySystem() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Package className="w-5 h-5" />
+                    <Package className="size-5" />
                     Ayurvedic Medicine Inventory
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
+                  <div className="gap-y-4">
                     <div className="flex gap-4">
                       <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-gray-500" />
                         <Input
                           placeholder="Search medicines by name, category, or manufacturer..."
                           value={searchTerm}
@@ -458,11 +458,11 @@ export default function PharmacySystem() {
                         />
                       </div>
                       <Button variant="outline">
-                        <Filter className="w-4 h-4 mr-2" />
+                        <Filter className="size-4 mr-2" />
                         Filter
                       </Button>
                       <Button>
-                        <Plus className="w-4 h-4 mr-2" />
+                        <Plus className="size-4 mr-2" />
                         Add Medicine
                       </Button>
                     </div>
@@ -475,7 +475,7 @@ export default function PharmacySystem() {
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex items-start gap-4 flex-1">
-                              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                              <div className="size-12 bg-green-100 rounded-lg flex items-center justify-center">
                                 {getCategoryIcon(medicine.category)}
                               </div>
                               <div className="flex-1">
@@ -543,15 +543,15 @@ export default function PharmacySystem() {
                             </div>
                             <div className="flex flex-col gap-2 ml-4">
                               <Button variant="outline" size="sm">
-                                <Eye className="w-3 h-3 mr-1" />
+                                <Eye className="size-3 mr-1" />
                                 View
                               </Button>
                               <Button variant="outline" size="sm">
-                                <Edit className="w-3 h-3 mr-1" />
+                                <Edit className="size-3 mr-1" />
                                 Edit
                               </Button>
                               <Button variant="outline" size="sm">
-                                <ShoppingCart className="w-3 h-3 mr-1" />
+                                <ShoppingCart className="size-3 mr-1" />
                                 Order
                               </Button>
                             </div>
@@ -584,12 +584,12 @@ export default function PharmacySystem() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <ShoppingCart className="w-5 h-5" />
+                    <ShoppingCart className="size-5" />
                     Recent Orders & Deliveries
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
+                  <div className="gap-y-4">
                     {recentOrders.map((order: any) => (
                       <div key={order.id} className="p-4 border rounded-lg">
                         <div className="flex items-start justify-between mb-3">
@@ -612,7 +612,7 @@ export default function PharmacySystem() {
                           </div>
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="gap-y-2">
                           <div>
                             <p className="text-sm font-medium">Items:</p>
                             <div className="flex flex-wrap gap-2 mt-1">
@@ -666,17 +666,17 @@ export default function PharmacySystem() {
 
                         <div className="flex gap-2 mt-3">
                           <Button variant="outline" size="sm">
-                            <Eye className="w-3 h-3 mr-1" />
+                            <Eye className="size-3 mr-1" />
                             View Details
                           </Button>
                           {order.status === "Shipped" && (
                             <Button variant="outline" size="sm">
-                              <Truck className="w-3 h-3 mr-1" />
+                              <Truck className="size-3 mr-1" />
                               Track Order
                             </Button>
                           )}
                           <Button variant="outline" size="sm">
-                            <Download className="w-3 h-3 mr-1" />
+                            <Download className="size-3 mr-1" />
                             Receipt
                           </Button>
                         </div>
@@ -691,12 +691,12 @@ export default function PharmacySystem() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Building2 className="w-5 h-5" />
+                    <Building2 className="size-5" />
                     Partner Pharmacies Network
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
+                  <div className="gap-y-4">
                     {nearbyPharmacies.map((pharmacy: any) => (
                       <div
                         key={pharmacy.id}
@@ -715,9 +715,9 @@ export default function PharmacySystem() {
                               )}
                             </div>
 
-                            <div className="space-y-2 text-sm text-gray-600 mb-3">
+                            <div className="gap-y-2 text-sm text-gray-600 mb-3">
                               <div className="flex items-center gap-2">
-                                <MapPin className="w-3 h-3" />
+                                <MapPin className="size-3" />
                                 <span>{pharmacy.address}</span>
                                 <span className="text-blue-600">
                                   ({pharmacy.distance})
@@ -725,18 +725,18 @@ export default function PharmacySystem() {
                               </div>
                               <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-1">
-                                  <Star className="w-3 h-3 text-yellow-500 fill-current" />
+                                  <Star className="size-3 text-yellow-500 fill-current" />
                                   <span>{pharmacy.rating}</span>
                                   <span className="text-gray-400">
                                     ({pharmacy.reviews} reviews)
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
+                                  <Clock className="size-3" />
                                   <span>{pharmacy.deliveryTime}</span>
                                 </div>
                                 <div className="flex items-center gap-1">
-                                  <Truck className="w-3 h-3" />
+                                  <Truck className="size-3" />
                                   <span>₹{pharmacy.deliveryFee} delivery</span>
                                 </div>
                               </div>
@@ -764,15 +764,15 @@ export default function PharmacySystem() {
 
                           <div className="flex flex-col gap-2 ml-4">
                             <Button size="sm">
-                              <ShoppingCart className="w-3 h-3 mr-1" />
+                              <ShoppingCart className="size-3 mr-1" />
                               Order
                             </Button>
                             <Button variant="outline" size="sm">
-                              <Phone className="w-3 h-3 mr-1" />
+                              <Phone className="size-3 mr-1" />
                               Call
                             </Button>
                             <Button variant="outline" size="sm">
-                              <Eye className="w-3 h-3 mr-1" />
+                              <Eye className="size-3 mr-1" />
                               Details
                             </Button>
                           </div>
@@ -785,11 +785,11 @@ export default function PharmacySystem() {
             </TabsContent>
 
             <TabsContent value="analytics">
-              <div className="space-y-6">
+              <div className="gap-y-6">
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <BarChart3 className="w-5 h-5" />
+                      <BarChart3 className="size-5" />
                       Pharmacy Analytics
                     </CardTitle>
                   </CardHeader>
@@ -852,31 +852,31 @@ export default function PharmacySystem() {
                       <CardTitle>Category Performance</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-4">
+                      <div className="gap-y-4">
                         <div className="flex items-center justify-between">
                           <span className="flex items-center gap-2">
-                            <Droplets className="w-4 h-4 text-blue-600" />
+                            <Droplets className="size-4 text-blue-600" />
                             Digestive Health
                           </span>
                           <span className="font-semibold">35%</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="flex items-center gap-2">
-                            <Leaf className="w-4 h-4 text-green-600" />
+                            <Leaf className="size-4 text-green-600" />
                             Stress & Immunity
                           </span>
                           <span className="font-semibold">28%</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="flex items-center gap-2">
-                            <Sun className="w-4 h-4 text-yellow-600" />
+                            <Sun className="size-4 text-yellow-600" />
                             Mental Wellness
                           </span>
                           <span className="font-semibold">22%</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="flex items-center gap-2">
-                            <Moon className="w-4 h-4 text-purple-600" />
+                            <Moon className="size-4 text-purple-600" />
                             Respiratory
                           </span>
                           <span className="font-semibold">15%</span>
@@ -891,7 +891,7 @@ export default function PharmacySystem() {
                     </CardHeader>
                     <CardContent>
                       <div className="text-center p-8 text-gray-500">
-                        <TrendingUp className="w-16 h-16 mx-auto mb-4" />
+                        <TrendingUp className="size-16 mx-auto mb-4" />
                         <h3 className="text-lg font-medium mb-2">
                           Detailed Analytics Coming Soon
                         </h3>
@@ -910,12 +910,12 @@ export default function PharmacySystem() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Settings className="w-5 h-5" />
+                    <Settings className="size-5" />
                     Pharmacy System Settings
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-6">
+                  <div className="gap-y-6">
                     <div>
                       <h4 className="font-semibold mb-4">
                         Inventory Management
@@ -925,14 +925,14 @@ export default function PharmacySystem() {
                           variant="outline"
                           className="h-16 flex flex-col items-center justify-center gap-2"
                         >
-                          <AlertTriangle className="w-6 h-6" />
+                          <AlertTriangle className="size-6" />
                           <span className="text-sm">Stock Alert Settings</span>
                         </Button>
                         <Button
                           variant="outline"
                           className="h-16 flex flex-col items-center justify-center gap-2"
                         >
-                          <Package className="w-6 h-6" />
+                          <Package className="size-6" />
                           <span className="text-sm">Auto Reorder Settings</span>
                         </Button>
                       </div>
@@ -945,14 +945,14 @@ export default function PharmacySystem() {
                           variant="outline"
                           className="h-16 flex flex-col items-center justify-center gap-2"
                         >
-                          <Truck className="w-6 h-6" />
+                          <Truck className="size-6" />
                           <span className="text-sm">Delivery Settings</span>
                         </Button>
                         <Button
                           variant="outline"
                           className="h-16 flex flex-col items-center justify-center gap-2"
                         >
-                          <CreditCard className="w-6 h-6" />
+                          <CreditCard className="size-6" />
                           <span className="text-sm">Payment Gateway</span>
                         </Button>
                       </div>
@@ -960,7 +960,7 @@ export default function PharmacySystem() {
 
                     <div className="p-4 bg-gray-50 rounded-lg">
                       <h4 className="font-semibold mb-2">System Information</h4>
-                      <div className="space-y-2 text-sm text-gray-600">
+                      <div className="gap-y-2 text-sm text-gray-600">
                         <div className="flex justify-between">
                           <span>Pharmacy System Version:</span>
                           <span>v1.8.2</span>
@@ -991,3 +991,5 @@ export default function PharmacySystem() {
     
   );
 }
+
+

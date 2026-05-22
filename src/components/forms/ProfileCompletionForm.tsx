@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -50,6 +50,7 @@ import { useAuthStore } from "@/stores";
 import type { Session } from "@/types/auth.types";
 import { clinicApiClient } from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/config/config";
+import { logger } from "@/lib/utils/logger";
 
 interface ProfileCompletionFormProps {
   onComplete?: () => void;
@@ -97,7 +98,7 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     if (countdown > 0) {
-      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      timer = setTimeout(() => setCountdown((prev) => prev - 1), 1000);
     }
     return () => {
       if (timer) {
@@ -176,7 +177,7 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
       <DialogContent className="sm:max-w-[400px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-emerald-600" />
+            <ShieldCheck className="size-5 text-emerald-600" />
             Verify Phone Number
           </DialogTitle>
           <DialogDescription>
@@ -184,7 +185,7 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <div className="gap-y-6 py-4">
           <div className="flex flex-col items-center gap-4">
             <OtpCodeInput
               value={otp}
@@ -209,8 +210,8 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
           >
             {isVerifying ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Verifying...
+                <Loader2 className="mr-2 size-4 animate-spin" />
+                Verifying…
               </>
             ) : (
               "Verify"
@@ -539,7 +540,7 @@ export default function ProfileCompletionForm({
 
       await updateProfile({ ...baseProfileData, ...roleSpecificData } as Record<string, unknown>);
     } catch (error) {
-      console.error("Profile completion error:", error);
+      logger.error("Profile completion error", error instanceof Error ? error : new Error(String(error)));
 
       if (error instanceof Error && error.message.includes("validation")) {
         try {
@@ -556,7 +557,9 @@ export default function ProfileCompletionForm({
             return;
           }
         } catch (parseError) {
-          console.error("Error parsing validation error:", parseError);
+          logger.warn("Error parsing validation error", {
+            error: parseError instanceof Error ? parseError.message : String(parseError),
+          });
         }
       }
 
@@ -600,8 +603,8 @@ export default function ProfileCompletionForm({
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <Loader2 className="size-8 animate-spin text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Loading…</p>
         </div>
       </div>
     );
@@ -611,20 +614,20 @@ export default function ProfileCompletionForm({
     <div className="min-h-screen flex items-center justify-center bg-background p-3 sm:p-4">
       <Card className="w-full max-w-sm sm:max-w-lg border-border">
 
-        {/* ── Header ── */}
+        {/* â”€â”€ Header â”€â”€ */}
         <CardHeader className="px-4 py-3 sm:px-6 sm:py-4 pb-0">
           <CardTitle className="text-base sm:text-lg font-semibold text-center">
             Complete Your Profile
           </CardTitle>
         </CardHeader>
 
-        {/* ── Body ── */}
+        {/* â”€â”€ Body â”€â”€ */}
         <CardContent className="px-4 py-3 sm:px-6 sm:py-4">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 sm:space-y-3">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="gap-y-4 sm:gap-y-3">
 
-              {/* ── Basic Information ── */}
-              <section className="space-y-3">
+              {/* â”€â”€ Basic Information â”€â”€ */}
+              <section className="gap-y-3">
                 <h3 className="text-sm font-medium text-foreground">
                   Basic Information
                 </h3>
@@ -639,7 +642,7 @@ export default function ProfileCompletionForm({
                         <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
                           First Name
                           {(isPhoneOtpLogin || isEmailOtpLogin) && <span className="text-destructive">*</span>}
-                          {isGoogleLogin && <ShieldCheck className="h-3 w-3 text-emerald-500" aria-label="Auto-filled from Google" />}
+                          {isGoogleLogin && <ShieldCheck className="size-3 text-emerald-500" aria-label="Auto-filled from Google" />}
                         </FormLabel>
                         <FormControl>
                           <Input
@@ -662,7 +665,7 @@ export default function ProfileCompletionForm({
                         <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
                           Last Name
                           {(isPhoneOtpLogin || isEmailOtpLogin) && <span className="text-destructive">*</span>}
-                          {isGoogleLogin && <ShieldCheck className="h-3 w-3 text-emerald-500" aria-label="Auto-filled from Google" />}
+                          {isGoogleLogin && <ShieldCheck className="size-3 text-emerald-500" aria-label="Auto-filled from Google" />}
                         </FormLabel>
                         <FormControl>
                           <Input
@@ -687,8 +690,8 @@ export default function ProfileCompletionForm({
                     <FormItem>
                       <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
                         Email
-                        {isGoogleLogin && <ShieldCheck className="h-3 w-3 text-emerald-500" aria-label="Auto-filled from Google" />}
-                        {isEmailOtpLogin && isEmailVerified && <ShieldCheck className="h-3 w-3 text-emerald-500" aria-label="Verified via Email OTP" />}
+                        {isGoogleLogin && <ShieldCheck className="size-3 text-emerald-500" aria-label="Auto-filled from Google" />}
+                        {isEmailOtpLogin && isEmailVerified && <ShieldCheck className="size-3 text-emerald-500" aria-label="Verified via Email OTP" />}
                       </FormLabel>
                       <div className="flex flex-col sm:flex-row gap-2">
                         <div className="flex-1">
@@ -703,7 +706,7 @@ export default function ProfileCompletionForm({
                         </div>
                         {isEmailVerified && (
                           <div className="flex items-center justify-center gap-1 text-emerald-600 text-xs font-medium h-10 sm:h-9 px-3 sm:px-2">
-                            <ShieldCheck className="h-3 w-3" />
+                            <ShieldCheck className="size-3" />
                             <span>Verified</span>
                           </div>
                         )}
@@ -720,11 +723,11 @@ export default function ProfileCompletionForm({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
-                        <Phone className="h-3 w-3" />
+                        <Phone className="size-3" />
                         Phone
                         {(isGoogleLogin || isEmailOtpLogin) && <span className="text-destructive">*</span>}
                         {isPhoneOtpLogin && <span className="text-destructive">*</span>}
-                        {isPhoneVerified && <ShieldCheck className="h-3 w-3 text-emerald-500" aria-label="Phone verified" />}
+                        {isPhoneVerified && <ShieldCheck className="size-3 text-emerald-500" aria-label="Phone verified" />}
                       </FormLabel>
                       <div className="flex flex-col sm:flex-row gap-2">
                         <div className="flex-1">
@@ -741,7 +744,7 @@ export default function ProfileCompletionForm({
                         </div>
                         {isPhoneVerified ? (
                           <div className="flex items-center justify-center gap-1 text-emerald-600 text-xs font-medium h-10 sm:h-9 px-3 sm:px-2">
-                            <ShieldCheck className="h-3 w-3" />
+                            <ShieldCheck className="size-3" />
                             <span>Verified</span>
                           </div>
                         ) : (
@@ -753,7 +756,7 @@ export default function ProfileCompletionForm({
                             className="h-10 sm:h-9 text-xs sm:text-sm whitespace-nowrap px-4"
                           >
                             {isSendingOtp ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
+                              <Loader2 className="size-3 animate-spin" />
                             ) : (
                               "Verify OTP"
                             )}
@@ -778,7 +781,7 @@ export default function ProfileCompletionForm({
                       return (
                         <FormItem className="flex flex-col">
                           <FormLabel className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
+                            <Calendar className="size-3" />
                             DOB
                           </FormLabel>
                           <Popover>
@@ -790,8 +793,9 @@ export default function ProfileCompletionForm({
                                     "h-9 w-full justify-start text-left font-normal" +
                                     (!field.value ? " text-muted-foreground" : "")
                                   }
+                                  suppressHydrationWarning
                                 >
-                                  <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                                  <CalendarIcon className="mr-2 size-4 shrink-0" />
                                   {field.value
                                     ? format(new Date(field.value), "P")
                                     : "Pick"}
@@ -844,7 +848,7 @@ export default function ProfileCompletionForm({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
-                          <Venus className="h-3 w-3" />
+                          <Venus className="size-3" />
                           Gender
                         </FormLabel>
                         <Select
@@ -876,7 +880,7 @@ export default function ProfileCompletionForm({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
+                        <MapPin className="size-3" />
                         Address
                       </FormLabel>
                       <Textarea
@@ -891,13 +895,13 @@ export default function ProfileCompletionForm({
                 />
               </section>
 
-              {/* ── Emergency Contact ── */}
+              {/* â”€â”€ Emergency Contact â”€â”€ */}
               <section className="rounded-lg border p-3 sm:p-4">
                 <h3 className="text-xs sm:text-sm font-medium text-foreground mb-2 sm:mb-3">
                   Emergency Contact
                 </h3>
 
-                <div className="space-y-2 sm:space-y-3">
+                <div className="gap-y-2 sm:gap-y-3">
                   {/* Row 1: Name & Relation */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <FormField
@@ -931,7 +935,7 @@ export default function ProfileCompletionForm({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
-                          <Phone className="h-3 w-3" />
+                          <Phone className="size-3" />
                           Phone
                         </FormLabel>
                         <PhoneInput
@@ -950,9 +954,9 @@ export default function ProfileCompletionForm({
                 </div>
               </section>
 
-              {/* ── Professional Information (doctors only) ── */}
+              {/* â”€â”€ Professional Information (doctors only) â”€â”€ */}
               {isDoctor && (
-                <section className="space-y-3">
+                <section className="gap-y-3">
                   <h3 className="text-xs sm:text-sm font-medium text-foreground">
                     Professional Info
                   </h3>
@@ -983,7 +987,7 @@ export default function ProfileCompletionForm({
                 </section>
               )}
 
-              {/* ── Submit ── */}
+              {/* â”€â”€ Submit â”€â”€ */}
               <Button
                 type="submit"
                 disabled={isSubmitting || updatingProfile}
@@ -991,9 +995,9 @@ export default function ProfileCompletionForm({
               >
                 {isSubmitting || updatingProfile ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 sm:h-3.5 animate-spin" />
+                    <Loader2 className="mr-2 size-4 sm:h-3.5 animate-spin" />
                     <span className="hidden sm:inline">Completing Profile...</span>
-                    <span className="sm:hidden">Submitting...</span>
+                    <span className="sm:hidden">Submitting…</span>
                   </>
                 ) : (
                   "Complete Profile"
@@ -1014,3 +1018,6 @@ export default function ProfileCompletionForm({
     </div>
   );
 }
+
+
+

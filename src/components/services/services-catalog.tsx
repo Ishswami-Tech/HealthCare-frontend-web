@@ -51,7 +51,7 @@ export function ServicesCatalog({
   const serviceCategories: ServiceCategory[] = [
     {
       id: "panchakarma",
-      icon: <Leaf className="w-6 h-6" />,
+      icon: <Leaf className="size-6" />,
       name: t("services.panchakarma"),
       description: t("treatments.panchakarma.description"),
       treatments: ["Vaman", "Virechan", "Basti", "Nasya", "Raktamokshan"],
@@ -62,7 +62,7 @@ export function ServicesCatalog({
     },
     {
       id: "viddhakarma",
-      icon: <Brain className="w-6 h-6" />,
+      icon: <Brain className="size-6" />,
       name: t("services.viddhakarma"),
       description: t("treatments.viddhakarma.description"),
       treatments: [
@@ -78,7 +78,7 @@ export function ServicesCatalog({
     },
     {
       id: "agnikarma",
-      icon: <Zap className="w-6 h-6" />,
+      icon: <Zap className="size-6" />,
       name: t("services.agnikarma"),
       description: t("treatments.agnikarma.description"),
       treatments: [
@@ -94,7 +94,7 @@ export function ServicesCatalog({
     },
     {
       id: "neurological",
-      icon: <Brain className="w-6 h-6" />,
+      icon: <Brain className="size-6" />,
       name: t("services.neurological"),
       description: t("services.neurologicalDesc"),
       treatments: [
@@ -121,7 +121,7 @@ export function ServicesCatalog({
     },
     {
       id: "joint-bone",
-      icon: <Bone className="w-6 h-6" />,
+      icon: <Bone className="size-6" />,
       name: t("services.jointBone"),
       description: t("services.jointBoneDesc"),
       treatments: [
@@ -149,7 +149,7 @@ export function ServicesCatalog({
     },
     {
       id: "respiratory",
-      icon: <Heart className="w-6 h-6" />,
+      icon: <Heart className="size-6" />,
       name: t("services.respiratory"),
       description: t("services.respiratoryDesc"),
       treatments: [
@@ -175,7 +175,7 @@ export function ServicesCatalog({
     },
     {
       id: "digestive",
-      icon: <Heart className="w-6 h-6" />,
+      icon: <Heart className="size-6" />,
       name: t("services.digestive"),
       description: t("services.digestiveDesc"),
       treatments: [
@@ -202,7 +202,7 @@ export function ServicesCatalog({
     },
     {
       id: "kidney-stones",
-      icon: <Activity className="w-6 h-6" />,
+      icon: <Activity className="size-6" />,
       name: t("services.kidneyStones"),
       description: t("services.kidneyStonesDesc"),
       treatments: [
@@ -223,7 +223,7 @@ export function ServicesCatalog({
     },
     {
       id: "skin-diseases",
-      icon: <Sparkles className="w-6 h-6" />,
+      icon: <Sparkles className="size-6" />,
       name: t("services.skinDiseases"),
       description: t("services.skinDiseasesDesc"),
       treatments: [
@@ -250,7 +250,7 @@ export function ServicesCatalog({
     },
     {
       id: "metabolic",
-      icon: <Activity className="w-6 h-6" />,
+      icon: <Activity className="size-6" />,
       name: t("services.metabolic"),
       description: t("services.metabolicDesc"),
       treatments: [
@@ -277,7 +277,7 @@ export function ServicesCatalog({
     },
     {
       id: "gynecological",
-      icon: <Baby className="w-6 h-6" />,
+      icon: <Baby className="size-6" />,
       name: t("services.gynecological"),
       description: t("services.gynecologicalDesc"),
       treatments: [
@@ -303,7 +303,7 @@ export function ServicesCatalog({
     },
     {
       id: "hair-problems",
-      icon: <Scissors className="w-6 h-6" />,
+      icon: <Scissors className="size-6" />,
       name: t("services.hairProblems"),
       description: t("services.hairProblemsDesc"),
       treatments: [
@@ -325,7 +325,7 @@ export function ServicesCatalog({
     },
     {
       id: "beauty-antiaging",
-      icon: <Sparkles className="w-6 h-6" />,
+      icon: <Sparkles className="size-6" />,
       name: t("services.beautyAntiAging"),
       description: t("services.beautyAntiAgingDesc"),
       treatments: [
@@ -346,7 +346,7 @@ export function ServicesCatalog({
     },
     {
       id: "wellness-retreats",
-      icon: <Flower2 className="w-6 h-6" />,
+      icon: <Flower2 className="size-6" />,
       name: t("services.wellnessRetreats"),
       description: t("services.wellnessRetreatsDesc"),
       treatments: [
@@ -400,7 +400,7 @@ export function ServicesCatalog({
 
   if (variant === "list") {
     return (
-      <div className={cn("space-y-4", className)}>
+      <div className={cn("gap-y-4", className)}>
         {serviceCategories.map((service) => (
           <div
             key={service.id}
@@ -416,7 +416,7 @@ export function ServicesCatalog({
                 {service.icon}
               </div>
               <div className="flex-1">
-                <h3 className="text-base sm:text-lg font-playfair font-bold text-foreground dark:text-foreground/95 mb-2 sm:mb-3 gradient-text">
+                <h3 className="text-base sm:text-lg font-playfair font-semibold text-foreground dark:text-foreground/95 mb-2 sm:mb-3 gradient-text">
                   {service.name}
                 </h3>
                 <p className="text-sm sm:text-base text-muted-foreground dark:text-muted-foreground/90 mb-3 sm:mb-4 leading-relaxed">
@@ -438,7 +438,7 @@ export function ServicesCatalog({
                   )}
                 </div>
               </div>
-              <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6 text-muted-foreground dark:text-muted-foreground/70 hover:text-primary dark:hover:text-primary/90 transition-colors duration-200" />
+              <ChevronRight className="size-5 sm:w-6 sm:h-6 text-muted-foreground dark:text-muted-foreground/70 hover:text-primary dark:hover:text-primary/90 transition-colors duration-200" />
             </div>
           </div>
         ))}
@@ -447,9 +447,9 @@ export function ServicesCatalog({
   }
 
   return (
-    <div className={cn("space-y-6", className)}>
+    <div className={cn("gap-y-6", className)}>
       <div className="text-center mb-16">
-        <h2 className="text-3xl md:text-4xl lg:text-4xl xl:text-5xl font-playfair font-bold text-foreground dark:text-foreground/95 mb-6 gradient-text">
+        <h2 className="text-3xl md:text-4xl lg:text-4xl xl:text-5xl font-playfair font-semibold text-foreground dark:text-foreground/95 mb-6 gradient-text">
           {t("services.title")}
         </h2>
         <p className="text-lg text-muted-foreground dark:text-muted-foreground/90 max-w-3xl mx-auto leading-relaxed">
@@ -492,7 +492,7 @@ export function ServicesCatalog({
                 >
                   {service.icon}
                 </div>
-                <h3 className="text-base sm:text-lg md:text-xl font-playfair font-bold text-foreground dark:text-foreground/95 gradient-text">
+                <h3 className="text-base sm:text-lg md:text-xl font-playfair font-semibold text-foreground dark:text-foreground/95 gradient-text">
                   {service.name}
                 </h3>
               </div>
@@ -503,17 +503,17 @@ export function ServicesCatalog({
 
               <div className="flex items-center justify-between text-xs sm:text-sm text-muted-foreground dark:text-muted-foreground/80 mb-4 sm:mb-6">
                 <div className="flex items-center gap-1">
-                  <Clock className="w-4 h-4" />
+                  <Clock className="size-4" />
                   <span>{service.duration}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <Users className="w-4 h-4" />
+                  <Users className="size-4" />
                   <span>{service.treatments.length} treatments</span>
                 </div>
               </div>
 
               {showDetails && selectedService === service.id && (
-                <div className="border-t border-border/20 dark:border-border/30 pt-4 sm:pt-6 space-y-4 sm:space-y-6">
+                <div className="border-t border-border/20 dark:border-border/30 pt-4 sm:pt-6 gap-y-4 sm:gap-y-6">
                   <div>
                     <h4 className="text-sm sm:text-base font-playfair font-semibold text-foreground dark:text-foreground/95 mb-3 sm:mb-4">
                       Treatments Included:
@@ -534,13 +534,13 @@ export function ServicesCatalog({
                     <h4 className="text-sm sm:text-base font-playfair font-semibold text-foreground dark:text-foreground/95 mb-3 sm:mb-4">
                       Key Benefits:
                     </h4>
-                    <div className="space-y-2 sm:space-y-3">
+                    <div className="gap-y-2 sm:gap-y-3">
                       {service.benefits.slice(0, 3).map((benefit, index) => (
                         <div
                           key={index}
                           className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-muted-foreground dark:text-muted-foreground/90"
                         >
-                          <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 dark:text-green-400 flex-shrink-0" />
+                          <CheckCircle className="size-4 sm:w-5 sm:h-5 text-green-500 dark:text-green-400 flex-shrink-0" />
                           <span>{benefit}</span>
                         </div>
                       ))}
@@ -555,3 +555,4 @@ export function ServicesCatalog({
     </div>
   );
 }
+

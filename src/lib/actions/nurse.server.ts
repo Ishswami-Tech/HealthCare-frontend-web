@@ -1,8 +1,9 @@
-'use server';
+﻿'use server';
 
 import { HealthcareErrorsService } from '@/lib/config/config';
 import type { NursePatientRecord, PatientVitals } from '@/types/medical-records.types';
 import { clinicApiClient as api } from '@/lib/api/client';
+import { getServerSession } from './auth.server';
 
 /**
  * Get all nurse patients
@@ -19,6 +20,11 @@ export async function getNursePatients(
   }
 ): Promise<unknown> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const params = new URLSearchParams();
     if (filters?.search) params.append('search', filters.search);
     if (filters?.status) params.append('status', filters.status);
@@ -56,6 +62,11 @@ export async function createNursePatientRecord(
   recordData: NursePatientRecord | PatientVitals
 ): Promise<{ record: NursePatientRecord }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const response = await api.post<{ record: NursePatientRecord }>(
       '/ehr/vitals',
       recordData
@@ -80,6 +91,11 @@ export async function updateNursePatientRecord(
   updates: Partial<NursePatientRecord | PatientVitals>
 ): Promise<{ record: NursePatientRecord }> {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+
     const response = await api.put<{ record: NursePatientRecord }>(
       `/ehr/vitals/${recordId}`,
       updates

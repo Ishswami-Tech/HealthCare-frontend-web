@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 /**
- * ✅ Profile Completion Content
+ * âœ… Profile Completion Content
  * Uses LoadingSpinner for loading states (no blocking overlay)
  */
 
@@ -46,10 +46,11 @@ export default function ProfileCompletionContent() {
   if (session?.user && (session.user.profileComplete || isProfileComplete)) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner size="lg" text="Redirecting..." center />
+        <LoadingSpinner size="lg" text="Redirecting…" center />
       </div>
     );
   }
 
   return <ProfileCompletionForm />;
 }
+

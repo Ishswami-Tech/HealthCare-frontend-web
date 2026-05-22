@@ -8,8 +8,8 @@ import PatientMedicalRecords from "@/components/patient/PatientMedicalRecordsCon
 import PatientPrescriptions from "@/components/patient/PatientPrescriptionsContent";
 
 export default function PatientHealthPage() {
-  const searchParams = useSearchParams();
-  const initialTab = searchParams.get("tab") === "medicines" ? "medicines" : "records";
+  const { get: getSearchParam } = useSearchParams();
+  const initialTab = getSearchParam("tab") === "medicines" ? "medicines" : "records";
 
   return (
     <PatientPageShell className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
@@ -19,7 +19,7 @@ export default function PatientHealthPage() {
         description="Your records and medicines in one place."
       />
 
-      <Tabs defaultValue={initialTab} className="space-y-4">
+      <Tabs defaultValue={initialTab} className="gap-y-4">
         <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
           <TabsList className="inline-flex w-max min-w-full sm:grid sm:w-full sm:grid-cols-2">
           <TabsTrigger value="records">Records</TabsTrigger>
@@ -27,14 +27,15 @@ export default function PatientHealthPage() {
           </TabsList>
         </div>
 
-        <TabsContent value="records" className="space-y-4">
+        <TabsContent value="records" className="gap-y-4">
           <PatientMedicalRecords embedded />
         </TabsContent>
 
-        <TabsContent value="medicines" className="space-y-4">
+        <TabsContent value="medicines" className="gap-y-4">
           <PatientPrescriptions embedded />
         </TabsContent>
       </Tabs>
     </PatientPageShell>
   );
 }
+
