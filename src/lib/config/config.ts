@@ -363,7 +363,7 @@ export const API_ENDPOINTS = {
     BASE: '/auth',
     // ✅ Backend endpoints (verified)
     LOGIN: '/auth/login',                    // POST /auth/login
-    REGISTER: '/auth/register',              // POST /auth/register
+    // REGISTER endpoint removed - registration handled via OTP/Google
     REFRESH: '/auth/refresh',                // POST /auth/refresh
     LOGOUT: '/auth/logout',                  // POST /auth/logout
     FORGOT_PASSWORD: '/auth/forgot-password', // POST /auth/forgot-password

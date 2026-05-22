@@ -28,8 +28,6 @@ export {
   type DeviceInfo,
   type LoginData,
   type LoginFormData,
-  type RegisterData,
-  type RegisterFormData,
   type OTPData,
   type OTPFormData,
   type OTPRequest,

@@ -947,28 +947,6 @@ export class ClinicApiClient extends ApiClient {
     });
   }
 
-  // ✅ clinicId is sent via X-Clinic-ID header automatically - never in body
-  async register(data: {
-    email: string;
-    password: string;
-    firstName: string;
-    lastName: string;
-    phone: string;
-    dateOfBirth?: string;
-    gender?: string;
-    address?: string;
-    role?: string;
-    clinicId?: string;
-  }) {
-    return this.publicRequest(API_ENDPOINTS.AUTH.REGISTER, {
-      method: 'POST',
-      omitClinicId: true,
-      clinicId: data.clinicId,
-      requireClinicId: true,
-      body: JSON.stringify(data)
-    });
-  }
-
   async refreshToken(refreshTokenDto?: { refreshToken?: string }) {
     return this.post(API_ENDPOINTS.AUTH.REFRESH, refreshTokenDto);
   }
@@ -977,7 +955,7 @@ export class ClinicApiClient extends ApiClient {
     return this.post(API_ENDPOINTS.AUTH.LOGOUT, logoutDto);
   }
 
-  async requestOTP(requestDto: { identifier?: string; contact?: string; clinicId?: string; isRegistration?: boolean }) {
+  async requestOTP(requestDto: { identifier?: string; contact?: string; clinicId?: string }) {
     const identifier = requestDto.identifier || requestDto.contact;
     return this.publicRequest(API_ENDPOINTS.AUTH.REQUEST_OTP, {
       method: 'POST',
@@ -985,7 +963,6 @@ export class ClinicApiClient extends ApiClient {
       clinicId: requestDto.clinicId,
       requireClinicId: true,
       body: JSON.stringify({
-        ...requestDto,
         identifier,
       })
     });
@@ -997,7 +974,6 @@ export class ClinicApiClient extends ApiClient {
     otp: string;
     rememberMe?: boolean;
     clinicId?: string;
-    isRegistration?: boolean;
     firstName?: string;
     lastName?: string;
   }) {
@@ -1008,8 +984,11 @@ export class ClinicApiClient extends ApiClient {
       clinicId: data.clinicId,
       requireClinicId: true,
       body: JSON.stringify({
-        ...data,
         identifier,
+        otp: data.otp,
+        ...(data.rememberMe !== undefined ? { rememberMe: data.rememberMe } : {}),
+        ...(data.firstName ? { firstName: data.firstName } : {}),
+        ...(data.lastName ? { lastName: data.lastName } : {}),
       })
     });
   }

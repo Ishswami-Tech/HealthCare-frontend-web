@@ -88,11 +88,9 @@ export function clearTokens(): void {
  * Uses the centralized API client which handles token management
  */
 export async function getAuthHeaders(): Promise<Record<string, string>> {
-  const { APP_CONFIG } = await import('@/lib/config/config');
-
   const token = await getAccessToken();
   const sessionId = await getSessionId();
-  const clinicId = normalizeClinicId((await getClinicId()) || APP_CONFIG.CLINIC.ID);
+  const clinicId = normalizeClinicId(await getClinicId());
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',

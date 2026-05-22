@@ -143,6 +143,11 @@ export function getUnauthorizedRedirect(context: RedirectContext): RedirectResul
   }
 
   const userRole = user.role as Role;
+
+  if (user.profileComplete === false) {
+    return getProfileCompletionRedirect(userRole, currentPath);
+  }
+
   const dashboardPath = getDashboardByRole(userRole);
 
   // If invalid role, redirect to login with error
@@ -209,19 +214,6 @@ export function getInvalidTokenRedirect(currentPath?: string): RedirectResult {
   return {
     path: loginUrl.pathname + loginUrl.search,
     reason: 'invalid_token',
-  };
-}
-
-/**
- * Get redirect path for registration
- * Redirects to login with success message
- */
-export function getRegistrationRedirect(): RedirectResult {
-  const loginUrl = new URL(ROUTES.LOGIN, window.location.origin);
-  loginUrl.searchParams.set('registered', 'true');
-  return {
-    path: loginUrl.pathname + loginUrl.search,
-    reason: 'registration_success',
   };
 }
 

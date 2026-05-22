@@ -1,8 +1,7 @@
 'use server';
 
-import { 
-  Role, 
-  RegisterFormData,
+import {
+  Role,
   OtpRequestFormData,
   OtpVerifyFormData,
   ForgotPasswordFormData,
@@ -21,7 +20,7 @@ import { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
 import { logger } from '@/lib/utils/logger';
 import { isApiError } from '@/lib/utils/error-handler';
 import { fetchWithAbort } from '@/lib/utils/fetch-with-abort';
-import { revalidateTag } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { clinicApiClient } from '@/lib/api/client';
 import { normalizeClinicId } from '@/lib/utils/clinic-id';
 
@@ -44,6 +43,14 @@ const CLINIC_ID = APP_CONFIG.CLINIC.ID;
 
 function resolveClinicContextId(clinicId?: string | null): string {
   return normalizeClinicId(clinicId);
+}
+
+function requireClinicContextId(clinicId?: string | null, operation = 'auth'): string {
+  const resolvedClinicId = clinicId?.trim();
+  if (!resolvedClinicId) {
+    throw new Error(`Clinic ID is required for ${operation}. Please select a clinic and try again.`);
+  }
+  return resolvedClinicId;
 }
 
 function extractClinicIdFromTokenValue(token?: string): string | undefined {
@@ -1073,7 +1080,7 @@ export async function login(data: { email: string; password?: string; otp?: stri
     
     const requestBody: Record<string, unknown> = {
       email: data.email,
-      clinicId: resolveClinicContextId(data.clinicId),
+      clinicId: requireClinicContextId(data.clinicId, 'login'),
     };
 
     if (data.password) requestBody.password = data.password;
@@ -1245,7 +1252,11 @@ export async function login(data: { email: string; password?: string; otp?: stri
       refresh_token: normalizedResult.refresh_token || '',
       session_id: sessionId || '',
       isAuthenticated: true,
-      redirectUrl: normalizedResult.redirectUrl || getDashboardByRole(normalizedResult.user.role || Role.PATIENT)
+      redirectUrl:
+        normalizedResult.redirectUrl ||
+        (profileComplete
+          ? getDashboardByRole(normalizedResult.user.role || Role.PATIENT)
+          : ROUTES.PROFILE_COMPLETION)
     };
   } catch (error) {
     logger.error('Login error', error instanceof Error ? error : new Error(String(error)));
@@ -1254,52 +1265,11 @@ export async function login(data: { email: string; password?: string; otp?: stri
   }
 }
 
-export async function register(data: RegisterFormData): Promise<AuthResponse | { error: string }> {
-  try {
-    // Calculate dateOfBirth from age if provided
-    let dateOfBirth: string | undefined;
-    if (data.dateOfBirth) {
-      dateOfBirth = data.dateOfBirth;
-    } else if ((data as any).age) {
-      const currentYear = new Date().getFullYear();
-      const birthYear = currentYear - Number((data as any).age);
-      dateOfBirth = `${birthYear}-01-01`;
-    }
-
-    const formattedData = {
-      email: data.email.trim().toLowerCase(),
-      password: data.password,
-      firstName: data.firstName.trim(),
-      lastName: data.lastName.trim(),
-      phone: (data.phone || '').trim(),
-      clinicId: resolveClinicContextId(data.clinicId),
-      ...(data.role && { role: data.role }),
-      ...(data.gender && { gender: data.gender.toUpperCase() }),
-      ...(dateOfBirth && { dateOfBirth }),
-      ...((data as any).address && { address: (data as any).address }),
-    };
-
-    const response = await clinicApiClient.register(formattedData);
-    
-    const responseData = response.data as any;
-    const result = responseData.data || responseData;
-
-    logger.info('Registration successful', { email: result.user?.email, userId: result.user?.id });
-    return result;
-  } catch (error) {
-    if (error instanceof Error) {
-        return { error: error.message };
-    }
-    return { error: 'Registration failed' };
-  }
-}
-
 export async function requestOTP(data: OtpRequestFormData): Promise<{ success: boolean; message: string }> {
   try {
     const requestBody = {
       identifier: data.identifier,
-      clinicId: resolveClinicContextId(data.clinicId),
-      ...(data.isRegistration !== undefined ? { isRegistration: data.isRegistration } : {}),
+      clinicId: requireClinicContextId(data.clinicId, 'OTP request'),
     };
     const response = await clinicApiClient.requestOTP(requestBody);
     const responseData = response.data as Record<string, any>;
@@ -1354,14 +1324,13 @@ export async function resendVerification(email: string, clinicId?: string | unde
   }
 }
 
-export async function verifyOTP(data: OtpVerifyFormData): Promise<AuthResponse> {
+export async function verifyOTP(data: OtpVerifyFormData): Promise<AuthResponse | { error: string }> {
   try {
     const requestBody = {
       identifier: data.identifier,
       otp: data.otp,
-      clinicId: resolveClinicContextId(data.clinicId),
+      clinicId: requireClinicContextId(data.clinicId, 'OTP verification'),
       ...(data.rememberMe !== undefined ? { rememberMe: data.rememberMe } : {}),
-      ...(data.isRegistration !== undefined ? { isRegistration: data.isRegistration } : {}),
       ...(data.firstName ? { firstName: data.firstName } : {}),
       ...(data.lastName ? { lastName: data.lastName } : {}),
     };
@@ -1396,7 +1365,9 @@ export async function verifyOTP(data: OtpVerifyFormData): Promise<AuthResponse> 
     await setAuthCookies(normalizedResult);
     return normalizedResult as AuthResponse;
   } catch (error) {
-     throw error;
+    const message =
+      error instanceof Error ? error.message : 'Failed to verify OTP';
+    return { error: message };
   }
 }
 
@@ -1460,7 +1431,7 @@ export async function socialLogin(data: { provider: string; token: string; clini
     const response = await clinicApiClient.socialLogin({
       provider: data.provider,
       token: data.token,
-      clinicId: resolveClinicContextId(data.clinicId),
+      clinicId: requireClinicContextId(data.clinicId, 'social login'),
     });
     const responseData = response.data as Record<string, any>;
     const result = responseData.data || responseData;
@@ -1805,7 +1776,7 @@ export async function googleLogin(
   clinicId?: string | undefined
 ): Promise<GoogleLoginResponse> {
   try {
-    const resolvedClinicId = resolveClinicContextId(clinicId);
+    const resolvedClinicId = requireClinicContextId(clinicId, 'Google login');
     logger.info('Starting Google login', { apiUrl: API_URL, clinicId: resolvedClinicId });
     
     const isApiConnected = await checkApiConnection();
@@ -1935,7 +1906,11 @@ export async function googleLogin(
         profileComplete: resolveProfileComplete(result.user as Record<string, unknown>)
       },
       token: result.access_token,
-      redirectUrl: result.redirectUrl || getDashboardByRole(result.user.role)
+      redirectUrl:
+        result.redirectUrl ||
+        (resolveProfileComplete(result.user as Record<string, unknown>)
+          ? getDashboardByRole(result.user.role)
+          : ROUTES.PROFILE_COMPLETION)
     };
     
     logger.info('Google login completed successfully', { userId: outputData.user?.id });
@@ -1948,7 +1923,7 @@ export async function googleLogin(
 }
 
 export async function facebookLogin(token: string, clinicId?: string | undefined): Promise<AuthResponse> {
-  const resolvedClinicId = resolveClinicContextId(clinicId);
+  const resolvedClinicId = requireClinicContextId(clinicId, 'Facebook login');
   const response = await clinicApiClient.socialLogin({ 
     provider: 'facebook', 
     token,
@@ -1968,7 +1943,7 @@ export async function facebookLogin(token: string, clinicId?: string | undefined
 }
 
 export async function appleLogin(token: string, clinicId?: string | undefined): Promise<{ success: boolean; user?: User; error?: string }> {
-  const resolvedClinicId = resolveClinicContextId(clinicId);
+  const resolvedClinicId = requireClinicContextId(clinicId, 'Apple login');
   const response = await clinicApiClient.socialLogin({ 
     provider: 'apple', 
     token,
@@ -2001,4 +1976,6 @@ export async function setProfileComplete(complete: boolean) {
     path: '/',
     maxAge: 60 * 60 * 24 * 7,
   });
+
+  revalidatePath('/', 'layout');
 }

@@ -116,12 +116,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'yearly' as const,
       priority: 0.6,
     },
-    {
-      url: `${baseUrl}/auth/register`,
-      lastModified: currentDate,
-      changeFrequency: 'yearly' as const,
-      priority: 0.6,
-    },
     // Legal pages
     {
       url: `${baseUrl}/privacy`,

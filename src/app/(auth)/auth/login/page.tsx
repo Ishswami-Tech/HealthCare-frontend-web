@@ -31,6 +31,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
+import { showErrorToast } from "@/hooks/utils/use-toast";
 import useZodForm from "@/hooks/utils/useZodForm";
 import { loginSchema, otpSchema } from "@/lib/schema";
 import { AuthResponse, OTPFormData } from "@/types/auth.types";
@@ -155,11 +156,32 @@ export default function LoginPage() {
   ): Promise<AuthResponse> => {
     setAuthError(null);
     try {
+      if (!queryClinicId) {
+        throw new Error("Clinic ID is required to continue. Please open the login link from your clinic.");
+      }
       const result = await verifyOTP({ ...(data as OTPFormData), clinicId: queryClinicId });
       triggerSuccessFlow();
       return result;
     } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "Failed to verify OTP");
+      // Improve error messages for specific cases
+      const errorMsg = error instanceof Error ? error.message : "Failed to verify OTP";
+      const lowerMsg = errorMsg.toLowerCase();
+
+      if (lowerMsg.includes('locked') || lowerMsg.includes('too many') || lowerMsg.includes('minutes')) {
+        setAuthError(errorMsg);  // Show lockout duration
+      } else if (lowerMsg.includes('user not found')) {
+        setAuthError("User not found. Please check your email/phone or sign up first.");
+        // Show toast as well for visibility
+        showErrorToast("User not found. Please check your email/phone or sign up first.");
+      } else if (lowerMsg.includes('invalid') || lowerMsg.includes('incorrect') || lowerMsg.includes('wrong')) {
+        setAuthError("Invalid OTP. Please check and try again.");
+      } else if (lowerMsg.includes('invalid') || lowerMsg.includes('incorrect') || lowerMsg.includes('wrong')) {
+        setAuthError("Invalid OTP. Please check and try again.");
+      } else if (lowerMsg.includes('expired')) {
+        setAuthError("OTP has expired. Please request a new one.");
+      } else {
+        setAuthError(errorMsg);
+      }
       throw error;
     }
   };
@@ -180,11 +202,15 @@ export default function LoginPage() {
     if (requestOtpLockRef.current || isRequestingOTP) {
       return;
     }
+    if (!queryClinicId) {
+      setAuthError("Clinic ID is required to continue. Please open the login link from your clinic.");
+      return;
+    }
 
     requestOtpLockRef.current = true;
     try {
       setAuthError(null);
-      await requestOTP({ identifier, clinicId: queryClinicId, isRegistration: false });
+      await requestOTP({ identifier, clinicId: queryClinicId });
       setShowOTPInput(true);
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "Failed to request OTP");
@@ -608,7 +634,7 @@ export default function LoginPage() {
               Successfully signed in!
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Redirecting to dashboard…
+              Redirecting…
             </p>
           </div>
         </CardContent>
@@ -663,7 +689,7 @@ export default function LoginPage() {
                 Sign in successful!
               </p>
               <p className="text-xs text-green-600 dark:text-green-400">
-                Redirecting to your dashboard…
+                Redirecting to the next step…
               </p>
             </div>
           </div>
@@ -673,15 +699,8 @@ export default function LoginPage() {
         {view === "otp" && renderOtpView()}
       </CardContent>
       <CardFooter className="flex flex-col space-y-2 px-4 sm:px-6 pb-4 sm:pb-6">
-        <div className="text-xs text-center">
-          Don&apos;t have an account?{" "}
-          <Link
-            href={ROUTES.REGISTER}
-            prefetch={false}
-            className="text-blue-600 hover:text-blue-800 transition-colors"
-          >
-            Sign up
-          </Link>
+        <div className="text-xs text-center text-muted-foreground">
+          New users: Use OTP login with your email or phone to sign up automatically
         </div>
       </CardFooter>
     </Card>

@@ -36,10 +36,6 @@ export interface LoginData {
   otp?: string;
 }
 
-export interface RegisterData extends RegisterFormData {
-  name?: string;
-}
-
 export interface OTPData {
   email: string;
   otp: string;
@@ -104,27 +100,10 @@ export interface LoginFormData {
   rememberMe?: boolean;
 }
 
-export interface RegisterFormData {
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-  role?: Role;
-  clinicId?: string | undefined;
-  appName?: string | undefined;
-  // Optional fields that may be provided during registration
-  phone?: string;
-  gender?: string;
-  dateOfBirth?: string;
-  address?: string;
-  age?: number; // Frontend-only field, will be converted to dateOfBirth
-}
-
 export interface OTPFormData {
   identifier: string;
   otp: string;
   rememberMe?: boolean;
-  isRegistration?: boolean;
   firstName?: string;
   lastName?: string;
   clinicId?: string | undefined;
@@ -145,7 +124,8 @@ export interface User {
   phone?: string | undefined;
   phoneVerified?: boolean | undefined;
   phoneVerifiedAt?: string | undefined;
-  loginMethod?: 'password' | 'otp' | 'google_oauth' | 'facebook_oauth' | 'apple_oauth' | undefined;
+  emailVerified?: boolean | undefined;
+  loginMethod?: 'password' | 'phone_otp' | 'email_otp' | 'google_oauth' | 'facebook_oauth' | 'apple_oauth' | undefined;
   clinicId?: string | undefined;
   clinicName?: string | undefined;
   createdAt?: string | undefined;
@@ -164,10 +144,7 @@ export interface UserProfile extends User {
   medicalConditions?: string[];
 }
 // ============================================================================
-// ZOD SCHEMAS - MOVED TO @/lib/schema/auth.schema.ts
-// ============================================================================
-// ✅ All Zod validation schemas are now consolidated in:
-//    import { loginSchema, registerSchema, ... } from '@/lib/schema'
+// ZOD SCHEMAS - Defined in @/lib/schema/auth.schema.ts
 // ============================================================================
 
 export interface ClinicLocation {
@@ -194,9 +171,6 @@ export interface OTPStatus {
 export interface ForgotPasswordFormData {
   email: string;
 }
-
-// RegisterData is now consolidated above using the extended RegisterFormData
-
 
 export interface GoogleLoginResponse {
   user: {
@@ -278,7 +252,6 @@ export interface PasswordLoginFormData {
 
 export interface OtpRequestFormData {
   identifier: string;
-  isRegistration?: boolean;
   clinicId?: string | undefined;
 }
 
@@ -286,7 +259,6 @@ export interface OtpVerifyFormData {
   identifier: string;
   otp: string;
   rememberMe?: boolean;
-  isRegistration?: boolean;
   firstName?: string;
   lastName?: string;
   clinicId?: string | undefined;

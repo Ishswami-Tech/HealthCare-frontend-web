@@ -9,8 +9,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
-import { getDashboardByRole } from "@/lib/config/routes";
-import { Role } from "@/types/auth.types";
+import { resolveRedirect } from "@/lib/utils/redirect";
 import { PageLoading } from "@/components/ui/loading";
 import { StatusFooter } from "@/components/status/StatusFooter";
 
@@ -23,10 +22,19 @@ export default function AuthLayout({
   const { isPending, session, isAuthenticated } = useAuth();
 
   useEffect(() => {
-    if (!isPending && isAuthenticated && session?.user?.role) {
-      router.replace(getDashboardByRole(session.user.role as Role));
+    if (!isPending && isAuthenticated && session?.user) {
+      const redirect = resolveRedirect({
+        isAuthenticated: true,
+        user: {
+          role: session.user.role,
+          ...(typeof session.user.profileComplete === "boolean"
+            ? { profileComplete: session.user.profileComplete }
+            : {}),
+        },
+      });
+      router.replace(redirect.path);
     }
-  }, [isPending, isAuthenticated, router, session?.user?.role]);
+  }, [isPending, isAuthenticated, router, session?.user]);
 
   if (isPending || (isAuthenticated && session?.user)) {
     return (

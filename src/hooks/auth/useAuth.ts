@@ -13,7 +13,6 @@ import { resolveRedirect, RedirectContext } from '@/lib/utils/redirect';
 import { isSessionInvalidError } from '@/lib/utils/auth-recovery';
 import {
   login as loginAction,
-  register as registerAction,
   verifyOTP as verifyOTPAction,
   logout as logoutAction,
   forgotPassword as forgotPasswordAction,
@@ -29,8 +28,6 @@ import {
   invalidateOTP as invalidateOTPAction,
   verifyEmail as verifyEmailAction,
   googleLogin as googleLoginAction,
-  facebookLogin as facebookLoginAction,
-  appleLogin as appleLoginAction,
   refreshToken,
   clearSession,
 } from '@/lib/actions/auth.server';
@@ -43,7 +40,6 @@ import {
 import type {
   OTPFormData,
   OtpRequestFormData,
-  RegisterData,
   SocialLoginData,
   AuthResponse,
   MessageResponse,
@@ -81,11 +77,11 @@ function getRedirectPath(
   user: { role?: Role | string; profileComplete?: boolean | undefined } | null | undefined,
   redirectUrl?: string
 ): string {
-  if (redirectUrl && !redirectUrl.includes('/auth/')) {
-    return redirectUrl;
-  }
   if (user?.profileComplete === false) {
     return ROUTES.PROFILE_COMPLETION;
+  }
+  if (redirectUrl && !redirectUrl.includes('/auth/')) {
+    return redirectUrl;
   }
   if (user?.role) {
     return getDashboardByRole(user.role as Role);
@@ -316,6 +312,7 @@ export function useAuth() {
 
       if (isSessionInvalidError(error)) {
         queryClient.setQueryData(['session'], null);
+        showErrorToast('Session expired. Please login again.', { id: TOAST_IDS.AUTH.LOGIN });
         return null;
       }
 
@@ -483,33 +480,6 @@ export function useAuth() {
   );
   const isGoogleLoggingIn = googleLoginMutation.isPending;
 
-  // Register mutation - ✅ Use core hook
-  const registerMutation = useMutationOperation<AuthResponse, RegisterData>(
-    async (data: RegisterData) => {
-       // @ts-ignore - fixing type mismatch with updated server action return type
-       const result = await registerAction(data) as AuthResponse | { error: string };
-       
-       // ✅ Check for explicit error return
-       if ((result as any).error) {
-         throw new Error((result as any).error);
-       }
-       
-       return result as AuthResponse;
-    },
-    {
-      toastId: TOAST_IDS.AUTH.REGISTER,
-      loadingMessage: 'Registering...',
-      successMessage: 'Registration successful',
-      showToast: false,
-      showLoading: false,
-      // ✅ Removed onSuccess redirect - let page component handle it to prevent double redirects
-      // ✅ Removed onError toast - let page component handle it to prevent duplicate toasts
-      onSuccess: () => {
-        resetQueryCacheForAuthTransition();
-      },
-    }
-  );
-
   // Enhanced logout mutation with proper cleanup - ✅ Use core hook
   const logoutMutation = useMutationOperation<{ success: boolean }, void>(
     async () => {
@@ -586,7 +556,13 @@ export function useAuth() {
 
   // OTP verification mutation - ✅ Use core hook
   const verifyOTPMutation = useMutationOperation<AuthResponse, OTPFormData>(
-    (data) => verifyOTPAction(data) as Promise<AuthResponse>,
+    async (data) => {
+      const result = await verifyOTPAction(data);
+      if ('error' in result && result.error) {
+        throw new Error(result.error);
+      }
+      return result as AuthResponse;
+    },
     {
       toastId: TOAST_IDS.AUTH.OTP,
       loadingMessage: 'Verifying OTP...',
@@ -891,104 +867,6 @@ export function useAuth() {
   const verifyEmail = verifyEmailMutation.mutate;
   const isVerifyingEmail = verifyEmailMutation.isPending;
 
-  // Social Login mutations - ✅ Use core hooks
-  const facebookLoginMutation = useMutationOperation<AuthResponse, { token: string; clinicId?: string | undefined }>(
-    (data) => facebookLoginAction(data.token, data.clinicId),
-    {
-      toastId: TOAST_IDS.AUTH.SOCIAL_LOGIN,
-      loadingMessage: 'Logging in with Facebook...',
-      successMessage: 'Logged in with Facebook successfully',
-      showToast: false,
-      showLoading: false,
-      onSuccess: (data) => {
-        const profileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
-        const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
-        const accessToken =
-          (data as unknown as { access_token?: string; accessToken?: string }).access_token ||
-          (data as unknown as { access_token?: string; accessToken?: string }).accessToken ||
-          '';
-        const sessionId =
-          (data as unknown as { session_id?: string; sessionId?: string }).session_id ||
-          (data as unknown as { session_id?: string; sessionId?: string }).sessionId ||
-          '';
-        const sessionData: Session = {
-          user: {
-            ...data.user,
-            ...(clinicId ? { clinicId } : {}),
-            profileComplete,
-          } as User,
-          access_token: accessToken,
-          session_id: sessionId,
-          isAuthenticated: true,
-        };
-
-        resetQueryCacheForAuthTransition(sessionData);
-        void prefetchAuthenticatedWorkspace(clinicId, sessionData.session_id || sessionData.user.id || 'guest');
-        const redirectPath = getRedirectPath(data.user, data.redirectUrl);
-        router.push(redirectPath);
-      },
-    }
-  );
-  
-  const facebookLogin = useCallback(
-    (token: string, clinicId?: string | undefined) => facebookLoginMutation.mutateAsync({ token, clinicId }),
-    [facebookLoginMutation]
-  );
-  const isFacebookLoggingIn = facebookLoginMutation.isPending;
-
-  const appleLoginMutation = useMutationOperation<{ success: boolean; user?: User; error?: string }, { token: string; clinicId?: string | undefined }>(
-    async (data: { token: string; clinicId?: string | undefined }) => {
-      const result = await appleLoginAction(data.token, data.clinicId);
-      if (!result.success) {
-        throw new Error(result.error || 'Apple login failed');
-      }
-      return result;
-    },
-    {
-      toastId: TOAST_IDS.AUTH.SOCIAL_LOGIN,
-      loadingMessage: 'Logging in with Apple...',
-      successMessage: 'Successfully logged in with Apple',
-      showToast: false,
-      showLoading: false,
-      onSuccess: (data) => {
-        // Handle successful Apple login
-          if (data?.user) {
-            const profileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
-            const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
-            const accessToken =
-              (data as unknown as { access_token?: string; accessToken?: string }).access_token ||
-              (data as unknown as { access_token?: string; accessToken?: string }).accessToken ||
-              '';
-            const sessionId =
-              (data as unknown as { session_id?: string; sessionId?: string }).session_id ||
-              (data as unknown as { session_id?: string; sessionId?: string }).sessionId ||
-              '';
-            const sessionData: Session = {
-              user: {
-                ...data.user,
-                ...(clinicId ? { clinicId } : {}),
-                profileComplete,
-              } as User,
-              access_token: accessToken,
-              session_id: sessionId,
-              isAuthenticated: true,
-            };
-
-            // Redirect to dashboard
-            resetQueryCacheForAuthTransition(sessionData);
-            void prefetchAuthenticatedWorkspace(clinicId, sessionData.session_id || sessionData.user.id || 'guest');
-            router.push(getDashboardByRole(data.user.role as Role));
-        }
-      },
-    }
-  );
-  
-  const appleLogin = useCallback(
-    (token: string, clinicId?: string | undefined) => appleLoginMutation.mutateAsync({ token, clinicId }),
-    [appleLoginMutation]
-  );
-  const isAppleLoggingIn = appleLoginMutation.isPending;
-
   return {
     session,
     isPending,
@@ -996,7 +874,6 @@ export function useAuth() {
     user: session?.user,
     login: loginMutation.mutate,
     loginAsync: loginMutation.mutateAsync, // ✅ Use mutateAsync for awaitable login
-    register: registerMutation.mutateAsync, // ✅ Use mutateAsync so await works properly
     logout: logoutMutation.mutate,
     logoutAsync: logoutMutation.mutateAsync,
     verifyOTP: verifyOTPMutation.mutateAsync, // ✅ Use mutateAsync for awaitable OTP verification
@@ -1012,17 +889,12 @@ export function useAuth() {
     invalidateOTP,
     verifyEmail,
     googleLogin,
-    facebookLogin,
-    appleLogin,
     socialLogin,
     isCheckingOTPStatus,
     isInvalidatingOTP,
     isVerifyingEmail,
     isGoogleLoggingIn,
-    isFacebookLoggingIn,
-    isAppleLoggingIn,
     isLoggingIn: loginMutation.isPending,
-    isRegistering: registerMutation.isPending,
     isLoggingOut: logoutMutation.isPending,
     isRequestingReset,
     isResettingPassword,
@@ -1166,5 +1038,6 @@ export function useAuthForm(options: AuthFormOptions) {
     stopLoading: stopLoadingRef.current,
   };
 } 
+
 
 

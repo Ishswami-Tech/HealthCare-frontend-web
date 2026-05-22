@@ -42,7 +42,7 @@ import {
 } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { showSuccessToast, showErrorToast, showWarningToast, TOAST_IDS } from "@/hooks/utils/use-toast";
-import { Loader2, Phone, MapPin, Calendar, Venus, CalendarIcon, ShieldCheck } from "lucide-react";
+import { Loader2, Phone, MapPin, Calendar, Venus, CalendarIcon, ShieldCheck, Mail } from "lucide-react";
 import { Role } from "@/types/auth.types";
 import { ROUTES } from "@/lib/config/routes";
 import { profileCompletionSchema, type SchemaProfileCompletionFormData as ProfileCompletionFormData } from "@/lib/schema";
@@ -55,12 +55,12 @@ interface ProfileCompletionFormProps {
   onComplete?: () => void;
 }
 
-const resolveNameParts = (
+function resolveNameParts(
   user:
     | { firstName?: string | undefined; lastName?: string | undefined; name?: string | undefined }
     | null
     | undefined
-) => {
+): { firstName: string; lastName: string } {
   const firstName = user?.firstName?.trim() || "";
   const lastName = user?.lastName?.trim() || "";
   const fullName = user?.name?.trim() || "";
@@ -78,7 +78,7 @@ const resolveNameParts = (
   }
 
   return { firstName: "", lastName: "" };
-};
+}
 
 interface OtpModalProps {
   open: boolean;
@@ -88,6 +88,7 @@ interface OtpModalProps {
 }
 
 function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
+  const { session } = useAuth();
   const [otp, setOtp] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -109,7 +110,7 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
     if (countdown > 0) return;
     setErrorMessage(null);
     try {
-      await clinicApiClient.requestOTP({ identifier: phone, isRegistration: true });
+      await clinicApiClient.requestOTP({ identifier: phone });
       showSuccessToast("OTP resent to your phone.", { id: TOAST_IDS.PROFILE.OTP });
       setCountdown(30);
       setOtp("");
@@ -119,7 +120,7 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
           id: TOAST_IDS.AUTH.LOGIN,
           duration: 5000,
         });
-        window.location.href = '/login';
+        window.location.href = '/auth/login';
       } else {
         showErrorToast(error instanceof Error ? error.message : "Failed to resend OTP", {
           id: TOAST_IDS.PROFILE.OTP,
@@ -159,7 +160,7 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
           id: TOAST_IDS.AUTH.LOGIN,
           duration: 5000,
         });
-        window.location.href = '/login';
+        window.location.href = '/auth/login';
       } else {
         setErrorMessage("Invalid OTP. Please try again.");
         showErrorToast("Invalid OTP. Please try again.", { id: TOAST_IDS.PROFILE.OTP });
@@ -244,9 +245,31 @@ export default function ProfileCompletionForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
-  const [isPhoneVerified, setIsPhoneVerified] = useState(Boolean(session?.user?.phoneVerified));
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [pendingPhone, setPendingPhone] = useState("");
+
+  // Login method flags (must be defined before useState hooks that use them)
+  const loginMethod = session?.user?.loginMethod;
+  const isGoogleLogin = loginMethod === 'google_oauth';
+  const isEmailOtpLogin = loginMethod === 'email_otp';
+  const isPhoneOtpLogin = loginMethod === 'phone_otp';
+  const autoFilledFirstName = session?.user?.firstName || '';
+  const autoFilledLastName = session?.user?.lastName || '';
+  const autoFilledEmail = session?.user?.email || '';
+
+  const [isPhoneVerified, setIsPhoneVerified] = useState(
+    Boolean(
+      session?.user?.phoneVerified ||
+      isPhoneOtpLogin ||  // Phone OTP login = phone already verified
+      isGoogleLogin       // Google login = phone verified during auth
+    )
+  );
+  const [isEmailVerified, setIsEmailVerified] = useState(
+    Boolean(
+      session?.user?.emailVerified ||
+      isEmailOtpLogin    // Email OTP login = email already verified
+    )
+  );
 
   const redirectUrl = searchParams.get("redirect") || "/";
 
@@ -262,9 +285,10 @@ export default function ProfileCompletionForm({
   const form = useForm<ProfileCompletionFormData>({
     resolver: zodResolver(profileCompletionSchema),
     defaultValues: {
-      firstName: "",
-      lastName: "",
-      phone: "",
+      firstName: autoFilledFirstName,
+      lastName: autoFilledLastName,
+      email: autoFilledEmail,
+      phone: formatPhoneNumber(session?.user?.phone),
       dateOfBirth: "",
       gender: "male",
       address: "",
@@ -281,8 +305,26 @@ export default function ProfileCompletionForm({
   const watchedPhone = form.watch("phone");
 
   useEffect(() => {
-    setIsPhoneVerified(Boolean(session?.user?.phoneVerified));
-  }, [session?.user?.phoneVerified]);
+    setIsPhoneVerified(
+      Boolean(
+        session?.user?.phoneVerified ||
+        isPhoneOtpLogin ||
+        isGoogleLogin
+      )
+    );
+    setIsEmailVerified(
+      Boolean(
+        session?.user?.emailVerified ||
+        isEmailOtpLogin
+      )
+    );
+  }, [
+    session?.user?.phoneVerified,
+    session?.user?.emailVerified,
+    isPhoneOtpLogin,
+    isEmailOtpLogin,
+    isGoogleLogin
+  ]);
 
   useEffect(() => {
     if (!watchedPhone) return;
@@ -293,9 +335,12 @@ export default function ProfileCompletionForm({
 
   useEffect(() => {
     if (!session?.user || isInitialized) return;
+    const resolvedNames = resolveNameParts(session.user);
     form.reset({
-      ...resolveNameParts(session.user),
-      phone: "",
+      firstName: resolvedNames.firstName || autoFilledFirstName,
+      lastName: resolvedNames.lastName || autoFilledLastName,
+      email: session.user.email || autoFilledEmail,
+      phone: formatPhoneNumber(session.user.phone),
       dateOfBirth: "",
       gender: "male" as const,
       address: "",
@@ -322,10 +367,17 @@ export default function ProfileCompletionForm({
         showErrorToast("Enter a phone number first.", { id: TOAST_IDS.PROFILE.COMPLETE });
         return;
       }
+
+      // Validate phone length for OTP
+      const phoneDigits = phone.replace(/[^\d]/g, "");
+      if (phoneDigits.length < 10) {
+        showErrorToast("Please enter a valid phone number with country code.", { id: TOAST_IDS.PROFILE.COMPLETE });
+        return;
+      }
+
       setIsSendingOtp(true);
       await clinicApiClient.requestOTP({
         identifier: phone,
-        isRegistration: false,
         ...(session?.user?.clinicId ? { clinicId: session.user.clinicId } : {}),
       });
       setPendingPhone(phone);
@@ -336,7 +388,7 @@ export default function ProfileCompletionForm({
       const errorLower = errorMessage.toLowerCase();
 
       if (errorLower.includes("user") && errorLower.includes("not found")) {
-        showErrorToast("This phone is not registered. Please use a registered phone number.", {
+        showErrorToast("This phone is not linked yet. Please try a different number or continue with OTP sign-up.", {
           id: TOAST_IDS.PROFILE.COMPLETE,
         });
       } else if (errorLower.includes("expired") || errorLower.includes("unauthorized")) {
@@ -344,7 +396,7 @@ export default function ProfileCompletionForm({
           id: TOAST_IDS.AUTH.LOGIN,
           duration: 5000,
         });
-        window.location.href = '/login';
+        window.location.href = '/auth/login';
       } else if (errorLower.includes("rate limit")) {
         showErrorToast("Too many requests. Please wait a moment and try again.", {
           id: TOAST_IDS.PROFILE.COMPLETE,
@@ -383,6 +435,13 @@ export default function ProfileCompletionForm({
       return { ...source, user: { ...source.user, profileComplete: true } };
     });
 
+    // Invalidate all clinic-related queries to ensure fresh data loads immediately
+    // Use more permissive invalidation by using prefix matching instead of exact keys
+    const clinicQueryKeys = ['myClinic', 'clinicLocations', 'clinicDoctors', 'doctors', 'activeLocations', 'current-clinic'];
+    clinicQueryKeys.forEach(key => {
+      queryClient.invalidateQueries({ queryKey: [key] });
+    });
+
     setTimeout(() => {
       try {
         if (onComplete) {
@@ -411,15 +470,48 @@ export default function ProfileCompletionForm({
         dateOfBirth: data.dateOfBirth,
         gender: data.gender ? data.gender.toUpperCase() : undefined,
         address: data.address,
-        phoneVerified: isPhoneVerified,  // Required by backend to mark profile complete
+        phoneVerified: isPhoneVerified,
+        emailVerified: isEmailVerified,
       };
 
-      // phoneVerified IS required before completing profile
-      if (!isPhoneVerified) {
+      // Validation based on login method
+      // Email OTP login: needs phone verification
+      if (isEmailOtpLogin && !isPhoneVerified) {
         form.setError("phone", {
           type: "manual",
           message: "Please verify your phone number via OTP before completing the profile.",
         });
+        return;
+      }
+
+      // Google login: needs phone verification (name/email auto-filled)
+      if (isGoogleLogin && !isPhoneVerified) {
+        form.setError("phone", {
+          type: "manual",
+          message: "Please verify your phone number via OTP before completing the profile.",
+        });
+        return;
+      }
+
+      // Phone OTP login: needs name (email optional)
+      if (isPhoneOtpLogin && (!data.firstName?.trim() || !data.lastName?.trim())) {
+        if (!data.firstName?.trim()) {
+          form.setError("firstName", { type: "required", message: "First name is required" });
+        }
+        if (!data.lastName?.trim()) {
+          form.setError("lastName", { type: "required", message: "Last name is required" });
+        }
+        return;
+      }
+
+      // Email OTP login: needs name (email already verified)
+      if (isEmailOtpLogin && (!data.firstName?.trim() || !data.lastName?.trim())) {
+        if (!data.firstName?.trim()) {
+          form.setError("firstName", { type: "required", message: "First name is required" });
+        }
+        if (!data.lastName?.trim()) {
+          form.setError("lastName", { type: "required", message: "Last name is required" });
+        }
         return;
       }
 
@@ -538,18 +630,21 @@ export default function ProfileCompletionForm({
                 </h3>
 
                 {/* First Name / Last Name */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField
                     control={form.control}
                     name="firstName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs sm:text-sm">
-                          First Name <span className="text-destructive">*</span>
+                        <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
+                          First Name
+                          {(isPhoneOtpLogin || isEmailOtpLogin) && <span className="text-destructive">*</span>}
+                          {isGoogleLogin && <ShieldCheck className="h-3 w-3 text-emerald-500" aria-label="Auto-filled from Google" />}
                         </FormLabel>
                         <FormControl>
                           <Input
                             placeholder="First name"
+                            disabled={isGoogleLogin}
                             className="h-10 sm:h-9 text-sm"
                             aria-invalid={!!form.formState.errors.firstName}
                             {...field}
@@ -564,12 +659,15 @@ export default function ProfileCompletionForm({
                     name="lastName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs sm:text-sm">
-                          Last Name <span className="text-destructive">*</span>
+                        <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
+                          Last Name
+                          {(isPhoneOtpLogin || isEmailOtpLogin) && <span className="text-destructive">*</span>}
+                          {isGoogleLogin && <ShieldCheck className="h-3 w-3 text-emerald-500" aria-label="Auto-filled from Google" />}
                         </FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Last name"
+                            disabled={isGoogleLogin}
                             className="h-10 sm:h-9 text-sm"
                             aria-invalid={!!form.formState.errors.lastName}
                             {...field}
@@ -581,6 +679,40 @@ export default function ProfileCompletionForm({
                   />
                 </div>
 
+                {/* Email (auto-filled for Google, auto-verified for Email OTP) */}
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
+                        Email
+                        {isGoogleLogin && <ShieldCheck className="h-3 w-3 text-emerald-500" aria-label="Auto-filled from Google" />}
+                        {isEmailOtpLogin && isEmailVerified && <ShieldCheck className="h-3 w-3 text-emerald-500" aria-label="Verified via Email OTP" />}
+                      </FormLabel>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <div className="flex-1">
+                          <Input
+                            type="email"
+                            placeholder="Email"
+                            disabled={isGoogleLogin || isEmailOtpLogin}
+                            className="h-10 sm:h-9 text-sm"
+                            aria-invalid={!!form.formState.errors.email}
+                            {...field}
+                          />
+                        </div>
+                        {isEmailVerified && (
+                          <div className="flex items-center justify-center gap-1 text-emerald-600 text-xs font-medium h-10 sm:h-9 px-3 sm:px-2">
+                            <ShieldCheck className="h-3 w-3" />
+                            <span>Verified</span>
+                          </div>
+                        )}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 {/* Phone */}
                 <FormField
                   control={form.control}
@@ -589,7 +721,10 @@ export default function ProfileCompletionForm({
                     <FormItem>
                       <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
                         <Phone className="h-3 w-3" />
-                        Phone <span className="text-destructive">*</span>
+                        Phone
+                        {(isGoogleLogin || isEmailOtpLogin) && <span className="text-destructive">*</span>}
+                        {isPhoneOtpLogin && <span className="text-destructive">*</span>}
+                        {isPhoneVerified && <ShieldCheck className="h-3 w-3 text-emerald-500" aria-label="Phone verified" />}
                       </FormLabel>
                       <div className="flex flex-col sm:flex-row gap-2">
                         <div className="flex-1">
@@ -630,6 +765,7 @@ export default function ProfileCompletionForm({
                   )}
                 />
 
+                
                 {/* Date of Birth / Gender */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField

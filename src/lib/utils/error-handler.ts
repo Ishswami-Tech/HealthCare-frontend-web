@@ -167,6 +167,11 @@ export function getErrorMessageForStatus(
     case 422:
       return ERROR_MESSAGES.VALIDATION_ERROR;
     case 429:
+      // Extract lockout duration from backend message if present
+      // Backend sends: "Account temporarily locked... Try again in X minutes."
+      if (backendMessage && backendMessage.includes('minutes')) {
+        return backendMessage; // Use backend's human-readable message
+      }
       return 'Too many requests. Please try again later.';
     case 500:
       return ERROR_MESSAGES.SERVER_ERROR;

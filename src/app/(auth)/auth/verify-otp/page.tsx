@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -21,17 +21,19 @@ import { TOAST_IDS } from "@/hooks/utils/use-toast";
 import { ROUTES } from "@/lib/config/routes";
 import { OtpCodeInput } from "@/components/auth/otp-code-input";
 
+const RESEND_COOLDOWN_SECONDS = 60;
+
 export default function VerifyOTPPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClinicId = searchParams.get("clinicId") || undefined;
-  const isRegistration =
-    searchParams.get("isRegistration") === "true" ||
-    searchParams.get("isRegistration") === "1";
   const { verifyOTP, requestOTP, isVerifyingOTP, isRequestingOTP } = useAuth();
   const [email, setEmail] = useState("");
   const [successPhase, setSuccessPhase] = useState<"none" | "alert" | "redirecting">("none");
   const [formError, setFormError] = useState<string | null>(null);
+  const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
+  const [countdown, setCountdown] = useState(0);
+  const countdownRef = useRef<NodeJS.Timeout | null>(null);
 
   const triggerSuccessFlow = useCallback(() => {
     setFormError(null);
@@ -46,6 +48,20 @@ export default function VerifyOTPPage() {
     successMessage: "OTP verified successfully! Redirecting...",
     errorMessage: "OTP verification failed. Please try again.",
     showToast: false,
+    onError: (error) => {
+      // Handle specific error cases
+      const errorMsg = error.message.toLowerCase();
+      if (errorMsg.includes('locked') || errorMsg.includes('too many') || errorMsg.includes('minutes')) {
+        // Account locked - show the lockout message
+        setFormError(error.message);
+      } else if (errorMsg.includes('user not found') || errorMsg.includes('invalid otp')) {
+        setFormError("Invalid OTP. Please check and try again.");
+      } else if (errorMsg.includes('expired')) {
+        setFormError("OTP has expired. Please request a new one.");
+      } else {
+        setFormError(error.message);
+      }
+    },
     // Don't redirect - AuthLayout will handle it
   });
 
@@ -65,11 +81,9 @@ export default function VerifyOTPPage() {
       return await verifyOTP({
         ...data,
         clinicId: queryClinicId,
-        isRegistration,
       });
       });
       if (!result) {
-        setFormError("OTP verification failed. Please try again.");
         return;
       }
       triggerSuccessFlow();
@@ -88,6 +102,9 @@ export default function VerifyOTPPage() {
     successMessage: "A new OTP has been sent to your email.",
     errorMessage: "Failed to resend OTP. Please try again.",
     showToast: false,
+    onError: (error) => {
+      setFormError(error.message);
+    },
     onSuccess: () => {
       form.setValue("otp", "");
       form.clearErrors("otp");
@@ -95,20 +112,52 @@ export default function VerifyOTPPage() {
   });
 
   const handleResendOTP = async () => {
+    if (countdown > 0) return; // Don't allow during cooldown
+
     // ✅ Use unified pattern - consistent across all auth pages
     const result = await executeOTPResend(async () => {
       return await requestOTP({
         identifier: email,
         clinicId: queryClinicId,
-        isRegistration,
       });
     });
     if (!result) {
-      setFormError("Failed to resend OTP. Please try again.");
+      return;
     }
+    startCountdown(); // Start cooldown after successful request
   };
 
-  // ✅ Overlay clearing is handled by auth layout - no need to clear here
+  // Clear countdown on unmount
+  useEffect(() => {
+    return () => {
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+      }
+    };
+  }, []);
+
+  const startCountdown = () => {
+    setCountdown(RESEND_COOLDOWN_SECONDS);
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+    }
+    countdownRef.current = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          if (countdownRef.current) {
+            clearInterval(countdownRef.current);
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  // Start initial countdown when page loads (optional, for UX)
+  useEffect(() => {
+    startCountdown();
+  }, []);
   // This prevents race conditions and ensures consistent behavior
 
   // Redirecting overlay
@@ -124,7 +173,7 @@ export default function VerifyOTPPage() {
           </div>
           <div className="text-center space-y-1">
             <p className="font-semibold text-gray-900 dark:text-gray-100">Successfully signed in!</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Redirecting to dashboard…</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Redirecting…</p>
           </div>
         </CardContent>
       </Card>
@@ -157,7 +206,7 @@ export default function VerifyOTPPage() {
             <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0" />
             <div>
               <p className="text-sm font-semibold text-green-800 dark:text-green-300">OTP verified!</p>
-              <p className="text-xs text-green-600 dark:text-green-400">Redirecting to your dashboard…</p>
+              <p className="text-xs text-green-600 dark:text-green-400">Redirecting to the next step…</p>
             </div>
           </div>
         )}
@@ -179,6 +228,11 @@ export default function VerifyOTPPage() {
                       invalid={!!fieldState.error || !!formError}
                     />
                   </FormControl>
+                  {attemptsRemaining !== null && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {attemptsRemaining} attempts remaining
+                    </p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
@@ -205,13 +259,15 @@ export default function VerifyOTPPage() {
                 variant="outline"
                 className="w-full"
                 onClick={handleResendOTP}
-                disabled={isRequestingOTP || successPhase !== "none"}
+                disabled={isRequestingOTP || successPhase !== "none" || countdown > 0}
               >
                 {isRequestingOTP ? (
                   <div className="flex items-center justify-center">
                     <div className="w-5 h-5 border-t-2 border-b-2 border-current rounded-full animate-spin mr-2" />
                     Sending...
                   </div>
+                ) : countdown > 0 ? (
+                  `Resend in ${countdown}s`
                 ) : (
                   "Resend OTP"
                 )}

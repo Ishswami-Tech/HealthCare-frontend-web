@@ -66,26 +66,6 @@ const passwordValidation = z
   .regex(/[0-9]/, 'Password must contain at least one number')
   .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character');
 
-export const registerSchema = z
-  .object({
-    email: z.string().email('Please enter a valid email address'),
-    password: passwordValidation,
-    confirmPassword: z.string(),
-    firstName: z.string().min(2, 'First name must be at least 2 characters'),
-    lastName: z.string().min(2, 'Last name must be at least 2 characters'),
-    phone: z.string().optional(),
-    gender: z.enum(['male', 'female', 'other']).optional(),
-    role: createRoleEnum().default(Role.PATIENT),
-    age: z.number().optional(),
-    terms: z.boolean().refine((val) => val === true, {
-      message: 'You must accept the terms and conditions',
-    }),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match",
-    path: ['confirmPassword'],
-  });
-
 
 export const forgotPasswordSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -115,9 +95,10 @@ export const changePasswordSchema = z
 
 
 export const profileCompletionSchema = z.object({
-  firstName: z.string().min(2, 'First name must be at least 2 characters'),
-  lastName: z.string().min(2, 'Last name must be at least 2 characters'),
-  phone: z.string().min(10, 'Phone number must be at least 10 digits'),
+  firstName: z.string().min(2, 'First name must be at least 2 characters').optional(),
+  lastName: z.string().min(2, 'Last name must be at least 2 characters').optional(),
+  email: z.string().email('Please enter a valid email address').optional(),
+  phone: z.string().min(10, 'Phone number must be at least 10 digits').optional(),
   dateOfBirth: z
     .string()
     .optional()
@@ -155,7 +136,6 @@ export type SchemaLoginFormData = z.infer<typeof loginSchema>;
 export type SchemaPasswordLoginFormData = z.infer<typeof passwordLoginSchema>;
 export type SchemaOtpRequestFormData = z.infer<typeof requestOtpSchema>;
 export type SchemaOtpVerifyFormData = z.infer<typeof otpVerifySchema>;
-export type SchemaRegisterFormData = z.infer<typeof registerSchema>;
 export type SchemaForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
 export type SchemaResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 export type SchemaChangePasswordFormData = z.infer<typeof changePasswordSchema>;

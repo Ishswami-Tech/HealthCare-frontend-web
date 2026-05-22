@@ -1,13 +1,13 @@
 /**
  * ✅ CENTRAL SCHEMA EXPORTS
  * Single entry point for all Zod validation schemas
- * 
+ *
  * Usage:
- *   import { loginSchema, registerSchema } from '@/lib/schema'
- * 
+ *   import { loginSchema, requestOtpSchema } from '@/lib/schema'
+ *
  * For types, import from @/types:
- *   import { LoginFormData, RegisterFormData } from '@/types/auth.types'
- * 
+ *   import { LoginFormData, OTPFormData } from '@/types/auth.types'
+ *
  * @module Schema
  */
 
@@ -22,8 +22,6 @@ export {
   requestOtpSchema,
   otpSchema,
   otpVerifySchema,
-  // Registration
-  registerSchema,
   // Password Reset
   forgotPasswordSchema,
   resetPasswordSchema,
@@ -35,7 +33,6 @@ export {
   type SchemaPasswordLoginFormData,
   type SchemaOtpRequestFormData,
   type SchemaOtpVerifyFormData,
-  type SchemaRegisterFormData,
   type SchemaForgotPasswordFormData,
   type SchemaResetPasswordFormData,
   type SchemaChangePasswordFormData,

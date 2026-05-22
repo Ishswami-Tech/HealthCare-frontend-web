@@ -137,7 +137,7 @@ const Navigation = () => {
   };
 
   const handleRegister = () => {
-    router.push(ROUTES.REGISTER);
+    router.push(ROUTES.LOGIN);
   };
 
   const handleLogout = async () => {
@@ -524,8 +524,8 @@ const Navigation = () => {
                         onClick={handleRegister}
                         className="bg-linear-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs sm:text-sm px-2 sm:px-3 touch-manipulation"
                       >
-                        <span className="hidden sm:inline">Register</span>
-                        <span className="sm:hidden">Sign Up</span>
+                        <span className="hidden sm:inline">Get Started</span>
+                        <span className="sm:hidden">Start</span>
                       </Button>
                     </div>
                   ) : null}
@@ -725,7 +725,7 @@ const Navigation = () => {
                             onClick={handleRegister}
                             className="bg-linear-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white h-12 text-base touch-manipulation shadow-md"
                           >
-                            Register
+                            Get Started
                           </Button>
                         </div>
                       ) : null}

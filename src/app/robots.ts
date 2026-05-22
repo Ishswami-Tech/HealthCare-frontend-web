@@ -20,7 +20,6 @@ export default function robots(): MetadataRoute.Robots {
           '/about',
           '/contact',
           '/auth/login',
-          '/auth/register',
         ],
         disallow: [
           '/dashboard/',

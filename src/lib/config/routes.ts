@@ -3,7 +3,7 @@ import { getSidebarLinksByRole, SidebarLink } from './sidebarLinks';
 
 export const ROUTES = {
   LOGIN: '/auth/login',
-  REGISTER: '/auth/register',
+  // REGISTER: removed - registration is now handled implicitly via OTP/Google login
   FORGOT_PASSWORD: '/auth/forgot-password',
   RESET_PASSWORD: '/auth/reset-password',
   VERIFY_OTP: '/auth/verify-otp',
@@ -69,7 +69,7 @@ export function isAuthPath(path: string): boolean {
 export function isPublicRoute(path: string): boolean {
   const publicRoutes = [
     ROUTES.LOGIN,
-    ROUTES.REGISTER,
+    // ROUTES.REGISTER removed - registration now handled via OTP/Google
     ROUTES.FORGOT_PASSWORD,
     ROUTES.RESET_PASSWORD,
     ROUTES.VERIFY_OTP,

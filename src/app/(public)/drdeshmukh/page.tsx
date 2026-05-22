@@ -189,7 +189,7 @@ const services: ServiceItem[] = [
   },
   {
     id: "chinchwad",
-    title: "Address - Chinchwad OPD",
+    title: "Chinchwad Clinic",
     description: "Vishal market, near manakarnika aushadhalaya, bhaji mandai, Chinchwad, Pimpri-Chinchwad.",
     href: "https://maps.app.goo.gl/vUpHxgJ46WuhxacR8",
     icon: MapPin,
@@ -199,7 +199,7 @@ const services: ServiceItem[] = [
   },
   {
     id: "nanapeth",
-    title: "Address - Nanapeth",
+    title: "Nanapeth Clinic",
     description: "102, RAMPRASAD CHAMBERS, 368/1, Jawaharlal Nehru Rd, KIRAD HOSPITAL, SHRADDHA MEDICALS, New Nana Peth, Pune.",
     href: "https://maps.app.goo.gl/h32bZgQhb8r8YewX7",
     icon: MapPin,
@@ -360,6 +360,9 @@ export default function DrDeshmukhPage() {
     async function loadPreviews() {
       const results = await Promise.allSettled(
         services.map(async (service) => {
+          if (service.previewKind === "map") {
+            return null;
+          }
           const href = resolveHref(service.href);
           if (!isWebLink(href)) {
             return null;
@@ -552,8 +555,12 @@ export default function DrDeshmukhPage() {
                 service.previewKind === "map"
                   ? getFallbackThumbnail(service)
                   : previews[service.id]?.image || getFallbackThumbnail(service);
-              const previewTitle = previews[service.id]?.title || service.title;
-              const previewDescription = previews[service.id]?.description || service.description;
+              const previewTitle =
+                service.previewKind === "map" ? service.title : previews[service.id]?.title || service.title;
+              const previewDescription =
+                service.previewKind === "map"
+                  ? service.description
+                  : previews[service.id]?.description || service.description;
 
               return (
                 <div
@@ -585,7 +592,7 @@ export default function DrDeshmukhPage() {
                       <h4 className="truncate text-[13px] font-semibold text-slate-900 dark:text-slate-100 sm:text-sm">
                         {previewTitle}
                       </h4>
-                      {previews[service.id]?.siteName ? (
+                      {service.previewKind !== "map" && previews[service.id]?.siteName ? (
                         <p className="mt-0.5 truncate text-[10px] font-medium uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
                           {previews[service.id]?.siteName}
                         </p>
@@ -671,15 +678,19 @@ export default function DrDeshmukhPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold leading-snug text-slate-900 dark:text-slate-100">
-                    {previews[activeService.id]?.title || activeService.title}
+                    {activeService.previewKind === "map"
+                      ? activeService.title
+                      : previews[activeService.id]?.title || activeService.title}
                   </p>
-                  {previews[activeService.id]?.siteName ? (
+                  {activeService.previewKind !== "map" && previews[activeService.id]?.siteName ? (
                     <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
                       {previews[activeService.id]?.siteName}
                     </p>
                   ) : null}
                   <p className="mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                    {previews[activeService.id]?.description || activeService.description}
+                    {activeService.previewKind === "map"
+                      ? activeService.description
+                      : previews[activeService.id]?.description || activeService.description}
                   </p>
                 </div>
               </div>
