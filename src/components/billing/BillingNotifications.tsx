@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/auth/useAuth";
@@ -44,7 +44,7 @@ export function BillingNotifications({ onMarkAsRead, onClearAll }: BillingNotifi
         id: "1",
         type: "payment_received",
         title: "Payment Received",
-        message: "Payment of ₹2,500 received for INV-001",
+        message: "Payment of â‚¹2,500 received for INV-001",
         amount: 2500,
         date: new Date(Date.now() - 3600000), // 1 hour ago
         read: false,
@@ -201,9 +201,12 @@ export function BillingNotifications({ onMarkAsRead, onClearAll }: BillingNotifi
     <>
       {/* Notification Bell Button - Would be placed in header */}
       <div className="relative inline-block">
-        <button
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
           onClick={() => setShowNotifications(!showNotifications)}
-          className="relative p-2 rounded-full hover:bg-muted transition-colors"
+          className="relative rounded-full hover:bg-muted transition-colors"
           aria-label={`Notifications (${unreadCount} unread)`}
         >
           {unreadCount > 0 ? (
@@ -219,7 +222,7 @@ export function BillingNotifications({ onMarkAsRead, onClearAll }: BillingNotifi
               {unreadCount > 9 ? "9+" : unreadCount}
             </Badge>
           )}
-        </button>
+        </Button>
       </div>
 
       {/* Notifications Panel */}
@@ -262,72 +265,70 @@ export function BillingNotifications({ onMarkAsRead, onClearAll }: BillingNotifi
                   </div>
                 ) : (
                   <div className="divide-y">
-                    {notifications.map((notification) => (
+                                        {notifications.map((notification) => (
                       <div
                         key={notification.id}
                         className={`p-4 hover:bg-muted/50 transition-colors ${
                           notification.read ? "opacity-60" : "font-medium"
                         }`}
-                        onClick={() => {
-                          if (!notification.read) {
-                            handleMarkAsRead(notification.id);
-                          }
-                        }}
-                        onKeyDown={(event) => {
-                          if ((event.key === "Enter" || event.key === " ") && !notification.read) {
-                            event.preventDefault();
-                            handleMarkAsRead(notification.id);
-                          }
-                        }}
-                        role="button"
-                        tabIndex={0}
                       >
                         <div className="flex gap-3">
-                          <div className={`mt-1 shrink-0 rounded-full p-2 ${getNotificationColor(notification.type)}`}>
-                            {getNotificationIcon(notification.type)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex-1">
-                                <p className="text-sm font-medium">{notification.title}</p>
-                                <p className="text-sm text-muted-foreground mt-1">
-                                  {notification.message}
-                                </p>
-                                {notification.amount && (
-                                  <div className="flex items-center gap-2 mt-2">
-                                    <span className="font-semibold">₹{notification.amount.toLocaleString()}</span>
-                                    <span className="text-xs text-muted-foreground">·</span>
-                                    <span className="text-xs text-muted-foreground">
-                                      {formatTimeAgo(notification.date)}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex gap-2 shrink-0">
-                                {!notification.read && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleMarkAsRead(notification.id);
-                                    }}
-                                  >
-                                    <CheckCircle className="size-4" />
-                                  </Button>
-                                )}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteNotification(notification.id);
-                                  }}
-                                >
-                                  <X className="size-4" />
-                                </Button>
+                          <button
+                            type="button"
+                            className="flex flex-1 min-w-0 gap-3 text-left"
+                            onClick={() => {
+                              if (!notification.read) {
+                                handleMarkAsRead(notification.id);
+                              }
+                            }}
+                            disabled={notification.read}
+                          >
+                            <div className={`mt-1 shrink-0 rounded-full p-2 ${getNotificationColor(notification.type)}`}>
+                              {getNotificationIcon(notification.type)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium">{notification.title}</p>
+                                  <p className="mt-1 text-sm text-muted-foreground">
+                                    {notification.message}
+                                  </p>
+                                  {notification.amount && (
+                                    <div className="mt-2 flex items-center gap-2">
+                                      <span className="font-semibold">
+                                        {"₹"}{notification.amount.toLocaleString()}
+                                      </span>
+                                      <span className="text-xs text-muted-foreground">·</span>
+                                      <span className="text-xs text-muted-foreground">
+                                        {formatTimeAgo(notification.date)}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </div>
+                          </button>
+                          <div className="flex shrink-0 gap-2">
+                            {!notification.read && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  handleMarkAsRead(notification.id);
+                                }}
+                              >
+                                <CheckCircle className="size-4" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                handleDeleteNotification(notification.id);
+                              }}
+                            >
+                              <X className="size-4" />
+                            </Button>
                           </div>
                         </div>
                       </div>
@@ -369,5 +370,7 @@ export function BillingNotifications({ onMarkAsRead, onClearAll }: BillingNotifi
     </>
   );
 }
+
+
 
 

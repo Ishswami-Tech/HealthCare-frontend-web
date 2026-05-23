@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState } from "react";
+import { useReducer } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,11 +52,93 @@ export default function DoctorPrescriptions() {
   const user = session?.user;
   const doctorId = user?.id || "";
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [editingPrescription, setEditingPrescription] = useState<any | null>(null);
-  const [showPrescriptionDialog, setShowPrescriptionDialog] = useState(false);
-  const [editForm, setEditForm] = useState({ diagnosis: "", notes: "", status: "active", medicines: "" });
+  type DoctorPrescriptionEditForm = {
+    diagnosis: string;
+    notes: string;
+    status: string;
+    medicines: string;
+  };
+
+  type DoctorPrescriptionsState = {
+    searchQuery: string;
+    filterStatus: string;
+    editingPrescription: any | null;
+    showPrescriptionDialog: boolean;
+    editForm: DoctorPrescriptionEditForm;
+  };
+
+  type DoctorPrescriptionsAction =
+    | { type: "setSearchQuery"; value: string }
+    | { type: "setFilterStatus"; value: string }
+    | { type: "setEditingPrescription"; value: any | null }
+    | { type: "setShowPrescriptionDialog"; value: boolean }
+    | { type: "setEditForm"; value: DoctorPrescriptionEditForm }
+    | { type: "updateEditForm"; value: Partial<DoctorPrescriptionEditForm> };
+
+  const initialDoctorPrescriptionsState: DoctorPrescriptionsState = {
+    searchQuery: "",
+    filterStatus: "all",
+    editingPrescription: null,
+    showPrescriptionDialog: false,
+    editForm: { diagnosis: "", notes: "", status: "active", medicines: "" },
+  };
+
+  function doctorPrescriptionsReducer(
+    state: DoctorPrescriptionsState,
+    action: DoctorPrescriptionsAction
+  ): DoctorPrescriptionsState {
+    switch (action.type) {
+      case "setSearchQuery":
+        return { ...state, searchQuery: action.value };
+      case "setFilterStatus":
+        return { ...state, filterStatus: action.value };
+      case "setEditingPrescription":
+        return { ...state, editingPrescription: action.value };
+      case "setShowPrescriptionDialog":
+        return { ...state, showPrescriptionDialog: action.value };
+      case "setEditForm":
+        return { ...state, editForm: action.value };
+      case "updateEditForm":
+        return { ...state, editForm: { ...state.editForm, ...action.value } };
+      default:
+        return state;
+    }
+  }
+
+  const [
+    {
+      searchQuery,
+      filterStatus,
+      editingPrescription,
+      showPrescriptionDialog,
+      editForm,
+    },
+    dispatch,
+  ] = useReducer(doctorPrescriptionsReducer, initialDoctorPrescriptionsState);
+
+  const setSearchQuery = (value: string) => {
+    dispatch({ type: "setSearchQuery", value });
+  };
+
+  const setFilterStatus = (value: string) => {
+    dispatch({ type: "setFilterStatus", value });
+  };
+
+  const setEditingPrescription = (value: any | null) => {
+    dispatch({ type: "setEditingPrescription", value });
+  };
+
+  const setShowPrescriptionDialog = (value: boolean) => {
+    dispatch({ type: "setShowPrescriptionDialog", value });
+  };
+
+  const setEditForm = (value: DoctorPrescriptionEditForm) => {
+    dispatch({ type: "setEditForm", value });
+  };
+
+  const updateEditForm = (value: Partial<DoctorPrescriptionEditForm>) => {
+    dispatch({ type: "updateEditForm", value });
+  };
   const isHydrated = useHydrated();
   const todayDate = isHydrated ? new Date().toDateString() : "";
 
@@ -112,8 +194,10 @@ export default function DoctorPrescriptions() {
   const handleSavePrescription = () => {
     const medicinesArr = editForm.medicines
       .split(",")
-      .map((m) => m.trim())
-      .filter(Boolean);
+      .flatMap((m) => {
+        const trimmed = m.trim();
+        return trimmed ? [trimmed] : [];
+      });
 
     if (editingPrescription?.id) {
       updateMutation.mutate({
@@ -217,7 +301,7 @@ export default function DoctorPrescriptions() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
-        <Card className="border-l-4 border-l-blue-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
+        <Card className="border-l-2 border-l-blue-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-blue-100 rounded-lg">
@@ -232,7 +316,7 @@ export default function DoctorPrescriptions() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-emerald-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
+        <Card className="border-l-2 border-l-emerald-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-green-100 rounded-lg">
@@ -247,7 +331,7 @@ export default function DoctorPrescriptions() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-violet-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
+        <Card className="border-l-2 border-l-violet-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-purple-100 rounded-lg">
@@ -262,7 +346,7 @@ export default function DoctorPrescriptions() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-amber-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
+        <Card className="border-l-2 border-l-amber-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-orange-100 rounded-lg">
@@ -411,34 +495,37 @@ export default function DoctorPrescriptions() {
             <DialogDescription>
               Create or update a prescription with the patientâ€™s medication plan and clinical notes.
             </DialogDescription>
-          </DialogHeader>
+            </DialogHeader>
           <div className="gap-y-4 py-2">
             <div className="gap-y-1.5">
-              <Label>Diagnosis / Notes</Label>
+              <Label htmlFor="doctor-prescription-notes">Diagnosis / Notes</Label>
               <textarea
+                id="doctor-prescription-notes"
+                aria-label="Diagnosis / Notes"
                 className="w-full border rounded-md p-2 text-sm min-h-[80px] resize-none focus:outline-none focus:ring-2 focus:ring-ring"
                 placeholder="Enter diagnosis or clinical notes..."
                 value={editForm.notes}
-                onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
+                onChange={(e) => updateEditForm({ notes: e.target.value })}
               />
             </div>
             {!editingPrescription && (
               <div className="gap-y-1.5">
-                <Label>Medicines (comma-separated)</Label>
+                <Label htmlFor="doctor-prescription-medicines">Medicines (comma-separated)</Label>
                 <Input
+                  id="doctor-prescription-medicines"
                   placeholder="e.g. Paracetamol 500mg, Amoxicillin 250mg"
                   value={editForm.medicines}
-                  onChange={(e) => setEditForm((f) => ({ ...f, medicines: e.target.value }))}
+                  onChange={(e) => updateEditForm({ medicines: e.target.value })}
                 />
               </div>
             )}
             <div className="gap-y-1.5">
-              <Label>Status</Label>
+              <Label htmlFor="doctor-prescription-status">Status</Label>
               <Select
                 value={editForm.status}
-                onValueChange={(v) => setEditForm((f) => ({ ...f, status: v }))}
+                onValueChange={(v) => updateEditForm({ status: v })}
               >
-                <SelectTrigger>
+                <SelectTrigger id="doctor-prescription-status" aria-label="Status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

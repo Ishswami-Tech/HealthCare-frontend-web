@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useReducer } from "react";
 import {
   Dialog,
   DialogContent,
@@ -30,7 +30,6 @@ import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-t
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { useEffect } from "react";
 import {
   Accordion,
   AccordionContent,
@@ -146,6 +145,62 @@ interface AssignRoleModalProps {
   onSuccess?: () => void;
 }
 
+type AssignRoleState = {
+  selectedRole: Role;
+  activeTab: string;
+  isActive: boolean;
+  selectedPermissions: Permission[];
+  permissionSearch: string;
+  isSubmitting: boolean;
+};
+
+type AssignRoleAction =
+  | { type: "setSelectedRole"; value: Role }
+  | { type: "setActiveTab"; value: string }
+  | { type: "setIsActive"; value: boolean }
+  | {
+      type: "setSelectedPermissions";
+      value: Permission[] | ((prev: Permission[]) => Permission[]);
+    }
+  | { type: "setPermissionSearch"; value: string }
+  | { type: "setIsSubmitting"; value: boolean };
+
+function createAssignRoleState(staffMember: AssignRoleModalProps["staffMember"]): AssignRoleState {
+  return {
+    selectedRole: (staffMember.role as Role) || Role.RECEPTIONIST,
+    activeTab: "role",
+    isActive: staffMember.status !== "Inactive",
+    selectedPermissions: [],
+    permissionSearch: "",
+    isSubmitting: false,
+  };
+}
+
+function assignRoleReducer(state: AssignRoleState, action: AssignRoleAction): AssignRoleState {
+  switch (action.type) {
+    case "setSelectedRole":
+      return { ...state, selectedRole: action.value };
+    case "setActiveTab":
+      return { ...state, activeTab: action.value };
+    case "setIsActive":
+      return { ...state, isActive: action.value };
+    case "setSelectedPermissions":
+      return {
+        ...state,
+        selectedPermissions:
+          typeof action.value === "function"
+            ? action.value(state.selectedPermissions)
+            : action.value,
+      };
+    case "setPermissionSearch":
+      return { ...state, permissionSearch: action.value };
+    case "setIsSubmitting":
+      return { ...state, isSubmitting: action.value };
+    default:
+      return state;
+  }
+}
+
 export function AssignRoleModal({
   open,
   onOpenChange,
@@ -154,29 +209,29 @@ export function AssignRoleModal({
   clinicId,
   onSuccess,
 }: AssignRoleModalProps) {
-  const [selectedRole, setSelectedRole] = useState<Role>(
-    (staffMember.role as Role) || Role.RECEPTIONIST
-  );
-  const [activeTab, setActiveTab] = useState("role");
-  const [isActive, setIsActive] = useState<boolean>(
-    staffMember.status !== "Inactive"
-  );
-  
-  const [selectedPermissions, setSelectedPermissions] = useState<Permission[]>([]);
-  const [permissionSearch, setPermissionSearch] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [
+    {
+      selectedRole,
+      activeTab,
+      isActive,
+      selectedPermissions,
+      permissionSearch,
+      isSubmitting,
+    },
+    dispatch,
+  ] = useReducer(assignRoleReducer, staffMember, createAssignRoleState);
+
+  const setSelectedRole = (value: Role) => dispatch({ type: "setSelectedRole", value });
+  const setActiveTab = (value: string) => dispatch({ type: "setActiveTab", value });
+  const setIsActive = (value: boolean) => dispatch({ type: "setIsActive", value });
+  const setSelectedPermissions = (
+    value: Permission[] | ((prev: Permission[]) => Permission[])
+  ) => dispatch({ type: "setSelectedPermissions", value });
+  const setPermissionSearch = (value: string) =>
+    dispatch({ type: "setPermissionSearch", value });
+  const setIsSubmitting = (value: boolean) => dispatch({ type: "setIsSubmitting", value });
   const updateUserRoleMutation = useUpdateUserRole();
   const updateUserMutation = useUpdateUser();
-
-  // Initialize permissions
-  useEffect(() => {
-    if (open && staffMember) {
-      const initialPermissions = (staffMember.permissions as Permission[]) || 
-                                (ROLE_PERMISSIONS[staffMember.role as Role] || []) as Permission[];
-      setSelectedPermissions(initialPermissions);
-      setSelectedRole((staffMember.role as Role) || Role.RECEPTIONIST);
-    }
-  }, [open, staffMember]);
 
   const isClinicAdmin = currentUserRole === Role.CLINIC_ADMIN;
   const assignableRoles = isClinicAdmin ? CLINIC_ADMIN_ASSIGNABLE_ROLES : ALL_STAFF_ROLES;
@@ -240,8 +295,8 @@ export function AssignRoleModal({
     try {
       if (!staffMember) return;
       
-      const currentPermissions = [...selectedPermissions].sort();
-      const originalPermissions = [...((staffMember.permissions as Permission[]) || (ROLE_PERMISSIONS[staffMember.role as Role] || []))].sort();
+      const currentPermissions = selectedPermissions.toSorted();
+      const originalPermissions = ((staffMember.permissions as Permission[]) || (ROLE_PERMISSIONS[staffMember.role as Role] || [])).toSorted();
 
       if (selectedRole !== (staffMember.role as Role) || 
           JSON.stringify(currentPermissions) !== JSON.stringify(originalPermissions)) {
@@ -286,8 +341,19 @@ export function AssignRoleModal({
     }
   };
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      const initialPermissions = (staffMember.permissions as Permission[]) ||
+        (ROLE_PERMISSIONS[staffMember.role as Role] || []) as Permission[];
+      setSelectedPermissions(initialPermissions);
+      setSelectedRole((staffMember.role as Role) || Role.RECEPTIONIST);
+      setIsActive(staffMember.status !== "Inactive");
+    }
+    onOpenChange(nextOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-full sm:max-w-[95vw] lg:max-w-6xl p-0 overflow-hidden border border-neutral-200 dark:border-neutral-800 shadow-2xl bg-white dark:bg-neutral-950 max-h-[88vh] flex flex-col rounded-2xl">
         {/* Professional Header */}
         <div className="bg-white dark:bg-neutral-900 px-5 py-4 sm:px-6 border-b border-neutral-200 dark:border-neutral-800 shrink-0">
@@ -339,6 +405,7 @@ export function AssignRoleModal({
               
               <div className="gap-y-1">
                 <button 
+                  type="button"
                   onClick={() => setActiveTab("role")}
                   className={cn(
                     "w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200",
@@ -355,6 +422,7 @@ export function AssignRoleModal({
                 </button>
 
                 <button 
+                  type="button"
                   onClick={() => setActiveTab("permissions")}
                   className={cn(
                     "w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200",
@@ -409,17 +477,10 @@ export function AssignRoleModal({
                         const variantClass = ROLE_CARD_VARIANTS[index % ROLE_CARD_VARIANTS.length];
                         
                         return (
-                          <div 
+                          <button
+                            type="button"
                             key={role}
                             onClick={() => handleRoleChange(role)}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter" || event.key === " ") {
-                                event.preventDefault();
-                                handleRoleChange(role);
-                              }
-                            }}
-                            role="button"
-                            tabIndex={0}
                             className={cn(
                               "relative p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer flex flex-col gap-3 group",
                               isSelected 
@@ -447,7 +508,7 @@ export function AssignRoleModal({
                               )}>{info.label}</h4>
                               <p className="text-xs text-neutral-500 leading-normal line-clamp-2">{info.description}</p>
                             </div>
-                          </div>
+                          </button>
                         );
                       })}
                     </div>
@@ -530,17 +591,10 @@ export function AssignRoleModal({
                                   const isDefault = (ROLE_PERMISSIONS[selectedRole] || []).includes(p);
                                   
                                   return (
-                                    <div 
+                                    <button
+                                      type="button"
                                       key={p} 
                                       onClick={() => togglePermission(p)}
-                                      onKeyDown={(event) => {
-                                        if (event.key === "Enter" || event.key === " ") {
-                                          event.preventDefault();
-                                          togglePermission(p);
-                                        }
-                                      }}
-                                      role="button"
-                                      tabIndex={0}
                                       className={cn(
                                         "flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 cursor-pointer group/item",
                                         isSelected 
@@ -570,7 +624,7 @@ export function AssignRoleModal({
                                           </span>
                                         )}
                                       </div>
-                                    </div>
+                                    </button>
                                   );
                                 })}
                               </div>
@@ -593,7 +647,7 @@ export function AssignRoleModal({
               <Shield className="size-4 text-emerald-500" />
               <span>{selectedPermissions.length} permissions configured</span>
             </div>
-            {selectedPermissions.length > 0 && JSON.stringify([...selectedPermissions].sort()) !== JSON.stringify([...(ROLE_PERMISSIONS[selectedRole] || [])].sort()) && (
+            {selectedPermissions.length > 0 && JSON.stringify(selectedPermissions.toSorted()) !== JSON.stringify((ROLE_PERMISSIONS[selectedRole] || []).toSorted()) && (
               <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50 dark:bg-amber-950/20 gap-1 font-bold">
                 <Zap className="size-3 fill-amber-600" />
                 Custom Overrides Active

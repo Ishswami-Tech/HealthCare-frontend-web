@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useMemo, useCallback, useReducer } from "react";
 import Link from "next/link";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Role } from "@/types/auth.types";
@@ -75,6 +75,228 @@ interface PatientTableRow {
   nextAppointmentLabel: string;
 }
 
+type SelectedPatient = any;
+
+type NewPatientFormState = {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  dateOfBirth: string;
+  gender: string;
+  address: string;
+  emergencyContact: string;
+  emergencyPhone: string;
+  medicalHistory: string;
+  allergies: string;
+  currentMedications: string;
+};
+
+type ReceptionistPatientsState = {
+  searchTerm: string;
+  statusFilter: string;
+  genderFilter: string;
+  sortFilter: string;
+  page: number;
+  debouncedSearchTerm: string;
+  showNewPatientDialog: boolean;
+  showAdditionalPatientDetails: boolean;
+  newPatient: NewPatientFormState;
+};
+
+type ReceptionistPatientsAction =
+  | { type: "setSearchTerm"; value: string }
+  | { type: "setDebouncedSearchTerm"; value: string }
+  | { type: "setStatusFilter"; value: string }
+  | { type: "setGenderFilter"; value: string }
+  | { type: "setSortFilter"; value: string }
+  | { type: "setPage"; value: number }
+  | { type: "setShowNewPatientDialog"; value: boolean }
+  | { type: "toggleAdditionalPatientDetails" }
+  | { type: "updateNewPatient"; field: keyof NewPatientFormState; value: string }
+  | { type: "resetAfterCreate" };
+
+const initialNewPatientFormState: NewPatientFormState = {
+  firstName: "",
+  lastName: "",
+  phone: "",
+  email: "",
+  dateOfBirth: "",
+  gender: "",
+  address: "",
+  emergencyContact: "",
+  emergencyPhone: "",
+  medicalHistory: "",
+  allergies: "",
+  currentMedications: "",
+};
+
+const initialReceptionistPatientsState: ReceptionistPatientsState = {
+  searchTerm: "",
+  statusFilter: "all",
+  genderFilter: "all",
+  sortFilter: "registered-desc",
+  page: 1,
+  debouncedSearchTerm: "",
+  showNewPatientDialog: false,
+  showAdditionalPatientDetails: false,
+  newPatient: initialNewPatientFormState,
+};
+
+function receptionistPatientsReducer(
+  state: ReceptionistPatientsState,
+  action: ReceptionistPatientsAction
+): ReceptionistPatientsState {
+  switch (action.type) {
+    case "setSearchTerm":
+      return { ...state, searchTerm: action.value };
+    case "setDebouncedSearchTerm":
+      return { ...state, debouncedSearchTerm: action.value };
+    case "setStatusFilter":
+      return { ...state, statusFilter: action.value };
+    case "setGenderFilter":
+      return { ...state, genderFilter: action.value };
+    case "setSortFilter":
+      return { ...state, sortFilter: action.value };
+    case "setPage":
+      return { ...state, page: action.value };
+    case "setShowNewPatientDialog":
+      return { ...state, showNewPatientDialog: action.value };
+    case "toggleAdditionalPatientDetails":
+      return { ...state, showAdditionalPatientDetails: !state.showAdditionalPatientDetails };
+    case "updateNewPatient":
+      return {
+        ...state,
+        newPatient: {
+          ...state.newPatient,
+          [action.field]: action.value,
+        },
+      };
+    case "resetAfterCreate":
+      return {
+        ...initialReceptionistPatientsState,
+      };
+    default:
+      return state;
+  }
+}
+
+function PatientDetailsSections({
+  selectedPatient,
+  getStatusColor,
+}: {
+  selectedPatient: SelectedPatient;
+  getStatusColor: (status: string) => string;
+}) {
+  return (
+    <div className="gap-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">
+            Personal Information
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div>
+            <strong>Full Name:</strong>{" "}
+            {selectedPatient.name ||
+              `${selectedPatient.firstName || ""} ${
+                selectedPatient.lastName || ""
+              }`.trim()}
+          </div>
+          <div>
+            <strong>Phone:</strong> {selectedPatient.phone || selectedPatient.user?.phone || "N/A"}
+          </div>
+          <div>
+            <strong>Email:</strong> {selectedPatient.email || selectedPatient.user?.email || "N/A"}
+          </div>
+          <div>
+            <strong>Age:</strong>{" "}
+            {selectedPatient.age ? `${selectedPatient.age} years` : "N/A"}
+          </div>
+          <div>
+            <strong>Gender:</strong> {selectedPatient.gender || "N/A"}
+          </div>
+          <div>
+            <strong>Registration:</strong>{" "}
+            {selectedPatient.createdAt
+              ? formatDateInIST(selectedPatient.createdAt)
+              : "N/A"}
+          </div>
+          <div className="md:col-span-2">
+            <strong>Address:</strong> {selectedPatient.address || "N/A"}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Heart className="size-5" />
+            Medical Information
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="gap-y-4 text-sm">
+          <div>
+            <strong>Blood Group:</strong> {selectedPatient.bloodGroup || "N/A"}
+          </div>
+          <div>
+            <strong>Allergies:</strong>{" "}
+            {Array.isArray(selectedPatient.allergies)
+              ? selectedPatient.allergies.join(", ")
+              : selectedPatient.allergies || "N/A"}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">
+            Status Information
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div>
+            <strong>Status:</strong>{" "}
+            <Badge
+              className={getStatusColor(
+                selectedPatient.isActive !== false ? "Active" : "Inactive"
+              )}
+              variant="outline"
+            >
+              {selectedPatient.isActive !== false ? "Active" : "Inactive"}
+            </Badge>
+          </div>
+          <div>
+            <strong>Total Visits:</strong>{" "}
+            {selectedPatient.totalVisits !== undefined
+              ? selectedPatient.totalVisits
+              : "N/A"}
+          </div>
+          <div>
+            <strong>Registered:</strong>{" "}
+            {selectedPatient.createdAt
+              ? formatDateInIST(selectedPatient.createdAt, { day: "2-digit", month: "short", year: "numeric" })
+              : "N/A"}
+          </div>
+          <div>
+            <strong>Last Visit:</strong>{" "}
+            {selectedPatient.lastVisit
+              ? formatDateInIST(selectedPatient.lastVisit, { day: "2-digit", month: "short", year: "numeric" })
+              : "N/A"}
+          </div>
+          <div>
+            <strong>Next Appointment:</strong>{" "}
+            {selectedPatient.nextAppointment
+              ? formatDateInIST(selectedPatient.nextAppointment, { day: "2-digit", month: "short", year: "numeric" })
+              : "N/A"}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 function createTemporaryPatientPassword(phone: string): string {
   const digits = phone.replace(/\D/g, "").slice(-4) || "1234";
   return `Temp@${digits}Aa`;
@@ -93,42 +315,33 @@ function normalizePatientGender(
 export default function ReceptionistPatients() {
   useAuth();
   const { clinicId } = useClinicContext();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [genderFilter, setGenderFilter] = useState("all");
-  const [sortFilter, setSortFilter] = useState("registered-desc");
-  const [page, setPage] = useState(1);
+  const [
+    {
+      searchTerm,
+      statusFilter,
+      genderFilter,
+      sortFilter,
+      page,
+      debouncedSearchTerm,
+      showNewPatientDialog,
+      showAdditionalPatientDetails,
+      newPatient,
+    },
+    dispatch,
+  ] = useReducer(receptionistPatientsReducer, initialReceptionistPatientsState);
   const pageSize = 12;
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-  const [showNewPatientDialog, setShowNewPatientDialog] = useState(false);
-  const [showAdditionalPatientDetails, setShowAdditionalPatientDetails] = useState(false);
   const patients = usePatientStore((state) => state.collections.clinic);
   const selectedPatient = usePatientStore((state) => state.selectedPatient);
   const setSelectedPatient = usePatientStore((state) => state.setSelectedPatient);
   const debouncedSetSearch = useDebouncedCallback((value: string) => {
-    setDebouncedSearchTerm(value);
+    dispatch({ type: "setDebouncedSearchTerm", value });
   }, 300);
 
-  // New patient form state
-  const [newPatient, setNewPatient] = useState({
-    firstName: "",
-    lastName: "",
-    phone: "",
-    email: "",
-    dateOfBirth: "",
-    gender: "" as any,
-    address: "",
-    emergencyContact: "",
-    emergencyPhone: "",
-    medicalHistory: "",
-    allergies: "",
-    currentMedications: "",
-  });
-
-  useEffect(() => {
-    debouncedSetSearch(searchTerm);
-    setPage(1);
-  }, [searchTerm, debouncedSetSearch]);
+  const handleSearchChange = (value: string) => {
+    dispatch({ type: "setSearchTerm", value });
+    dispatch({ type: "setPage", value: 1 });
+    debouncedSetSearch(value);
+  };
 
   // Fetch real patient data
   const patientsQuery = usePatients(
@@ -220,7 +433,7 @@ export default function ReceptionistPatients() {
       return matchesSearch && matchesStatus && matchesGender;
     });
 
-    return [...base].sort((left: any, right: any) => {
+    return base.toSorted((left: any, right: any) => {
       if (sortFilter === "name-asc") {
         return String(left.name || "").localeCompare(String(right.name || ""));
       }
@@ -333,7 +546,7 @@ export default function ReceptionistPatients() {
         ),
       },
     ],
-    [clinicId]
+    [setSelectedPatient]
   );
 
   const handleNewPatientSubmit = async () => {
@@ -360,15 +573,17 @@ export default function ReceptionistPatients() {
       const allergies = newPatient.allergies
         ? newPatient.allergies
             .split(",")
-            .map((value) => value.trim())
-            .filter(Boolean)
+            .flatMap((value) => {
+              const trimmed = value.trim();
+              return trimmed ? [trimmed] : [];
+            })
         : [];
       const medicalHistory = [
         newPatient.medicalHistory.trim(),
         newPatient.currentMedications.trim()
           ? `Current medications: ${newPatient.currentMedications.trim()}`
           : "",
-      ].filter(Boolean);
+      ].flatMap((value) => (value ? [value] : []));
       const temporaryPassword = createTemporaryPatientPassword(newPatient.phone);
       const emergencyContact =
         newPatient.emergencyContact.trim() && newPatient.emergencyPhone.trim()
@@ -406,26 +621,8 @@ export default function ReceptionistPatients() {
           id: TOAST_IDS.GLOBAL.SUCCESS,
         }
       );
-      setShowNewPatientDialog(false);
-      setShowAdditionalPatientDetails(false);
+      dispatch({ type: "resetAfterCreate" });
       setSelectedPatient(null);
-      setSearchTerm("");
-      setPage(1);
-      setStatusFilter("all");
-      setNewPatient({
-        firstName: "",
-        lastName: "",
-        phone: "",
-        email: "",
-        dateOfBirth: "",
-        gender: "" as any,
-        address: "",
-        emergencyContact: "",
-        emergencyPhone: "",
-        medicalHistory: "",
-        allergies: "",
-        currentMedications: "",
-      });
     } catch (error) {
       showErrorToast(
         error instanceof Error ? error.message : "Failed to create patient",
@@ -459,7 +656,7 @@ export default function ReceptionistPatients() {
             <h1 className="text-3xl font-semibold">Patient Management</h1>
             <Dialog
               open={showNewPatientDialog}
-              onOpenChange={setShowNewPatientDialog}
+              onOpenChange={(open) => dispatch({ type: "setShowNewPatientDialog", value: open })}
             >
               <DialogTrigger asChild>
                 <Button className="flex items-center gap-2">
@@ -501,7 +698,7 @@ export default function ReceptionistPatients() {
                             placeholder="e.g. John"
                             className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-lg h-8 text-[13px]"
                             value={newPatient.firstName}
-                            onChange={(e) => setNewPatient({ ...newPatient, firstName: e.target.value })}
+                            onChange={(e) => dispatch({ type: "updateNewPatient", field: "firstName", value: e.target.value })}
                             required
                           />
                         </div>
@@ -514,7 +711,7 @@ export default function ReceptionistPatients() {
                             placeholder="e.g. Doe"
                             className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-lg h-8 text-[13px]"
                             value={newPatient.lastName}
-                            onChange={(e) => setNewPatient({ ...newPatient, lastName: e.target.value })}
+                            onChange={(e) => dispatch({ type: "updateNewPatient", field: "lastName", value: e.target.value })}
                             required
                           />
                         </div>
@@ -529,7 +726,7 @@ export default function ReceptionistPatients() {
                               placeholder="+1 (555) 000-0000"
                               className="pl-8 bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-lg h-8 text-[13px]"
                               value={newPatient.phone}
-                              onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })}
+                              onChange={(e) => dispatch({ type: "updateNewPatient", field: "phone", value: e.target.value })}
                               required
                             />
                           </div>
@@ -544,7 +741,7 @@ export default function ReceptionistPatients() {
                               placeholder="john.doe@example.com"
                               className="pl-8 bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-lg h-8 text-[13px]"
                               value={newPatient.email}
-                              onChange={(e) => setNewPatient({ ...newPatient, email: e.target.value })}
+                              onChange={(e) => dispatch({ type: "updateNewPatient", field: "email", value: e.target.value })}
                             />
                           </div>
                         </div>
@@ -555,14 +752,14 @@ export default function ReceptionistPatients() {
                             type="date"
                             className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-lg h-8 text-[13px]"
                             value={newPatient.dateOfBirth}
-                            onChange={(e) => setNewPatient({ ...newPatient, dateOfBirth: e.target.value })}
+                            onChange={(e) => dispatch({ type: "updateNewPatient", field: "dateOfBirth", value: e.target.value })}
                           />
                         </div>
                         <div className="gap-y-1">
                           <Label htmlFor="gender" className="text-[11px] font-semibold text-slate-700">Gender</Label>
                           <Select
                             value={newPatient.gender}
-                            onValueChange={(value) => setNewPatient({ ...newPatient, gender: value })}
+                            onValueChange={(value) => dispatch({ type: "updateNewPatient", field: "gender", value })}
                           >
                             <SelectTrigger className="bg-white/80 border-slate-200 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-lg h-8 text-[13px]">
                               <SelectValue placeholder="Select gender" />
@@ -590,7 +787,7 @@ export default function ReceptionistPatients() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => setShowAdditionalPatientDetails((current) => !current)}
+                        onClick={() => dispatch({ type: "toggleAdditionalPatientDetails" })}
                         className="h-8 gap-2 rounded-lg px-3 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 dark:text-emerald-200 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-100"
                       >
                         {showAdditionalPatientDetails ? (
@@ -624,7 +821,7 @@ export default function ReceptionistPatients() {
                               placeholder="Street, City, State, ZIP..."
                               className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all rounded-lg min-h-[50px] p-2.5 resize-none text-[13px]"
                               value={newPatient.address}
-                              onChange={(e) => setNewPatient({ ...newPatient, address: e.target.value })}
+                              onChange={(e) => dispatch({ type: "updateNewPatient", field: "address", value: e.target.value })}
                             />
                           </div>
                         </section>
@@ -645,7 +842,7 @@ export default function ReceptionistPatients() {
                                 placeholder="Name (Relationship)"
                                 className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all rounded-lg h-8 text-[13px]"
                                 value={newPatient.emergencyContact}
-                                onChange={(e) => setNewPatient({ ...newPatient, emergencyContact: e.target.value })}
+                                onChange={(e) => dispatch({ type: "updateNewPatient", field: "emergencyContact", value: e.target.value })}
                               />
                             </div>
                             <div className="gap-y-1">
@@ -655,7 +852,7 @@ export default function ReceptionistPatients() {
                                 placeholder="+1 (555) 000-0000"
                                 className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all rounded-lg h-8 text-[13px]"
                                 value={newPatient.emergencyPhone}
-                                onChange={(e) => setNewPatient({ ...newPatient, emergencyPhone: e.target.value })}
+                                onChange={(e) => dispatch({ type: "updateNewPatient", field: "emergencyPhone", value: e.target.value })}
                               />
                             </div>
                           </div>
@@ -677,7 +874,7 @@ export default function ReceptionistPatients() {
                                 placeholder="Document any known conditions, allergies, or past surgeries..."
                                 className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all rounded-lg min-h-[50px] p-2.5 resize-none text-[13px]"
                                 value={newPatient.medicalHistory}
-                                onChange={(e) => setNewPatient({ ...newPatient, medicalHistory: e.target.value })}
+                                onChange={(e) => dispatch({ type: "updateNewPatient", field: "medicalHistory", value: e.target.value })}
                               />
                             </div>
                             <div className="gap-y-1">
@@ -687,7 +884,7 @@ export default function ReceptionistPatients() {
                                 placeholder="Food, drug, or other allergies..."
                                 className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-lg h-8 text-[13px]"
                                 value={newPatient.allergies}
-                                onChange={(e) => setNewPatient({ ...newPatient, allergies: e.target.value })}
+                                onChange={(e) => dispatch({ type: "updateNewPatient", field: "allergies", value: e.target.value })}
                               />
                             </div>
                             <div className="gap-y-1">
@@ -697,7 +894,7 @@ export default function ReceptionistPatients() {
                                 placeholder="List current medications with dosage..."
                                 className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-lg min-h-[50px] p-2.5 resize-none text-[13px]"
                                 value={newPatient.currentMedications}
-                                onChange={(e) => setNewPatient({ ...newPatient, currentMedications: e.target.value })}
+                                onChange={(e) => dispatch({ type: "updateNewPatient", field: "currentMedications", value: e.target.value })}
                               />
                             </div>
                           </div>
@@ -715,7 +912,7 @@ export default function ReceptionistPatients() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setShowNewPatientDialog(false)}
+                      onClick={() => dispatch({ type: "setShowNewPatientDialog", value: false })}
                       className="h-9 rounded-lg text-slate-600 hover:bg-slate-100/50 dark:text-slate-300 dark:hover:bg-slate-800"
                     >
                       Cancel
@@ -827,13 +1024,13 @@ export default function ReceptionistPatients() {
                   <Input
                     placeholder="Search by name, phone, or email..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => handleSearchChange(e.target.value)}
                     className="pl-10"
                   />
                 </div>
                 <Select value={statusFilter} onValueChange={(value) => {
-                  setStatusFilter(value);
-                  setPage(1);
+                  dispatch({ type: "setStatusFilter", value });
+                  dispatch({ type: "setPage", value: 1 });
                 }}>
                   <SelectTrigger className="w-full md:w-48">
                     <SelectValue placeholder="Filter by status" />
@@ -845,8 +1042,8 @@ export default function ReceptionistPatients() {
                   </SelectContent>
                 </Select>
                 <Select value={genderFilter} onValueChange={(value) => {
-                  setGenderFilter(value);
-                  setPage(1);
+                  dispatch({ type: "setGenderFilter", value });
+                  dispatch({ type: "setPage", value: 1 });
                 }}>
                   <SelectTrigger className="w-full md:w-48">
                     <SelectValue placeholder="Filter by gender" />
@@ -859,8 +1056,8 @@ export default function ReceptionistPatients() {
                   </SelectContent>
                 </Select>
                 <Select value={sortFilter} onValueChange={(value) => {
-                  setSortFilter(value);
-                  setPage(1);
+                  dispatch({ type: "setSortFilter", value });
+                  dispatch({ type: "setPage", value: 1 });
                 }}>
                   <SelectTrigger className="w-full md:w-52">
                     <SelectValue placeholder="Sort by" />
@@ -898,7 +1095,7 @@ export default function ReceptionistPatients() {
             totalPages={patientsPage.totalPages || 1}
             totalItems={patientsPage.total || patientsWithAge.length}
             pageSize={pageSize}
-            onPageChange={setPage}
+            onPageChange={(nextPage) => dispatch({ type: "setPage", value: nextPage })}
           />
 
           <div className="hidden grid gap-4">
@@ -1181,111 +1378,10 @@ export default function ReceptionistPatients() {
                 </DialogTitle>
               </DialogHeader>
               {selectedPatient && (
-                <div className="gap-y-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">
-                        Personal Information
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <strong>Full Name:</strong>{" "}
-                        {selectedPatient.name ||
-                          `${selectedPatient.firstName || ""} ${
-                            selectedPatient.lastName || ""
-                          }`.trim()}
-                      </div>
-                      <div>
-                        <strong>Phone:</strong> {selectedPatient.phone || selectedPatient.user?.phone || "N/A"}
-                      </div>
-                      <div>
-                        <strong>Email:</strong> {selectedPatient.email || selectedPatient.user?.email || "N/A"}
-                      </div>
-                      <div>
-                        <strong>Age:</strong>{" "}
-                        {selectedPatient.age ? `${selectedPatient.age} years` : "N/A"}
-                      </div>
-                      <div>
-                        <strong>Gender:</strong> {selectedPatient.gender || "N/A"}
-                      </div>
-                      <div>
-                        <strong>Registration:</strong>{" "}
-                        {selectedPatient.createdAt
-                          ? formatDateInIST(selectedPatient.createdAt)
-                          : "N/A"}
-                      </div>
-                      <div className="md:col-span-2">
-                        <strong>Address:</strong> {selectedPatient.address || "N/A"}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Heart className="size-5" />
-                        Medical Information
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="gap-y-4 text-sm">
-                      <div>
-                        <strong>Blood Group:</strong> {selectedPatient.bloodGroup || "N/A"}
-                      </div>
-                      <div>
-                        <strong>Allergies:</strong>{" "}
-                        {Array.isArray(selectedPatient.allergies)
-                          ? selectedPatient.allergies.join(", ")
-                          : selectedPatient.allergies || "N/A"}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">
-                        Status Information
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <strong>Status:</strong>{" "}
-                        <Badge
-                          className={getStatusColor(
-                            selectedPatient.isActive !== false ? "Active" : "Inactive"
-                          )}
-                          variant="outline"
-                        >
-                          {selectedPatient.isActive !== false ? "Active" : "Inactive"}
-                        </Badge>
-                      </div>
-                      <div>
-                        <strong>Total Visits:</strong>{" "}
-                        {selectedPatient.totalVisits !== undefined
-                          ? selectedPatient.totalVisits
-                          : "N/A"}
-                      </div>
-                      <div>
-                        <strong>Registered:</strong>{" "}
-                        {selectedPatient.createdAt
-                          ? formatDateInIST(selectedPatient.createdAt, { day: "2-digit", month: "short", year: "numeric" })
-                          : "N/A"}
-                      </div>
-                      <div>
-                        <strong>Last Visit:</strong>{" "}
-                        {selectedPatient.lastVisit
-                          ? formatDateInIST(selectedPatient.lastVisit, { day: "2-digit", month: "short", year: "numeric" })
-                          : "N/A"}
-                      </div>
-                      <div>
-                        <strong>Next Appointment:</strong>{" "}
-                        {selectedPatient.nextAppointment
-                          ? formatDateInIST(selectedPatient.nextAppointment, { day: "2-digit", month: "short", year: "numeric" })
-                          : "N/A"}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
+                <PatientDetailsSections
+                  selectedPatient={selectedPatient}
+                  getStatusColor={getStatusColor}
+                />
               )}
             </DialogContent>
           </Dialog>

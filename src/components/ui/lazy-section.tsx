@@ -26,19 +26,20 @@ export const LazySection: React.FC<LazySectionProps> = ({
   threshold = 0.1,
 }) => {
   const [isVisible, setIsVisible] = React.useState(false);
-  const [hasLoaded, setHasLoaded] = React.useState(false);
+  const hasLoadedRef = React.useRef(false);
   const ref = React.useRef<HTMLDivElement>(null);
+  const observerOptions = React.useMemo(() => ({ threshold }), [threshold]);
 
   React.useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry?.isIntersecting && !hasLoaded) {
+        if (entry?.isIntersecting && !hasLoadedRef.current) {
           setIsVisible(true);
-          setHasLoaded(true);
+          hasLoadedRef.current = true;
           observer.disconnect();
         }
       },
-      { threshold }
+      observerOptions
     );
 
     if (ref.current) {
@@ -46,7 +47,7 @@ export const LazySection: React.FC<LazySectionProps> = ({
     }
 
     return () => observer.disconnect();
-  }, [threshold, hasLoaded]);
+  }, [observerOptions]);
 
   return (
     <div ref={ref} className={className}>

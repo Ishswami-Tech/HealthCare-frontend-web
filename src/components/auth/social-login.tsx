@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/hooks/auth/useAuth";
 import { cn } from "@/lib/utils";
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 
 // Google client ID from environment variable
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
@@ -59,7 +59,6 @@ interface SocialLoginProps {
   className?: string;
   onSuccess?: () => void;
   isLoading?: boolean;
-  onLoadingStateChange?: (isLoading: boolean) => void;
   clinicId?: string | undefined;
 }
 
@@ -148,21 +147,17 @@ export function SocialLogin({
   className,
   onSuccess,
   isLoading,
-  onLoadingStateChange,
   clinicId,
   showDivider = true,
 }: SocialLoginProps & { showDivider?: boolean }) {
   const { googleLogin, isGoogleLoggingIn } = useAuth();
   const googleButtonRef = useRef<HTMLDivElement>(null);
   const isMountedRef = useRef(true);
+  const [identityError, setIdentityError] = useState<string | null>(null);
+  const clientConfigError = GOOGLE_CLIENT_ID ? null : "Google sign-in is not configured.";
 
   // Use either the passed isLoading prop or the internal isGoogleLoggingIn state
   const isButtonDisabled = isLoading || isGoogleLoggingIn;
-
-  // Notify parent component when loading state changes
-  useEffect(() => {
-    onLoadingStateChange?.(isGoogleLoggingIn);
-  }, [isGoogleLoggingIn, onLoadingStateChange]);
 
   // Memoized Google response handler
   const handleGoogleResponse = useCallback(
@@ -188,11 +183,9 @@ export function SocialLogin({
     isMountedRef.current = true;
 
     if (!GOOGLE_CLIENT_ID) {
-      const error = new Error("Google Client ID is not configured");
       if (process.env.NODE_ENV === "development") {
-        console.error(error.message);
+        console.error("Google Client ID is not configured");
       }
-      onError?.(error);
       return;
     }
 
@@ -227,9 +220,9 @@ export function SocialLogin({
         if (process.env.NODE_ENV === "development") {
           console.error("Failed to initialize Google OAuth:", error);
         }
-        const resolvedError =
-          error instanceof Error ? error : new Error("Failed to initialize Google Sign-In");
-        onError?.(resolvedError);
+        setIdentityError(
+          error instanceof Error ? error.message : "Failed to initialize Google Sign-In"
+        );
       });
 
     return () => {
@@ -245,25 +238,28 @@ export function SocialLogin({
     };
   }, [handleGoogleResponse, onError]);
 
+  const displayError = identityError || clientConfigError;
+
   return (
     <div className={cn("flex flex-col gap-4 w-full", className)}>
       <div
         className={cn(
-          "group relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-2 shadow-sm transition-all duration-200",
+          "group relative overflow-hidden rounded-lg border border-slate-200/90 bg-white p-2 shadow-sm transition-all duration-200",
           "hover:border-slate-300 hover:shadow-md",
           "dark:border-slate-700 dark:bg-slate-900/50 dark:hover:border-slate-600",
           isButtonDisabled && "opacity-60"
         )}
       >
-        <div
-          ref={googleButtonRef}
-          className={cn(
-            "flex items-center justify-center w-full min-h-[46px] rounded-xl",
-            isButtonDisabled && "cursor-not-allowed"
-          )}
-          role="button"
-          aria-label="Sign in with Google"
-        />
+      <div
+        ref={googleButtonRef}
+        className={cn(
+          "flex items-center justify-center w-full min-h-[46px] rounded-lg",
+          isButtonDisabled && "cursor-not-allowed"
+        )}
+      />
+      {displayError && (
+        <p className="text-xs text-destructive px-1">{displayError}</p>
+      )}
       </div>
       {showDivider && (
         <div className="relative">

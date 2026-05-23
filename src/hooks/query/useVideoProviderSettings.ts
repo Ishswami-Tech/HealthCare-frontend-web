@@ -1,4 +1,5 @@
-import { useMutationOperation, useQueryData } from '../core';
+import { useMutationOperation } from '../core/useMutationOperation';
+import { useQueryData } from '../core/useQueryData';
 import { TOAST_IDS } from '../utils/use-toast';
 import {
   getGlobalVideoProviderSetting,

@@ -347,9 +347,9 @@ const ComprehensiveServices = () => {
                   <div className="gap-y-2 mb-4">
                     {category.conditions
                       .slice(0, isSelected ? category.conditions.length : 3)
-                      .map((condition: string, index: number) => (
+                      .map((condition: string) => (
                         <div
-                          key={index}
+                          key={condition}
                           className="flex items-center gap-x-2"
                         >
                           <ChevronRight className="size-3 text-primary flex-shrink-0" />

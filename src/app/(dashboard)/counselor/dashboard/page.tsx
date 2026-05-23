@@ -43,21 +43,30 @@ export default function CounselorDashboard() {
   // Sync with WebSocket for real-time updates
   useWebSocketQuerySync();
 
-  const todayAppointments = todayAppointmentsData?.appointments || [];
-  const allAppointments = allAppointmentsData?.appointments || [];
+  const todayAppointments = useMemo(() => todayAppointmentsData?.appointments || [], [todayAppointmentsData]);
+  const allAppointments = useMemo(() => allAppointmentsData?.appointments || [], [allAppointmentsData]);
 
   const stats = useMemo(() => {
-    const completedToday = todayAppointments.filter((a: any) => a.status === "COMPLETED").length;
+    let completedToday = 0;
+    let totalDuration = 0;
+    const uniqueClients = new Set<string>();
+
+    for (const appointment of allAppointments) {
+      uniqueClients.add(String(appointment.clientId || ""));
+      totalDuration += parseInt(String(appointment.duration || 60), 10) || 60;
+    }
+
+    for (const appointment of todayAppointments) {
+      if (appointment.status === "COMPLETED") {
+        completedToday += 1;
+      }
+    }
+
     return {
       todaySessions: todayAppointments.length,
       completedToday,
-      totalClients: new Set(allAppointments.map((a: any) => a.clientId)).size,
-      avgSessionDuration: allAppointments.length > 0
-        ? Math.round(allAppointments.reduce((sum: number, a: any) => {
-            const duration = parseInt(a.duration) || 60;
-            return sum + duration;
-          }, 0) / allAppointments.length)
-        : 0,
+      totalClients: uniqueClients.size,
+      avgSessionDuration: allAppointments.length > 0 ? Math.round(totalDuration / allAppointments.length) : 0,
     };
   }, [todayAppointments, allAppointments]);
 
@@ -88,11 +97,7 @@ export default function CounselorDashboard() {
         eyebrow="Counselor"
         title="Counselor Dashboard"
         description="Track counseling sessions, client volume, and daily completion metrics from one workspace."
-        meta={
-          <span className="text-sm font-medium text-muted-foreground">
-            {stats.totalClients} total clients
-          </span>
-        }
+        meta={`${stats.totalClients} total clients`}
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

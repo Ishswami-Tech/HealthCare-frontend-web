@@ -118,14 +118,28 @@ function normalizePrescription(raw: PrescriptionResponseItem): DisplayPrescripti
       : {}),
     ...(Array.isArray(item.dispenseBatchHistory)
       ? {
-          dispenseBatchHistory: item.dispenseBatchHistory
-            .map((history) => ({
-              quantity: Number(history.quantity || 0),
+          dispenseBatchHistory: item.dispenseBatchHistory.reduce<
+            Array<{
+              quantity: number;
+              batchNumber?: string;
+              expiryDate?: string;
+              dispensedAt: string;
+            }>
+          >((acc, history) => {
+            const quantity = Number(history.quantity || 0);
+            if (quantity <= 0) {
+              return acc;
+            }
+
+            acc.push({
+              quantity,
               ...(history.batchNumber ? { batchNumber: history.batchNumber } : {}),
               ...(history.expiryDate ? { expiryDate: history.expiryDate } : {}),
               dispensedAt: String(history.dispensedAt || nowIso()),
-            }))
-            .filter((history) => history.quantity > 0),
+            });
+
+            return acc;
+          }, []),
         }
       : {}),
   }));
@@ -376,9 +390,9 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
                     <div>
                       <h4 className="font-medium mb-3">Medicines</h4>
                       <div className="grid gap-3">
-                        {prescription.medications.map((medication, index) => (
+                        {prescription.medications.map((medication) => (
                           <div
-                            key={`${prescription.id}-${index}`}
+                            key={`${prescription.id}-${medication.name}-${medication.dosage}`}
                             className={`p-3 sm:p-4 ${theme.containers.featureGreen} rounded-lg border ${theme.borders.green}`}
                           >
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -539,7 +553,12 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
                     Automated reminder delivery is not configured for this clinic yet.
                   </p>
                 </div>
-                <input type="checkbox" disabled className="rounded" />
+                <input
+                  type="checkbox"
+                  disabled
+                  aria-label="Medication reminders unavailable"
+                  className="rounded"
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div>
@@ -548,7 +567,12 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
                     SMS refill or reminder alerts are not connected yet.
                   </p>
                 </div>
-                <input type="checkbox" disabled className="rounded" />
+                <input
+                  type="checkbox"
+                  disabled
+                  aria-label="SMS alerts unavailable"
+                  className="rounded"
+                />
               </div>
             </CardContent>
           </Card>

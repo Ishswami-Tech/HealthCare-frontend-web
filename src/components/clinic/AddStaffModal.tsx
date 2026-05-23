@@ -53,6 +53,7 @@ import { showSuccessToast, showErrorToast } from "@/hooks/utils/use-toast";
 import { cn, clean } from "@/lib/utils";
 import { format } from "date-fns";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { useCurrentTimestamp } from "@/hooks/utils/useClientDate";
 
 const staffSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters"),
@@ -95,6 +96,7 @@ const STAFF_ROLES = [
 
 export function AddStaffModal({ open, onOpenChange, onSuccess }: AddStaffModalProps) {
   const { data: currentClinic } = useCurrentClinic();
+  const currentTimestamp = useCurrentTimestamp();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAdditionalDetails, setShowAdditionalDetails] = useState(false);
   const createUserMutation = useCreateUser();
@@ -351,15 +353,17 @@ export function AddStaffModal({ open, onOpenChange, onSuccess }: AddStaffModalPr
                             </FormControl>
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              disabled={(date) =>
-                                date > new Date() || date < new Date("1900-01-01")
-                              }
-                              initialFocus
-                            />
+                              <Calendar
+                                mode="single"
+                                selected={field.value}
+                                onSelect={field.onChange}
+                                disabled={(date) =>
+                                  !currentTimestamp ||
+                                  date > new Date(currentTimestamp) ||
+                                  date < new Date("1900-01-01")
+                                }
+                                initialFocus
+                              />
                           </PopoverContent>
                         </Popover>
                         <FormMessage />

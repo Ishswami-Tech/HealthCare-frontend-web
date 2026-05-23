@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,28 +20,19 @@ import { usePatientStore } from "@/stores";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import { ServerPagination } from "@/components/ui/pagination";
-import { useDebouncedCallback } from "@/lib/utils/performance";
 
 export default function CounselorPatients() {
   const { session } = useAuth();
   const user = session?.user;
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [page, setPage] = useState(1);
   const pageSize = 10;
   const clients = usePatientStore((state) => state.collections.counselor);
-  const debouncedSetSearch = useDebouncedCallback((value: string) => {
-    setDebouncedSearchQuery(value);
-  }, 300);
+  const debouncedSearchQuery = useDeferredValue(searchQuery);
 
   const counselorId = user?.id;
-
-  useEffect(() => {
-    debouncedSetSearch(searchQuery);
-    setPage(1);
-  }, [searchQuery, debouncedSetSearch]);
 
   const clientsQuery = useCounselorClients(counselorId, {
     search: debouncedSearchQuery || undefined,
@@ -112,7 +103,7 @@ export default function CounselorPatients() {
         eyebrow="Counselor Clients"
         title="Clients"
         description="Review counseling clients, filter active caseloads, and manage follow-up context."
-        meta={<span className="text-sm font-medium text-muted-foreground">Loaded: {clientsPage.total} clients</span>}
+        meta={`Loaded: ${clientsPage.total} clients`}
       />
 
       <Card>
@@ -123,7 +114,10 @@ export default function CounselorPatients() {
               <Input
                 placeholder="Search by client name or condition..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
                 className="pl-10"
               />
             </div>

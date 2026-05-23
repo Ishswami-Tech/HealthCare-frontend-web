@@ -1,6 +1,6 @@
 "use client";
 
-
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Instagram, Camera, Heart, Star } from "lucide-react";
@@ -123,11 +123,11 @@ export default function GalleryPage() {
       <section className="py-12 sm:py-16 md:py-20 bg-background">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {galleryStats.map((stat, index) => {
+            {galleryStats.map((stat) => {
               const IconComponent = stat.icon;
               return (
                 <Card
-                  key={index}
+                  key={stat.label}
                   className="text-center hover:shadow-lg transition-shadow duration-300 border-0 bg-gradient-to-br from-card to-muted/50 glass card-hover"
                 >
                   <CardContent className="p-6">
@@ -194,12 +194,12 @@ export default function GalleryPage() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a
+            <Link
               href="/contact"
               className="bg-background text-primary hover:bg-primary/10 px-8 py-4 rounded-lg font-semibold text-lg transition-colors interactive"
             >
               {t("gallery.cta.shareStory")}
-            </a>
+            </Link>
             <a
               href="https://wa.me/9860370961?text=I would like to share my healing story"
               target="_blank"

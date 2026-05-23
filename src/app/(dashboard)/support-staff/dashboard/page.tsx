@@ -29,37 +29,72 @@ export default function SupportStaffDashboard() {
   // Sync with WebSocket for real-time updates
   useWebSocketQuerySync();
 
-  const requests = requestsData?.requests || [];
+  const requests = useMemo(() => (requestsData?.requests || []) as any[], [requestsData?.requests]);
 
   const activeRequests = useMemo(() => {
-    return requests
-      .filter((r: any) => r.status === "pending" || r.status === "in_progress" || r.status === "OPEN")
-      .slice(0, 5)
-      .map((r: any) => ({
-        id: r.id,
-        type: r.type || "General Support",
-        requester: r.requesterName || r.patient?.name || "Unknown User",
-        priority: r.priority || "normal",
-        time: r.createdAt ? formatTimeInIST(r.createdAt) : "Recent",
-        status: r.status,
-      }));
+    const queue: Array<{
+      id: string;
+      type: string;
+      requester: string;
+      priority: string;
+      time: string;
+      status: string;
+    }> = [];
+
+    for (const request of requests) {
+      if (request.status !== "pending" && request.status !== "in_progress" && request.status !== "OPEN") {
+        continue;
+      }
+
+      queue.push({
+        id: String(request.id || ""),
+        type: request.type || "General Support",
+        requester: request.requesterName || request.patient?.name || "Unknown User",
+        priority: request.priority || "normal",
+        time: request.createdAt ? formatTimeInIST(request.createdAt) : "Recent",
+        status: String(request.status || "pending"),
+      });
+
+      if (queue.length === 5) {
+        break;
+      }
+    }
+
+    return queue;
   }, [requests]);
 
   const stats = useMemo(() => {
-    const active = requests.filter((r: any) => ["pending", "in_progress", "OPEN"].includes(r.status)).length;
-    const completed = requests.filter((r: any) => ["completed", "RESOLVED", "CLOSED"].includes(r.status)).length;
-    // Calculate avg response time from resolved requests that have both createdAt and updatedAt
-    const resolved = requests.filter((r: any) =>
-      ["completed", "RESOLVED", "CLOSED"].includes(r.status) && r.createdAt && r.updatedAt
-    );
+    const activeStatuses = new Set(["pending", "in_progress", "OPEN"]);
+    const completedStatuses = new Set(["completed", "RESOLVED", "CLOSED"]);
+
+    let active = 0;
+    let completed = 0;
+    let resolvedCount = 0;
+    let totalResolvedMs = 0;
+
+    for (const request of requests) {
+      const status = String(request.status || "");
+
+      if (activeStatuses.has(status)) {
+        active += 1;
+      }
+
+      if (completedStatuses.has(status)) {
+        completed += 1;
+        if (request.createdAt && request.updatedAt) {
+          resolvedCount += 1;
+          totalResolvedMs += new Date(request.updatedAt).getTime() - new Date(request.createdAt).getTime();
+        }
+      }
+    }
+
     let avgResponseTime = "N/A";
-    if (resolved.length > 0) {
-      const avgMs = resolved.reduce((sum: number, r: any) => {
-        return sum + (new Date(r.updatedAt).getTime() - new Date(r.createdAt).getTime());
-      }, 0) / resolved.length;
+    if (resolvedCount > 0) {
+      const avgMs = totalResolvedMs / resolvedCount;
       const avgMins = Math.round(avgMs / 60000);
       avgResponseTime = avgMins < 60 ? `${avgMins} min` : `${Math.round(avgMins / 60)}h`;
     }
+
     return {
       activeRequests: active,
       resolvedToday: completed,

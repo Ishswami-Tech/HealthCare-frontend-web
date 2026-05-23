@@ -3,19 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useTranslation } from "@/lib/i18n/context";
-import {
-  RadarChart,
-  Radar,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  Legend,
-} from "recharts";
+import DoshaChartVisual from "./DoshaChartVisual";
 
 export interface DoshaData {
   vata: number;
@@ -118,49 +106,6 @@ export default function DoshaChart({
 
   const dominantDosha = getDominantDosha();
 
-  const renderRadarChart = () => (
-    <ResponsiveContainer width="100%" height={300}>
-      <RadarChart data={radarData}>
-        <PolarGrid />
-        <PolarAngleAxis dataKey="dosha" />
-        <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} />
-        <Radar
-          name={t("doshas.level")}
-          dataKey="value"
-          stroke="#8884d8"
-          fill="#8884d8"
-          fillOpacity={0.3}
-          strokeWidth={2}
-        />
-      </RadarChart>
-    </ResponsiveContainer>
-  );
-
-  const renderPieChart = () => (
-    <ResponsiveContainer width="100%" height={300}>
-      <PieChart>
-        <Pie
-          data={pieData}
-          cx="50%"
-          cy="50%"
-          labelLine={false}
-          label={({ name, percent }) =>
-            `${name} ${((percent || 0) * 100).toFixed(0)}%`
-          }
-          outerRadius={80}
-          fill="#8884d8"
-          dataKey="value"
-        >
-          {pieData.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={entry.color} />
-          ))}
-        </Pie>
-        <Tooltip />
-        {showLegend && <Legend />}
-      </PieChart>
-    </ResponsiveContainer>
-  );
-
   return (
     <Card className={className}>
       <CardHeader>
@@ -177,7 +122,12 @@ export default function DoshaChart({
         <div className="gap-y-6">
           {/* Chart */}
           <div className="w-full">
-            {type === "radar" ? renderRadarChart() : renderPieChart()}
+            <DoshaChartVisual
+              type={type}
+              radarData={radarData}
+              pieData={pieData}
+              showLegend={showLegend}
+            />
           </div>
 
           {/* Dosha Values */}

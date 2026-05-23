@@ -105,9 +105,14 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 
 function asRecordArray(value: unknown): Record<string, unknown>[] {
   if (Array.isArray(value)) {
-    return value
-      .map(item => asRecord(item))
-      .filter((item): item is Record<string, unknown> => Boolean(item));
+    const records: Record<string, unknown>[] = [];
+    for (const item of value) {
+      const record = asRecord(item);
+      if (record) {
+        records.push(record);
+      }
+    }
+    return records;
   }
 
   const record = asRecord(value);
@@ -122,7 +127,7 @@ function getPersonNameCandidates(person: any): string[] {
   const nestedUser = person?.user || {};
   const nestedProfile = person?.profile || {};
 
-  return [
+  const candidates = [
     person?.name,
     person?.displayName,
     person?.display_name,
@@ -152,9 +157,17 @@ function getPersonNameCandidates(person: any): string[] {
     nestedProfile?.full_name,
     nestedProfile?.firstName && nestedProfile?.lastName ? `${nestedProfile.firstName} ${nestedProfile.lastName}` : "",
     nestedProfile?.first_name && nestedProfile?.last_name ? `${nestedProfile.first_name} ${nestedProfile.last_name}` : "",
-  ]
-    .map(normalizeNameCandidate)
-    .filter((value) => value && !/^unknown\s+(doctor|patient)$/i.test(value));
+  ];
+
+  const normalizedCandidates: string[] = [];
+  for (const candidate of candidates) {
+    const value = normalizeNameCandidate(candidate);
+    if (value && !/^unknown\s+(doctor|patient)$/i.test(value)) {
+      normalizedCandidates.push(value);
+    }
+  }
+
+  return normalizedCandidates;
 }
 
 function getVideoJoinWindow(appointment: any): { start: Date | null; end: Date | null } {
@@ -189,7 +202,7 @@ function isWithinVideoJoinWindow(appointment: any, now = new Date()): boolean {
 }
 
 function getDoctorNameCandidates(appointment: any): string[] {
-  return [
+  const candidates = [
     ...getPersonNameCandidates(appointment?.doctor),
     ...getPersonNameCandidates(appointment?.assignedDoctor),
     ...getPersonNameCandidates(appointment?.primaryDoctor),
@@ -213,9 +226,17 @@ function getDoctorNameCandidates(appointment: any): string[] {
     normalizeNameCandidate(appointment?.practitionerName),
     normalizeNameCandidate(appointment?.physicianName),
     normalizeNameCandidate(appointment?.providerName),
-  ]
-    .map(normalizeNameCandidate)
-    .filter((value) => value && !/^unknown\s+doctor$/i.test(value));
+  ];
+
+  const normalizedCandidates: string[] = [];
+  for (const candidate of candidates) {
+    const value = normalizeNameCandidate(candidate);
+    if (value && !/^unknown\s+doctor$/i.test(value)) {
+      normalizedCandidates.push(value);
+    }
+  }
+
+  return normalizedCandidates;
 }
 
 function getPaymentCandidates(appointment: any): Record<string, unknown>[] {
@@ -230,7 +251,7 @@ function getPaymentCandidates(appointment: any): Record<string, unknown>[] {
 }
 
 function getPaymentCompletionFlags(appointment: any): boolean[] {
-  return [
+  const flags = [
     appointment?.paymentCompleted,
     appointment?.isPaid,
     appointment?.paid,
@@ -240,7 +261,16 @@ function getPaymentCompletionFlags(appointment: any): boolean[] {
     appointment?.invoice?.paymentCompleted,
     appointment?.invoice?.isPaid,
     appointment?.invoice?.paid,
-  ].filter((value): value is boolean => typeof value === 'boolean');
+  ];
+
+  const completionFlags: boolean[] = [];
+  for (const flag of flags) {
+    if (typeof flag === 'boolean') {
+      completionFlags.push(flag);
+    }
+  }
+
+  return completionFlags;
 }
 
 function hasExplicitVideoPaymentRequirement(appointment: any): boolean {
@@ -436,13 +466,23 @@ export function getAppointmentPaymentStatus(appointment: any): string {
   }
 
   const paymentCandidates = getPaymentCandidates(appointment);
-  const paymentStatusCandidates = paymentCandidates.flatMap((payment) => [
-    payment?.status,
-    payment?.paymentStatus,
-    payment?.state,
-    payment?.payment_state,
-    payment?.transactionStatus,
-  ]).map(normalizeStatusToken).filter(Boolean);
+  const paymentStatusCandidates: string[] = [];
+  for (const payment of paymentCandidates) {
+    const statuses = [
+      payment?.status,
+      payment?.paymentStatus,
+      payment?.state,
+      payment?.payment_state,
+      payment?.transactionStatus,
+    ];
+
+    for (const status of statuses) {
+      const normalized = normalizeStatusToken(status);
+      if (normalized) {
+        paymentStatusCandidates.push(normalized);
+      }
+    }
+  }
 
   const directPaymentStatus = normalizeStatusToken(
     appointment?.paymentStatus ||
@@ -453,7 +493,10 @@ export function getAppointmentPaymentStatus(appointment: any): string {
       ''
   );
 
-  const allStatuses = [...paymentStatusCandidates, directPaymentStatus].filter(Boolean);
+  const allStatuses: string[] = [...paymentStatusCandidates];
+  if (directPaymentStatus) {
+    allStatuses.push(directPaymentStatus);
+  }
 
   if (allStatuses.some((status) => COMPLETED_PAYMENT_STATUSES.has(status) || status === 'PAID')) {
     return 'PAID';
@@ -463,7 +506,7 @@ export function getAppointmentPaymentStatus(appointment: any): string {
     return 'PENDING';
   }
 
-  const firstKnown = allStatuses.find(Boolean);
+  const firstKnown = allStatuses[0];
   if (firstKnown) {
     return firstKnown;
   }
@@ -1066,12 +1109,12 @@ export function parseReceptionistAppointmentDateTime(app: Record<string, unknown
 function formatRawDateLabel(raw: string, locale: string): string {
   const d = new Date(raw);
   if (Number.isNaN(d.getTime())) return raw;
-  return new Intl.DateTimeFormat(locale, {
+  return d.toLocaleDateString(locale, {
     timeZone: IST_TIMEZONE,
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-  }).format(d);
+  });
 }
 
 /**
@@ -1110,12 +1153,12 @@ export function getReceptionistAppointmentDateLabel(
     return 'TBD';
   }
 
-  return new Intl.DateTimeFormat(locale, {
+  return parsed.toLocaleDateString(locale, {
     timeZone: IST_TIMEZONE,
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-  }).format(parsed);
+  });
 }
 
 /**
@@ -1132,10 +1175,10 @@ export function getReceptionistAppointmentTimeLabel(
     const time = typeof app.time === 'string' ? app.time : '';
     return formatTimeValueInIST(startTime || time, locale) || 'TBD';
   }
-  return new Intl.DateTimeFormat(locale, {
+  return parsed.toLocaleTimeString(locale, {
     timeZone: IST_TIMEZONE,
     hour: '2-digit',
     minute: '2-digit',
     hour12: true,
-  }).format(parsed);
+  });
 }

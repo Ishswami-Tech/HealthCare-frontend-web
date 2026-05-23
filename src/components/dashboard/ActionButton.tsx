@@ -20,6 +20,7 @@ export function ActionButton({
 }: ActionButtonProps) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className={`w-full ${
         variantClasses[variant]

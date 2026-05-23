@@ -154,6 +154,14 @@ export function useIntersectionObserver(
 ) {
   const elementRef = useRef<HTMLElement>(null);
   const [isIntersecting, setIsIntersecting] = useState(false);
+  const observerOptions = useMemo(
+    () => ({
+      threshold: 0.1,
+      rootMargin: "50px",
+      ...options,
+    }),
+    [options]
+  );
 
   useEffect(() => {
     const element = elementRef.current;
@@ -165,11 +173,7 @@ export function useIntersectionObserver(
           setIsIntersecting(entry.isIntersecting);
         }
       },
-      {
-        threshold: 0.1,
-        rootMargin: '50px',
-        ...options,
-      }
+      observerOptions
     );
 
     observer.observe(element);
@@ -177,7 +181,7 @@ export function useIntersectionObserver(
     return () => {
       observer.unobserve(element);
     };
-  }, [options]);
+  }, [observerOptions]);
 
   return { elementRef, isIntersecting };
 }
@@ -257,15 +261,17 @@ export function usePerformanceMeasurement(name: string) {
  */
 export function useBatchedUpdates<T>(initialValue: T, batchDelay: number = 50) {
   const [value, setValue] = useState(initialValue);
+  const valueRef = useRef(initialValue);
   const pendingUpdate = useRef<T | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const batchedSetValue = useCallback((newValue: T | ((prev: T) => T)) => {
     const resolvedValue = typeof newValue === 'function' 
-      ? (newValue as (prev: T) => T)(pendingUpdate.current ?? value)
+      ? (newValue as (prev: T) => T)(pendingUpdate.current ?? valueRef.current)
       : newValue;
     
     pendingUpdate.current = resolvedValue;
+    valueRef.current = resolvedValue;
 
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -278,12 +284,13 @@ export function useBatchedUpdates<T>(initialValue: T, batchDelay: number = 50) {
       }
       timeoutRef.current = null;
     }, batchDelay);
-  }, [value, batchDelay]);
+  }, [batchDelay]);
 
   useEffect(() => {
     return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
+      const timeoutId = timeoutRef.current;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
       }
     };
   }, []);

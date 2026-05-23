@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useEffect, useMemo, useReducer } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
@@ -59,10 +60,11 @@ function callbackReducer(state: CallbackState, action: CallbackAction): Callback
   }
 }
 
-export default function PaymentCallbackPage() {
+function PaymentCallbackPageContent() {
   const { replace } = useRouter();
   const queryClient = useQueryClient();
-  const { get: getSearchParam } = useSearchParams();
+  const searchParams = useSearchParams();
+  const getSearchParam = useMemo(() => searchParams.get.bind(searchParams), [searchParams]);
   const [{ state, message, secondsLeft }, dispatch] = useReducer(callbackReducer, initialCallbackState);
 
   const params = useMemo(() => {
@@ -81,7 +83,7 @@ export default function PaymentCallbackPage() {
     const appointmentId = getSearchParam("appointmentId") || "";
     const appointmentType = (getSearchParam("appointmentType") || "").toUpperCase();
     return { orderId, paymentId, provider, clinicId, appointmentId, appointmentType };
-  }, [getSearchParam]);
+  }, [searchParams]);
 
   const redirectPath =
     params.appointmentType === "VIDEO_CALL"
@@ -227,6 +229,14 @@ export default function PaymentCallbackPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function PaymentCallbackPage() {
+  return (
+    <Suspense fallback={null}>
+      <PaymentCallbackPageContent />
+    </Suspense>
   );
 }
 

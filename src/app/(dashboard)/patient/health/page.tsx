@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { DashboardPageHeader as PatientPageHeader, DashboardPageShell as PatientPageShell } from "@/components/dashboard/DashboardPageShell";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,8 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import PatientMedicalRecords from "@/components/patient/PatientMedicalRecordsContent";
 import PatientPrescriptions from "@/components/patient/PatientPrescriptionsContent";
 
-export default function PatientHealthPage() {
-  const { get: getSearchParam } = useSearchParams();
+function PatientHealthPageContent() {
+  const searchParams = useSearchParams();
+  const getSearchParam = useMemo(() => searchParams.get.bind(searchParams), [searchParams]);
   const initialTab = getSearchParam("tab") === "medicines" ? "medicines" : "records";
 
   return (
@@ -36,6 +38,14 @@ export default function PatientHealthPage() {
         </TabsContent>
       </Tabs>
     </PatientPageShell>
+  );
+}
+
+export default function PatientHealthPage() {
+  return (
+    <Suspense fallback={null}>
+      <PatientHealthPageContent />
+    </Suspense>
   );
 }
 

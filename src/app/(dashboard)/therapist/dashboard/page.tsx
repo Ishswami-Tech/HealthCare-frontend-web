@@ -43,7 +43,10 @@ export default function TherapistDashboard() {
   useWebSocketQuerySync();
 
   // Calculate stats from real data
-  const appointmentsArray = appointmentsData?.appointments || [];
+  const appointmentsArray = useMemo(
+    () => appointmentsData?.appointments || [],
+    [appointmentsData]
+  );
   const stats = useMemo(() => {
     const today = formatISODateInIST(new Date());
     const todayAppointments = appointmentsArray.filter(
@@ -60,6 +63,14 @@ export default function TherapistDashboard() {
     };
   }, [appointmentsArray, clientsArray]);
 
+  const headerMeta = useMemo(() => {
+    return (
+      <span className="text-sm font-medium text-muted-foreground">
+        {stats.totalPatients} active clients
+      </span>
+    );
+  }, [stats.totalPatients]);
+
   const recentPatients = useMemo(() => {
     return clientsArray.slice(0, 3).map((client: any) => ({
       name: client.name,
@@ -71,8 +82,7 @@ export default function TherapistDashboard() {
 
   const recentSessions = useMemo(() => {
     return appointmentsArray
-      .slice()
-      .sort((a: any, b: any) => {
+      .toSorted((a: any, b: any) => {
         const first = new Date(`${a.date || ""}T${a.time || "00:00"}`).getTime();
         const second = new Date(`${b.date || ""}T${b.time || "00:00"}`).getTime();
         if (Number.isNaN(first) && Number.isNaN(second)) return 0;
@@ -144,11 +154,7 @@ export default function TherapistDashboard() {
         eyebrow="Therapist"
         title="Therapist Dashboard"
         description="Review sessions, client activity, and care progress from a unified therapist workspace."
-        meta={
-          <span className="text-sm font-medium text-muted-foreground">
-            {stats.totalPatients} active clients
-          </span>
-        }
+        meta={headerMeta}
       />
 
       {/* Key Metrics */}

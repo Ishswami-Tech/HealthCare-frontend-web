@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useReducer } from "react";
 import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +25,7 @@ import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/compone
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { useRealTimeAppointments, useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { showInfoToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import { useCurrentTimestamp } from "@/hooks/utils/useClientDate";
 import {
   getAppointmentViewState,
   getAppointmentPatientName,
@@ -164,6 +165,63 @@ interface ConsultationDraftState {
   savedBy?: string | null;
 }
 
+type DoctorAppointmentsState = {
+  searchTerm: string;
+  appointmentViewFilter: DoctorAppointmentViewFilter;
+  selectedAppointment: TransformedAppointment | null;
+  consultationNotes: string;
+  prescription: string;
+  diagnosis: string;
+};
+
+type DoctorAppointmentsAction =
+  | { type: "setSearchTerm"; value: string }
+  | { type: "setAppointmentViewFilter"; value: DoctorAppointmentViewFilter }
+  | { type: "setSelectedAppointment"; value: TransformedAppointment | null }
+  | { type: "setConsultationNotes"; value: string }
+  | { type: "setPrescription"; value: string }
+  | { type: "setDiagnosis"; value: string }
+  | { type: "resetConsultationDraft" };
+
+const initialDoctorAppointmentsState: DoctorAppointmentsState = {
+  searchTerm: "",
+  appointmentViewFilter: APPOINTMENT_STATUS.ALL,
+  selectedAppointment: null,
+  consultationNotes: "",
+  prescription: "",
+  diagnosis: "",
+};
+
+function doctorAppointmentsReducer(
+  state: DoctorAppointmentsState,
+  action: DoctorAppointmentsAction
+): DoctorAppointmentsState {
+  switch (action.type) {
+    case "setSearchTerm":
+      return { ...state, searchTerm: action.value };
+    case "setAppointmentViewFilter":
+      return { ...state, appointmentViewFilter: action.value };
+    case "setSelectedAppointment":
+      return { ...state, selectedAppointment: action.value };
+    case "setConsultationNotes":
+      return { ...state, consultationNotes: action.value };
+    case "setPrescription":
+      return { ...state, prescription: action.value };
+    case "setDiagnosis":
+      return { ...state, diagnosis: action.value };
+    case "resetConsultationDraft":
+      return {
+        ...state,
+        selectedAppointment: null,
+        consultationNotes: "",
+        prescription: "",
+        diagnosis: "",
+      };
+    default:
+      return state;
+  }
+}
+
 function readConsultationDraftMetadata(metadata: unknown): ConsultationDraftState | null {
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
     return null;
@@ -215,12 +273,53 @@ export default function DoctorAppointments() {
   const { session } = useAuth();
   const user = session?.user;
   const { clinicId } = useClinicContext();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [appointmentViewFilter, setAppointmentViewFilter] = useState<DoctorAppointmentViewFilter>(APPOINTMENT_STATUS.ALL);
-  const [selectedAppointment, setSelectedAppointment] = useState<TransformedAppointment | null>(null);
-  const [consultationNotes, setConsultationNotes] = useState("");
-  const [prescription, setPrescription] = useState("");
-  const [diagnosis, setDiagnosis] = useState("");
+  const currentTimestamp = useCurrentTimestamp();
+  const todayLabel = useMemo(() => {
+    if (!currentTimestamp) {
+      return "";
+    }
+
+    return formatDateInIST(new Date(currentTimestamp), {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    });
+  }, [currentTimestamp]);
+  const [
+    {
+      searchTerm,
+      appointmentViewFilter,
+      selectedAppointment,
+      consultationNotes,
+      prescription,
+      diagnosis,
+    },
+    dispatch,
+  ] = useReducer(doctorAppointmentsReducer, initialDoctorAppointmentsState);
+
+  const setSearchTerm = (value: string) => {
+    dispatch({ type: "setSearchTerm", value });
+  };
+
+  const setAppointmentViewFilter = (value: DoctorAppointmentViewFilter) => {
+    dispatch({ type: "setAppointmentViewFilter", value });
+  };
+
+  const setSelectedAppointment = (value: TransformedAppointment | null) => {
+    dispatch({ type: "setSelectedAppointment", value });
+  };
+
+  const setConsultationNotes = (value: string) => {
+    dispatch({ type: "setConsultationNotes", value });
+  };
+
+  const setPrescription = (value: string) => {
+    dispatch({ type: "setPrescription", value });
+  };
+
+  const setDiagnosis = (value: string) => {
+    dispatch({ type: "setDiagnosis", value });
+  };
   const historyStartDate = useMemo(() => {
     const date = new Date();
     date.setDate(date.getDate() - 90);
@@ -250,7 +349,6 @@ export default function DoctorAppointments() {
   const startAppointmentMutation = useStartAppointment();
   const completeAppointmentMutation = useCompleteAppointment();
   const updateAppointmentMutation = useUpdateAppointment();
-  const hydratedAppointmentIdRef = useRef<string>("");
 
   // Transform appointments data
   const appointments = useMemo(() => {
@@ -385,6 +483,38 @@ export default function DoctorAppointments() {
     ? ["COMPLETED", "CANCELLED", "NO_SHOW"].includes(String(selectedAppointment.status))
     : false;
 
+  const completeConsultation = useCallback(
+    async (
+      appointmentId: string,
+      data?: {
+        diagnosis?: string;
+        prescription?: string;
+        notes?: string;
+      }
+    ) => {
+      try {
+        const completionData = {
+          ...(data?.diagnosis ? { diagnosis: data.diagnosis } : {}),
+          ...(data?.prescription ? { prescription: data.prescription } : {}),
+          ...(data?.notes ? { notes: data.notes } : {}),
+          ...(data?.prescription ? { treatmentPlan: data.prescription } : {}),
+        };
+
+        await completeAppointmentMutation.mutateAsync({
+          id: appointmentId,
+          data: completionData,
+        });
+        dispatch({ type: "resetConsultationDraft" });
+      } catch (error: unknown) {
+        console.error("Failed to complete consultation", {
+          appointmentId,
+          error,
+        });
+      }
+    },
+    [completeAppointmentMutation]
+  );
+
   const appointmentColumns = useMemo<ColumnDef<TransformedAppointment>[]>(
     () => [
       {
@@ -452,7 +582,7 @@ export default function DoctorAppointments() {
                 variant="outline"
                 size="sm"
                 className={WORKFLOW_ICON_BUTTON_CLASS}
-                onClick={() => setSelectedAppointment(app)}
+                onClick={() => openAppointmentDetails(app)}
                 aria-label={`View details for ${app.patientName}`}
               >
                 <Eye className="size-4" />
@@ -510,14 +640,22 @@ export default function DoctorAppointments() {
         },
       },
     ],
-    [completeAppointmentMutation.isPending, consultationNotes, diagnosis, prescription, push]
+    [
+      completeAppointmentMutation.isPending,
+      completeConsultation,
+      consultationNotes,
+      diagnosis,
+      prescription,
+      push,
+      startConsultation,
+    ]
   );
 
-  const startConsultation = async (
+  async function startConsultation(
     appointmentId: string,
     doctorId: string,
     options?: { openVideoAfterStart?: boolean }
-  ) => {
+  ) {
     try {
       await startAppointmentMutation.mutateAsync({
         appointmentId,
@@ -533,36 +671,7 @@ export default function DoctorAppointments() {
         error,
       });
     }
-  };
-
-  const completeConsultation = async (appointmentId: string, data?: {
-    diagnosis?: string;
-    prescription?: string;
-    notes?: string;
-  }) => {
-    try {
-      const completionData = {
-        ...(data?.diagnosis ? { diagnosis: data.diagnosis } : {}),
-        ...(data?.prescription ? { prescription: data.prescription } : {}),
-        ...(data?.notes ? { notes: data.notes } : {}),
-        ...(data?.prescription ? { treatmentPlan: data.prescription } : {}),
-      };
-
-      await completeAppointmentMutation.mutateAsync({
-        id: appointmentId,
-        data: completionData,
-      });
-      setDiagnosis("");
-      setPrescription("");
-      setConsultationNotes("");
-      setSelectedAppointment(null);
-    } catch (error: unknown) {
-      console.error("Failed to complete consultation", {
-        appointmentId,
-        error,
-      });
-    }
-  };
+  }
 
   const saveConsultationDraft = async (appointmentId: string) => {
     const trimmedDiagnosis = diagnosis.trim();
@@ -604,55 +713,42 @@ export default function DoctorAppointments() {
         },
       });
 
-      setSelectedAppointment((current) =>
-        current && current.id === appointmentId
-          ? {
-              ...current,
-              diagnosis: trimmedDiagnosis,
-              prescription: trimmedPrescription,
-              treatmentPlan: trimmedTreatmentPlan,
-              metadata: {
-                ...(current.metadata || {}),
-                consultationDraft: {
-                  ...(trimmedDiagnosis ? { diagnosis: trimmedDiagnosis } : {}),
-                  ...(trimmedPrescription ? { prescription: trimmedPrescription } : {}),
-                  ...(trimmedTreatmentPlan ? { treatmentPlan: trimmedTreatmentPlan } : {}),
-                  ...(trimmedNotes ? { notes: trimmedNotes } : {}),
-                  savedAt: new Date().toISOString(),
-                  savedBy: user?.id || null,
+      dispatch({
+        type: "setSelectedAppointment",
+        value:
+          selectedAppointment && selectedAppointment.id === appointmentId
+            ? {
+                ...selectedAppointment,
+                diagnosis: trimmedDiagnosis,
+                prescription: trimmedPrescription,
+                treatmentPlan: trimmedTreatmentPlan,
+                metadata: {
+                  ...(selectedAppointment.metadata || {}),
+                  consultationDraft: {
+                    ...(trimmedDiagnosis ? { diagnosis: trimmedDiagnosis } : {}),
+                    ...(trimmedPrescription ? { prescription: trimmedPrescription } : {}),
+                    ...(trimmedTreatmentPlan ? { treatmentPlan: trimmedTreatmentPlan } : {}),
+                    ...(trimmedNotes ? { notes: trimmedNotes } : {}),
+                    savedAt: new Date().toISOString(),
+                    savedBy: user?.id || null,
+                  },
                 },
-              },
-            }
-          : current
-      );
+              }
+            : selectedAppointment,
+      });
     } catch (error: unknown) {
       void error;
     }
   };
 
-  const selectedAppointmentId = selectedAppointment?.id || "";
-  const selectedAppointmentSnapshot =
-    selectedAppointment ||
-    appointments.find((appointment) => appointment.id === selectedAppointmentId) ||
-    null;
+  const openAppointmentDetails = (appointment: TransformedAppointment) => {
+    setSelectedAppointment(appointment);
 
-  useEffect(() => {
-    if (!selectedAppointmentSnapshot) {
-      hydratedAppointmentIdRef.current = "";
-      return;
-    }
-
-    if (hydratedAppointmentIdRef.current === selectedAppointmentSnapshot.id) {
-      return;
-    }
-
-    hydratedAppointmentIdRef.current = selectedAppointmentSnapshot.id;
-
-    const draft = readConsultationDraftMetadata(selectedAppointmentSnapshot.metadata);
-    setDiagnosis(draft?.diagnosis ?? selectedAppointmentSnapshot.diagnosis ?? "");
-    setPrescription(draft?.prescription ?? selectedAppointmentSnapshot.prescription ?? "");
+    const draft = readConsultationDraftMetadata(appointment.metadata);
+    setDiagnosis(draft?.diagnosis ?? appointment.diagnosis ?? "");
+    setPrescription(draft?.prescription ?? appointment.prescription ?? "");
     setConsultationNotes(draft?.notes ?? "");
-  }, [selectedAppointmentId, selectedAppointmentSnapshot]);
+  };
 
   return (
     <>
@@ -665,11 +761,7 @@ export default function DoctorAppointments() {
           <DashboardPageHeader
             eyebrow="Doctor Appointments"
             title="My Appointments"
-            description={`Today is ${formatDateInIST(new Date(), {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-            })}. Review active visits and appointment history, including completed, cancelled, and no-show records.`}
+            description={`Today is ${todayLabel || "today"}. Review active visits and appointment history, including completed, cancelled, and no-show records.`}
             actionsSlot={
               <div className="flex flex-wrap items-center gap-3">
                 <BookAppointmentDialog
@@ -945,7 +1037,7 @@ export default function DoctorAppointments() {
                           {updateAppointmentMutation.isPending ? (
                             <>
                               <Loader2 className="mr-2 size-4 animate-spin" />
-                              Saving draft...
+                              Saving draft…
                             </>
                           ) : selectedAppointmentIsClosed ? (
                             "Read only"

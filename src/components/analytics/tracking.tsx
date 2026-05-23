@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { trackEvent } from "@/lib/utils/tracking";
 
@@ -19,7 +19,7 @@ interface GAProps {
   measurementId: string;
 }
 
-export const GoogleAnalytics: React.FC<GAProps> = ({ measurementId }) => {
+function GoogleAnalyticsContent({ measurementId }: GAProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -61,6 +61,14 @@ export const GoogleAnalytics: React.FC<GAProps> = ({ measurementId }) => {
   }, [pathname, searchParams, measurementId]);
 
   return null;
+}
+
+export const GoogleAnalytics: React.FC<GAProps> = (props) => {
+  return (
+    <Suspense fallback={null}>
+      <GoogleAnalyticsContent {...props} />
+    </Suspense>
+  );
 };
 
 // ============================================================================

@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useReducer } from "react";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +46,7 @@ interface QuickPrescriptionModalProps {
 }
 
 interface MedicationRow {
+  id: string;
   medicineId: string;
   name: string;
   dosage: string;
@@ -55,7 +56,70 @@ interface MedicationRow {
   instructions: string;
 }
 
+type QuickPrescriptionState = {
+  diagnosis: string;
+  treatmentPlan: string;
+  notes: string;
+  followUpDate: string;
+  followUpNotes: string;
+  medicineSearch: string;
+  medications: MedicationRow[];
+};
+
+type QuickPrescriptionAction =
+  | { type: "setDiagnosis"; value: string }
+  | { type: "setTreatmentPlan"; value: string }
+  | { type: "setNotes"; value: string }
+  | { type: "setFollowUpDate"; value: string }
+  | { type: "setFollowUpNotes"; value: string }
+  | { type: "setMedicineSearch"; value: string }
+  | {
+      type: "setMedications";
+      value: MedicationRow[] | ((prev: MedicationRow[]) => MedicationRow[]);
+    };
+
+const initialQuickPrescriptionState = (): QuickPrescriptionState => ({
+  diagnosis: "",
+  treatmentPlan: "",
+  notes: "",
+  followUpDate: "",
+  followUpNotes: "",
+  medicineSearch: "",
+  medications: [createEmptyMedication()],
+});
+
+function quickPrescriptionReducer(
+  state: QuickPrescriptionState,
+  action: QuickPrescriptionAction
+): QuickPrescriptionState {
+  switch (action.type) {
+    case "setDiagnosis":
+      return { ...state, diagnosis: action.value };
+    case "setTreatmentPlan":
+      return { ...state, treatmentPlan: action.value };
+    case "setNotes":
+      return { ...state, notes: action.value };
+    case "setFollowUpDate":
+      return { ...state, followUpDate: action.value };
+    case "setFollowUpNotes":
+      return { ...state, followUpNotes: action.value };
+    case "setMedicineSearch":
+      return { ...state, medicineSearch: action.value };
+    case "setMedications":
+      return {
+        ...state,
+        medications:
+          typeof action.value === "function"
+            ? action.value(state.medications)
+            : action.value,
+      };
+    default:
+      return state;
+  }
+}
+
 const createEmptyMedication = (): MedicationRow => ({
+  id: globalThis.crypto?.randomUUID?.() || `med-${Date.now()}-${Math.random().toString(36).slice(2)}`,
   medicineId: "",
   name: "",
   dosage: "",
@@ -94,13 +158,28 @@ export function QuickPrescriptionModal({
   doctorId,
 }: QuickPrescriptionModalProps) {
   const { clinicId } = useClinicContext();
-  const [diagnosis, setDiagnosis] = useState("");
-  const [treatmentPlan, setTreatmentPlan] = useState("");
-  const [notes, setNotes] = useState("");
-  const [followUpDate, setFollowUpDate] = useState("");
-  const [followUpNotes, setFollowUpNotes] = useState("");
-  const [medicineSearch, setMedicineSearch] = useState("");
-  const [medications, setMedications] = useState<MedicationRow[]>([createEmptyMedication()]);
+  const [
+    {
+      diagnosis,
+      treatmentPlan,
+      notes,
+      followUpDate,
+      followUpNotes,
+      medicineSearch,
+      medications,
+    },
+    dispatch,
+  ] = useReducer(quickPrescriptionReducer, undefined, initialQuickPrescriptionState);
+
+  const setDiagnosis = (value: string) => dispatch({ type: "setDiagnosis", value });
+  const setTreatmentPlan = (value: string) => dispatch({ type: "setTreatmentPlan", value });
+  const setNotes = (value: string) => dispatch({ type: "setNotes", value });
+  const setFollowUpDate = (value: string) => dispatch({ type: "setFollowUpDate", value });
+  const setFollowUpNotes = (value: string) => dispatch({ type: "setFollowUpNotes", value });
+  const setMedicineSearch = (value: string) => dispatch({ type: "setMedicineSearch", value });
+  const setMedications = (
+    value: MedicationRow[] | ((prev: MedicationRow[]) => MedicationRow[])
+  ) => dispatch({ type: "setMedications", value });
 
   const updateAppointment = useUpdateAppointment();
   const createPharmacyPrescription = useCreatePrescription();
@@ -196,8 +275,8 @@ export function QuickPrescriptionModal({
   };
 
   const handleSubmit = async () => {
-    const cleanMedications = medications
-      .map((medication) => ({
+    const cleanMedications = medications.reduce<typeof medications>((acc, medication) => {
+      const normalized = {
         ...medication,
         medicineId: medication.medicineId.trim(),
         name: medication.name.trim(),
@@ -206,29 +285,53 @@ export function QuickPrescriptionModal({
         duration: medication.duration.trim(),
         quantity: medication.quantity.trim(),
         instructions: medication.instructions.trim(),
-      }))
-      .filter((medication) => medication.name || medication.medicineId);
+      };
+
+      if (normalized.name || normalized.medicineId) {
+        acc.push(normalized);
+      }
+
+      return acc;
+    }, []);
 
     if (!diagnosis.trim() && !treatmentPlan.trim() && cleanMedications.length === 0) {
       return;
     }
 
-    const structuredMedications = cleanMedications
-      .filter((medication) => medication.medicineId)
-      .map((medication) => ({
+    const structuredMedications = cleanMedications.reduce<
+      Array<{
+        medicineId: string;
+        dosage: string;
+        frequency: string;
+        duration: string;
+        quantity: number;
+        instructions?: string;
+      }>
+    >((acc, medication) => {
+      if (!medication.medicineId) {
+        return acc;
+      }
+
+      acc.push({
         medicineId: medication.medicineId,
         dosage: medication.dosage || medication.name,
         frequency: medication.frequency,
         duration: medication.duration,
         quantity: Math.max(1, Number.parseInt(medication.quantity, 10) || 1),
         ...(medication.instructions ? { instructions: medication.instructions } : {}),
-      }));
+      });
+
+      return acc;
+    }, []);
 
     try {
       const prescriptionText = cleanMedications
-        .map(formatMedicationSummary)
-        .filter(Boolean)
+        .flatMap((medication) => {
+          const summary = formatMedicationSummary(medication);
+          return summary ? [summary] : [];
+        })
         .join("\n");
+      const followUpContext = [treatmentPlan.trim(), notes.trim()].filter(Boolean).join(" ");
 
       const appointmentTask = updateAppointment.mutateAsync({
         id: appointmentId,
@@ -263,8 +366,8 @@ export function QuickPrescriptionModal({
               doctorId,
               medications: structuredMedications,
               ...(diagnosis.trim() ? { diagnosis: diagnosis.trim() } : {}),
-              ...([treatmentPlan.trim(), notes.trim()].filter(Boolean).join(" ")
-                ? { notes: [treatmentPlan.trim(), notes.trim()].filter(Boolean).join(" ") }
+              ...(followUpContext
+                ? { notes: followUpContext }
                 : {}),
               ...(followUpDate ? { validUntil: followUpDate } : {}),
             })
@@ -444,7 +547,7 @@ export function QuickPrescriptionModal({
 
                   return (
                     <div
-                      key={index}
+                      key={medication.id}
                       className="rounded-2xl border border-border/70 bg-muted/20 p-3"
                     >
                       <div className="mb-3 flex items-center justify-between gap-2">

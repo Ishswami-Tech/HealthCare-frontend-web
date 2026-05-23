@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Role } from "@/types/auth.types";
 import {
@@ -110,7 +110,7 @@ export function RoleBasedBillingDashboard({
   const canMarkInvoicesPaid = isAdmin || isReceptionist;
   const canViewAnalytics = isAdmin || userRole === Role.FINANCE_BILLING;
 
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTabOverride, setActiveTabOverride] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState("all");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState("all");
@@ -317,17 +317,16 @@ export function RoleBasedBillingDashboard({
     [isPatient, patientTabs, staffTabs]
   );
   const tabCount = isPatient ? patientTabs.length : staffTabs.length;
-
-  useEffect(() => {
-    // Default to "plans" for patients, "overview" for staff
+  const defaultTab = useMemo(() => {
     const fallback = isPatient ? "plans" : "overview";
     if (!initialTab) {
-      setActiveTab(fallback);
-      return;
+      return fallback;
     }
+
     const normalized = initialTab.toLowerCase();
-    setActiveTab(availableTabs.has(normalized) ? normalized : fallback);
+    return availableTabs.has(normalized) ? normalized : fallback;
   }, [initialTab, availableTabs, isPatient]);
+  const activeTab = activeTabOverride ?? defaultTab;
 
   const billingDescription = isReceptionist
     ? "Collections and invoice payments for your clinic."
@@ -527,7 +526,7 @@ export function RoleBasedBillingDashboard({
               </div>
               <Button
                 size="sm"
-                onClick={() => setActiveTab("plans")}
+                onClick={() => setActiveTabOverride("plans")}
                 className="shrink-0"
               >
                 View Plans â†’
@@ -567,7 +566,7 @@ export function RoleBasedBillingDashboard({
         </div>
       )}
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="gap-y-8">
+      <Tabs value={activeTab} onValueChange={setActiveTabOverride} className="gap-y-8">
           <TabsList>
             {[...(isPatient ? patientTabs : staffTabs)].map((val) => (
               <TabsTrigger
@@ -1162,6 +1161,7 @@ export function RoleBasedBillingDashboard({
                 type="checkbox"
                 checked={newPlanUnlimited}
                 onChange={(e) => setNewPlanUnlimited(e.target.checked)}
+                aria-label="Unlimited appointments"
               />
               <label htmlFor="unlimited-appointments" className="text-sm">
                 Unlimited appointments

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useReducer, useCallback, type ReactElement } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -110,6 +110,13 @@ const CONSULTATION_QUEUE_FILTER_KEYS = new Set(
   CONSULTATION_QUEUE_FILTERS.map((filter) => normalizeQueueToken(filter.value))
 );
 
+const QUEUE_HEADER_META = (
+  <div className="flex items-center gap-2 rounded-full border border-emerald-200/60 bg-emerald-50/80 px-3 py-1.5 text-emerald-700 shadow-sm backdrop-blur-sm">
+    <div className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+    <span className="text-[11px] font-bold tracking-wide uppercase">Live Sync</span>
+  </div>
+);
+
 type QueueDisplayItem = CanonicalQueueEntry & {
   id: string;
   type?: string;
@@ -126,6 +133,76 @@ type QueueDisplayItem = CanonicalQueueEntry & {
   serviceType?: string;
   waitTime?: string | number;
 };
+
+type QueuePageState = {
+  activeQueue: string;
+  activeTreatmentFilter: string;
+  activeConsultationLane: string;
+  activeTherapyLane: string;
+  isCleaningUp: boolean;
+  selectedQueueActionItem: QueueDisplayItem | null;
+  transferringQueueItem: QueueDisplayItem | null;
+  transferringId: string | null;
+  assigningQueueItem: QueueDisplayItem | null;
+  selectedDoctorId: string;
+  assignDoctorError: string;
+};
+
+type QueuePageAction =
+  | { type: "setActiveQueue"; value: string }
+  | { type: "setActiveTreatmentFilter"; value: string }
+  | { type: "setActiveConsultationLane"; value: string }
+  | { type: "setActiveTherapyLane"; value: string }
+  | { type: "setIsCleaningUp"; value: boolean }
+  | { type: "setSelectedQueueActionItem"; value: QueueDisplayItem | null }
+  | { type: "setTransferringQueueItem"; value: QueueDisplayItem | null }
+  | { type: "setTransferringId"; value: string | null }
+  | { type: "setAssigningQueueItem"; value: QueueDisplayItem | null }
+  | { type: "setSelectedDoctorId"; value: string }
+  | { type: "setAssignDoctorError"; value: string };
+
+const initialQueuePageState: QueuePageState = {
+  activeQueue: "consultations",
+  activeTreatmentFilter: "ALL",
+  activeConsultationLane: "GENERAL_CONSULTATION",
+  activeTherapyLane: "PROCEDURAL_CARE",
+  isCleaningUp: false,
+  selectedQueueActionItem: null,
+  transferringQueueItem: null,
+  transferringId: null,
+  assigningQueueItem: null,
+  selectedDoctorId: "",
+  assignDoctorError: "",
+};
+
+function queuePageReducer(state: QueuePageState, action: QueuePageAction): QueuePageState {
+  switch (action.type) {
+    case "setActiveQueue":
+      return { ...state, activeQueue: action.value };
+    case "setActiveTreatmentFilter":
+      return { ...state, activeTreatmentFilter: action.value };
+    case "setActiveConsultationLane":
+      return { ...state, activeConsultationLane: action.value };
+    case "setActiveTherapyLane":
+      return { ...state, activeTherapyLane: action.value };
+    case "setIsCleaningUp":
+      return { ...state, isCleaningUp: action.value };
+    case "setSelectedQueueActionItem":
+      return { ...state, selectedQueueActionItem: action.value };
+    case "setTransferringQueueItem":
+      return { ...state, transferringQueueItem: action.value };
+    case "setTransferringId":
+      return { ...state, transferringId: action.value };
+    case "setAssigningQueueItem":
+      return { ...state, assigningQueueItem: action.value };
+    case "setSelectedDoctorId":
+      return { ...state, selectedDoctorId: action.value };
+    case "setAssignDoctorError":
+      return { ...state, assignDoctorError: action.value };
+    default:
+      return state;
+  }
+}
 
 async function pollQueueSync(
   refetchQueue: () => Promise<unknown>,
@@ -194,6 +271,32 @@ function QueueMobileCard({
           Actions
         </Button>
       </div>
+    </div>
+  );
+}
+
+function QueueMobileList({
+  items,
+  emptyMessage,
+  onOpenActions,
+}: {
+  items: QueueDisplayItem[];
+  emptyMessage: string;
+  onOpenActions: (item: QueueDisplayItem) => void;
+}) {
+  if (!items.length) {
+    return (
+      <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 px-3 py-4 text-sm text-muted-foreground md:hidden">
+        {emptyMessage}
+      </div>
+    );
+  }
+
+  return (
+    <div className="gap-y-2 md:hidden">
+      {items.map((item) => (
+        <QueueMobileCard key={item.id} item={item} onOpenActions={onOpenActions} />
+      ))}
     </div>
   );
 }
@@ -365,10 +468,43 @@ export default function QueuePage() {
   const { session } = useAuth();
   const userRole = (session?.user?.role as Role) || Role.SUPER_ADMIN;
   const doctorId = session?.user?.id;
-  const [activeQueue, setActiveQueue] = useState("consultations");
-  const [activeTreatmentFilter, setActiveTreatmentFilter] = useState("ALL");
-  const [activeConsultationLane, setActiveConsultationLane] = useState("GENERAL_CONSULTATION");
-  const [activeTherapyLane, setActiveTherapyLane] = useState("PROCEDURAL_CARE");
+  const [
+    {
+      activeQueue,
+      activeTreatmentFilter,
+      activeConsultationLane,
+      activeTherapyLane,
+      isCleaningUp,
+      selectedQueueActionItem,
+      transferringQueueItem,
+      transferringId,
+      assigningQueueItem,
+      selectedDoctorId,
+      assignDoctorError,
+    },
+    dispatch,
+  ] = useReducer(queuePageReducer, initialQueuePageState);
+
+  const setActiveQueue = (value: string) => dispatch({ type: "setActiveQueue", value });
+  const setActiveTreatmentFilter = (value: string) =>
+    dispatch({ type: "setActiveTreatmentFilter", value });
+  const setActiveConsultationLane = (value: string) =>
+    dispatch({ type: "setActiveConsultationLane", value });
+  const setActiveTherapyLane = (value: string) =>
+    dispatch({ type: "setActiveTherapyLane", value });
+  const setIsCleaningUp = (value: boolean) => dispatch({ type: "setIsCleaningUp", value });
+  const setSelectedQueueActionItem = (value: QueueDisplayItem | null) =>
+    dispatch({ type: "setSelectedQueueActionItem", value });
+  const setTransferringQueueItem = (value: QueueDisplayItem | null) =>
+    dispatch({ type: "setTransferringQueueItem", value });
+  const setTransferringId = (value: string | null) =>
+    dispatch({ type: "setTransferringId", value });
+  const setAssigningQueueItem = (value: QueueDisplayItem | null) =>
+    dispatch({ type: "setAssigningQueueItem", value });
+  const setSelectedDoctorId = (value: string) =>
+    dispatch({ type: "setSelectedDoctorId", value });
+  const setAssignDoctorError = (value: string) =>
+    dispatch({ type: "setAssignDoctorError", value });
 
   // Enable real-time WebSocket sync
   useWebSocketQuerySync();
@@ -394,11 +530,6 @@ export default function QueuePage() {
     enabled: queuePermissions.canViewQueue,
   };
 
-  // State to track historical/stale entries that should be cleaned up
-  const [isCleaningUp, setIsCleaningUp] = useState(false);
-  const [selectedQueueActionItem, setSelectedQueueActionItem] = useState<QueueDisplayItem | null>(null);
-  const [transferringQueueItem, setTransferringQueueItem] = useState<QueueDisplayItem | null>(null);
-  
   // Fetch queue data with proper permissions - now strictly bound to today
   const {
     data: queueData,
@@ -428,20 +559,30 @@ export default function QueuePage() {
 
   const assignableDoctors = useMemo(() => {
     const normalize = (users: any[]) =>
-      users
-        .map((user) => {
-          const role = String(user.role || user.doctor?.user?.role || "").toUpperCase();
-          return {
-            id: user.doctor?.id || user.id,
-            name:
-              user.name ||
-              user.doctor?.user?.name ||
-              `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
-              "Unknown Doctor",
-            role,
-          };
-        })
-        .filter((doctor) => doctor.id && (doctor.role === "DOCTOR" || doctor.role === "ASSISTANT_DOCTOR"));
+      users.reduce<
+        Array<{
+          id: string;
+          name: string;
+          role: string;
+        }>
+      >((acc, user) => {
+        const role = String(user.role || user.doctor?.user?.role || "").toUpperCase();
+        const id = user.doctor?.id || user.id;
+        if (!id || (role !== "DOCTOR" && role !== "ASSISTANT_DOCTOR")) {
+          return acc;
+        }
+
+        acc.push({
+          id: String(id),
+          name:
+            user.name ||
+            user.doctor?.user?.name ||
+            `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
+            "Unknown Doctor",
+          role,
+        });
+        return acc;
+      }, []);
 
     if (Array.isArray(doctorsData)) return normalize(doctorsData);
     if (Array.isArray((doctorsData as any)?.data?.doctors)) return normalize((doctorsData as any).data.doctors);
@@ -505,9 +646,20 @@ export default function QueuePage() {
     return index;
   }, [rawQueueEntries]);
 
+  const resolvedActiveTreatmentFilter = useMemo(() => {
+    if (
+      treatmentTypeBarFilters.length > 0 &&
+      !treatmentTypeBarFilters.some((option) => normalizeQueueToken(option.value) === activeTreatmentFilter)
+    ) {
+      return "ALL";
+    }
+
+    return activeTreatmentFilter;
+  }, [activeTreatmentFilter, treatmentTypeBarFilters]);
+
   const matchesTreatmentFilter = useCallback(
     (item: QueueDisplayItem) => {
-      if (activeTreatmentFilter === "ALL") return true;
+      if (resolvedActiveTreatmentFilter === "ALL") return true;
 
       const tokens = [
         item.treatmentType,
@@ -521,9 +673,9 @@ export default function QueuePage() {
         .filter(Boolean)
         .map((token) => normalizeQueueToken(token));
 
-      return tokens.includes(activeTreatmentFilter);
+      return tokens.includes(resolvedActiveTreatmentFilter);
     },
-    [activeTreatmentFilter]
+    [resolvedActiveTreatmentFilter]
   );
 
   const scopedQueueEntries = useMemo(() => {
@@ -556,33 +708,6 @@ export default function QueuePage() {
     [queueEntries]
   );
 
-  useEffect(() => {
-    if (
-      treatmentTypeBarFilters.length > 0 &&
-      !treatmentTypeBarFilters.some((option) => normalizeQueueToken(option.value) === activeTreatmentFilter)
-    ) {
-      setActiveTreatmentFilter("ALL");
-    }
-  }, [activeTreatmentFilter, treatmentTypeBarFilters]);
-
-  useEffect(() => {
-    if (
-      consultationQueueFilters.length > 0 &&
-      !consultationQueueFilters.some((option) => normalizeQueueToken(option.value) === activeConsultationLane)
-    ) {
-      setActiveConsultationLane(normalizeQueueToken(consultationQueueFilters[0]?.value));
-    }
-  }, [activeConsultationLane, consultationQueueFilters]);
-
-  useEffect(() => {
-    if (
-      procedureQueueFilters.length > 0 &&
-      !procedureQueueFilters.some((option) => normalizeQueueToken(option.value) === activeTherapyLane)
-    ) {
-      setActiveTherapyLane(normalizeQueueToken(procedureQueueFilters[0]?.value));
-    }
-  }, [activeTherapyLane, procedureQueueFilters]);
-
   // Identify stale entries (active items from past dates) present in raw data
   const staleEntries = useMemo(() => {
     const todayStr = formatISODateInIST(new Date());
@@ -612,7 +737,7 @@ export default function QueuePage() {
 
   const queueStatsSummary = useMemo(() => {
     const useApiQueueStats =
-      activeTreatmentFilter === "ALL" &&
+      resolvedActiveTreatmentFilter === "ALL" &&
       userRole !== Role.DOCTOR && userRole !== Role.ASSISTANT_DOCTOR;
     const apiQueueStats = queueStats as any;
     const totalInQueue = scopedQueueEntries.length;
@@ -651,7 +776,7 @@ export default function QueuePage() {
           ? apiQueueStats.completedToday
           : completedTodayCount,
     };
-  }, [activeTreatmentFilter, queueStats, scopedQueueEntries, userRole]);
+  }, [queueStats, scopedQueueEntries, resolvedActiveTreatmentFilter, userRole]);
 
   const queueScopeLabel = useMemo(() => {
     if (userRole === Role.SUPER_ADMIN) {
@@ -680,10 +805,6 @@ export default function QueuePage() {
   const reassignAppointmentMutation = useReassignAppointmentDoctor();
 
   // Transfer patient between logical queues (receptionist/clinic-admin only)
-  const [transferringId, setTransferringId] = useState<string | null>(null);
-  const [assigningQueueItem, setAssigningQueueItem] = useState<QueueDisplayItem | null>(null);
-  const [selectedDoctorId, setSelectedDoctorId] = useState<string>("");
-  const [assignDoctorError, setAssignDoctorError] = useState<string>("");
   const canTransfer =
     userRole === Role.RECEPTIONIST ||
     userRole === Role.CLINIC_ADMIN ||
@@ -839,12 +960,23 @@ export default function QueuePage() {
     [consultationQueueFilters, scopedQueueEntries]
   );
 
+  const resolvedActiveConsultationLane = useMemo(() => {
+    if (
+      consultationQueueSections.length > 0 &&
+      !consultationQueueSections.some((section) => section.key === activeConsultationLane)
+    ) {
+      return consultationQueueSections[0]?.key || "GENERAL_CONSULTATION";
+    }
+
+    return activeConsultationLane;
+  }, [activeConsultationLane, consultationQueueSections]);
+
   const activeConsultationSection = useMemo(() => {
     return (
-      consultationQueueSections.find((section) => section.key === activeConsultationLane) ??
+      consultationQueueSections.find((section) => section.key === resolvedActiveConsultationLane) ??
       consultationQueueSections[0]
     );
-  }, [consultationQueueSections, activeConsultationLane]);
+  }, [consultationQueueSections, resolvedActiveConsultationLane]);
   const selectedConsultationItems = activeConsultationSection?.items ?? [];
 
   const procedureQueueSections = useMemo(
@@ -874,11 +1006,12 @@ export default function QueuePage() {
     [consultationQueueSections, procedureQueueSections]
   );
 
-  useEffect(() => {
-    if (activeQueueTabs.length === 0) return;
-    if (!activeQueueTabs.some((tab) => tab.key === activeQueue)) {
-      setActiveQueue(activeQueueTabs[0]?.key || "consultations");
+  const resolvedActiveQueue = useMemo(() => {
+    if (activeQueueTabs.length > 0 && !activeQueueTabs.some((tab) => tab.key === activeQueue)) {
+      return activeQueueTabs[0]?.key || "consultations";
     }
+
+    return activeQueue;
   }, [activeQueue, activeQueueTabs]);
 
   const baseQueueColumns = useMemo<ColumnDef<QueueDisplayItem>[]>(
@@ -977,38 +1110,24 @@ export default function QueuePage() {
     [baseQueueColumns]
   );
 
-  const renderMobileQueueList = (items: QueueDisplayItem[], emptyMessage: string) => {
-    if (!items.length) {
-      return (
-        <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 px-3 py-4 text-sm text-muted-foreground md:hidden">
-          {emptyMessage}
-        </div>
-      );
+  const resolvedActiveTherapyLane = useMemo(() => {
+    if (
+      procedureQueueSections.length > 0 &&
+      !procedureQueueSections.some((section) => section.key === activeTherapyLane)
+    ) {
+      return procedureQueueSections[0]?.key || "PROCEDURAL_CARE";
     }
 
-    return (
-      <div className="gap-y-2 md:hidden">
-        {items.map((item) => (
-          <QueueMobileCard key={item.id} item={item} onOpenActions={setSelectedQueueActionItem} />
-        ))}
-      </div>
-    );
-  };
+    return activeTherapyLane;
+  }, [activeTherapyLane, procedureQueueSections]);
 
   const activeProcedureSection = useMemo(() => {
     return (
-      procedureQueueSections.find((section) => section.key === activeTherapyLane) ??
+      procedureQueueSections.find((section) => section.key === resolvedActiveTherapyLane) ??
       procedureQueueSections[0]
     );
-  }, [procedureQueueSections, activeTherapyLane]);
+  }, [procedureQueueSections, resolvedActiveTherapyLane]);
   const selectedProcedureItems = activeProcedureSection?.items ?? [];
-
-  useEffect(() => {
-    if (procedureQueueSections.length === 0) return;
-    if (!procedureQueueSections.some((section) => section.key === activeTherapyLane)) {
-      setActiveTherapyLane(procedureQueueSections[0]?.key || "PROCEDURAL_CARE");
-    }
-  }, [activeTherapyLane, procedureQueueSections]);
 
   // Keep returns after all hooks to avoid hook-order mismatch.
   if (isLoading) {
@@ -1046,8 +1165,6 @@ export default function QueuePage() {
     );
   }
 
-
-
   function getStatusColor(status: string) {
     switch (status) {
       case QUEUE_STATUS.WAITING:
@@ -1084,12 +1201,7 @@ export default function QueuePage() {
         eyebrow="Dashboard"
         title="Queue Management"
         description={`${queuePermissions.canManageQueue ? "Monitor and manage patient queues" : "View patient queue status"} ${queueScopeLabel}`}
-        meta={
-          <div className="flex items-center gap-2 rounded-full border border-emerald-200/60 bg-emerald-50/80 px-3 py-1.5 text-emerald-700 shadow-sm backdrop-blur-sm">
-            <div className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[11px] font-bold tracking-wide uppercase">Live Sync</span>
-          </div>
-        }
+        meta={QUEUE_HEADER_META}
       />
 
       {/* Stale Data Cleanup Banner */}
@@ -1131,7 +1243,7 @@ export default function QueuePage() {
         <CardContent className="flex flex-wrap gap-2 px-4 pb-4 pt-0">
           {treatmentTypeBarFilters.map((option) => {
             const normalizedOption = normalizeQueueToken(option.value);
-            const isActive = normalizedOption === activeTreatmentFilter;
+            const isActive = normalizedOption === resolvedActiveTreatmentFilter;
 
             return (
               <Badge
@@ -1229,7 +1341,7 @@ export default function QueuePage() {
 
       {/* Queue Tabs */}
       <Tabs
-        value={activeQueue}
+        value={resolvedActiveQueue}
         onValueChange={setActiveQueue}
         className="gap-y-5"
       >
@@ -1275,7 +1387,7 @@ export default function QueuePage() {
                     asChild
                     variant="outline"
                     className={`cursor-pointer gap-2 px-3 py-2 text-sm font-semibold shadow-sm transition ${
-                      activeConsultationLane === section.key
+                      resolvedActiveConsultationLane === section.key
                         ? "border-emerald-500 bg-emerald-600 text-white ring-1 ring-emerald-300 dark:border-emerald-400 dark:bg-emerald-500 dark:text-white"
                         : "border-border bg-background text-foreground hover:bg-muted/40"
                     }`}
@@ -1289,10 +1401,11 @@ export default function QueuePage() {
                   </Badge>
                 ))}
               </div>
-              {renderMobileQueueList(
-                selectedConsultationItems,
-                `No patients in ${String(activeConsultationSection?.title || "selected").toLowerCase()} queue.`
-              )}
+              <QueueMobileList
+                items={selectedConsultationItems}
+                emptyMessage={`No patients in ${String(activeConsultationSection?.title || "selected").toLowerCase()} queue.`}
+                onOpenActions={setSelectedQueueActionItem}
+              />
               <div className="hidden md:block">
                 <DataTable
                   columns={laneColumns}
@@ -1329,7 +1442,7 @@ export default function QueuePage() {
                     asChild
                     variant="outline"
                     className={`cursor-pointer gap-2 px-3 py-2 text-sm font-semibold shadow-sm transition ${
-                      activeTherapyLane === section.key
+                      resolvedActiveTherapyLane === section.key
                         ? "border-emerald-500 bg-emerald-600 text-white ring-1 ring-emerald-300 dark:border-emerald-400 dark:bg-emerald-500 dark:text-white"
                         : "border-border bg-background text-foreground hover:bg-muted/40"
                     }`}
@@ -1343,10 +1456,11 @@ export default function QueuePage() {
                   </Badge>
                 ))}
               </div>
-              {renderMobileQueueList(
-                selectedProcedureItems,
-                `No patients in ${(activeProcedureSection?.title || "selected").toLowerCase()} queue.`
-              )}
+              <QueueMobileList
+                items={selectedProcedureItems}
+                emptyMessage={`No patients in ${(activeProcedureSection?.title || "selected").toLowerCase()} queue.`}
+                onOpenActions={setSelectedQueueActionItem}
+              />
               <div className="hidden md:block">
                 <DataTable
                   columns={laneColumns}
@@ -1462,26 +1576,37 @@ export default function QueuePage() {
                 </div>
               </div>
               <div className="grid gap-2">
-                {queueTransferOptions
-                  .filter((opt) => normalizeQueueToken(opt.value) !== normalizeQueueToken(transferringQueueItem.treatmentType))
-                  .map((opt) => (
-                    <Button
-                      key={opt.value}
-                      variant="outline"
-                      className="h-10 w-full justify-center"
-                      onClick={() => {
-                        void handleTransfer(
-                          transferringQueueItem.id,
-                          opt.value,
-                          opt.value,
-                          opt.label
-                        );
-                        setTransferringQueueItem(null);
-                      }}
-                    >
-                      {opt.label}
-                    </Button>
-                  ))}
+                {queueTransferOptions.reduce<ReactElement[]>(
+                  (options, opt) => {
+                    if (
+                      normalizeQueueToken(opt.value) ===
+                      normalizeQueueToken(transferringQueueItem.treatmentType)
+                    ) {
+                      return options;
+                    }
+
+                    options.push(
+                      <Button
+                        key={opt.value}
+                        variant="outline"
+                        className="h-10 w-full justify-center"
+                        onClick={() => {
+                          void handleTransfer(
+                            transferringQueueItem.id,
+                            opt.value,
+                            opt.value,
+                            opt.label,
+                          );
+                          setTransferringQueueItem(null);
+                        }}
+                      >
+                        {opt.label}
+                      </Button>,
+                    );
+                    return options;
+                  },
+                  [],
+                )}
               </div>
             </div>
           ) : null}

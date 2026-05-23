@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
@@ -38,7 +38,6 @@ import {
 import { PaymentHistory } from "@/components/billing/PaymentHistory";
 import { PaymentButton } from "@/components/payments";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
-import { useLayoutStore } from "@/stores/layout.store";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import {
   DashboardPageHeader as PatientPageHeader,
@@ -49,7 +48,6 @@ import type { BillingPlan, Invoice, Subscription } from "@/types/billing.types";
 export default function PatientBillingPage() {
   const { session } = useAuth();
   const clinicId = session?.user?.clinicId || "";
-  const setPageTitle = useLayoutStore((state) => state.setPageTitle);
   const [planToConfirm, setPlanToConfirm] = useState<BillingPlan | null>(null);
   const [pendingSubscriptionPayment, setPendingSubscriptionPayment] = useState<{
     subscriptionId: string;
@@ -58,10 +56,6 @@ export default function PatientBillingPage() {
   } | null>(null);
   const [showSubscriptionHistory, setShowSubscriptionHistory] = useState(false);
   const [subscribeError, setSubscribeError] = useState("");
-
-  useEffect(() => {
-    setPageTitle("My Billing & Payments");
-  }, [setPageTitle]);
 
   useWebSocketQuerySync();
 
@@ -113,7 +107,7 @@ export default function PatientBillingPage() {
       : [backendActiveSubscription, ...typedSubscriptions]
     : typedSubscriptions;
   const displayedSubscriptions = backendActiveSubscription
-    ? [...mergedSubscriptions].sort((left, right) => {
+    ? mergedSubscriptions.toSorted((left, right) => {
         if (left.id === backendActiveSubscription.id) return -1;
         if (right.id === backendActiveSubscription.id) return 1;
         return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
@@ -166,10 +160,11 @@ export default function PatientBillingPage() {
   }
 
   function formatAmount(amount: number, currency = "INR") {
-    return new Intl.NumberFormat("en-IN", {
+    return amount.toLocaleString("en-IN", {
       style: "currency",
       currency,
-    }).format(amount);
+      maximumFractionDigits: 0,
+    });
   }
 
   function formatDate(date: string) {

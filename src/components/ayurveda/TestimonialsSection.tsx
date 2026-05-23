@@ -237,6 +237,7 @@ const TestimonialsSection = () => {
             <button
               key={`testimonial-${index + 1}`}
               onClick={() => setCurrentTestimonial(index)}
+              type="button"
               className={`size-3 rounded-full transition-all duration-300 ${
                 index === currentTestimonial
                   ? "bg-primary w-8"

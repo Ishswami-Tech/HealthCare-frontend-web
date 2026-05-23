@@ -48,24 +48,26 @@ type PaymentIntentRequest =
 
 function normalizeStringList(raw: unknown): string[] {
   if (Array.isArray(raw)) {
-    return raw
-      .map((item) => (typeof item === 'string' ? item.trim() : String(item ?? '').trim()))
-      .filter(Boolean);
+    return raw.flatMap((item) => {
+      const value = typeof item === 'string' ? item.trim() : String(item ?? '').trim();
+      return value ? [value] : [];
+    });
   }
 
   if (!raw || typeof raw !== 'object') {
     return [];
   }
 
-  return Object.entries(raw as Record<string, unknown>)
-    .map(([key, value]) => {
-      if (typeof value === 'string') return value.trim();
-      if (typeof value === 'boolean') return value ? key : '';
-      if (typeof value === 'number') return `${key}: ${value}`;
-      if (value && typeof value === 'object') return key;
-      return '';
-    })
-    .filter(Boolean);
+  return Object.entries(raw as Record<string, unknown>).flatMap(([key, value]) => {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed ? [trimmed] : [];
+    }
+    if (typeof value === 'boolean') return value ? [key] : [];
+    if (typeof value === 'number') return [`${key}: ${value}`];
+    if (value && typeof value === 'object') return [key];
+    return [];
+  });
 }
 
 function normalizeBillingPlan(raw: RawBillingPlan): BillingPlan {

@@ -415,9 +415,9 @@ export default function AnalyticsDashboard() {
                       </CardHeader>
                       <CardContent>
                         <div className="gap-y-4">
-                          {performanceMetrics.map((metric, index) => (
+                          {performanceMetrics.map((metric) => (
                             <div
-                              key={index}
+                              key={metric.metric}
                               className="flex items-center justify-between p-3 border rounded-lg"
                             >
                               <div className="flex-1">
@@ -452,8 +452,8 @@ export default function AnalyticsDashboard() {
                       </CardHeader>
                       <CardContent>
                         <div className="gap-y-4">
-                          {departmentStats.map((dept, index) => (
-                            <div key={index} className="p-3 border rounded-lg">
+                          {departmentStats.map((dept) => (
+                            <div key={dept.department} className="p-3 border rounded-lg">
                               <div className="flex items-center justify-between mb-2">
                                 <h4 className="font-medium">
                                   {dept.department}
@@ -695,10 +695,9 @@ export default function AnalyticsDashboard() {
                               Age Distribution
                             </h4>
                             <div className="gap-y-3">
-                              {patientDemographics.ageGroups.map(
-                                (group, index) => (
+                              {patientDemographics.ageGroups.map((group) => (
                                   <div
-                                    key={index}
+                                    key={group.group}
                                     className="flex items-center justify-between"
                                   >
                                     <span>{group.group} years</span>
@@ -729,10 +728,9 @@ export default function AnalyticsDashboard() {
                               Geographic Distribution
                             </h4>
                             <div className="gap-y-3">
-                              {patientDemographics.locationDistribution.map(
-                                (location, index) => (
+                              {patientDemographics.locationDistribution.map((location) => (
                                   <div
-                                    key={index}
+                                    key={location.city}
                                     className="flex items-center justify-between"
                                   >
                                     <span className="flex items-center gap-2">
@@ -756,8 +754,7 @@ export default function AnalyticsDashboard() {
                                       </span>
                                     </div>
                                   </div>
-                                )
-                              )}
+                                ))}
                             </div>
                           </div>
                         </div>
@@ -850,8 +847,8 @@ export default function AnalyticsDashboard() {
                     </CardHeader>
                     <CardContent>
                       <div className="gap-y-6">
-                        {treatmentEffectiveness.map((treatment, index) => (
-                          <div key={index} className="p-4 border rounded-lg">
+                        {treatmentEffectiveness.map((treatment) => (
+                          <div key={treatment.treatment} className="p-4 border rounded-lg">
                             <div className="flex items-start justify-between mb-4">
                               <div>
                                 <h3 className="font-semibold text-lg">
@@ -918,9 +915,9 @@ export default function AnalyticsDashboard() {
                             </h4>
                             <div className="gap-y-3">
                               {digitalEngagement.channelUsage.map(
-                                (channel, index) => (
+                                (channel) => (
                                   <div
-                                    key={index}
+                                    key={channel.channel}
                                     className="flex items-center justify-between"
                                   >
                                     <span className="flex items-center gap-2">
@@ -961,9 +958,9 @@ export default function AnalyticsDashboard() {
                             </h4>
                             <div className="gap-y-3">
                               {digitalEngagement.popularFeatures.map(
-                                (feature, index) => (
+                                (feature) => (
                                   <div
-                                    key={index}
+                                    key={feature.feature}
                                     className="flex items-center justify-between"
                                   >
                                     <span>{feature.feature}</span>

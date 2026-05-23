@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, ReactNode } from "react";
+import React, { createContext, use, useEffect, ReactNode } from "react";
 import { useWebSocketIntegration } from "@/hooks/realtime/useWebSocketIntegration";
 import { useAppStore } from "@/stores";
 import { WebSocketErrorBoundary } from "@/components/common/ErrorBoundary";
@@ -21,7 +21,7 @@ const WebSocketContext = createContext<WebSocketContextType | undefined>(
 );
 
 export function useWebSocketContext() {
-  const context = useContext(WebSocketContext);
+  const context = use(WebSocketContext);
   if (!context) {
     throw new Error(
       "useWebSocketContext must be used within a WebSocketProvider"
@@ -242,6 +242,7 @@ export function WebSocketStatusBar() {
           </span>
           {error && (
             <button
+              type="button"
               onClick={reconnect}
               className="ml-2 text-yellow-700 hover:text-yellow-900 underline"
             >

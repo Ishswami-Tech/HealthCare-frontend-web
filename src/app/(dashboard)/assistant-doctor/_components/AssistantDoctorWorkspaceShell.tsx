@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,13 +30,24 @@ export function AssistantDoctorWorkspaceShell({
   note,
   actions,
 }: AssistantDoctorWorkspaceShellProps) {
+  const noteBadge = useMemo(() => {
+    return (
+      <Badge
+        variant="outline"
+        className="rounded-full border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700"
+      >
+        {note}
+      </Badge>
+    );
+  }, [note]);
+
   return (
     <DashboardPageShell className="p-4 sm:p-6">
       <DashboardPageHeader
         eyebrow={eyebrow}
         title={title}
         description={description}
-        meta={<Badge variant="outline" className="rounded-full border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">{note}</Badge>}
+        meta={noteBadge}
       />
 
       <Card className="border shadow-sm">

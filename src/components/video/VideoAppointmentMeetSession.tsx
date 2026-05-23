@@ -163,7 +163,7 @@ export function VideoAppointmentMeetSession({
   viewerRole,
   onBack,
 }: VideoAppointmentMeetSessionProps) {
-  const router = useRouter();
+  const { replace } = useRouter();
   const { session } = useAuth();
   const resolvedAppointmentId = appointmentId.trim();
   const { data: appointmentQuery, isPending, error } =
@@ -171,7 +171,6 @@ export function VideoAppointmentMeetSession({
   const { data: appointmentRecordQuery } = useAppointment(resolvedAppointmentId);
   const [isRequesting, setIsRequesting] = React.useState(true);
   const [permissionError, setPermissionError] = React.useState<string | null>(null);
-  const [mediaStream, setMediaStream] = React.useState<MediaStream | null>(null);
   const [videoDevices, setVideoDevices] = React.useState<MediaDeviceInfo[]>([]);
   const [audioDevices, setAudioDevices] = React.useState<MediaDeviceInfo[]>([]);
   const [selectedVideoDeviceId, setSelectedVideoDeviceId] = React.useState("");
@@ -368,10 +367,15 @@ export function VideoAppointmentMeetSession({
 
       mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
       mediaStreamRef.current = null;
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
 
       try {
         if (!nextVideoEnabled && !nextAudioEnabled) {
-          setMediaStream(null);
+          if (videoRef.current) {
+            videoRef.current.srcObject = null;
+          }
           setSelectedVideoDeviceId(nextVideoDeviceId);
           setSelectedAudioDeviceId(nextAudioDeviceId);
           setIsVideoEnabled(false);
@@ -454,7 +458,21 @@ export function VideoAppointmentMeetSession({
           "";
 
         mediaStreamRef.current = stream;
-        setMediaStream(stream);
+        if (videoRef.current) {
+          const video = videoRef.current;
+          video.srcObject = stream;
+          video.load();
+          video.muted = true;
+          video.playsInline = true;
+          const startPlayback = () => {
+            void video.play().catch(() => undefined);
+          };
+          if (video.readyState >= 2) {
+            startPlayback();
+          } else {
+            video.addEventListener("loadedmetadata", startPlayback, { once: true });
+          }
+        }
         setVideoDevices(nextVideoDevices);
         setAudioDevices(nextAudioDevices);
         setSelectedVideoDeviceId(resolvedVideoDeviceId);
@@ -488,34 +506,11 @@ export function VideoAppointmentMeetSession({
 
       mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
       mediaStreamRef.current = null;
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
     };
   }, [loadPreviewStream]);
-
-  React.useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    if (!mediaStream) {
-      video.srcObject = null;
-      return;
-    }
-
-    video.srcObject = mediaStream;
-    video.load();
-    video.muted = true;
-    video.playsInline = true;
-    const startPlayback = () => {
-      void video.play().catch(() => undefined);
-    };
-    if (video.readyState >= 2) {
-      startPlayback();
-      return;
-    }
-    video.addEventListener("loadedmetadata", startPlayback, { once: true });
-    return () => {
-      video.removeEventListener("loadedmetadata", startPlayback);
-    };
-  }, [mediaStream]);
 
   const toggleAudio = () => {
     const next = !isAudioEnabled;
@@ -619,6 +614,9 @@ export function VideoAppointmentMeetSession({
     // Stop all media tracks before navigating away
     mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
     mediaStreamRef.current = null;
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
 
     if (onBack) {
       onBack();
@@ -628,11 +626,15 @@ export function VideoAppointmentMeetSession({
       window.close();
       return;
     }
-    router.replace(exitRoute);
-  }, [exitRoute, onBack, router]);
+      replace(exitRoute);
+  }, [exitRoute, onBack, replace]);
 
   const handleLeavePreview = () => {
-    mediaStream?.getTracks().forEach((track) => track.stop());
+    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+    mediaStreamRef.current = null;
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
     if (onBack) {
       onBack();
       return;
@@ -641,7 +643,7 @@ export function VideoAppointmentMeetSession({
       window.close();
       return;
     }
-    router.replace(exitRoute);
+      replace(exitRoute);
   };
 
   if (isPending || !appointment || isRequesting) {
@@ -675,6 +677,7 @@ export function VideoAppointmentMeetSession({
             {permissionError || "Unable to load this meeting."}
           </p>
           <button
+            type="button"
             onClick={() => window.location.reload()}
             className="mt-6 rounded-full bg-[#8ab4f8] px-6 py-2.5 text-[13px] font-semibold text-[#202124] hover:bg-[#aecbfa] transition-colors"
           >
@@ -717,6 +720,7 @@ export function VideoAppointmentMeetSession({
                 autoPlay
                 muted
                 playsInline
+                aria-label="Camera preview"
                 className={`h-full w-full object-cover transition-opacity duration-300 ${isMirrored ? "-scale-x-100" : ""} ${isVideoEnabled ? "opacity-100" : "opacity-0"}`}
               />
               {!isVideoEnabled && (
@@ -734,6 +738,7 @@ export function VideoAppointmentMeetSession({
                   type="button"
                   onClick={toggleAudio}
                   aria-pressed={isAudioEnabled}
+                  aria-label={isAudioEnabled ? "Mute microphone" : "Unmute microphone"}
                   className={`flex size-14 items-center justify-center rounded-full shadow-lg transition-all ${isAudioEnabled ? "bg-[#3c4043]/90 text-white hover:bg-[#5f6368]" : "bg-[#ea4335] text-white hover:bg-[#d93025]"}`}
                 >
                   {isAudioEnabled ? <Mic className="size-6" /> : <MicOff className="size-6" />}
@@ -742,6 +747,7 @@ export function VideoAppointmentMeetSession({
                   type="button"
                   onClick={toggleVideo}
                   aria-pressed={isVideoEnabled}
+                  aria-label={isVideoEnabled ? "Turn off camera" : "Turn on camera"}
                   className={`flex size-14 items-center justify-center rounded-full shadow-lg transition-all ${isVideoEnabled ? "bg-[#3c4043]/90 text-white hover:bg-[#5f6368]" : "bg-[#ea4335] text-white hover:bg-[#d93025]"}`}
                 >
                   {isVideoEnabled ? <Video className="size-6" /> : <VideoOff className="size-6" />}

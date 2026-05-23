@@ -2,7 +2,7 @@
 
 import {
   createContext,
-  useContext,
+  use,
   useEffect,
   useTransition,
   useState,
@@ -138,13 +138,6 @@ export function LanguageProvider({
     if (Object.keys(SUPPORTED_LANGUAGES).includes(newLanguage)) {
       startTransition(() => {
         setLanguageState(newLanguage);
-        storeLanguage(newLanguage);
-
-        // Update document language attribute
-        if (typeof document !== "undefined") {
-          document.documentElement.lang = newLanguage;
-          document.documentElement.dir = SUPPORTED_LANGUAGES[newLanguage].dir;
-        }
       });
     }
   };
@@ -177,7 +170,7 @@ export function LanguageProvider({
 }
 
 export function useLanguage(): LanguageContextType {
-  const context = useContext(LanguageContext);
+  const context = use(LanguageContext);
   if (context === undefined) {
     throw new Error("useLanguage must be used within a LanguageProvider");
   }

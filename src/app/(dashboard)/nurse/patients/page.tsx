@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,10 +39,11 @@ export default function NursePatients() {
 
   const nurseId = user?.id;
 
-  useEffect(() => {
-    debouncedSetSearch(searchQuery);
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
     setPage(1);
-  }, [searchQuery, debouncedSetSearch]);
+    debouncedSetSearch(value);
+  };
 
   const patientsQuery = useNursePatients({
     nurseId,
@@ -112,7 +113,7 @@ export default function NursePatients() {
         eyebrow="Nurse Patients"
         title="Patient Care"
         description="Manage assigned patients, review care status, and jump into vitals or bedside workflows."
-        meta={<span className="text-sm font-medium text-muted-foreground">Loaded: {patientsPage.total} patients</span>}
+        meta={`Loaded: ${patientsPage.total} patients`}
       />
 
       <Card>
@@ -120,10 +121,10 @@ export default function NursePatients() {
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-3 size-4 text-gray-400" />
-              <Input
+                <Input
                 placeholder="Search by patient name or condition..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 className="pl-10"
               />
             </div>

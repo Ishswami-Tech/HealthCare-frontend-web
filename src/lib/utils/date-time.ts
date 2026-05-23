@@ -1,8 +1,23 @@
 export const IST_TIMEZONE = 'Asia/Kolkata';
 
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
 function normalizeDateInput(value: Date | string): Date | null {
   const parsed = value instanceof Date ? value : new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getIstDateParts(value: Date): {
+  year: number;
+  month: number;
+  day: number;
+} {
+  const istDate = new Date(value.getTime() + IST_OFFSET_MS);
+  return {
+    year: istDate.getUTCFullYear(),
+    month: istDate.getUTCMonth() + 1,
+    day: istDate.getUTCDate(),
+  };
 }
 
 export function normalizeTimeInputToTwentyFourHour(timeValue: string): string | null {
@@ -88,19 +103,19 @@ export function formatDateInIST(
 ): string {
   const parsed = normalizeDateInput(value);
   if (!parsed) return '';
-  return new Intl.DateTimeFormat(locale, {
+  return parsed.toLocaleDateString(locale, {
     timeZone: IST_TIMEZONE,
     ...options,
-  }).format(parsed);
+  });
 }
 
 export function formatMonthShortInIST(value: Date | string, locale = 'en-US'): string {
   const parsed = normalizeDateInput(value);
   if (!parsed) return '';
-  return new Intl.DateTimeFormat(locale, {
+  return parsed.toLocaleDateString(locale, {
     timeZone: IST_TIMEZONE,
     month: 'short',
-  }).format(parsed);
+  });
 }
 
 export function formatTimeInIST(
@@ -115,24 +130,21 @@ export function formatTimeInIST(
   const parsed = normalizeDateInput(value);
   if (!parsed) return '';
 
-  const timeParts = new Intl.DateTimeFormat('en-US', {
+  if (options.hour12 === false) {
+    return parsed.toLocaleTimeString('en-US', {
+      timeZone: IST_TIMEZONE,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+  }
+
+  return parsed.toLocaleTimeString(locale, {
     timeZone: IST_TIMEZONE,
     hour: '2-digit',
     minute: '2-digit',
-    hour12: false,
-  }).formatToParts(parsed);
-
-  const hourPart = timeParts.find((part) => part.type === 'hour')?.value || '00';
-  const minutePart = timeParts.find((part) => part.type === 'minute')?.value || '00';
-
-  if (options.hour12 === false) {
-    return `${hourPart}:${minutePart}`;
-  }
-
-  const hour24 = Number(hourPart);
-  const hour12 = hour24 % 12 || 12;
-  const suffix = hour24 >= 12 ? 'pm' : 'am';
-  return `${String(hour12).padStart(2, '0')}:${minutePart} ${suffix}`;
+    hour12: true,
+  });
 }
 
 export function formatISODateInIST(value: Date | string): string {
@@ -145,18 +157,8 @@ export function formatDateKeyInIST(value: Date | string): string {
     return '';
   }
 
-  const parts = new Intl.DateTimeFormat('en-IN', {
-    timeZone: IST_TIMEZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(parsed);
-
-  const year = parts.find((part) => part.type === 'year')?.value;
-  const month = parts.find((part) => part.type === 'month')?.value;
-  const day = parts.find((part) => part.type === 'day')?.value;
-
-  return year && month && day ? `${year}-${month}-${day}` : '';
+  const { year, month, day } = getIstDateParts(parsed);
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
 export function formatTimeValueInIST(timeValue: string, locale = 'en-IN'): string {
@@ -207,10 +209,10 @@ export function formatDateTimeInIST(
 ): string {
   const parsed = normalizeDateInput(value);
   if (!parsed) return '';
-  return new Intl.DateTimeFormat(locale, {
+  return parsed.toLocaleDateString(locale, {
     timeZone: IST_TIMEZONE,
     ...options,
-  }).format(parsed);
+  });
 }
 
 function getNowIso(): string {

@@ -104,6 +104,11 @@ export interface AuthState {
   setLoading: (loading: boolean) => void;
   setRefreshing: (refreshing: boolean) => void;
   setError: (error: string | null) => void;
+  syncAuthStateFromSession: (payload: {
+    session: Session | null | undefined;
+    isLoading: boolean;
+    shouldClearAuth: boolean;
+  }) => void;
   reset: () => void;
 }
 
@@ -125,6 +130,7 @@ const initialState = {
   | 'setLoading'
   | 'setRefreshing'
   | 'setError'
+  | 'syncAuthStateFromSession'
   | 'reset'
 >;
 
@@ -239,6 +245,57 @@ export const useAuthStore = create<AuthState>()(
         }
         set((state) => {
           state.error = error;
+        });
+      },
+
+      syncAuthStateFromSession: ({ session, isLoading, shouldClearAuth }) => {
+        const normalizedSession = session
+          ? {
+              ...session,
+              user: normalizeAuthUser(session.user) || session.user,
+            }
+          : session;
+        const current = useAuthStore.getState() as AuthState;
+
+        if (
+          current.isLoading === isLoading &&
+          isSameSession(current.session, normalizedSession ?? null) &&
+          (!shouldClearAuth ||
+            (current.user === null &&
+              current.session === null &&
+              current.isAuthenticated === false &&
+              current.isProfileComplete === false &&
+              current.requiresProfileCompletion === true &&
+              current.error === null))
+        ) {
+          return;
+        }
+
+        set((state) => {
+          state.isLoading = isLoading;
+
+          if (normalizedSession) {
+            const nextProfileComplete = resolveProfileCompleteFromPayload(
+              normalizedSession.user,
+              normalizedSession
+            );
+            state.session = normalizedSession;
+            state.user = normalizedSession.user || null;
+            state.isAuthenticated = !!normalizedSession.isAuthenticated;
+            state.isProfileComplete = nextProfileComplete;
+            state.requiresProfileCompletion = !nextProfileComplete;
+            state.error = null;
+            return;
+          }
+
+          if (shouldClearAuth) {
+            state.user = null;
+            state.session = null;
+            state.isAuthenticated = false;
+            state.isProfileComplete = false;
+            state.requiresProfileCompletion = true;
+            state.error = null;
+          }
         });
       },
 

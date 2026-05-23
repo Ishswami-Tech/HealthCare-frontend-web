@@ -18,12 +18,12 @@ import { useAuthStore } from "@/stores";
 export default function ProfileCompletionContent() {
   const { session, isPending } = useAuth();
   const isProfileComplete = useAuthStore((state) => state.isProfileComplete);
-  const router = useRouter();
+  const { push } = useRouter();
 
   useEffect(() => {
     if (!isPending) {
       if (!session?.user) {
-        router.push(ROUTES.LOGIN);
+        push(ROUTES.LOGIN);
         return;
       }
       if (session.user.profileComplete || isProfileComplete) {
@@ -32,7 +32,7 @@ export default function ProfileCompletionContent() {
         window.location.replace(dashboardPath);
       }
     }
-  }, [session, isPending, isProfileComplete, router]);
+  }, [session, isPending, isProfileComplete, push]);
 
   // Show loading while checking auth
   if (isPending) {
@@ -53,4 +53,5 @@ export default function ProfileCompletionContent() {
 
   return <ProfileCompletionForm />;
 }
+
 

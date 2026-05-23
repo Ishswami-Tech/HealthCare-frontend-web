@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Activity, ArrowRightLeft, Clock, Users } from "lucide-react";
 
@@ -102,21 +102,25 @@ function matchesFilter(entry: QueueSummaryEntry, filter: QueueFilterOption): boo
     return !hasQueueTaxonomy(entry) || isAnalyticsQueueEntry(entry);
   }
 
-  const filterTokens = new Set(
-    [filter.value, filter.label, ...(filter.aliases || [])]
-      .filter(Boolean)
-      .map((token) => normalizeQueueToken(token))
-  );
+  const filterTokens = new Set<string>();
+  for (const token of [filter.value, filter.label, ...(filter.aliases || [])]) {
+    if (token) {
+      filterTokens.add(normalizeQueueToken(token));
+    }
+  }
 
-  const entryTokens = [
+  const entryTokens: string[] = [];
+  for (const token of [
     entry.queueCategory,
     entry.displayLabel,
     entry.serviceBucket,
     entry.treatmentType,
     resolveQueueDisplayLabel(entry),
-  ]
-    .filter(Boolean)
-    .map((token) => normalizeQueueToken(token));
+  ]) {
+    if (token) {
+      entryTokens.push(normalizeQueueToken(token));
+    }
+  }
 
   return entryTokens.some((token) => filterTokens.has(token));
 }
@@ -138,8 +142,18 @@ export function QueueTreatmentTabs({
   const queueEntries = useMemo(
     () =>
       extractQueueEntries(queueData)
-        .filter((entry) => hasQueuePatientIdentity(entry))
-        .filter((entry) => !["COMPLETED", "CANCELLED", "NO_SHOW"].includes(String(entry.status || "").toUpperCase()))
+        .reduce<QueueSummaryEntry[]>((acc, entry) => {
+          if (!hasQueuePatientIdentity(entry)) {
+            return acc;
+          }
+
+          if (["COMPLETED", "CANCELLED", "NO_SHOW"].includes(String(entry.status || "").toUpperCase())) {
+            return acc;
+          }
+
+          acc.push(entry);
+          return acc;
+        }, [])
         .sort((a, b) => a.position - b.position),
     [queueData]
   );
@@ -154,13 +168,19 @@ export function QueueTreatmentTabs({
   const treatmentFilters = treatmentGroup?.filters || [];
   const consultationQueueFilters = useMemo<QueueFilterOption[]>(
     () =>
-      treatmentFilters
-        .filter((filter) => CONSULTATION_FILTERS.includes(normalizeQueueToken(filter.value) as (typeof CONSULTATION_FILTERS)[number]))
-        .map((filter) => ({
+      treatmentFilters.reduce<QueueFilterOption[]>((acc, filter) => {
+        if (!CONSULTATION_FILTERS.includes(normalizeQueueToken(filter.value) as (typeof CONSULTATION_FILTERS)[number])) {
+          return acc;
+        }
+
+        acc.push({
           value: filter.value,
           label: filter.label,
           description: filter.description || filter.label,
-        })),
+        });
+
+        return acc;
+      }, []),
     [treatmentFilters]
   );
   const procedureQueueFilters = useMemo<QueueFilterOption[]>(
@@ -198,30 +218,18 @@ export function QueueTreatmentTabs({
   );
 
   const [activeQueue, setActiveQueue] = useState<"consultations" | "procedures">("consultations");
-  const [activeConsultationLane, setActiveConsultationLane] = useState("");
-  const [activeTherapyLane, setActiveTherapyLane] = useState("");
-
-  useEffect(() => {
-    if (consultationQueueSections.length === 0) {
-      setActiveConsultationLane("");
-      return;
-    }
-
-    if (!consultationQueueSections.some((section) => section.key === activeConsultationLane)) {
-      setActiveConsultationLane(consultationQueueSections[0]?.key || "");
-    }
-  }, [activeConsultationLane, consultationQueueSections]);
-
-  useEffect(() => {
-    if (procedureQueueSections.length === 0) {
-      setActiveTherapyLane("");
-      return;
-    }
-
-    if (!procedureQueueSections.some((section) => section.key === activeTherapyLane)) {
-      setActiveTherapyLane(procedureQueueSections[0]?.key || "");
-    }
-  }, [activeTherapyLane, procedureQueueSections]);
+  const [activeConsultationLaneOverride, setActiveConsultationLaneOverride] = useState<string | null>(null);
+  const [activeTherapyLaneOverride, setActiveTherapyLaneOverride] = useState<string | null>(null);
+  const defaultConsultationLane = useMemo(
+    () => consultationQueueSections[0]?.key || "",
+    [consultationQueueSections]
+  );
+  const defaultTherapyLane = useMemo(
+    () => procedureQueueSections[0]?.key || "",
+    [procedureQueueSections]
+  );
+  const activeConsultationLane = activeConsultationLaneOverride ?? defaultConsultationLane;
+  const activeTherapyLane = activeTherapyLaneOverride ?? defaultTherapyLane;
 
   const activeConsultationSection =
     consultationQueueSections.find((section) => section.key === activeConsultationLane) ?? consultationQueueSections[0];
@@ -342,7 +350,7 @@ export function QueueTreatmentTabs({
                       : "border-border bg-background text-foreground hover:bg-muted/40"
                   }`}
                 >
-                  <button type="button" onClick={() => setActiveConsultationLane(section.key)}>
+              <button type="button" onClick={() => setActiveConsultationLaneOverride(section.key)}>
                     <span className="truncate">{section.title}</span>
                     <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
                       {section.items.length}
@@ -384,7 +392,7 @@ export function QueueTreatmentTabs({
                       : "border-border bg-background text-foreground hover:bg-muted/40"
                   }`}
                 >
-                  <button type="button" onClick={() => setActiveTherapyLane(section.key)}>
+              <button type="button" onClick={() => setActiveTherapyLaneOverride(section.key)}>
                     <span className="truncate">{section.title}</span>
                     <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
                       {section.items.length}

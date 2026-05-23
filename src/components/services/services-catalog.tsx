@@ -423,9 +423,9 @@ export function ServicesCatalog({
                   {service.description}
                 </p>
                 <div className="flex flex-wrap gap-1 sm:gap-2">
-                  {service.treatments.slice(0, 4).map((treatment, index) => (
+                  {service.treatments.slice(0, 4).map((treatment) => (
                     <span
-                      key={index}
+                      key={`${service.id}-${treatment}`}
                       className="px-2 sm:px-3 py-1 sm:py-2 bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary/90 text-xs sm:text-sm rounded-full border border-primary/20 dark:border-primary/30 hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors duration-200"
                     >
                       {treatment}
@@ -459,10 +459,9 @@ export function ServicesCatalog({
 
       <div className={cn("grid gap-6", gridClasses[columns])}>
         {serviceCategories.map((service) => (
-          <div
+          <button
             key={service.id}
-            role="button"
-            tabIndex={0}
+            type="button"
             className={cn(
               "bg-card/80 dark:bg-card/90 backdrop-blur-sm shadow-2xl border border-border/50 dark:border-border/30 rounded-2xl overflow-hidden hover:shadow-3xl transition-all duration-500 cursor-pointer glass card-hover group",
               selectedService === service.id &&
@@ -473,14 +472,6 @@ export function ServicesCatalog({
                 selectedService === service.id ? null : service.id
               )
             }
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                setSelectedService(
-                  selectedService === service.id ? null : service.id
-                );
-              }
-            }}
           >
             <div className="p-6 sm:p-8">
               <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
@@ -519,9 +510,9 @@ export function ServicesCatalog({
                       Treatments Included:
                     </h4>
                     <div className="flex flex-wrap gap-1 sm:gap-2">
-                      {service.treatments.map((treatment, index) => (
+                      {service.treatments.map((treatment) => (
                         <span
-                          key={index}
+                          key={`${service.id}-${treatment}`}
                           className="px-2 sm:px-3 py-1 sm:py-2 bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary/90 text-xs sm:text-sm rounded-full border border-primary/20 dark:border-primary/30 hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors duration-200"
                         >
                           {treatment}
@@ -535,9 +526,9 @@ export function ServicesCatalog({
                       Key Benefits:
                     </h4>
                     <div className="gap-y-2 sm:gap-y-3">
-                      {service.benefits.slice(0, 3).map((benefit, index) => (
+                      {service.benefits.slice(0, 3).map((benefit) => (
                         <div
-                          key={index}
+                          key={`${service.id}-${benefit}`}
                           className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-muted-foreground dark:text-muted-foreground/90"
                         >
                           <CheckCircle className="size-4 sm:w-5 sm:h-5 text-green-500 dark:text-green-400 flex-shrink-0" />
@@ -549,7 +540,7 @@ export function ServicesCatalog({
                 </div>
               )}
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </div>

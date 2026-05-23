@@ -194,19 +194,30 @@ export function MemoryPerformanceTracker() {
 
 interface PerformanceProviderProps {
   children: React.ReactNode;
-  enableWebVitals?: boolean;
-  enableResourceTracking?: boolean;
-  enableNavigationTracking?: boolean;
-  enableMemoryTracking?: boolean;
+  tracking?: {
+    enableWebVitals?: boolean;
+    enableResourceTracking?: boolean;
+    enableNavigationTracking?: boolean;
+    enableMemoryTracking?: boolean;
+  };
 }
+
+type PerformanceTrackingOptions = NonNullable<PerformanceProviderProps["tracking"]>;
+
+const EMPTY_PERFORMANCE_TRACKING: PerformanceTrackingOptions = {};
 
 export function PerformanceProvider({
   children,
-  enableWebVitals = true,
-  enableResourceTracking = true,
-  enableNavigationTracking = true,
-  enableMemoryTracking = false, // Disabled by default as it's experimental
+  tracking = EMPTY_PERFORMANCE_TRACKING,
 }: PerformanceProviderProps) {
+  const resolvedTracking: PerformanceTrackingOptions = tracking ?? EMPTY_PERFORMANCE_TRACKING;
+  const {
+    enableWebVitals = true,
+    enableResourceTracking = true,
+    enableNavigationTracking = true,
+    enableMemoryTracking = false, // Disabled by default as it's experimental
+  } = resolvedTracking;
+
   return (
     <>
       {enableWebVitals && <WebVitalsTracker />}

@@ -233,8 +233,8 @@ export function SystemHealthDashboard({ className }: { className?: string }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {services.map((service, index) => (
-                <TableRow key={index}>
+              {services.map((service) => (
+                <TableRow key={service.name}>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <service.icon className="size-4" />

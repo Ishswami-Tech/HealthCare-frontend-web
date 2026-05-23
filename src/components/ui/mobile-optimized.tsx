@@ -78,10 +78,11 @@ const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ items, className }) =
       "fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t z-50",
       className
     )}>
-      <div className="flex items-center justify-around px-2 py-2">
-        {items.map((item, index) => (
+      <div className="flex items-center justify-around p-2">
+        {items.map((item) => (
           <button
-            key={index}
+            key={item.label}
+            type="button"
             onClick={item.onClick}
             className={cn(
               "relative flex flex-col items-center justify-center min-w-0 flex-1 p-2 rounded-lg transition-colors",
@@ -124,7 +125,8 @@ function MobileCardStack<T>({
   className,
   onSwipeLeft,
   onSwipeRight,
-}: Omit<MobileCardStackProps<T>, 'keyExtractor'>) {
+  keyExtractor,
+}: MobileCardStackProps<T>) {
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const touchStartX = React.useRef<number>(0);
   const touchEndX = React.useRef<number>(0);
@@ -174,9 +176,10 @@ function MobileCardStack<T>({
     <div className={cn("gap-y-4", className)}>
       {/* Navigation dots */}
       <div className="flex justify-center gap-x-2">
-        {items.map((_, index) => (
+        {items.map((item, index) => (
           <button
-            key={index}
+            type="button"
+            key={keyExtractor(item, index)}
             aria-label={`Go to slide ${index + 1}`}
             title={`Go to slide ${index + 1}`}
             onClick={() => setCurrentIndex(() => index)}
@@ -390,8 +393,8 @@ const MobileQuickActions: React.FC<MobileQuickActionsProps> = ({ actions, classN
       {/* Action items */}
       {isOpen && (
         <div className="gap-y-2 mb-2">
-          {actions.slice(0, -1).map((action, index) => (
-            <div key={index} className="flex items-center justify-end gap-x-2">
+          {actions.slice(0, -1).map((action) => (
+            <div key={action.label} className="flex items-center justify-end gap-x-2">
               <div className="bg-background/90 backdrop-blur rounded-lg px-3 py-1 border shadow-lg">
                 <span className="text-sm font-medium whitespace-nowrap">{action.label}</span>
               </div>
@@ -453,8 +456,8 @@ interface MobileStatsGridProps {
 const MobileStatsGrid: React.FC<MobileStatsGridProps> = ({ stats, className }) => {
   return (
     <div className={cn("grid grid-cols-2 gap-3", className)}>
-      {stats.map((stat, index) => (
-        <Card key={index} className="p-4">
+      {stats.map((stat) => (
+        <Card key={stat.label} className="p-4">
           <div className="flex items-center justify-between mb-2">
             {stat.icon && (
               <div className="p-2 rounded-lg bg-primary/10 text-primary">

@@ -704,7 +704,7 @@ export default function EHRSystem() {
                       {criticalAlerts.map((alert) => (
                         <div
                           key={alert.id}
-                          className="p-4 border-l-4 border-red-500 bg-red-50 rounded"
+                          className="p-4 border border-red-200 bg-red-50 rounded shadow-sm"
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">

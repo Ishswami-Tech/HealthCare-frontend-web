@@ -38,6 +38,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useCurrentTimestamp } from "@/hooks/utils/useClientDate";
 import { Textarea } from "@/components/ui/textarea";
 import { PaymentButton } from "@/components/payments/PaymentButton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -358,11 +359,13 @@ interface VideoAppointmentCardProps {
   appointment: VideoAppointment;
   expandedCard: string | null;
   onExpand: (id: string | null) => void;
-  showJoinButton: boolean;
-  showEndButton: boolean;
-  showDownloadButton: boolean;
-  enforceTimeSlotWindow: boolean;
-  canEnd: boolean;
+  controls: {
+    showJoinButton: boolean;
+    showEndButton: boolean;
+    showDownloadButton: boolean;
+    enforceTimeSlotWindow: boolean;
+    canEnd: boolean;
+  };
   role: string;
   appointmentServices: unknown[];
   endVideoAppointment: { isPending: boolean };
@@ -375,11 +378,7 @@ const AppointmentCard = ({
   appointment,
   expandedCard,
   onExpand,
-  showJoinButton,
-  showEndButton,
-  showDownloadButton,
-  enforceTimeSlotWindow,
-  canEnd,
+  controls,
   role,
   appointmentServices,
   endVideoAppointment,
@@ -387,6 +386,13 @@ const AppointmentCard = ({
   openReschedule,
   openCancel,
 }: VideoAppointmentCardProps) => {
+  const {
+    showJoinButton,
+    showEndButton,
+    showDownloadButton,
+    enforceTimeSlotWindow,
+    canEnd,
+  } = controls;
   const normalizedStatus = normalizeAppointmentStatus(appointment.status).toLowerCase().replace(/_/g, "-");
   const viewState = getAppointmentViewState(appointment);
   const effectiveStatus = viewState.normalizedStatus.toLowerCase().replace(/_/g, "-");
@@ -431,17 +437,10 @@ const AppointmentCard = ({
       "rounded-xl border overflow-hidden shadow-sm transition-all duration-200 hover:shadow-md",
       isCancelled ? "bg-red-50 border-red-200 dark:bg-red-950/25 dark:border-red-900/50" : cfg.bg
     )}>
-      <div
-        className="p-2.5 sm:p-4 cursor-pointer"
-        role="button"
-        tabIndex={0}
+      <button
+        type="button"
+        className="w-full p-2.5 text-left sm:p-4 cursor-pointer"
         onClick={() => onExpand(isExpanded ? null : getEffectiveAppointmentId(appointment))}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            onExpand(isExpanded ? null : getEffectiveAppointmentId(appointment));
-          }
-        }}
       >
         <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-center gap-2.5">
@@ -501,7 +500,7 @@ const AppointmentCard = ({
              </div>
           </div>
         </div>
-      </div>
+      </button>
 
       {isExpanded && (
           <div className="px-4 sm:px-5 pb-4 sm:pb-5 overflow-hidden">
@@ -606,10 +605,12 @@ interface VideoAppointmentsListProps {
   description?: string;
   showStatistics?: boolean;
   showClinicFilter?: boolean;
-  showJoinButton?: boolean;
-  showEndButton?: boolean;
-  showDownloadButton?: boolean;
-  enforceTimeSlotWindow?: boolean;
+  controls?: {
+    showJoinButton?: boolean;
+    showEndButton?: boolean;
+    showDownloadButton?: boolean;
+    enforceTimeSlotWindow?: boolean;
+  };
   limit?: number;
   filters?: {
     doctorId?: string;
@@ -618,20 +619,21 @@ interface VideoAppointmentsListProps {
   };
 }
 
+type VideoAppointmentControls = NonNullable<VideoAppointmentsListProps["controls"]>;
+
+const EMPTY_VIDEO_APPOINTMENT_CONTROLS: VideoAppointmentControls = {};
+
 export function VideoAppointmentsList({
   title = "Video Consultations",
   description = "Manage and view video consultations",
   showStatistics = true,
   showClinicFilter = false,
-  showJoinButton = false,
-  showEndButton = false,
-  showDownloadButton = true,
-  enforceTimeSlotWindow = false,
+  controls = EMPTY_VIDEO_APPOINTMENT_CONTROLS,
   limit = 100,
   filters = EMPTY_VIDEO_FILTERS,
 }: VideoAppointmentsListProps) {
   const { session, user } = useAuth();
-  const router = useRouter();
+  const { push } = useRouter();
   const { hasPermission } = useRBAC();
   const clinicContextId = useCurrentClinicId();
   const [searchTerm, setSearchTerm] = useState("");
@@ -641,11 +643,11 @@ export function VideoAppointmentsList({
   const [actionAppointment, setActionAppointment] = useState<VideoAppointment | null>(null);
   const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
   const [isCancelOpen, setIsCancelOpen] = useState(false);
-  const [isRejectOpen, setIsRejectOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
 
   const [rescheduleDate, setRescheduleDate] = useState("");
+  const currentTimestamp = useCurrentTimestamp();
   const [rescheduleTime, setRescheduleTime] = useState("");
   const [actionReason, setActionReason] = useState("");
   const PAGE_SIZE = 8;
@@ -664,6 +666,14 @@ export function VideoAppointmentsList({
   const role = getVideoTokenRole(user?.role);
   const isDoctorRole = role === "doctor";
   const [filterStatus, setFilterStatus] = useState(isDoctorRole ? "all" : "scheduled");
+
+  const resolvedControls: VideoAppointmentControls = controls ?? EMPTY_VIDEO_APPOINTMENT_CONTROLS;
+  const {
+    showJoinButton = false,
+    showEndButton = false,
+    showDownloadButton = true,
+    enforceTimeSlotWindow = false,
+  } = resolvedControls;
 
   const canEnd = hasPermission(Permission.END_VIDEO_APPOINTMENTS);
   const canViewRecordings = hasPermission(Permission.VIEW_VIDEO_RECORDINGS);
@@ -709,37 +719,54 @@ export function VideoAppointmentsList({
     (left, right) => getAppointmentSortTime(right) - getAppointmentSortTime(left)
   );
   const patientAppointments = useMemo<VideoAppointment[]>(() => {
-    const list = Array.isArray((myAppointmentsData as any)?.appointments) ? (myAppointmentsData as any).appointments : [];
+    const list = (
+      Array.isArray((myAppointmentsData as any)?.appointments)
+        ? (myAppointmentsData as any).appointments
+        : []
+    ) as any[];
     const patientName = String(
       (session?.user as any)?.name ||
       `${(session?.user as any)?.firstName || ""} ${(session?.user as any)?.lastName || ""}`.trim() ||
       ""
     );
-    const mappedAppointments = list
-      .filter((apt: any) => String(apt?.type || "").toUpperCase() === "VIDEO_CALL")
-    .map((apt: any) => {
+    const mappedAppointments = list.reduce<VideoAppointment[]>((acc, apt: any) => {
+      if (String(apt?.type || "").toUpperCase() !== "VIDEO_CALL") {
+        return acc;
+      }
+
       const dateTime = getAppointmentDateTimeValue(apt);
-      const startTime = (dateTime && !Number.isNaN(dateTime.getTime()) ? dateTime.toISOString() : undefined) || apt?.appointmentDate || apt?.startTime || "";
-      const normalizedStatus = String(apt?.status || "").toLowerCase().replace(/_/g, "-");
-      return {
-          id: apt?.appointmentId || apt?.id,
-          appointmentId: apt?.appointmentId || apt?.id,
-          roomName: getAppointmentDoctorName(apt),
-          doctorId: apt?.doctorId || apt?.doctor?.id || "",
-          patientId: apt?.patientId || apt?.patient?.id || "",
-          patientName: patientName || getAppointmentPatientName(apt),
-          startTime,
-          status: normalizedStatus,
-          rawStatus: apt?.status,
-          sessionId: apt?.sessionId,
-          recordingUrl: apt?.recordingUrl,
-          notes: apt?.notes,
-          treatmentType: apt?.treatmentType,
-          createdAt: apt?.createdAt || apt?.updatedAt || startTime,
-          doctorName: getAppointmentDoctorName(apt),
-          paymentCompleted: getAppointmentViewState(apt).paymentCompleted,
-        } as any;
-      });
+      const startTime =
+        (dateTime && !Number.isNaN(dateTime.getTime())
+          ? dateTime.toISOString()
+          : undefined) ||
+        apt?.appointmentDate ||
+        apt?.startTime ||
+        "";
+      const normalizedStatus = String(apt?.status || "")
+        .toLowerCase()
+        .replace(/_/g, "-");
+
+      acc.push({
+        id: apt?.appointmentId || apt?.id,
+        appointmentId: apt?.appointmentId || apt?.id,
+        roomName: getAppointmentDoctorName(apt),
+        doctorId: apt?.doctorId || apt?.doctor?.id || "",
+        patientId: apt?.patientId || apt?.patient?.id || "",
+        patientName: patientName || getAppointmentPatientName(apt),
+        startTime,
+        status: normalizedStatus,
+        rawStatus: apt?.status,
+        sessionId: apt?.sessionId,
+        recordingUrl: apt?.recordingUrl,
+        notes: apt?.notes,
+        treatmentType: apt?.treatmentType,
+        createdAt: apt?.createdAt || apt?.updatedAt || startTime,
+        doctorName: getAppointmentDoctorName(apt),
+        paymentCompleted: getAppointmentViewState(apt).paymentCompleted,
+      } as any);
+
+      return acc;
+    }, []);
 
     const dedupedAppointments = new Map<string, VideoAppointment>();
     for (const appointment of mappedAppointments as any[]) {
@@ -847,7 +874,6 @@ export function VideoAppointmentsList({
         return;
       }
       await rejectProposal.mutateAsync({ appointmentId, reason: actionReason || "Doctor reject" });
-      setIsRejectOpen(false);
       resetActionState();
     } catch (error) {
       showErrorToast(error, { id: TOAST_IDS.APPOINTMENT.CANCEL });
@@ -866,7 +892,7 @@ export function VideoAppointmentsList({
     setIsRescheduleOpen(true);
   };
   const openCancel = (apt: VideoAppointment) => { setActionAppointment(apt); setIsCancelOpen(true); };
-  const openReject = (apt: VideoAppointment) => { setActionAppointment(apt); setIsRejectOpen(true); };
+  const openReject = (apt: VideoAppointment) => { setActionAppointment(apt); };
 
   const parseDateValue = (v: string) => v ? new Date(`${v}T00:00:00`) : undefined;
   const toDateString = (d?: Date) => d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : "";
@@ -874,6 +900,11 @@ export function VideoAppointmentsList({
   const availableRescheduleSlots = useMemo(() => extractAvailabilitySlots(rescheduleAvailability), [rescheduleAvailability]);
   const rescheduleSlotGroups = useMemo(() => groupSlotsByPeriod(availableRescheduleSlots), [availableRescheduleSlots]);
   const selectedRescheduleSlotKey = rescheduleTime.trim().toLowerCase();
+  const rescheduleMinDate = useMemo(() => {
+    const today = currentTimestamp ? new Date(currentTimestamp) : new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+  }, [currentTimestamp]);
   const setRescheduleDateAndResetTime = (date: Date | undefined) => {
     setRescheduleDate(toDateString(date));
     setRescheduleTime("");
@@ -1142,7 +1173,7 @@ const AppointmentCard = ({
                 <Button
                   size="sm"
                   className="h-9 px-4 rounded-xl"
-                  onClick={() => router.push("/appointments")}
+                  onClick={() => push("/appointments")}
                 >
                   Book Session
                 </Button>
@@ -1195,7 +1226,7 @@ const AppointmentCard = ({
                 <Button
                   size="sm"
                   className="rounded-xl"
-                  onClick={() => router.push("/appointments")}
+                  onClick={() => push("/appointments")}
                 >
                   Book Session
                 </Button>
@@ -1212,11 +1243,13 @@ const AppointmentCard = ({
                       appointment={apt}
                       expandedCard={expandedCard}
                       onExpand={setExpandedCard}
-                      showJoinButton={showJoinButton}
-                      showEndButton={showEndButton}
-                      showDownloadButton={showDownloadButton}
-                      enforceTimeSlotWindow={enforceTimeSlotWindow}
-                      canEnd={canEnd}
+                      controls={{
+                        showJoinButton,
+                        showEndButton,
+                        showDownloadButton,
+                        enforceTimeSlotWindow,
+                        canEnd,
+                      }}
                       role={role}
                       appointmentServices={appointmentServices}
                       endVideoAppointment={endVideoAppointment}
@@ -1262,17 +1295,13 @@ const AppointmentCard = ({
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarPicker
-                      mode="single"
-                      selected={parseDateValue(rescheduleDate)}
-                      onSelect={setRescheduleDateAndResetTime}
-                      disabled={(date) => {
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        return date < today;
-                      }}
-                      initialFocus
-                    />
+                      <CalendarPicker
+                        mode="single"
+                        selected={parseDateValue(rescheduleDate)}
+                        onSelect={setRescheduleDateAndResetTime}
+                        disabled={(date) => date < rescheduleMinDate}
+                        initialFocus
+                      />
                   </PopoverContent>
                 </Popover>
               </div>
@@ -1319,6 +1348,7 @@ const AppointmentCard = ({
                               return (
                                 <button
                                   key={slot}
+                                  type="button"
                                   onClick={() => setRescheduleTime(slot)}
                                   className={cn(
                                     "rounded-xl border px-2 py-2 text-center transition-all",

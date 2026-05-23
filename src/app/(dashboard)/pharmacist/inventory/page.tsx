@@ -27,6 +27,28 @@ import {
   BarChart3
 } from "lucide-react";
 
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'critical': return 'bg-red-100 text-red-800';
+    case 'low': return 'bg-yellow-100 text-yellow-800';
+    case 'adequate': return 'bg-blue-100 text-blue-800';
+    case 'good': return 'bg-green-100 text-green-800';
+    default: return 'bg-gray-100 text-gray-800';
+  }
+};
+
+const getStockPercentage = (current: number, max: number) => {
+  return Math.round((current / max) * 100);
+};
+
+const isExpiringSoon = (expiryDate: string) => {
+  const expiry = new Date(expiryDate);
+  const today = new Date();
+  const diffTime = expiry.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays <= 90;
+};
+
 export default function InventoryPage() {
   useAuth();
   const [searchTerm, setSearchTerm] = useState("");
@@ -63,28 +85,6 @@ export default function InventoryPage() {
       ? (item.currentStock < (item.minStock || item.minThreshold) * 0.5 ? "critical" : "low")
       : "adequate",
   }));
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'critical': return 'bg-red-100 text-red-800';
-      case 'low': return 'bg-yellow-100 text-yellow-800';
-      case 'adequate': return 'bg-blue-100 text-blue-800';
-      case 'good': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStockPercentage = (current: number, max: number) => {
-    return Math.round((current / max) * 100);
-  };
-
-  const isExpiringSoon = (expiryDate: string) => {
-    const expiry = new Date(expiryDate);
-    const today = new Date();
-    const diffTime = expiry.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays <= 90; // Expiring within 90 days
-  };
 
   const inventoryColumns: ColumnDef<any>[] = useMemo(
     () => [
@@ -208,7 +208,7 @@ export default function InventoryPage() {
         ),
       },
     ],
-    [getStockPercentage, getStatusColor, isExpiringSoon]
+    []
   );
 
 
@@ -241,7 +241,7 @@ export default function InventoryPage() {
           <div className="flex items-center justify-center min-h-screen">
             <div className="text-center">
               <div className="animate-spin rounded-full size-32 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Loading inventory...</p>
+              <p className="mt-4 text-gray-600">Loading inventory…</p>
             </div>
           </div>
       

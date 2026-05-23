@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { Suspense, useEffect, useCallback, useRef, useMemo, useReducer } from "react";
 import { useRouter as useRouterAlias, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -23,17 +23,90 @@ import { OtpCodeInput } from "@/components/auth/otp-code-input";
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
-export default function VerifyOTPPage() {
+type VerifyOTPState = {
+  email: string;
+  successPhase: "none" | "alert" | "redirecting";
+  formError: string | null;
+  attemptsRemaining: number | null;
+  countdown: number;
+};
+
+type VerifyOTPAction =
+  | { type: "setEmail"; value: string }
+  | { type: "setSuccessPhase"; value: VerifyOTPState["successPhase"] }
+  | { type: "setFormError"; value: string | null }
+  | { type: "setAttemptsRemaining"; value: number | null }
+  | {
+      type: "setCountdown";
+      value: number | ((prev: number) => number);
+    };
+
+const initialVerifyOTPState: VerifyOTPState = {
+  email: "",
+  successPhase: "none",
+  formError: null,
+  attemptsRemaining: null,
+  countdown: RESEND_COOLDOWN_SECONDS,
+};
+
+function verifyOTPReducer(
+  state: VerifyOTPState,
+  action: VerifyOTPAction
+): VerifyOTPState {
+  switch (action.type) {
+    case "setEmail":
+      return { ...state, email: action.value };
+    case "setSuccessPhase":
+      return { ...state, successPhase: action.value };
+    case "setFormError":
+      return { ...state, formError: action.value };
+    case "setAttemptsRemaining":
+      return { ...state, attemptsRemaining: action.value };
+    case "setCountdown":
+      return {
+        ...state,
+        countdown:
+          typeof action.value === "function"
+            ? action.value(state.countdown)
+            : action.value,
+      };
+    default:
+      return state;
+  }
+}
+
+function VerifyOTPPageContent() {
   const { push } = useRouterAlias();
-  const { get } = useSearchParams();
-  const queryClinicId = get("clinicId") || undefined;
+  const searchParams = useSearchParams();
+  const getSearchParam = useMemo(() => searchParams.get.bind(searchParams), [searchParams]);
+  // Read clinicId from query param first, then fall back to cookie
+  const queryClinicId = getSearchParam("clinicId");
+  const cookieClinicId = typeof document !== 'undefined'
+    ? document.cookie.match(/clinic_id=([^;]+)/)?.[1]
+    : undefined;
+  const clinicId = queryClinicId || cookieClinicId;
   const { verifyOTP, requestOTP, isVerifyingOTP, isRequestingOTP } = useAuth();
-  const [email, setEmail] = useState("");
-  const [successPhase, setSuccessPhase] = useState<"none" | "alert" | "redirecting">("none");
-  const [formError, setFormError] = useState<string | null>(null);
-  const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
-  const [countdown, setCountdown] = useState(RESEND_COOLDOWN_SECONDS);
+  const [
+    {
+      email,
+      successPhase,
+      formError,
+      attemptsRemaining,
+      countdown,
+    },
+    dispatch,
+  ] = useReducer(verifyOTPReducer, initialVerifyOTPState);
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
+
+  const setEmail = (value: string) => dispatch({ type: "setEmail", value });
+  const setSuccessPhase = (value: VerifyOTPState["successPhase"]) =>
+    dispatch({ type: "setSuccessPhase", value });
+  const setFormError = (value: string | null) =>
+    dispatch({ type: "setFormError", value });
+  const setAttemptsRemaining = (value: number | null) =>
+    dispatch({ type: "setAttemptsRemaining", value });
+  const setCountdown = (value: number | ((prev: number) => number)) =>
+    dispatch({ type: "setCountdown", value });
 
   const triggerSuccessFlow = useCallback(() => {
     setFormError(null);
@@ -66,13 +139,13 @@ export default function VerifyOTPPage() {
   });
 
   useEffect(() => {
-    const emailParam = get("email");
+    const emailParam = getSearchParam("email");
     if (!emailParam) {
       push(ROUTES.LOGIN);
       return;
     }
     setEmail(emailParam);
-  }, [get, push]);
+  }, [push, searchParams]);
 
   const form = useZodForm(
     otpSchema,
@@ -80,7 +153,7 @@ export default function VerifyOTPPage() {
       const result = await executeAuthOperation(async () => {
       return await verifyOTP({
         ...data,
-        clinicId: queryClinicId,
+        clinicId: clinicId,
       });
       });
       if (!result) {
@@ -114,11 +187,10 @@ export default function VerifyOTPPage() {
   const handleResendOTP = async () => {
     if (countdown > 0) return; // Don't allow during cooldown
 
-    // âœ… Use unified pattern - consistent across all auth pages
     const result = await executeOTPResend(async () => {
       return await requestOTP({
         identifier: email,
-        clinicId: queryClinicId,
+        clinicId: clinicId,
       });
     });
     if (!result) {
@@ -126,15 +198,6 @@ export default function VerifyOTPPage() {
     }
     restartCountdown(); // Start cooldown after successful request
   };
-
-  // Clear countdown on unmount
-  useEffect(() => {
-    return () => {
-      if (countdownRef.current) {
-        clearInterval(countdownRef.current);
-      }
-    };
-  }, []);
 
   const startCountdownTimer = useCallback(() => {
     if (countdownRef.current) {
@@ -160,9 +223,10 @@ export default function VerifyOTPPage() {
 
   useEffect(() => {
     startCountdownTimer();
+    const intervalId = countdownRef.current;
     return () => {
-      if (countdownRef.current) {
-        clearInterval(countdownRef.current);
+      if (intervalId) {
+        clearInterval(intervalId);
       }
     };
   }, [startCountdownTimer]);
@@ -284,6 +348,14 @@ export default function VerifyOTPPage() {
         </Form>
       </CardContent>
     </Card>
+  );
+}
+
+export default function VerifyOTPPage() {
+  return (
+    <Suspense fallback={null}>
+      <VerifyOTPPageContent />
+    </Suspense>
   );
 }
 

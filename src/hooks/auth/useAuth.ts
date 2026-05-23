@@ -53,6 +53,7 @@ import {
 } from '@/lib/utils/token-manager';
 import { clinicApiClient } from '@/lib/api/client';
 import { clearInflightRequests } from '@/hooks/core/requestDeduper';
+import { normalizeClinicId } from '@/lib/utils/clinic-id';
 
 // Constants
 const TOKEN_REFRESH_THRESHOLD = 5 * 60 * 1000; // 5 minutes
@@ -123,15 +124,20 @@ function resolveProfileComplete(user: Record<string, unknown> | null | undefined
   return false;
 }
 
+// Use centralized normalizeClinicId from @/lib/utils/clinic-id
 function resolveClinicId(user: Record<string, unknown> | null | undefined): string | undefined {
   if (!user) return undefined;
 
-  const clinicId = typeof user.clinicId === 'string' ? user.clinicId.trim() : '';
-  if (clinicId) return clinicId;
+  const clinicId = user.clinicId;
+  const primaryClinicId = user.primaryClinicId;
 
-  const primaryClinicId =
-    typeof user.primaryClinicId === 'string' ? user.primaryClinicId.trim() : '';
-  return primaryClinicId || undefined;
+  // Try clinicId first, then primaryClinicId, normalize both
+  const normalized = normalizeClinicId(
+    typeof clinicId === 'string' ? clinicId :
+    typeof primaryClinicId === 'string' ? primaryClinicId : ''
+  );
+
+  return normalized || undefined;
 }
 
 export function useAuth() {
@@ -140,9 +146,9 @@ export function useAuth() {
   
   // ✅ Sync with Zustand auth store
   const setSession = useAuthStore((state) => state.setSession);
-  const clearAuth = useAuthStore((state) => state.clearAuth);
-  const setLoading = useAuthStore((state) => state.setLoading);
-  const setError = useAuthStore((state) => state.setError);
+  const syncAuthStateFromSession = useAuthStore(
+    (state) => state.syncAuthStateFromSession
+  );
 
   const resetQueryCacheForAuthTransition = useCallback(
     (nextSession?: Session | null) => {
@@ -175,12 +181,12 @@ export function useAuth() {
           queryClient.prefetchQuery({
             queryKey: ['myClinic', authScope],
             queryFn: async () => getMyClinic(),
-            staleTime: 2 * 60 * 1000,
+            staleTime: 30 * 1000,
           }),
           queryClient.prefetchQuery({
             queryKey: ['current-clinic', normalizedClinicId, authScope],
             queryFn: async () => getClinicById(normalizedClinicId),
-            staleTime: 2 * 60 * 1000,
+            staleTime: 30 * 1000,
           }),
           queryClient.prefetchQuery({
             queryKey: ['activeLocations', normalizedClinicId, authScope],
@@ -190,7 +196,7 @@ export function useAuth() {
                 ? locations.filter(location => location?.isActive !== false)
                 : [];
             },
-            staleTime: 2 * 60 * 1000,
+            staleTime: 30 * 1000,
           }),
           queryClient.prefetchQuery({
             queryKey: ['clinicDoctors', normalizedClinicId, authScope],
@@ -198,7 +204,7 @@ export function useAuth() {
               const result = await getClinicDoctors(normalizedClinicId);
               return Array.isArray(result) ? result : [];
           },
-          staleTime: 2 * 60 * 1000,
+          staleTime: 30 * 1000,
         }),
       ]);
     },
@@ -262,24 +268,35 @@ export function useAuth() {
     if (typeof window === 'undefined') return;
 
     const isResolvingSession = isPending || (!!sessionError && !session);
-    setLoading(isResolvingSession);
+    const shouldClearAuth = session === null && !isPending && !sessionError;
 
     if (session) {
-      // Convert SessionData to Session format for Zustand
       const sessionForStore: Session = {
         user: session.user,
         access_token: session.access_token,
         session_id: session.session_id,
         isAuthenticated: session.isAuthenticated,
       };
-      setSession(sessionForStore);
-      setError(null);
-    } else if (session === null && !isPending && !sessionError) {
-      // Only clear if explicitly null (logged out) and not loading
-      clearAuth();
+      syncAuthStateFromSession({
+        session: sessionForStore,
+        isLoading: isResolvingSession,
+        shouldClearAuth: false,
+      });
+    } else if (shouldClearAuth) {
+      syncAuthStateFromSession({
+        session: null,
+        isLoading: isResolvingSession,
+        shouldClearAuth: true,
+      });
       clearTokens();
+    } else {
+      syncAuthStateFromSession({
+        session: undefined,
+        isLoading: isResolvingSession,
+        shouldClearAuth: false,
+      });
     }
-  }, [session, isPending, sessionError, setSession, clearAuth, setLoading, setError]);
+  }, [session, isPending, sessionError, syncAuthStateFromSession]);
 
   // Function to manually refresh the session
   const refreshSession = async (force?: boolean): Promise<Session | null> => {

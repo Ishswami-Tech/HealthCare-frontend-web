@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import type { ComponentType } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,17 +60,17 @@ const TREATMENT_CATEGORIES: TreatmentCategory[] = [
   },
 ];
 
-export default function PatientAppointments() {
+function PatientAppointmentsContent() {
   const { push } = useRouter();
   const { session } = useAuth();
   useWebSocketQuerySync();
   const searchParams = useSearchParams();
-  const { get } = searchParams;
-  const queryClinicId = get("clinicId") || undefined;
-  const queryLocationId = get("locationId") || undefined;
-  const queryClinicName = get("clinicName") || undefined;
-  const bookingMode = get("mode");
-  const shouldOpenBooking = get("openBooking") === "1";
+  const getSearchParam = useMemo(() => searchParams.get.bind(searchParams), [searchParams]);
+  const queryClinicId = getSearchParam("clinicId") || undefined;
+  const queryLocationId = getSearchParam("locationId") || undefined;
+  const queryClinicName = getSearchParam("clinicName") || undefined;
+  const bookingMode = getSearchParam("mode");
+  const shouldOpenBooking = getSearchParam("openBooking") === "1";
   const defaultConsultationMode =
     bookingMode?.toUpperCase() === "VIDEO" ? "VIDEO" : undefined;
   const sessionClinicId = session?.user?.clinicId || "";
@@ -295,6 +295,14 @@ export default function PatientAppointments() {
 
       </PatientPageShell>
     </DashboardLayout>
+  );
+}
+
+export default function PatientAppointments() {
+  return (
+    <Suspense fallback={null}>
+      <PatientAppointmentsContent />
+    </Suspense>
   );
 }
 

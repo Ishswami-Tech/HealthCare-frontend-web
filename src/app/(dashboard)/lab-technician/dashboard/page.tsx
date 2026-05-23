@@ -59,51 +59,87 @@ export default function LabTechnicianDashboard() {
   }, [labResults]);
 
   const categoryStats = useMemo(() => {
-    const hematology = labResults.filter((r: any) =>
-      /hematol|blood.*count|cbc/i.test(r.testName || r.testType || '')
-    ).length;
-    const urineAnalysis = labResults.filter((r: any) =>
-      /urine|urinanal|urinalysis/i.test(r.testName || r.testType || '')
-    ).length;
-    const biochemistry = labResults.filter((r: any) =>
-      /biochem|metabol|glucose|lipid|liver|kidney/i.test(r.testName || r.testType || '')
-    ).length;
-    const microbiology = labResults.filter((r: any) =>
-      /microb|cultur|bacteria|virus|parasite/i.test(r.testName || r.testType || '')
-    ).length;
-    return { hematology, urineAnalysis, biochemistry, microbiology };
+    return labResults.reduce(
+      (acc: any, result: any) => {
+        const testLabel = String(result.testName || result.testType || "");
+
+        if (/hematol|blood.*count|cbc/i.test(testLabel)) {
+          acc.hematology += 1;
+        }
+
+        if (/urine|urinanal|urinalysis/i.test(testLabel)) {
+          acc.urineAnalysis += 1;
+        }
+
+        if (/biochem|metabol|glucose|lipid|liver|kidney/i.test(testLabel)) {
+          acc.biochemistry += 1;
+        }
+
+        if (/microb|cultur|bacteria|virus|parasite/i.test(testLabel)) {
+          acc.microbiology += 1;
+        }
+
+        return acc;
+      },
+      {
+        hematology: 0,
+        urineAnalysis: 0,
+        biochemistry: 0,
+        microbiology: 0,
+      }
+    );
   }, [labResults]);
 
   const stats = useMemo(() => {
-    const pendingCount = labResults.filter((r: any) => 
-      ["pending", "in_progress", "PENDING"].includes(r.status)
-    ).length;
-    const completedCount = labResults.filter((r: any) => 
-      ["completed", "COMPLETED", "NORMAL", "ABNORMAL", "CRITICAL"].includes(r.status)
-    ).length;
-    
-    const completedWithTimes = labResults.filter(
-      (r: any) =>
-        ["completed", "COMPLETED", "NORMAL", "ABNORMAL", "CRITICAL"].includes(r.status) &&
-        r.createdAt &&
-        (r.reportedAt || r.updatedAt)
+    const statsAccumulator = labResults.reduce(
+      (acc: any, result: any) => {
+        const status = String(result.status || "");
+
+        if (["pending", "in_progress", "PENDING"].includes(status)) {
+          acc.pendingCount += 1;
+        }
+
+        if (["completed", "COMPLETED", "NORMAL", "ABNORMAL", "CRITICAL"].includes(status)) {
+          acc.completedCount += 1;
+        }
+
+        if (
+          ["completed", "COMPLETED", "NORMAL", "ABNORMAL", "CRITICAL"].includes(status) &&
+          result.createdAt &&
+          (result.reportedAt || result.updatedAt)
+        ) {
+          const start = new Date(result.createdAt).getTime();
+          const end = new Date(result.reportedAt || result.updatedAt).getTime();
+          const durationMinutes = (end - start) / 60000;
+
+          if (durationMinutes > 0) {
+            acc.processingTimes.push(durationMinutes);
+          }
+        }
+
+        acc.patientIds.add(result.patientId);
+        return acc;
+      },
+      {
+        pendingCount: 0,
+        completedCount: 0,
+        processingTimes: [] as number[],
+        patientIds: new Set<string>(),
+      }
     );
-    const processingTimes = completedWithTimes
-      .map((r: any) => {
-        const start = new Date(r.createdAt).getTime();
-        const end = new Date(r.reportedAt || r.updatedAt).getTime();
-        return (end - start) / 60000;
-      })
-      .filter((t: number) => t > 0);
+
     const avgProcessingTime =
-      processingTimes.length > 0
-        ? Math.round(processingTimes.reduce((a: number, b: number) => a + b, 0) / processingTimes.length)
+      statsAccumulator.processingTimes.length > 0
+        ? Math.round(
+            statsAccumulator.processingTimes.reduce((a: number, b: number) => a + b, 0) /
+              statsAccumulator.processingTimes.length
+          )
         : 0;
 
     return {
-      pendingTests: pendingCount,
-      completedToday: completedCount,
-      totalPatients: new Set(labResults.map((r: any) => r.patientId)).size,
+      pendingTests: statsAccumulator.pendingCount,
+      completedToday: statsAccumulator.completedCount,
+      totalPatients: statsAccumulator.patientIds.size,
       avgProcessingTime,
     };
   }, [labResults]);

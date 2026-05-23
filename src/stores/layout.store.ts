@@ -7,7 +7,6 @@ import { Role } from "@/types/auth.types";
 
 interface LayoutState {
   // Global Shell State
-  isDashboardMounted: boolean;
   pageTitle: string;
   isSidebarCollapsed: boolean;
   
@@ -21,7 +20,10 @@ interface LayoutState {
   } | null;
   
   // Actions
-  setDashboardMounted: (mounted: boolean) => void;
+  setDashboardMeta: (meta: {
+    pageTitle?: string;
+    displayUser?: LayoutState["displayUser"];
+  }) => void;
   setPageTitle: (title: string) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   setDisplayUser: (user: LayoutState["displayUser"]) => void;
@@ -31,7 +33,6 @@ interface LayoutState {
 }
 
 const initialState = {
-  isDashboardMounted: false,
   pageTitle: "Dashboard",
   isSidebarCollapsed: false,
   displayUser: null,
@@ -42,9 +43,14 @@ export const useLayoutStore = create<LayoutState>()(
     immer((set) => ({
       ...initialState,
 
-      setDashboardMounted: (mounted) =>
+      setDashboardMeta: (meta) =>
         set((state) => {
-          state.isDashboardMounted = mounted;
+          if (meta.pageTitle !== undefined) {
+            state.pageTitle = meta.pageTitle;
+          }
+          if (meta.displayUser !== undefined) {
+            state.displayUser = meta.displayUser;
+          }
         }),
 
       setPageTitle: (title) =>
@@ -74,8 +80,6 @@ export const useLayoutStore = create<LayoutState>()(
   )
 );
 
-// Convenient selectors
-export const useIsDashboardMounted = () => useLayoutStore((state) => state.isDashboardMounted);
 export const usePageTitle = () => useLayoutStore((state) => state.pageTitle);
 export const useIsSidebarCollapsed = () => useLayoutStore((state) => state.isSidebarCollapsed);
 export const useDisplayUser = () => useLayoutStore((state) => state.displayUser);

@@ -62,48 +62,54 @@ export function OperatingWindowsEditor({
         {DAYS.map((day) => (
           <div
             key={day}
-            className="grid gap-3 px-3 py-3 sm:grid-cols-[120px_minmax(0,1fr)_72px] sm:items-start"
+            className="grid gap-3 p-3 sm:grid-cols-[120px_minmax(0,1fr)_72px] sm:items-start"
           >
             <div className="pt-2 font-semibold text-foreground">
               {DAY_LABEL[day]}
             </div>
             <div className="gap-y-2">
               {sessions[day].length > 0 ? (
-                sessions[day].map((session, index) => (
+                sessions[day].map((session) => {
+                  const sessionIndex = sessions[day].findIndex(
+                    (candidate) => candidate.start === session.start && candidate.end === session.end
+                  );
+
+                  return (
                   <div
-                    key={`${day}-${index}`}
+                    key={`${day}-${session.start}-${session.end}`}
                     className="grid grid-cols-1 gap-2 rounded-lg border border-indigo-100 bg-white p-2 shadow-sm dark:border-indigo-900/60 dark:bg-background/70 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
                   >
                     <Input
                       type="time"
                       value={session.start}
                       onChange={(event) =>
-                        onUpdateSession(day, index, "start", event.target.value)
+                        onUpdateSession(day, sessionIndex, "start", event.target.value)
                       }
                       className={TIME_INPUT_CLASS}
-                      aria-label={`${DAY_LABEL[day]} session ${index + 1} start`}
+                      aria-label={`${DAY_LABEL[day]} session ${sessionIndex + 1} start`}
                     />
                     <Input
                       type="time"
                       value={session.end}
                       onChange={(event) =>
-                        onUpdateSession(day, index, "end", event.target.value)
+                        onUpdateSession(day, sessionIndex, "end", event.target.value)
                       }
                       className={TIME_INPUT_CLASS}
-                      aria-label={`${DAY_LABEL[day]} session ${index + 1} end`}
+                      aria-label={`${DAY_LABEL[day]} session ${sessionIndex + 1} end`}
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon-sm"
                       className="h-9 w-8 text-destructive"
-                      onClick={() => onDeleteSession(day, index)}
-                      aria-label={`Delete ${DAY_LABEL[day]} session ${index + 1}`}
+                      onClick={() => onDeleteSession(day, sessionIndex)}
+                      aria-label={`Delete ${DAY_LABEL[day]} session ${sessionIndex + 1}`}
                     >
                       <Trash2 className="size-3.5" />
                     </Button>
                   </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="inline-flex rounded-md bg-indigo-100/70 px-2 py-1 text-xs text-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-200">
                   Closed

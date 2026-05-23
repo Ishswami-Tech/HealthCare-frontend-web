@@ -1,4 +1,4 @@
-﻿'use server';
+'use server';
 
 // ✅ User actions for frontend, matching backend endpoints
 // Follows SOLID, DRY, KISS principles with consistent error handling and logging
@@ -21,8 +21,8 @@ async function executeAction<T>(
     return result;
   } catch (error) {
     const errorMessage = sanitizeErrorMessage(error);
-    logger.error(`[${operationName}] Failed`, { 
-      ...context, 
+    logger.error(`[${operationName}] Failed`, {
+      ...context,
       error: errorMessage,
       originalError: error instanceof Error ? error.message : String(error)
     });
@@ -54,31 +54,31 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
     const { cookies } = await import('next/headers');
     const cookieStore = await cookies();
     const accessToken = cookieStore.get('access_token')?.value;
-    
+
     if (!accessToken) {
       return { success: false, error: 'No access token found' };
     }
-    
+
     // Decode JWT to get user ID
     const tokenParts = accessToken.split('.');
     if (tokenParts.length < 2 || !tokenParts[1]) {
       return { success: false, error: 'Invalid access token format' };
     }
-    
+
     const payload = JSON.parse(atob(tokenParts[1]));
     const userId = payload.sub;
-    
+
     if (!userId) {
       return { success: false, error: 'User ID not found in token' };
     }
 
     logger.debug('[updateUserProfile] Extracted userId from token', { userId });
-    
-    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.UPDATE(userId), { 
-      method: 'PATCH', 
-      body: JSON.stringify(profileData) 
+
+    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.UPDATE(userId), {
+      method: 'PATCH',
+      body: JSON.stringify(profileData)
     });
-    
+
     const responseData = (typeof data === 'object' && data !== null) ? (data as Record<string, unknown>) : undefined;
     const responsePayload =
       responseData && typeof responseData.data === 'object' && responseData.data !== null
@@ -101,7 +101,7 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
                 ? responseUser.isProfileComplete
                 : typeof responseUser?.requiresProfileCompletion === 'boolean'
                   ? !responseUser.requiresProfileCompletion
-            : undefined;
+                  : undefined;
 
     // A successful profile-update request means completion has been satisfied.
     // Keep the cookie authoritative even when the backend omits an explicit flag.
@@ -115,13 +115,13 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
       maxAge: 60 * 60 * 24 * 7, // 7 days
     });
     logger.info('[updateUserProfile] Profile completion cookie set to true after successful update');
-    
+
     return { success: true, data, ...(isProfileComplete !== undefined ? { profileComplete: isProfileComplete } : {}) };
   } catch (error) {
     const errorMessage = sanitizeErrorMessage(error);
-    logger.error('[updateUserProfile] Failed', { 
-      error: errorMessage, 
-      originalError: error instanceof Error ? error.message : String(error) 
+    logger.error('[updateUserProfile] Failed', {
+      error: errorMessage,
+      originalError: error instanceof Error ? error.message : String(error)
     });
     return { success: false, error: errorMessage };
   }
@@ -143,9 +143,9 @@ export async function updateUser(id: string, data: Record<string, unknown>) {
     throw new Error('Unauthorized: Authentication required');
   }
   return executeAction('updateUser', async () => {
-    return await requestUserApi(API_ENDPOINTS.USERS.UPDATE(id), { 
-      method: 'PATCH', 
-      body: JSON.stringify(data) 
+    return await requestUserApi(API_ENDPOINTS.USERS.UPDATE(id), {
+      method: 'PATCH',
+      body: JSON.stringify(data)
     });
   }, { userId: id });
 }

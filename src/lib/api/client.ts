@@ -156,10 +156,11 @@ async function getAuthHeaders(
     );
   }
 
-  // Only use static clinic fallback for non-authenticated/public flows that do not require explicit clinic context.
-  if (!clinicId && !requireAuth && !requireClinicId) {
-    clinicId = normalizeClinicId(APP_CONFIG.CLINIC.ID);
-  }
+  // Public endpoints without clinicId requirement should not auto-inject a hardcoded clinic ID.
+  // Each public flow should explicitly provide clinicId via domain/subdomain or query param.
+  // if (!clinicId && !requireAuth && !requireClinicId) {
+  //   clinicId = normalizeClinicId(APP_CONFIG.CLINIC.ID);  // REMOVED: Avoid hardcoded fallback
+  // }
 
   // ✅ Enforce authentication for server-side requests only.
   // Client-side requests rely on same-site httpOnly cookies.
@@ -960,7 +961,7 @@ export class ClinicApiClient extends ApiClient {
     const identifier = requestDto.identifier || requestDto.contact;
     return this.publicRequest(API_ENDPOINTS.AUTH.REQUEST_OTP, {
       method: 'POST',
-      omitClinicId: true,
+      omitClinicId: false,
       clinicId: requestDto.clinicId,
       requireClinicId: true,
       body: JSON.stringify({
@@ -981,7 +982,7 @@ export class ClinicApiClient extends ApiClient {
     const identifier = data.identifier || data.contact;
     return this.publicRequest(API_ENDPOINTS.AUTH.VERIFY_OTP, {
       method: 'POST',
-      omitClinicId: true,
+      omitClinicId: false, // Include X-Clinic-ID header for OTP verification
       clinicId: data.clinicId,
       requireClinicId: true,
       body: JSON.stringify({
@@ -994,10 +995,12 @@ export class ClinicApiClient extends ApiClient {
     });
   }
 
-  async forgotPassword(requestDto: { email: string }) {
+  async forgotPassword(requestDto: { email: string; clinicId?: string }) {
     return this.publicRequest(API_ENDPOINTS.AUTH.FORGOT_PASSWORD, {
       method: 'POST',
-      body: JSON.stringify(requestDto)
+      clinicId: requestDto.clinicId,
+      requireClinicId: true,
+      body: JSON.stringify({ email: requestDto.email })
     });
   }
 

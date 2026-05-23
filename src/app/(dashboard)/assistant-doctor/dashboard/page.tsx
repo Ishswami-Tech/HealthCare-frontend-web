@@ -133,19 +133,22 @@ export default function AssistantDoctorDashboard() {
           ? raw.data.doctors
           : [];
 
-    return arr
-      .map((doctorValue) => {
-        const doctorRecord = isRecord(doctorValue) ? doctorValue : {};
-        const nestedDoctor = isRecord(doctorRecord.doctor) ? doctorRecord.doctor : {};
-        const nestedUser = isRecord(nestedDoctor.user) ? nestedDoctor.user : {};
+    return arr.reduce<DoctorListItem[]>((accumulator, doctorValue) => {
+      const doctorRecord = isRecord(doctorValue) ? doctorValue : {};
+      const nestedDoctor = isRecord(doctorRecord.doctor) ? doctorRecord.doctor : {};
+      const nestedUser = isRecord(nestedDoctor.user) ? nestedDoctor.user : {};
+      const doctor = {
+        id: String(nestedDoctor.id ?? doctorRecord.id ?? ""),
+        name: String(doctorRecord.name ?? nestedUser.name ?? "Doctor"),
+        role: String(doctorRecord.role ?? nestedUser.role ?? "").toUpperCase(),
+      };
 
-        return {
-          id: String(nestedDoctor.id ?? doctorRecord.id ?? ""),
-          name: String(doctorRecord.name ?? nestedUser.name ?? "Doctor"),
-          role: String(doctorRecord.role ?? nestedUser.role ?? "").toUpperCase(),
-        };
-      })
-      .filter((doctor) => !!doctor.id);
+      if (doctor.id) {
+        accumulator.push(doctor);
+      }
+
+      return accumulator;
+    }, []);
   }, [doctorsData]);
 
   const primaryDoctors = useMemo(
@@ -236,7 +239,7 @@ export default function AssistantDoctorDashboard() {
         eyebrow="Assistant Doctor"
         title={`${greeting}${user?.name ? `, Dr. ${user.name.split(" ")[0]}` : ""}`}
         description="Monitor your assigned queue, today's appointments, and quick clinical actions from one place."
-        meta={<span className="text-sm font-medium text-muted-foreground">{today}</span>}
+        meta={today}
         actionsSlot={
           <Button
             className="gap-2"

@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,8 +29,9 @@ import { TOAST_IDS } from "@/hooks/utils/use-toast";
 import { ROUTES } from "@/lib/config/routes";
 import { Loader2 } from "lucide-react";
 
-export default function ResetPasswordPage() {
-  const { get: getSearchParam } = useSearchParams();
+function ResetPasswordPageContent() {
+  const searchParams = useSearchParams();
+  const getSearchParam = useMemo(() => searchParams.get.bind(searchParams), [searchParams]);
   const token = getSearchParam("token");
   const safeToken = token || "";
   const { resetPassword, isResettingPassword } = useAuth();
@@ -146,7 +148,7 @@ export default function ResetPasswordPage() {
               {isResettingPassword ? (
                 <>
                   <Loader2 className="mr-2 size-4 animate-spin" />
-                  Resetting...
+                  Resetting…
                 </>
               ) : (
                 "Reset Password"
@@ -168,6 +170,14 @@ export default function ResetPasswordPage() {
         </div>
       </CardFooter>
     </Card>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={null}>
+      <ResetPasswordPageContent />
+    </Suspense>
   );
 }
 

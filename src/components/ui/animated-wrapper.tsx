@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { AnimatePresence, LazyMotion, domAnimation, m } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useHydrated } from '@/hooks/utils/useHydrated';
 import {
@@ -43,16 +43,18 @@ export const ScrollReveal: React.FC<ScrollRevealProps> = ({
   }[direction];
 
   return (
-    <motion.div
-      className={cn(className)}
-      initial="hidden"
-      whileInView="visible"
-      viewport={scrollViewport}
-      variants={variants}
-      transition={{ delay }}
-    >
-      {children}
-    </motion.div>
+    <LazyMotion features={domAnimation}>
+      <m.div
+        className={cn(className)}
+        initial="hidden"
+        whileInView="visible"
+        viewport={scrollViewport}
+        variants={variants}
+        transition={{ delay }}
+      >
+        {children}
+      </m.div>
+    </LazyMotion>
   );
 };
 
@@ -74,19 +76,21 @@ export const StaggerContainer: React.FC<StaggerContainerProps> = ({
   delayChildren = 0.1,
 }) => {
   return (
-    <motion.div
-      className={cn(className)}
-      initial="hidden"
-      whileInView="visible"
-      viewport={scrollViewport}
-      variants={staggerContainer}
-      transition={{
-        staggerChildren: staggerDelay,
-        delayChildren,
-      }}
-    >
-      {children}
-    </motion.div>
+    <LazyMotion features={domAnimation}>
+      <m.div
+        className={cn(className)}
+        initial="hidden"
+        whileInView="visible"
+        viewport={scrollViewport}
+        variants={staggerContainer}
+        transition={{
+          staggerChildren: staggerDelay,
+          delayChildren,
+        }}
+      >
+        {children}
+      </m.div>
+    </LazyMotion>
   );
 };
 
@@ -100,12 +104,14 @@ export const StaggerItem: React.FC<StaggerItemProps> = ({
   className,
 }) => {
   return (
-    <motion.div
-      className={cn(className)}
-      variants={staggerItem}
-    >
-      {children}
-    </motion.div>
+    <LazyMotion features={domAnimation}>
+      <m.div
+        className={cn(className)}
+        variants={staggerItem}
+      >
+        {children}
+      </m.div>
+    </LazyMotion>
   );
 };
 
@@ -139,15 +145,17 @@ export const HoverAnimation: React.FC<HoverAnimationProps> = ({
   }[type];
 
   return (
-    <motion.div
-      className={cn(className)}
-      initial="rest"
-      whileHover="hover"
-      whileTap="tap"
-      variants={variants}
-    >
-      {children}
-    </motion.div>
+    <LazyMotion features={domAnimation}>
+      <m.div
+        className={cn(className)}
+        initial="rest"
+        whileHover="hover"
+        whileTap="tap"
+        variants={variants}
+      >
+        {children}
+      </m.div>
+    </LazyMotion>
   );
 };
 
@@ -165,18 +173,20 @@ export const PageTransition: React.FC<PageTransitionProps> = ({
   className,
 }) => {
   return (
-    <motion.div
-      className={cn(className)}
-      initial={{ opacity: 0, y: 20, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -20, scale: 0.98 }}
-      transition={{
-        duration: 0.5,
-        ease: [0.0, 0.0, 0.2, 1],
-      }}
-    >
-      {children}
-    </motion.div>
+    <LazyMotion features={domAnimation}>
+      <m.div
+        className={cn(className)}
+        initial={{ opacity: 0, y: 20, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -20, scale: 0.98 }}
+        transition={{
+          duration: 0.5,
+          ease: [0.0, 0.0, 0.2, 1],
+        }}
+      >
+        {children}
+      </m.div>
+    </LazyMotion>
   );
 };
 
@@ -206,15 +216,17 @@ export const FadeAnimation: React.FC<FadeAnimationProps> = ({
   }[direction];
 
   return (
-    <motion.div
-      className={cn(className)}
-      initial="hidden"
-      animate="visible"
-      variants={variants}
-      transition={{ delay, duration }}
-    >
-      {children}
-    </motion.div>
+    <LazyMotion features={domAnimation}>
+      <m.div
+        className={cn(className)}
+        initial="hidden"
+        animate="visible"
+        variants={variants}
+        transition={{ delay, duration }}
+      >
+        {children}
+      </m.div>
+    </LazyMotion>
   );
 };
 
@@ -238,7 +250,7 @@ export const LoadingAnimation: React.FC<LoadingAnimationProps> = ({
   return (
     <AnimatePresence mode="wait">
       {isLoading ? (
-        <motion.div
+        <m.div
           key="loading"
           className={cn(className)}
           initial={{ opacity: 0 }}
@@ -253,9 +265,9 @@ export const LoadingAnimation: React.FC<LoadingAnimationProps> = ({
               </div>
             </div>
           )}
-        </motion.div>
+        </m.div>
       ) : (
-        <motion.div
+        <m.div
           key="content"
           className={cn(className)}
           initial={{ opacity: 0, y: 20 }}
@@ -263,7 +275,7 @@ export const LoadingAnimation: React.FC<LoadingAnimationProps> = ({
           transition={{ duration: 0.5, ease: [0.0, 0.0, 0.2, 1] }}
         >
           {children}
-        </motion.div>
+        </m.div>
       )}
     </AnimatePresence>
   );
@@ -312,7 +324,7 @@ export const CounterAnimation: React.FC<CounterAnimationProps> = ({
   }, [from, to, duration]);
 
   return (
-    <motion.span
+    <m.span
       className={cn(className)}
       initial={{ opacity: 0 }}
       whileInView={{ opacity: 1 }}
@@ -320,7 +332,7 @@ export const CounterAnimation: React.FC<CounterAnimationProps> = ({
       transition={{ duration: 0.5 }}
     >
       {prefix}{count}{suffix}
-    </motion.span>
+    </m.span>
   );
 };
 
@@ -340,7 +352,7 @@ export const Parallax: React.FC<ParallaxProps> = ({
   offset = 50,
 }) => {
   return (
-    <motion.div
+    <m.div
       className={cn(className)}
       initial={{ y: 0 }}
       whileInView={{ y: -offset }}
@@ -351,7 +363,7 @@ export const Parallax: React.FC<ParallaxProps> = ({
       }}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 };
 

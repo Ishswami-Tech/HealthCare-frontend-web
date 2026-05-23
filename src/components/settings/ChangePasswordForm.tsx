@@ -12,7 +12,7 @@ import { getDashboardByRole } from '@/lib/config/routes';
 import { Role } from '@/types/auth.types';
 
 export function ChangePasswordForm() {
-  const router = useRouter();
+  const { push } = useRouter();
   const { session, changePasswordAsync, isChangingPassword } = useAuth();
   const user = session?.user;
 
@@ -59,7 +59,7 @@ export function ChangePasswordForm() {
         const dashboardRoute = user?.role 
           ? getDashboardByRole(user.role as Role) 
           : '/';
-        router.push(dashboardRoute);
+        push(dashboardRoute);
       }, 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to change password');

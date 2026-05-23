@@ -201,13 +201,34 @@ export default function ClinicAdminDashboard() {
   const inPersonAppointments = useMemo(
     () =>
       appointments
-        .filter((appointment: any) => String(appointment?.type || appointment?.appointmentType || "").toUpperCase() !== "VIDEO_CALL")
-        .map((appointment: any) => {
+        .reduce(
+          (
+            accumulator: Array<{
+          raw: any;
+          dateTime: Date | null;
+          appointmentDate: string;
+          patientName: string;
+          checkedInAt: Date | null;
+          status: string;
+          locationId: string;
+          locationName: string;
+          doctorName: string;
+          paymentStatus: string;
+          dateLabel: string;
+          timeLabel: string;
+        }>,
+            appointment: any
+          ) => {
+          if (String(appointment?.type || appointment?.appointmentType || "").toUpperCase() === "VIDEO_CALL") {
+            return accumulator;
+          }
+
           const dateTime = getAppointmentDateTimeValue(appointment);
           const appointmentDate = dateTime
             ? formatDateTimeInIST(dateTime, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA")
             : String(appointment?.date || appointment?.appointmentDate || "").split("T")[0] || "";
-          return {
+
+          accumulator.push({
             raw: appointment,
             dateTime,
             appointmentDate,
@@ -220,8 +241,25 @@ export default function ClinicAdminDashboard() {
             paymentStatus: getAppointmentPaymentDisplayState(appointment).paymentStatus,
             dateLabel: getReceptionistAppointmentDateLabel(appointment),
             timeLabel: getReceptionistAppointmentTimeLabel(appointment),
-          };
-        })
+          });
+
+          return accumulator;
+        },
+          [] as Array<{
+            raw: any;
+            dateTime: Date | null;
+            appointmentDate: string;
+            patientName: string;
+            checkedInAt: Date | null;
+            status: string;
+            locationId: string;
+            locationName: string;
+            doctorName: string;
+            paymentStatus: string;
+            dateLabel: string;
+            timeLabel: string;
+          }>
+        )
         .sort((a: any, b: any) => (a.dateTime?.getTime() || 0) - (b.dateTime?.getTime() || 0)),
     [appointments]
   );
@@ -317,7 +355,13 @@ export default function ClinicAdminDashboard() {
     const total = doctorRosters.length;
     const active = doctorRosters.filter((doctor: any) => doctor.isActive).length;
     const scheduled = doctorRosters.filter((doctor: any) => doctor.hasSchedule).length;
-    const specialties = new Set(doctorRosters.map((doctor: any) => doctor.specialization).filter(Boolean)).size;
+    const specialties = new Set<string>();
+    for (const doctor of doctorRosters) {
+      const specialization = doctor?.specialization;
+      if (specialization) {
+        specialties.add(specialization);
+      }
+    }
     return { total, active, scheduled, specialties };
   }, [doctorRosters]);
 
@@ -383,20 +427,22 @@ export default function ClinicAdminDashboard() {
 
   const medicineDeskItems = useMemo(
     () =>
-      (Array.isArray(medicineDeskQueue) ? medicineDeskQueue : [])
-        .filter((item: any) => item?.id)
-        .map((item: any) => {
-          const entry = normalizeQueueEntry(item);
-          return {
-            id: entry.entryId,
-            patientName: entry.patientName || "Unknown Patient",
-            paymentStatus: String(entry.paymentStatus || "PENDING").toUpperCase(),
-            queuePosition: entry.position > 0 ? entry.position : null,
-            pendingAmount: Number(item.pendingAmount || 0),
-            readyForHandover: Boolean(entry.readyForHandover),
-          };
-        })
-        .slice(0, 8),
+      (Array.isArray(medicineDeskQueue) ? medicineDeskQueue : []).reduce<any[]>((acc, item: any) => {
+        if (!item?.id || acc.length >= 8) {
+          return acc;
+        }
+
+        const entry = normalizeQueueEntry(item);
+        acc.push({
+          id: entry.entryId,
+          patientName: entry.patientName || "Unknown Patient",
+          paymentStatus: String(entry.paymentStatus || "PENDING").toUpperCase(),
+          queuePosition: entry.position > 0 ? entry.position : null,
+          pendingAmount: Number(item.pendingAmount || 0),
+          readyForHandover: Boolean(entry.readyForHandover),
+        });
+        return acc;
+      }, []),
     [medicineDeskQueue]
   );
 
@@ -448,13 +494,7 @@ export default function ClinicAdminDashboard() {
         eyebrow="Clinic Admin"
         title="Operations Dashboard"
         description="Track clinic workload, staff access, live queue movement, and medicine-desk readiness from one practical console."
-        meta={
-          <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-muted-foreground">
-            <span className="font-semibold text-primary">{currentClinic?.name || "Clinic"}</span>
-            <span className="size-1 rounded-full bg-muted-foreground/50" />
-            <span>Live operational status</span>
-          </div>
-        }
+        meta={`${currentClinic?.name || "Clinic"} • Live operational status`}
         actionsSlot={
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -816,7 +856,7 @@ export default function ClinicAdminDashboard() {
 
       <div className="grid grid-cols-1 gap-6 text-foreground lg:grid-cols-12">
         <div className="gap-y-6 lg:col-span-8">
-        <Card className="overflow-hidden border-l-4 border-l-emerald-400 shadow-sm">
+        <Card className="overflow-hidden border-l-2 border-l-emerald-400 shadow-sm">
           <CardHeader className="flex flex-col gap-3 border-b border-border bg-muted/40 px-4 pb-4 pt-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="gap-y-1">
               <CardTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
@@ -853,7 +893,7 @@ export default function ClinicAdminDashboard() {
             ) : queueItems.length > 0 ? (
               <div className="gap-y-3">
                 {highlightedQueueItem ? (
-                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 px-3 py-3 shadow-sm">
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3 shadow-sm">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
                         <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-700">
@@ -1051,7 +1091,7 @@ export default function ClinicAdminDashboard() {
           </CardContent>
         </Card>
 
-          <Card className="overflow-hidden border-l-4 border-l-amber-400 shadow-sm">
+          <Card className="overflow-hidden border-l-2 border-l-amber-400 shadow-sm">
             <CardHeader className="flex flex-col gap-2 border-b border-border bg-muted/40 px-4 pb-4 pt-4 sm:flex-row sm:items-end sm:justify-between">
               <div className="gap-y-1">
                 <CardTitle className="flex items-center gap-2 text-lg font-bold text-foreground">

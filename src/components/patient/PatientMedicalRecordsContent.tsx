@@ -90,22 +90,22 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
     });
   };
 
-  const medicalHistory = [...(typedHealthData?.medicalHistory || [])].sort(
+  const medicalHistory = (typedHealthData?.medicalHistory || []).toSorted(
     (left: any, right: any) =>
       new Date(String(right.date || right.createdAt || right.updatedAt || 0)).getTime() -
       new Date(String(left.date || left.createdAt || left.updatedAt || 0)).getTime()
   );
-  const prescriptions = [...(typedHealthData?.prescriptions || [])].sort(
+  const prescriptions = (typedHealthData?.prescriptions || []).toSorted(
     (left: any, right: any) =>
       new Date(String(right.prescribedAt || right.createdAt || right.updatedAt || 0)).getTime() -
       new Date(String(left.prescribedAt || left.createdAt || left.updatedAt || 0)).getTime()
   );
-  const labReports = [...(typedHealthData?.labReports || [])].sort(
+  const labReports = (typedHealthData?.labReports || []).toSorted(
     (left: any, right: any) =>
       new Date(String(right.date || right.createdAt || right.updatedAt || 0)).getTime() -
       new Date(String(left.date || left.createdAt || left.updatedAt || 0)).getTime()
   );
-  const vitalSigns = [...(typedHealthData?.vitals || [])].sort(
+  const vitalSigns = (typedHealthData?.vitals || []).toSorted(
     (left: any, right: any) =>
       new Date(String(right.date || right.recordedAt || right.createdAt || 0)).getTime() -
       new Date(String(left.date || left.recordedAt || left.createdAt || 0)).getTime()

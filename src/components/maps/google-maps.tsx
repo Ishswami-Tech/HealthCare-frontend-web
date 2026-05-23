@@ -65,7 +65,6 @@ export function GoogleMaps({
   const infoWindowRef = useRef<any>(null);
   const mapInstanceRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
-  const [listenerVersion, setListenerVersion] = useState(0);
 
   const lat = latitude || DEFAULT_CLINIC.coordinates.lat;
   const lng = longitude || DEFAULT_CLINIC.coordinates.lng;
@@ -74,6 +73,7 @@ export function GoogleMaps({
   useEffect(() => {
     // Synchronous flag that React Doctor can analyze statically
     isActiveRef.current = true;
+    let clickListener: any = null;
 
     const initMap = async () => {
       // Guard: component unmounted before async operations complete
@@ -159,7 +159,11 @@ export function GoogleMaps({
         }
 
         mapInstanceRef.current = map;
-        setListenerVersion((current) => current + 1);
+        if (showInfoWindow && (window as any).google?.maps?.event && markerRef.current && infoWindowRef.current) {
+          clickListener = (window as any).google.maps.event.addListener(markerRef.current, "click", () => {
+            infoWindowRef.current?.open(map, markerRef.current);
+          });
+        }
 
         // Only update state if still active
         if (isActiveRef.current) {
@@ -198,6 +202,10 @@ export function GoogleMaps({
         (window as any).google.maps.event.clearInstanceListeners(mapInstanceRef.current);
         mapInstanceRef.current = null;
       }
+      if (clickListener && (window as any).google?.maps?.event) {
+        (window as any).google.maps.event.removeListener(clickListener);
+        clickListener = null;
+      }
     };
   }, [
     lat,
@@ -209,29 +217,6 @@ export function GoogleMaps({
     clinicHours,
     showInfoWindow,
   ]);
-
-  useEffect(() => {
-    if (
-      !showInfoWindow ||
-      !markerRef.current ||
-      !mapInstanceRef.current ||
-      !infoWindowRef.current ||
-      !(window as any).google?.maps?.event
-    ) {
-      return undefined;
-    }
-
-    const map = mapInstanceRef.current;
-    const marker = markerRef.current;
-    const infoWindow = infoWindowRef.current;
-    const clickListener = (window as any).google.maps.event.addListener(marker, "click", () => {
-      infoWindow.open(map, marker);
-    });
-
-    return () => {
-      (window as any).google.maps.event.removeListener(clickListener);
-    };
-  }, [showInfoWindow, listenerVersion]);
 
   const loadGoogleMapsAPI = (): Promise<void> => {
     return new Promise((resolve, reject) => {
@@ -279,7 +264,7 @@ export function GoogleMaps({
       >
         <div className="h-full flex items-center justify-center">
           <div className="text-center">
-            <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <MapPin className="size-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
               Map unavailable
             </h3>
@@ -292,7 +277,7 @@ export function GoogleMaps({
                 onClick={handleGetDirections}
                 className="flex items-center gap-2 mx-auto px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
-                <Navigation className="w-4 h-4" />
+                <Navigation className="size-4" />
                 Get Directions
               </button>
               <p className="text-sm text-gray-500">{address}</p>
@@ -313,7 +298,7 @@ export function GoogleMaps({
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-white z-10">
           <div className="text-center">
-            <Loader2 className="w-8 h-8 animate-spin text-green-600 mx-auto mb-2" />
+            <Loader2 className="size-8 animate-spin text-green-600 mx-auto mb-2" />
             <p className="text-gray-600">Loading map...</p>
           </div>
         </div>
@@ -329,7 +314,7 @@ export function GoogleMaps({
           className="bg-white shadow-lg rounded-lg p-3 hover:bg-gray-50 transition-colors"
           title="Get Directions"
         >
-          <Navigation className="w-5 h-5 text-green-600" />
+          <Navigation className="size-5 text-green-600" />
         </button>
         <button
           type="button"
@@ -337,7 +322,7 @@ export function GoogleMaps({
           className="bg-white shadow-lg rounded-lg p-3 hover:bg-gray-50 transition-colors"
           title="Call Clinic"
         >
-          <Phone className="w-5 h-5 text-green-600" />
+          <Phone className="size-5 text-green-600" />
         </button>
       </div>
 
@@ -349,11 +334,11 @@ export function GoogleMaps({
             <p className="text-sm text-gray-600 mb-2 line-clamp-2">{address}</p>
             <div className="flex items-center gap-4 text-sm">
               <div className="flex items-center gap-1 text-green-600">
-                <Clock className="w-4 h-4" />
+                <Clock className="size-4" />
                 <span>{clinicHours}</span>
               </div>
               <div className="flex items-center gap-1 text-green-600">
-                <Phone className="w-4 h-4" />
+                <Phone className="size-4" />
                 <span>{clinicPhone?.split(",")[0]?.trim() || clinicPhone}</span>
               </div>
             </div>
@@ -363,7 +348,7 @@ export function GoogleMaps({
             onClick={handleGetDirections}
             className="ml-3 px-3 py-1.5 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 transition-colors flex items-center gap-1"
           >
-            <Navigation className="w-3 h-3" />
+            <Navigation className="size-3" />
             Directions
           </button>
         </div>

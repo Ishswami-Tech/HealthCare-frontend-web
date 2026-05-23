@@ -5,7 +5,7 @@ import { useVirtualScroll } from "@/lib/utils/performance";
 
 interface VirtualizedListProps<T> {
   items: T[];
-  renderItem: (item: T, index: number) => React.ReactNode;
+  ItemComponent: React.ComponentType<{ item: T; index: number }>;
   itemHeight: number;
   containerHeight?: number;
   overscan?: number;
@@ -19,7 +19,7 @@ interface VirtualizedListProps<T> {
  */
 export function VirtualizedList<T>({
   items,
-  renderItem,
+  ItemComponent,
   itemHeight,
   containerHeight = 600,
   overscan = 5,
@@ -33,6 +33,18 @@ export function VirtualizedList<T>({
       itemCount: items.length,
       overscan,
     });
+
+  const getItemKey = (item: T): React.Key => {
+    if (item && typeof item === "object") {
+      const record = item as Record<string, unknown>;
+      if (record.id != null) return String(record.id);
+      if (record.key != null) return String(record.key);
+      if (record.slug != null) return String(record.slug);
+      return JSON.stringify(record);
+    }
+
+    return String(item);
+  };
 
   if (items.length === 0) {
     return (
@@ -56,11 +68,11 @@ export function VirtualizedList<T>({
             if (!item) return null;
             return (
               <div
-                key={index}
+                key={getItemKey(item)}
                 style={{ height: itemHeight }}
                 className="w-full"
               >
-                {renderItem(item, index)}
+                <ItemComponent item={item} index={index} />
               </div>
             );
           })}
@@ -127,6 +139,7 @@ export function Pagination({
       </div>
       <div className="flex items-center gap-2">
         <button
+          type="button"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
           className="px-3 py-1 text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent"
@@ -139,6 +152,7 @@ export function Pagination({
               <span className="px-2">...</span>
             ) : (
               <button
+                type="button"
                 onClick={() => onPageChange(page as number)}
                 className={`px-3 py-1 text-sm border rounded ${
                   currentPage === page
@@ -152,6 +166,7 @@ export function Pagination({
           </React.Fragment>
         ))}
         <button
+          type="button"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
           className="px-3 py-1 text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent"

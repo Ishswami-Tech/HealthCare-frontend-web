@@ -108,9 +108,11 @@ export default async function RootLayout({
       </head>
       <body className={cn("font-sans antialiased")} suppressHydrationWarning>
         <PerformanceProvider
-          enableWebVitals={true}
-          enableResourceTracking={true}
-          enableNavigationTracking={true}
+          tracking={{
+            enableWebVitals: true,
+            enableResourceTracking: true,
+            enableNavigationTracking: true,
+          }}
         >
           <Suspense
             fallback={

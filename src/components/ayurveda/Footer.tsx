@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -55,16 +56,20 @@ const Footer = () => {
           {/* Company Info */}
           <div className="lg:col-span-1">
             <div className="flex items-center gap-x-3 mb-6">
-              <div className="size-16 flex items-center justify-center overflow-hidden rounded-2xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
-                <img
+              <div className="relative size-16 overflow-hidden rounded-2xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
+                <Image
                   src="/assets/logo/logowithoutbackground.png"
                   alt={t("clinic.name")}
-                  className="w-full h-full object-cover dark:hidden"
+                  fill
+                  sizes="64px"
+                  className="object-cover dark:hidden"
                 />
-                <img
+                <Image
                   src="/assets/logo/dark-logo-withoutborder.png"
                   alt={t("clinic.name")}
-                  className="hidden dark:block w-full h-full object-cover"
+                  fill
+                  sizes="64px"
+                  className="hidden object-cover dark:block"
                 />
               </div>
               <div>

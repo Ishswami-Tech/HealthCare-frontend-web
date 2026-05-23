@@ -32,6 +32,7 @@ if (!API_URL) {
   throw new Error('API URL is not configured');
 }
 
+// NOTE: CLINIC_ID is for reference only - do NOT use as fallback
 const CLINIC_ID = APP_CONFIG.CLINIC.ID;
 
 function resolveClinicContextId(clinicId?: string | null): string {
@@ -39,11 +40,13 @@ function resolveClinicContextId(clinicId?: string | null): string {
 }
 
 function requireClinicContextId(clinicId?: string | null, operation = 'auth'): string {
-  const resolvedClinicId = clinicId?.trim();
-  if (!resolvedClinicId) {
+  // CRITICAL: No fallback to hardcoded value - each request must explicitly specify clinicId
+  // This ensures proper multi-tenant isolation
+  const trimmedClinicId = clinicId?.trim();
+  if (!trimmedClinicId) {
     throw new Error(`Clinic ID is required for ${operation}. Please select a clinic and try again.`);
   }
-  return resolvedClinicId;
+  return trimmedClinicId;
 }
 
 function extractClinicIdFromTokenValue(token?: string): string | undefined {
@@ -1249,6 +1252,19 @@ export async function login(data: { email: string; password?: string; otp?: stri
       });
     }
 
+    const clinicName = normalizedResult.user?.clinicName;
+    if (typeof clinicName === 'string' && clinicName.trim()) {
+      cookieStore.set({
+        name: 'clinic_name',
+        value: clinicName.trim(),
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7,
+      });
+    }
+
     return {
       user: {
         id: normalizedResult.user.id,
@@ -1301,6 +1317,15 @@ export async function requestOTP(data: OtpRequestFormData): Promise<{ success: b
         resultData.access_token || resultData.accessToken
       ),
     };
+
+    // Set clinic_id cookie for subsequent requests
+    const cookieStore = await cookies();
+    cookieStore.set({
+      name: 'clinic_id',
+      value: requestBody.clinicId,
+      ...cookieOptions(),
+    });
+
     return {
       success: result.success ?? true,
       message: result.message || 'OTP sent successfully',
@@ -1647,6 +1672,7 @@ async function setAuthCookies(data: {
     data.user?.clinicId ||
       (data.user as { primaryClinicId?: string } | undefined)?.primaryClinicId ||
       extractClinicIdFromTokenValue(accessTokenValue)
+    // NO FALLBACK - only set cookie if we have a real clinicId
   );
 
   if (normalizedClinicId) {
@@ -1718,11 +1744,8 @@ export async function authenticatedApi<T = unknown>(
   } = {}
 ): Promise<{ status: number; data: T }> {
   try {
-    const session = await getServerSession();
-    if (!session?.user?.id) {
-      throw new Error('Unauthorized');
-    }
-
+    // Note: This is an internal helper used by authenticated server actions.
+    // Auth checks should be done at the action level, not here.
     const response = await clinicApiClient.request<T>(endpoint, options);
     return { 
       status: response.statusCode || 200, 

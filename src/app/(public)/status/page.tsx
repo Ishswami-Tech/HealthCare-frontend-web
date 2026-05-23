@@ -4,7 +4,7 @@ import { useDetailedHealthStatus } from "@/hooks/query/useHealth";
 import { cn } from "@/lib/utils/index";
 import { formatTimeInIST } from "@/lib/utils/date-time";
 import { CheckCircle2, AlertTriangle, RefreshCw, Loader2, Activity, XCircle, Clock, Server, Database, Wifi, HardDrive, Video, Zap, Rocket, GitBranch } from "lucide-react";
-import { motion } from "framer-motion";
+import { LazyMotion, domAnimation, m } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 
@@ -28,7 +28,8 @@ function StatusServiceRow({ service }: { service: ServiceStatus }) {
   const isLoading = service.status === 'loading';
 
   return (
-    <motion.div
+    <LazyMotion features={domAnimation}>
+    <m.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className="group relative overflow-hidden rounded-xl border border-border bg-card/50 dark:bg-slate-950/40 p-4 transition-all hover:border-border hover:bg-card/80 dark:hover:bg-slate-900/60 shadow-sm"
@@ -85,7 +86,8 @@ function StatusServiceRow({ service }: { service: ServiceStatus }) {
             <StatusPill status={service.status} />
         </div>
       </div>
-    </motion.div>
+    </m.div>
+    </LazyMotion>
   );
 }
 
@@ -250,16 +252,16 @@ export default function StatusPage() {
   const frontendUptime = appUptime;
 
   return (
-    <div className="min-h-screen bg-background dark:bg-[#050911] text-foreground dark:text-slate-50 font-sans selection:bg-emerald-500/30 overflow-hidden relative transition-colors duration-300">
+    <div className="min-h-screen bg-background dark:bg-[#050911] text-foreground dark:text-white font-sans selection:bg-emerald-500/30 overflow-hidden relative transition-colors duration-300">
 
       {/* Ambient Background Glow */}
       <div
-        className="fixed top-[-20%] left-[20%] w-[60%] h-[60%] rounded-full blur-[150px] opacity-0 pointer-events-none transition-colors duration-1000 dark:opacity-40"
+        className="fixed top-[-20%] left-[20%] size-[60%] rounded-full blur-[150px] opacity-0 pointer-events-none transition-colors duration-1000 dark:opacity-40"
         style={{ background: glowColor }}
       />
 
       {/* Main Content (Header removed to avoid double-header issue) */}
-      <div className="container mx-auto max-w-4xl px-6 py-6 relative z-10">
+      <div className="container mx-auto max-w-4xl p-6 relative z-10">
           <div className="flex justify-between items-center mb-8">
               <h1 className="text-2xl font-semibold flex items-center gap-2">
                   <Activity className="size-6 text-primary" />

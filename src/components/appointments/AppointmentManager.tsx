@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { useReducer, useCallback, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,7 @@ import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useQueryClient } from "@/hooks/core";
 import { useWebSocketStatus } from "@/app/providers/WebSocketProvider";
+import { useCurrentTimestamp } from "@/hooks/utils/useClientDate";
 import {
   useCancelAppointment,
   useMyAppointments,
@@ -174,6 +175,74 @@ interface AppointmentCardProps {
   onReschedule: (apt: AppointmentWithRelations) => void;
 }
 
+type AppointmentManagerState = {
+  searchQuery: string;
+  isRescheduleDialogOpen: boolean;
+  rescheduleData: { date: string; time: string };
+  isRejectDialogOpen: boolean;
+  rejectReason: string;
+  currentPage: number;
+};
+
+type AppointmentManagerAction =
+  | { type: "setSearchQuery"; value: string }
+  | { type: "setIsRescheduleDialogOpen"; value: boolean }
+  | {
+      type: "setRescheduleData";
+      value:
+        | { date: string; time: string }
+        | ((prev: { date: string; time: string }) => { date: string; time: string });
+    }
+  | { type: "setIsRejectDialogOpen"; value: boolean }
+  | { type: "setRejectReason"; value: string }
+  | { type: "setCurrentPage"; value: number }
+  | { type: "resetRescheduleState" };
+
+const initialAppointmentManagerState: AppointmentManagerState = {
+  searchQuery: "",
+  isRescheduleDialogOpen: false,
+  rescheduleData: { date: "", time: "" },
+  isRejectDialogOpen: false,
+  rejectReason: "",
+  currentPage: 1,
+};
+
+function appointmentManagerReducer(
+  state: AppointmentManagerState,
+  action: AppointmentManagerAction
+): AppointmentManagerState {
+  switch (action.type) {
+    case "setSearchQuery":
+      return { ...state, searchQuery: action.value };
+    case "setIsRescheduleDialogOpen":
+      return { ...state, isRescheduleDialogOpen: action.value };
+    case "setRescheduleData":
+      return {
+        ...state,
+        rescheduleData:
+          typeof action.value === "function"
+            ? action.value(state.rescheduleData)
+            : action.value,
+      };
+    case "setIsRejectDialogOpen":
+      return { ...state, isRejectDialogOpen: action.value };
+    case "setRejectReason":
+      return { ...state, rejectReason: action.value };
+    case "setCurrentPage":
+      return { ...state, currentPage: action.value };
+    case "resetRescheduleState":
+      return {
+        ...state,
+        isRescheduleDialogOpen: false,
+        rescheduleData: { date: "", time: "" },
+        isRejectDialogOpen: false,
+        rejectReason: "",
+      };
+    default:
+      return state;
+  }
+}
+
 function AppointmentCard({
   apt,
   expandedCard,
@@ -218,7 +287,8 @@ function AppointmentCard({
         : `bg-card border-border hover:border-emerald-200 ${isExpanded ? "shadow-md border-emerald-300" : ""}`
     }`}>
       {/* Card header */}
-      <div
+      <button
+        type="button"
         className="cursor-pointer p-3 sm:p-4"
         onClick={() => {
           onExpand(isExpanded ? null : apt.id);
@@ -231,8 +301,6 @@ function AppointmentCard({
             onSelect(isExpanded ? null : apt);
           }
         }}
-        role="button"
-        tabIndex={0}
       >
         <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-center gap-3 min-w-0">
@@ -292,7 +360,7 @@ function AppointmentCard({
             {locationName || "Location pending"}
           </span>
         </div>
-      </div>
+      </button>
 
       {/* Expanded details */}
       {isExpanded && (
@@ -383,6 +451,13 @@ export default function AppointmentManager({
   const { session } = useAuth();
   const user = session?.user;
   const hasShownRealtimeToastRef = useRef(false);
+  const currentTimestamp = useCurrentTimestamp();
+  const rescheduleMinDate = useMemo(() => {
+    if (!currentTimestamp) return null;
+    const today = new Date(currentTimestamp);
+    today.setHours(0, 0, 0, 0);
+    return today;
+  }, [currentTimestamp]);
   const checkInRoute = useMemo(() => {
     const userRole = String(user?.role || "").toUpperCase().replace(/\s+/g, "_");
     if (userRole === Role.RECEPTIONIST) {
@@ -397,7 +472,7 @@ export default function AppointmentManager({
   // Real-time WebSocket integration
   const { isConnected, isRealTimeEnabled } = useWebSocketStatus();
 
-  const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null);
+  const selectedAppointmentRef = useRef<AppointmentWithRelations | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: "", end: "" });
@@ -619,6 +694,7 @@ export default function AppointmentManager({
   }, [cancelAppointment]);
 
   const handleRescheduleSubmit = () => {
+    const selectedAppointment = selectedAppointmentRef.current;
     if (!selectedAppointment) return;
     const appointmentId = getEffectiveAppointmentId(selectedAppointment);
     rescheduleAppointment({ id: appointmentId, data: { date: rescheduleData.date, time: rescheduleData.time } }, {
@@ -631,6 +707,7 @@ export default function AppointmentManager({
   };
 
   const handleRejectProposal = () => {
+    const selectedAppointment = selectedAppointmentRef.current;
     if (!selectedAppointment) return;
     const appointmentId = getEffectiveAppointmentId(selectedAppointment);
     rejectVideoProposal({ id: appointmentId, reason: rejectReason }, {
@@ -638,7 +715,7 @@ export default function AppointmentManager({
         showSuccessToast("Proposal rejected", { id: TOAST_IDS.APPOINTMENT.UPDATE });
         setIsRejectDialogOpen(false);
         setRejectReason("");
-        setSelectedAppointment(null);
+        selectedAppointmentRef.current = null;
       },
       onError: (error: Error) => showErrorToast(sanitizeErrorMessage(error) || "Failed to reject", { id: TOAST_IDS.APPOINTMENT.UPDATE }),
     });
@@ -837,6 +914,7 @@ export default function AppointmentManager({
 
             return (
               <button
+                type="button"
                 key={s}
                 onClick={() => setStatusFilter(s)}
                 className={cn(
@@ -972,9 +1050,11 @@ export default function AppointmentManager({
                 onCancelAppointment={handleCancelAppointment}
                 handleJoinVideo={handleJoinVideo}
                 onExpand={setExpandedCard}
-                onSelect={setSelectedAppointment}
+                onSelect={(appointment) => {
+                  selectedAppointmentRef.current = appointment;
+                }}
                 onReschedule={(apt) => {
-                  setSelectedAppointment(apt);
+                  selectedAppointmentRef.current = apt;
                   setRescheduleData({
                     date: formatISODateInIST(apt.date),
                     time: apt.time || "",
@@ -1003,6 +1083,7 @@ export default function AppointmentManager({
                   </span>
                 ) : (
                   <button
+                    type="button"
                     key={page}
                     onClick={() => setCurrentPage(page)}
                     className={cn(
@@ -1044,7 +1125,7 @@ export default function AppointmentManager({
           </DialogHeader>
           <div className="gap-y-4 py-2">
             <div>
-              <label className="text-sm font-medium mb-1.5 block">New Date</label>
+              <span className="mb-1.5 block text-sm font-medium">New Date</span>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -1063,19 +1144,18 @@ export default function AppointmentManager({
                     mode="single"
                     selected={parseDateValue(rescheduleData.date)}
                     onSelect={(date) => setRescheduleData((p) => ({ ...p, date: toDateString(date) }))}
-                    disabled={(date) => {
-                      const today = new Date();
-                      today.setHours(0, 0, 0, 0);
-                      return date < today;
-                    }}
+                    disabled={(date) => !!rescheduleMinDate && date < rescheduleMinDate}
                     initialFocus
                   />
                 </PopoverContent>
               </Popover>
             </div>
             <div>
-              <label className="text-sm font-medium mb-1.5 block">New Time</label>
+              <label htmlFor="appointment-reschedule-time" className="text-sm font-medium mb-1.5 block">
+                New Time
+              </label>
               <Input
+                id="appointment-reschedule-time"
                 type="time"
                 value={rescheduleData.time}
                 onChange={(e) => setRescheduleData(p => ({ ...p, time: e.target.value }))}
@@ -1111,8 +1191,11 @@ export default function AppointmentManager({
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <label className="text-sm font-medium mb-1.5 block">Reason</label>
+            <label htmlFor="reject-proposal-reason" className="text-sm font-medium mb-1.5 block">
+              Reason
+            </label>
             <Textarea
+              id="reject-proposal-reason"
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
               placeholder="e.g., Only available in evenings"

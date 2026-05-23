@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useReducer } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/ui/data-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -113,6 +113,65 @@ const USER_CREATE_FIELDS = [
   { key: "phone", label: "Phone" },
 ] as const;
 
+type SuperAdminUsersState = {
+  searchTerm: string;
+  roleFilter: string;
+  statusFilter: string;
+  createOpen: boolean;
+  showCreateAdditionalDetails: boolean;
+  editUser: UserRow | null;
+  createForm: CreateUserForm;
+};
+
+type SuperAdminUsersAction =
+  | { type: "setSearchTerm"; value: string }
+  | { type: "setRoleFilter"; value: string }
+  | { type: "setStatusFilter"; value: string }
+  | { type: "setCreateOpen"; value: boolean }
+  | { type: "setShowCreateAdditionalDetails"; value: boolean }
+  | { type: "setEditUser"; value: UserRow | null }
+  | { type: "setCreateForm"; value: CreateUserForm }
+  | { type: "updateCreateForm"; value: Partial<CreateUserForm> }
+  | { type: "resetCreateForm" };
+
+const initialSuperAdminUsersState: SuperAdminUsersState = {
+  searchTerm: "",
+  roleFilter: "all",
+  statusFilter: "all",
+  createOpen: false,
+  showCreateAdditionalDetails: false,
+  editUser: null,
+  createForm: defaultCreateUserForm(),
+};
+
+function superAdminUsersReducer(
+  state: SuperAdminUsersState,
+  action: SuperAdminUsersAction
+): SuperAdminUsersState {
+  switch (action.type) {
+    case "setSearchTerm":
+      return { ...state, searchTerm: action.value };
+    case "setRoleFilter":
+      return { ...state, roleFilter: action.value };
+    case "setStatusFilter":
+      return { ...state, statusFilter: action.value };
+    case "setCreateOpen":
+      return { ...state, createOpen: action.value };
+    case "setShowCreateAdditionalDetails":
+      return { ...state, showCreateAdditionalDetails: action.value };
+    case "setEditUser":
+      return { ...state, editUser: action.value };
+    case "setCreateForm":
+      return { ...state, createForm: action.value };
+    case "updateCreateForm":
+      return { ...state, createForm: { ...state.createForm, ...action.value } };
+    case "resetCreateForm":
+      return { ...state, createForm: defaultCreateUserForm() };
+    default:
+      return state;
+  }
+}
+
 export default function SuperAdminUsers() {
   useAuth();
   useWebSocketQuerySync();
@@ -120,13 +179,30 @@ export default function SuperAdminUsers() {
   const { data: clinicsData } = useClinics();
   const createUserMutation = useCreateUser();
   const deleteUserMutation = useDeleteUser();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [roleFilter, setRoleFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [createOpen, setCreateOpen] = useState(false);
-  const [showCreateAdditionalDetails, setShowCreateAdditionalDetails] = useState(false);
-  const [editUser, setEditUser] = useState<UserRow | null>(null);
-  const [createForm, setCreateForm] = useState<CreateUserForm>(() => defaultCreateUserForm());
+  const [
+    {
+      searchTerm,
+      roleFilter,
+      statusFilter,
+      createOpen,
+      showCreateAdditionalDetails,
+      editUser,
+      createForm,
+    },
+    dispatch,
+  ] = useReducer(superAdminUsersReducer, initialSuperAdminUsersState);
+
+  const setSearchTerm = (value: string) => dispatch({ type: "setSearchTerm", value });
+  const setRoleFilter = (value: string) => dispatch({ type: "setRoleFilter", value });
+  const setStatusFilter = (value: string) => dispatch({ type: "setStatusFilter", value });
+  const setCreateOpen = (value: boolean) => dispatch({ type: "setCreateOpen", value });
+  const setShowCreateAdditionalDetails = (value: boolean) =>
+    dispatch({ type: "setShowCreateAdditionalDetails", value });
+  const setEditUser = (value: UserRow | null) => dispatch({ type: "setEditUser", value });
+  const setCreateForm = (value: CreateUserForm) => dispatch({ type: "setCreateForm", value });
+  const updateCreateForm = (value: Partial<CreateUserForm>) =>
+    dispatch({ type: "updateCreateForm", value });
+  const resetCreateForm = () => dispatch({ type: "resetCreateForm" });
 
   const clinics = useMemo(() => {
     const data = clinicsData as any;
@@ -160,15 +236,13 @@ export default function SuperAdminUsers() {
   const handleCreateDialogChange = useCallback((open: boolean) => {
     setCreateOpen(open);
     if (open) {
-      setCreateForm((prev) =>
-        prev.clinicId || !clinics[0]?.id
-          ? prev
-          : { ...prev, clinicId: clinics[0].id }
-      );
+      if (!createForm.clinicId && clinics[0]?.id) {
+        updateCreateForm({ clinicId: clinics[0].id } as Partial<CreateUserForm>);
+      }
       return;
     }
     setShowCreateAdditionalDetails(false);
-  }, [clinics]);
+  }, [clinics, createForm.clinicId]);
 
   const filteredUsers = useMemo(() => {
     return users.filter((user) => {
@@ -211,8 +285,10 @@ export default function SuperAdminUsers() {
           ? {
               allergies: createForm.allergies
                 .split(",")
-                .map((value) => value.trim())
-                .filter(Boolean),
+                .flatMap((value) => {
+                  const trimmed = value.trim();
+                  return trimmed ? [trimmed] : [];
+                }),
             }
           : {}),
         ...(createForm.currentMedications.trim()
@@ -227,7 +303,7 @@ export default function SuperAdminUsers() {
       showSuccessToast("User created successfully", { id: TOAST_IDS.USER.CREATE });
       setCreateOpen(false);
       setShowCreateAdditionalDetails(false);
-      setCreateForm(defaultCreateUserForm());
+      resetCreateForm();
     } catch (error) {
       showErrorToast(error instanceof Error ? error.message : "Failed to create user", {
         id: TOAST_IDS.GLOBAL.ERROR,
@@ -444,13 +520,20 @@ export default function SuperAdminUsers() {
                   <Input
                     type={key === "password" ? "password" : "text"}
                     value={createForm[key]}
-                    onChange={(e) => setCreateForm((prev) => ({ ...prev, [key]: e.target.value }))}
+                    onChange={(e) =>
+                      updateCreateForm({ [key]: e.target.value } as Partial<CreateUserForm>)
+                    }
                   />
                 </div>
               ))}
               <div className="gap-y-2">
                 <Label>Role</Label>
-                <Select value={createForm.role} onValueChange={(value) => setCreateForm((prev) => ({ ...prev, role: value as Role }))}>
+                <Select
+                  value={createForm.role}
+                  onValueChange={(value) =>
+                    updateCreateForm({ role: value as Role } as Partial<CreateUserForm>)
+                  }
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -463,7 +546,12 @@ export default function SuperAdminUsers() {
               </div>
               <div className="gap-y-2">
                 <Label>Clinic</Label>
-                <Select value={createForm.clinicId} onValueChange={(value) => setCreateForm((prev) => ({ ...prev, clinicId: value }))}>
+                <Select
+                  value={createForm.clinicId}
+                  onValueChange={(value) =>
+                    updateCreateForm({ clinicId: value } as Partial<CreateUserForm>)
+                  }
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select clinic" />
                   </SelectTrigger>
@@ -487,7 +575,7 @@ export default function SuperAdminUsers() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => setShowCreateAdditionalDetails((current) => !current)}
+                onClick={() => setShowCreateAdditionalDetails(!showCreateAdditionalDetails)}
                 className="h-8 gap-2 rounded-lg px-3 text-blue-700 hover:bg-blue-100 hover:text-blue-800 dark:text-blue-200 dark:hover:bg-blue-900/30 dark:hover:text-blue-100"
               >
                 {showCreateAdditionalDetails ? (
@@ -509,7 +597,12 @@ export default function SuperAdminUsers() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="gap-y-2">
                     <Label>Gender</Label>
-                    <Select value={createForm.gender} onValueChange={(value) => setCreateForm((prev) => ({ ...prev, gender: value }))}>
+                    <Select
+                      value={createForm.gender}
+                      onValueChange={(value) =>
+                        updateCreateForm({ gender: value } as Partial<CreateUserForm>)
+                      }
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Select gender" />
                       </SelectTrigger>
@@ -525,14 +618,18 @@ export default function SuperAdminUsers() {
                     <Input
                       type="date"
                       value={createForm.dateOfBirth}
-                      onChange={(e) => setCreateForm((prev) => ({ ...prev, dateOfBirth: e.target.value }))}
+                      onChange={(e) =>
+                        updateCreateForm({ dateOfBirth: e.target.value } as Partial<CreateUserForm>)
+                      }
                     />
                   </div>
                   <div className="gap-y-2 md:col-span-2">
                     <Label>Address</Label>
                     <Textarea
                       value={createForm.address}
-                      onChange={(e) => setCreateForm((prev) => ({ ...prev, address: e.target.value }))}
+                      onChange={(e) =>
+                        updateCreateForm({ address: e.target.value } as Partial<CreateUserForm>)
+                      }
                       placeholder="Street, city, state"
                     />
                   </div>
@@ -540,56 +637,72 @@ export default function SuperAdminUsers() {
                     <Label>City</Label>
                     <Input
                       value={createForm.city}
-                      onChange={(e) => setCreateForm((prev) => ({ ...prev, city: e.target.value }))}
+                      onChange={(e) =>
+                        updateCreateForm({ city: e.target.value } as Partial<CreateUserForm>)
+                      }
                     />
                   </div>
                   <div className="gap-y-2">
                     <Label>State</Label>
                     <Input
                       value={createForm.state}
-                      onChange={(e) => setCreateForm((prev) => ({ ...prev, state: e.target.value }))}
+                      onChange={(e) =>
+                        updateCreateForm({ state: e.target.value } as Partial<CreateUserForm>)
+                      }
                     />
                   </div>
                   <div className="gap-y-2">
                     <Label>Zip Code</Label>
                     <Input
                       value={createForm.zipCode}
-                      onChange={(e) => setCreateForm((prev) => ({ ...prev, zipCode: e.target.value }))}
+                      onChange={(e) =>
+                        updateCreateForm({ zipCode: e.target.value } as Partial<CreateUserForm>)
+                      }
                     />
                   </div>
                   <div className="gap-y-2">
                     <Label>Emergency Contact</Label>
                     <Input
                       value={createForm.emergencyContact}
-                      onChange={(e) => setCreateForm((prev) => ({ ...prev, emergencyContact: e.target.value }))}
+                      onChange={(e) =>
+                        updateCreateForm({ emergencyContact: e.target.value } as Partial<CreateUserForm>)
+                      }
                     />
                   </div>
                   <div className="gap-y-2">
                     <Label>Emergency Phone</Label>
                     <Input
                       value={createForm.emergencyPhone}
-                      onChange={(e) => setCreateForm((prev) => ({ ...prev, emergencyPhone: e.target.value }))}
+                      onChange={(e) =>
+                        updateCreateForm({ emergencyPhone: e.target.value } as Partial<CreateUserForm>)
+                      }
                     />
                   </div>
                   <div className="gap-y-2 md:col-span-2">
                     <Label>Medical History</Label>
                     <Textarea
                       value={createForm.medicalHistory}
-                      onChange={(e) => setCreateForm((prev) => ({ ...prev, medicalHistory: e.target.value }))}
+                      onChange={(e) =>
+                        updateCreateForm({ medicalHistory: e.target.value } as Partial<CreateUserForm>)
+                      }
                     />
                   </div>
                   <div className="gap-y-2">
                     <Label>Allergies</Label>
                     <Input
                       value={createForm.allergies}
-                      onChange={(e) => setCreateForm((prev) => ({ ...prev, allergies: e.target.value }))}
+                      onChange={(e) =>
+                        updateCreateForm({ allergies: e.target.value } as Partial<CreateUserForm>)
+                      }
                     />
                   </div>
                   <div className="gap-y-2">
                     <Label>Current Medications</Label>
                     <Textarea
                       value={createForm.currentMedications}
-                      onChange={(e) => setCreateForm((prev) => ({ ...prev, currentMedications: e.target.value }))}
+                      onChange={(e) =>
+                        updateCreateForm({ currentMedications: e.target.value } as Partial<CreateUserForm>)
+                      }
                     />
                   </div>
                 </div>

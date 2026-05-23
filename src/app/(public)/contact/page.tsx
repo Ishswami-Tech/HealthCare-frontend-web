@@ -346,8 +346,8 @@ export default function ContactPage() {
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-lg h-128 bg-linear-to-r from-accent/5 to-accent/3 dark:from-accent/10 dark:to-accent/8 rounded-full blur-3xl animate-pulse delay-500"></div>
 
           {/* Secondary floating elements */}
-          <div className="absolute top-1/3 right-1/3 size-16 bg-linear-to-r from-accent/20 to-accent/10 dark:from-accent/30 dark:to-accent/20 rounded-full animate-bounce-slow"></div>
-          <div className="absolute bottom-1/4 left-1/4 size-12 bg-linear-to-r from-primary/15 to-primary/10 dark:from-primary/25 dark:to-primary/15 rounded-full animate-bounce-slow delay-700"></div>
+          <div className="absolute top-1/3 right-1/3 size-16 bg-linear-to-r from-accent/20 to-accent/10 dark:from-accent/30 dark:to-accent/20 rounded-full animate-pulse"></div>
+          <div className="absolute bottom-1/4 left-1/4 size-12 bg-linear-to-r from-primary/15 to-primary/10 dark:from-primary/25 dark:to-primary/15 rounded-full animate-pulse delay-700"></div>
 
           {/* Geometric patterns */}
           <div className="absolute top-20 left-20 size-32 border border-primary/10 dark:border-primary/20 rounded-full animate-spin-slow"></div>

@@ -130,7 +130,7 @@ export default function PharmacySystem() {
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <div className="animate-spin rounded-full size-32 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading pharmacy system...</p>
+            <p className="mt-4 text-gray-600">Loading pharmacy system…</p>
           </div>
         </div>
       
@@ -618,7 +618,7 @@ export default function PharmacySystem() {
                             <div className="flex flex-wrap gap-2 mt-1">
                               {order.items.map((item: string, index: number) => (
                                 <Badge
-                                  key={index}
+                                  key={`${order.id}-${item}`}
                                   variant="outline"
                                   className="bg-green-50 text-green-700"
                                 >
@@ -748,9 +748,9 @@ export default function PharmacySystem() {
                               </p>
                               <div className="flex flex-wrap gap-2">
                                 {pharmacy.specialties.map(
-                                  (specialty: string, index: number) => (
+                                  (specialty: string) => (
                                     <Badge
-                                      key={index}
+                                      key={`${pharmacy.id}-${specialty}`}
                                       variant="outline"
                                       className="bg-blue-50 text-blue-700"
                                     >

@@ -78,6 +78,21 @@ export default function AssistantDoctorCoveragePage() {
   }, [assistantCoverage, primaryDoctors]);
 
   const isCoverageActive = Boolean(assistantCoverage?.isActive);
+  const coverageBadge = useMemo(
+    () => (
+      <Badge
+        variant="outline"
+        className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+          isCoverageActive
+            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+            : "border-amber-200 bg-amber-50 text-amber-700"
+        }`}
+      >
+        {isCoverageActive ? "Coverage active" : "Coverage inactive"}
+      </Badge>
+    ),
+    [isCoverageActive]
+  );
 
   return (
     <DashboardPageShell className="p-4 sm:p-6">
@@ -85,18 +100,7 @@ export default function AssistantDoctorCoveragePage() {
         eyebrow="Assistant Doctor"
         title="Coverage and support lane"
         description="Assistant-doctor coverage is read from the clinic configuration so handoffs stay aligned with the supervising doctors."
-        meta={
-          <Badge
-            variant="outline"
-            className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-              isCoverageActive
-                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                : "border-amber-200 bg-amber-50 text-amber-700"
-            }`}
-          >
-            {isCoverageActive ? "Coverage active" : "Coverage inactive"}
-          </Badge>
-        }
+        meta={coverageBadge}
         actionsSlot={
           <Button className="gap-2" onClick={() => push("/assistant-doctor/dashboard")}>
             <ArrowRight className="size-4" />

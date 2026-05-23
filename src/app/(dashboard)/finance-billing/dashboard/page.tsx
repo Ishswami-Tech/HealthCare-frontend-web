@@ -14,6 +14,7 @@ import {
   useBillingAnalytics,
 } from "@/hooks/query/useBilling";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { useCurrentTimestamp } from "@/hooks/utils/useClientDate";
 import type { Invoice, Payment, BillingAnalytics } from "@/types/billing.types";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import { buildGatewayOrderId } from "@/lib/utils/gateway-order-id";
@@ -32,9 +33,16 @@ import {
   Download,
 } from "lucide-react";
 
+const FINANCE_CURRENCY_FORMATTER = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
+  maximumFractionDigits: 0,
+});
+
 export default function FinanceBillingDashboard() {
   const { push } = useRouter();
   const clinicId = useCurrentClinicId();
+  const currentTimestamp = useCurrentTimestamp();
 
   useWebSocketQuerySync();
 
@@ -45,6 +53,7 @@ export default function FinanceBillingDashboard() {
   const invoiceList: Invoice[] = Array.isArray(invoicesRaw) ? (invoicesRaw as Invoice[]) : [];
   const paymentList: Payment[] = Array.isArray(paymentsRaw) ? (paymentsRaw as Payment[]) : [];
   const analyticsData = analytics as BillingAnalytics | undefined;
+  const currentDate = currentTimestamp ? new Date(currentTimestamp) : null;
 
   const stats = useMemo(() => {
     const totalRevenue = paymentList
@@ -54,33 +63,35 @@ export default function FinanceBillingDashboard() {
     const pendingInvoices = invoiceList.filter((inv) => inv.status === "OPEN").length;
     const paidInvoices = invoiceList.filter((inv) => inv.status === "PAID").length;
 
+    const referenceDate = currentDate;
     const overdueInvoices = invoiceList.filter((inv) => {
       const dueDate = inv.dueDate ? new Date(inv.dueDate) : null;
       return (inv.status === "OPEN" || inv.status === "OVERDUE") &&
         dueDate !== null &&
-        dueDate < new Date();
+        !!referenceDate &&
+        dueDate < referenceDate;
     }).length;
 
-    const now = new Date();
     const monthlyRevenue = paymentList
       .filter((p) => {
         const created = p.createdAt ? new Date(p.createdAt) : null;
         return (
           p.status === "COMPLETED" &&
           created !== null &&
-          created.getMonth() === now.getMonth() &&
-          created.getFullYear() === now.getFullYear()
+          !!referenceDate &&
+          created.getMonth() === referenceDate.getMonth() &&
+          created.getFullYear() === referenceDate.getFullYear()
         );
       })
       .reduce((sum, p) => sum + p.amount, 0);
 
     return { totalRevenue, pendingInvoices, paidInvoices, overdueInvoices, monthlyRevenue };
-  }, [invoiceList, paymentList]);
+  }, [currentDate, invoiceList, paymentList]);
 
   const recentInvoices = useMemo(
     () =>
-      [...invoiceList]
-        .sort(
+      invoiceList
+        .toSorted(
           (a, b) =>
             new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()
         )
@@ -90,8 +101,8 @@ export default function FinanceBillingDashboard() {
 
   const recentPayments = useMemo(
     () =>
-      [...paymentList]
-        .sort(
+      paymentList
+        .toSorted(
           (a, b) =>
             new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()
         )
@@ -99,12 +110,7 @@ export default function FinanceBillingDashboard() {
     [paymentList]
   );
 
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 0,
-    }).format(amount);
+  const formatCurrency = (amount: number) => FINANCE_CURRENCY_FORMATTER.format(amount);
 
   const isLoading =
     invoicesPending && paymentsPending && invoiceList.length === 0 && paymentList.length === 0;
@@ -230,26 +236,22 @@ export default function FinanceBillingDashboard() {
               <div className="gap-y-2">
                 {recentInvoices.map((inv) => {
                   const isOverdue =
+                    !!currentDate &&
                     (inv.status === "OPEN" || inv.status === "OVERDUE") &&
                     !!inv.dueDate &&
-                    new Date(inv.dueDate) < new Date();
+                    new Date(inv.dueDate) < currentDate;
 
                   return (
                     <div
                       key={inv.id}
-                      className="flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
-                      onClick={() => push("/billing?tab=invoices")}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          push("/billing?tab=invoices");
-                        }
-                      }}
+                      className="flex items-center justify-between gap-3 p-3 rounded-lg border border-slate-100 bg-slate-50 hover:bg-slate-100 transition-colors"
                       suppressHydrationWarning
                     >
-                      <div>
+                      <button
+                        type="button"
+                        className="min-w-0 flex-1 text-left"
+                        onClick={() => push("/billing?tab=invoices")}
+                      >
                         <p className="text-sm font-medium">
                           {inv.invoiceNumber ?? `INV-${inv.id.slice(0, 8).toUpperCase()}`}
                         </p>
@@ -262,7 +264,7 @@ export default function FinanceBillingDashboard() {
                             ? ` · ${formatDateInIST(inv.createdAt)}`
                             : ""}
                         </p>
-                      </div>
+                      </button>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold">
                           {formatCurrency(inv.amount)}

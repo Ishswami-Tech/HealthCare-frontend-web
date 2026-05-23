@@ -42,7 +42,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const isProfileComplete = useAuthStore((state) => state.isProfileComplete);
   const rbac = useRBAC();
   const { getDefaultRoute } = useRoleBasedNavigation();
-  const router = useRouter();
+  const { replace } = useRouter();
   const pathname = usePathname();
 
   // Check permission-based access
@@ -57,56 +57,50 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return true;
   }, [rbac, permission, permissions, requireAll, resource, action]);
 
-  // Handle Redirection Side-Effects
-  React.useEffect(() => {
-    if (isPending) return;
+  const userRole = user?.role as Role;
+  const isRoleRestricted = Boolean(
+    allowedRoles && allowedRoles.length > 0 && (!userRole || !allowedRoles.includes(userRole))
+  );
+  const isPermissionRestricted = !hasAccess;
+  const redirectTarget = React.useMemo(() => {
+    if (isPending) return null;
 
-    // 1. Unauthenticated Redirect
     if (!isAuthenticated || !user) {
-      router.replace(ROUTES.LOGIN);
-      return;
+      return ROUTES.LOGIN;
     }
 
-    // 2. Role-based Redirect
     if (user.profileComplete === false && !isProfileComplete) {
-      const profileCompletionPath = `${ROUTES.PROFILE_COMPLETION}?redirect=${encodeURIComponent(pathname || "/")}`;
-      router.replace(profileCompletionPath);
-      return;
+      return `${ROUTES.PROFILE_COMPLETION}?redirect=${encodeURIComponent(pathname || "/")}`;
     }
 
-    // 3. Role-based Redirect
-    const userRole = user?.role as Role;
-    if (allowedRoles && allowedRoles.length > 0) {
-      if (!userRole || !allowedRoles.includes(userRole)) {
-        if (redirectTo) {
-          router.replace(redirectTo);
-        } else if (!showUnauthorized) {
-          router.replace(getDefaultRoute());
-        }
-      }
+    if (isRoleRestricted) {
+      return redirectTo ?? (!showUnauthorized ? getDefaultRoute() : null);
     }
 
-    // 4. Permission-based Redirect
-    if (!hasAccess) {
-      if (redirectTo) {
-        router.replace(redirectTo);
-      } else if (!showUnauthorized) {
-        router.replace(getDefaultRoute());
-      }
+    if (isPermissionRestricted) {
+      return redirectTo ?? (!showUnauthorized ? getDefaultRoute() : null);
     }
+
+    return null;
   }, [
     isPending,
     isAuthenticated,
     user,
     isProfileComplete,
     pathname,
-    allowedRoles, 
-    hasAccess, 
-    redirectTo, 
-    showUnauthorized, 
-    getDefaultRoute, 
-    router
+    isRoleRestricted,
+    isPermissionRestricted,
+    redirectTo,
+    showUnauthorized,
+    getDefaultRoute,
   ]);
+
+  // Handle Redirection Side-Effects
+  React.useEffect(() => {
+    if (redirectTarget) {
+      replace(redirectTarget);
+    }
+  }, [redirectTarget, replace]);
 
   // Early return for loading
   if (isPending) {
@@ -118,24 +112,18 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // Early return if not authenticated (useEffect handles redirect)
-  if (!isAuthenticated || !user) return null;
-
-  const userRole = user?.role as Role;
-
-  if (user.profileComplete === false && !isProfileComplete) {
+  if (redirectTarget) {
     return null;
   }
 
   // Render check: Unofficial role access
-  if (allowedRoles && allowedRoles.length > 0) {
-    if (!userRole || !allowedRoles.includes(userRole)) {
-      if (showUnauthorized) return <UnauthorizedAccess />;
-      return null;
-    }
+  if (isRoleRestricted) {
+    if (showUnauthorized) return <UnauthorizedAccess />;
+    return null;
   }
 
   // Render check: No permission access
-  if (!hasAccess) {
+  if (isPermissionRestricted) {
     if (showUnauthorized) return <UnauthorizedAccess />;
     return null;
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { Suspense, useState, useCallback, useEffect, useMemo, type SetStateAction } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,27 +44,62 @@ const EMPTY_FORM: VitalsFormData = {
   notes: "",
 };
 
-export default function NurseVitals() {
+function NurseVitalsContent() {
   const { user } = useAuth();
-  const { get: getSearchParam } = useSearchParams();
+  const searchParams = useSearchParams();
+  const getSearchParam = useMemo(() => searchParams.get.bind(searchParams), [searchParams]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [formOpen, setFormOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<VitalsFormData>(EMPTY_FORM);
-  const [formError, setFormError] = useState("");
+  const [dialogState, setDialogState] = useState<{
+    open: boolean;
+    editingId: string | null;
+    error: string;
+    form: VitalsFormData;
+  }>({
+    open: false,
+    editingId: null,
+    error: "",
+    form: EMPTY_FORM,
+  });
   const patientsList = usePatientStore((state) => state.collections.nurse) as any[];
+
+  const formOpen = dialogState.open;
+  const editingId = dialogState.editingId;
+  const form = dialogState.form;
+  const formError = dialogState.error;
+
+  const setForm = useCallback((updater: SetStateAction<VitalsFormData>) => {
+    setDialogState((prev) => ({
+      ...prev,
+      form: typeof updater === "function" ? updater(prev.form) : updater,
+    }));
+  }, []);
+
+  const setFormOpen = useCallback((open: boolean) => {
+    setDialogState((prev) => ({ ...prev, open }));
+  }, []);
+
+  const setEditingId = useCallback((id: string | null) => {
+    setDialogState((prev) => ({ ...prev, editingId: id }));
+  }, []);
+
+  const setFormError = useCallback((error: string) => {
+    setDialogState((prev) => ({ ...prev, error }));
+  }, []);
 
   // Auto-open form when navigated from patients page with patientId
   useEffect(() => {
     const patientId = getSearchParam("patientId");
     const patientName = getSearchParam("patientName");
     if (patientId) {
-      setForm((f) => ({ ...f, patientId, patientName: patientName || "" }));
-      setEditingId(null);
-      setFormError("");
-      setFormOpen(true);
+      setDialogState((prev) => ({
+        ...prev,
+        open: true,
+        editingId: null,
+        error: "",
+        form: { ...prev.form, patientId, patientName: patientName || "" },
+      }));
     }
-  }, [getSearchParam]);
+  }, [searchParams]);
 
   const nurseId = user?.id;
 
@@ -156,11 +191,7 @@ export default function NurseVitals() {
         eyebrow="Nurse Vitals"
         title="Vitals Monitoring"
         description="Record and review patient vital signs using the same dashboard structure as the clinical role pages."
-        meta={
-          <span className="text-sm font-medium text-muted-foreground">
-            {vitalsRecords.length} recorded entries
-          </span>
-        }
+        meta={`${vitalsRecords.length} recorded entries`}
       />
 
       <Card>
@@ -421,6 +452,14 @@ export default function NurseVitals() {
         </DialogContent>
       </Dialog>
     </DashboardPageShell>
+  );
+}
+
+export default function NurseVitals() {
+  return (
+    <Suspense fallback={null}>
+      <NurseVitalsContent />
+    </Suspense>
   );
 }
 

@@ -292,7 +292,7 @@ export function filterQueueByStatus(
  * Sort queue entries by position
  */
 export function sortQueueByPosition(entries: CanonicalQueueEntry[]): CanonicalQueueEntry[] {
-  return [...entries].sort((a, b) => a.position - b.position);
+  return entries.toSorted((a, b) => a.position - b.position);
 }
 
 /**
@@ -300,11 +300,19 @@ export function sortQueueByPosition(entries: CanonicalQueueEntry[]): CanonicalQu
  */
 export function getQueueStats(entries: CanonicalQueueEntry[]) {
   const total = entries.length;
-  const waiting = entries.filter(e => e.status === 'WAITING').length;
-  const inProgress = entries.filter(e => e.status === 'IN_PROGRESS').length;
-  const completed = entries.filter(e => e.status === 'COMPLETED').length;
-  const ready = entries.filter(e => e.status === 'READY' || e.status === 'PAID').length;
-  const waitingForPayment = entries.filter(e => e.waitingForPayment).length;
+  let waiting = 0;
+  let inProgress = 0;
+  let completed = 0;
+  let ready = 0;
+  let waitingForPayment = 0;
+
+  for (const entry of entries) {
+    if (entry.status === 'WAITING') waiting += 1;
+    if (entry.status === 'IN_PROGRESS') inProgress += 1;
+    if (entry.status === 'COMPLETED') completed += 1;
+    if (entry.status === 'READY' || entry.status === 'PAID') ready += 1;
+    if (entry.waitingForPayment) waitingForPayment += 1;
+  }
 
   return {
     total,

@@ -55,6 +55,7 @@ function normalizeCollectionResponse<T>(payload: unknown): T[] {
 
 /**
  * Get all doctors for a clinic
+ * ClinicId is resolved server-side from the session cookie to avoid stale client state.
  */
 export async function getDoctors(clinicId: string, filters?: {
   search?: string;
@@ -69,6 +70,10 @@ export async function getDoctors(clinicId: string, filters?: {
     throw new Error('Unauthorized: Authentication required');
   }
 
+  // Resolve authoritative clinicId server-side — the session cookie is always current.
+  const serverClinicId = session.user.clinicId;
+  const resolvedClinicId = serverClinicId || clinicId;
+
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
@@ -78,13 +83,13 @@ export async function getDoctors(clinicId: string, filters?: {
     });
   }
 
-  if (clinicId) {
-    params.append('clinicId', clinicId);
+  if (resolvedClinicId) {
+    params.append('clinicId', resolvedClinicId);
   }
 
   const endpoint = `${API_ENDPOINTS.DOCTORS.GET_ALL}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint, {
-    ...(clinicId ? { headers: { 'X-Clinic-ID': clinicId } } : {}),
+    ...(resolvedClinicId ? { headers: { 'X-Clinic-ID': resolvedClinicId } } : {}),
     cache: 'no-store',
   });
   return normalizeCollectionResponse(data);
@@ -93,13 +98,15 @@ export async function getDoctors(clinicId: string, filters?: {
 /**
  * Get doctor by ID
  */
-export async function getDoctorById(doctorId: string) {
+export async function getDoctorById(doctorId: string, clinicId?: string) {
   const session = await getServerSession();
   if (!session?.user?.id) {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.GET_BY_ID(doctorId), {});
+  const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.GET_BY_ID(doctorId), {
+    ...(clinicId ? { headers: { 'X-Clinic-ID': clinicId } } : {}),
+  });
   return data;
 }
 

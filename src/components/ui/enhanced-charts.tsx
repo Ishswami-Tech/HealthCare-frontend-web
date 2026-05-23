@@ -12,6 +12,9 @@ interface ChartDataPoint {
   metadata?: Record<string, any>;
 }
 
+const getLabelHue = (label: string) =>
+  Array.from(label).reduce((sum, char) => sum + char.charCodeAt(0), 0) % 360;
+
 interface ChartProps {
   data: ChartDataPoint[];
   title?: string;
@@ -110,9 +113,9 @@ const MiniBarChart: React.FC<ChartProps> = ({
 
   return (
     <div className={cn("flex items-end gap-x-1", className)} style={{ height }}>
-      {data.map((item, index) => (
+      {data.map((item) => (
         <div
-          key={index}
+          key={item.label}
           className="flex-1 bg-primary/20 rounded-t-sm transition-all duration-300 hover:bg-primary/40"
           style={{
             height: `${(item.value / maxValue) * 100}%`,
@@ -160,7 +163,7 @@ const MiniLineChart: React.FC<ChartProps> = ({
           const y = height - ((item.value - minValue) / range) * height;
           return (
             <circle
-              key={index}
+              key={item.label}
               cx={x}
               cy={y}
               r="3"
@@ -243,12 +246,12 @@ const DonutChart: React.FC<DonutChartProps> = ({
       {/* Legend */}
       {showLegend && (
         <div className="grid grid-cols-2 gap-2 text-sm">
-          {data.map((item, index) => (
-            <div key={index} className="flex items-center gap-x-2">
-              <div
-                className="size-3 rounded-full"
-                style={{ backgroundColor: item.color || `hsl(${(index * 137.5) % 360}, 70%, 50%)` }}
-              />
+          {data.map((item) => (
+          <div key={item.label} className="flex items-center gap-x-2">
+            <div
+              className="size-3 rounded-full"
+              style={{ backgroundColor: item.color || `hsl(${getLabelHue(item.label)}, 70%, 50%)` }}
+            />
               <span className="text-muted-foreground">{item.label}</span>
               <span className="font-medium">{item.value}</span>
             </div>
@@ -277,6 +280,39 @@ interface MetricChartCardProps {
 
 const EMPTY_CHART_DATA: ChartDataPoint[] = [];
 
+function MetricChartRenderer({
+  loading,
+  chartType,
+  chartData,
+  progress,
+}: {
+  loading: boolean | undefined;
+  chartType: "line" | "bar" | "progress";
+  chartData: ChartDataPoint[];
+  progress: number | undefined;
+}) {
+  if (loading) {
+    return <div className="h-16 bg-muted/20 rounded animate-pulse" />;
+  }
+
+  switch (chartType) {
+    case "line":
+      return <MiniLineChart data={chartData} height={60} />;
+    case "bar":
+      return <MiniBarChart data={chartData} height={60} />;
+    case "progress":
+      return (
+        <ProgressRing
+          progress={progress || 0}
+          size="sm"
+          showPercentage={false}
+        />
+      );
+    default:
+      return null;
+  }
+}
+
 const MetricChartCard: React.FC<MetricChartCardProps> = ({
   title,
   value,
@@ -287,29 +323,6 @@ const MetricChartCard: React.FC<MetricChartCardProps> = ({
   className,
   loading,
 }) => {
-  const renderChart = () => {
-    if (loading) {
-      return <div className="h-16 bg-muted/20 rounded animate-pulse" />;
-    }
-
-    switch (chartType) {
-      case "line":
-        return <MiniLineChart data={chartData} height={60} />;
-      case "bar":
-        return <MiniBarChart data={chartData} height={60} />;
-      case "progress":
-        return (
-          <ProgressRing
-            progress={progress || 0}
-            size="sm"
-            showPercentage={false}
-          />
-        );
-      default:
-        return null;
-    }
-  };
-
   const getTrendIcon = () => {
     if (!change) return null;
     
@@ -334,7 +347,12 @@ const MetricChartCard: React.FC<MetricChartCardProps> = ({
           <p className="text-2xl font-bold">{value}</p>
         </div>
         <div className="flex-shrink-0">
-          {renderChart()}
+          <MetricChartRenderer
+            loading={loading}
+            chartType={chartType}
+            chartData={chartData}
+            progress={progress}
+          />
         </div>
       </div>
       

@@ -3,8 +3,10 @@ export type PaymentProvider = (typeof SUPPORTED_PAYMENT_PROVIDERS)[number];
 
 const configuredProviders =
   process.env.NEXT_PUBLIC_ENABLED_PAYMENT_PROVIDERS?.split(",")
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean) ?? [];
+    .flatMap((value) => {
+      const normalized = value.trim().toLowerCase();
+      return normalized ? [normalized] : [];
+    }) ?? [];
 
 const normalizedConfiguredProviders = configuredProviders.filter((value): value is PaymentProvider =>
   (SUPPORTED_PAYMENT_PROVIDERS as readonly string[]).includes(value)

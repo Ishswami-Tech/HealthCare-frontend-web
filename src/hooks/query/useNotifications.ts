@@ -20,7 +20,7 @@ import { nowIso } from '@/lib/utils/date-time';
  * - Server actions for backend sync
  */
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useMemo, useRef } from "react";
 import { useQueryData, useMutationOperation } from "@/hooks/core";
 import { useWebSocketStatus } from "@/app/providers/WebSocketProvider";
 import { useAuth } from "../auth/useAuth";
@@ -57,6 +57,7 @@ export function useNotifications(enabled: boolean = true) {
     markAllAsRead: markAllAsReadStore,
     removeNotification: removeNotificationStore,
   } = useNotificationStore();
+  const lastSyncedNotificationsSignatureRef = useRef("");
 
   // Fetch notifications from backend using React Query (via core hook)
   const {
@@ -82,46 +83,40 @@ export function useNotifications(enabled: boolean = true) {
     }
   );
 
+  const transformedNotifications = useMemo<Notification[]>(() => {
+    if (!data) return [];
+    const backendNotifications = ((data as any)?.notifications || (data as any)?.data || []) as any[];
+    if (!Array.isArray(backendNotifications) || backendNotifications.length === 0) {
+      return [];
+    }
+
+    return backendNotifications.map((n: any) => ({
+      id: n.id || n.notificationId || `notif-${Date.now()}-${Math.random()}`,
+      userId: n.userId || session?.user?.id || "",
+      type: (n.type || n.category || "SYSTEM") as Notification["type"],
+      title: n.title || n.subject || "Notification",
+      message: n.message || n.body || n.content || "",
+      data: n.data || n.metadata || {},
+      isRead: n.isRead || n.read || false,
+      createdAt: n.createdAt || n.created_at || nowIso(),
+      scheduledFor: n.scheduledFor || n.scheduled_for,
+    }));
+  }, [data, session?.user?.id]);
+
   // Sync backend notifications to Zustand store
   useEffect(() => {
-    if (!data) return;
-
-    const backendNotifications = ((data as any)?.notifications || (data as any)?.data || []) as any[];
-    if (
-      !Array.isArray(backendNotifications) ||
-      backendNotifications.length === 0
-    ) {
+    if (transformedNotifications.length === 0) {
       return;
     }
 
-    // Transform backend notifications to store format
-    const transformedNotifications: Notification[] =
-      backendNotifications.map((n: any) => ({
-        id: n.id || n.notificationId || `notif-${Date.now()}-${Math.random()}`,
-        userId: n.userId || session?.user?.id || "",
-        type: (n.type || n.category || "SYSTEM") as Notification["type"],
-        title: n.title || n.subject || "Notification",
-        message: n.message || n.body || n.content || "",
-        data: n.data || n.metadata || {},
-        isRead: n.isRead || n.read || false,
-        createdAt: n.createdAt || n.created_at || nowIso(),
-        scheduledFor: n.scheduledFor || n.scheduled_for,
-      }));
-
-    // Merge with existing notifications (avoid duplicates by ID)
-    const existingIds = new Set(notifications.map((n) => n.id));
-    const newNotifications = transformedNotifications.filter(
-      (n) => !existingIds.has(n.id)
-    );
-
-    // Update store if there are new notifications or count changed
-    if (
-      newNotifications.length > 0 ||
-      transformedNotifications.length !== notifications.length
-    ) {
-      setNotifications(transformedNotifications);
+    const signature = transformedNotifications.map((notification) => notification.id).join("|");
+    if (signature === lastSyncedNotificationsSignatureRef.current) {
+      return;
     }
-  }, [data, session?.user?.id, setNotifications, notifications]);
+
+    lastSyncedNotificationsSignatureRef.current = signature;
+    setNotifications(transformedNotifications);
+  }, [setNotifications, transformedNotifications]);
 
   // ===== ACTIONS =====
   // Use useMutationOperation for consistent error handling

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useReducer, useState } from "react";
 import { Bell, Calendar, Loader2, QrCode, Search, Stethoscope, UserCheck, Eye, MoreHorizontal, UserMinus } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { format } from "date-fns";
@@ -87,6 +87,69 @@ type ViewAppointment = {
   doctor?: any;
   sortAt: number;
 };
+
+type ReceptionistAppointmentsState = {
+  searchTerm: string;
+  statusFilter: string;
+  queueFilter: string;
+  sortOrder: string;
+  selectedDate: string;
+  selectedLocationId: string | null;
+  activeActionId: string | null;
+  activeDoctorId: string | null;
+  selectedAppointment: ViewAppointment | null;
+};
+
+type ReceptionistAppointmentsAction =
+  | { type: "setSearchTerm"; value: string }
+  | { type: "setStatusFilter"; value: string }
+  | { type: "setQueueFilter"; value: string }
+  | { type: "setSortOrder"; value: string }
+  | { type: "setSelectedDate"; value: string }
+  | { type: "setSelectedLocationId"; value: string | null }
+  | { type: "setActiveActionId"; value: string | null }
+  | { type: "setActiveDoctorId"; value: string | null }
+  | { type: "setSelectedAppointment"; value: ViewAppointment | null };
+
+const initialReceptionistAppointmentsState: ReceptionistAppointmentsState = {
+  searchTerm: "",
+  statusFilter: "all",
+  queueFilter: "all",
+  sortOrder: "date-desc",
+  selectedDate: "",
+  selectedLocationId: null,
+  activeActionId: null,
+  activeDoctorId: null,
+  selectedAppointment: null,
+};
+
+function receptionistAppointmentsReducer(
+  state: ReceptionistAppointmentsState,
+  action: ReceptionistAppointmentsAction
+): ReceptionistAppointmentsState {
+  switch (action.type) {
+    case "setSearchTerm":
+      return { ...state, searchTerm: action.value };
+    case "setStatusFilter":
+      return { ...state, statusFilter: action.value };
+    case "setQueueFilter":
+      return { ...state, queueFilter: action.value };
+    case "setSortOrder":
+      return { ...state, sortOrder: action.value };
+    case "setSelectedDate":
+      return { ...state, selectedDate: action.value };
+    case "setSelectedLocationId":
+      return { ...state, selectedLocationId: action.value };
+    case "setActiveActionId":
+      return { ...state, activeActionId: action.value };
+    case "setActiveDoctorId":
+      return { ...state, activeDoctorId: action.value };
+    case "setSelectedAppointment":
+      return { ...state, selectedAppointment: action.value };
+    default:
+      return state;
+  }
+}
 
 const STATUS_STYLES: Record<string, string> = {
   SCHEDULED: "bg-slate-100 text-slate-800 dark:bg-slate-900/50 dark:text-slate-300",
@@ -177,25 +240,24 @@ export default function ReceptionistAppointmentsPage() {
     return candidate || null;
   }, [session?.user]);
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [queueFilter, setQueueFilter] = useState("all");
-  const [sortOrder, setSortOrder] = useState("date-desc");
-  const [selectedDate, setSelectedDate] = useState("");
-  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
-  const [activeActionId, setActiveActionId] = useState<string | null>(null);
-  const [activeDoctorId, setActiveDoctorId] = useState<string | null>(null);
-  const [selectedAppointment, setSelectedAppointment] = useState<ViewAppointment | null>(null);
+  const [
+    {
+      searchTerm,
+      statusFilter,
+      queueFilter,
+      sortOrder,
+      selectedDate,
+      selectedLocationId,
+      activeActionId,
+      activeDoctorId,
+      selectedAppointment,
+    },
+    dispatch,
+  ] = useReducer(receptionistAppointmentsReducer, initialReceptionistAppointmentsState);
   const checkInMutation = useForceCheckInAppointment();
   const markNoShowMutation = useMarkAppointmentNoShow();
   const reassignAppointmentMutation = useReassignAppointmentDoctor();
   const callNextPatientMutation = useQueueCallNextPatient();
-
-  useEffect(() => {
-    if (assignedLocationId && assignedLocationId !== selectedLocationId) {
-      setSelectedLocationId(assignedLocationId);
-    }
-  }, [assignedLocationId, selectedLocationId]);
 
   const effectiveLocationId = assignedLocationId || selectedLocationId;
 
@@ -214,20 +276,32 @@ export default function ReceptionistAppointmentsPage() {
 
   const assignableDoctors = useMemo(() => {
     const normalize = (users: any[]) =>
-      users
-        .map((user) => {
-          const role = String(user.role || user.doctor?.user?.role || "").toUpperCase();
-          return {
-            id: user.doctor?.id || user.id,
-            name:
-              user.name ||
-              user.doctor?.user?.name ||
-              `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
-              "Unknown Doctor",
-            role,
-          };
-        })
-        .filter((doctor) => doctor.id && (doctor.role === "DOCTOR" || doctor.role === "ASSISTANT_DOCTOR"));
+      users.reduce<
+        Array<{
+          id: string;
+          name: string;
+          role: string;
+        }>
+      >((acc, user) => {
+        const role = String(user.role || user.doctor?.user?.role || "").toUpperCase();
+        const id = String(user.doctor?.id || user.id || "");
+
+        if (!id || (role !== "DOCTOR" && role !== "ASSISTANT_DOCTOR")) {
+          return acc;
+        }
+
+        acc.push({
+          id,
+          name:
+            user.name ||
+            user.doctor?.user?.name ||
+            `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
+            "Unknown Doctor",
+          role,
+        });
+
+        return acc;
+      }, []);
 
     if (Array.isArray(doctorsData)) return normalize(doctorsData);
     if (Array.isArray((doctorsData as any)?.data?.doctors)) return normalize((doctorsData as any).data.doctors);
@@ -235,7 +309,7 @@ export default function ReceptionistAppointmentsPage() {
   }, [doctorsData]);
 
   const appointments = useMemo(() => {
-    const raw = Array.isArray(appointmentsData)
+    const raw: any[] = Array.isArray(appointmentsData)
       ? appointmentsData
       : (appointmentsData as any)?.appointments || [];
     const serviceMap = new Map(
@@ -249,9 +323,14 @@ export default function ReceptionistAppointmentsPage() {
       ])
     );
 
-    return raw
-      .filter(shouldShowAppointmentOnReceptionDashboard)
-      .map((appointment: any) => normalizeAppointment(appointment, serviceMap));
+    return raw.reduce<ViewAppointment[]>((acc, appointment: any) => {
+      if (!shouldShowAppointmentOnReceptionDashboard(appointment)) {
+        return acc;
+      }
+
+      acc.push(normalizeAppointment(appointment, serviceMap));
+      return acc;
+    }, []);
   }, [appointmentsData, serviceCatalog]);
 
   const filteredAppointments = useMemo(() => {
@@ -267,7 +346,7 @@ export default function ReceptionistAppointmentsPage() {
         !assignedLocationId || !appointment.locationId || appointment.locationId === assignedLocationId;
       return matchesSearch && matchesStatus && matchesQueue && matchesAssignedLocation;
     });
-    return [...base].sort((left, right) => {
+    return base.toSorted((left: ViewAppointment, right: ViewAppointment) => {
       if (sortOrder === "date-asc") return left.sortAt - right.sortAt;
       if (sortOrder === "patient-asc") return left.patientName.localeCompare(right.patientName);
       if (sortOrder === "patient-desc") return right.patientName.localeCompare(left.patientName);
@@ -281,23 +360,25 @@ export default function ReceptionistAppointmentsPage() {
         (group) => String(group.key || "").toLowerCase() === "treatments"
       );
       const backendLabels =
-        treatmentGroup?.filters
-          ?.map((option: { label?: string; value?: string }) => option.label || option.value)
-          .filter((label: string | undefined): label is string => Boolean(label)) || [];
+        treatmentGroup?.filters?.reduce<string[]>((acc, option: { label?: string; value?: string }) => {
+          const label = option.label || option.value;
+          if (label) {
+            acc.push(label);
+          }
+          return acc;
+        }, []) || [];
 
       if (backendLabels.length > 0) {
-        return [...new Set(backendLabels)].sort();
+        return Array.from(new Set(backendLabels)).toSorted();
       }
 
-      return (
-        Array.from(
-          new Set(
-            appointments
-              .map((appointment: ViewAppointment) => appointment.queueType)
-              .filter((queueType: string) => Boolean(queueType))
-          )
-        ) as string[]
-      ).sort();
+      const queueTypes = new Set<string>();
+      for (const appointment of appointments) {
+        if (appointment.queueType) {
+          queueTypes.add(appointment.queueType);
+        }
+      }
+      return Array.from(queueTypes).toSorted();
     },
     [appointments, typedQueueFilterCatalog]
   );
@@ -434,7 +515,7 @@ export default function ReceptionistAppointmentsPage() {
       });
       return;
     }
-    setActiveActionId(appointmentId);
+    dispatch({ type: "setActiveActionId", value: appointmentId });
     try {
       await checkInMutation.mutateAsync({
         appointmentId,
@@ -443,17 +524,17 @@ export default function ReceptionistAppointmentsPage() {
       });
       await refetch?.();
     } finally {
-      setActiveActionId(null);
+      dispatch({ type: "setActiveActionId", value: null });
     }
   }
 
   async function handleMarkNoShow(appointmentId: string) {
-    setActiveActionId(appointmentId);
+    dispatch({ type: "setActiveActionId", value: appointmentId });
     try {
       await markNoShowMutation.mutateAsync(appointmentId);
       await refetch?.();
     } finally {
-      setActiveActionId(null);
+      dispatch({ type: "setActiveActionId", value: null });
     }
   }
 
@@ -462,17 +543,17 @@ export default function ReceptionistAppointmentsPage() {
       showErrorToast("No queued patient is available for this doctor", { id: TOAST_IDS.QUEUE.CALL_NEXT });
       return;
     }
-    setActiveDoctorId(doctorId);
+    dispatch({ type: "setActiveDoctorId", value: doctorId });
     try {
       await callNextPatientMutation.mutateAsync({ doctorId, appointmentId });
       await refetch?.();
     } finally {
-      setActiveDoctorId(null);
+      dispatch({ type: "setActiveDoctorId", value: null });
     }
   }
 
   async function handleReassignDoctor(appointmentId: string, doctorId: string) {
-    setActiveActionId(appointmentId);
+    dispatch({ type: "setActiveActionId", value: appointmentId });
     try {
       await reassignAppointmentMutation.mutateAsync({
         appointmentId,
@@ -481,7 +562,7 @@ export default function ReceptionistAppointmentsPage() {
       });
       await refetch?.();
     } finally {
-      setActiveActionId(null);
+      dispatch({ type: "setActiveActionId", value: null });
     }
   }
 
@@ -579,7 +660,7 @@ export default function ReceptionistAppointmentsPage() {
               </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => setSelectedAppointment(appointment)}>
+                <DropdownMenuItem onClick={() => dispatch({ type: "setSelectedAppointment", value: appointment })}>
                   <Eye className="mr-2 size-4" /> View Details
                 </DropdownMenuItem>
                 
@@ -625,7 +706,7 @@ export default function ReceptionistAppointmentsPage() {
         eyebrow="Reception Appointments"
         title="Reception Queue Workspace"
         description="Unified workspace for appointment management, queue flow, and doctor reassignment."
-        meta={<span className="text-sm font-medium text-muted-foreground">Showing {filteredAppointments.length} of {appointments.length} appointments</span>}
+        meta={`Showing ${filteredAppointments.length} of ${appointments.length} appointments`}
         actionsSlot={
           <Button asChild variant="outline">
             <Link href="/receptionist/check-in" prefetch={false}>
@@ -673,12 +754,12 @@ export default function ReceptionistAppointmentsPage() {
                     placeholder="Search patient, doctor..."
                     className="pl-8 h-9 text-sm border-border bg-background focus:ring-emerald-500/20"
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => dispatch({ type: "setSearchTerm", value: e.target.value })}
                   />
                 </div>
 
                 {/* Status */}
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <Select value={statusFilter} onValueChange={(value) => dispatch({ type: "setStatusFilter", value })}>
                   <SelectTrigger className="h-9 w-[130px] shrink-0 border-border bg-background text-sm">
                     <SelectValue placeholder="All Status" />
                   </SelectTrigger>
@@ -694,7 +775,7 @@ export default function ReceptionistAppointmentsPage() {
                 </Select>
 
                 {/* Sort */}
-                <Select value={sortOrder} onValueChange={setSortOrder}>
+                <Select value={sortOrder} onValueChange={(value) => dispatch({ type: "setSortOrder", value })}>
                   <SelectTrigger className="h-9 w-[130px] shrink-0 border-border bg-background text-sm">
                     <SelectValue placeholder="Sort" />
                   </SelectTrigger>
@@ -707,7 +788,7 @@ export default function ReceptionistAppointmentsPage() {
                 </Select>
 
                 {/* Queue */}
-                <Select value={queueFilter} onValueChange={setQueueFilter}>
+                <Select value={queueFilter} onValueChange={(value) => dispatch({ type: "setQueueFilter", value })}>
                   <SelectTrigger className="h-9 w-[120px] shrink-0 border-border bg-background text-sm">
                     <SelectValue placeholder="All Queues" />
                   </SelectTrigger>
@@ -723,7 +804,7 @@ export default function ReceptionistAppointmentsPage() {
                 {!assignedLocationId && locations.length > 1 && (
                   <Select
                     value={selectedLocationId || "all"}
-                    onValueChange={(val) => setSelectedLocationId(val === "all" ? null : val)}
+                    onValueChange={(val) => dispatch({ type: "setSelectedLocationId", value: val === "all" ? null : val })}
                   >
                     <SelectTrigger className="h-9 w-[130px] shrink-0 border-border bg-background text-sm">
                       <SelectValue placeholder="All Locations" />
@@ -752,8 +833,11 @@ export default function ReceptionistAppointmentsPage() {
                       mode="single"
                       selected={selectedCalendarDate}
                       onSelect={(date) => {
-                        if (!date) { setSelectedDate(""); return; }
-                        setSelectedDate(format(date, "yyyy-MM-dd"));
+                        if (!date) {
+                          dispatch({ type: "setSelectedDate", value: "" });
+                          return;
+                        }
+                        dispatch({ type: "setSelectedDate", value: format(date, "yyyy-MM-dd") });
                       }}
                     />
                     <div className="border-t p-2">
@@ -761,7 +845,7 @@ export default function ReceptionistAppointmentsPage() {
                         variant="ghost"
                         size="sm"
                         className="w-full justify-center text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                        onClick={() => setSelectedDate("")}
+                        onClick={() => dispatch({ type: "setSelectedDate", value: "" })}
                       >
                         Clear date filter
                       </Button>
@@ -824,7 +908,7 @@ export default function ReceptionistAppointmentsPage() {
       <Dialog
         open={!!selectedAppointment}
         onOpenChange={(open) => {
-          if (!open) setSelectedAppointment(null);
+          if (!open) dispatch({ type: "setSelectedAppointment", value: null });
         }}
       >
         <DialogContent className="max-w-2xl">

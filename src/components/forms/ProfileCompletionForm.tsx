@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect, useRef, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
@@ -51,6 +51,7 @@ import type { Session } from "@/types/auth.types";
 import { clinicApiClient } from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/config/config";
 import { logger } from "@/lib/utils/logger";
+import { useCurrentTimestamp } from "@/hooks/utils/useClientDate";
 
 interface ProfileCompletionFormProps {
   onComplete?: () => void;
@@ -235,44 +236,80 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
   );
 }
 
-export default function ProfileCompletionForm({
+function ProfileCompletionFormContent({
   onComplete,
 }: ProfileCompletionFormProps) {
-  const router = useRouter();
+  const { push } = useRouter();
   const searchParams = useSearchParams();
   const { session } = useAuth();
+  const sessionUser = session?.user;
   const queryClient = useQueryClient();
   const setProfileCompletion = useAuthStore((state) => state.setProfileCompletion);
+  const currentTimestamp = useCurrentTimestamp();
+  const getSearchParam = useMemo(() => searchParams.get.bind(searchParams), [searchParams]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [pendingPhone, setPendingPhone] = useState("");
+  const hasInitializedRef = useRef(false);
 
   // Login method flags (must be defined before useState hooks that use them)
-  const loginMethod = session?.user?.loginMethod;
+  const loginMethod = sessionUser?.loginMethod;
   const isGoogleLogin = loginMethod === 'google_oauth';
   const isEmailOtpLogin = loginMethod === 'email_otp';
   const isPhoneOtpLogin = loginMethod === 'phone_otp';
-  const autoFilledFirstName = session?.user?.firstName || '';
-  const autoFilledLastName = session?.user?.lastName || '';
-  const autoFilledEmail = session?.user?.email || '';
+
+  // Check if a value looks like a valid name (not email or phone)
+  const looksLikeValidName = (value: string | undefined | null): boolean => {
+    if (!value) return false;
+    // Check if it looks like an email (contains @)
+    if (value.includes('@')) return false;
+    // Check if it looks like a phone number (mostly digits with optional +)
+    if (/^\+?[\d\s\-()]{7,}$/.test(value)) return false;
+    return value.trim().length > 0;
+  };
+
+  // For Google login, extract name from the full name field
+  const getAutoFirstName = () => {
+    // Only use firstName if it looks like a valid name
+    if (looksLikeValidName(sessionUser?.firstName)) {
+      return sessionUser?.firstName || "";
+    }
+    if (isGoogleLogin && sessionUser?.name) {
+      const parts = sessionUser.name.split(' ');
+      return parts[0] || '';
+    }
+    return '';
+  };
+
+  const getAutoLastName = () => {
+    // Only use lastName if it looks like a valid name
+    if (looksLikeValidName(sessionUser?.lastName)) {
+      return sessionUser?.lastName || "";
+    }
+    if (isGoogleLogin && sessionUser?.name) {
+      const parts = sessionUser.name.split(' ');
+      parts.shift(); // Remove first name
+      return parts.join(' ');
+    }
+    return '';
+  };
+
+  const autoFilledFirstName = getAutoFirstName();
+  const autoFilledLastName = getAutoLastName();
+  const autoFilledEmail = sessionUser?.email || '';
 
   const [isPhoneVerified, setIsPhoneVerified] = useState(
-    Boolean(
-      session?.user?.phoneVerified ||
-      isPhoneOtpLogin ||  // Phone OTP login = phone already verified
-      isGoogleLogin       // Google login = phone verified during auth
-    )
+    Boolean(sessionUser?.phoneVerified)
   );
   const [isEmailVerified, setIsEmailVerified] = useState(
     Boolean(
-      session?.user?.emailVerified ||
+      sessionUser?.emailVerified ||
       isEmailOtpLogin    // Email OTP login = email already verified
     )
   );
 
-  const redirectUrl = searchParams.get("redirect") || "/";
+  const redirectUrl = getSearchParam("redirect") || "/";
 
   const formatPhoneNumber = (phone: string | undefined | null) => {
     if (!phone) return "";
@@ -289,7 +326,7 @@ export default function ProfileCompletionForm({
       firstName: autoFilledFirstName,
       lastName: autoFilledLastName,
       email: autoFilledEmail,
-      phone: formatPhoneNumber(session?.user?.phone),
+      phone: formatPhoneNumber(sessionUser?.phone),
       dateOfBirth: "",
       gender: "male",
       address: "",
@@ -306,42 +343,45 @@ export default function ProfileCompletionForm({
   const watchedPhone = form.watch("phone");
 
   useEffect(() => {
-    setIsPhoneVerified(
-      Boolean(
-        session?.user?.phoneVerified ||
-        isPhoneOtpLogin ||
-        isGoogleLogin
-      )
-    );
+    setIsPhoneVerified(Boolean(sessionUser?.phoneVerified));
     setIsEmailVerified(
       Boolean(
-        session?.user?.emailVerified ||
+        sessionUser?.emailVerified ||
         isEmailOtpLogin
       )
     );
   }, [
-    session?.user?.phoneVerified,
-    session?.user?.emailVerified,
-    isPhoneOtpLogin,
-    isEmailOtpLogin,
-    isGoogleLogin
+    sessionUser?.phoneVerified,
+    sessionUser?.emailVerified,
+    isEmailOtpLogin
   ]);
 
   useEffect(() => {
     if (!watchedPhone) return;
-    if (watchedPhone !== formatPhoneNumber(session?.user?.phone)) {
+    if (watchedPhone !== formatPhoneNumber(sessionUser?.phone)) {
       setIsPhoneVerified(false);
     }
-  }, [watchedPhone, session?.user?.phone]);
+  }, [watchedPhone, sessionUser?.phone]);
 
   useEffect(() => {
-    if (!session?.user || isInitialized) return;
-    const resolvedNames = resolveNameParts(session.user);
+    if (!sessionUser || hasInitializedRef.current) return;
+    const resolvedNames = resolveNameParts(sessionUser);
+    // For Google login, also check the full name field
+    const firstName = resolvedNames.firstName || autoFilledFirstName;
+    const lastName = resolvedNames.lastName || autoFilledLastName;
+    // If still empty for Google login, try to split the full name
+    let finalFirstName = firstName;
+    let finalLastName = lastName;
+    if (isGoogleLogin && (!finalFirstName || !finalLastName) && sessionUser.name) {
+      const parts = sessionUser.name.split(' ');
+      finalFirstName = finalFirstName || parts[0] || '';
+      finalLastName = finalLastName || parts.slice(1).join(' ') || '';
+    }
     form.reset({
-      firstName: resolvedNames.firstName || autoFilledFirstName,
-      lastName: resolvedNames.lastName || autoFilledLastName,
-      email: session.user.email || autoFilledEmail,
-      phone: formatPhoneNumber(session.user.phone),
+      firstName: finalFirstName,
+      lastName: finalLastName,
+      email: sessionUser.email || autoFilledEmail,
+      phone: formatPhoneNumber(sessionUser.phone),
       dateOfBirth: "",
       gender: "male" as const,
       address: "",
@@ -353,8 +393,8 @@ export default function ProfileCompletionForm({
       clinicName: "",
       clinicAddress: "",
     });
-    setIsInitialized(true);
-  }, [session, form, isInitialized]);
+    hasInitializedRef.current = true;
+  }, [sessionUser, form, isGoogleLogin, autoFilledFirstName, autoFilledLastName, autoFilledEmail]);
 
   const updateProfileMutation = useUpdateUserProfile();
   const setProfileCompleteMutation = useSetProfileComplete();
@@ -379,7 +419,7 @@ export default function ProfileCompletionForm({
       setIsSendingOtp(true);
       await clinicApiClient.requestOTP({
         identifier: phone,
-        ...(session?.user?.clinicId ? { clinicId: session.user.clinicId } : {}),
+        ...(sessionUser?.clinicId ? { clinicId: sessionUser.clinicId } : {}),
       });
       setPendingPhone(phone);
       setShowOtpModal(true);
@@ -448,7 +488,7 @@ export default function ProfileCompletionForm({
         if (onComplete) {
           onComplete();
         } else {
-          const userRole = session?.user?.role as Role;
+          const userRole = sessionUser?.role as Role;
           const finalRedirect = getProfileCompletionRedirectUrl(userRole, redirectUrl);
           window.location.replace(finalRedirect);
         }
@@ -530,7 +570,7 @@ export default function ProfileCompletionForm({
       }
 
       let roleSpecificData = {};
-      const userRole = session?.user?.role;
+      const userRole = sessionUser?.role;
       if (userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR) {
         roleSpecificData = {
           specialization: data.specialization,
@@ -573,7 +613,7 @@ export default function ProfileCompletionForm({
             id: TOAST_IDS.AUTH.LOGIN,
             duration: 5000,
           });
-          router.push(ROUTES.LOGIN);
+          push(ROUTES.LOGIN);
         } else if (error.message.includes("500") || error.message.includes("Server encountered an error")) {
           showErrorToast(
             "The server encountered an error. Please try again in a few moments.",
@@ -596,10 +636,10 @@ export default function ProfileCompletionForm({
     }
   };
 
-  const userRole = session?.user?.role as Role;
+  const userRole = sessionUser?.role as Role;
   const isDoctor = userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR;
 
-  if (!isInitialized) {
+  if (!sessionUser || !hasInitializedRef.current) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="flex flex-col items-center gap-3">
@@ -775,7 +815,7 @@ export default function ProfileCompletionForm({
                     control={form.control}
                     name="dateOfBirth"
                     render={({ field }) => {
-                      const today = new Date();
+                      const today = currentTimestamp ? new Date(currentTimestamp) : new Date(0);
                       const maxDate = new Date(today.getFullYear() - 12, today.getMonth(), today.getDate());
                       const minDate = new Date(today.getFullYear() - 100, today.getMonth(), today.getDate());
                       return (
@@ -808,7 +848,8 @@ export default function ProfileCompletionForm({
                                 selected={field.value ? new Date(field.value) : undefined}
                                 onSelect={(date) => {
                                   if (!date) return;
-                                  const today = new Date();
+                                  if (!currentTimestamp) return;
+                                  const today = new Date(currentTimestamp);
                                   let age = today.getFullYear() - date.getFullYear();
                                   const m = today.getMonth() - date.getMonth();
                                   if (m < 0 || (m === 0 && today.getDate() < date.getDate())) age--;
@@ -996,7 +1037,7 @@ export default function ProfileCompletionForm({
                 {isSubmitting || updatingProfile ? (
                   <>
                     <Loader2 className="mr-2 size-4 sm:h-3.5 animate-spin" />
-                    <span className="hidden sm:inline">Completing Profile...</span>
+                    <span className="hidden sm:inline">Completing Profile…</span>
                     <span className="sm:hidden">Submitting…</span>
                   </>
                 ) : (
@@ -1016,6 +1057,14 @@ export default function ProfileCompletionForm({
         onVerified={handlePhoneVerified}
       />
     </div>
+  );
+}
+
+export default function ProfileCompletionForm(props: ProfileCompletionFormProps) {
+  return (
+    <Suspense fallback={null}>
+      <ProfileCompletionFormContent {...props} />
+    </Suspense>
   );
 }
 

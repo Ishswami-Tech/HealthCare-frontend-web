@@ -1,15 +1,9 @@
 "use client";
-import { nowIso } from '@/lib/utils/date-time';
+
+import Image from "next/image";
 
 import { useEffect, useReducer } from "react";
-import {
-  Instagram,
-  Heart,
-  MessageCircle,
-  Share,
-  Bookmark,
-  ExternalLink,
-} from "lucide-react";
+import { Bookmark, ExternalLink, Heart, Instagram, MessageCircle, Share } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import { extractInstagramPostId } from "@/components/media/instagram-post-utils";
@@ -120,11 +114,11 @@ export function InstagramPost({
           id: postId || "mock-id",
           caption:
             "Experience the healing power of traditional Ayurveda with Dr.Chandrakumar Deshmukh. Dr. Chandrakumar Deshmukh specializes in Panchakarma, Viddhakarma, and Agnikarma treatments for holistic wellness. Book your consultation today! #Ayurveda #NaturalHealing #Wellness #Panchakarma #TraditionalMedicine",
-          media_url:
+            media_url:
             "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=400&h=400&fit=crop",
           media_type: "IMAGE",
           permalink: postUrl,
-          timestamp: nowIso(),
+          timestamp: new Date().toISOString(),
           username: "drchandrakumardeshmukh",
           likes_count: 127,
           comments_count: 23,
@@ -236,6 +230,7 @@ export function InstagramPost({
           </div>
         </div>
         <button
+          type="button"
           onClick={handleOpenInstagram}
           className="p-1 hover:bg-gray-100 rounded-full transition-colors"
           aria-label="Open on Instagram"
@@ -246,11 +241,12 @@ export function InstagramPost({
 
       {/* Post Media */}
       <div className={cn("relative", aspectRatioClasses[aspectRatio])}>
-        <img
+        <Image
           src={postData.media_url}
           alt="Instagram post"
-          className="absolute inset-0 w-full h-full object-cover"
-          loading="lazy"
+          fill
+          className="absolute inset-0 object-cover"
+          sizes="(max-width: 768px) 100vw, 33vw"
         />
         {postData.media_type === "VIDEO" && (
           <div className="absolute inset-0 flex items-center justify-center">
@@ -266,18 +262,21 @@ export function InstagramPost({
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-4">
             <button
+              type="button"
               className="hover:text-red-500 transition-colors"
               aria-label="Like"
             >
               <Heart className="size-6" />
             </button>
             <button
+              type="button"
               className="hover:text-blue-500 transition-colors"
               aria-label="Comment"
             >
               <MessageCircle className="size-6" />
             </button>
             <button
+              type="button"
               className="hover:text-green-500 transition-colors"
               aria-label="Share"
             >
@@ -285,6 +284,7 @@ export function InstagramPost({
             </button>
           </div>
           <button
+            type="button"
             className="hover:text-gray-700 transition-colors"
             aria-label="Save"
           >
@@ -313,6 +313,7 @@ export function InstagramPost({
             </p>
             {postData.caption.length > maxCaptionLength && (
               <button
+                type="button"
                 onClick={() => dispatch({ type: "TOGGLE_CAPTION" })}
                 className="text-gray-500 hover:text-gray-700 mt-1"
               >
@@ -324,6 +325,7 @@ export function InstagramPost({
 
         {/* View on Instagram */}
         <button
+          type="button"
           onClick={handleOpenInstagram}
           className="mt-3 text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1"
         >

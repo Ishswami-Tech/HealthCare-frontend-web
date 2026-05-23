@@ -46,7 +46,6 @@ import {
   useUpdateClinicLocation,
   useDeleteClinicLocation,
 } from "@/hooks/query/useClinics";
-import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
   Plus,
@@ -819,13 +818,7 @@ export default function ClinicLocationsPage() {
         eyebrow="Clinic Admin"
         title="Clinic Locations"
         description="Manage your clinic locations and branches"
-        meta={
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>{filteredLocations.length} of {locations.length} locations</span>
-            <span className="size-1 rounded-full bg-muted-foreground/50" />
-            <WebSocketStatusIndicator />
-          </div>
-        }
+        meta={`${filteredLocations.length} of ${locations.length} locations`}
         actionsSlot={
           <Dialog
             open={isCreateDialogOpen}
@@ -1035,7 +1028,7 @@ export default function ClinicLocationsPage() {
                         />
                       </div>
                     </div>
-                    <div className="flex items-center justify-between rounded-lg border border-teal-200 bg-white/80 px-3 py-3 dark:border-teal-900/70 dark:bg-background/40">
+                    <div className="flex items-center justify-between rounded-lg border border-teal-200 bg-white/80 p-3 dark:border-teal-900/70 dark:bg-background/40">
                       <Label>Active Status</Label>
                       <Switch
                         checked={newLocation.isActive}
@@ -1090,7 +1083,7 @@ export default function ClinicLocationsPage() {
                       />
                     </div>
                   </div>
-                  <DialogFooter className="sticky bottom-0 border-t border-teal-200 bg-white/90 px-4 py-4 dark:border-teal-900/70 dark:bg-background/90 sm:px-6">
+                  <DialogFooter className="sticky bottom-0 border-t border-teal-200 bg-white/90 p-4 dark:border-teal-900/70 dark:bg-background/90 sm:px-6">
                     <Button
                       variant="outline"
                       onClick={() => setIsCreateDialogOpen(false)}
@@ -1356,7 +1349,7 @@ export default function ClinicLocationsPage() {
                       />
                     </div>
                   </div>
-                  <div className="flex items-center justify-between rounded-lg border border-teal-200 bg-white/80 px-3 py-3 dark:border-teal-900/70 dark:bg-background/40">
+                  <div className="flex items-center justify-between rounded-lg border border-teal-200 bg-white/80 p-3 dark:border-teal-900/70 dark:bg-background/40">
                     <Label>Active Status</Label>
                     <Switch
                       checked={selectedLocation.isActive}
@@ -1415,7 +1408,7 @@ export default function ClinicLocationsPage() {
                   </div>
                 </div>
               )}
-              <DialogFooter className="sticky bottom-0 border-t border-teal-200 bg-white/90 px-4 py-4 dark:border-teal-900/70 dark:bg-background/90 sm:px-6">
+              <DialogFooter className="sticky bottom-0 border-t border-teal-200 bg-white/90 p-4 dark:border-teal-900/70 dark:bg-background/90 sm:px-6">
                 <Button
                   variant="outline"
                   onClick={() => setIsEditDialogOpen(false)}

@@ -2,7 +2,7 @@
 
 import { useDetailedHealthStatus } from "@/hooks/query/useHealth";
 import { cn } from "@/lib/utils/index";
-import { motion } from "framer-motion";
+import { LazyMotion, domAnimation, m } from "framer-motion";
 import Link from "next/link";
 
 export function MinimalStatusIndicator({ className }: { className?: string }) {
@@ -67,28 +67,30 @@ export function MinimalStatusIndicator({ className }: { className?: string }) {
   }
 
   return (
-    <Link href="/status" prefetch={false} className={cn("inline-flex items-center group", className)}>
-      <motion.div 
-        className={cn(
-          "flex items-center gap-2 px-3 py-1.5 rounded-full border shadow-sm transition-all cursor-pointer",
-          status === 'operational' 
-            ? "bg-emerald-50 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:border-emerald-800 dark:hover:bg-emerald-950/50" 
-            : "bg-background/50 backdrop-blur-sm hover:bg-accent/50",
-          status === 'down' && "border-red-500/20 bg-red-50 text-red-700",
-          status === 'degraded' && "border-amber-500/20 bg-amber-50 text-amber-700"
-        )}
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-      >
-        <span className="relative flex size-2.5">
-          <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", statusColor)}></span>
-          <span className={cn("relative inline-flex rounded-full size-2.5", statusColor)}></span>
-        </span>
-        <span className={cn("text-xs font-medium tracking-wide", textColor)}>
-          {label}
-        </span>
-      </motion.div>
-    </Link>
+    <LazyMotion features={domAnimation}>
+      <Link href="/status" prefetch={false} className={cn("inline-flex items-center group", className)}>
+        <m.div 
+          className={cn(
+            "flex items-center gap-2 px-3 py-1.5 rounded-full border shadow-sm transition-all cursor-pointer",
+            status === 'operational' 
+              ? "bg-emerald-50 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:border-emerald-800 dark:hover:bg-emerald-950/50" 
+              : "bg-background/50 backdrop-blur-sm hover:bg-accent/50",
+            status === 'down' && "border-red-500/20 bg-red-50 text-red-700",
+            status === 'degraded' && "border-amber-500/20 bg-amber-50 text-amber-700"
+          )}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <span className="relative flex size-2.5">
+            <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", statusColor)}></span>
+            <span className={cn("relative inline-flex rounded-full size-2.5", statusColor)}></span>
+          </span>
+          <span className={cn("text-xs font-medium tracking-wide", textColor)}>
+            {label}
+          </span>
+        </m.div>
+      </Link>
+    </LazyMotion>
   );
 }
 

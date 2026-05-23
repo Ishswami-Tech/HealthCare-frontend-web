@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { Fragment, useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion, AnimatePresence } from "motion/react";
+import { LazyMotion, domAnimation, m, AnimatePresence } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useTranslation, useLanguageSwitcher } from "@/lib/i18n/context";
@@ -31,6 +32,62 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
+type NavigationItem = {
+  name: string;
+  href: string;
+};
+
+type MobileTreatmentsAccordionProps = {
+  subItems?: NavigationItem[];
+  pathname: string;
+  onSelect: () => void;
+};
+
+type MobileTreatmentLinkProps = {
+  subItem: NavigationItem;
+  pathname: string;
+  onSelect: () => void;
+};
+
+const MobileTreatmentLink = ({
+  subItem,
+  pathname,
+  onSelect,
+}: MobileTreatmentLinkProps) => (
+  <Link
+    href={subItem.href}
+    prefetch={false}
+    className={cn(
+      "block text-sm text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 py-2 px-3 rounded-lg transition-all duration-200 border border-transparent hover:border-orange-200 dark:hover:border-orange-800",
+      pathname === subItem.href &&
+        "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800"
+    )}
+    onClick={onSelect}
+  >
+    <span className="flex items-center gap-x-2">
+      <span className="size-1.5 rounded-full bg-orange-400" />
+      <span>{subItem.name}</span>
+    </span>
+  </Link>
+);
+
+const MobileTreatmentsAccordion = ({
+  subItems,
+  pathname,
+  onSelect,
+}: MobileTreatmentsAccordionProps) => (
+  <div className="ml-4 gap-y-1 py-2">
+    {subItems?.map((subItem) => (
+      <MobileTreatmentLink
+        key={subItem.name}
+        subItem={subItem}
+        pathname={pathname}
+        onSelect={onSelect}
+      />
+    ))}
+  </div>
+);
+
 const Navigation = () => {
   const mounted = useHydrated();
   const [isScrolled, setIsScrolled] = useState(false);
@@ -42,7 +99,7 @@ const Navigation = () => {
   const { t } = useTranslation();
   const { setLanguage, language: currentLanguage } = useLanguageSwitcher();
   const { session, isAuthenticated, logout } = useAuth();
-  const router = useRouter();
+  const { push } = useRouter();
   const isAuthEnabled = APP_CONFIG.AUTH.ENABLED;
 
   // Get current language short form
@@ -130,17 +187,17 @@ const Navigation = () => {
 
   // Authentication handlers
   const handleLogin = () => {
-    router.push(ROUTES.LOGIN);
+    push(ROUTES.LOGIN);
   };
 
   const handleRegister = () => {
-    router.push(ROUTES.LOGIN);
+    push(ROUTES.LOGIN);
   };
 
   const handleLogout = async () => {
     try {
       await logout();
-      router.push(ROUTES.HOME);
+      push(ROUTES.HOME);
     } catch (error) {
       console.error("Logout failed:", error);
     }
@@ -148,12 +205,12 @@ const Navigation = () => {
 
   const handleDashboardNavigation = () => {
     if (!isAuthenticated || !session) {
-      router.push(ROUTES.LOGIN);
+      push(ROUTES.LOGIN);
       return;
     }
     // ✅ Use centralized getDashboardByRole function for consistency
     const dashboardPath = getDashboardByRole(session.user.role as Role);
-    router.push(dashboardPath);
+    push(dashboardPath);
   };
 
   const treatmentsSubItems = [
@@ -264,7 +321,8 @@ const Navigation = () => {
       </div>
 
       {/* Main Navigation */}
-      <motion.nav
+      <LazyMotion features={domAnimation}>
+      <m.nav
         className={cn(
           "sticky top-0 z-50 transition-all duration-300",
           isScrolled
@@ -303,18 +361,22 @@ const Navigation = () => {
                 prefetch={false}
                 className="flex items-center gap-x-2 sm:gap-x-3 touch-manipulation"
               >
-                  <motion.div className="size-14 sm:w-16 sm:h-16 flex items-center justify-center overflow-hidden shrink-0 rounded-2xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
-                    <img
+                  <m.div className="relative size-14 sm:w-16 sm:h-16 flex items-center justify-center overflow-hidden shrink-0 rounded-2xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
+                    <Image
                       src="/assets/logo/logowithoutbackground.png"
                       alt={t("navigation.clinicName")}
-                      className="w-full h-full object-cover dark:hidden"
+                      fill
+                      sizes="56px"
+                      className="object-cover dark:hidden"
                     />
-                    <img
+                    <Image
                       src="/assets/logo/dark-logo-withoutborder.png"
                       alt={t("navigation.clinicName")}
-                      className="hidden dark:block w-full h-full object-cover"
+                      fill
+                      sizes="56px"
+                      className="hidden object-cover dark:block"
                     />
-                  </motion.div>
+                  </m.div>
                   <div className="hidden sm:block min-w-0">
                     <h1 className="font-playfair text-base sm:text-lg lg:text-lg font-semibold text-gray-900 dark:text-white leading-tight truncate">
                       {t("navigation.clinicName")}
@@ -329,7 +391,7 @@ const Navigation = () => {
             {/* Center Navigation */}
             <div className="hidden lg:flex items-center gap-x-4 xl:gap-x-6 flex-1 justify-center max-w-3xl">
               {navItems.map((item, index) => (
-                <motion.div
+                <m.div
                   key={item.name}
                   initial={{ opacity: 0, y: -20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -345,30 +407,31 @@ const Navigation = () => {
                       className="relative rounded-lg transition-all duration-200 hover:bg-orange-50/50 dark:hover:bg-orange-900/10 px-2 py-1"
                       onMouseEnter={handleMouseEnter}
                       onMouseLeave={handleMouseLeave}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          setIsTreatmentsDropdownOpen(
-                            !isTreatmentsDropdownOpen
-                          );
-                        }
-                      }}
                     >
-                      <Link
-                        href={item.href}
-                        prefetch={false}
+                      <button
+                        type="button"
                         className={cn(
-                          "text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 font-medium transition-colors duration-200 relative group text-sm lg:text-sm xl:text-sm whitespace-nowrap flex items-center gap-x-1",
+                          "text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 font-medium transition-colors duration-200 relative group text-sm lg:text-sm xl:text-sm whitespace-nowrap flex items-center gap-x-1 text-left w-full",
                           (pathname === item.href ||
                             item.subItems?.some(
                               (subItem) => pathname === subItem.href
                             )) &&
                             "text-orange-600 dark:text-orange-400"
                         )}
+                        onClick={() => push(item.href)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setIsTreatmentsDropdownOpen(
+                              !isTreatmentsDropdownOpen
+                            );
+                          }
+                        }}
+                        aria-haspopup="menu"
+                        aria-expanded={isTreatmentsDropdownOpen}
                       >
                         <span>{item.name}</span>
-                        <motion.div
+                        <m.div
                           animate={{
                             rotate: isTreatmentsDropdownOpen ? 90 : 0,
                             scale: isTreatmentsDropdownOpen ? 1.1 : 1,
@@ -379,8 +442,8 @@ const Navigation = () => {
                           }}
                         >
                           <ChevronRight className="size-3" />
-                        </motion.div>
-                        <motion.span
+                        </m.div>
+                        <m.span
                           className="absolute -bottom-1 left-0 h-0.5 bg-orange-600 dark:bg-orange-400"
                           initial={{ width: 0 }}
                           whileHover={{ width: "100%" }}
@@ -398,12 +461,12 @@ const Navigation = () => {
                             ease: [0.0, 0.0, 0.2, 1],
                           }}
                         />
-                      </Link>
+                      </button>
 
                       {/* Animated Dropdown */}
                       <AnimatePresence>
                         {isTreatmentsDropdownOpen && (
-                          <motion.div
+                          <m.div
                             initial={{ opacity: 0, y: -10, scale: 0.95 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: -10, scale: 0.95 }}
@@ -416,7 +479,7 @@ const Navigation = () => {
                             onMouseLeave={handleMouseLeave}
                           >
                             {item.subItems?.map((subItem, subIndex) => (
-                              <motion.div
+                              <m.div
                                 key={subItem.name}
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
@@ -440,9 +503,9 @@ const Navigation = () => {
                                     <span>{subItem.name}</span>
                                   </div>
                                 </Link>
-                              </motion.div>
+                              </m.div>
                             ))}
-                          </motion.div>
+                          </m.div>
                         )}
                       </AnimatePresence>
                     </div>
@@ -457,7 +520,7 @@ const Navigation = () => {
                       )}
                     >
                       {item.name}
-                      <motion.span
+                      <m.span
                         className="absolute -bottom-1 left-0 h-0.5 bg-orange-600 dark:bg-orange-400"
                         initial={{ width: 0 }}
                         whileHover={{ width: "100%" }}
@@ -466,7 +529,7 @@ const Navigation = () => {
                       />
                     </Link>
                   )}
-                </motion.div>
+                </m.div>
               ))}
             </div>
 
@@ -581,15 +644,19 @@ const Navigation = () => {
                   <SheetHeader className="p-8 pb-6 border-b border-gray-200 dark:border-gray-700 bg-linear-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20">
                     <SheetTitle className="text-left text-xl font-bold text-orange-600 dark:text-orange-400 leading-tight tracking-wide flex items-center gap-x-3">
                       <div className="size-9 flex items-center justify-center overflow-hidden shrink-0 rounded-xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
-                        <img
+                        <Image
                           src="/assets/logo/logowithoutbackground.png"
                           alt={t("navigation.clinicName")}
-                          className="w-full h-full object-cover dark:hidden"
+                          fill
+                          sizes="36px"
+                          className="object-cover dark:hidden"
                         />
-                        <img
+                        <Image
                           src="/assets/logo/dark-logo-withoutborder.png"
                           alt={t("navigation.clinicName")}
-                          className="hidden dark:block w-full h-full object-cover"
+                          fill
+                          sizes="36px"
+                          className="hidden object-cover dark:block"
                         />
                       </div>
                       <span>{t("navigation.clinicName")}</span>
@@ -604,7 +671,7 @@ const Navigation = () => {
                     <div className="flex-1 px-8 py-6">
                       <div className="flex flex-col gap-y-3">
                         {navItems.map((item) => (
-                          <div key={item.name}>
+                          <Fragment key={item.name}>
                             {item.hasDropdown ? (
                               <div>
                                 <button
@@ -637,28 +704,11 @@ const Navigation = () => {
 
                                 {/* Mobile Accordion */}
                                 {isTreatmentsDropdownOpen && (
-                                  <div className="ml-4 gap-y-1 py-2">
-                                    {item.subItems?.map((subItem) => (
-                                      <Link
-                                        key={subItem.name}
-                                        href={subItem.href}
-                                        prefetch={false}
-                                        className={cn(
-                                          "block text-sm text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 py-2 px-3 rounded-lg transition-all duration-200 border border-transparent hover:border-orange-200 dark:hover:border-orange-800",
-                                          pathname === subItem.href &&
-                                            "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800"
-                                        )}
-                                        onClick={() =>
-                                          setIsMobileMenuOpen(false)
-                                        }
-                                      >
-                                        <div className="flex items-center gap-x-2">
-                                          <div className="size-1.5 bg-orange-400 rounded-full"></div>
-                                          <span>{subItem.name}</span>
-                                        </div>
-                                      </Link>
-                                    ))}
-                                  </div>
+                                  <MobileTreatmentsAccordion
+                                    subItems={item.subItems}
+                                    pathname={pathname}
+                                    onSelect={() => setIsMobileMenuOpen(false)}
+                                  />
                                 )}
                               </div>
                             ) : (
@@ -675,7 +725,7 @@ const Navigation = () => {
                                 {item.name}
                               </Link>
                             )}
-                          </div>
+                          </Fragment>
                         ))}
                       </div>
                     </div>
@@ -743,11 +793,13 @@ const Navigation = () => {
             </div>
           </div>
         </div>
-      </motion.nav>
+      </m.nav>
+      </LazyMotion>
     </>
   );
 };
 
 export default Navigation;
+
 
 

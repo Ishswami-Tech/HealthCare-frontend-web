@@ -242,28 +242,32 @@ export default function PatientDashboard() {
     const nextTimelineAppointment = currentInProgressAppointments[0] || futureAppointments[0] || null;
 
     const latestVitals = Array.isArray(vitalSignsData)
-      ? [...vitalSignsData].sort(
-          (left: any, right: any) =>
-            new Date(right.recordedAt || right.createdAt || right.updatedAt || 0).getTime() -
-            new Date(left.recordedAt || left.createdAt || left.updatedAt || 0).getTime()
-        )[0] || {}
+      ? vitalSignsData.reduce((latest: any, current: any) => {
+          const latestTime = new Date(
+            latest?.recordedAt || latest?.createdAt || latest?.updatedAt || 0
+          ).getTime();
+          const currentTime = new Date(
+            current?.recordedAt || current?.createdAt || current?.updatedAt || 0
+          ).getTime();
+          return currentTime > latestTime ? current : latest;
+        }, vitalSignsData[0] || {}) || {}
       : (vitalSignsData as any)?.[0] || {};
     const latestPrescriptions = Array.isArray(prescriptionsData)
-      ? [...prescriptionsData].sort(
+      ? prescriptionsData.toSorted(
           (left: any, right: any) =>
             new Date(right.prescribedAt || right.createdAt || right.updatedAt || 0).getTime() -
             new Date(left.prescribedAt || left.createdAt || left.updatedAt || 0).getTime()
         )
       : [];
     const billingInvoices = Array.isArray(invoicesData)
-      ? [...invoicesData].sort(
+      ? invoicesData.toSorted(
           (left: any, right: any) =>
             new Date(right.createdAt || right.updatedAt || 0).getTime() -
             new Date(left.createdAt || left.updatedAt || 0).getTime()
         )
       : [];
     const billingPayments = Array.isArray(paymentsData)
-      ? [...paymentsData].sort(
+      ? paymentsData.toSorted(
           (left: any, right: any) =>
             new Date(right.createdAt || right.updatedAt || 0).getTime() -
             new Date(left.createdAt || left.updatedAt || 0).getTime()
@@ -310,27 +314,43 @@ export default function PatientDashboard() {
           ? getReceptionistAppointmentDateLabel(nextTimelineAppointment as Record<string, unknown>)
           : null,
         lastVisit:
-        uniqueAppointments
-            .filter((apt: any) => {
-              const normalizedStatus = getAppointmentViewState(apt).normalizedStatus.toUpperCase();
-              return !["CANCELLED", "NO_SHOW"].includes(normalizedStatus);
-            })
-            .filter((apt: any) => normalizePatientAppointment(apt).status === "COMPLETED")
-            .sort(
-              (a: any, b: any) =>
-                (normalizePatientAppointment(b).dateTime?.getTime() || 0) -
-                (normalizePatientAppointment(a).dateTime?.getTime() || 0)
-            )[0]?.time || null,
+          uniqueAppointments.reduce((latest: any, current: any) => {
+            const normalizedStatus = getAppointmentViewState(current).normalizedStatus.toUpperCase();
+            if (["CANCELLED", "NO_SHOW"].includes(normalizedStatus)) {
+              return latest;
+            }
+
+            if (normalizePatientAppointment(current).status !== "COMPLETED") {
+              return latest;
+            }
+
+            if (!latest) return current;
+
+            const latestTime = normalizePatientAppointment(latest).dateTime?.getTime() || 0;
+            const currentTime = normalizePatientAppointment(current).dateTime?.getTime() || 0;
+            return currentTime > latestTime ? current : latest;
+          }, null)?.time || null,
       },
       upcomingAppointments,
-      videoAppointments: upcomingAppointments.filter((apt: any) => apt.isOnline),
+      videoAppointments: upcomingAppointments.reduce<Array<typeof upcomingAppointments[number]>>((accumulator, apt: any) => {
+        if (apt.isOnline) {
+          accumulator.push(apt);
+        }
+        return accumulator;
+      }, []),
       recentActivity: [] as Array<{ type: string; message: string; time: string }>,
       currentTreatments: [] as Array<{ name: string; type: string; doctor: string; progress: number; nextSession: string }>,
-      medications: latestPrescriptions.slice(0, 5).map((presc: any) => ({
-        name: presc.medicineName || presc.name || "Unknown",
-        dosage: presc.dosage || "As prescribed",
-        nextRefill: presc.nextRefillDate ? safeFormatDate(presc.nextRefillDate) : null,
-      })),
+      medications: latestPrescriptions.slice(0, 5).reduce(
+        (accumulator: Array<{ name: string; dosage: string; nextRefill: string | null }>, presc: any) => {
+          accumulator.push({
+            name: presc.medicineName || presc.name || "Unknown",
+            dosage: presc.dosage || "As prescribed",
+            nextRefill: presc.nextRefillDate ? safeFormatDate(presc.nextRefillDate) : null,
+          });
+          return accumulator;
+        },
+        []
+      ),
       billingSummary: {
         openInvoices: openInvoices.length,
         outstandingAmount,

@@ -1,10 +1,10 @@
 ﻿"use client";
 
 import { useMemo } from "react";
-import { Area, AreaChart, ResponsiveContainer, YAxis } from "recharts";
-import { motion } from "framer-motion";
+import { LazyMotion, domAnimation, m } from "framer-motion";
 import { StatusType } from "@/components/common/StatusIndicator";
 import { cn } from "@/lib/utils/index";
+import SparklineChart from "./SparklineChart";
 
 interface StatusCardProps {
   name: string;
@@ -52,60 +52,44 @@ export function StatusCard({ name, icon: Icon, status, responseTime, className }
 
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={cn(
-        "relative overflow-hidden rounded-xl border p-4 backdrop-blur-sm transition-all duration-300 hover:scale-[1.02]",
-        theme.bg,
-        theme.border,
-        theme.glow,
-        className
-      )}
-    >
-      <div className="flex justify-between items-start mb-4">
-        <div className="flex items-center gap-3">
-          <div className={cn("p-2 rounded-lg bg-background/50 backdrop-blur-md", theme.border, "border")}>
-            <Icon className="size-5" style={{ color: theme.stroke }} />
+    <LazyMotion features={domAnimation}>
+      <m.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={cn(
+          "relative overflow-hidden rounded-xl border p-4 backdrop-blur-sm transition-all duration-300 hover:scale-[1.02]",
+          theme.bg,
+          theme.border,
+          theme.glow,
+          className
+        )}
+      >
+        <div className="mb-4 flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className={cn("rounded-lg bg-background/50 p-2 backdrop-blur-md", theme.border, "border")}>
+              <Icon className="size-5" style={{ color: theme.stroke }} />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-foreground/80">{name}</h3>
+              <p className="text-xs font-medium uppercase tracking-wider" style={{ color: theme.stroke }}>
+                {status === "loading" ? "Checking…" : status}
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-semibold text-sm text-foreground/80">{name}</h3>
-            <p className="text-xs font-medium uppercase tracking-wider" style={{ color: theme.stroke }}>
-              {status === 'loading' ? 'Checking…' : status}
-            </p>
-          </div>
-        </div>
-        
-        <div className="text-right">
-           <div className="text-2xl font-bold font-mono tracking-tight">
-             {responseTime ? `${Math.round(responseTime)}` : "--"}
-             <span className="text-xs font-sans text-muted-foreground ml-1">ms</span>
-           </div>
-        </div>
-      </div>
 
-      <div className="h-[60px] w-full -mx-2">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data}>
-            <defs>
-              <linearGradient id={`gradient-${name}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={theme.stroke} stopOpacity={0.4} />
-                <stop offset="100%" stopColor={theme.stroke} stopOpacity={0.0} />
-              </linearGradient>
-            </defs>
-            <YAxis domain={['dataMin - 10', 'dataMax + 10']} hide />
-            <Area
-              type="monotone"
-              dataKey="value"
-              stroke={theme.stroke}
-              strokeWidth={2}
-              fill={`url(#gradient-${name})`}
-              isAnimationActive={false} // Disable for real-time feel or handle gracefully
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-    </motion.div>
+          <div className="text-right">
+            <div className="font-mono text-2xl font-bold tracking-tight">
+              {responseTime ? `${Math.round(responseTime)}` : "--"}
+              <span className="ml-1 text-xs font-sans text-muted-foreground">ms</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="h-[60px] w-full -mx-2">
+          <SparklineChart data={data} stroke={theme.stroke} name={name} />
+        </div>
+      </m.div>
+    </LazyMotion>
   );
 }
 

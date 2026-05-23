@@ -228,9 +228,9 @@ export function QuickStats({ stats, className }: QuickStatsProps) {
       'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6',
       className
     )}>
-      {stats.map((stat, index) => (
+      {stats.map((stat) => (
         <StatCard
-          key={index}
+          key={stat.title}
           title={stat.title}
           value={stat.value}
           {...(stat.subtitle && { subtitle: stat.subtitle })}
@@ -261,7 +261,7 @@ export function DashboardHeaderCard({
   return (
     <div className={cn('flex items-center justify-between', className)}>
       <div>
-        <h1 className="text-3xl font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+        <h1 className="text-3xl font-semibold text-blue-700 dark:text-blue-300">
           {title}
         </h1>
         {subtitle && (

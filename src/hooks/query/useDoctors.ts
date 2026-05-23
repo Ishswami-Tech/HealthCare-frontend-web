@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo } from 'react';
-import { useQueryData, useMutationOperation } from '../core';
+import { useQueryData } from '../core/useQueryData';
+import { useMutationOperation } from '../core/useMutationOperation';
 import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import { TOAST_IDS } from '../utils/use-toast';
 import { useAuth } from '@/hooks/auth/useAuth';

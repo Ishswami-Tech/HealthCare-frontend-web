@@ -129,12 +129,12 @@ export default function AboutPage() {
           {/* Floating Orbs */}
           <div className="absolute -top-40 -right-40 size-96 bg-gradient-to-r from-primary/10 to-primary/5 dark:from-primary/20 dark:to-primary/10 rounded-full blur-3xl animate-pulse"></div>
           <div className="absolute -bottom-40 -left-40 size-96 bg-gradient-to-r from-secondary/10 to-secondary/5 dark:from-secondary/20 dark:to-secondary/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[32rem] h-[32rem] bg-gradient-to-r from-accent/5 to-accent/3 dark:from-accent/10 dark:to-accent/8 rounded-full blur-3xl animate-pulse delay-500"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 size-[32rem] bg-gradient-to-r from-accent/5 to-accent/3 dark:from-accent/10 dark:to-accent/8 rounded-full blur-3xl animate-pulse delay-500"></div>
 
           {/* Geometric Patterns */}
           <div className="absolute top-20 left-20 size-32 border border-primary/10 dark:border-primary/20 rotate-45 animate-spin-slow"></div>
           <div className="absolute bottom-20 right-20 size-24 border border-secondary/10 dark:border-secondary/20 rotate-12 animate-spin-slow-reverse"></div>
-          <div className="absolute top-1/3 right-1/3 size-16 bg-gradient-to-r from-accent/20 to-accent/10 dark:from-accent/30 dark:to-accent/20 rounded-full animate-bounce-slow"></div>
+          <div className="absolute top-1/3 right-1/3 size-16 bg-gradient-to-r from-accent/20 to-accent/10 dark:from-accent/30 dark:to-accent/20 rounded-full animate-pulse"></div>
 
           {/* Grid Pattern */}
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:50px_50px] dark:bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)]"></div>

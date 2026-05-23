@@ -1,5 +1,6 @@
 import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
-import { useQueryData, useMutationOperation } from '../core';
+import { useQueryData } from '../core/useQueryData';
+import { useMutationOperation } from '../core/useMutationOperation';
 import { TOAST_IDS } from '../utils/use-toast';
 import {
   getComprehensiveHealthRecord,

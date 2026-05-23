@@ -129,6 +129,7 @@ export function BackendStatusIndicator() {
       <div className="flex items-center justify-between">
         <h4 className="font-medium text-sm">Backend Services Status</h4>
         <button
+          type="button"
           onClick={() => refetch()}
           disabled={isFetching}
           className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50"
@@ -243,7 +244,7 @@ export function BackendStatusWidget({ className }: { className?: string }) {
     }))
   );
 
-  const handleClick = () => {
+  const openGlobalHealthStatus = () => {
     setShowModal(true);
     setShowDetails(false);
   };
@@ -251,21 +252,14 @@ export function BackendStatusWidget({ className }: { className?: string }) {
   return (
     <>
       <div className={cn("relative", className)}>
-        <div
+        <button
+          type="button"
           className="cursor-pointer"
-          onClick={handleClick}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              handleClick();
-            }
-          }}
-          role="button"
-          tabIndex={0}
+          onClick={openGlobalHealthStatus}
           aria-label="View comprehensive system health status"
         >
           {backend.indicator}
-        </div>
+        </button>
 
         {showDetails && (
           <div className="absolute top-full left-0 mt-2 z-50 bg-white rounded-lg border shadow-lg p-4 min-w-80">

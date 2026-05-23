@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState } from "react";
+import { useReducer } from "react";
 import { Invoice } from "@/types/billing.types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,13 +25,51 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
   const userId = session?.user?.id || invoice?.userId || "";
   const clinicId = clinicContextId || invoice?.clinicId || "";
 
-  const [amount, setAmount] = useState<number>(invoice?.amount || 0);
-  const [description, setDescription] = useState<string>(invoice?.items?.[0]?.description || "");
-  const [dueDate, setDueDate] = useState<string>(
-    invoice?.dueDate ? formatISODateInIST(invoice.dueDate) : formatISODateInIST(new Date())
+  const [formState, dispatch] = useReducer(
+    (
+      state: {
+        amount: number;
+        description: string;
+        dueDate: string;
+        quantity: number;
+        unitPrice: number;
+      },
+      action:
+        | { type: "setAmount"; value: number }
+        | { type: "setDescription"; value: string }
+        | { type: "setDueDate"; value: string }
+        | { type: "setQuantity"; value: number }
+        | { type: "setUnitPrice"; value: number }
+    ) => {
+      switch (action.type) {
+        case "setAmount":
+          return { ...state, amount: action.value };
+        case "setDescription":
+          return { ...state, description: action.value };
+        case "setDueDate":
+          return { ...state, dueDate: action.value };
+        case "setQuantity":
+          return { ...state, quantity: action.value };
+        case "setUnitPrice":
+          return { ...state, unitPrice: action.value };
+        default:
+          return state;
+      }
+    },
+    {
+      amount: invoice?.amount || 0,
+      description: invoice?.items?.[0]?.description || "",
+      dueDate: invoice?.dueDate ? formatISODateInIST(invoice.dueDate) : formatISODateInIST(new Date()),
+      quantity: invoice?.items?.[0]?.quantity || 1,
+      unitPrice: invoice?.items?.[0]?.unitPrice || 0,
+    }
   );
-  const [quantity, setQuantity] = useState<number>(invoice?.items?.[0]?.quantity || 1);
-  const [unitPrice, setUnitPrice] = useState<number>(invoice?.items?.[0]?.unitPrice || 0);
+  const { amount, description, dueDate, quantity, unitPrice } = formState;
+  const setAmount = (value: number) => dispatch({ type: "setAmount", value });
+  const setDescription = (value: string) => dispatch({ type: "setDescription", value });
+  const setDueDate = (value: string) => dispatch({ type: "setDueDate", value });
+  const setQuantity = (value: number) => dispatch({ type: "setQuantity", value });
+  const setUnitPrice = (value: number) => dispatch({ type: "setUnitPrice", value });
 
   const lineTotal = quantity * unitPrice;
 

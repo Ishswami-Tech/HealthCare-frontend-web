@@ -61,48 +61,84 @@ export default function PharmacistDashboard() {
   const { data: pharmacyStats } = usePharmacyStats(clinicId || "");
   const { data: medicineDeskQueue = [] } = useMedicineDeskQueue(clinicId || "", !!clinicId);
 
-  const prescriptions = Array.isArray(prescriptionsData) ? prescriptionsData : (prescriptionsData as any)?.prescriptions || [];
-  const inventory = Array.isArray(inventoryData) ? inventoryData : (inventoryData as any)?.inventory || [];
+  const prescriptions = useMemo(
+    () =>
+      Array.isArray(prescriptionsData)
+        ? prescriptionsData
+        : (prescriptionsData as any)?.prescriptions || [],
+    [prescriptionsData]
+  );
+  const inventory = useMemo(
+    () =>
+      Array.isArray(inventoryData)
+        ? inventoryData
+        : (inventoryData as any)?.inventory || [],
+    [inventoryData]
+  );
 
   // Stats calculation
   const stats = useMemo(() => {
+    const pendingStatuses = new Set(["PENDING"]);
+    const dispensedStatuses = new Set(["FILLED", "DISPENSED", "COMPLETED"]);
+
+    let pendingPrescriptions = 0;
+    let awaitingPayment = 0;
+    let dispensedToday = 0;
+
+    for (const prescription of prescriptions) {
+      const status = String(prescription.status || "").toUpperCase();
+      const paymentStatus = String(prescription.paymentStatus || "PENDING").toUpperCase();
+
+      if (pendingStatuses.has(status)) {
+        pendingPrescriptions += 1;
+        if (paymentStatus !== "PAID") {
+          awaitingPayment += 1;
+        }
+      }
+
+      if (dispensedStatuses.has(status)) {
+        dispensedToday += 1;
+      }
+    }
+
+    const lowStockItems = inventory.reduce((count: number, item: any) => {
+      return (item.currentStock || item.quantity) < (item.minStock || item.minThreshold)
+        ? count + 1
+        : count;
+    }, 0);
+
     return {
-      pendingPrescriptions: prescriptions.filter(
-        (p: any) => String(p.status || "").toUpperCase() === "PENDING"
-      ).length,
-      awaitingPayment: prescriptions.filter((p: any) => {
-        const status = String(p.status || "").toUpperCase();
-        const paymentStatus = String(p.paymentStatus || "PENDING").toUpperCase();
-        return status === "PENDING" && paymentStatus !== "PAID";
-      }).length,
-      dispensedToday: prescriptions.filter(
-        (p: any) => ["FILLED", "DISPENSED", "COMPLETED"].includes(String(p.status || "").toUpperCase())
-      ).length,
-      lowStockItems: inventory.filter((i: any) => (i.currentStock || i.quantity) < (i.minStock || i.minThreshold)).length,
+      pendingPrescriptions,
+      awaitingPayment,
+      dispensedToday,
+      lowStockItems,
       monthlyDispensed: (pharmacyStats as any)?.monthlyDispensed || 0,
     };
   }, [prescriptions, inventory, pharmacyStats]);
 
   const processedQueue = useMemo(() => {
-    const raw = (Array.isArray(medicineDeskQueue) ? medicineDeskQueue : [])
-      .filter((p: any) => p?.id)
-      .map((p: any) => {
-        const entry = normalizeQueueEntry(p);
-        return {
-          id: entry.entryId,
-          patientName: entry.patientName || "Unknown Patient",
-          medicines: p.medicines || p.medicineNames || [],
-          priority: p.priority || "normal",
-          status: Boolean(entry.readyForHandover) || String(entry.paymentStatus).toUpperCase() === "PAID"
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    return (Array.isArray(medicineDeskQueue) ? medicineDeskQueue : []).reduce((items: any[], p: any) => {
+      if (!p?.id) return items;
+
+      const entry = normalizeQueueEntry(p);
+      const item = {
+        id: entry.entryId,
+        patientName: entry.patientName || "Unknown Patient",
+        medicines: p.medicines || p.medicineNames || [],
+        priority: p.priority || "normal",
+        status:
+          Boolean(entry.readyForHandover) || String(entry.paymentStatus).toUpperCase() === "PAID"
             ? "ready_to_dispense"
             : "awaiting_payment",
-        };
-      });
-    
-    if (!searchTerm) return raw;
-    return raw.filter(item => 
-      item.patientName.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+      };
+
+      if (!normalizedSearch || item.patientName.toLowerCase().includes(normalizedSearch)) {
+        items.push(item);
+      }
+
+      return items;
+    }, []);
   }, [medicineDeskQueue, searchTerm]);
 
   // Table Columns for Prescription Queue
@@ -300,7 +336,15 @@ export default function PharmacistDashboard() {
             </CardHeader>
             <CardContent>
               <div className="gap-y-4">
-                {inventory.filter((i: any) => (i.currentStock || i.quantity) < (i.minStock || i.minThreshold)).slice(0, 3).map((item: any) => (
+                {inventory
+                  .reduce((items: any[], item: any) => {
+                    if ((item.currentStock || item.quantity) < (item.minStock || item.minThreshold)) {
+                      items.push(item);
+                    }
+                    return items;
+                  }, [])
+                  .slice(0, 3)
+                  .map((item: any) => (
                   <div key={item.id || item.name || item.medicineName} className="flex items-center justify-between text-sm p-3 bg-red-50 rounded-md border border-red-100">
                     <div>
                       <p className="font-semibold text-red-900">{item.name || item.medicineName}</p>
@@ -310,7 +354,7 @@ export default function PharmacistDashboard() {
                       Restock
                     </Button>
                   </div>
-                ))}
+                  ))}
                 {stats.lowStockItems === 0 && (
                   <Empty>
                     <EmptyContent>

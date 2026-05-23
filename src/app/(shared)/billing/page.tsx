@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { Role } from "@/types/auth.types";
 import { Permission } from "@/types/rbac.types";
@@ -26,6 +26,7 @@ function BillingPageContent() {
   const { session, isPending: isAuthPending } = useAuth();
   const clinicId = useCurrentClinicId();
   const searchParams = useSearchParams();
+  const getSearchParam = useMemo(() => searchParams.get.bind(searchParams), [searchParams]);
   const setPageTitle = useLayoutStore((state) => state.setPageTitle);
 
   useWebSocketQuerySync();
@@ -131,13 +132,13 @@ function BillingPageContent() {
     return (
       <Card>
         <CardContent className="py-12 text-center text-muted-foreground">
-          Loading billing data...
+          Loading billing data&hellip;
         </CardContent>
       </Card>
     );
   }
 
-  const initialTab = searchParams.get("tab") || "overview";
+  const initialTab = getSearchParam("tab") || "overview";
 
   return (
     <RoleBasedBillingDashboard
@@ -156,26 +157,28 @@ function BillingPageContent() {
 
 export default function BillingPage() {
   return (
-    <ProtectedRoute
-      permission={Permission.VIEW_BILLING}
-      allowedRoles={[
-        Role.SUPER_ADMIN,
-        Role.CLINIC_ADMIN,
-        Role.DOCTOR,
-        Role.ASSISTANT_DOCTOR,
-        Role.RECEPTIONIST,
-        Role.PATIENT,
-        Role.FINANCE_BILLING,
-        Role.PHARMACIST,
-        Role.THERAPIST,
-        Role.LAB_TECHNICIAN,
-        Role.SUPPORT_STAFF,
-        Role.COUNSELOR,
-        Role.NURSE,
-        Role.CLINIC_LOCATION_HEAD,
-      ]}
-    >
-      <BillingPageContent />
-    </ProtectedRoute>
+    <Suspense fallback={null}>
+      <ProtectedRoute
+        permission={Permission.VIEW_BILLING}
+        allowedRoles={[
+          Role.SUPER_ADMIN,
+          Role.CLINIC_ADMIN,
+          Role.DOCTOR,
+          Role.ASSISTANT_DOCTOR,
+          Role.RECEPTIONIST,
+          Role.PATIENT,
+          Role.FINANCE_BILLING,
+          Role.PHARMACIST,
+          Role.THERAPIST,
+          Role.LAB_TECHNICIAN,
+          Role.SUPPORT_STAFF,
+          Role.COUNSELOR,
+          Role.NURSE,
+          Role.CLINIC_LOCATION_HEAD,
+        ]}
+      >
+        <BillingPageContent />
+      </ProtectedRoute>
+    </Suspense>
   );
 }

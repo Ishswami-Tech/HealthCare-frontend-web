@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { AlertCircle, ArrowLeft } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -76,6 +77,26 @@ export default function DoctorPatientDetailPage() {
 
   const isLoading = patientPending && !patient;
   const hasError = Boolean(patientError);
+  const patientHeaderMeta = useMemo(
+    () => (
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm font-medium text-muted-foreground">
+          Patient ID: {patientId || "Unavailable"}
+        </span>
+        {patientRecord.gender ? (
+          <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium">
+            {String(patientRecord.gender)}
+          </span>
+        ) : null}
+        {patientRecord.bloodGroup ? (
+          <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium">
+            {String(patientRecord.bloodGroup)}
+          </span>
+        ) : null}
+      </div>
+    ),
+    [patientId, patientRecord.bloodGroup, patientRecord.gender]
+  );
 
   return (
     <DashboardPageShell>
@@ -83,13 +104,7 @@ export default function DoctorPatientDetailPage() {
         eyebrow="Doctor Patients"
         title={displayName}
         description="End-to-end clinical record with appointments, EHR history, labs, vitals, and medications."
-        meta={
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground">Patient ID: {patientId || "Unavailable"}</span>
-            {patientRecord.gender ? <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium">{String(patientRecord.gender)}</span> : null}
-            {patientRecord.bloodGroup ? <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium">{String(patientRecord.bloodGroup)}</span> : null}
-          </div>
-        }
+        meta={patientHeaderMeta}
         actions={[
           {
             label: "Back to Patients",
@@ -113,7 +128,7 @@ export default function DoctorPatientDetailPage() {
               </p>
             </div>
             <Button asChild variant="outline">
-              <a href="/doctor/patients">Return to patient list</a>
+              <Link href="/doctor/patients">Return to patient list</Link>
             </Button>
           </CardContent>
         </Card>
@@ -121,7 +136,7 @@ export default function DoctorPatientDetailPage() {
 
       {!hasError && isLoading ? (
         <Card className="border-border/70 bg-card shadow-sm">
-          <CardContent className="py-12 text-center text-muted-foreground">Loading patient record...</CardContent>
+          <CardContent className="py-12 text-center text-muted-foreground">Loading patient record…</CardContent>
         </Card>
       ) : null}
 

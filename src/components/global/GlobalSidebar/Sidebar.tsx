@@ -24,6 +24,7 @@ import Link from "next/link";
 import NextImage from "next/image";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { useRBAC } from "@/hooks/utils/useRBAC";
 import { Permission } from "@/types/rbac.types";
 import {
@@ -42,7 +43,7 @@ import { translateSidebarLinks } from "@/lib/utils/index";
 import { Button } from "@/components/ui/button";
 import { LogOut, Menu } from "lucide-react";
 import { useLayoutStore } from "@/stores/layout.store";
-import { motion } from "framer-motion";
+import { LazyMotion, domAnimation, m } from "framer-motion";
 
 // ============================================================================
 // TYPES
@@ -113,7 +114,7 @@ const Logo = memo(function Logo() {
       <div className="size-8 bg-primary rounded-lg flex items-center justify-center shrink-0">
         <span className="text-primary-foreground font-bold text-xl">I</span>
       </div>
-      <motion.span
+      <m.span
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -121,7 +122,7 @@ const Logo = memo(function Logo() {
         className="text-lg font-bold tracking-tight text-sidebar-foreground truncate"
       >
         Viddhakarma
-      </motion.span>
+      </m.span>
     </Link>
   );
 });
@@ -155,6 +156,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
   const { t } = useTranslation();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { push } = useRouter();
   const [avatarError, setAvatarError] = useState(false);
 
   const { hasPermission } = useRBAC();
@@ -213,13 +215,13 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
       {/* Main Navigation */}
       <SidebarContent className={cn("flex-1 overflow-y-auto overflow-x-hidden", open ? "p-2" : "p-0 py-2")}>
         <SidebarMenu>
-          {filteredLinks.map((link, idx) => {
+          {filteredLinks.map((link) => {
             const isLogout = link.href === "#logout" || link.title === t("sidebar.logout");
             const Icon = link.icon || Menu;
             const isActive = isSidebarLinkActive(pathname, searchParams, link.href);
 
             return (
-              <SidebarMenuItem key={idx} className="">
+              <SidebarMenuItem key={link.href} className="">
                 <SidebarMenuButton
                   asChild
                   isActive={isActive}
@@ -240,20 +242,20 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                   }}
                   >
                   {isLogout ? (
-                    <button className={cn("flex h-full items-center gap-2 w-full text-destructive hover:text-destructive/80", !open && "justify-center")}>
+                    <button type="button" className={cn("flex h-full items-center gap-2 w-full text-destructive hover:text-destructive/80", !open && "justify-center")}>
                       <span className="size-4 flex items-center justify-center shrink-0">
                         <Icon className="size-4" />
                       </span>
                       {open && (
-                        <motion.span
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: -10 }}
-                          transition={{ duration: 0.2 }}
-                          className="truncate whitespace-pre"
-                        >
-                          {link.title}
-                        </motion.span>
+                      <m.span
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -10 }}
+                        transition={{ duration: 0.2 }}
+                        className="truncate whitespace-pre"
+                      >
+                        {link.title}
+                      </m.span>
                       )}
                     </button>
                   ) : (
@@ -272,15 +274,15 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                         <Icon className="size-4" />
                       </span>
                       {open && (
-                        <motion.span
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: -10 }}
-                          transition={{ duration: 0.2 }}
-                          className="truncate whitespace-pre"
-                        >
-                          {link.title}
-                        </motion.span>
+                      <m.span
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -10 }}
+                        transition={{ duration: 0.2 }}
+                        className="truncate whitespace-pre"
+                      >
+                        {link.title}
+                      </m.span>
                       )}
                     </Link>
                   )}
@@ -292,7 +294,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
     </SidebarContent>
 
       {/* Footer with User Info */}
-      <SidebarFooter className="border-t border-sidebar-border/50 px-2 py-2">
+      <SidebarFooter className="border-t border-sidebar-border/50 p-2">
         <SidebarMenu>
           <SidebarMenuItem>
               <SidebarMenuButton 
@@ -329,20 +331,20 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                   </div>
                 )}
                 {open && (
-                  <motion.div
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.2 }}
-                    className="flex flex-col min-w-0 flex-1 text-left"
-                  >
+                <m.div
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex flex-col min-w-0 flex-1 text-left"
+                >
                     <span className="truncate text-sm text-sidebar-foreground font-semibold leading-tight">
                       {user.name}
                     </span>
                     <span className="truncate text-[10px] text-sidebar-foreground/50 uppercase tracking-wider font-bold">
                       {displayRole || t("common.user")}
                     </span>
-                  </motion.div>
+                </m.div>
                 )}
               </Link>
             </SidebarMenuButton>
@@ -360,7 +362,6 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
 export default function Sidebar({ links, user, children }: SidebarProps) {
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const { logout } = useAuth();
-  const router = useRouter();
   const { startLoading, stopLoading } = useGlobalLoading();
   const { t } = useTranslation();
 
@@ -381,71 +382,75 @@ export default function Sidebar({ links, user, children }: SidebarProps) {
     startLoading("Logging out...");
     try {
       await logout();
-      router.replace(ROUTES.LOGIN);
+      push(ROUTES.LOGIN);
     } catch {
       stopLoading();
       showErrorToast("Logout failed. Please try again.", {
         id: TOAST_IDS.AUTH.LOGOUT,
       });
-      router.replace(ROUTES.LOGIN);
+      push(ROUTES.LOGIN);
     } finally {
       setShowLogoutDialog(false);
     }
-  }, [logout, router, startLoading, stopLoading]);
+  }, [logout, push, startLoading, stopLoading]);
 
   return (
-    <>
-      <SidebarProvider open={open} onOpenChange={setOpen}>
-        <div className={cn("flex h-screen w-full bg-neutral-100 dark:bg-neutral-900 overflow-hidden")}>
-          <SidebarComponent
-            collapsible="icon"
-            className={cn(
-              "border-none bg-neutral-100 dark:bg-neutral-900 text-sidebar-foreground transition-all duration-300 ease-in-out"
-            )}
-            onMouseEnter={() => setOpen(true)}
-            onMouseLeave={() => setOpen(false)}
-          >
-            <SidebarInner
-              links={links}
-              user={user}
-              onLogoutClick={handleLogoutClick}
-            />
-          </SidebarComponent>
-
-          <div className="flex flex-1 overflow-hidden">
-             <div className="flex flex-1 flex-col h-full w-full overflow-hidden rounded-tl-3xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 shadow-xl">
-                {children}
-             </div>
-          </div>
-        </div>
-      </SidebarProvider>
-
-      {/* Logout Confirmation Dialog */}
-      <Dialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {t("auth.logout")} {t("common.confirm")}
-            </DialogTitle>
-          </DialogHeader>
-          <Alert variant="destructive">
-            <AlertTitle>{t("auth.logoutSuccess")}?</AlertTitle>
-            <AlertDescription>{t("auth.loginSuccess")}</AlertDescription>
-          </Alert>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={() => setShowLogoutDialog(false)}
+    <LazyMotion features={domAnimation}>
+      <>
+        <SidebarProvider open={open} onOpenChange={setOpen}>
+          <div className={cn("flex h-screen w-full bg-neutral-100 dark:bg-neutral-900 overflow-hidden")}>
+            <SidebarComponent
+              collapsible="icon"
+              className={cn(
+                "border-none bg-neutral-100 dark:bg-neutral-900 text-sidebar-foreground transition-all duration-300 ease-in-out"
+              )}
+              onMouseEnter={() => setOpen(true)}
+              onMouseLeave={() => setOpen(false)}
             >
-              {t("common.cancel")}
-            </Button>
-            <Button variant="destructive" onClick={handleLogoutConfirm}>
-              <LogOut className="size-4 mr-2" />
-              {t("sidebar.logout")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+              <Suspense fallback={null}>
+                <SidebarInner
+                  links={links}
+                  user={user}
+                  onLogoutClick={handleLogoutClick}
+                />
+              </Suspense>
+            </SidebarComponent>
+
+            <div className="flex flex-1 overflow-hidden">
+              <div className="flex flex-1 flex-col h-full w-full overflow-hidden rounded-tl-3xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 shadow-xl">
+                {children}
+              </div>
+            </div>
+          </div>
+        </SidebarProvider>
+
+        {/* Logout Confirmation Dialog */}
+        <Dialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {t("auth.logout")} {t("common.confirm")}
+              </DialogTitle>
+            </DialogHeader>
+            <Alert variant="destructive">
+              <AlertTitle>{t("auth.logoutSuccess")}?</AlertTitle>
+              <AlertDescription>{t("auth.loginSuccess")}</AlertDescription>
+            </Alert>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                variant="outline"
+                onClick={() => setShowLogoutDialog(false)}
+              >
+                {t("common.cancel")}
+              </Button>
+              <Button variant="destructive" onClick={handleLogoutConfirm}>
+                <LogOut className="size-4 mr-2" />
+                {t("sidebar.logout")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </>
+    </LazyMotion>
   );
 }

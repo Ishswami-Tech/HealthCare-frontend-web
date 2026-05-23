@@ -82,10 +82,12 @@ export async function createClinic(data: CreateClinicData): Promise<{ success: b
     if (!session?.user) return { success: false, error: 'Unauthorized' };
     const { user, session_id: sessionId } = session;
     const userId = user.id;
-
-    const hasAccess = await validateClinicAccess(userId, 'clinics.create');
+    const [hasAccess, clientInfo] = await Promise.all([
+      validateClinicAccess(userId, 'clinics.create'),
+      getClientInfo(),
+    ]);
     if (!hasAccess) {
-      const { ipAddress, userAgent } = await getClientInfo();
+      const { ipAddress, userAgent } = clientInfo;
       await auditLog({
         userId,
         action: 'CREATE_CLINIC_DENIED',
@@ -112,12 +114,13 @@ export async function createClinic(data: CreateClinicData): Promise<{ success: b
       language: validatedData.language || 'en',
     };
 
-    const response = await authenticatedApi<Clinic>(API_ENDPOINTS.CLINICS.CREATE, {
-      method: 'POST',
-      body: JSON.stringify(apiData)
-    });
-
-    const { ipAddress, userAgent } = await getClientInfo();
+    const [response, { ipAddress, userAgent }] = await Promise.all([
+      authenticatedApi<Clinic>(API_ENDPOINTS.CLINICS.CREATE, {
+        method: 'POST',
+        body: JSON.stringify(apiData)
+      }),
+      getClientInfo(),
+    ]);
     await auditLog({
       userId,
       action: 'CLINIC_CREATED',
@@ -221,9 +224,12 @@ export async function updateClinic(id: string, data: UpdateClinicData): Promise<
     const { user, session_id: sessionId } = session;
     const userId = user.id;
 
-    const hasAccess = await validateClinicAccess(userId, 'clinics.update');
+    const [hasAccess, deniedClientInfo] = await Promise.all([
+      validateClinicAccess(userId, 'clinics.update'),
+      getClientInfo(),
+    ]);
     if (!hasAccess) {
-      const { ipAddress, userAgent } = await getClientInfo();
+      const { ipAddress, userAgent } = deniedClientInfo;
       await auditLog({
         userId,
         action: 'UPDATE_CLINIC_DENIED',
@@ -243,7 +249,7 @@ export async function updateClinic(id: string, data: UpdateClinicData): Promise<
       body: JSON.stringify(validatedData)
     });
 
-    const { ipAddress, userAgent } = await getClientInfo();
+    const { ipAddress, userAgent } = deniedClientInfo;
     await auditLog({
       userId,
       action: 'CLINIC_UPDATED',
@@ -277,12 +283,14 @@ export async function deleteClinic(id: string): Promise<{ success: boolean; erro
     const { user, session_id: sessionId } = session;
     const userId = user.id;
 
-    const hasAccess = await validateClinicAccess(userId, 'clinics.delete');
+    const [hasAccess, clientInfo] = await Promise.all([
+      validateClinicAccess(userId, 'clinics.delete'),
+      getClientInfo(),
+    ]);
     if (!hasAccess) return { success: false, error: 'Access denied' };
 
     await authenticatedApi(API_ENDPOINTS.CLINICS.DELETE(id), { method: 'DELETE' });
 
-    const { ipAddress, userAgent } = await getClientInfo();
     await auditLog({
       userId,
       action: 'CLINIC_DELETED',
@@ -290,8 +298,7 @@ export async function deleteClinic(id: string): Promise<{ success: boolean; erro
       resourceId: id,
       result: 'SUCCESS',
       riskLevel: 'HIGH',
-      ipAddress,
-      userAgent,
+      ...clientInfo,
       sessionId
     });
 
@@ -316,13 +323,14 @@ export async function createClinicLocation(clinicId: string, data: any): Promise
     if (!session?.user) return { success: false, error: 'Unauthorized' };
     const { user, session_id: sessionId } = session;
     const userId = user.id;
-
-    const response = await authenticatedApi<ClinicLocation>(API_ENDPOINTS.CLINIC_LOCATIONS.CREATE(clinicId), {
-      method: 'POST',
-      body: JSON.stringify(data)
-    });
-
-    const { ipAddress, userAgent } = await getClientInfo();
+    const [response, clientInfo] = await Promise.all([
+      authenticatedApi<ClinicLocation>(API_ENDPOINTS.CLINIC_LOCATIONS.CREATE(clinicId), {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }),
+      getClientInfo(),
+    ]);
+    const { ipAddress, userAgent } = clientInfo;
     await auditLog({
       userId,
       action: 'CLINIC_LOCATION_CREATED',
@@ -403,13 +411,14 @@ export async function updateClinicLocation(clinicId: string, locationId: string,
     if (!session?.user) return null;
     const { user, session_id: sessionId } = session;
     const userId = user.id;
-
-    const response = await authenticatedApi<ClinicLocation>(API_ENDPOINTS.CLINIC_LOCATIONS.UPDATE(clinicId, locationId), {
-      method: 'PATCH',
-      body: JSON.stringify(data)
-    });
-
-    const { ipAddress, userAgent } = await getClientInfo();
+    const [response, clientInfo] = await Promise.all([
+      authenticatedApi<ClinicLocation>(API_ENDPOINTS.CLINIC_LOCATIONS.UPDATE(clinicId, locationId), {
+        method: 'PATCH',
+        body: JSON.stringify(data)
+      }),
+      getClientInfo(),
+    ]);
+    const { ipAddress, userAgent } = clientInfo;
     await auditLog({
       userId,
       action: 'CLINIC_LOCATION_UPDATED',
@@ -442,10 +451,11 @@ export async function deleteClinicLocation(clinicId: string, locationId: string)
     if (!session?.user) return false;
     const { user, session_id: sessionId } = session;
     const userId = user.id;
-
-    await authenticatedApi(API_ENDPOINTS.CLINIC_LOCATIONS.DELETE(clinicId, locationId), { method: 'DELETE' });
-
-    const { ipAddress, userAgent } = await getClientInfo();
+    const [_, clientInfo] = await Promise.all([
+      authenticatedApi(API_ENDPOINTS.CLINIC_LOCATIONS.DELETE(clinicId, locationId), { method: 'DELETE' }),
+      getClientInfo(),
+    ]);
+    const { ipAddress, userAgent } = clientInfo;
     await auditLog({
       userId,
       action: 'CLINIC_LOCATION_DELETED',

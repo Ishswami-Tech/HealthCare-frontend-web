@@ -158,6 +158,7 @@ export function LanguageSwitcher({
             {Object.entries(supportedLanguages).map(([code, lang]) => (
               <button
                 key={code}
+                type="button"
                 onClick={() => handleLanguageChange(code as SupportedLanguage)}
                 className={cn(
                   "w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors first:rounded-t-lg last:rounded-b-lg",
@@ -342,6 +343,7 @@ export function LanguageSelector({
       {languages.map((lang, index) => (
         <React.Fragment key={lang.code}>
           <button
+            type="button"
             onClick={() => handleLanguageChange(lang.code as Locale)}
             className={cn(
               "text-sm transition-colors",

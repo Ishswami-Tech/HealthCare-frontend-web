@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useReducer } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useComprehensiveHealthRecord } from "@/hooks/query/useMedicalRecords";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +23,6 @@ import { usePatientStore } from "@/stores";
 import { getAppointmentDateTimeValue } from "@/lib/utils/appointmentUtils";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import { useCurrentTimestamp } from "@/hooks/utils/useClientDate";
-import { useDebouncedCallback } from "@/lib/utils/performance";
 import {
   Calendar,
   Users,
@@ -35,6 +34,53 @@ import {
 } from "lucide-react";
 
 type RecordLike = Record<string, any>;
+const DOCTOR_PATIENTS_HEADER_ACTIONS = <WebSocketStatusIndicator />;
+
+type DoctorPatientsState = {
+  searchTerm: string;
+  genderFilter: string;
+  ageFilter: string;
+  page: number;
+  scheduleTarget: {
+    id: string;
+    token: string;
+  } | null;
+};
+
+type DoctorPatientsAction =
+  | { type: "set_search_term"; value: string }
+  | { type: "set_gender_filter"; value: string }
+  | { type: "set_age_filter"; value: string }
+  | { type: "set_page"; value: number }
+  | { type: "set_schedule_target"; value: DoctorPatientsState["scheduleTarget"] };
+
+const initialDoctorPatientsState: DoctorPatientsState = {
+  searchTerm: "",
+  genderFilter: "all",
+  ageFilter: "all",
+  page: 1,
+  scheduleTarget: null,
+};
+
+function doctorPatientsReducer(
+  state: DoctorPatientsState,
+  action: DoctorPatientsAction
+): DoctorPatientsState {
+  switch (action.type) {
+    case "set_search_term":
+      return { ...state, searchTerm: action.value, page: 1 };
+    case "set_gender_filter":
+      return { ...state, genderFilter: action.value, page: 1 };
+    case "set_age_filter":
+      return { ...state, ageFilter: action.value, page: 1 };
+    case "set_page":
+      return { ...state, page: action.value };
+    case "set_schedule_target":
+      return { ...state, scheduleTarget: action.value };
+    default:
+      return state;
+  }
+}
 
 function toArray(value: unknown): RecordLike[] {
   if (Array.isArray(value)) return value as RecordLike[];
@@ -137,24 +183,10 @@ export default function DoctorPatients() {
   const { session } = useAuth();
   const doctorId = session?.user?.id || "";
   const { clinicId } = useClinicContext();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-  const [genderFilter, setGenderFilter] = useState("all");
-  const [ageFilter, setAgeFilter] = useState("all");
-  const [page, setPage] = useState(1);
+  const [state, dispatch] = useReducer(doctorPatientsReducer, initialDoctorPatientsState);
   const pageSize = 10;
-  const [scheduleTarget, setScheduleTarget] = useState<{
-    id: string;
-    token: number;
-  } | null>(null);
-  const debouncedSetSearch = useDebouncedCallback((value: string) => {
-    setDebouncedSearchTerm(value);
-  }, 300);
-
-  useEffect(() => {
-    debouncedSetSearch(searchTerm);
-    setPage(1);
-  }, [searchTerm, debouncedSetSearch]);
+  const debouncedSearchTerm = useDeferredValue(state.searchTerm);
+  const { genderFilter, ageFilter, page, scheduleTarget } = state;
 
   const patientsQuery = useDoctorPatients(
     clinicId || "",
@@ -221,6 +253,18 @@ export default function DoctorPatients() {
 
   const filteredPatients = patientsWithProfile;
   const totalPatientsCount = patientsPage.total || patientsWithProfile.length;
+  const headerMeta = `Loaded: ${patientsPage.total} patients`;
+  const headerActions = DOCTOR_PATIENTS_HEADER_ACTIONS;
+  const appointmentDialog = scheduleTarget ? (
+    <BookAppointmentDialog
+      key={scheduleTarget.token}
+      defaultOpen
+      {...(clinicId ? { clinicId } : {})}
+      {...(doctorId ? { initialDoctorId: doctorId } : {})}
+      initialPatientId={scheduleTarget.id}
+      onBooked={() => dispatch({ type: "set_schedule_target", value: null })}
+    />
+  ) : null;
 
   const patientColumns = useMemo<ColumnDef<RecordLike>[]>(
     () => [
@@ -290,9 +334,12 @@ export default function DoctorPatients() {
               size="sm"
               className="flex items-center gap-1"
               onClick={() =>
-                setScheduleTarget({
-                  id: row.original.userId || row.original.user?.id || row.original.id,
-                  token: Date.now(),
+                dispatch({
+                  type: "set_schedule_target",
+                  value: {
+                    id: row.original.userId || row.original.user?.id || row.original.id,
+                    token: row.original.userId || row.original.user?.id || row.original.id || "",
+                  },
                 })
               }
             >
@@ -348,12 +395,12 @@ export default function DoctorPatients() {
         eyebrow="Doctor Patients"
         title="My Patients"
         description="Review patient records, EHR summaries, contact details, and follow-up context from a shared clinical workspace."
-        meta={<span className="text-sm font-medium text-muted-foreground">Loaded: {patientsPage.total} patients</span>}
-        actionsSlot={<WebSocketStatusIndicator />}
+        meta={headerMeta}
+        actionsSlot={headerActions}
       />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-6">
-        <Card className="border-l-4 border-l-emerald-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
+        <Card className="border-l-2 border-l-emerald-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
           <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Patients</CardTitle>
             <Users className="size-4 text-muted-foreground" />
@@ -364,7 +411,7 @@ export default function DoctorPatients() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-blue-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
+        <Card className="border-l-2 border-l-blue-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
           <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
             <CardTitle className="text-sm font-medium">This Week</CardTitle>
             <Calendar className="size-4 text-blue-600" />
@@ -375,7 +422,7 @@ export default function DoctorPatients() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-amber-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
+        <Card className="border-l-2 border-l-amber-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
           <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Follow-ups</CardTitle>
             <Clock className="size-4 text-orange-600" />
@@ -386,7 +433,7 @@ export default function DoctorPatients() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-green-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
+        <Card className="border-l-2 border-l-green-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
           <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Recovery Rate</CardTitle>
             <TrendingUp className="size-4 text-green-600" />
@@ -406,13 +453,17 @@ export default function DoctorPatients() {
           <div className="flex flex-col gap-4 md:flex-row">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-500" />
-              <Input placeholder="Search by name or condition..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
+              <Input
+                placeholder="Search by name or condition..."
+                value={state.searchTerm}
+                onChange={(e) => dispatch({ type: "set_search_term", value: e.target.value })}
+                className="pl-10"
+              />
             </div>
             <Select
               value={genderFilter}
               onValueChange={(value) => {
-                setGenderFilter(value);
-                setPage(1);
+                dispatch({ type: "set_gender_filter", value });
               }}
             >
               <SelectTrigger className="w-full md:w-48">
@@ -427,8 +478,7 @@ export default function DoctorPatients() {
             <Select
               value={ageFilter}
               onValueChange={(value) => {
-                setAgeFilter(value);
-                setPage(1);
+                dispatch({ type: "set_age_filter", value });
               }}
             >
               <SelectTrigger className="w-full md:w-48">
@@ -458,29 +508,20 @@ export default function DoctorPatients() {
         totalPages={patientsPage.totalPages}
         totalItems={patientsPage.total}
         pageSize={pageSize}
-        onPageChange={setPage}
+        onPageChange={(nextPage) => dispatch({ type: "set_page", value: nextPage })}
       />
 
       <Drawer
         direction="right"
         open={!!drawerPatient}
-        onOpenChange={(open) => !open && setSelectedPatient(null)}
+      onOpenChange={(open) => !open && setSelectedPatient(null)}
       >
         <DrawerContent className="h-full w-[min(92vw,80rem)] max-w-none overflow-y-auto">
           {drawerPatient ? <EhrDrawerContent patient={drawerPatient} /> : null}
         </DrawerContent>
       </Drawer>
 
-      {scheduleTarget ? (
-        <BookAppointmentDialog
-          key={scheduleTarget.token}
-          defaultOpen
-          {...(clinicId ? { clinicId } : {})}
-          {...(doctorId ? { initialDoctorId: doctorId } : {})}
-          initialPatientId={scheduleTarget.id}
-          onBooked={() => setScheduleTarget(null)}
-        />
-      ) : null}
+      {appointmentDialog}
     </DashboardPageShell>
   );
 }

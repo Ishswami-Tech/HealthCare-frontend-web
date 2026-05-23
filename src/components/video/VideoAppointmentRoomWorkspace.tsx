@@ -12,7 +12,7 @@ import {
   Share2,
   Users,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { LazyMotion, domAnimation, m } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -149,11 +149,8 @@ export function VideoAppointmentRoomWorkspace({
   onLeave,
 }: RoomProps) {
   const { data: appointmentServices = [] } = useAppointmentServices();
-  const [roomData, setRoomData] = React.useState<RoomData>(EMPTY_ROOM_DATA);
-  const [isLoading, setIsLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string | null>(null);
   const [activePanel, setActivePanel] = React.useState<MeetPanel | null>(null);
-  const [panelMounted, setPanelMounted] = React.useState(false);
   const [isInviteMenuOpen, setIsInviteMenuOpen] = React.useState(false);
 
   const appointmentId = String(appointment.appointmentId || appointment.id || "");
@@ -235,32 +232,12 @@ export function VideoAppointmentRoomWorkspace({
     [access.provider, appointmentId, appointmentTitle, doctorName, patientName, viewerAccessLabel]
   );
 
-
-
-  React.useEffect(() => {
-    if (activePanel) {
-      setPanelMounted(true);
-      return;
-    }
-
-    const timeout = window.setTimeout(() => {
-      setPanelMounted(false);
-    }, 220);
-
-    return () => window.clearTimeout(timeout);
-  }, [activePanel]);
-
   const refreshRoomData = React.useCallback(async () => {
-    setIsLoading(true);
     setLoadError(null);
     try {
-      const data = await loadRoomData(appointmentId);
-      setRoomData(data);
+      await loadRoomData(appointmentId);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Unable to load room data.");
-      setRoomData(EMPTY_ROOM_DATA);
-    } finally {
-      setIsLoading(false);
     }
   }, [appointmentId]);
 
@@ -300,7 +277,8 @@ export function VideoAppointmentRoomWorkspace({
         )}
 
         {access.provider === "daily" ? (
-          <motion.div layout className="relative flex flex-1 min-h-0 overflow-hidden">
+          <LazyMotion features={domAnimation}>
+            <m.div layout className="relative flex flex-1 min-h-0 overflow-hidden">
             <DailyCallSurface
               access={access}
               appointmentId={appointmentId}
@@ -316,7 +294,7 @@ export function VideoAppointmentRoomWorkspace({
             {process.env.NODE_ENV === "development" && (
               <div className="absolute bottom-6 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-2">
                 {isInviteMenuOpen && (
-                  <div className="flex items-center gap-2 rounded-full border border-white/10 bg-[#1e1f20]/92 px-2 py-2 shadow-xl backdrop-blur-md">
+                  <div className="flex items-center gap-2 rounded-full border border-white/10 bg-[#1e1f20]/92 p-2 shadow-xl backdrop-blur-md">
                     <Button
                       variant="outline"
                       onClick={handleShareInvite}
@@ -347,7 +325,8 @@ export function VideoAppointmentRoomWorkspace({
                 </Button>
               </div>
             )}
-          </motion.div>
+            </m.div>
+          </LazyMotion>
         ) : (
           <div className="flex min-h-[calc(100dvh-1.5rem)] flex-col gap-4 bg-[#f8f9fa] p-4 text-[#202124]">
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] bg-white px-4 py-3 shadow-sm border border-[#e8eaed]">

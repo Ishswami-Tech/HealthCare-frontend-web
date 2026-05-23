@@ -200,7 +200,7 @@ export default function DoctorProfile() {
           />
 
           {/* Profile Overview */}
-          <Card className="border-l-4 border-l-emerald-400 shadow-sm">
+          <Card className="border border-emerald-400/20 shadow-sm">
             <CardContent className="p-6">
               <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
                 <div className="relative">

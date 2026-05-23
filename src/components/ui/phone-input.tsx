@@ -1,6 +1,7 @@
 "use client";
 
-import React, { forwardRef, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
+import Image from "next/image";
 import PhoneInput, {
   type Country,
   getCountries,
@@ -26,11 +27,10 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Country name via browser Intl API — no JSON import needed
+const COUNTRY_DISPLAY_NAMES = new Intl.DisplayNames(["en"], { type: "region" });
 function getCountryName(country: Country): string {
   try {
-    return (
-      new Intl.DisplayNames(["en"], { type: "region" }).of(country) ?? country
-    );
+    return COUNTRY_DISPLAY_NAMES.of(country) ?? country;
   } catch {
     return country;
   }
@@ -65,14 +65,14 @@ type CountrySelectProps = {
 function FlagImage({ country }: { country: Country }) {
   const code = country.toLowerCase();
   return (
-    <img
+    <Image
       src={`https://flagcdn.com/w20/${code}.png`}
-      srcSet={`https://flagcdn.com/w40/${code}.png 2x`}
       width={20}
       height={15}
       alt={country}
       className="rounded-sm object-cover"
       loading="lazy"
+      unoptimized
       onError={(e) => {
         // Fallback to country code text if image fails
         const target = e.currentTarget;
@@ -190,42 +190,52 @@ function CountrySelect({ value, onChange, disabled }: CountrySelectProps) {
   );
 }
 
-const PhoneInputComponent = forwardRef<HTMLInputElement, PhoneInputProps>(
-  ({ className, onChange, error, value, ...props }, ref) => {
-    const sanitizedValue = useMemo(() => {
-      if (!value || typeof value !== "string") return "";
-      if (value.includes("@")) return "";
-      return value;
-    }, [value]);
+type PhoneInputComponentProps = PhoneInputProps & {
+  ref?: React.Ref<HTMLInputElement>;
+};
 
-    return (
-      <div className="relative w-full">
-        <PhoneInput
-          className={cn(
-            "flex h-9 w-full items-center rounded-md border border-input bg-background px-3 text-sm",
-            "phone-input-container",
-            "focus-within:outline-none focus-within:ring-[3px] focus-within:ring-ring/50 focus-within:border-ring",
-            "disabled:cursor-not-allowed disabled:opacity-50",
-            error && "border-destructive focus-within:ring-destructive/20 dark:focus-within:ring-destructive/40",
-            className,
-          )}
-          onChange={(val) => onChange?.(val ?? "")}
-          ref={ref as any}
-          value={sanitizedValue}
-          countrySelectComponent={CountrySelect as any}
-          numberInputProps={{
-            className:
-              "PhoneInputInput flex-1 bg-transparent outline-none placeholder:text-muted-foreground",
-            autoComplete: "tel",
-            readOnly: false,
-          }}
-          defaultCountry="IN"
-          {...props}
-        />
-      </div>
-    );
-  },
-);
+function PhoneInputComponent({
+  className,
+  onChange,
+  error,
+  value,
+  ref,
+  ...props
+}: PhoneInputComponentProps) {
+  const sanitizedValue = useMemo(() => {
+    if (!value || typeof value !== "string") return "";
+    if (value.includes("@")) return "";
+    return value;
+  }, [value]);
+
+  return (
+    <div className="relative w-full">
+      <PhoneInput
+        className={cn(
+          "flex h-9 w-full items-center rounded-md border border-input bg-background px-3 text-sm",
+          "phone-input-container",
+          "focus-within:outline-none focus-within:ring-[3px] focus-within:ring-ring/50 focus-within:border-ring",
+          "disabled:cursor-not-allowed disabled:opacity-50",
+          error && "border-destructive focus-within:ring-destructive/20 dark:focus-within:ring-destructive/40",
+          className,
+        )}
+        onChange={(val) => onChange?.(val ?? "")}
+        ref={ref as any}
+        value={sanitizedValue}
+        countrySelectComponent={CountrySelect as any}
+        numberInputProps={{
+          className:
+            "PhoneInputInput flex-1 bg-transparent outline-none placeholder:text-muted-foreground",
+          autoComplete: "tel",
+          readOnly: false,
+        }}
+        defaultCountry="IN"
+        {...props}
+      />
+    </div>
+  );
+}
+
 PhoneInputComponent.displayName = "PhoneInput";
 
 export default PhoneInputComponent;

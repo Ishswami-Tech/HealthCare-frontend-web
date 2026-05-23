@@ -102,7 +102,7 @@ export default function TherapistPatients() {
         eyebrow="Therapist Clients"
         title="Clients"
         description="Manage therapy client records, session history, and progress from a shared clinical view."
-        meta={<span className="text-sm font-medium text-muted-foreground">Loaded: {clientsPage.total} clients</span>}
+        meta={`Loaded: ${clientsPage.total} clients`}
       />
 
       {/* Search and Filter */}
@@ -225,13 +225,13 @@ export default function TherapistPatients() {
                     {status === "active" && (
                       <Button
                         size="sm"
-                        onClick={() =>
+                          onClick={() =>
                           updateSessionMutation.mutate({
                             therapistId,
                             clientId: client.id,
                             sessionData: {
                               sessionDate: nowIso(),
-                              notes: `Updated on ${formatDateInIST(new Date())}`,
+                              notes: `Updated on ${formatDateInIST(nowIso())}`,
                             },
                           })
                         }

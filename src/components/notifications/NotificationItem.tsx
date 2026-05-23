@@ -47,7 +47,7 @@ export function NotificationItem({
   onRemove,
   className,
 }: NotificationItemProps) {
-  const router = useRouter();
+  const { push } = useRouter();
   const { session } = useAuth();
   const user = session?.user;
   const userRole = (user?.role as string)?.toLowerCase() || 'patient';
@@ -55,7 +55,7 @@ export function NotificationItem({
   const Icon = typeIcons[notification.type] || Bell;
   const colorClass = typeColors[notification.type] || typeColors.SYSTEM;
 
-  const handleClick = async () => {
+  const openNotification = async () => {
     // Mark as read if not already read
     if (!notification.isRead && onMarkAsRead) {
       await onMarkAsRead(notification.id);
@@ -63,13 +63,13 @@ export function NotificationItem({
 
     // Navigate if URL is provided
     if (notification.data?.url) {
-      router.push(notification.data.url as string);
+      push(notification.data.url as string);
     } else if (notification.data?.appointmentId) {
       // Redirect to role-based appointments page with ID query param
-      router.push(`/${userRole}/appointments?id=${notification.data.appointmentId}`);
+      push(`/${userRole}/appointments?id=${notification.data.appointmentId}`);
     } else if (notification.data?.prescriptionId) {
       // Redirect patients to the consolidated Health page; other roles keep their prescriptions page.
-      router.push(
+      push(
         userRole === "patient"
           ? `/patient/health?tab=medicines&id=${notification.data.prescriptionId}`
           : `/${userRole}/prescriptions?id=${notification.data.prescriptionId}`
@@ -94,20 +94,11 @@ export function NotificationItem({
   return (
     <div
       className={cn(
-        "group relative flex items-start gap-3 p-3 rounded-lg border transition-all cursor-pointer hover:bg-accent",
+        "group relative flex items-start gap-3 p-3 rounded-lg border transition-all hover:bg-accent",
         !notification.isRead && "bg-accent/50 border-primary/20",
         notification.isRead && "opacity-75",
         className
       )}
-      onClick={handleClick}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          handleClick();
-        }
-      }}
-      role="button"
-      tabIndex={0}
     >
       {/* Icon */}
       <div
@@ -119,8 +110,11 @@ export function NotificationItem({
         <Icon className="size-5" />
       </div>
 
-      {/* Content */}
-      <div className="flex-1 min-w-0">
+      <button
+        type="button"
+        onClick={openNotification}
+        className="flex-1 min-w-0 text-left"
+      >
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             <h4
@@ -152,33 +146,33 @@ export function NotificationItem({
               })}
             </span>
           </div>
-
-          {/* Actions */}
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            {!notification.isRead && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 px-2 text-xs"
-                onClick={handleMarkAsRead}
-                title="Mark as read"
-              >
-                <CheckCircle2 className="size-3" />
-              </Button>
-            )}
-            {onRemove && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 px-2 text-xs hover:text-destructive"
-                onClick={handleRemove}
-                title="Remove"
-              >
-                <X className="size-3" />
-              </Button>
-            )}
-          </div>
         </div>
+      </button>
+
+      {/* Actions */}
+      <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        {!notification.isRead && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-xs"
+            onClick={handleMarkAsRead}
+            title="Mark as read"
+          >
+            <CheckCircle2 className="size-3" />
+          </Button>
+        )}
+        {onRemove && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-xs hover:text-destructive"
+            onClick={handleRemove}
+            title="Remove"
+          >
+            <X className="size-3" />
+          </Button>
+        )}
       </div>
     </div>
   );

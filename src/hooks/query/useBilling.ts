@@ -1,7 +1,8 @@
 // Billing Hooks
 // Integrated with real API - using Docker backend
 
-import { useQueryData, useMutationOperation } from '../core';
+import { useQueryData } from '../core/useQueryData';
+import { useMutationOperation } from '../core/useMutationOperation';
 import { useCurrentClinicId } from './useClinics';
 import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import {
@@ -53,7 +54,7 @@ function getInvoiceSortTimestamp(invoice: Pick<Invoice, 'createdAt' | 'updatedAt
 }
 
 function sortInvoicesNewestFirst(invoices: Invoice[]): Invoice[] {
-  return [...invoices].sort((left, right) => getInvoiceSortTimestamp(right) - getInvoiceSortTimestamp(left));
+  return invoices.toSorted((left, right) => getInvoiceSortTimestamp(right) - getInvoiceSortTimestamp(left));
 }
 
 function getPaymentSortTimestamp(payment: {
@@ -69,7 +70,7 @@ function getPaymentSortTimestamp(payment: {
 function sortPaymentsNewestFirst<T extends { createdAt?: string; updatedAt?: string; paymentDate?: string }>(
   payments: T[]
 ): T[] {
-  return [...payments].sort((left, right) => getPaymentSortTimestamp(right) - getPaymentSortTimestamp(left));
+  return payments.toSorted((left, right) => getPaymentSortTimestamp(right) - getPaymentSortTimestamp(left));
 }
 
 // ============ Billing Plans Hooks ============

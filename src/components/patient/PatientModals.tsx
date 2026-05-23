@@ -203,8 +203,8 @@ export function RefillRequestModal({
           <div className="bg-muted p-3 rounded-lg">
             <p className="text-sm font-medium mb-2">Medications:</p>
             <ul className="text-sm text-muted-foreground gap-y-1">
-              {prescription.medications.map((med, idx) => (
-                <li key={idx}>• {med.name}</li>
+              {prescription.medications.map((med) => (
+                <li key={med.name}>• {med.name}</li>
               ))}
             </ul>
           </div>

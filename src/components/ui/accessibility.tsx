@@ -37,6 +37,70 @@ interface AccessibilityContextType {
 const AccessibilityContext =
   React.createContext<AccessibilityContextType | null>(null);
 
+type AccessibilityState = {
+  fontSize: number;
+  contrast: "normal" | "high";
+  reducedMotion: boolean;
+  screenReaderMode: boolean;
+  focusVisible: boolean;
+  announcements: string[];
+};
+
+type AccessibilityAction =
+  | { type: "setFontSize"; value: number }
+  | { type: "setContrast"; value: "normal" | "high" }
+  | { type: "setReducedMotion"; value: boolean }
+  | { type: "setScreenReaderMode"; value: boolean }
+  | { type: "setFocusVisible"; value: boolean }
+  | { type: "addAnnouncement"; value: string }
+  | { type: "removeAnnouncement"; value: string }
+  | { type: "reset" };
+
+const initialAccessibilityState: AccessibilityState = {
+  fontSize: 16,
+  contrast: "normal",
+  reducedMotion: false,
+  screenReaderMode: false,
+  focusVisible: false,
+  announcements: [],
+};
+
+function accessibilityReducer(
+  state: AccessibilityState,
+  action: AccessibilityAction
+): AccessibilityState {
+  switch (action.type) {
+    case "setFontSize":
+      return { ...state, fontSize: action.value };
+    case "setContrast":
+      return { ...state, contrast: action.value };
+    case "setReducedMotion":
+      return { ...state, reducedMotion: action.value };
+    case "setScreenReaderMode":
+      return { ...state, screenReaderMode: action.value };
+    case "setFocusVisible":
+      return { ...state, focusVisible: action.value };
+    case "addAnnouncement":
+      return { ...state, announcements: [...state.announcements, action.value] };
+    case "removeAnnouncement":
+      return {
+        ...state,
+        announcements: state.announcements.filter((message) => message !== action.value),
+      };
+    case "reset":
+      return {
+        ...state,
+        fontSize: initialAccessibilityState.fontSize,
+        contrast: initialAccessibilityState.contrast,
+        reducedMotion: initialAccessibilityState.reducedMotion,
+        screenReaderMode: initialAccessibilityState.screenReaderMode,
+        focusVisible: initialAccessibilityState.focusVisible,
+      };
+    default:
+      return state;
+  }
+}
+
 // Accessibility Provider
 interface AccessibilityProviderProps {
   children: React.ReactNode;
@@ -45,26 +109,48 @@ interface AccessibilityProviderProps {
 export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
   children,
 }) => {
-  const [fontSize, setFontSize] = React.useState(16);
-  const [contrast, setContrast] = React.useState<"normal" | "high">("normal");
-  const [reducedMotion, setReducedMotion] = React.useState(false);
-  const [screenReaderMode, setScreenReaderMode] = React.useState(false);
-  const [focusVisible, setFocusVisible] = React.useState(false);
-  const [announcements, setAnnouncements] = React.useState<string[]>([]);
+  const [
+    {
+      fontSize,
+      contrast,
+      reducedMotion,
+      screenReaderMode,
+      focusVisible,
+      announcements,
+    },
+    dispatch,
+  ] = React.useReducer(accessibilityReducer, initialAccessibilityState);
+
+  const setFontSize = React.useCallback(
+    (value: number) => dispatch({ type: "setFontSize", value }),
+    []
+  );
+  const setContrast = React.useCallback(
+    (value: "normal" | "high") => dispatch({ type: "setContrast", value }),
+    []
+  );
+  const setReducedMotion = React.useCallback(
+    (value: boolean) => dispatch({ type: "setReducedMotion", value }),
+    []
+  );
+  const setScreenReaderMode = React.useCallback(
+    (value: boolean) => dispatch({ type: "setScreenReaderMode", value }),
+    []
+  );
+  const setFocusVisible = React.useCallback(
+    (value: boolean) => dispatch({ type: "setFocusVisible", value }),
+    []
+  );
 
   const announce = React.useCallback((message: string) => {
-    setAnnouncements((prev) => [...prev, message]);
+    dispatch({ type: "addAnnouncement", value: message });
     setTimeout(() => {
-      setAnnouncements((prev) => prev.filter((msg) => msg !== message));
+      dispatch({ type: "removeAnnouncement", value: message });
     }, 5000);
   }, []);
 
   const resetSettings = React.useCallback(() => {
-    setFontSize(16);
-    setContrast("normal");
-    setReducedMotion(false);
-    setScreenReaderMode(false);
-    setFocusVisible(false);
+    dispatch({ type: "reset" });
     announce("Accessibility settings reset to default");
   }, [announce]);
 
@@ -121,7 +207,7 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
 };
 
 export const useAccessibility = () => {
-  const context = React.useContext(AccessibilityContext);
+  const context = React.use(AccessibilityContext);
   if (!context) {
     throw new Error(
       "useAccessibility must be used within AccessibilityProvider"
@@ -132,7 +218,7 @@ export const useAccessibility = () => {
 
 // Safe version that doesn't throw
 export const useAccessibilitySafe = () => {
-  const context = React.useContext(AccessibilityContext);
+  const context = React.use(AccessibilityContext);
   return context;
 };
 
@@ -200,9 +286,9 @@ export const AccessibilityToolbar: React.FC<{ className?: string }> = ({
             </div>
 
             <div className="gap-y-2">
-              <label className="text-sm font-medium">
+              <span className="text-sm font-medium">
                 Font Size: {fontSize}px
-              </label>
+              </span>
               <div className="flex items-center gap-x-2">
                 <Button
                   variant="outline"
@@ -233,7 +319,7 @@ export const AccessibilityToolbar: React.FC<{ className?: string }> = ({
             </div>
 
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium">High Contrast</label>
+              <span className="text-sm font-medium">High Contrast</span>
               <Button
                 variant={contrast === "high" ? "default" : "outline"}
                 size="sm"
@@ -252,7 +338,7 @@ export const AccessibilityToolbar: React.FC<{ className?: string }> = ({
             </div>
 
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium">Reduced Motion</label>
+              <span className="text-sm font-medium">Reduced Motion</span>
               <Button
                 variant={reducedMotion ? "default" : "outline"}
                 size="sm"
@@ -273,7 +359,7 @@ export const AccessibilityToolbar: React.FC<{ className?: string }> = ({
             </div>
 
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium">Screen Reader Mode</label>
+              <span className="text-sm font-medium">Screen Reader Mode</span>
               <Button
                 variant={screenReaderMode ? "default" : "outline"}
                 size="sm"
@@ -294,7 +380,7 @@ export const AccessibilityToolbar: React.FC<{ className?: string }> = ({
             </div>
 
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium">Enhanced Focus</label>
+              <span className="text-sm font-medium">Enhanced Focus</span>
               <Button
                 variant={focusVisible ? "default" : "outline"}
                 size="sm"

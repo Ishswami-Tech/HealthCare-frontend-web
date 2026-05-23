@@ -53,7 +53,7 @@ function getStatusClasses(status: string): string {
 export function PaymentHistory({ payments, onRefetch, compact = false }: PaymentHistoryProps) {
   const sortedPayments = useMemo(
     () =>
-      [...payments].sort((left, right) => {
+      payments.toSorted((left, right) => {
         const leftDate = new Date(left.paymentDate || left.createdAt || left.updatedAt || 0).getTime();
         const rightDate = new Date(right.paymentDate || right.createdAt || right.updatedAt || 0).getTime();
         return rightDate - leftDate;

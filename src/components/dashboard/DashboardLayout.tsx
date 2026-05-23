@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, createContext, useContext } from "react";
+import { use, useEffect, useMemo, createContext } from "react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useRBAC,
@@ -24,6 +24,11 @@ import { useLayoutStore } from "@/stores/layout.store";
 import { useAuthStore } from "@/stores";
 import { PatientQrGateHost } from "@/components/patient/PatientQrGateHost";
 const DashboardShellContext = createContext<boolean>(false);
+
+const DASHBOARD_ROUTE_TITLES: Record<string, string> = {
+  "/clinic-admin/staff": "Staff Directory",
+  "/patient/payments": "My Billing & Payments",
+};
 
 function resolveDisplayNameAndInitials(user: {
   firstName?: string | null | undefined;
@@ -81,15 +86,13 @@ export function DashboardLayout({
   showPermissionWarnings = true,
   customUnauthorizedMessage,
 }: DashboardLayoutProps) {
-  const isInsideShell = useContext(DashboardShellContext);
+  const isInsideShell = use(DashboardShellContext);
 
   // ─── Global Layout Store Sync ──────────────────────────────────────────────
-  const setDashboardMounted = useLayoutStore((state) => state.setDashboardMounted);
-  const setPageTitle = useLayoutStore((state) => state.setPageTitle);
-  const setDisplayUser = useLayoutStore((state) => state.setDisplayUser);
+  const setDashboardMeta = useLayoutStore((state) => state.setDashboardMeta);
 
   const { session, isPending } = useAuth();
-  const router = useRouter();
+  const { back, push, replace } = useRouter();
   const { user } = session || {};
   const isProfileComplete = useAuthStore((state) => state.isProfileComplete);
 
@@ -131,6 +134,8 @@ export function DashboardLayout({
 
   // Get current path for route-based protection
   const pathname = usePathname();
+  const resolvedPageTitle =
+    title !== "Dashboard" ? title : DASHBOARD_ROUTE_TITLES[pathname] || title;
 
   // Check role access (Component Props)
   const hasRoleAccess = useMemo(() => {
@@ -150,6 +155,15 @@ export function DashboardLayout({
 
   // Overall access check
   const hasAccess = hasRoleAccess && hasRouteRoleAccess && hasPermissionAccess;
+  const redirectTarget = useMemo(() => {
+    if (isPending) return null;
+    if (!user) return ROUTES.LOGIN;
+    if (!hasAccess) return getDefaultRoute();
+    if (user?.profileComplete === false && !isProfileComplete) {
+      return ROUTES.PROFILE_COMPLETION;
+    }
+    return null;
+  }, [isPending, user, hasAccess, getDefaultRoute, isProfileComplete]);
 
   // ─── Fetch User Profile (React Query) ──────────────────────────────────────
   // ─── Sync Store Data (Zustand) ─────────────────────────────────────────────
@@ -169,42 +183,21 @@ export function DashboardLayout({
   }, [user, normalizedUserRole]);
 
   useEffect(() => {
-    if (userDisplayData) {
-      setDisplayUser(userDisplayData);
-    }
-  }, [userDisplayData, setDisplayUser]);
+    setDashboardMeta({
+      pageTitle: resolvedPageTitle || "Dashboard",
+      displayUser: userDisplayData,
+    });
 
-  // Sync page title
-  useEffect(() => {
-    if (title) {
-      setPageTitle(title);
+    if (redirectTarget) {
+      replace(redirectTarget);
     }
-  }, [title, setPageTitle]);
-
-  // Authorization effect
-  useEffect(() => {
-    if (isPending) return;
-    
-    if (!user) {
-      router.replace(ROUTES.LOGIN);
-      return;
-    }
-    
-    if (!hasAccess) {
-      router.replace(getDefaultRoute());
-      return;
-    }
-    
-    if (user?.profileComplete === false && !isProfileComplete) {
-      router.replace(ROUTES.PROFILE_COMPLETION);
-    }
-  }, [isPending, user, hasAccess, getDefaultRoute, router, isProfileComplete]);
-
-  // Shell detection effect (for other store consumers)
-  useEffect(() => {
-    setDashboardMounted(true);
-    return () => setDashboardMounted(false);
-  }, [setDashboardMounted]);
+  }, [
+    redirectTarget,
+    replace,
+    resolvedPageTitle,
+    setDashboardMeta,
+    userDisplayData,
+  ]);
 
   if (isPending || (!user && !session)) {
     return (
@@ -233,8 +226,8 @@ export function DashboardLayout({
             </AlertDescription>
           </Alert>
           <div className="flex gap-4">
-            <Button onClick={() => router.back()} variant="outline" className="flex-1">Back</Button>
-            <Button onClick={() => router.push(getDefaultRoute())} className="flex-1">Dashboard</Button>
+            <Button onClick={() => back()} variant="outline" className="flex-1">Back</Button>
+            <Button onClick={() => push(getDefaultRoute())} className="flex-1">Dashboard</Button>
           </div>
         </div>
       </div>
@@ -249,7 +242,7 @@ export function DashboardLayout({
         isInsideShell ? "h-[400px] w-full" : "min-h-screen"
       )}>
         <Loader2 className="size-8 animate-spin text-blue-600" />
-        <p className="ml-2">Redirecting to profile completion...</p>
+        <p className="ml-2">Redirecting to profile completion…</p>
       </div>
     );
   }

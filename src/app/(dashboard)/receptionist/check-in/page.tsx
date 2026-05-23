@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useReducer, useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
 import {
   Calendar as CalendarIcon,
@@ -126,16 +126,22 @@ interface CheckInHistoryItem {
 }
 
 const getTodayDateInIst = () =>
-  new Intl.DateTimeFormat("en-CA", {
+  new Date().toLocaleDateString("en-CA", {
     timeZone: "Asia/Kolkata",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(new Date());
+  });
 
 const addIstDays = (date: Date, days: number) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 
 const createIstDate = (dateKey: string) => new Date(`${dateKey}T00:00:00+05:30`);
+
+const CHECK_IN_LOADING_VIEW = (
+  <div className="flex min-h-[400px] items-center justify-center rounded-xl border border-border bg-card p-6">
+    <Loader2 className="size-10 animate-spin text-emerald-600 dark:text-emerald-300" />
+  </div>
+);
 
 const getPersonName = (
   entity?: {
@@ -187,21 +193,100 @@ const getCheckInHistoryAppointments = (data: unknown): CheckInHistoryItem[] => {
   return [];
 };
 
+type ReceptionistCheckInState = {
+  searchTerm: string;
+  activeTab: "upcoming" | "history";
+  selectedDates: Date[];
+  checkingInId: string | null;
+  confirmedAppointmentIds: string[];
+};
+
+type ReceptionistCheckInAction =
+  | { type: "setSearchTerm"; value: string }
+  | { type: "setActiveTab"; value: "upcoming" | "history" }
+  | { type: "setSelectedDates"; value: Date[] }
+  | { type: "setCheckingInId"; value: string | null }
+  | { type: "addConfirmedAppointmentId"; value: string };
+
+const initialReceptionistCheckInState: ReceptionistCheckInState = {
+  searchTerm: "",
+  activeTab: "upcoming",
+  selectedDates: [],
+  checkingInId: null,
+  confirmedAppointmentIds: [],
+};
+
+function receptionistCheckInReducer(
+  state: ReceptionistCheckInState,
+  action: ReceptionistCheckInAction
+): ReceptionistCheckInState {
+  switch (action.type) {
+    case "setSearchTerm":
+      return { ...state, searchTerm: action.value };
+    case "setActiveTab":
+      return { ...state, activeTab: action.value };
+    case "setSelectedDates":
+      return { ...state, selectedDates: action.value };
+    case "setCheckingInId":
+      return { ...state, checkingInId: action.value };
+    case "addConfirmedAppointmentId":
+      return state.confirmedAppointmentIds.includes(action.value)
+        ? state
+        : {
+            ...state,
+            confirmedAppointmentIds: [...state.confirmedAppointmentIds, action.value],
+          };
+    default:
+      return state;
+  }
+}
+
 
 export default function ReceptionistCheckInPage() {
   const { session } = useAuth();
   useWebSocketQuerySync();
   const { clinicId } = useClinicContext();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState<"upcoming" | "history">("upcoming");
-  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
-  const [checkingInId, setCheckingInId] = useState<string | null>(null);
-  const [confirmedAppointmentIds, setConfirmedAppointmentIds] = useState<string[]>([]);
+  const [
+    {
+      searchTerm,
+      activeTab,
+      selectedDates,
+      checkingInId,
+      confirmedAppointmentIds,
+    },
+    dispatch,
+  ] = useReducer(receptionistCheckInReducer, initialReceptionistCheckInState);
+
+  const setSearchTerm = (value: string) => {
+    dispatch({ type: "setSearchTerm", value });
+  };
+
+  const setActiveTab = (value: "upcoming" | "history") => {
+    dispatch({ type: "setActiveTab", value });
+  };
+
+  const setSelectedDates = (value: Date[]) => {
+    dispatch({ type: "setSelectedDates", value });
+  };
+
+  const setCheckingInId = (value: string | null) => {
+    dispatch({ type: "setCheckingInId", value });
+  };
   const todayDate = getTodayDateInIst();
+  const todayDisplayDate = useMemo(
+    () =>
+      formatDateInIST(createIstDate(todayDate), {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }),
+    [todayDate]
+  );
   const { data: checkInLocationsData, isPending: isCheckInLocationsLoading } = useCheckInLocations();
   const { data: checkInHistoryData, isPending: isCheckInHistoryLoading } = useCheckInHistory();
   const selectedDatesSorted = useMemo(
-    () => [...selectedDates].sort((left, right) => left.getTime() - right.getTime()),
+    () => selectedDates.toSorted((left, right) => left.getTime() - right.getTime()),
     [selectedDates]
   );
   const selectedDateKeys = useMemo(
@@ -211,14 +296,11 @@ export default function ReceptionistCheckInPage() {
   const earliestSelectedDate = selectedDatesSorted[0];
   const queryStartDate = earliestSelectedDate ? formatISODateInIST(earliestSelectedDate) : todayDate;
   const checkInMutation = useForceCheckInAppointment();
-  const checkInLocations = Array.isArray(checkInLocationsData) ? checkInLocationsData : [];
-
   const updateSelectedDates = (dates: Date[]) => {
     const unique = Array.from(
       new Map(dates.map((date) => [formatISODateInIST(date), date])).values()
     );
-    unique.sort((left, right) => left.getTime() - right.getTime());
-    setSelectedDates(unique);
+    setSelectedDates(unique.toSorted((left, right) => left.getTime() - right.getTime()));
   };
 
   const applyPreset = (preset: "today" | "tomorrow" | "week" | "clear") => {
@@ -257,6 +339,8 @@ export default function ReceptionistCheckInPage() {
       return true;
     }
 
+    const checkInLocations = Array.isArray(checkInLocationsData) ? checkInLocationsData : [];
+
     return checkInLocations.some((location) => {
       if (!location || typeof location !== "object") {
         return false;
@@ -269,8 +353,7 @@ export default function ReceptionistCheckInPage() {
 
       return isActive && (linkedLocationId === assignedLocationId || checkInLocationId === assignedLocationId);
     });
-  }, [assignedLocationId, checkInLocations, isCheckInLocationsLoading]);
-
+  }, [assignedLocationId, checkInLocationsData, isCheckInLocationsLoading]);
   const { data: appointmentsData, isPending: isLoading, refetch } = useAppointments({
     ...(clinicId ? { clinicId } : {}),
     startDate: queryStartDate,
@@ -360,8 +443,7 @@ export default function ReceptionistCheckInPage() {
 
   const historyRows = useMemo<CheckInHistoryRow[]>(
     () =>
-      [...historyAppointments]
-        .sort((left, right) => {
+      historyAppointments.toSorted((left, right) => {
           const leftCheckedInAt = left.checkedInAt ? new Date(left.checkedInAt).getTime() : 0;
           const rightCheckedInAt = right.checkedInAt ? new Date(right.checkedInAt).getTime() : 0;
           return rightCheckedInAt - leftCheckedInAt;
@@ -521,9 +603,7 @@ export default function ReceptionistCheckInPage() {
         reason: "Reception desk manual check-in for this location",
         ...(locationToSend ? { locationId: locationToSend } : {}),
       });
-      setConfirmedAppointmentIds((current) =>
-        current.includes(appointmentId) ? current : [...current, appointmentId]
-      );
+      dispatch({ type: "addConfirmedAppointmentId", value: appointmentId });
       await refetch?.();
     } catch (error) {
       // The mutation hook already emits the canonical error toast.
@@ -637,31 +717,28 @@ export default function ReceptionistCheckInPage() {
     [checkingInId]
   );
 
-  if (isLoading) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center rounded-xl border border-border bg-card p-6">
-        <Loader2 className="size-10 animate-spin text-emerald-600 dark:text-emerald-300" />
-      </div>
-    );
-  }
+  const headerMeta = useMemo(
+    () => (
+      <span
+        className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground"
+        suppressHydrationWarning
+      >
+        <CalendarIcon className="size-4 text-emerald-500" />
+        {todayDisplayDate}
+      </span>
+    ),
+    [todayDisplayDate]
+  );
 
-  return (
+  return isLoading ? (
+    CHECK_IN_LOADING_VIEW
+  ) : (
     <DashboardPageShell className="p-6">
       <DashboardPageHeader
         eyebrow="Reception Check-In"
         title="Patient Arrival Confirmation"
         description="Confirm today&apos;s and upcoming in-person arrivals. Use the calendar to select one date or multiple dates before moving patients into the consultation flow."
-        meta={
-          <span className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground" suppressHydrationWarning>
-            <CalendarIcon className="size-4 text-emerald-500" />
-            {formatDateInIST(new Date(), {
-              weekday: "long",
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          </span>
-        }
+        meta={headerMeta}
       />
 
       <Card>
@@ -818,8 +895,8 @@ export default function ReceptionistCheckInPage() {
                               })}`}
                               className="inline-flex size-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
                               onClick={() =>
-                                setSelectedDates((current) =>
-                                  current.filter((item) => formatISODateInIST(item) !== key)
+                                setSelectedDates(
+                                  selectedDates.filter((item) => formatISODateInIST(item) !== key)
                                 )
                               }
                             >

@@ -113,12 +113,13 @@ export async function updateAppointmentStatus(id: string, data: any) {
     const session = await getServerSession();
     if (!session?.user) return { success: false, error: 'Unauthorized' };
 
-    await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.STATUS(id), {
-      method: 'PATCH',
-      body: JSON.stringify(validatedData)
-    });
-
-    const { ipAddress, userAgent } = await getClientInfo();
+    const [_statusResult, { ipAddress, userAgent }] = await Promise.all([
+      authenticatedApi(API_ENDPOINTS.APPOINTMENTS.STATUS(id), {
+        method: 'PATCH',
+        body: JSON.stringify(validatedData)
+      }),
+      getClientInfo(),
+    ]);
     await auditLog({
       userId: session.user.id,
       action: `APPOINTMENT_STATUS_${validatedData.status}`,
@@ -166,12 +167,13 @@ export async function startConsultation(
       ...(data.notes ? { notes: data.notes } : {}),
     };
 
-    const { data: appointment } = await authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.START(id), {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-
-    const { ipAddress, userAgent } = await getClientInfo();
+    const [{ data: appointment }, { ipAddress, userAgent }] = await Promise.all([
+      authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.START(id), {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+      getClientInfo(),
+    ]);
     await auditLog({
       userId: session.user.id,
       action: 'APPOINTMENT_CONSULTATION_STARTED',
@@ -230,12 +232,13 @@ export async function completeAppointment(
       ...(validatedData.metadata ? { metadata: validatedData.metadata } : {}),
     };
 
-    const { data: appointment } = await authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.COMPLETE(id), {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-
-    const { ipAddress, userAgent } = await getClientInfo();
+    const [{ data: appointment }, { ipAddress, userAgent }] = await Promise.all([
+      authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.COMPLETE(id), {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+      getClientInfo(),
+    ]);
     await auditLog({
       userId: session.user.id,
       action: 'APPOINTMENT_COMPLETED',
@@ -278,14 +281,15 @@ export async function cancelAppointment(id: string, reason?: string) {
     const session = await getServerSession();
     if (!session?.user) return { success: false, error: 'Unauthorized' };
 
-    await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.DELETE(id), {
-      method: 'DELETE',
-      body: JSON.stringify({
-        reason: reason || 'Cancelled by user',
+    const [_cancelResult, { ipAddress, userAgent }] = await Promise.all([
+      authenticatedApi(API_ENDPOINTS.APPOINTMENTS.DELETE(id), {
+        method: 'DELETE',
+        body: JSON.stringify({
+          reason: reason || 'Cancelled by user',
+        }),
       }),
-    });
-
-    const { ipAddress, userAgent } = await getClientInfo();
+      getClientInfo(),
+    ]);
     await auditLog({
       userId: session.user.id,
       action: 'APPOINTMENT_CANCELLED',
@@ -317,11 +321,11 @@ export async function cancelAppointment(id: string, reason?: string) {
 /**
  * Create a new appointment
  */
-export async function createAppointment(data: CreateAppointmentData): Promise<{ 
-  success: boolean; 
-  appointment?: Appointment; 
+export async function createAppointment(data: CreateAppointmentData): Promise<{
+  success: boolean;
+  appointment?: Appointment;
   error?: string;
-  code?: string; 
+  code?: string;
 }> {
   try {
     const validatedData = createAppointmentSchema.parse(data);
@@ -332,6 +336,9 @@ export async function createAppointment(data: CreateAppointmentData): Promise<{
 
     const hasAccess = await validateClinicAccess(userId, 'appointments.create');
     if (!hasAccess) return { success: false, error: 'Access denied' };
+
+    // Use the session's current clinicId (already normalized on login/profile completion)
+    const clinicIdToSend = session.user.clinicId || APP_CONFIG.CLINIC.ID;
 
     const appointmentDate = toIstAppointmentIso(validatedData.date, validatedData.time);
     const { date: _date, time: _time, ...restPayload } = validatedData;
@@ -351,7 +358,7 @@ export async function createAppointment(data: CreateAppointmentData): Promise<{
       method: 'POST',
       body: JSON.stringify(payload),
       headers: {
-        'X-Clinic-ID': session.user.clinicId || APP_CONFIG.CLINIC.ID,
+        'X-Clinic-ID': clinicIdToSend,
       },
     });
 
@@ -416,16 +423,24 @@ export async function getAppointmentServiceCatalog(): Promise<{
         ? data.data.services
         : [];
 
-    const sanitizedServices = services
-      .map((service) => ({
-        ...service,
-        appointmentModes: Array.isArray(service.appointmentModes)
-          ? service.appointmentModes.filter(
-              (mode): mode is 'IN_PERSON' | 'VIDEO_CALL' => mode === 'IN_PERSON' || mode === 'VIDEO_CALL'
-            )
-          : [],
-      }))
-      .filter((service) => service.appointmentModes.length > 0);
+    const sanitizedServices = services.flatMap((service) => {
+      const appointmentModes = Array.isArray(service.appointmentModes)
+        ? service.appointmentModes.filter(
+            (mode): mode is 'IN_PERSON' | 'VIDEO_CALL' => mode === 'IN_PERSON' || mode === 'VIDEO_CALL'
+          )
+        : [];
+
+      if (!appointmentModes.length) {
+        return [];
+      }
+
+      return [
+        {
+          ...service,
+          appointmentModes,
+        },
+      ];
+    });
 
     return { success: true, services: sanitizedServices };
   } catch (error) {
@@ -595,7 +610,7 @@ export async function getAppointments(filters?: AppointmentFilters & { omitClini
     const { omitClinicId, ...restFilters } = filters || {};
     const queryParams = new URLSearchParams(restFilters as any).toString();
     const endpoint = queryParams ? `${API_ENDPOINTS.APPOINTMENTS.GET_ALL}?${queryParams}` : API_ENDPOINTS.APPOINTMENTS.GET_ALL;
-    const resolvedClinicId = restFilters.clinicId || session?.user?.clinicId;
+    const resolvedClinicId = session?.user?.clinicId || restFilters.clinicId || APP_CONFIG.CLINIC.ID;
     
     const { status, data } = await authenticatedApi<{
       data?: Appointment[] | { appointments?: Appointment[]; pagination?: any };
@@ -656,6 +671,7 @@ export async function getAppointments(filters?: AppointmentFilters & { omitClini
 
 /**
  * Get user's own appointments
+ * ClinicId is resolved server-side from the session cookie to avoid stale client state.
  */
 export async function getMyAppointments(filters?: any) {
   try {
@@ -663,10 +679,12 @@ export async function getMyAppointments(filters?: any) {
     const sessionUser = session?.user as
       | { clinicId?: string; primaryClinicId?: string }
       | undefined;
+    // Use the authoritative session clinicId — the cookie is always current after login/profile completion.
+    // Only use filters.clinicId as a fallback when session doesn't have clinicId.
     const resolvedClinicId =
-      filters?.clinicId ||
       sessionUser?.clinicId ||
-      sessionUser?.primaryClinicId;
+      sessionUser?.primaryClinicId ||
+      filters?.clinicId;
 
     if (!resolvedClinicId) {
       return {
@@ -680,11 +698,12 @@ export async function getMyAppointments(filters?: any) {
       limit: 100,
       ...(filters || {}),
     };
-    const queryInput = Object.fromEntries(
-      Object.entries(normalizedFilters)
-        .filter(([, value]) => value !== undefined && value !== null && value !== '')
-        .map(([key, value]) => [key, String(value)])
-    ) as Record<string, string>;
+    const queryInput = Object.entries(normalizedFilters).reduce<Record<string, string>>((accumulator, [key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        accumulator[key] = String(value);
+      }
+      return accumulator;
+    }, {});
     const queryParams = new URLSearchParams(queryInput).toString();
     const endpoint = queryParams ? `${API_ENDPOINTS.APPOINTMENTS.MY_APPOINTMENTS}?${queryParams}` : API_ENDPOINTS.APPOINTMENTS.MY_APPOINTMENTS;
     
@@ -787,12 +806,13 @@ export async function updateAppointment(id: string, data: UpdateAppointmentData)
       appointmentDate,
     };
 
-    const { data: appointment } = await authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.UPDATE(id), {
-      method: 'PATCH',
-      body: JSON.stringify(payload)
-    });
-
-    const { ipAddress, userAgent } = await getClientInfo();
+    const [{ data: appointment }, { ipAddress, userAgent }] = await Promise.all([
+      authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.UPDATE(id), {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      }),
+      getClientInfo(),
+    ]);
     await auditLog({
       userId: session.user.id,
       action: 'APPOINTMENT_UPDATED',
@@ -898,15 +918,16 @@ export async function forceCheckInAppointment(
     if (!session?.user) return { success: false, error: 'Unauthorized' };
 
     const reason = options?.reason || 'Manual receptionist check-in override';
-    const { data } = await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.FORCE_CHECK_IN(id), {
-      method: 'POST',
-      body: JSON.stringify({
-        reason,
-        ...(options?.locationId ? { locationId: options.locationId } : {}),
+    const [{ data }, { ipAddress, userAgent }] = await Promise.all([
+      authenticatedApi(API_ENDPOINTS.APPOINTMENTS.FORCE_CHECK_IN(id), {
+        method: 'POST',
+        body: JSON.stringify({
+          reason,
+          ...(options?.locationId ? { locationId: options.locationId } : {}),
+        }),
       }),
-    });
-
-    const { ipAddress, userAgent } = await getClientInfo();
+      getClientInfo(),
+    ]);
     await auditLog({
       userId: session.user.id,
       action: 'APPOINTMENT_CHECKED_IN',
@@ -948,12 +969,13 @@ export async function rescheduleAppointment(id: string, data: any) {
       reason: validatedData.reason
     };
 
-    const { data: appointment } = await authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.RESCHEDULE(id), {
-      method: 'PATCH',
-      body: JSON.stringify(payload)
-    });
-
-    const { ipAddress, userAgent } = await getClientInfo();
+    const [{ data: appointment }, { ipAddress, userAgent }] = await Promise.all([
+      authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.RESCHEDULE(id), {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      }),
+      getClientInfo(),
+    ]);
     await auditLog({
       userId: session.user.id,
       action: 'APPOINTMENT_RESCHEDULED',
@@ -986,12 +1008,13 @@ export async function rejectVideoProposal(id: string, reason: string) {
     const session = await getServerSession();
     if (!session?.user) return { success: false, error: 'Unauthorized' };
 
-    const { data: result } = await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.VIDEO_REJECT_PROPOSAL(id), {
-      method: 'POST',
-      body: JSON.stringify(validatedData)
-    });
-
-    const { ipAddress, userAgent } = await getClientInfo();
+    const [{ data: result }, { ipAddress, userAgent }] = await Promise.all([
+      authenticatedApi(API_ENDPOINTS.APPOINTMENTS.VIDEO_REJECT_PROPOSAL(id), {
+        method: 'POST',
+        body: JSON.stringify(validatedData)
+      }),
+      getClientInfo(),
+    ]);
     await auditLog({
       userId: session.user.id,
       action: 'APPOINTMENT_PROPOSAL_REJECTED',
@@ -1106,15 +1129,16 @@ export async function reassignAppointmentDoctor(
     const session = await getServerSession();
     if (!session?.user) return { success: false, error: 'Unauthorized' };
 
-    const { data: appointment } = await authenticatedApi<Appointment>(
-      API_ENDPOINTS.APPOINTMENTS.REASSIGN_DOCTOR(id),
-      {
-        method: 'POST',
-        body: JSON.stringify(data),
-      }
-    );
-
-    const { ipAddress, userAgent } = await getClientInfo();
+    const [{ data: appointment }, { ipAddress, userAgent }] = await Promise.all([
+      authenticatedApi<Appointment>(
+        API_ENDPOINTS.APPOINTMENTS.REASSIGN_DOCTOR(id),
+        {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }
+      ),
+      getClientInfo(),
+    ]);
     await auditLog({
       userId: session.user.id,
       action: 'APPOINTMENT_DOCTOR_REASSIGNED',
@@ -1213,6 +1237,7 @@ export async function bulkUpdateAppointmentStatus(appointmentIds: string[], stat
  * Get doctor availability
  * Uses authenticatedApi when the user is logged in (patient booking flow),
  * falls back to publicApi for guest access.
+ * ClinicId is resolved server-side from the session cookie to avoid stale client state.
  */
 export async function getDoctorAvailability(clinicId: string, doctorId: string, date: string, locationId?: string, appointmentType?: string) {
   try {
@@ -1227,21 +1252,27 @@ export async function getDoctorAvailability(clinicId: string, doctorId: string, 
     // Use the appointments route path (served under /api/v1)
     const url = `${API_ENDPOINTS.APPOINTMENTS.DOCTOR_AVAILABILITY(doctorId)}?${params.toString()}`;
 
-    const clinicHeaders = { 'X-Clinic-ID': clinicId };
-
-    // Prefer authenticatedApi — the patient IS logged in when booking.
-    // This avoids the backend's @Public() guard chain (JwtAuthGuard → ProfileCompletionGuard)
-    // rejecting requests that have no token.
+    // Resolve clinicId server-side from session cookie.
+    // This is authoritative — the cookie is always current after login/profile completion.
+    // The optional `clinicId` parameter is used as a fallback for guest/public flows only.
     const session = await getServerSession();
+    const serverClinicId = session?.user?.clinicId;
+    const resolvedClinicId = serverClinicId || clinicId || APP_CONFIG.CLINIC.ID;
+
+    const clinicHeaders = { 'X-Clinic-ID': resolvedClinicId };
+
     let data: DoctorAvailability;
 
     if (session?.user) {
+      // Prefer authenticated: avoids @Public() guard chain (JwtAuthGuard → ProfileCompletionGuard)
+      // rejecting requests that have no token during booking.
       const result = await authenticatedApi<DoctorAvailability>(url, {
         headers: clinicHeaders,
         cache: 'no-store',
       });
       data = result.data;
     } else {
+      // Guest/public fallback — use publicApi so no auth header is sent.
       const result = await publicApi<DoctorAvailability>(url, {
         headers: clinicHeaders,
         cache: 'no-store',

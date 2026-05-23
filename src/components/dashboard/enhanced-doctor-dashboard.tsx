@@ -62,8 +62,12 @@ export default function EnhancedDoctorDashboard() {
         new Date(apt.date).toDateString() === todayStr &&
         ["SCHEDULED", "CONFIRMED"].includes(apt.status)
       )
-      .sort((a: any, b: any) => (a.time || "").localeCompare(b.time || ""))
-      [0]?.time || "—",
+      .reduce((earliest: any, current: any) => {
+        if (!earliest) return current;
+        return (current.time || "").localeCompare(earliest.time || "") < 0
+          ? current
+          : earliest;
+      }, null)?.time || "—",
     urgentTasks: allAppointments.filter(
       (apt: any) => apt.priority === "URGENT" || apt.priority === "CRITICAL"
     ).length,
@@ -131,7 +135,7 @@ export default function EnhancedDoctorDashboard() {
             <div className="px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="gap-y-1">
-                  <h1 className="text-3xl font-semibold bg-gradient-to-r from-blue-600 via-purple-600 to-teal-600 bg-clip-text text-transparent">
+                  <h1 className="text-3xl font-semibold text-blue-700 dark:text-blue-300">
                     Good morning, Dr. {user?.firstName || "Doctor"}
                   </h1>
                   <p className="text-sm text-muted-foreground" suppressHydrationWarning>

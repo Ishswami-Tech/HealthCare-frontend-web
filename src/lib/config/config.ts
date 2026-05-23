@@ -280,6 +280,7 @@ export const APP_CONFIG = {
   // ============================================
   CLINIC: {
     // ✅ Trim clinic ID to prevent whitespace issues
+    // NOTE: 'CL0002' is the development fallback only - production must set NEXT_PUBLIC_CLINIC_ID
     ID: env.NEXT_PUBLIC_CLINIC_ID?.trim() || 'CL0002',
     APP_NAME: env.NEXT_PUBLIC_APP_NAME || 'Dr.Chandrakumar Deshmukh',
   },

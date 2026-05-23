@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useReducer } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,6 +57,122 @@ type NotificationSettingsState = {
   emergencyAlerts: boolean;
 };
 
+type SuperAdminSettingsState = {
+  system: SystemSettingsState;
+  security: SecuritySettingsState;
+  notification: NotificationSettingsState;
+};
+
+type SuperAdminSettingsDraft = Partial<{
+  system: Partial<SystemSettingsState>;
+  security: Partial<SecuritySettingsState>;
+  notification: Partial<NotificationSettingsState>;
+}>;
+
+type SuperAdminSettingsEditorState = {
+  selectedClinicId: string;
+  settingsDraftsByClinicId: Record<string, SuperAdminSettingsDraft>;
+  globalVideoProviderDraft: VideoProviderType | null;
+  clinicOverrideDraft: boolean | null;
+  clinicVideoProviderDraft: VideoProviderType | null;
+};
+
+type SuperAdminSettingsEditorAction =
+  | { type: "selectClinic"; clinicId: string }
+  | { type: "updateSystem"; clinicKey: string; key: keyof SystemSettingsState; value: SystemSettingsState[keyof SystemSettingsState] }
+  | { type: "updateSecurity"; clinicKey: string; key: keyof SecuritySettingsState; value: SecuritySettingsState[keyof SecuritySettingsState] }
+  | { type: "updateNotification"; clinicKey: string; key: keyof NotificationSettingsState; value: NotificationSettingsState[keyof NotificationSettingsState] }
+  | { type: "setGlobalVideoProviderDraft"; value: VideoProviderType | null }
+  | { type: "setClinicOverrideDraft"; value: boolean }
+  | { type: "clearClinicVideoProviderDraft" }
+  | { type: "setClinicVideoProviderDraft"; value: VideoProviderType };
+
+const initialSettingsEditorState: SuperAdminSettingsEditorState = {
+  selectedClinicId: "",
+  settingsDraftsByClinicId: {},
+  globalVideoProviderDraft: null,
+  clinicOverrideDraft: null,
+  clinicVideoProviderDraft: null,
+};
+
+function settingsEditorReducer(
+  state: SuperAdminSettingsEditorState,
+  action: SuperAdminSettingsEditorAction
+): SuperAdminSettingsEditorState {
+  switch (action.type) {
+    case "selectClinic":
+      return {
+        ...state,
+        selectedClinicId: action.clinicId,
+      };
+    case "updateSystem":
+      return {
+        ...state,
+        settingsDraftsByClinicId: {
+          ...state.settingsDraftsByClinicId,
+          [action.clinicKey]: {
+            ...(state.settingsDraftsByClinicId[action.clinicKey] || {}),
+            system: {
+              ...(state.settingsDraftsByClinicId[action.clinicKey]?.system || {}),
+              [action.key]: action.value,
+            },
+          },
+        },
+      };
+    case "updateSecurity":
+      return {
+        ...state,
+        settingsDraftsByClinicId: {
+          ...state.settingsDraftsByClinicId,
+          [action.clinicKey]: {
+            ...(state.settingsDraftsByClinicId[action.clinicKey] || {}),
+            security: {
+              ...(state.settingsDraftsByClinicId[action.clinicKey]?.security || {}),
+              [action.key]: action.value,
+            },
+          },
+        },
+      };
+    case "updateNotification":
+      return {
+        ...state,
+        settingsDraftsByClinicId: {
+          ...state.settingsDraftsByClinicId,
+          [action.clinicKey]: {
+            ...(state.settingsDraftsByClinicId[action.clinicKey] || {}),
+            notification: {
+              ...(state.settingsDraftsByClinicId[action.clinicKey]?.notification || {}),
+              [action.key]: action.value,
+            },
+          },
+        },
+      };
+    case "setGlobalVideoProviderDraft":
+      return {
+        ...state,
+        globalVideoProviderDraft: action.value,
+      };
+    case "setClinicOverrideDraft":
+      return {
+        ...state,
+        clinicOverrideDraft: action.value,
+      };
+    case "clearClinicVideoProviderDraft":
+      return {
+        ...state,
+        clinicVideoProviderDraft: null,
+      };
+    case "setClinicVideoProviderDraft":
+      return {
+        ...state,
+        clinicOverrideDraft: true,
+        clinicVideoProviderDraft: action.value,
+      };
+    default:
+      return state;
+  }
+}
+
 const defaultSystemSettings: SystemSettingsState = {
   siteName: "Ayurveda Healthcare System",
   siteDescription: "Comprehensive healthcare management platform",
@@ -98,75 +214,18 @@ function normalizeVideoProvider(value: unknown): VideoProviderType | null {
   return null;
 }
 
-export default function SuperAdminSettings() {
-  useAuth();
-  const { data: clinicsData, isPending: clinicsLoading } = useClinics();
-  const { data: globalVideoProviderSettings } = useGlobalVideoProviderSetting();
-  const updateClinic = useUpdateClinic();
-  const updateGlobalVideoProvider = useUpdateGlobalVideoProviderSetting();
-  const [selectedClinicId, setSelectedClinicId] = useState<string>("");
-  const [systemSettings, setSystemSettings] = useState<SystemSettingsState>(defaultSystemSettings);
-  const [securitySettings, setSecuritySettings] = useState<SecuritySettingsState>(defaultSecuritySettings);
-  const [notificationSettings, setNotificationSettings] = useState<NotificationSettingsState>(defaultNotificationSettings);
-  const [globalVideoProvider, setGlobalVideoProvider] = useState<VideoProviderType>(defaultVideoProvider);
-  const [clinicUsesVideoOverride, setClinicUsesVideoOverride] = useState<boolean>(false);
-  const [clinicVideoProvider, setClinicVideoProvider] = useState<VideoProviderType>(defaultVideoProvider);
+function buildSettingsState(selectedClinic: ClinicWithRelations | null): SuperAdminSettingsState {
+  const settings = (selectedClinic as any)?.settings;
+  if (!selectedClinic || !settings) {
+    return {
+      system: defaultSystemSettings,
+      security: defaultSecuritySettings,
+      notification: defaultNotificationSettings,
+    };
+  }
 
-  const clinics = useMemo(() => {
-    const data = clinicsData as any;
-    const clinicsArray =
-      (Array.isArray(clinicsData) ? clinicsData : data?.clinics || data?.data || []) as ClinicWithRelations[];
-    return clinicsArray;
-  }, [clinicsData]);
-
-  const selectedClinic = useMemo(
-    () => clinics.find(clinic => clinic.id === selectedClinicId) || clinics[0] || null,
-    [clinics, selectedClinicId]
-  );
-
-  const updateSystemSetting = <K extends keyof SystemSettingsState>(key: K, value: SystemSettingsState[K]) => {
-    setSystemSettings(prev => ({ ...prev, [key]: value }));
-  };
-
-  const updateSecuritySetting = <K extends keyof SecuritySettingsState>(key: K, value: SecuritySettingsState[K]) => {
-    setSecuritySettings(prev => ({ ...prev, [key]: value }));
-  };
-
-  const updateNotificationSetting = <K extends keyof NotificationSettingsState>(
-    key: K,
-    value: NotificationSettingsState[K]
-  ) => {
-    setNotificationSettings(prev => ({ ...prev, [key]: value }));
-  };
-
-  useEffect(() => {
-    if (!selectedClinicId && clinics[0]?.id) {
-      setSelectedClinicId(clinics[0].id);
-    }
-  }, [clinics, selectedClinicId]);
-
-  useEffect(() => {
-    const configuredProvider = normalizeVideoProvider(globalVideoProviderSettings?.provider);
-    if (configuredProvider) {
-      setGlobalVideoProvider(configuredProvider);
-      if (!clinicUsesVideoOverride) {
-        setClinicVideoProvider(configuredProvider);
-      }
-    } else {
-      setGlobalVideoProvider(defaultVideoProvider);
-      if (!clinicUsesVideoOverride) {
-        setClinicVideoProvider(defaultVideoProvider);
-      }
-    }
-  }, [clinicUsesVideoOverride, globalVideoProviderSettings?.provider]);
-
-  useEffect(() => {
-    const settings = (selectedClinic as any)?.settings;
-    if (!selectedClinic || !settings) {
-      return;
-    }
-
-    setSystemSettings({
+  return {
+    system: {
       siteName: settings.siteName || selectedClinic.name || defaultSystemSettings.siteName,
       siteDescription: settings.siteDescription || selectedClinic.description || defaultSystemSettings.siteDescription,
       supportEmail: settings.supportEmail || selectedClinic.email || defaultSystemSettings.supportEmail,
@@ -181,9 +240,8 @@ export default function SuperAdminSettings() {
       maxFileSize: String(settings.maxFileSize ?? defaultSystemSettings.maxFileSize),
       sessionTimeout: String(settings.sessionTimeout ?? settings.securitySettings?.sessionTimeout ?? defaultSystemSettings.sessionTimeout),
       defaultLanguage: settings.defaultLanguage || selectedClinic.language || defaultSystemSettings.defaultLanguage,
-    });
-
-    setSecuritySettings({
+    },
+    security: {
       twoFactorRequired: settings.twoFactorRequired ?? settings.securitySettings?.mfaRequired ?? false,
       passwordExpiry: String(
         settings.passwordExpiry ?? settings.securitySettings?.passwordPolicy?.expirationDays ?? defaultSecuritySettings.passwordExpiry
@@ -192,34 +250,96 @@ export default function SuperAdminSettings() {
       ipWhitelist: Array.isArray(settings.ipWhitelist) ? settings.ipWhitelist.join(", ") : (settings.ipWhitelist || ""),
       auditLogging: settings.auditLogging ?? true,
       dataEncryption: settings.dataEncryption ?? true,
-    });
-
-    setNotificationSettings({
+    },
+    notification: {
       appointmentReminders:
         settings.appointmentReminders ?? settings.notificationSettings?.emailEnabled ?? true,
       systemAlerts: settings.systemAlerts ?? true,
       marketingEmails: settings.marketingEmails ?? false,
       weeklyReports: settings.weeklyReports ?? true,
       emergencyAlerts: settings.emergencyAlerts ?? true,
-    });
+    },
+  };
+}
 
-    const configuredProvider = normalizeVideoProvider(
-      settings.videoSettings?.provider || settings.videoProvider || null
-    );
-    if (configuredProvider) {
-      setClinicUsesVideoOverride(true);
-      setClinicVideoProvider(configuredProvider);
-    } else {
-      setClinicUsesVideoOverride(false);
-      setClinicVideoProvider(globalVideoProvider);
-    }
-  }, [globalVideoProvider, selectedClinic]);
+function mergeSettingsState(
+  base: SuperAdminSettingsState,
+  draft: SuperAdminSettingsDraft
+): SuperAdminSettingsState {
+  return {
+    system: { ...base.system, ...(draft.system || {}) },
+    security: { ...base.security, ...(draft.security || {}) },
+    notification: { ...base.notification, ...(draft.notification || {}) },
+  };
+}
 
-  useEffect(() => {
-    if (!clinicUsesVideoOverride) {
-      setClinicVideoProvider(globalVideoProvider);
-    }
-  }, [globalVideoProvider, clinicUsesVideoOverride]);
+export default function SuperAdminSettings() {
+  useAuth();
+  const { data: clinicsData, isPending: clinicsLoading } = useClinics();
+  const { data: globalVideoProviderSettings } = useGlobalVideoProviderSetting();
+  const updateClinic = useUpdateClinic();
+  const updateGlobalVideoProvider = useUpdateGlobalVideoProviderSetting();
+  const [
+    {
+      selectedClinicId,
+      settingsDraftsByClinicId,
+      globalVideoProviderDraft,
+      clinicOverrideDraft,
+      clinicVideoProviderDraft,
+    },
+    dispatch,
+  ] = useReducer(settingsEditorReducer, initialSettingsEditorState);
+
+  const clinics = useMemo(() => {
+    const data = clinicsData as any;
+    const clinicsArray =
+      (Array.isArray(clinicsData) ? clinicsData : data?.clinics || data?.data || []) as ClinicWithRelations[];
+    return clinicsArray;
+  }, [clinicsData]);
+
+  const selectedClinic = useMemo(
+    () => clinics.find(clinic => clinic.id === selectedClinicId) || clinics[0] || null,
+    [clinics, selectedClinicId]
+  );
+  const selectedClinicValue = selectedClinicId || clinics[0]?.id || "";
+  const baseSettingsState = useMemo(() => buildSettingsState(selectedClinic), [selectedClinic]);
+  const currentClinicKey = selectedClinic?.id || selectedClinicValue || "default";
+  const settingsState = useMemo(
+    () => mergeSettingsState(baseSettingsState, settingsDraftsByClinicId[currentClinicKey] || {}),
+    [baseSettingsState, currentClinicKey, settingsDraftsByClinicId]
+  );
+  const systemSettings = settingsState.system;
+  const securitySettings = settingsState.security;
+  const notificationSettings = settingsState.notification;
+  const selectedClinicConfiguredVideoProvider = useMemo(
+    () =>
+      normalizeVideoProvider(
+        (selectedClinic as any)?.settings?.videoSettings?.provider ||
+          (selectedClinic as any)?.settings?.videoProvider ||
+          null
+      ),
+    [selectedClinic]
+  );
+  const effectiveGlobalVideoProvider =
+    globalVideoProviderDraft ?? normalizeVideoProvider(globalVideoProviderSettings?.provider) ?? defaultVideoProvider;
+  const clinicUsesVideoOverride = clinicOverrideDraft ?? Boolean(selectedClinicConfiguredVideoProvider);
+  const clinicVideoProvider =
+    clinicVideoProviderDraft ?? selectedClinicConfiguredVideoProvider ?? effectiveGlobalVideoProvider;
+
+  const updateSystemSetting = <K extends keyof SystemSettingsState>(key: K, value: SystemSettingsState[K]) => {
+    dispatch({ type: "updateSystem", clinicKey: currentClinicKey, key, value });
+  };
+
+  const updateSecuritySetting = <K extends keyof SecuritySettingsState>(key: K, value: SecuritySettingsState[K]) => {
+    dispatch({ type: "updateSecurity", clinicKey: currentClinicKey, key, value });
+  };
+
+  const updateNotificationSetting = <K extends keyof NotificationSettingsState>(
+    key: K,
+    value: NotificationSettingsState[K]
+  ) => {
+    dispatch({ type: "updateNotification", clinicKey: currentClinicKey, key, value });
+  };
 
   const save = async () => {
     if (!selectedClinic?.id) {
@@ -269,8 +389,10 @@ export default function SuperAdminSettings() {
       maxLoginAttempts: Number(securitySettings.maxLoginAttempts) || 5,
       ipWhitelist: securitySettings.ipWhitelist
         .split(",")
-        .map(item => item.trim())
-        .filter(Boolean),
+        .flatMap((item) => {
+          const trimmed = item.trim();
+          return trimmed ? [trimmed] : [];
+        }),
       marketingEmails: notificationSettings.marketingEmails,
       systemAlerts: notificationSettings.systemAlerts,
       weeklyReports: notificationSettings.weeklyReports,
@@ -303,7 +425,7 @@ export default function SuperAdminSettings() {
 
   const saveGlobalVideoProvider = async () => {
     try {
-      await updateGlobalVideoProvider.mutateAsync(globalVideoProvider);
+      await updateGlobalVideoProvider.mutateAsync(effectiveGlobalVideoProvider);
     } catch (error) {
       showErrorToast(
         error instanceof Error ? error.message : "Failed to save global video provider",
@@ -330,7 +452,10 @@ export default function SuperAdminSettings() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Select value={selectedClinicId} onValueChange={setSelectedClinicId}>
+          <Select
+            value={selectedClinicValue}
+            onValueChange={(clinicId) => dispatch({ type: "selectClinic", clinicId })}
+          >
             <SelectTrigger className="w-[260px]">
               <SelectValue placeholder="Select clinic" />
             </SelectTrigger>
@@ -360,7 +485,12 @@ export default function SuperAdminSettings() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto] md:items-end">
             <div className="gap-y-2">
               <Label htmlFor="globalVideoProvider">Default provider for all clinics</Label>
-              <Select value={globalVideoProvider} onValueChange={value => setGlobalVideoProvider(value as VideoProviderType)}>
+              <Select
+                value={effectiveGlobalVideoProvider}
+                onValueChange={value =>
+                  dispatch({ type: "setGlobalVideoProviderDraft", value: value as VideoProviderType })
+                }
+              >
                 <SelectTrigger id="globalVideoProvider">
                   <SelectValue placeholder="Select global provider" />
                 </SelectTrigger>
@@ -458,14 +588,20 @@ export default function SuperAdminSettings() {
                   </div>
                   <Switch
                     checked={clinicUsesVideoOverride}
-                    onCheckedChange={checked => setClinicUsesVideoOverride(checked)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        dispatch({ type: "setClinicOverrideDraft", value: true });
+                        return;
+                      }
+                      dispatch({ type: "setClinicOverrideDraft", value: false });
+                      dispatch({ type: "clearClinicVideoProviderDraft" });
+                    }}
                   />
                 </div>
                 <Select
                   value={clinicVideoProvider}
                   onValueChange={(value) => {
-                    setClinicUsesVideoOverride(true);
-                    setClinicVideoProvider(value as VideoProviderType);
+                    dispatch({ type: "setClinicVideoProviderDraft", value: value as VideoProviderType });
                   }}
                   disabled={!clinicUsesVideoOverride}
                 >
@@ -481,7 +617,7 @@ export default function SuperAdminSettings() {
                 <p className="text-sm text-muted-foreground">
                   {clinicUsesVideoOverride
                     ? "This clinic overrides the global provider."
-                    : `This clinic inherits the global provider (${globalVideoProvider}).`}
+                    : `This clinic inherits the global provider (${effectiveGlobalVideoProvider}).`}
                 </p>
               </div>
               <div className="gap-y-4">

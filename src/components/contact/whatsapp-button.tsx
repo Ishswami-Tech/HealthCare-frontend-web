@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { MessageCircle, X, Send } from "lucide-react";
@@ -28,8 +28,8 @@ const BRAND_NAME = APP_CONFIG.CLINIC.APP_NAME;
 
 const DEFAULT_MESSAGES = {
   en: `Hello! I would like to book an appointment at ${BRAND_NAME}. Please let me know the available slots.`,
-  hi: "नमस्ते! मैं श्री विश्वमूर्ति आयुर्वेदालय में अपॉइंटमेंट बुक करना चाहता हूं। कृपया उपलब्ध समय बताएं।",
-  mr: "नमस्कार! मला श्री विश्वमूर्ती आयुर्वेदालयात भेटीची वेळ बुक करायची आहे. कृपया उपलब्ध वेळा सांगा.",
+  hi: "à¤¨à¤®à¤¸à¥à¤¤à¥‡! à¤®à¥ˆà¤‚ à¤¶à¥à¤°à¥€ à¤µà¤¿à¤¶à¥à¤µà¤®à¥‚à¤°à¥à¤¤à¤¿ à¤†à¤¯à¥à¤°à¥à¤µà¥‡à¤¦à¤¾à¤²à¤¯ à¤®à¥‡à¤‚ à¤…à¤ªà¥‰à¤‡à¤‚à¤Ÿà¤®à¥‡à¤‚à¤Ÿ à¤¬à¥à¤• à¤•à¤°à¤¨à¤¾ à¤šà¤¾à¤¹à¤¤à¤¾ à¤¹à¥‚à¤‚à¥¤ à¤•à¥ƒà¤ªà¤¯à¤¾ à¤‰à¤ªà¤²à¤¬à¥à¤§ à¤¸à¤®à¤¯ à¤¬à¤¤à¤¾à¤à¤‚à¥¤",
+  mr: "à¤¨à¤®à¤¸à¥à¤•à¤¾à¤°! à¤®à¤²à¤¾ à¤¶à¥à¤°à¥€ à¤µà¤¿à¤¶à¥à¤µà¤®à¥‚à¤°à¥à¤¤à¥€ à¤†à¤¯à¥à¤°à¥à¤µà¥‡à¤¦à¤¾à¤²à¤¯à¤¾à¤¤ à¤­à¥‡à¤Ÿà¥€à¤šà¥€ à¤µà¥‡à¤³ à¤¬à¥à¤• à¤•à¤°à¤¾à¤¯à¤šà¥€ à¤†à¤¹à¥‡. à¤•à¥ƒà¤ªà¤¯à¤¾ à¤‰à¤ªà¤²à¤¬à¥à¤§ à¤µà¥‡à¤³à¤¾ à¤¸à¤¾à¤‚à¤—à¤¾.",
 };
 
 export function WhatsAppButton({
@@ -76,7 +76,7 @@ export function WhatsAppButton({
   if (variant === "floating") {
     return (
       <>
-        <button
+        <button type="button"
           onClick={handleWhatsAppClick}
           className={cn(
             "fixed z-50 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-110",
@@ -110,7 +110,7 @@ export function WhatsAppButton({
 
   if (variant === "compact") {
     return (
-      <button
+      <button type="button"
         onClick={handleWhatsAppClick}
         className={cn(
           "inline-flex items-center gap-2 px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors",
@@ -126,7 +126,7 @@ export function WhatsAppButton({
 
   // Inline variant
   return (
-    <button
+    <button type="button"
       onClick={handleWhatsAppClick}
       className={cn(
         "inline-flex items-center gap-3 px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg",
@@ -160,23 +160,23 @@ function WhatsAppChat({
   const quickMessages = [
     {
       en: "I want to book an appointment",
-      hi: "मुझे अपॉइंटमेंट बुक करना है",
-      mr: "मला भेटीची वेळ बुक करायची आहे",
+      hi: "à¤®à¥à¤à¥‡ à¤…à¤ªà¥‰à¤‡à¤‚à¤Ÿà¤®à¥‡à¤‚à¤Ÿ à¤¬à¥à¤• à¤•à¤°à¤¨à¤¾ à¤¹à¥ˆ",
+      mr: "à¤®à¤²à¤¾ à¤­à¥‡à¤Ÿà¥€à¤šà¥€ à¤µà¥‡à¤³ à¤¬à¥à¤• à¤•à¤°à¤¾à¤¯à¤šà¥€ à¤†à¤¹à¥‡",
     },
     {
       en: "What are your consultation fees?",
-      hi: "आपकी परामर्श फीस क्या है?",
-      mr: "तुमची सल्लामसलत फी किती आहे?",
+      hi: "à¤†à¤ªà¤•à¥€ à¤ªà¤°à¤¾à¤®à¤°à¥à¤¶ à¤«à¥€à¤¸ à¤•à¥à¤¯à¤¾ à¤¹à¥ˆ?",
+      mr: "à¤¤à¥à¤®à¤šà¥€ à¤¸à¤²à¥à¤²à¤¾à¤®à¤¸à¤²à¤¤ à¤«à¥€ à¤•à¤¿à¤¤à¥€ à¤†à¤¹à¥‡?",
     },
     {
       en: "What treatments do you offer?",
-      hi: "आप कौन से उपचार प्रदान करते हैं?",
-      mr: "तुम्ही कोणते उपचार देता?",
+      hi: "à¤†à¤ª à¤•à¥Œà¤¨ à¤¸à¥‡ à¤‰à¤ªà¤šà¤¾à¤° à¤ªà¥à¤°à¤¦à¤¾à¤¨ à¤•à¤°à¤¤à¥‡ à¤¹à¥ˆà¤‚?",
+      mr: "à¤¤à¥à¤®à¥à¤¹à¥€ à¤•à¥‹à¤£à¤¤à¥‡ à¤‰à¤ªà¤šà¤¾à¤° à¤¦à¥‡à¤¤à¤¾?",
     },
     {
       en: "What are your clinic timings?",
-      hi: "आपके क्लिनिक का समय क्या है?",
-      mr: "तुमच्या क्लिनिकची वेळ काय आहे?",
+      hi: "à¤†à¤ªà¤•à¥‡ à¤•à¥à¤²à¤¿à¤¨à¤¿à¤• à¤•à¤¾ à¤¸à¤®à¤¯ à¤•à¥à¤¯à¤¾ à¤¹à¥ˆ?",
+      mr: "à¤¤à¥à¤®à¤šà¥à¤¯à¤¾ à¤•à¥à¤²à¤¿à¤¨à¤¿à¤•à¤šà¥€ à¤µà¥‡à¤³ à¤•à¤¾à¤¯ à¤†à¤¹à¥‡?",
     },
   ];
 
@@ -200,7 +200,7 @@ function WhatsAppChat({
             <p className="text-xs opacity-90">Typically replies instantly</p>
           </div>
         </div>
-        <button
+        <button type="button"
           onClick={onClose}
           className="p-1 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
           aria-label="Close chat"
@@ -216,9 +216,9 @@ function WhatsAppChat({
           <div className="bg-gray-100 rounded-lg p-3">
             <p className="text-sm text-gray-800">
               {language === "hi"
-                ? "नमस्ते! श्री विश्वमूर्ति आयुर्वेदालय में आपका स्वागत है। हम आपकी कैसे सहायता कर सकते हैं?"
+                ? "à¤¨à¤®à¤¸à¥à¤¤à¥‡! à¤¶à¥à¤°à¥€ à¤µà¤¿à¤¶à¥à¤µà¤®à¥‚à¤°à¥à¤¤à¤¿ à¤†à¤¯à¥à¤°à¥à¤µà¥‡à¤¦à¤¾à¤²à¤¯ à¤®à¥‡à¤‚ à¤†à¤ªà¤•à¤¾ à¤¸à¥à¤µà¤¾à¤—à¤¤ à¤¹à¥ˆà¥¤ à¤¹à¤® à¤†à¤ªà¤•à¥€ à¤•à¥ˆà¤¸à¥‡ à¤¸à¤¹à¤¾à¤¯à¤¤à¤¾ à¤•à¤° à¤¸à¤•à¤¤à¥‡ à¤¹à¥ˆà¤‚?"
                 : language === "mr"
-                ? "नमस्कार! श्री विश्वमूर्ती आयुर्वेदालयात तुमचे स्वागत आहे. आम्ही तुम्हाला कशी मदत करू शकतो?"
+                ? "à¤¨à¤®à¤¸à¥à¤•à¤¾à¤°! à¤¶à¥à¤°à¥€ à¤µà¤¿à¤¶à¥à¤µà¤®à¥‚à¤°à¥à¤¤à¥€ à¤†à¤¯à¥à¤°à¥à¤µà¥‡à¤¦à¤¾à¤²à¤¯à¤¾à¤¤ à¤¤à¥à¤®à¤šà¥‡ à¤¸à¥à¤µà¤¾à¤—à¤¤ à¤†à¤¹à¥‡. à¤†à¤®à¥à¤¹à¥€ à¤¤à¥à¤®à¥à¤¹à¤¾à¤²à¤¾ à¤•à¤¶à¥€ à¤®à¤¦à¤¤ à¤•à¤°à¥‚ à¤¶à¤•à¤¤à¥‹?"
                 : `Hello! Welcome to ${BRAND_NAME}. How can we help you today?`}
             </p>
           </div>
@@ -226,9 +226,9 @@ function WhatsAppChat({
           {/* Quick message buttons */}
           <div className="gap-y-2">
             <p className="text-xs text-gray-500 font-medium">Quick messages:</p>
-            {quickMessages.map((msg, index) => (
-              <button
-                key={index}
+            {quickMessages.map((msg) => (
+              <button type="button"
+                key={msg.en}
                 onClick={() =>
                   handleSendMessage(msg[language as keyof typeof msg] || msg.en)
                 }
@@ -248,11 +248,12 @@ function WhatsAppChat({
             type="text"
             value={customMessage}
             onChange={(e) => setCustomMessage(e.target.value)}
+            aria-label="Custom message"
             placeholder={
               language === "hi"
-                ? "अपना संदेश लिखें..."
+                ? "à¤…à¤ªà¤¨à¤¾ à¤¸à¤‚à¤¦à¥‡à¤¶ à¤²à¤¿à¤–à¥‡à¤‚..."
                 : language === "mr"
-                ? "तुमचा संदेश लिहा..."
+                ? "à¤¤à¥à¤®à¤šà¤¾ à¤¸à¤‚à¤¦à¥‡à¤¶ à¤²à¤¿à¤¹à¤¾..."
                 : "Type your message..."
             }
             className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -262,7 +263,7 @@ function WhatsAppChat({
               }
             }}
           />
-          <button
+          <button type="button"
             onClick={() =>
               customMessage.trim() && handleSendMessage(customMessage)
             }
@@ -277,4 +278,5 @@ function WhatsAppChat({
     </div>
   );
 }
+
 

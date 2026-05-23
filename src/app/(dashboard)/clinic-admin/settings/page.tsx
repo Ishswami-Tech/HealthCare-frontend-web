@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useCurrentClinic, useUpdateClinic } from "@/hooks/query/useClinics";
 import { useDoctors } from "@/hooks/query/useDoctors";
@@ -49,6 +49,11 @@ type DoctorListItem = {
 type AssistantCoverageState = Record<string, AssistantDoctorCoverageAssignment>;
 type ClinicForm = { name: string; address: string; city: string; state: string; country: string; zipCode: string; phone: string; email: string; website: string; description: string; timezone: string; currency: string; language: string; operatingHours: string };
 type SettingsForm = { appointmentDuration: number; maxAdvanceBooking: number; minAdvanceBooking: number; cancellationWindow: number; videoCallWindowStart: string; videoCallWindowEnd: string; noShowWindowMinutes: number; noShowFee: number; cancellationFee: number; allowRescheduling: boolean; allowCancellation: boolean; autoConfirmation: boolean; walkInAllowed: boolean; emailNotifications: boolean; smsNotifications: boolean; pushNotifications: boolean; appointmentReminders: boolean; cancellationAlerts: boolean; paymentMethodsText: string; autoBilling: boolean; clinicPaused: boolean; pauseReason: string; generalConsultationEnabled: boolean; videoConsultationEnabled: boolean; emergencyOnly: boolean };
+type ClinicAdminSettingsState = {
+  clinicForm: ClinicForm;
+  settings: SettingsForm;
+  sessions: Record<ClinicOperatingDayKey, ClinicOperatingSession[]>;
+};
 
 const DAYS: ClinicOperatingDayKey[] = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
 const DAY_LABEL: Record<ClinicOperatingDayKey, string> = { monday:"Monday", tuesday:"Tuesday", wednesday:"Wednesday", thursday:"Thursday", friday:"Friday", saturday:"Saturday", sunday:"Sunday" };
@@ -170,6 +175,65 @@ function omitAssistantCoverage(value: unknown): Record<string, unknown> {
   return rest;
 }
 
+function buildDoctorControls(
+  clinic: Clinic | null,
+  doctors: DoctorListItem[]
+): Record<string, ClinicDoctorConsultationControl> {
+  const base = isRecord(clinic?.settings)
+    ? isRecord((clinic?.settings as Record<string, unknown>).appointmentSettings)
+      ? (clinic?.settings as Record<string, any>).appointmentSettings
+      : {}
+    : {};
+  const docMap = isRecord(base.doctorConsultationControls) ? base.doctorConsultationControls : {};
+  const mapped = Object.entries(docMap).reduce<Record<string, ClinicDoctorConsultationControl>>((accumulator, [id, value]) => {
+    if (!isRecord(value)) return accumulator;
+    accumulator[id] = {
+      isPaused: Boolean((value as any).isPaused ?? (value as any).paused ?? false),
+      pauseReason: typeof (value as any).pauseReason === "string" ? (value as any).pauseReason : "",
+      generalConsultationEnabled: Boolean((value as any).generalConsultationEnabled ?? true),
+      videoConsultationEnabled: Boolean((value as any).videoConsultationEnabled ?? true),
+      emergencyOnly: Boolean((value as any).emergencyOnly ?? false),
+    };
+    return accumulator;
+  }, {});
+
+  doctors.forEach((doctor) => {
+    if (!mapped[doctor.id]) {
+      mapped[doctor.id] = {
+        isPaused: false,
+        pauseReason: "",
+        generalConsultationEnabled: true,
+        videoConsultationEnabled: true,
+        emergencyOnly: false,
+      };
+    }
+  });
+
+  return mapped;
+}
+
+function buildAssistantCoverageState(
+  assistantCoverageData: AssistantDoctorCoverageAssignment[],
+  assistantDoctors: DoctorListItem[]
+): AssistantCoverageState {
+  const mapped = assistantCoverageData.reduce<AssistantCoverageState>((accumulator, entry) => {
+    accumulator[entry.assistantDoctorId] = {
+      assistantDoctorId: entry.assistantDoctorId,
+      primaryDoctorIds: entry.primaryDoctorIds,
+      isActive: entry.isActive,
+    };
+    return accumulator;
+  }, {});
+
+  assistantDoctors.forEach((doctor) => {
+    if (!mapped[doctor.id]) {
+      mapped[doctor.id] = { assistantDoctorId: doctor.id, primaryDoctorIds: [], isActive: false };
+    }
+  });
+
+  return mapped;
+}
+
 export default function ClinicAdminSettingsPage() {
   useAuth();
   useWebSocketQuerySync();
@@ -177,31 +241,53 @@ export default function ClinicAdminSettingsPage() {
   const updateClinic = useUpdateClinic();
   const { data: assistantCoverageData = [] } = useAssistantDoctorCoverage();
   const updateAssistantCoverageMutation = useUpdateAssistantDoctorCoverage();
+  const hasInitializedRef = useRef(false);
   const clinic = useMemo(() => clinicData as Clinic | null, [clinicData]);
   const { data: doctorsData } = useDoctors(clinic?.id || "");
   const doctors = useMemo<DoctorListItem[]>(() => {
     const raw = doctorsData as unknown;
     const arr = Array.isArray(raw) ? raw : isRecord(raw) && Array.isArray(raw.data) ? raw.data : isRecord(raw) && isRecord(raw.data) && Array.isArray(raw.data.doctors) ? raw.data.doctors : [];
-    return arr.map((doctorValue) => {
+    return arr.reduce<DoctorListItem[]>((accumulator, doctorValue) => {
       const doctorRecord = isRecord(doctorValue) ? doctorValue : {};
       const nestedDoctor = isRecord(doctorRecord.doctor) ? doctorRecord.doctor : {};
       const nestedUser = isRecord(nestedDoctor.user) ? nestedDoctor.user : {};
-      return {
-        id: String(nestedDoctor.id ?? doctorRecord.id ?? ""),
+      const id = String(nestedDoctor.id ?? doctorRecord.id ?? "");
+      if (!id) {
+        return accumulator;
+      }
+
+      accumulator.push({
+        id,
         name: String(doctorRecord.name ?? nestedUser.name ?? "Doctor"),
         role: String(doctorRecord.role ?? nestedUser.role ?? "").toUpperCase(),
-      };
-    }).filter((doctor) => !!doctor.id);
+      });
+      return accumulator;
+    }, []);
   }, [doctorsData]);
   const primaryDoctors = useMemo(() => doctors.filter((doctor) => doctor.role === "DOCTOR"), [doctors]);
   const assistantDoctors = useMemo(() => doctors.filter((doctor) => doctor.role === "ASSISTANT_DOCTOR"), [doctors]);
+  const baseDoctorCtrl = useMemo(() => buildDoctorControls(clinic, doctors), [clinic, doctors]);
+  const baseAssistantCoverage = useMemo(
+    () => buildAssistantCoverageState(assistantCoverageData, assistantDoctors),
+    [assistantCoverageData, assistantDoctors]
+  );
 
-  const [ready, setReady] = useState(false);
-  const [clinicForm, setClinicForm] = useState<ClinicForm>({ name:"",address:"",city:"",state:"",country:"India",zipCode:"",phone:"",email:"",website:"",description:"",timezone:"Asia/Kolkata",currency:"INR",language:"en",operatingHours:"Mon-Sun multi-session OPD" });
-  const [settings, setSettings] = useState<SettingsForm>({ appointmentDuration:30,maxAdvanceBooking:30,minAdvanceBooking:2,cancellationWindow:24,videoCallWindowStart:"10:00",videoCallWindowEnd:"14:00",noShowWindowMinutes:15,noShowFee:0,cancellationFee:0,allowRescheduling:true,allowCancellation:true,autoConfirmation:true,walkInAllowed:true,emailNotifications:true,smsNotifications:true,pushNotifications:false,appointmentReminders:true,cancellationAlerts:true,paymentMethodsText:"Cash, Card, UPI",autoBilling:false,clinicPaused:false,pauseReason:"",generalConsultationEnabled:true,videoConsultationEnabled:true,emergencyOnly:false });
-  const [sessions, setSessions] = useState<Record<ClinicOperatingDayKey, ClinicOperatingSession[]>>(() => defaultSessions());
-  const [doctorCtrl, setDoctorCtrl] = useState<Record<string, ClinicDoctorConsultationControl>>({});
-  const [assistantCoverage, setAssistantCoverage] = useState<AssistantCoverageState>({});
+  const [editorState, setEditorState] = useState<ClinicAdminSettingsState>(() => ({
+    clinicForm: { name:"",address:"",city:"",state:"",country:"India",zipCode:"",phone:"",email:"",website:"",description:"",timezone:"Asia/Kolkata",currency:"INR",language:"en",operatingHours:"Mon-Sun multi-session OPD" },
+    settings: { appointmentDuration:30,maxAdvanceBooking:30,minAdvanceBooking:2,cancellationWindow:24,videoCallWindowStart:"10:00",videoCallWindowEnd:"14:00",noShowWindowMinutes:15,noShowFee:0,cancellationFee:0,allowRescheduling:true,allowCancellation:true,autoConfirmation:true,walkInAllowed:true,emailNotifications:true,smsNotifications:true,pushNotifications:false,appointmentReminders:true,cancellationAlerts:true,paymentMethodsText:"Cash, Card, UPI",autoBilling:false,clinicPaused:false,pauseReason:"",generalConsultationEnabled:true,videoConsultationEnabled:true,emergencyOnly:false },
+    sessions: defaultSessions(),
+  }));
+  const { clinicForm, settings, sessions } = editorState;
+  const [doctorCtrlDrafts, setDoctorCtrlDrafts] = useState<Record<string, ClinicDoctorConsultationControl>>({});
+  const [assistantCoverageDrafts, setAssistantCoverageDrafts] = useState<AssistantCoverageState>({});
+  const doctorCtrl = useMemo(
+    () => ({ ...baseDoctorCtrl, ...doctorCtrlDrafts }),
+    [baseDoctorCtrl, doctorCtrlDrafts]
+  );
+  const assistantCoverage = useMemo(
+    () => ({ ...baseAssistantCoverage, ...assistantCoverageDrafts }),
+    [baseAssistantCoverage, assistantCoverageDrafts]
+  );
   const videoCallPreview = useMemo(() => {
     const start = settings.videoCallWindowStart.trim();
     const end = settings.videoCallWindowEnd.trim();
@@ -230,7 +316,7 @@ export default function ClinicAdminSettingsPage() {
   }, [settings.appointmentDuration, settings.videoCallWindowEnd, settings.videoCallWindowStart]);
 
   useEffect(() => {
-    if (!clinic || ready) return;
+    if (!clinic || hasInitializedRef.current) return;
     const base = isRecord(clinic.settings) ? clinic.settings : {};
     const appt = omitAssistantCoverage(base.appointmentSettings);
     const notif = isRecord(base.notifications) ? base.notifications : {};
@@ -241,43 +327,15 @@ export default function ClinicAdminSettingsPage() {
     const docMap = isRecord(appt.doctorConsultationControls) ? appt.doctorConsultationControls : {};
     const dayWin = isRecord(appt.operatingWindowsByDay) ? appt.operatingWindowsByDay : {};
     const parsed = defaultSessions(); DAYS.forEach(d => { if (dayWin[d] !== undefined) parsed[d] = parseSessions(dayWin[d]); });
-    const mapped: Record<string, ClinicDoctorConsultationControl> = {};
-    Object.entries(docMap).forEach(([id,v]) => { if (isRecord(v)) mapped[id] = { isPaused: Boolean(v.isPaused ?? v.paused ?? false), pauseReason: typeof v.pauseReason==="string"?v.pauseReason:"", generalConsultationEnabled: Boolean(v.generalConsultationEnabled ?? true), videoConsultationEnabled: Boolean(v.videoConsultationEnabled ?? true), emergencyOnly: Boolean(v.emergencyOnly ?? false) }; });
     const newClinicForm: ClinicForm = { name: clinic.name||"", address: clinic.address||"", city: (clinic as any).city||"", state: (clinic as any).state||"", country: (clinic as any).country||"India", zipCode: (clinic as any).zipCode||"", phone: clinic.phone||"", email: clinic.email||"", website: clinic.website||"", description: clinic.description||"", timezone: clinic.timezone||"Asia/Kolkata", currency: clinic.currency||"INR", language: clinic.language||"en", operatingHours: clinic.operatingHours||"Mon-Sun multi-session OPD" };
     const newSettings: SettingsForm = { appointmentDuration: toNumber(appt.appointmentDuration,30), maxAdvanceBooking: toNumber(appt.maxAdvanceBooking,30), minAdvanceBooking: toNumber(appt.minAdvanceBooking,2), cancellationWindow: toNumber(appt.cancellationWindow,24), videoCallWindowStart: normalizeTime(isRecord(appt.videoCallWindow) ? appt.videoCallWindow.start : undefined, "10:00"), videoCallWindowEnd: normalizeTime(isRecord(appt.videoCallWindow) ? appt.videoCallWindow.end : undefined, "14:00"), noShowWindowMinutes: toNumber(appt.noShowWindowMinutes,15), noShowFee: toNumber(policy.noShowFee,0), cancellationFee: toNumber(policy.cancellationFee,0), allowRescheduling: typeof appt.allowRescheduling==="boolean"?appt.allowRescheduling:true, allowCancellation: typeof appt.allowCancellation==="boolean"?appt.allowCancellation:true, autoConfirmation: typeof appt.autoConfirmation==="boolean"?appt.autoConfirmation:true, walkInAllowed: typeof appt.walkInAllowed==="boolean"?appt.walkInAllowed:true, emailNotifications: typeof notif.email==="boolean"?notif.email:typeof notifSet.emailNotifications==="boolean"?notifSet.emailNotifications:true, smsNotifications: typeof notif.sms==="boolean"?notif.sms:typeof notifSet.smsNotifications==="boolean"?notifSet.smsNotifications:true, pushNotifications: typeof notif.push==="boolean"?notif.push:typeof notifSet.pushNotifications==="boolean"?notifSet.pushNotifications:false, appointmentReminders: typeof notifSet.appointmentReminders==="boolean"?notifSet.appointmentReminders:true, cancellationAlerts: typeof notifSet.cancellationAlerts==="boolean"?notifSet.cancellationAlerts:true, paymentMethodsText: Array.isArray(pay.paymentMethods)?pay.paymentMethods.join(", "):"Cash, Card, UPI", autoBilling: typeof pay.autoBilling==="boolean"?pay.autoBilling:false, clinicPaused: Boolean(opd.isOpdPaused ?? opd.clinicPaused ?? false), pauseReason: typeof opd.pauseReason==="string"?opd.pauseReason:"", generalConsultationEnabled: Boolean(opd.generalConsultationEnabled ?? true), videoConsultationEnabled: Boolean(opd.videoConsultationEnabled ?? true), emergencyOnly: Boolean(opd.emergencyOnly ?? false) };
-    setClinicForm(newClinicForm);
-    setSettings(newSettings);
-    setSessions(parsed);
-    setDoctorCtrl(mapped);
-    setReady(true);
-  }, [clinic, ready]);
-
-  useEffect(() => {
-    if (assistantCoverageData.length === 0) return;
-    const coverageMap = assistantCoverageData.reduce<AssistantCoverageState>((accumulator, entry) => {
-      accumulator[entry.assistantDoctorId] = {
-        assistantDoctorId: entry.assistantDoctorId,
-        primaryDoctorIds: entry.primaryDoctorIds,
-        isActive: entry.isActive,
-      };
-      return accumulator;
-    }, {});
-    setAssistantCoverage((current) => ({ ...current, ...coverageMap }));
-  }, [assistantCoverageData]);
-
-  useEffect(() => { if (doctors.length===0) return; setDoctorCtrl(prev => { const n={...prev}; doctors.forEach((doctor)=>{ if(!n[doctor.id]) n[doctor.id]={ isPaused:false,pauseReason:"",generalConsultationEnabled:true,videoConsultationEnabled:true,emergencyOnly:false }; }); return n; }); }, [doctors]);
-  useEffect(() => {
-    if (assistantDoctors.length===0) return;
-    setAssistantCoverage(prev => {
-      const next = { ...prev };
-      assistantDoctors.forEach((doctor) => {
-        if (!next[doctor.id]) {
-          next[doctor.id] = { assistantDoctorId: doctor.id, primaryDoctorIds: [], isActive: false };
-        }
-      });
-      return next;
+    setEditorState({
+      clinicForm: newClinicForm,
+      settings: newSettings,
+      sessions: parsed,
     });
-  }, [assistantDoctors]);
+    hasInitializedRef.current = true;
+  }, [clinic]);
 
   const save = async () => {
     if (!clinic?.id) return;
@@ -291,7 +349,10 @@ export default function ClinicAdminSettingsPage() {
     const notifSet = isRecord(base.notificationSettings) ? base.notificationSettings : {};
     const pay = isRecord(base.paymentSettings) ? base.paymentSettings : {};
     const policy = isRecord(base.customPolicies) ? base.customPolicies : {};
-    const paymentMethods = settings.paymentMethodsText.split(",").map(x=>x.trim()).filter(Boolean);
+    const paymentMethods = settings.paymentMethodsText.split(",").flatMap((value) => {
+      const trimmed = value.trim();
+      return trimmed ? [trimmed] : [];
+    });
     const payload: UpdateClinicData = {
       name: clinicForm.name.trim(), address: clinicForm.address.trim(), city: clinicForm.city.trim(), state: clinicForm.state.trim(), country: clinicForm.country.trim(), zipCode: clinicForm.zipCode.trim(), phone: clinicForm.phone.trim(), email: clinicForm.email.trim(), website: clinicForm.website.trim(), description: clinicForm.description.trim(), timezone: clinicForm.timezone.trim() || "Asia/Kolkata", currency: clinicForm.currency.trim() || "INR", language: clinicForm.language.trim() || "en", operatingHours: clinicForm.operatingHours.trim(),
       settings: {
@@ -313,21 +374,55 @@ export default function ClinicAdminSettingsPage() {
   };
 
   const setSF = <K extends keyof SettingsForm>(key: K, value: SettingsForm[K]) =>
-    setSettings((previous) => ({ ...previous, [key]: value }));
-  const setCF = (k: keyof ClinicForm, v: string) => setClinicForm(p => ({ ...p, [k]: v }));
-  const addSession = (d: ClinicOperatingDayKey) => setSessions(p => ({ ...p, [d]: [...p[d], { start:"16:00", end:"20:00" }] }));
-  const updSession = (d: ClinicOperatingDayKey, i: number, k: "start"|"end", v: string) => setSessions(p => ({ ...p, [d]: p[d].map((s,idx)=>idx===i?{...s,[k]:v}:s) }));
-  const delSession = (d: ClinicOperatingDayKey, i: number) => setSessions(p => ({ ...p, [d]: p[d].filter((_,idx)=>idx!==i) }));
-  const updDoc = (id: string, k: keyof ClinicDoctorConsultationControl, v: string|boolean) => setDoctorCtrl(p => {
-    const current: ClinicDoctorConsultationControl = p[id] || { isPaused:false, pauseReason:"", generalConsultationEnabled:true, videoConsultationEnabled:true, emergencyOnly:false };
-    return { ...p, [id]: { ...current, [k]: v as never } };
-  });
+    setEditorState((previous) => ({
+      ...previous,
+      settings: { ...previous.settings, [key]: value },
+    }));
+  const setCF = (k: keyof ClinicForm, v: string) =>
+    setEditorState((previous) => ({
+      ...previous,
+      clinicForm: { ...previous.clinicForm, [k]: v },
+    }));
+  const addSession = (d: ClinicOperatingDayKey) =>
+    setEditorState((previous) => ({
+      ...previous,
+      sessions: { ...previous.sessions, [d]: [...previous.sessions[d], { start:"16:00", end:"20:00" }] },
+    }));
+  const updSession = (d: ClinicOperatingDayKey, i: number, k: "start"|"end", v: string) =>
+    setEditorState((previous) => ({
+      ...previous,
+      sessions: {
+        ...previous.sessions,
+        [d]: previous.sessions[d].map((s, idx) => (idx === i ? { ...s, [k]: v } : s)),
+      },
+    }));
+  const delSession = (d: ClinicOperatingDayKey, i: number) =>
+    setEditorState((previous) => ({
+      ...previous,
+      sessions: {
+        ...previous.sessions,
+        [d]: previous.sessions[d].filter((_, idx) => idx !== i),
+      },
+    }));
+  const updDoc = (id: string, k: keyof ClinicDoctorConsultationControl, v: string|boolean) =>
+    setDoctorCtrlDrafts((previous) => {
+      const current: ClinicDoctorConsultationControl =
+        doctorCtrl[id] || {
+          isPaused: false,
+          pauseReason: "",
+          generalConsultationEnabled: true,
+          videoConsultationEnabled: true,
+          emergencyOnly: false,
+        };
+      return { ...previous, [id]: { ...current, [k]: v as never } };
+    });
   const toggleAssistantPrimaryDoctor = (assistantDoctorId: string, primaryDoctorId: string) =>
-    setAssistantCoverage((current) => {
+    setAssistantCoverageDrafts((previous) => {
+      const current = assistantCoverage;
       const existing = current[assistantDoctorId] || { assistantDoctorId, primaryDoctorIds: [], isActive: false };
       const hasDoctor = existing.primaryDoctorIds.includes(primaryDoctorId);
       return {
-        ...current,
+        ...previous,
         [assistantDoctorId]: {
           ...existing,
           assistantDoctorId,
@@ -338,17 +433,17 @@ export default function ClinicAdminSettingsPage() {
       };
     });
   const setAssistantCoverageActive = (assistantDoctorId: string, isActive: boolean) =>
-    setAssistantCoverage((current) => ({
-      ...current,
+    setAssistantCoverageDrafts((previous) => ({
+      ...previous,
       [assistantDoctorId]: {
-        ...(current[assistantDoctorId] || { assistantDoctorId, primaryDoctorIds: [] }),
+        ...(assistantCoverage[assistantDoctorId] || { assistantDoctorId, primaryDoctorIds: [] }),
         isActive,
       },
     }));
 
   const isSaving = updateClinic.isPending || updateAssistantCoverageMutation.isPending;
 
-  if (isPending || !ready) {
+  if (isPending || !hasInitializedRef.current) {
     return (
       <PatientPageShell className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
         <div className="flex min-h-[420px] items-center justify-center rounded-xl border border-border bg-card">
@@ -377,13 +472,7 @@ export default function ClinicAdminSettingsPage() {
         eyebrow="Clinic Admin"
         title="Clinic Settings"
         description="Manage clinic profile, OPD sessions, booking policies, notifications, billing, and doctor controls."
-        meta={
-          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <span>{doctors.length} doctors</span>
-            <span className="size-1 rounded-full bg-muted-foreground/50" />
-            <span>{assistantDoctors.length} assistant doctors</span>
-          </div>
-        }
+        meta={`${doctors.length} doctors • ${assistantDoctors.length} assistant doctors`}
         actions={[
           {
             label: isSaving ? "Saving…" : "Save Changes",

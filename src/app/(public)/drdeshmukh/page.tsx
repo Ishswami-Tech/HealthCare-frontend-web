@@ -563,11 +563,12 @@ export default function DrDeshmukhPage() {
                   <ServiceLink href={service.href} className="flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3">
                     <div className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-xl ring-1 ring-slate-200 dark:ring-slate-700 sm:h-11 sm:w-11">
                       {service.previewKind === "map" || previews[service.id]?.image ? (
-                        <img
+                        <Image
                           src={thumbnail}
                           alt={previewTitle}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 768px) 36px, 44px"
                         />
                       ) : (
                         <div
@@ -630,7 +631,7 @@ export default function DrDeshmukhPage() {
           <>
             <DialogTitle className="sr-only">Share - {activeService.title}</DialogTitle>
 
-            <div className="relative border-b border-slate-100 bg-white px-4 py-4 pr-14 dark:border-slate-800 dark:bg-slate-950">
+            <div className="relative border-b border-slate-100 bg-white p-4 pr-14 dark:border-slate-800 dark:bg-slate-950">
               <DialogClose asChild>
                 <button
                   type="button"
@@ -652,11 +653,12 @@ export default function DrDeshmukhPage() {
                   }`}
                 >
                   {activeService.previewKind === "map" || previews[activeService.id]?.image ? (
-                    <img
+                    <Image
                       src={activeService.previewKind === "map" ? getFallbackThumbnail(activeService) : previews[activeService.id]?.image || getFallbackThumbnail(activeService)}
                       alt={activeService.title}
-                      className="h-full w-full object-cover"
-                      loading="lazy"
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 640px) 100vw, 20rem"
                     />
                   ) : (
                     <div
@@ -687,7 +689,7 @@ export default function DrDeshmukhPage() {
               </div>
             </div>
 
-            <div className="max-h-[calc(100vh-13rem)] gap-y-4 overflow-y-auto px-4 py-4">
+            <div className="max-h-[calc(100vh-13rem)] gap-y-4 overflow-y-auto p-4">
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
                 <div className="flex items-center gap-2">
                   <p className="min-w-0 flex-1 truncate text-xs text-slate-500 dark:text-slate-400">
@@ -729,14 +731,14 @@ export default function DrDeshmukhPage() {
                 <button
                   type="button"
                   onClick={() => handleCopy(resolveHref(activeService.href), `service:${activeService.id}`)}
-                  className="flex size-8 flex-none items-center justify-center rounded-full bg-sky-500 text-white shadow-sm transition-transform hover:scale-105 dark:bg-sky-400 dark:text-slate-950"
+                  className="flex size-8 flex-none items-center justify-center rounded-full bg-sky-500 text-white shadow-sm transition-transform hover:scale-105 dark:bg-sky-400 dark:text-white"
                   aria-label="Copy link"
                   title="Copy link"
                 >
                   {copiedTarget === `service:${activeService.id}` ? (
                     <Check className="size-3.5 text-emerald-600" />
                   ) : (
-                    <Copy className="size-3.5" />
+                    <Copy className="size-3.5 text-white" />
                   )}
                   <span className="sr-only">Copy link</span>
                 </button>

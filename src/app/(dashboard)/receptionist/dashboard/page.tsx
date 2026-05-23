@@ -158,13 +158,15 @@ export default function ReceptionistDashboard() {
 
   const appointments = useMemo(() => {
     const raw = appointmentsData?.appointments || [];
-    return (raw as any[])
-      .filter(shouldShowAppointmentOnReceptionDashboard)
-      .map(appointment => {
+    return (raw as any[]).reduce<ReceptionAppointment[]>((acc, appointment) => {
+      if (!shouldShowAppointmentOnReceptionDashboard(appointment)) {
+        return acc;
+      }
+
       const canonical = normalizeQueueEntry(appointment);
       const viewState = getAppointmentViewState(appointment);
-      
-      return {
+
+      acc.push({
         id: canonical.entryId || canonical.appointmentId || appointment.id,
         patientName: canonical.patientName || "Unknown Patient",
         doctorName: canonical.doctorName || "Unassigned Doctor",
@@ -187,8 +189,10 @@ export default function ReceptionistDashboard() {
         queueCategory: canonical.queueCategory,
         priority: String(appointment.priority || "NORMAL").toUpperCase(),
         rawAppointment: appointment,
-      };
       });
+
+      return acc;
+    }, []);
   }, [appointmentsData]);
 
   const todayAppointments = useMemo(
@@ -283,8 +287,18 @@ export default function ReceptionistDashboard() {
   const liveQueueEntries = useMemo(
     () =>
       extractQueueEntries(queueData)
-        .filter(hasQueuePatientIdentity)
-        .filter((entry) => !["COMPLETED", "CANCELLED", "NO_SHOW"].includes(String(entry.status || "").toUpperCase()))
+        .reduce<CanonicalQueueEntry[]>((acc, entry) => {
+          if (!hasQueuePatientIdentity(entry)) {
+            return acc;
+          }
+
+          if (["COMPLETED", "CANCELLED", "NO_SHOW"].includes(String(entry.status || "").toUpperCase())) {
+            return acc;
+          }
+
+          acc.push(entry);
+          return acc;
+        }, [])
         .sort((a, b) => a.position - b.position),
     [queueData]
   );
@@ -322,23 +336,19 @@ export default function ReceptionistDashboard() {
   }, [liveQueueEntries]);
 
   const [activeLiveQueueLane, setActiveLiveQueueLane] = useState("");
-
-  useEffect(() => {
+  const resolvedActiveLiveQueueLane = useMemo(() => {
     if (liveQueueSections.length === 0) {
-      if (activeLiveQueueLane) {
-        setActiveLiveQueueLane("");
-      }
-      return;
+      return "";
     }
 
-    if (!liveQueueSections.some((section) => section.key === activeLiveQueueLane)) {
-      setActiveLiveQueueLane(liveQueueSections[0]?.key || "");
-    }
+    return liveQueueSections.some((section) => section.key === activeLiveQueueLane)
+      ? activeLiveQueueLane
+      : liveQueueSections[0]?.key || "";
   }, [activeLiveQueueLane, liveQueueSections]);
 
   const activeLiveQueueSection = useMemo(() => {
-    return liveQueueSections.find((section) => section.key === activeLiveQueueLane) ?? liveQueueSections[0];
-  }, [activeLiveQueueLane, liveQueueSections]);
+    return liveQueueSections.find((section) => section.key === resolvedActiveLiveQueueLane) ?? liveQueueSections[0];
+  }, [resolvedActiveLiveQueueLane, liveQueueSections]);
 
   const selectedLiveQueueItems = activeLiveQueueSection?.items || [];
   const highlightedQueuePatient = liveQueueEntries[0] || null;
@@ -516,21 +526,24 @@ export default function ReceptionistDashboard() {
 
   const medicineDesk = useMemo(
     () =>
-      (Array.isArray(medicineDeskQueue) ? medicineDeskQueue : [])
-        .filter((entry: any) => entry?.id)
-        .map((raw: any) => {
-          const entry = normalizeQueueEntry(raw);
-          return {
-            id: entry.entryId,
-            patientName: entry.patientName || "Unknown Patient",
-            queuePosition: entry.position > 0 ? entry.position : null,
-            paymentStatus: String(entry.paymentStatus || "PENDING").toUpperCase(),
-            pendingAmount: Number(raw?.pendingAmount || 0),
-            readyForHandover: Boolean(entry.readyForHandover),
-            priority: String(raw.priority || "NORMAL").toUpperCase(),
-          };
-        })
-        .slice(0, 6),
+      (Array.isArray(medicineDeskQueue) ? medicineDeskQueue : []).reduce<any[]>((acc, raw: any) => {
+        if (!raw?.id || acc.length >= 6) {
+          return acc;
+        }
+
+        const entry = normalizeQueueEntry(raw);
+        acc.push({
+          id: entry.entryId,
+          patientName: entry.patientName || "Unknown Patient",
+          queuePosition: entry.position > 0 ? entry.position : null,
+          paymentStatus: String(entry.paymentStatus || "PENDING").toUpperCase(),
+          pendingAmount: Number(raw?.pendingAmount || 0),
+          readyForHandover: Boolean(entry.readyForHandover),
+          priority: String(raw.priority || "NORMAL").toUpperCase(),
+        });
+
+        return acc;
+      }, []),
     [medicineDeskQueue]
   );
 
@@ -540,7 +553,7 @@ export default function ReceptionistDashboard() {
         eyebrow="Dashboard"
         title="Reception Queue"
         description="Manage front desk intake, live queue routing, and medicine handovers from one workspace."
-        meta={<span className="text-sm font-medium text-muted-foreground">Today: {stats.total} appointments</span>}
+        meta={`Today: ${stats.total} appointments`}
         actionsSlot={
           <>
             <Button asChild variant="outline">
@@ -628,7 +641,7 @@ export default function ReceptionistDashboard() {
       </div>
 
       <div className="gap-y-6">
-        <Card className="overflow-hidden border-l-4 border-l-emerald-400 shadow-sm">
+        <Card className="overflow-hidden border-l-2 border-l-emerald-400 shadow-sm">
           <CardHeader className="flex flex-col gap-3 border-b border-border bg-muted/40 px-4 pb-4 pt-4 sm:flex-row sm:items-end sm:justify-between">
             <CardTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
               <div className="flex size-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
@@ -656,7 +669,7 @@ export default function ReceptionistDashboard() {
           </CardHeader>
           <CardContent className="gap-y-3 p-3 sm:p-4">
             {highlightedQueuePatient ? (
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 px-3 py-3 shadow-sm">
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3 shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-700">
@@ -743,7 +756,7 @@ export default function ReceptionistDashboard() {
                 {appointmentsError
                   ? `Error loading appointments: ${appointmentsError.message}`
                   : isPending
-                    ? "Loading clinic backlog..."
+                    ? "Loading clinic backlog…"
                     : "No doctor backlog for today."}
               </p>
             ) : (
@@ -847,7 +860,7 @@ export default function ReceptionistDashboard() {
         </Card>
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <Card className="overflow-hidden border-l-4 border-l-slate-400 shadow-sm">
+          <Card className="overflow-hidden border-l-2 border-l-slate-400 shadow-sm">
             <CardHeader className="border-b border-border bg-muted/40 px-4 py-2.5">
               <CardTitle className="flex items-center gap-2 text-sm">
                 <CheckCircle className="size-4 text-emerald-600" />
@@ -864,7 +877,7 @@ export default function ReceptionistDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden border-l-4 border-l-blue-400 shadow-sm">
+          <Card className="overflow-hidden border-l-2 border-l-blue-400 shadow-sm">
             <CardHeader className="border-b border-border bg-muted/40 px-4 py-2.5">
               <CardTitle className="flex items-center gap-2 text-sm">
                 <Calendar className="size-4 text-blue-600 dark:text-blue-300" />
@@ -887,7 +900,7 @@ export default function ReceptionistDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden border-l-4 border-l-emerald-400 shadow-sm">
+          <Card className="overflow-hidden border-l-2 border-l-emerald-400 shadow-sm">
             <CardHeader className="border-b border-border bg-muted/40 px-4 py-2.5">
               <CardTitle className="flex items-center gap-2 text-sm">
                 <Clock className="size-4 text-emerald-600" />

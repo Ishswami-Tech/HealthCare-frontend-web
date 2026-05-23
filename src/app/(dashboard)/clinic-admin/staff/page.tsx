@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useReducer } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Loader2, Filter, Mail, Phone, Plus, Search, ShieldCheck, Stethoscope, UserCheck, UserCog, Users } from "lucide-react";
 
 import { Role } from "@/types/auth.types";
-import { useLayoutStore } from "@/stores/layout.store";
 import { AssignRoleModal } from "@/components/clinic/AssignRoleModal";
 import { AddStaffModal } from "@/components/clinic/AddStaffModal";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,6 +36,56 @@ type StaffMember = {
   permissions?: string[] | null;
 };
 
+type ClinicAdminStaffState = {
+  searchTerm: string;
+  roleFilter: string;
+  statusFilter: string;
+  assignModalStaff: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    status?: string;
+    permissions?: string[];
+  } | null;
+  isAddStaffModalOpen: boolean;
+};
+
+type ClinicAdminStaffAction =
+  | { type: "setSearchTerm"; value: string }
+  | { type: "setRoleFilter"; value: string }
+  | { type: "setStatusFilter"; value: string }
+  | { type: "setAssignModalStaff"; value: ClinicAdminStaffState["assignModalStaff"] }
+  | { type: "setIsAddStaffModalOpen"; value: boolean };
+
+const initialClinicAdminStaffState: ClinicAdminStaffState = {
+  searchTerm: "",
+  roleFilter: "all",
+  statusFilter: "all",
+  assignModalStaff: null,
+  isAddStaffModalOpen: false,
+};
+
+function clinicAdminStaffReducer(
+  state: ClinicAdminStaffState,
+  action: ClinicAdminStaffAction
+): ClinicAdminStaffState {
+  switch (action.type) {
+    case "setSearchTerm":
+      return { ...state, searchTerm: action.value };
+    case "setRoleFilter":
+      return { ...state, roleFilter: action.value };
+    case "setStatusFilter":
+      return { ...state, statusFilter: action.value };
+    case "setAssignModalStaff":
+      return { ...state, assignModalStaff: action.value };
+    case "setIsAddStaffModalOpen":
+      return { ...state, isAddStaffModalOpen: action.value };
+    default:
+      return state;
+  }
+}
+
 const CLINIC_STAFF_ROLES = [
   Role.DOCTOR,
   Role.ASSISTANT_DOCTOR,
@@ -60,24 +109,38 @@ export default function ClinicAdminStaff() {
   const { data: currentClinic } = useCurrentClinic();
   const clinicId = currentClinic?.id;
   const clinicName = currentClinic?.name;
+  const [
+    {
+      searchTerm,
+      roleFilter,
+      statusFilter,
+      assignModalStaff,
+      isAddStaffModalOpen,
+    },
+    dispatch,
+  ] = useReducer(clinicAdminStaffReducer, initialClinicAdminStaffState);
 
-  const setPageTitle = useLayoutStore((s) => s.setPageTitle);
-  useEffect(() => {
-    setPageTitle("Staff Directory");
-  }, [setPageTitle]);
+  const setSearchTerm = (value: string) => {
+    dispatch({ type: "setSearchTerm", value });
+  };
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [roleFilter, setRoleFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [assignModalStaff, setAssignModalStaff] = useState<{
-    id: string;
-    name: string;
-    email: string;
-    role: string;
-    status?: string;
-    permissions?: string[];
-  } | null>(null);
-  const [isAddStaffModalOpen, setIsAddStaffModalOpen] = useState(false);
+  const setRoleFilter = (value: string) => {
+    dispatch({ type: "setRoleFilter", value });
+  };
+
+  const setStatusFilter = (value: string) => {
+    dispatch({ type: "setStatusFilter", value });
+  };
+
+  const setAssignModalStaff = (
+    value: ClinicAdminStaffState["assignModalStaff"]
+  ) => {
+    dispatch({ type: "setAssignModalStaff", value });
+  };
+
+  const setIsAddStaffModalOpen = (value: boolean) => {
+    dispatch({ type: "setIsAddStaffModalOpen", value });
+  };
 
   const { data: staffData, isPending: isLoadingStaff, refetch } = useUsersByClinic(
     clinicId || ""
@@ -278,12 +341,12 @@ export default function ClinicAdminStaff() {
       {
         id: "actions",
         header: () => <div className="text-right">Actions</div>,
-        cell: ({ row }) => (
-          <div className="flex justify-end">
-            <Button
-              variant="outline"
-              size="sm"
-            onClick={() =>
+          cell: ({ row }) => (
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
                 setAssignModalStaff({
                   id: row.original.id,
                   name: row.original.name,
@@ -309,10 +372,12 @@ export default function ClinicAdminStaff() {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
         <Loader2 className="size-10 animate-spin text-primary" />
-        <p className="animate-pulse text-muted-foreground">Loading staff database...</p>
+        <p className="animate-pulse text-muted-foreground">Loading staff database…</p>
       </div>
     );
   }
+
+  const staffHeaderMeta = `${clinicName || "Your clinic"} • ${staff.length} staff members`;
 
   return (
     <DashboardPageShell className="mx-auto max-w-7xl px-4 pb-6 pt-0 sm:px-6 lg:px-8">
@@ -320,13 +385,7 @@ export default function ClinicAdminStaff() {
         eyebrow="Clinic Admin"
         title="Staff Roster"
         description="Manage healthcare professionals, support staff, and role assignments for this clinic."
-        meta={
-          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <span className="font-medium text-primary">{clinicName || "Your clinic"}</span>
-            <span className="size-1 rounded-full bg-muted-foreground/50" />
-            <span>{staff.length} staff members</span>
-          </div>
-        }
+        meta={staffHeaderMeta}
         actionsSlot={
           <div className="flex flex-wrap items-center gap-2">
             <div className="hidden sm:block">

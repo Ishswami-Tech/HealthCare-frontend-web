@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useReducer, useState, type ReactElement } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -108,6 +108,111 @@ type DispenseLineState = {
   }>;
 };
 
+type DispenseBatchHistoryItem = {
+  quantity?: number;
+  batchNumber?: string | null;
+  expiryDate?: string | null;
+  dispensedAt?: string | null;
+};
+
+type PharmacistPrescriptionsState = {
+  searchTerm: string;
+  statusFilter: string;
+  auditStartDate: string;
+  auditEndDate: string;
+  auditSearchTerm: string;
+  selectedPrescription: PrescriptionRow | null;
+  dispenseLines: DispenseLineState[];
+  dispenseNotes: string;
+  dispenseFormError: string | null;
+  selectedReversalPrescription: PrescriptionRow | null;
+  reversalReason: string;
+  reversalError: string | null;
+};
+
+type PharmacistPrescriptionsAction =
+  | { type: "setSearchTerm"; value: string }
+  | { type: "setStatusFilter"; value: string }
+  | { type: "setAuditStartDate"; value: string }
+  | { type: "setAuditEndDate"; value: string }
+  | { type: "setAuditSearchTerm"; value: string }
+  | { type: "setSelectedPrescription"; value: PrescriptionRow | null }
+  | { type: "setDispenseLines"; value: DispenseLineState[] }
+  | { type: "updateDispenseLines"; value: (current: DispenseLineState[]) => DispenseLineState[] }
+  | { type: "setDispenseNotes"; value: string }
+  | { type: "setDispenseFormError"; value: string | null }
+  | { type: "setSelectedReversalPrescription"; value: PrescriptionRow | null }
+  | { type: "setReversalReason"; value: string }
+  | { type: "setReversalError"; value: string | null }
+  | { type: "resetDispenseDialog" }
+  | { type: "resetReverseDialog" };
+
+const initialPharmacistPrescriptionsState: PharmacistPrescriptionsState = {
+  searchTerm: "",
+  statusFilter: "all",
+  auditStartDate: "",
+  auditEndDate: "",
+  auditSearchTerm: "",
+  selectedPrescription: null,
+  dispenseLines: [],
+  dispenseNotes: "",
+  dispenseFormError: null,
+  selectedReversalPrescription: null,
+  reversalReason: "",
+  reversalError: null,
+};
+
+function pharmacistPrescriptionsReducer(
+  state: PharmacistPrescriptionsState,
+  action: PharmacistPrescriptionsAction
+): PharmacistPrescriptionsState {
+  switch (action.type) {
+    case "setSearchTerm":
+      return { ...state, searchTerm: action.value };
+    case "setStatusFilter":
+      return { ...state, statusFilter: action.value };
+    case "setAuditStartDate":
+      return { ...state, auditStartDate: action.value };
+    case "setAuditEndDate":
+      return { ...state, auditEndDate: action.value };
+    case "setAuditSearchTerm":
+      return { ...state, auditSearchTerm: action.value };
+    case "setSelectedPrescription":
+      return { ...state, selectedPrescription: action.value };
+    case "setDispenseLines":
+      return { ...state, dispenseLines: action.value };
+    case "updateDispenseLines":
+      return { ...state, dispenseLines: action.value(state.dispenseLines) };
+    case "setDispenseNotes":
+      return { ...state, dispenseNotes: action.value };
+    case "setDispenseFormError":
+      return { ...state, dispenseFormError: action.value };
+    case "setSelectedReversalPrescription":
+      return { ...state, selectedReversalPrescription: action.value };
+    case "setReversalReason":
+      return { ...state, reversalReason: action.value };
+    case "setReversalError":
+      return { ...state, reversalError: action.value };
+    case "resetDispenseDialog":
+      return {
+        ...state,
+        selectedPrescription: null,
+        dispenseLines: [],
+        dispenseNotes: "",
+        dispenseFormError: null,
+      };
+    case "resetReverseDialog":
+      return {
+        ...state,
+        selectedReversalPrescription: null,
+        reversalReason: "",
+        reversalError: null,
+      };
+    default:
+      return state;
+  }
+}
+
 function createBatchRow(
   quantity = "",
   batchNumber = "",
@@ -187,6 +292,37 @@ function normalizePrescription(raw: any): PrescriptionRow {
     queueStatus: raw.queueStatus,
     queuePosition: queueEntry.position > 0 ? queueEntry.position : null,
     medicines: items.map((item: any) => ({
+      ...(Array.isArray(item.dispenseBatchHistory)
+        ? {
+            dispenseBatchHistory: (
+              item.dispenseBatchHistory as DispenseBatchHistoryItem[]
+            ).reduce<
+              Array<{
+                quantity: number;
+                batchNumber?: string;
+                expiryDate?: string;
+                dispensedAt: string;
+              }>
+            >((acc, history) => {
+              const quantity = Number(history.quantity || 0);
+              if (quantity <= 0) {
+                return acc;
+              }
+
+              acc.push({
+                quantity,
+                ...(history.batchNumber
+                  ? { batchNumber: history.batchNumber }
+                  : {}),
+                ...(history.expiryDate
+                  ? { expiryDate: history.expiryDate }
+                  : {}),
+                dispensedAt: String(history.dispensedAt || nowIso()),
+              });
+              return acc;
+            }, []),
+          }
+        : {}),
       prescriptionItemId: String(
         item.id ||
           item.prescriptionItemId ||
@@ -220,22 +356,6 @@ function normalizePrescription(raw: any): PrescriptionRow {
         ) >= Number(item.quantity || 0),
       ...(item.batchNumber ? { batchNumber: item.batchNumber } : {}),
       ...(item.expiryDate ? { expiryDate: item.expiryDate } : {}),
-      ...(Array.isArray(item.dispenseBatchHistory)
-        ? {
-            dispenseBatchHistory: item.dispenseBatchHistory
-              .map((history: any) => ({
-                quantity: Number(history.quantity || 0),
-                ...(history.batchNumber
-                  ? { batchNumber: history.batchNumber }
-                  : {}),
-                ...(history.expiryDate
-                  ? { expiryDate: history.expiryDate }
-                  : {}),
-                dispensedAt: String(history.dispensedAt || nowIso()),
-              }))
-              .filter((history: { quantity: number }) => history.quantity > 0),
-          }
-        : {}),
     })),
   };
 }
@@ -290,22 +410,58 @@ export default function PharmacistPrescriptionsPage() {
   useWebSocketQuerySync();
 
   const { clinicId } = useClinicContext();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [auditStartDate, setAuditStartDate] = useState("");
-  const [auditEndDate, setAuditEndDate] = useState("");
-  const [auditSearchTerm, setAuditSearchTerm] = useState("");
-  const [selectedPrescription, setSelectedPrescription] =
-    useState<PrescriptionRow | null>(null);
-  const [dispenseLines, setDispenseLines] = useState<DispenseLineState[]>([]);
-  const [dispenseNotes, setDispenseNotes] = useState("");
-  const [dispenseFormError, setDispenseFormError] = useState<string | null>(
-    null,
+  const [
+    {
+      searchTerm,
+      statusFilter,
+      auditStartDate,
+      auditEndDate,
+      auditSearchTerm,
+      selectedPrescription,
+      dispenseLines,
+      dispenseNotes,
+      dispenseFormError,
+      selectedReversalPrescription,
+      reversalReason,
+      reversalError,
+    },
+    dispatch,
+  ] = useReducer(
+    pharmacistPrescriptionsReducer,
+    initialPharmacistPrescriptionsState,
   );
-  const [selectedReversalPrescription, setSelectedReversalPrescription] =
-    useState<PrescriptionRow | null>(null);
-  const [reversalReason, setReversalReason] = useState("");
-  const [reversalError, setReversalError] = useState<string | null>(null);
+
+  const setSearchTerm = (value: string) =>
+    dispatch({ type: "setSearchTerm", value });
+  const setStatusFilter = (value: string) =>
+    dispatch({ type: "setStatusFilter", value });
+  const setAuditStartDate = (value: string) =>
+    dispatch({ type: "setAuditStartDate", value });
+  const setAuditEndDate = (value: string) =>
+    dispatch({ type: "setAuditEndDate", value });
+  const setAuditSearchTerm = (value: string) =>
+    dispatch({ type: "setAuditSearchTerm", value });
+  const setSelectedPrescription = (value: PrescriptionRow | null) =>
+    dispatch({ type: "setSelectedPrescription", value });
+  const setDispenseLines = (
+    value: DispenseLineState[] | ((current: DispenseLineState[]) => DispenseLineState[])
+  ) => {
+    if (typeof value === "function") {
+      dispatch({ type: "updateDispenseLines", value });
+      return;
+    }
+    dispatch({ type: "setDispenseLines", value });
+  };
+  const setDispenseNotes = (value: string) =>
+    dispatch({ type: "setDispenseNotes", value });
+  const setDispenseFormError = (value: string | null) =>
+    dispatch({ type: "setDispenseFormError", value });
+  const setSelectedReversalPrescription = (value: PrescriptionRow | null) =>
+    dispatch({ type: "setSelectedReversalPrescription", value });
+  const setReversalReason = (value: string) =>
+    dispatch({ type: "setReversalReason", value });
+  const setReversalError = (value: string | null) =>
+    dispatch({ type: "setReversalError", value });
   const { data: prescriptionsData = [], isPending } = usePrescriptions(
     clinicId || "",
     {
@@ -351,7 +507,6 @@ export default function PharmacistPrescriptionsPage() {
       ),
     );
   }, [medicineCatalog]);
-
   const filteredPrescriptions = useMemo(() => {
     return prescriptions.filter((prescription) => {
       const state = getPrescriptionState(prescription);
@@ -401,10 +556,7 @@ export default function PharmacistPrescriptionsPage() {
   };
 
   const closeDispenseDialog = () => {
-    setSelectedPrescription(null);
-    setDispenseLines([]);
-    setDispenseNotes("");
-    setDispenseFormError(null);
+    dispatch({ type: "resetDispenseDialog" });
   };
 
   const updateBatchRow = (
@@ -478,9 +630,7 @@ export default function PharmacistPrescriptionsPage() {
   };
 
   const closeReverseDialog = () => {
-    setSelectedReversalPrescription(null);
-    setReversalReason("");
-    setReversalError(null);
+    dispatch({ type: "resetReverseDialog" });
   };
 
   const handleDispense = async () => {
@@ -793,7 +943,7 @@ export default function PharmacistPrescriptionsPage() {
               Reverse dispense
             </Button>
           ) : (
-            <span className="text-sm text-muted-foreground">—</span>
+            <span className="text-sm text-muted-foreground">-</span>
           );
         },
       },
@@ -1222,26 +1372,33 @@ export default function PharmacistPrescriptionsPage() {
                               className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                             >
                               <option value="">Use original medicine</option>
-                              {medicineCatalog
-                                .filter(
-                                  (medicine) =>
-                                    String(medicine.id || "") !==
-                                    line.medicineId,
-                                )
-                                .map((medicine) => (
-                                  <option
-                                    key={String(medicine.id)}
-                                    value={String(medicine.id)}
-                                  >
-                                    {String(medicine.name || "Medicine")} (
-                                    {String(
-                                      medicine.stockQuantity ??
-                                        medicine.stock ??
-                                        0,
-                                    )}{" "}
-                                    in stock)
-                                  </option>
-                                ))}
+                              {medicineCatalog.reduce<ReactElement[]>(
+                                (options, medicine) => {
+                                  if (
+                                    String(medicine.id || "") ===
+                                    line.medicineId
+                                  ) {
+                                    return options;
+                                  }
+
+                                  options.push(
+                                    <option
+                                      key={String(medicine.id)}
+                                      value={String(medicine.id)}
+                                    >
+                                      {String(medicine.name || "Medicine")} (
+                                      {String(
+                                        medicine.stockQuantity ??
+                                          medicine.stock ??
+                                          0,
+                                      )}{" "}
+                                      in stock)
+                                    </option>,
+                                  );
+                                  return options;
+                                },
+                                [],
+                              )}
                             </select>
                           </div>
                           <div className="gap-y-2">

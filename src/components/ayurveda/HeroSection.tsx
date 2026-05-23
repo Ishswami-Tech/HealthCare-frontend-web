@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useReducer, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,10 +29,36 @@ import {
 } from "lucide-react";
 import { useTranslation } from "@/lib/i18n/context";
 
+type HeroState = {
+  currentTestimonial: number;
+  liveCount: number;
+};
+
+type HeroAction = {
+  type: "tick";
+  testimonialCount: number;
+  liveDelta: number;
+};
+
+function heroReducer(state: HeroState, action: HeroAction): HeroState {
+  switch (action.type) {
+    case "tick":
+      return {
+        currentTestimonial:
+          (state.currentTestimonial + 1) % action.testimonialCount,
+        liveCount: state.liveCount + action.liveDelta,
+      };
+    default:
+      return state;
+  }
+}
+
 const HeroSection = () => {
   const { t } = useTranslation();
-  const [currentTestimonial, setCurrentTestimonial] = useState(0);
-  const [liveCount, setLiveCount] = useState(147);
+  const [{ currentTestimonial, liveCount }, dispatch] = useReducer(heroReducer, {
+    currentTestimonial: 0,
+    liveCount: 147,
+  });
 
   const testimonials = [
     t("hero.testimonials.0"),
@@ -42,8 +68,11 @@ const HeroSection = () => {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
-      setLiveCount((prev) => prev + Math.floor(Math.random() * 3) - 1);
+      dispatch({
+        type: "tick",
+        testimonialCount: testimonials.length,
+        liveDelta: Math.floor(Math.random() * 3) - 1,
+      });
     }, 4000);
     return () => clearInterval(interval);
   }, [testimonials.length]);
@@ -94,7 +123,7 @@ const HeroSection = () => {
                   <div className="block text-slate-900 dark:text-slate-100 mb-2 sm:mb-3">
                     {t("hero.title1")}
                   </div>
-                  <div className="block bg-gradient-to-r from-orange-600 via-amber-600 to-yellow-600 dark:from-orange-400 dark:via-amber-400 dark:to-yellow-400 bg-clip-text text-transparent mb-2 sm:mb-3">
+                  <div className="block text-orange-600 dark:text-orange-400 mb-2 sm:mb-3">
                     {t("hero.title2")}
                   </div>
                   <div className="block text-slate-800 dark:text-slate-200">
@@ -263,7 +292,7 @@ const HeroSection = () => {
                 <HoverAnimation type="scale">
                   <Button
                     variant="ghost"
-                    className="group relative overflow-hidden bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-600 hover:text-blue-700 dark:hover:text-blue-300 px-6 py-4 sm:py-5 rounded-lg transition-all duration-300 shadow-sm hover:shadow-md"
+                    className="group relative overflow-hidden bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border border-gray-200 dark:border-gray-700 text-blue-900 dark:text-blue-50 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-600 hover:text-blue-700 dark:hover:text-blue-300 px-6 py-4 sm:py-5 rounded-lg transition-all duration-300 shadow-sm hover:shadow-md"
                   >
                     <div className="flex items-center gap-x-2">
                       <div className="p-1 rounded-full bg-blue-100 dark:bg-blue-900/30 group-hover:scale-110 transition-transform duration-300">
@@ -280,7 +309,7 @@ const HeroSection = () => {
                 <HoverAnimation type="scale">
                   <Button
                     variant="ghost"
-                    className="group relative overflow-hidden bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:border-amber-300 dark:hover:border-amber-600 hover:text-amber-700 dark:hover:text-amber-300 px-6 py-4 sm:py-5 rounded-lg transition-all duration-300 shadow-sm hover:shadow-md"
+                    className="group relative overflow-hidden bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border border-gray-200 dark:border-gray-700 text-amber-900 dark:text-amber-50 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:border-amber-300 dark:hover:border-amber-600 hover:text-amber-700 dark:hover:text-amber-300 px-6 py-4 sm:py-5 rounded-lg transition-all duration-300 shadow-sm hover:shadow-md"
                   >
                     <div className="flex items-center gap-x-2">
                       <div className="p-1 rounded-full bg-amber-100 dark:bg-amber-900/30 group-hover:scale-110 transition-transform duration-300">
@@ -297,7 +326,7 @@ const HeroSection = () => {
                 <HoverAnimation type="scale">
                   <Button
                     variant="ghost"
-                    className="group relative overflow-hidden bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-900/20 hover:border-green-300 dark:hover:border-green-600 hover:text-green-700 dark:hover:text-green-300 px-6 py-4 sm:py-5 rounded-lg transition-all duration-300 shadow-sm hover:shadow-md"
+                    className="group relative overflow-hidden bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border border-gray-200 dark:border-gray-700 text-green-900 dark:text-green-50 hover:bg-green-50 dark:hover:bg-green-900/20 hover:border-green-300 dark:hover:border-green-600 hover:text-green-700 dark:hover:text-green-300 px-6 py-4 sm:py-5 rounded-lg transition-all duration-300 shadow-sm hover:shadow-md"
                   >
                     <div className="flex items-center gap-x-2">
                       <div className="p-1 rounded-full bg-green-100 dark:bg-green-900/30 group-hover:scale-110 transition-transform duration-300">
@@ -400,7 +429,7 @@ const HeroSection = () => {
                 {/* Enhanced Stats Grid - More Compact */}
                 <div className="grid grid-cols-2 gap-1.5 sm:gap-2 p-3 sm:p-4">
                   <div className="glass card-hover group text-center p-2 sm:p-3 rounded-lg medical-green">
-                    <div className="text-base sm:text-lg font-bold bg-gradient-to-r from-emerald-600 to-green-600 dark:from-emerald-400 dark:to-green-400 bg-clip-text text-transparent mb-0.5">
+                    <div className="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400 mb-0.5">
                       5000+
                     </div>
                     <div className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
@@ -408,7 +437,7 @@ const HeroSection = () => {
                     </div>
                   </div>
                   <div className="glass card-hover group text-center p-2 sm:p-3 rounded-lg medical-blue">
-                    <div className="text-base sm:text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent mb-0.5">
+                    <div className="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400 mb-0.5">
                       20+
                     </div>
                     <div className="text-xs font-medium text-blue-700 dark:text-blue-300">
@@ -416,7 +445,7 @@ const HeroSection = () => {
                     </div>
                   </div>
                   <div className="glass card-hover group text-center p-2 sm:p-3 rounded-lg medical-yellow">
-                    <div className="text-base sm:text-lg font-bold bg-gradient-to-r from-amber-600 to-yellow-600 dark:from-amber-400 dark:to-yellow-400 bg-clip-text text-transparent mb-0.5">
+                    <div className="text-base sm:text-lg font-bold text-amber-600 dark:text-amber-400 mb-0.5">
                       95%
                     </div>
                     <div className="text-xs font-medium text-amber-700 dark:text-amber-300">
@@ -424,7 +453,7 @@ const HeroSection = () => {
                     </div>
                   </div>
                   <div className="glass card-hover group text-center p-2 sm:p-3 rounded-lg medical-red">
-                    <div className="text-base sm:text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent mb-0.5">
+                    <div className="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400 mb-0.5">
                       4.9★
                     </div>
                     <div className="text-xs font-medium text-blue-700 dark:text-blue-300">
@@ -436,11 +465,11 @@ const HeroSection = () => {
             </Card>
 
             {/* Enhanced Floating Elements - More Compact */}
-            <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-gradient-to-r from-emerald-500 to-green-500 text-white p-1.5 sm:p-2 rounded-full shadow-lg animate-bounce hover:scale-110 transition-transform duration-300">
+            <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-gradient-to-r from-emerald-500 to-green-500 text-white p-1.5 sm:p-2 rounded-full shadow-lg animate-pulse hover:scale-110 transition-transform duration-300">
               <MessageCircle className="size-3 sm:w-4 sm:h-4" />
             </div>
 
-            <div className="absolute -bottom-1 -left-1 sm:-bottom-2 sm:-left-2 bg-gradient-to-r from-amber-500 to-yellow-500 text-white p-1.5 sm:p-2 rounded-full shadow-lg animate-bounce delay-1000 hover:scale-110 transition-transform duration-300">
+            <div className="absolute -bottom-1 -left-1 sm:-bottom-2 sm:-left-2 bg-gradient-to-r from-amber-500 to-yellow-500 text-white p-1.5 sm:p-2 rounded-full shadow-lg animate-pulse delay-1000 hover:scale-110 transition-transform duration-300">
               <Award className="size-3 sm:w-4 sm:h-4" />
             </div>
 

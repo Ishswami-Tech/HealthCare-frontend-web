@@ -2,7 +2,15 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { motion, AnimatePresence, useInView, useAnimation } from "framer-motion";
+import { AnimatePresence, LazyMotion, domAnimation, m, useInView, useAnimation } from "framer-motion";
+
+const motionFeatures = domAnimation;
+
+const MotionRoot: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <LazyMotion features={motionFeatures} strict>
+    {children}
+  </LazyMotion>
+);
 
 // Fade In Animation
 interface FadeInProps {
@@ -40,15 +48,17 @@ const FadeIn: React.FC<FadeInProps> = ({
   }, [isInView, controls]);
 
   return (
-    <motion.div
-      ref={ref}
-      initial={directionVariants[direction]}
-      animate={controls}
-      transition={{ duration, delay }}
-      className={className}
-    >
-      {children}
-    </motion.div>
+    <MotionRoot>
+      <m.div
+        ref={ref}
+        initial={directionVariants[direction]}
+        animate={controls}
+        transition={{ duration, delay }}
+        className={className}
+      >
+        {children}
+      </m.div>
+    </MotionRoot>
   );
 };
 
@@ -63,34 +73,49 @@ const StaggerContainer: React.FC<StaggerContainerProps> = ({
   children,
   staggerDelay = 0.1,
   className,
-}) => {
+  }) => {
   return (
-    <motion.div
-      className={className}
-      initial="hidden"
-      animate="show"
-      variants={{
-        hidden: {},
-        show: {
-          transition: {
-            staggerChildren: staggerDelay,
+    <MotionRoot>
+      <m.div
+        className={className}
+        initial="hidden"
+        animate="show"
+        variants={{
+          hidden: {},
+          show: {
+            transition: {
+              staggerChildren: staggerDelay,
+            },
           },
-        },
-      }}
-    >
-      {React.Children.map(children, (child, index) => (
-        <motion.div
-          key={index}
-          variants={{
-            hidden: { opacity: 0, y: 20 },
-            show: { opacity: 1, y: 0 },
-          }}
-          transition={{ duration: 0.5 }}
-        >
-          {child}
-        </motion.div>
-      ))}
-    </motion.div>
+        }}
+      >
+        {React.Children.toArray(children).map((child) => {
+          const element = React.isValidElement(child) ? child : null;
+          const childKey =
+            (element && element.key != null ? String(element.key) : "") ||
+            (element && typeof element.props === "object" && element.props && "id" in element.props
+              ? String((element.props as { id?: React.Key }).id ?? "")
+              : "") ||
+            (element && typeof element.props === "object" && element.props && "title" in element.props
+              ? String((element.props as { title?: React.Key }).title ?? "")
+              : "") ||
+            JSON.stringify(child);
+
+          return (
+          <m.div
+            key={childKey}
+            variants={{
+              hidden: { opacity: 0, y: 20 },
+              show: { opacity: 1, y: 0 },
+            }}
+            transition={{ duration: 0.5 }}
+          >
+            {child}
+          </m.div>
+          );
+        })}
+      </m.div>
+    </MotionRoot>
   );
 };
 
@@ -107,14 +132,16 @@ const ScaleOnHover: React.FC<ScaleOnHoverProps> = ({
   className,
 }) => {
   return (
-    <motion.div
-      whileHover={{ scale }}
-      whileTap={{ scale: 0.95 }}
-      transition={{ type: "spring", stiffness: 400, damping: 17 }}
-      className={cn("cursor-pointer", className)}
-    >
-      {children}
-    </motion.div>
+    <MotionRoot>
+      <m.div
+        whileHover={{ scale }}
+        whileTap={{ scale: 0.95 }}
+        transition={{ type: "spring", stiffness: 400, damping: 17 }}
+        className={cn("cursor-pointer", className)}
+      >
+        {children}
+      </m.div>
+    </MotionRoot>
   );
 };
 
@@ -152,20 +179,22 @@ const SlideInNotification: React.FC<SlideInNotificationProps> = ({
   };
 
   return (
-    <AnimatePresence>
-      {isVisible && (
-        <motion.div
-          initial="hidden"
-          animate="visible"
-          exit="hidden"
-          variants={variants[position]}
-          transition={{ type: "spring", stiffness: 500, damping: 40 }}
-          className={className}
-        >
-          {children}
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <MotionRoot>
+      <AnimatePresence>
+        {isVisible && (
+          <m.div
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            variants={variants[position]}
+            transition={{ type: "spring", stiffness: 500, damping: 40 }}
+            className={className}
+          >
+            {children}
+          </m.div>
+        )}
+      </AnimatePresence>
+    </MotionRoot>
   );
 };
 
@@ -178,13 +207,15 @@ interface PulseProps {
 
 const Pulse: React.FC<PulseProps> = ({ children, duration = 2, className }) => {
   return (
-    <motion.div
-      animate={{ scale: [1, 1.05, 1] }}
-      transition={{ duration, repeat: Infinity, ease: "easeInOut" }}
-      className={className}
-    >
-      {children}
-    </motion.div>
+    <MotionRoot>
+      <m.div
+        animate={{ scale: [1, 1.05, 1] }}
+        transition={{ duration, repeat: Infinity, ease: "easeInOut" }}
+        className={className}
+      >
+        {children}
+      </m.div>
+    </MotionRoot>
   );
 };
 
@@ -202,15 +233,17 @@ const AnimatedSpinner: React.FC<AnimatedSpinnerProps> = ({ size = "md", classNam
   };
 
   return (
-    <motion.div
-      animate={{ rotate: 360 }}
-      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-      className={cn(
-        "border-2 border-primary/30 border-t-primary rounded-full",
-        sizeClasses[size],
-        className
-      )}
-    />
+    <MotionRoot>
+      <m.div
+        animate={{ rotate: 360 }}
+        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+        className={cn(
+          "border-2 border-primary/30 border-t-primary rounded-full",
+          sizeClasses[size],
+          className
+        )}
+      />
+    </MotionRoot>
   );
 };
 
@@ -241,12 +274,14 @@ const AnimatedProgress: React.FC<AnimatedProgressProps> = ({
   return (
     <div className={cn("gap-y-2", className)}>
       <div className={cn("w-full rounded-full overflow-hidden", backgroundColor, height)}>
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${percentage}%` }}
-          transition={{ duration, ease: "easeOut" }}
-          className={cn("h-full rounded-full", color)}
-        />
+        <MotionRoot>
+          <m.div
+            initial={{ width: 0 }}
+            animate={{ width: `${percentage}%` }}
+            transition={{ duration, ease: "easeOut" }}
+            className={cn("h-full rounded-full", color)}
+          />
+        </MotionRoot>
       </div>
       {showValue && (
         <div className="text-sm text-muted-foreground">
@@ -274,18 +309,20 @@ const FloatingElement: React.FC<FloatingElementProps> = ({
   className,
 }) => {
   return (
-    <motion.div
-      animate={{ y: [0, -amplitude, 0] }}
-      transition={{
-        duration,
-        repeat: Infinity,
-        ease: "easeInOut",
-        delay,
-      }}
-      className={className}
-    >
-      {children}
-    </motion.div>
+    <MotionRoot>
+      <m.div
+        animate={{ y: [0, -amplitude, 0] }}
+        transition={{
+          duration,
+          repeat: Infinity,
+          ease: "easeInOut",
+          delay,
+        }}
+        className={className}
+      >
+        {children}
+      </m.div>
+    </MotionRoot>
   );
 };
 
@@ -328,13 +365,15 @@ const Typewriter: React.FC<TypewriterProps> = ({
     <span className={className}>
       {state.displayText}
       {state.currentIndex < text.length && (
-        <motion.span
-          animate={{ opacity: [1, 0] }}
-          transition={{ duration: 0.8, repeat: Infinity }}
-          className="ml-0.5"
-        >
-          |
-        </motion.span>
+        <MotionRoot>
+          <m.span
+            animate={{ opacity: [1, 0] }}
+            transition={{ duration: 0.8, repeat: Infinity }}
+            className="ml-0.5"
+          >
+            |
+          </m.span>
+        </MotionRoot>
       )}
     </span>
   );
@@ -355,47 +394,42 @@ const FlipCard: React.FC<FlipCardProps> = ({
   isFlipped = false,
   className,
   onFlip,
-}) => {
+  }) => {
   return (
-    <div 
+    <button
+      type="button"
       className={cn("relative w-full h-full cursor-pointer", className)}
       onClick={onFlip}
-      onKeyDown={(event) => {
-        if ((event.key === "Enter" || event.key === " ") && onFlip) {
-          event.preventDefault();
-          onFlip();
-        }
-      }}
-      role="button"
-      tabIndex={0}
     >
-      <motion.div
-        initial={false}
-        animate={{ rotateY: isFlipped ? 180 : 0 }}
-        transition={{ duration: 0.6 }}
-        className="w-full h-full relative preserve-3d"
-        style={{ transformStyle: "preserve-3d" }}
-      >
-        {/* Front */}
-        <div
-          className="absolute inset-0 w-full h-full backface-hidden"
-          style={{ backfaceVisibility: "hidden" }}
+      <MotionRoot>
+        <m.div
+          initial={false}
+          animate={{ rotateY: isFlipped ? 180 : 0 }}
+          transition={{ duration: 0.6 }}
+          className="w-full h-full relative preserve-3d"
+          style={{ transformStyle: "preserve-3d" }}
         >
-          {front}
-        </div>
-        
-        {/* Back */}
-        <div
-          className="absolute inset-0 w-full h-full backface-hidden"
-          style={{ 
-            backfaceVisibility: "hidden",
-            transform: "rotateY(180deg)" 
-          }}
-        >
-          {back}
-        </div>
-      </motion.div>
-    </div>
+          {/* Front */}
+          <div
+            className="absolute inset-0 w-full h-full backface-hidden"
+            style={{ backfaceVisibility: "hidden" }}
+          >
+            {front}
+          </div>
+          
+          {/* Back */}
+          <div
+            className="absolute inset-0 w-full h-full backface-hidden"
+            style={{ 
+              backfaceVisibility: "hidden",
+              transform: "rotateY(180deg)" 
+            }}
+          >
+            {back}
+          </div>
+        </m.div>
+      </MotionRoot>
+    </button>
   );
 };
 
@@ -414,42 +448,44 @@ const MorphingButton: React.FC<MorphingButtonProps> = ({
   isMorphed = false,
   onClick,
   className,
-}) => {
+  }) => {
   return (
-    <motion.button
-      layout
-      onClick={onClick}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      className={cn(
-        "px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium transition-colors",
-        className
-      )}
-    >
-      <AnimatePresence mode="wait">
-        {isMorphed ? (
-          <motion.span
-            key="morphed"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.2 }}
-          >
-            {morphedChildren}
-          </motion.span>
-        ) : (
-          <motion.span
-            key="original"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.2 }}
-          >
-            {children}
-          </motion.span>
+    <MotionRoot>
+      <m.button
+        layout
+        onClick={onClick}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        className={cn(
+          "px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium transition-colors",
+          className
         )}
-      </AnimatePresence>
-    </motion.button>
+      >
+        <AnimatePresence mode="wait">
+          {isMorphed ? (
+            <m.span
+              key="morphed"
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ duration: 0.2 }}
+            >
+              {morphedChildren}
+            </m.span>
+          ) : (
+            <m.span
+              key="original"
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ duration: 0.2 }}
+            >
+              {children}
+            </m.span>
+          )}
+        </AnimatePresence>
+      </m.button>
+    </MotionRoot>
   );
 };
 
@@ -488,15 +524,17 @@ const RevealOnScroll: React.FC<RevealOnScrollProps> = ({
   const isInView = useInView(ref, { once: true });
 
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 50 }}
-      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
-      transition={{ duration: 0.8, ease: "easeOut" }}
-      className={className}
-    >
-      {children}
-    </motion.div>
+    <MotionRoot>
+      <m.div
+        ref={ref}
+        initial={{ opacity: 0, y: 50 }}
+        animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        className={className}
+      >
+        {children}
+      </m.div>
+    </MotionRoot>
   );
 };
 
@@ -508,15 +546,17 @@ interface PageTransitionProps {
 
 const PageTransition: React.FC<PageTransitionProps> = ({ children, className }) => {
   return (
-    <motion.div
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
-      transition={{ duration: 0.3, ease: "easeInOut" }}
-      className={className}
-    >
-      {children}
-    </motion.div>
+    <MotionRoot>
+      <m.div
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -20 }}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+        className={className}
+      >
+        {children}
+      </m.div>
+    </MotionRoot>
   );
 };
 

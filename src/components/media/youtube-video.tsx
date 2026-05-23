@@ -155,6 +155,7 @@ export function YouTubeVideo({
       {showCustomControls && (
         <div className="absolute inset-0 bg-gray-950/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
           <button
+            type="button"
             onClick={isPlaying ? handlePause : handlePlay}
             className="bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full p-4 transition-all transform hover:scale-110"
             aria-label={isPlaying ? "Pause video" : "Play video"}

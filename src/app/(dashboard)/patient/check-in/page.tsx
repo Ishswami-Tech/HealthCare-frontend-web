@@ -2,7 +2,7 @@
 
 import { useMemo, useReducer } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { LazyMotion, domAnimation, m, AnimatePresence } from "framer-motion";
 import { CheckCircle2, Info, Loader2, QrCode, Clock, Stethoscope } from "lucide-react";
 import { QRScanner } from "@/components/qr/QRScanner";
 import { Button } from "@/components/ui/button";
@@ -262,8 +262,9 @@ export default function PatientCheckInPage() {
       : "—";
 
     return (
+      <LazyMotion features={domAnimation}>
       <div className="flex items-center justify-center min-h-[60vh] p-4 sm:p-6">
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-sm text-center gap-y-6 sm:gap-y-8"
@@ -271,13 +272,13 @@ export default function PatientCheckInPage() {
           <div
             className={`relative mx-auto size-20 sm:w-24 sm:h-24 ${theme.badges.emerald} rounded-full flex items-center justify-center shadow-inner border-none`}
           >
-            <motion.div
+            <m.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: "spring", stiffness: 200, damping: 15 }}
             >
               <CheckCircle2 className={`size-8 sm:h-10 sm:w-10 ${theme.iconColors.emerald}`} />
-            </motion.div>
+            </m.div>
           </div>
 
           <div className="gap-y-2">
@@ -324,8 +325,9 @@ export default function PatientCheckInPage() {
           >
             Go to Dashboard
           </Button>
-        </motion.div>
+        </m.div>
       </div>
+      </LazyMotion>
     );
   }
 
@@ -362,6 +364,7 @@ export default function PatientCheckInPage() {
 
   if (selectingAppointment && eligibleAppointments.length > 0) {
     return (
+      <LazyMotion features={domAnimation}>
       <div className="max-w-xl mx-auto gap-y-6 py-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Select Appointment</h1>
@@ -380,7 +383,7 @@ export default function PatientCheckInPage() {
                 : "—";
 
             return (
-              <motion.button
+              <m.button
                 key={apt.id}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -406,7 +409,7 @@ export default function PatientCheckInPage() {
                   </div>
                   <div className="text-primary font-semibold text-sm">Select →</div>
                 </div>
-              </motion.button>
+              </m.button>
             );
           })}
         </div>
@@ -421,10 +424,12 @@ export default function PatientCheckInPage() {
           Cancel
         </Button>
       </div>
+      </LazyMotion>
     );
   }
 
   return (
+    <LazyMotion features={domAnimation}>
     <DashboardLayout title="Location Check-In">
       <PatientPageShell className="max-w-xl mx-auto">
         <PatientPageHeader
@@ -436,7 +441,7 @@ export default function PatientCheckInPage() {
         <div className="rounded-2xl border bg-card shadow-sm overflow-hidden">
           <AnimatePresence mode="wait">
             {!isProcessing ? (
-              <motion.div
+              <m.div
                 key="scanner-layout"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -457,9 +462,9 @@ export default function PatientCheckInPage() {
                     Check-in is allowed only when your device is within the clinic&apos;s configured geofence, the location code is valid, and a matching appointment exists for today.
                   </p>
                 </div>
-              </motion.div>
+              </m.div>
             ) : (
-              <motion.div
+              <m.div
                 key="processing-layout"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -473,7 +478,7 @@ export default function PatientCheckInPage() {
                   <h3 className="text-lg font-semibold">Connecting</h3>
                   <p className="text-muted-foreground text-xs">Syncing your arrival data securely</p>
                 </div>
-              </motion.div>
+              </m.div>
             )}
           </AnimatePresence>
         </div>
@@ -534,6 +539,7 @@ export default function PatientCheckInPage() {
         </div>
       </PatientPageShell>
     </DashboardLayout>
+    </LazyMotion>
   );
 }
 

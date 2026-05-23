@@ -126,6 +126,7 @@ export function useFCM(): UseFCMReturn {
         const fcmToken = await getFCMToken();
         if (fcmToken) {
           setToken(fcmToken);
+          await registerToken(fcmToken);
         }
       } else if (permissionResult === 'denied') {
         setError('Notification permission was denied');
@@ -145,8 +146,10 @@ export function useFCM(): UseFCMReturn {
   /**
    * Register FCM token with backend
    */
-  const registerToken = useCallback(async () => {
-    if (!token) {
+  const registerToken = useCallback(async (tokenToRegister?: string) => {
+    const resolvedToken = tokenToRegister || token;
+
+    if (!resolvedToken) {
       setError('No FCM token available');
       return;
     }
@@ -169,7 +172,7 @@ export function useFCM(): UseFCMReturn {
       };
 
       const result = await registerFCMToken({
-        token,
+        token: resolvedToken,
         platform: 'web',
         userId: session.user.id,
         ...deviceInfo,
@@ -197,7 +200,7 @@ export function useFCM(): UseFCMReturn {
 
       await Promise.allSettled(
         topicsToSubscribe.map((topic) =>
-          subscribeToTopic({ userId: user.id, topic, deviceToken: token })
+          subscribeToTopic({ userId: user.id, topic, deviceToken: resolvedToken })
         )
       );
     } catch (err) {
@@ -234,13 +237,6 @@ export function useFCM(): UseFCMReturn {
       setIsLoading(false);
     }
   }, [token, isRegistered]);
-
-  // Auto-register token when available and user is authenticated
-  useEffect(() => {
-    if (token && session?.user?.id && !isRegistered && !isLoading && permission === 'granted') {
-      registerToken();
-    }
-  }, [token, session?.user?.id, isRegistered, isLoading, permission, registerToken]);
 
   return {
     token,

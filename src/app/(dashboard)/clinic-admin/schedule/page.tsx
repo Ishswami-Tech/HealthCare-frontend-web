@@ -204,6 +204,14 @@ const SELECT_DOCTOR_TRIGGER_CLASS =
 const TIME_INPUT_CLASS =
   "h-10 w-full min-w-0 rounded-md border border-indigo-200 bg-white px-3 text-sm font-medium leading-none tabular-nums shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:border-indigo-400 focus-visible:ring-2 focus-visible:ring-indigo-200/70 dark:border-indigo-900/70 dark:bg-background [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-70 [&::-webkit-datetime-edit-fields-wrapper]:p-0 [&::-webkit-datetime-edit]:p-0 [&::-webkit-datetime-edit-hour-field]:px-0.5 [&::-webkit-datetime-edit-minute-field]:px-0.5 [&::-webkit-datetime-edit-ampm-field]:px-1";
 
+const SCHEDULE_LOADING_VIEW = (
+  <DashboardPageShell className="mx-auto max-w-7xl px-4 pb-6 pt-0 sm:px-6 lg:px-8">
+    <div className="flex min-h-[420px] items-center justify-center rounded-xl border border-border bg-card shadow-sm">
+      <Loader2 className="size-8 animate-spin text-emerald-600" />
+    </div>
+  </DashboardPageShell>
+);
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
@@ -576,36 +584,32 @@ export default function ClinicAdminSchedule() {
       )
     : 0;
   const selectedDoctorStatus = selectedDoctor ? "Selected" : "No doctor selected";
+  const headerMeta = useMemo(
+    () => (
+      <>
+        <Badge variant="secondary" className="rounded-full">
+          {selectedDoctorStatus}
+        </Badge>
+        <Badge variant="outline" className="rounded-full">
+          {localSchedules.length} doctors
+        </Badge>
+        <Badge variant="outline" className="rounded-full">
+          {holidayList.length} holidays
+        </Badge>
+      </>
+    ),
+    [holidayList.length, localSchedules.length, selectedDoctorStatus]
+  );
 
-  if (isPendingDoctors) {
-    return (
-      <DashboardPageShell className="mx-auto max-w-7xl px-4 pb-6 pt-0 sm:px-6 lg:px-8">
-        <div className="flex min-h-[420px] items-center justify-center rounded-xl border border-border bg-card shadow-sm">
-          <Loader2 className="size-8 animate-spin text-emerald-600" />
-        </div>
-      </DashboardPageShell>
-    );
-  }
-
-  return (
+  return isPendingDoctors ? (
+    SCHEDULE_LOADING_VIEW
+  ) : (
     <DashboardPageShell className="mx-auto max-w-7xl px-4 pb-6 pt-0 sm:px-6 lg:px-8">
       <DashboardPageHeader
         eyebrow="Clinic Admin"
         title="Schedule Management"
         description="Manage doctor availability, holiday closures, and scheduling conflicts from one place."
-        meta={
-          <>
-            <Badge variant="secondary" className="rounded-full">
-              {selectedDoctorStatus}
-            </Badge>
-            <Badge variant="outline" className="rounded-full">
-              {localSchedules.length} doctors
-            </Badge>
-            <Badge variant="outline" className="rounded-full">
-              {holidayList.length} holidays
-            </Badge>
-          </>
-        }
+        meta={headerMeta}
         actionsSlot={
           <div className="flex flex-wrap items-center gap-2">
             <WebSocketStatusIndicator />

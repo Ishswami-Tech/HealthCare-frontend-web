@@ -71,7 +71,7 @@ export function PatientQueueCard({
   isAppointmentsPending = false,
   onBookAppointment,
 }: PatientQueueCardProps) {
-  const router = useRouter();
+  const { push } = useRouter();
   const openQrGate = usePatientUiStore((state) => state.openQrGate);
   const appointmentPayload = appointmentsData as
     | { appointments?: unknown; data?: unknown }
@@ -148,7 +148,7 @@ export function PatientQueueCard({
     return (
       <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm">
         <Loader2 className="size-4 animate-spin text-primary" />
-        <p className="text-sm font-medium text-muted-foreground">Loading queue status...</p>
+        <p className="text-sm font-medium text-muted-foreground">Loading queue status…</p>
       </div>
     );
   }
@@ -282,12 +282,12 @@ export function PatientQueueCard({
                           onBookAppointment();
                           return;
                         }
-                        router.push("/patient/appointments");
+                        push("/patient/appointments");
                       },
                     });
                     return;
                   }
-                  router.push(item.href);
+                  push(item.href);
                 }}
               >
                 {content}

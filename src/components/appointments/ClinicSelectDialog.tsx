@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { 
   Dialog, 
@@ -36,7 +36,8 @@ export function ClinicSelectDialog({ trigger }: ClinicSelectDialogProps) {
     
 const isLoading = clinicsLoading || myClinicLoading || defaultClinicLoading;
 
-  const { data: locationsData, isPending: locationsLoading } = useClinicLocations(selectedClinicId || "");
+  const effectiveClinicId = selectedClinicId ?? (clinics.length === 1 ? clinics[0]?.id ?? null : null);
+  const { data: locationsData, isPending: locationsLoading } = useClinicLocations(effectiveClinicId || "");
   const locationSource = (locationsData ?? {}) as {
     locations?: unknown;
     data?: unknown;
@@ -48,12 +49,6 @@ const isLoading = clinicsLoading || myClinicLoading || defaultClinicLoading;
       : Array.isArray(locationSource.data)
         ? ((locationSource.data as any[]) || [])
         : [];
-
-  useEffect(() => {
-    if (!selectedClinicId && clinics && clinics.length === 1 && clinics[0]) {
-      setSelectedClinicId(clinics[0].id);
-    }
-  }, [clinics, selectedClinicId]);
 
   const handleSelectLocation = (clinicId: string, locationId: string) => {
     setOpen(false);
@@ -85,18 +80,18 @@ const isLoading = clinicsLoading || myClinicLoading || defaultClinicLoading;
 
         <div className="flex-1 overflow-hidden flex flex-col border-t mt-4">
           {/* Clinic Header / Context - Only show if we have a clinic selected or only one option */}
-          {(selectedClinicId && clinics.find(c => c.id === selectedClinicId)) && (
+          {(effectiveClinicId && clinics.find(c => c.id === effectiveClinicId)) && (
             <div className="px-6 py-4 bg-muted/30 border-b flex items-center justify-between">
               <div>
                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Clinic</p>
                  <h3 className="font-semibold text-base text-foreground flex items-center gap-2">
                     <Building className="size-4 text-blue-600" />
-                    {clinics.find(c => c.id === selectedClinicId)?.name}
+                    {clinics.find(c => c.id === effectiveClinicId)?.name}
                  </h3>
-                 <p className="text-xs text-muted-foreground mt-0.5">{clinics.find(c => c.id === selectedClinicId)?.address}</p>
+                 <p className="text-xs text-muted-foreground mt-0.5">{clinics.find(c => c.id === effectiveClinicId)?.address}</p>
               </div>
               {clinics.length > 1 && (
-                <Button variant="ghost" size="sm" onClick={() => setSelectedClinicId(null)} className="text-xs h-8">
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedClinicId(null)} className="text-xs h-8">
                   Change
                 </Button>
               )}
@@ -104,28 +99,32 @@ const isLoading = clinicsLoading || myClinicLoading || defaultClinicLoading;
           )}
 
           {/* Clinic List - Only show if no clinic is selected (rare case if length > 1) */}
-          {!selectedClinicId && (
+          {!effectiveClinicId && (
              <div className="flex-1 overflow-y-auto p-4">
                <p className="text-sm font-medium mb-3 text-muted-foreground">Please select a clinic</p>
                <div className="grid gap-3">
                  {isLoading ? (
                     <div className="flex justify-center p-4"><Loader2 className="animate-spin text-blue-600" /></div>
-                 ) : clinics.map(clinic => (
-                   <button
+                 ) : clinics.map((clinic) => (
+                   <Button
                      key={clinic.id}
+                     type="button"
+                     variant="outline"
                      onClick={() => setSelectedClinicId(clinic.id)}
-                     className="w-full text-left p-4 rounded-xl border hover:border-blue-500 hover:shadow-sm transition-all bg-card"
+                     className="w-full justify-start rounded-xl border p-4 text-left hover:border-blue-500 hover:shadow-sm bg-card"
                    >
-                     <h4 className="font-semibold">{clinic.name}</h4>
-                     <p className="text-sm text-muted-foreground">{clinic.address}</p>
-                   </button>
+                     <div className="gap-y-1">
+                       <h4 className="font-semibold">{clinic.name}</h4>
+                       <p className="text-sm text-muted-foreground">{clinic.address}</p>
+                     </div>
+                   </Button>
                  ))}
                </div>
              </div>
           )}
 
           {/* Location List - Full Width */}
-          {selectedClinicId && (
+          {effectiveClinicId && (
             <div className="flex-1 flex flex-col min-h-0 bg-background">
               <div className="px-6 py-3 border-b bg-background z-10">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -147,10 +146,12 @@ const isLoading = clinicsLoading || myClinicLoading || defaultClinicLoading;
                     </div>
                   ) : (
                     locations.map((loc) => (
-                      <button
+                      <Button
+                        type="button"
                         key={loc.id}
-                        onClick={() => handleSelectLocation(selectedClinicId, loc.id)}
-                        className="group w-full text-left p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 hover:border-blue-500 hover:ring-2 hover:ring-blue-500/20 transition-all bg-white dark:bg-neutral-900 shadow-sm"
+                        variant="outline"
+                        onClick={() => handleSelectLocation(effectiveClinicId, loc.id)}
+                        className="group w-full justify-start text-left p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 hover:border-blue-500 hover:ring-2 hover:ring-blue-500/20 transition-all bg-white dark:bg-neutral-900 shadow-sm"
                       >
                         <div className="flex items-center justify-between">
                           <div className="gap-y-1">
@@ -180,7 +181,7 @@ const isLoading = clinicsLoading || myClinicLoading || defaultClinicLoading;
                              </span>
                           </div>
                         )}
-                      </button>
+                      </Button>
                     ))
                   )}
                 </div>

@@ -141,17 +141,15 @@ export default function NurseDashboard() {
     );
   }
 
+  const headerMeta = `${stats.activePatients} assigned patients`;
+
   return (
     <DashboardPageShell>
       <DashboardPageHeader
         eyebrow="Nurse"
         title="Nurse Dashboard"
         description={`Welcome back, ${user?.name || "Nurse"}. Review patient coverage, vitals activity, and care priorities from one dashboard.`}
-        meta={
-          <span className="text-sm font-medium text-muted-foreground">
-            {stats.activePatients} assigned patients
-          </span>
-        }
+        meta={headerMeta}
       />
 
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">

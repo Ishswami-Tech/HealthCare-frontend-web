@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -61,6 +61,16 @@ import {
 } from "lucide-react";
 import { QuickPrescriptionModal } from "@/components/doctor/QuickPrescriptionModal";
 
+const DOCTOR_DASHBOARD_META = (
+  <Badge
+    variant="outline"
+    className="rounded-full border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700"
+  >
+    <Activity className="mr-1 inline-block size-3" />
+    Active Shift
+  </Badge>
+);
+
 // Interface for the transformed appointment object
 interface TransformedAppointment {
   id: string;
@@ -82,6 +92,83 @@ interface TransformedAppointment {
   paymentCompleted: boolean;
   paymentPending: boolean;
   checkedInAt: string | null;
+}
+
+interface PrescriptionModalState {
+  isOpen: boolean;
+  activePatient: { id: string; name: string } | null;
+  activeAppointmentId: string | null;
+  skipMedicineSelected: boolean;
+}
+
+type DoctorDashboardState = {
+  searchTerm: string;
+  consultSummary: string;
+  prescriptionModal: PrescriptionModalState;
+  consultTick: number;
+  consultStartOverrides: Record<string, string>;
+  activeDoctorQueueLane: string;
+};
+
+type DoctorDashboardAction =
+  | { type: "setSearchTerm"; value: string }
+  | { type: "setConsultSummary"; value: string }
+  | { type: "setPrescriptionModal"; value: PrescriptionModalState }
+  | { type: "updatePrescriptionModal"; value: Partial<PrescriptionModalState> | ((current: PrescriptionModalState) => PrescriptionModalState) }
+  | { type: "setConsultTick"; value: number }
+  | { type: "setConsultStartOverrides"; value: Record<string, string> | ((current: Record<string, string>) => Record<string, string>) }
+  | { type: "setActiveDoctorQueueLane"; value: string };
+
+const initialDoctorDashboardState: DoctorDashboardState = {
+  searchTerm: "",
+  consultSummary: "",
+  prescriptionModal: {
+    isOpen: false,
+    activePatient: null,
+    activeAppointmentId: null,
+    skipMedicineSelected: false,
+  },
+  consultTick: Date.now(),
+  consultStartOverrides: {},
+  activeDoctorQueueLane: "",
+};
+
+function doctorDashboardReducer(
+  state: DoctorDashboardState,
+  action: DoctorDashboardAction
+): DoctorDashboardState {
+  const resolveRecord = (
+    value: Record<string, string> | ((current: Record<string, string>) => Record<string, string>),
+    current: Record<string, string>
+  ) => (typeof value === "function" ? value(current) : value);
+
+  switch (action.type) {
+    case "setSearchTerm":
+      return { ...state, searchTerm: action.value };
+    case "setConsultSummary":
+      return { ...state, consultSummary: action.value };
+    case "setPrescriptionModal":
+      return { ...state, prescriptionModal: action.value };
+    case "updatePrescriptionModal":
+      return {
+        ...state,
+        prescriptionModal:
+          typeof action.value === "function"
+            ? action.value(state.prescriptionModal)
+            : { ...state.prescriptionModal, ...action.value },
+      };
+    case "setConsultTick":
+      return { ...state, consultTick: action.value };
+    case "setConsultStartOverrides":
+      return {
+        ...state,
+        consultStartOverrides: resolveRecord(action.value, state.consultStartOverrides),
+      };
+    case "setActiveDoctorQueueLane":
+      return { ...state, activeDoctorQueueLane: action.value };
+    default:
+      return state;
+  }
 }
 
 const getDisplayDoctorName = (name?: string | null) => {
@@ -146,6 +233,18 @@ export default function DoctorDashboard() {
   );
   const clinicId = useCurrentClinicId();
   const doctorId = user?.id;
+  const currentTimestamp = useCurrentTimestamp();
+  const dashboardTodayLabel = useMemo(
+    () =>
+      currentTimestamp
+        ? formatDateInIST(new Date(currentTimestamp), {
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+          })
+        : "",
+    [currentTimestamp]
+  );
   const today = useMemo(() => formatDateInIST(new Date(), { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA"), []);
   const historyStartDate = useMemo(() => {
     const date = new Date();
@@ -157,15 +256,17 @@ export default function DoctorDashboard() {
     date.setDate(date.getDate() + 365);
     return formatDateInIST(date, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA");
   }, []);
-
-  const [searchTerm, setSearchTerm] = useState("");
-  const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
-  const [activePatient, setActivePatient] = useState<{ id: string; name: string } | null>(null);
-  const [activeAppointmentId, setActiveAppointmentId] = useState<string | null>(null);
-  const [consultSummary, setConsultSummary] = useState("");
-  const [skipMedicineSelected, setSkipMedicineSelected] = useState(false);
-  const [consultTick, setConsultTick] = useState(() => Date.now());
-  const [consultStartOverrides, setConsultStartOverrides] = useState<Record<string, string>>({});
+  const [
+    {
+      searchTerm,
+      consultSummary,
+      prescriptionModal,
+      consultTick,
+      consultStartOverrides,
+      activeDoctorQueueLane,
+    },
+    dispatch,
+  ] = useReducer(doctorDashboardReducer, initialDoctorDashboardState);
 
   // Enable real-time WebSocket sync
   useWebSocketQuerySync();
@@ -187,23 +288,35 @@ export default function DoctorDashboard() {
   );
   const startAppointmentMutation = useStartAppointment();
   const completeAppointmentMutation = useCompleteAppointment();
+  const appointmentsArray = Array.isArray(appointments)
+    ? appointments
+    : (appointments as any)?.appointments || [];
 
   // Calculate real stats from fetched data
-  const appointmentsArray = useMemo(() => {
-    if (Array.isArray(appointments)) return appointments;
-    return (appointments as any)?.appointments || [];
-  }, [appointments]);
-
   const visibleAppointmentsArray = useMemo(
-    () => appointmentsArray.filter((appointment: AppointmentWithRelations) => shouldShowAppointmentOnDoctorDashboard(appointment)),
+    () => {
+      return appointmentsArray.filter((appointment: AppointmentWithRelations) =>
+        shouldShowAppointmentOnDoctorDashboard(appointment)
+      );
+    },
     [appointmentsArray]
   );
 
   const liveQueueEntries = useMemo(
     () =>
       extractQueueEntries(queueData)
-        .filter((entry) => hasQueuePatientIdentity(entry))
-        .filter((entry) => !["COMPLETED", "CANCELLED", "NO_SHOW"].includes(String(entry.status || "").toUpperCase()))
+        .reduce<CanonicalQueueEntry[]>((acc, entry) => {
+          if (!hasQueuePatientIdentity(entry)) {
+            return acc;
+          }
+
+          if (["COMPLETED", "CANCELLED", "NO_SHOW"].includes(String(entry.status || "").toUpperCase())) {
+            return acc;
+          }
+
+          acc.push(entry);
+          return acc;
+        }, [])
         .sort((a, b) => a.position - b.position),
     [queueData]
   );
@@ -240,34 +353,29 @@ export default function DoctorDashboard() {
     );
   }, [liveQueueEntries]);
 
-  const [activeDoctorQueueLane, setActiveDoctorQueueLane] = useState("");
-
-  useEffect(() => {
+  const resolvedActiveDoctorQueueLane = useMemo(() => {
     if (doctorQueueSections.length === 0) {
-      if (activeDoctorQueueLane) {
-        setActiveDoctorQueueLane("");
-      }
-      return;
+      return "";
     }
 
-    if (!doctorQueueSections.some((section) => section.key === activeDoctorQueueLane)) {
-      setActiveDoctorQueueLane(doctorQueueSections[0]?.key || "");
-    }
+    return doctorQueueSections.some((section) => section.key === activeDoctorQueueLane)
+      ? activeDoctorQueueLane
+      : doctorQueueSections[0]?.key || "";
   }, [activeDoctorQueueLane, doctorQueueSections]);
 
   const activeDoctorQueueSection = useMemo(() => {
     return (
-      doctorQueueSections.find((section) => section.key === activeDoctorQueueLane) ??
+      doctorQueueSections.find((section) => section.key === resolvedActiveDoctorQueueLane) ??
       doctorQueueSections[0]
     );
-  }, [activeDoctorQueueLane, doctorQueueSections]);
+  }, [resolvedActiveDoctorQueueLane, doctorQueueSections]);
 
   const selectedDoctorQueueItems = activeDoctorQueueSection?.items ?? [];
   const highlightedQueuePatient = selectedDoctorQueueItems[0] ?? liveQueueEntries[0] ?? null;
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      setConsultTick(Date.now());
+      dispatch({ type: "setConsultTick", value: Date.now() });
     }, 1000);
 
     return () => window.clearInterval(timer);
@@ -300,18 +408,18 @@ export default function DoctorDashboard() {
   const currentConsultStatus = String(currentInPersonConsult?.status || "").toUpperCase();
   const currentConsultStartOverride =
     currentInPersonConsult?.id ? consultStartOverrides[currentInPersonConsult.id] : undefined;
-  const currentConsultStartedAt =
+  const currentConsultStartedAtMs =
     currentInPersonConsult?.startedAt
-      ? new Date(currentInPersonConsult.startedAt)
+      ? Date.parse(currentInPersonConsult.startedAt)
       : currentConsultStartOverride
-        ? new Date(currentConsultStartOverride)
+        ? Date.parse(currentConsultStartOverride)
         : null;
   const consultElapsedLabel = useMemo(() => {
-    if (!currentConsultStartedAt || Number.isNaN(currentConsultStartedAt.getTime())) {
+    if (!currentConsultStartedAtMs || Number.isNaN(currentConsultStartedAtMs)) {
       return "00:00";
     }
 
-    const elapsedMs = Math.max(0, consultTick - currentConsultStartedAt.getTime());
+    const elapsedMs = Math.max(0, consultTick - currentConsultStartedAtMs);
     const totalSeconds = Math.floor(elapsedMs / 1000);
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -320,20 +428,15 @@ export default function DoctorDashboard() {
     return hours > 0
       ? `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
       : `${minutes}:${String(seconds).padStart(2, "0")}`;
-  }, [consultTick, currentConsultStartedAt]);
+  }, [consultTick, currentConsultStartedAtMs]);
 
   const canStartConsultation =
     Boolean(currentInPersonConsult) &&
     ["CONFIRMED", "SCHEDULED", "WAITING"].includes(currentConsultStatus) &&
     Boolean(currentInPersonConsult?.checkedInAt) &&
-    !currentConsultStartedAt;
+    !currentConsultStartedAtMs;
 
-  const isConsultInProgress = currentConsultStatus === "IN_PROGRESS" || Boolean(currentConsultStartedAt);
-
-  useEffect(() => {
-    setConsultSummary("");
-    setSkipMedicineSelected(false);
-  }, [currentInPersonConsult?.id]);
+  const isConsultInProgress = currentConsultStatus === "IN_PROGRESS" || Boolean(currentConsultStartedAtMs);
 
   // Full appointment timeline from real data (sorted by time)
   const appointmentTimeline = useMemo(() => {
@@ -396,7 +499,7 @@ export default function DoctorDashboard() {
 
   const stats = useMemo(() => {
     const todayStr = formatDateInIST(new Date(), { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA");
-    const todayApts = visibleAppointmentsArray.filter((apt: AppointmentWithRelations) => {
+    const todayApts = appointmentsArray.filter((apt: AppointmentWithRelations) => {
       const dateTime = getAppointmentDateTimeValue(apt);
       const aptDate =
         (dateTime
@@ -420,13 +523,18 @@ export default function DoctorDashboard() {
           a.statusEnum === "IN_PROGRESS"
       ),
     };
-  }, [appointmentTimeline, visibleAppointmentsArray]);
+  }, [appointmentTimeline, appointmentsArray]);
 
   const openPrescription = (apt: TransformedAppointment) => {
-    setActivePatient({ id: apt.patientId, name: apt.patientName });
-    setActiveAppointmentId(apt.id);
-    setSkipMedicineSelected(false);
-    setIsPrescriptionModalOpen(true);
+    dispatch({
+      type: "setPrescriptionModal",
+      value: {
+        isOpen: true,
+        activePatient: { id: apt.patientId, name: apt.patientName },
+        activeAppointmentId: apt.id,
+        skipMedicineSelected: false,
+      },
+    });
   };
 
   const openPrescriptionForConsult = () => {
@@ -434,13 +542,18 @@ export default function DoctorDashboard() {
       return;
     }
 
-    setActivePatient({
-      id: currentInPersonConsult.patientId,
-      name: getAppointmentPatientName(currentInPersonConsult as AppointmentWithRelations),
+    dispatch({
+      type: "setPrescriptionModal",
+      value: {
+        isOpen: true,
+        activePatient: {
+          id: currentInPersonConsult.patientId,
+          name: getAppointmentPatientName(currentInPersonConsult as AppointmentWithRelations),
+        },
+        activeAppointmentId: currentInPersonConsult.id,
+        skipMedicineSelected: false,
+      },
     });
-    setActiveAppointmentId(currentInPersonConsult.id);
-    setSkipMedicineSelected(false);
-    setIsPrescriptionModalOpen(true);
   };
 
   const startConsultationForAppointment = async (
@@ -458,10 +571,13 @@ export default function DoctorDashboard() {
       appointmentId,
       doctorId,
     });
-    setConsultStartOverrides(prev => ({
-      ...prev,
-      [appointmentId]: startedAt,
-    }));
+    dispatch({
+      type: "setConsultStartOverrides",
+      value: (prev) => ({
+        ...prev,
+        [appointmentId]: startedAt,
+      }),
+    });
     await refetchAppointments();
   };
 
@@ -491,8 +607,14 @@ export default function DoctorDashboard() {
         },
       },
     });
-    setConsultSummary("");
-    setSkipMedicineSelected(false);
+    dispatch({ type: "setConsultSummary", value: "" });
+    dispatch({
+      type: "updatePrescriptionModal",
+      value: (current) => ({
+        ...current,
+        skipMedicineSelected: false,
+      }),
+    });
     await refetchAppointments();
   };
 
@@ -764,7 +886,7 @@ export default function DoctorDashboard() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-4">
           <div className="size-12 rounded-full border-4 border-emerald-200 border-t-emerald-600 animate-spin" />
-          <p className="text-emerald-700 font-medium">Loading your clinical workspace...</p>
+          <p className="text-emerald-700 font-medium">Loading your clinical workspace…</p>
         </div>
       </div>
     );
@@ -788,20 +910,8 @@ export default function DoctorDashboard() {
       <DashboardPageHeader
         eyebrow="Doctor Dashboard"
         title={`Welcome, Dr. ${displayDoctorName}`}
-        description={`Today is ${formatDateInIST(new Date(), {
-          weekday: "long",
-          month: "long",
-          day: "numeric",
-        })}. Manage checked-in patients, video visits, and prescriptions from one workspace.`}
-        meta={
-          <Badge
-            variant="outline"
-            className="rounded-full border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700"
-          >
-            <Activity className="mr-1 inline-block size-3" />
-            Active Shift
-          </Badge>
-        }
+        description={`Today is ${dashboardTodayLabel || "today"}. Manage checked-in patients, video visits, and prescriptions from one workspace.`}
+        meta={DOCTOR_DASHBOARD_META}
         actions={[
           {
             label: "Appointments",
@@ -884,7 +994,7 @@ export default function DoctorDashboard() {
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden border-l-4 border-l-emerald-500 shadow-sm">
+      <Card className="overflow-hidden border-l-2 border-l-emerald-500 shadow-sm">
         <CardHeader className="border-b border-border bg-muted/40 px-4 py-3 dark:bg-muted/20">
           <CardTitle className="flex items-center gap-2 text-base font-bold text-foreground">
             <Clock className="size-4 text-emerald-600" />
@@ -926,8 +1036,8 @@ export default function DoctorDashboard() {
                       minute: "2-digit",
                       hour12: true,
                     }) : "Not yet"}</span>
-                    {currentConsultStartedAt && (
-                      <span suppressHydrationWarning>Started: {formatDateInIST(currentConsultStartedAt, {
+                    {currentConsultStartedAtMs && (
+                      <span suppressHydrationWarning>Started: {formatDateInIST(new Date(currentConsultStartedAtMs), {
                         hour: "2-digit",
                         minute: "2-digit",
                         hour12: true,
@@ -950,12 +1060,13 @@ export default function DoctorDashboard() {
               </div>
 
               <div className="gap-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                <label htmlFor="consultation-summary" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   Consultation summary
                 </label>
                 <Textarea
+                  id="consultation-summary"
                   value={consultSummary}
-                  onChange={(event) => setConsultSummary(event.target.value)}
+                  onChange={(event) => dispatch({ type: "setConsultSummary", value: event.target.value })}
                   placeholder="Symptoms, exam findings, diagnosis, and treatment summary"
                   className="min-h-[96px]"
                 />
@@ -973,17 +1084,25 @@ export default function DoctorDashboard() {
                 <Button
                   variant="outline"
                   onClick={openPrescriptionForConsult}
-                  disabled={!currentInPersonConsult || !isConsultInProgress || isPrescriptionModalOpen}
+                  disabled={!currentInPersonConsult || !isConsultInProgress || prescriptionModal.isOpen}
                   className="w-full sm:w-auto"
                 >
                   <Pill className="mr-2 size-4" />
                   Add Prescription
                 </Button>
                 <Button
-                  variant={skipMedicineSelected ? "default" : "outline"}
-                  onClick={() => setSkipMedicineSelected(true)}
+                  variant={prescriptionModal.skipMedicineSelected ? "default" : "outline"}
+                  onClick={() =>
+                    dispatch({
+                      type: "updatePrescriptionModal",
+                      value: (current) => ({
+                        ...current,
+                        skipMedicineSelected: true,
+                      }),
+                    })
+                  }
                   disabled={!currentInPersonConsult || !isConsultInProgress}
-                  className={`w-full sm:w-auto ${skipMedicineSelected ? "bg-amber-600 text-white hover:bg-amber-700" : ""}`}
+                  className={`w-full sm:w-auto ${prescriptionModal.skipMedicineSelected ? "bg-amber-600 text-white hover:bg-amber-700" : ""}`}
                 >
                   <AlertCircle className="mr-2 size-4" />
                   Skip Medicine
@@ -991,7 +1110,12 @@ export default function DoctorDashboard() {
                 <Button
                   variant="outline"
                   onClick={handleCompleteWithoutMedicine}
-                  disabled={!currentInPersonConsult || !isConsultInProgress || !skipMedicineSelected || completeAppointmentMutation.isPending}
+                  disabled={
+                    !currentInPersonConsult ||
+                    !isConsultInProgress ||
+                    !prescriptionModal.skipMedicineSelected ||
+                    completeAppointmentMutation.isPending
+                  }
                   className="w-full sm:w-auto"
                 >
                   {completeAppointmentMutation.isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : <CheckCircle className="mr-2 size-4" />}
@@ -1000,7 +1124,7 @@ export default function DoctorDashboard() {
               </div>
 
               <div className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-muted-foreground dark:bg-muted/20">
-                {skipMedicineSelected
+                {prescriptionModal.skipMedicineSelected
                   ? "Medicine will be skipped and the consult will be completed with the recorded summary."
                   : isConsultInProgress
                     ? "Provide a prescription or mark this consult as medicine-skipped before completion."
@@ -1028,7 +1152,7 @@ export default function DoctorDashboard() {
       <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-4">
         {/* Active Treatment Queue Table - Dominant Column */}
         <div className="lg:col-span-3 gap-y-4">
-          <Card className="overflow-hidden border-l-4 border-l-emerald-400 shadow-sm">
+          <Card className="overflow-hidden border-l-2 border-l-emerald-400 shadow-sm">
             <CardHeader className="flex flex-col gap-3 border-b border-border bg-muted/40 px-4 pb-4 pt-4 dark:bg-muted/20 sm:flex-row sm:items-end sm:justify-between">
               <CardTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
                 <div className="flex size-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
@@ -1056,7 +1180,7 @@ export default function DoctorDashboard() {
             </CardHeader>
             <CardContent className="gap-y-3 p-3 sm:p-4">
               {highlightedQueuePatient ? (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 px-3 py-3 shadow-sm dark:border-emerald-900 dark:bg-emerald-950/40">
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3 shadow-sm dark:border-emerald-900 dark:bg-emerald-950/40">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300">
@@ -1091,12 +1215,15 @@ export default function DoctorDashboard() {
                     asChild
                     variant="outline"
                     className={`cursor-pointer gap-2 px-3 py-2 text-sm font-semibold shadow-sm transition ${
-                      activeDoctorQueueLane === section.key
+                      resolvedActiveDoctorQueueLane === section.key
                         ? "border-emerald-500 bg-emerald-600 text-white shadow-md ring-1 ring-emerald-300 dark:border-emerald-400 dark:bg-emerald-500 dark:text-white"
                         : "border-border bg-background text-foreground hover:bg-muted/40"
                     }`}
                   >
-                    <button type="button" onClick={() => setActiveDoctorQueueLane(section.key)}>
+                    <button
+                      type="button"
+                      onClick={() => dispatch({ type: "setActiveDoctorQueueLane", value: section.key })}
+                    >
                       <span className="truncate font-semibold">{section.title}</span>
                       <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
                         {section.items.length}
@@ -1131,7 +1258,7 @@ export default function DoctorDashboard() {
           </Card>
 
           {/* Scheduled Today Table */}
-          <Card className="overflow-hidden border-l-4 border-l-blue-400 shadow-sm">
+          <Card className="overflow-hidden border-l-2 border-l-blue-400 shadow-sm">
             <CardHeader className="border-b border-border bg-muted/40 px-4 pb-3 pt-4">
               <CardTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
                 <Calendar className="size-5 text-muted-foreground" />
@@ -1151,7 +1278,7 @@ export default function DoctorDashboard() {
 
         {/* Sidebar Actions */}
         <div className="gap-y-6">
-            <Card className="overflow-hidden border-l-4 border-l-slate-400 shadow-sm">
+            <Card className="overflow-hidden border-l-2 border-l-slate-400 shadow-sm">
               <div className="bg-muted/40 border-b border-border p-3">
                 <h3 className="font-semibold text-foreground flex items-center gap-2">
                   <FileText className="size-4 text-muted-foreground" />
@@ -1202,7 +1329,7 @@ export default function DoctorDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="relative overflow-hidden border-l-4 border-l-amber-400 bg-amber-50 shadow-sm dark:bg-amber-950/30">
+          <Card className="relative overflow-hidden border-l-2 border-l-amber-400 bg-amber-50 shadow-sm dark:bg-amber-950/30">
             <div className="absolute top-0 right-0 size-16 bg-amber-100 rounded-bl-[100px] -z-0 dark:bg-amber-900/40" />
               <div className="relative z-10 p-3.5">
               <h3 className="font-semibold text-amber-900 flex items-center gap-2 mb-2 dark:text-amber-100">
@@ -1218,11 +1345,19 @@ export default function DoctorDashboard() {
       </div>
 
       <QuickPrescriptionModal
-        isOpen={isPrescriptionModalOpen}
-        onClose={() => setIsPrescriptionModalOpen(false)}
-        appointmentId={activeAppointmentId || ""}
-        patientId={activePatient?.id || ""}
-        patientName={activePatient?.name || ""}
+        isOpen={prescriptionModal.isOpen}
+        onClose={() =>
+          dispatch({
+            type: "updatePrescriptionModal",
+            value: (current) => ({
+              ...current,
+              isOpen: false,
+            }),
+          })
+        }
+        appointmentId={prescriptionModal.activeAppointmentId || ""}
+        patientId={prescriptionModal.activePatient?.id || ""}
+        patientName={prescriptionModal.activePatient?.name || ""}
         doctorId={user?.id || ""}
       />
     </DashboardPageShell>

@@ -2,8 +2,10 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
-import { motion } from "motion/react";
+import { LazyMotion, domAnimation, m } from "motion/react";
 import { cn } from "@/lib/utils";
+
+const MotionImage = m(Image);
 
 interface OptimizedImageProps {
   src: string;
@@ -110,20 +112,36 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
     ...props,
   };
 
-  const ImageComponent = animate ? motion(Image) : Image;
-  const animationProps = animate
-    ? {
-        initial: { opacity: 0, scale: 0.95 },
-        animate: {
+  const imageElement = animate ? (
+    <LazyMotion features={domAnimation} strict>
+      <MotionImage
+        {...imageProps}
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{
           opacity: isLoading ? 0 : 1,
           scale: isLoading ? 0.95 : 1,
-        },
-        transition: {
+        }}
+        transition={{
           duration: 0.5,
           ease: [0.0, 0.0, 0.2, 1] as any,
-        },
-      }
-    : {};
+        }}
+        className={cn(
+          "transition-opacity duration-500",
+          isLoading && "opacity-0",
+          hasError && "opacity-0"
+        )}
+      />
+    </LazyMotion>
+  ) : (
+    <Image
+      {...imageProps}
+      className={cn(
+        "transition-opacity duration-500",
+        isLoading && "opacity-0",
+        hasError && "opacity-0"
+      )}
+    />
+  );
 
   return (
     <div className={cn("relative overflow-hidden", className)}>
@@ -155,15 +173,7 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
       )}
 
       {/* Main image */}
-      <ImageComponent
-        {...imageProps}
-        {...animationProps}
-        className={cn(
-          "transition-opacity duration-500",
-          isLoading && "opacity-0",
-          hasError && "opacity-0"
-        )}
-      />
+      {imageElement}
     </div>
   );
 };
@@ -262,25 +272,35 @@ export const HeroImage: React.FC<HeroImageProps> = ({
   children,
   ...props
 }) => {
-  const ImageComponent = parallax ? motion(OptimizedImage) : OptimizedImage;
-  const parallaxProps = parallax
-    ? {
-        initial: { y: 0 },
-        whileInView: { y: -parallaxOffset },
-        viewport: { once: false, amount: 0.5 },
-        transition: { duration: 0.8, ease: "easeOut" as any },
-      }
-    : {};
+  const imageElement = parallax ? (
+    <LazyMotion features={domAnimation} strict>
+      <m.div
+        initial={{ y: 0 }}
+        whileInView={{ y: -parallaxOffset }}
+        viewport={{ once: false, amount: 0.5 }}
+        transition={{ duration: 0.8, ease: "easeOut" as any }}
+        className="w-full h-full"
+      >
+        <OptimizedImage
+          {...props}
+          priority
+          quality={90}
+          className="w-full h-full object-cover"
+        />
+      </m.div>
+    </LazyMotion>
+  ) : (
+    <OptimizedImage
+      {...props}
+      priority
+      quality={90}
+      className="w-full h-full object-cover"
+    />
+  );
 
   return (
     <div className={cn("relative overflow-hidden", className)}>
-      <ImageComponent
-        {...props}
-        {...parallaxProps}
-        priority
-        quality={90}
-        className="w-full h-full object-cover"
-      />
+      {imageElement}
 
       {overlay && (
         <div

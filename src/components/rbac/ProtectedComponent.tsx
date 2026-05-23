@@ -99,6 +99,7 @@ export const ProtectedButton: React.FC<ProtectedButtonProps> = ({
   resource,
   action,
   children,
+  type = "button",
   ...buttonProps
 }) => {
   return (
@@ -110,7 +111,7 @@ export const ProtectedButton: React.FC<ProtectedButtonProps> = ({
       {...(action && { action })}
       showFallback={false}
     >
-      <button {...buttonProps}>
+      <button type={type} {...buttonProps}>
         {children}
       </button>
     </ProtectedComponent>

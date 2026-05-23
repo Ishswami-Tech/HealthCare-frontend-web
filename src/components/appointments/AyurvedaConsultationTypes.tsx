@@ -31,9 +31,12 @@ export default function AyurvedaConsultationTypes({
   const consultations = useMemo(() => {
     const allowedTypes = availableTypes?.length ? new Set(availableTypes) : null;
 
-    return services
-      .filter((service) => !allowedTypes || allowedTypes.has(service.treatmentType as TherapyType))
-      .map((service) => ({
+    return services.reduce<ConsultationType[]>((acc, service) => {
+      if (allowedTypes && !allowedTypes.has(service.treatmentType as TherapyType)) {
+        return acc;
+      }
+
+      acc.push({
         type: service.treatmentType as TherapyType,
         name: service.label,
         description: service.description,
@@ -44,7 +47,10 @@ export default function AyurvedaConsultationTypes({
           : {}),
         prerequisites: [],
         contraindications: [],
-      }));
+      });
+
+      return acc;
+    }, []);
   }, [availableTypes, services]);
 
   const consultationDetailsByType = useMemo(

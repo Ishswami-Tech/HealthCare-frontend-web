@@ -174,7 +174,7 @@ const WhyChooseUsSection = () => {
             <p className="text-lg opacity-90 mb-6 max-w-2xl mx-auto">
               {t("whyChooseUs.cta.description")}
             </p>
-            <button className="bg-background text-primary px-8 py-4 rounded-full font-bold text-lg hover:bg-muted transition-colors duration-300 shadow-lg interactive">
+            <button type="button" className="bg-background text-primary px-8 py-4 rounded-full font-bold text-lg hover:bg-muted transition-colors duration-300 shadow-lg interactive">
               {t("whyChooseUs.cta.button")}
             </button>
           </div>

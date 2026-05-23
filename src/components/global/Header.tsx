@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { CompactThemeSwitcher } from "@/components/theme/ThemeSwitcher";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { NotificationBell } from "@/components/notifications";
@@ -20,7 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useLayoutStore } from "@/stores/layout.store";
-import { motion } from "framer-motion";
+import { LazyMotion, domAnimation, m } from "framer-motion";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
 interface HeaderProps {
@@ -46,7 +47,7 @@ function getAvatarGradient(initials?: string) {
 export function Header({ className, children, showSidebarTrigger = true }: HeaderProps) {
   const mounted = useHydrated();
   const { logout } = useAuth();
-  const router = useRouter();
+  const { push } = useRouter();
   
   // ─── Zustand Store State ───────────────────────────────────────────────────
   const displayUser = useLayoutStore((state) => state.displayUser);
@@ -56,35 +57,36 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
   const handleProfileClick = () => {
     if (displayUser?.role) {
       const rolePath = displayUser.role.toLowerCase().replace(/_/g, "-");
-      router.push(`/${rolePath}/profile`);
+      push(`/${rolePath}/profile`);
     } else {
-      router.push("/patient/profile");
+      push("/patient/profile");
     }
   };
 
   const handleSettingsClick = () => {
     if (normalizedRole === "PATIENT") {
-      router.push("/patient/profile");
+      push("/patient/profile");
       return;
     }
     if (displayUser?.role) {
       const rolePath = displayUser.role.toLowerCase().replace(/_/g, "-");
       // Some roles might have specific settings, others use shared
       if (["SUPER_ADMIN", "CLINIC_ADMIN"].includes(displayUser.role)) {
-        router.push(`/${rolePath}/settings`);
+        push(`/${rolePath}/settings`);
       } else {
-        router.push("/settings");
+        push("/settings");
       }
     } else {
-      router.push("/settings");
+      push("/settings");
     }
   };
 
   return (
-    <header className={cn(
-      "sticky top-0 z-40 w-full transition-all duration-200 border-b border-border/10 bg-background/80 backdrop-blur-md",
-      className
-    )}>
+    <LazyMotion features={domAnimation}>
+      <header className={cn(
+        "sticky top-0 z-40 w-full transition-all duration-200 border-b border-border/10 bg-background/80 backdrop-blur-md",
+        className
+      )}>
       <div className="flex h-12 md:h-14 items-center px-3 md:px-5 gap-3 max-w-6xl mx-auto">
         {/* Left side content (title, breadcrumbs, etc) */}
         <div className="flex-1 flex items-center min-w-0">
@@ -93,14 +95,14 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
           )}
           
           {pageTitle && (
-            <motion.h1 
+            <m.h1 
               key={pageTitle}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               className="text-sm md:text-base font-semibold tracking-tight text-foreground truncate pl-1 border-l-2 border-primary/50 ml-1"
             >
               {pageTitle}
-            </motion.h1>
+            </m.h1>
           )}
           {children}
         </div>
@@ -141,12 +143,19 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
                       <button
                         type="button"
                         className={cn(
-                          "size-7 rounded-full bg-linear-to-br flex items-center justify-center text-white text-[10px] font-bold ring-2 ring-primary/20 hover:ring-primary/40 transition-all overflow-hidden",
+                          "relative size-7 rounded-full bg-linear-to-br flex items-center justify-center text-white text-[10px] font-bold ring-2 ring-primary/20 hover:ring-primary/40 transition-all overflow-hidden",
                           getAvatarGradient(displayUser.initials)
                         )}
                       >
                         {displayUser.avatar ? (
-                          <img src={displayUser.avatar} alt={displayUser.name} className="h-full w-full object-cover" />
+                          <Image
+                            src={displayUser.avatar}
+                            alt={displayUser.name}
+                            fill
+                            sizes="28px"
+                            className="object-cover"
+                            unoptimized
+                          />
                         ) : (
                           <span className="tracking-wide">{displayUser.initials}</span>
                         )}
@@ -200,7 +209,8 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
           )}
         </div>
       </div>
-    </header>
+      </header>
+    </LazyMotion>
   );
 }
 

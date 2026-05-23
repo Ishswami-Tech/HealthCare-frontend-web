@@ -1,6 +1,8 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { LanguageProvider } from "@/lib/i18n/context";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { WhatsAppButton } from "@/components/contact/whatsapp-button";
@@ -120,17 +122,16 @@ export function AyurvedaNavigation({
     return (
       <nav
         className={cn("gap-y-2", className)}
-        role="navigation"
         aria-label="Main navigation"
       >
         {navigationItems.map((item) => (
-          <a
+          <Link
             key={item.key}
             href={item.href}
             className="block px-4 py-2 text-foreground hover:bg-muted rounded-lg transition-colors"
           >
             {t(`navigation.${item.key}`)}
-          </a>
+          </Link>
         ))}
       </nav>
     );
@@ -140,17 +141,16 @@ export function AyurvedaNavigation({
     return (
       <nav
         className={cn("grid grid-cols-2 md:grid-cols-4 gap-4", className)}
-        role="navigation"
         aria-label="Footer navigation"
       >
         {navigationItems.map((item) => (
-          <a
+          <Link
             key={item.key}
             href={item.href}
             className="text-muted-foreground hover:text-primary transition-colors text-sm"
           >
             {t(`navigation.${item.key}`)}
-          </a>
+          </Link>
         ))}
       </nav>
     );
@@ -160,18 +160,17 @@ export function AyurvedaNavigation({
   return (
     <nav
       className={cn("hidden md:flex items-center gap-x-8", className)}
-      role="navigation"
       aria-label="Main navigation"
     >
       {navigationItems.map((item) => (
-        <a
+        <Link
           key={item.key}
           href={item.href}
           className="text-foreground hover:text-primary font-medium transition-colors relative group"
         >
           {t(`navigation.${item.key}`)}
           <span className="absolute -bottom-1 left-0 size-0.5 bg-primary transition-all group-hover:w-full"></span>
-        </a>
+        </Link>
       ))}
     </nav>
   );
@@ -197,23 +196,26 @@ export function AyurvedaHeader({
         sticky && "sticky top-0 z-30",
         className
       )}
-      role="banner"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex items-center">
-            <a href="/" className="flex items-center gap-x-3">
+            <Link href="/" className="flex items-center gap-x-3">
               <div className="size-14 flex items-center justify-center overflow-hidden shrink-0 rounded-2xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
-                <img
+                <Image
                   src="/assets/logo/logowithoutbackground.png"
                   alt={t("navigation.clinicName")}
-                  className="w-full h-full object-cover dark:hidden"
+                  fill
+                  sizes="56px"
+                  className="object-cover dark:hidden"
                 />
-                <img
+                <Image
                   src="/assets/logo/dark-logo-withoutborder.png"
                   alt={t("navigation.clinicName")}
-                  className="hidden dark:block w-full h-full object-cover"
+                  fill
+                  sizes="56px"
+                  className="hidden object-cover dark:block"
                 />
               </div>
               <div>
@@ -224,7 +226,7 @@ export function AyurvedaHeader({
                   {t("header.clinicTagline")}
                 </p>
               </div>
-            </a>
+            </Link>
           </div>
 
           {/* Desktop Navigation */}
@@ -232,12 +234,12 @@ export function AyurvedaHeader({
 
           {/* CTA Button */}
           <div className="hidden md:flex items-center gap-x-4">
-            <a
+            <Link
               href="/contact"
               className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg font-medium transition-colors"
             >
               {t("header.bookAppointment")}
-            </a>
+            </Link>
           </div>
 
           {/* Mobile menu button */}
@@ -280,12 +282,12 @@ export function AyurvedaHeader({
           <div className="md:hidden border-t border-border py-4">
             <AyurvedaNavigation variant="mobile" />
             <div className="mt-4 px-4">
-              <a
+              <Link
                 href="/contact"
                 className="block w-full text-center bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg font-medium transition-colors"
               >
                 {t("header.bookAppointment")}
-              </a>
+              </Link>
             </div>
           </div>
         )}
@@ -304,7 +306,6 @@ export function AyurvedaFooter({ className }: AyurvedaFooterProps) {
   return (
     <footer
       className={cn("bg-background text-foreground", className)}
-      role="contentinfo"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
@@ -368,24 +369,24 @@ export function AyurvedaFooter({ className }: AyurvedaFooterProps) {
             {t("footer.copyright")}
           </p>
           <div className="flex gap-x-6 mt-4 md:mt-0">
-            <a
+            <Link
               href="/privacy"
               className="text-muted-foreground hover:text-foreground text-sm transition-colors"
             >
               {t("footer.privacyPolicy")}
-            </a>
-            <a
+            </Link>
+            <Link
               href="/terms"
               className="text-muted-foreground hover:text-foreground text-sm transition-colors"
             >
               {t("footer.termsOfService")}
-            </a>
-            <a
+            </Link>
+            <Link
               href="/disclaimer"
               className="text-muted-foreground hover:text-foreground text-sm transition-colors"
             >
               {t("footer.disclaimer")}
-            </a>
+            </Link>
           </div>
         </div>
       </div>

@@ -89,6 +89,6 @@ function AsyncDataContent<T>({
  * Note: Using React.useContext as fallback until use() is stable
  */
 export function useContextValue<T>(context: React.Context<T>): T {
-  return React.useContext(context);
+  return React.use(context);
 }
 

@@ -207,7 +207,7 @@ export default function TeamPage() {
             {Array.from({ length: 20 }, (_, particle) => particle + 1).map((particle) => (
               <div
                 key={particle}
-                className="absolute size-2 bg-gradient-to-r from-orange-400 to-red-400 rounded-full opacity-60 animate-bounce"
+                className="absolute size-2 bg-gradient-to-r from-orange-400 to-red-400 rounded-full opacity-60 animate-pulse"
                 style={{
                   left: `${20 + (particle - 1) * 4}%`,
                   top: `${10 + (particle - 1) * 3}%`,
@@ -241,9 +241,8 @@ export default function TeamPage() {
                 </div>
 
                 <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-playfair font-semibold text-foreground mb-6 leading-tight animate-fade-in-up">
-                  <span className="bg-gradient-to-r from-orange-600 via-red-600 to-pink-600 bg-clip-text text-transparent drop-shadow-2xl relative">
+                  <span className="relative text-orange-700 dark:text-orange-300 drop-shadow-2xl">
                     {t("team.title")}
-                    <div className="absolute -inset-1 bg-gradient-to-r from-orange-600/20 via-red-600/20 to-pink-600/20 blur-xl -z-10"></div>
                   </span>
                 </h1>
 
@@ -541,7 +540,7 @@ export default function TeamPage() {
               {Array.from({ length: 15 }, (_, particle) => particle + 1).map((particle) => (
                 <div
                   key={particle}
-                  className="absolute size-3 bg-white/20 rounded-full animate-bounce"
+                  className="absolute size-3 bg-white/20 rounded-full animate-pulse"
                   style={{
                     left: `${15 + (particle - 1) * 5}%`,
                     top: `${20 + (particle - 1) * 4}%`,

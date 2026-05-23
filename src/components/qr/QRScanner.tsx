@@ -3,7 +3,7 @@ import { Html5Qrcode } from "html5-qrcode";
 import { Button } from "@/components/ui/button";
 import { showErrorToast } from "@/hooks/utils/use-toast";
 import { Camera, Zap, ZapOff, SwitchCamera, Loader2 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { LazyMotion, domAnimation, m, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 interface QRScannerProps {
@@ -20,13 +20,14 @@ export function QRScanner({
   const [isScanning, setIsScanning] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
   const [cameras, setCameras] = useState<{ id: string; label: string }[]>([]);
-  const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null);
   const [isFlashOn, setIsFlashOn] = useState(false);
   const [hasFlash, setHasFlash] = useState(false);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const selectedCameraIdRef = useRef<string | null>(null);
   const regionId = "qr-video-region";
   const autoStarted = useRef(false);
+  const flashCheckTimeoutRef = useRef<number | null>(null);
 
   const stopScanner = useCallback(async () => {
     if (scannerRef.current && scannerRef.current.isScanning) {
@@ -37,6 +38,10 @@ export function QRScanner({
       } catch (err) {
         console.error("Failed to stop scanner", err);
       }
+    }
+    if (flashCheckTimeoutRef.current !== null) {
+      window.clearTimeout(flashCheckTimeoutRef.current);
+      flashCheckTimeoutRef.current = null;
     }
   }, []);
 
@@ -74,7 +79,11 @@ export function QRScanner({
         }
       );
 
-      setTimeout(() => {
+      if (flashCheckTimeoutRef.current !== null) {
+        window.clearTimeout(flashCheckTimeoutRef.current);
+      }
+
+      flashCheckTimeoutRef.current = window.setTimeout(() => {
         try {
           if (scannerRef.current) {
             const capabilities = (scannerRef.current as any).getRunningTrackCapabilities();
@@ -110,11 +119,11 @@ export function QRScanner({
 
   const switchCamera = async () => {
     if (cameras.length < 2) return;
-    const currentIndex = cameras.findIndex(c => c.id === selectedCameraId);
+    const currentIndex = cameras.findIndex(c => c.id === selectedCameraIdRef.current);
     const nextIndex = (currentIndex + 1) % cameras.length;
     const nextCamera = cameras[nextIndex];
     if (nextCamera) {
-      setSelectedCameraId(nextCamera.id);
+      selectedCameraIdRef.current = nextCamera.id;
       await startScanner(nextCamera.id);
     }
   };
@@ -133,7 +142,7 @@ export function QRScanner({
           const firstDevice = mappedDevices[0];
           if (firstDevice) {
             const defaultCameraId = backCamera ? backCamera.id : firstDevice.id;
-            setSelectedCameraId(defaultCameraId);
+            selectedCameraIdRef.current = defaultCameraId;
             
             if (autoStart && !autoStarted.current) {
                autoStarted.current = true;
@@ -147,6 +156,10 @@ export function QRScanner({
     };
     detectCameras();
     return () => {
+      if (flashCheckTimeoutRef.current !== null) {
+        window.clearTimeout(flashCheckTimeoutRef.current);
+        flashCheckTimeoutRef.current = null;
+      }
       if (scannerRef.current?.isScanning) {
         scannerRef.current.stop().catch(() => {});
       }
@@ -154,7 +167,8 @@ export function QRScanner({
   }, [autoStart, startScanner]);
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center gap-4">
+    <LazyMotion features={domAnimation}>
+      <div className="w-full h-full flex flex-col items-center justify-center gap-4">
       <div
         className="relative aspect-4/5 w-full max-w-[340px] md:max-w-[400px] rounded-4xl shadow-sm border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 overflow-hidden isolate"
       >
@@ -171,7 +185,7 @@ export function QRScanner({
 
         <AnimatePresence mode="wait">
           {!isScanning && !isInitializing && (
-            <motion.div 
+            <m.div 
               key="camera-request"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -186,16 +200,16 @@ export function QRScanner({
                 Scan the clinic QR code to verify your check-in.
               </p>
               <Button 
-                onClick={() => startScanner(selectedCameraId || undefined)} 
+                onClick={() => startScanner(selectedCameraIdRef.current || undefined)} 
                 className="rounded-xl px-8 h-12 font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm transition-all active:scale-95"
               >
                 Start Scanner
               </Button>
-            </motion.div>
+            </m.div>
           )}
 
           {isInitializing && (
-            <motion.div 
+            <m.div 
               key="initializing"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -204,11 +218,11 @@ export function QRScanner({
             >
               <Loader2 className="size-10 text-primary animate-spin mb-4" />
               <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Initializing…</p>
-            </motion.div>
+            </m.div>
           )}
 
           {isScanning && (
-            <motion.div 
+            <m.div 
               key="scanning-overlay"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -227,20 +241,20 @@ export function QRScanner({
               <div className="absolute bottom-[15%] right-[15%] size-8 border-b-[3px] border-r-[3px] border-primary rounded-br-lg" />
 
               {/* Minimal Laser */}
-              <motion.div 
+              <m.div 
                 initial={{ top: '15%' }}
                 animate={{ top: '85%' }}
                 transition={{ duration: 2, repeat: Infinity, repeatType: "reverse", ease: "linear" }}
                 className="absolute left-[20%] right-[20%] h-px bg-primary/50 z-20"
               />
-            </motion.div>
+              </m.div>
           )}
         </AnimatePresence>
 
         {/* HUD Controls */}
         <AnimatePresence>
           {isScanning && (
-            <motion.div 
+            <m.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className="absolute bottom-6 inset-x-0 flex justify-center items-center gap-4 z-40"
@@ -275,7 +289,7 @@ export function QRScanner({
                   <SwitchCamera className="size-5" />
                 </Button>
               )}
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
       </div>
@@ -291,7 +305,8 @@ export function QRScanner({
           Position the QR code within the frame for automatic detection.
         </p>
       </div>
-    </div>
+      </div>
+    </LazyMotion>
   );
 }
 

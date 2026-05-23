@@ -123,7 +123,7 @@ const DoctorExpertise = () => {
                     <p className="text-muted-foreground mb-4 leading-relaxed">
                       {spec.description}
                     </p>
-                    <div className="p-3 bg-primary/10 rounded-lg border-l-4 border-primary">
+                    <div className="p-3 bg-primary/10 rounded-lg border border-primary/20 shadow-[inset_0_0_0_1px_rgba(34,197,94,0.08)]">
                       <p className="text-sm font-medium text-primary">
                         {spec.highlight}
                       </p>
