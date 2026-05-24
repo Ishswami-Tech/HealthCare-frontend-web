@@ -584,7 +584,7 @@ const AppointmentCard = ({
                   )}
                   {showEndButton && appointment.status === "in-progress" && (
                     <Button size="sm" variant="destructive" onClick={() => handleEndAppointment(getEffectiveAppointmentId(appointment))} className="h-8 px-3 rounded-xl text-xs" disabled={endVideoAppointment.isPending}>
-                      {endVideoAppointment.isPending ? "Ending..." : "End Session"}
+                      {endVideoAppointment.isPending ? "Ending…" : "End Session"}
                     </Button>
                   )}
                   {showDownloadButton && appointment.status === "completed" && appointment.recordingUrl && (
@@ -636,20 +636,9 @@ export function VideoAppointmentsList({
   const { push } = useRouter();
   const { hasPermission } = useRBAC();
   const clinicContextId = useCurrentClinicId();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterClinicId, setFilterClinicId] = useState("");
-  const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: "", end: "" });
-  
-  const [actionAppointment, setActionAppointment] = useState<VideoAppointment | null>(null);
-  const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
-  const [isCancelOpen, setIsCancelOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [expandedCard, setExpandedCard] = useState<string | null>(null);
-
-  const [rescheduleDate, setRescheduleDate] = useState("");
-  const currentTimestamp = useCurrentTimestamp();
-  const [rescheduleTime, setRescheduleTime] = useState("");
-  const [actionReason, setActionReason] = useState("");
+  const isPatient = user?.role === "PATIENT";
+  const role = getVideoTokenRole(user?.role);
+  const isDoctorRole = role === "doctor";
   const PAGE_SIZE = 8;
   const historyStartDate = useMemo(() => {
     const date = new Date();
@@ -661,11 +650,65 @@ export function VideoAppointmentsList({
     date.setDate(date.getDate() + 365);
     return formatDateInIST(date, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA");
   }, []);
+  const currentTimestamp = useCurrentTimestamp();
+  type VideoAppointmentsUiState = {
+    searchTerm: string;
+    filterClinicId: string;
+    actionAppointment: VideoAppointment | null;
+    isRescheduleOpen: boolean;
+    isCancelOpen: boolean;
+    currentPage: number;
+    expandedCard: string | null;
+    rescheduleDate: string;
+    rescheduleTime: string;
+    actionReason: string;
+    filterStatus: string;
+  };
 
-  const isPatient = user?.role === "PATIENT";
-  const role = getVideoTokenRole(user?.role);
-  const isDoctorRole = role === "doctor";
-  const [filterStatus, setFilterStatus] = useState(isDoctorRole ? "all" : "scheduled");
+  const [uiState, setUiState] = useState<VideoAppointmentsUiState>({
+    searchTerm: "",
+    filterClinicId: "",
+    actionAppointment: null,
+    isRescheduleOpen: false,
+    isCancelOpen: false,
+    currentPage: 1,
+    expandedCard: null,
+    rescheduleDate: "",
+    rescheduleTime: "",
+    actionReason: "",
+    filterStatus: isDoctorRole ? "all" : "scheduled",
+  });
+  const {
+    searchTerm,
+    filterClinicId,
+    actionAppointment,
+    isRescheduleOpen,
+    isCancelOpen,
+    currentPage,
+    expandedCard,
+    rescheduleDate,
+    rescheduleTime,
+    actionReason,
+    filterStatus,
+  } = uiState;
+  const patchUiState = (patch: Partial<VideoAppointmentsUiState>) =>
+    setUiState((current) => ({ ...current, ...patch }));
+  const setSearchTerm = (value: string) => patchUiState({ searchTerm: value });
+  const setFilterClinicId = (value: string) => patchUiState({ filterClinicId: value });
+  const setActionAppointment = (value: VideoAppointment | null) => patchUiState({ actionAppointment: value });
+  const setIsRescheduleOpen = (value: boolean) => patchUiState({ isRescheduleOpen: value });
+  const setIsCancelOpen = (value: boolean) => patchUiState({ isCancelOpen: value });
+  const setCurrentPage = (value: number | ((prev: number) => number)) =>
+    setUiState((current) => ({
+      ...current,
+      currentPage: typeof value === "function" ? value(current.currentPage) : value,
+    }));
+  const setExpandedCard = (value: string | null) => patchUiState({ expandedCard: value });
+  const setRescheduleDate = (value: string) => patchUiState({ rescheduleDate: value });
+  const setRescheduleTime = (value: string) => patchUiState({ rescheduleTime: value });
+  const setActionReason = (value: string) => patchUiState({ actionReason: value });
+  const setFilterStatus = (value: string) => patchUiState({ filterStatus: value });
+  const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: "", end: "" });
 
   const resolvedControls: VideoAppointmentControls = controls ?? EMPTY_VIDEO_APPOINTMENT_CONTROLS;
   const {
@@ -1144,7 +1187,7 @@ const AppointmentCard = ({
                     )}
                     {showEndButton && appointment.status === "in-progress" && (
                       <Button size="sm" variant="destructive" onClick={() => handleEndAppointment(getEffectiveAppointmentId(appointment))} className="h-8 px-3 rounded-xl text-xs" disabled={endVideoAppointment.isPending}>
-                        {endVideoAppointment.isPending ? "Ending..." : "End Session"}
+                        {endVideoAppointment.isPending ? "Ending…" : "End Session"}
                       </Button>
                     )}
                     {showDownloadButton && appointment.status === "completed" && appointment.recordingUrl && (
@@ -1196,7 +1239,7 @@ const AppointmentCard = ({
         <div className="gap-y-3 mb-3">
           <div className="relative">
              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-             <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search by doctor or session ID..." className="h-10 pl-9 rounded-xl border-border bg-muted/50 text-sm" />
+             <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search by doctor or session ID…" className="h-10 pl-9 rounded-xl border-border bg-muted/50 text-sm" />
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
              <Tabs value={filterStatus} onValueChange={setFilterStatus} className="w-full sm:w-auto">
@@ -1216,7 +1259,7 @@ const AppointmentCard = ({
 
         <div className="gap-y-3">
           {isLoading ? (
-            <div className="py-14 flex flex-col items-center justify-center gap-2.5"><Loader2 className="size-7 animate-spin text-muted-foreground/30" /><p className="text-muted-foreground font-medium text-[11px] uppercase tracking-widest">Loading sessions...</p></div>
+            <div className="py-14 flex flex-col items-center justify-center gap-2.5"><Loader2 className="size-7 animate-spin text-muted-foreground/30" /><p className="text-muted-foreground font-medium text-[11px] uppercase tracking-widest">Loading sessions…</p></div>
           ) : filteredAppointments.length === 0 ? (
             <div className="py-12 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center text-center px-5">
               <CalendarClock className="size-11 text-muted-foreground/20 mb-3" />
@@ -1318,7 +1361,7 @@ const AppointmentCard = ({
                 {isRescheduleAvailabilityLoading ? (
                   <div className="flex items-center gap-2 justify-center rounded-xl border border-dashed py-6 text-sm text-muted-foreground">
                     <Loader2 className="size-4 animate-spin" />
-                    Loading available slots...
+                    Loading available slots…
                   </div>
                 ) : availableRescheduleSlots.length > 0 ? (
                   <div className="gap-y-4">
@@ -1385,7 +1428,7 @@ const AppointmentCard = ({
               </div>
               <div className="gap-y-2">
                 <Label>Reason</Label>
-                <Textarea placeholder="Reason for change..." value={actionReason} onChange={e => setActionReason(e.target.value)} className="min-h-[90px]" />
+                <Textarea placeholder="Reason for change…" value={actionReason} onChange={e => setActionReason(e.target.value)} className="min-h-[90px]" />
               </div>
             </div>
             <div className="flex gap-3">
@@ -1403,7 +1446,7 @@ const AppointmentCard = ({
             <div className="gap-y-4 py-4">
               <div className="gap-y-2">
                 <Label>Reason</Label>
-                <Textarea placeholder="Cancellation reason..." value={actionReason} onChange={e => setActionReason(e.target.value)} className="min-h-[90px]" />
+                <Textarea placeholder="Cancellation reason…" value={actionReason} onChange={e => setActionReason(e.target.value)} className="min-h-[90px]" />
               </div>
             </div>
             <div className="flex gap-3">
@@ -1416,6 +1459,16 @@ const AppointmentCard = ({
     </ProtectedComponent>
   );
 }
+
+
+
+
+
+
+
+
+
+
 
 
 

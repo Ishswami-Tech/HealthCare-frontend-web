@@ -1,7 +1,7 @@
 "use client";
 import { nowIso } from '@/lib/utils/date-time';
 
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useMemo, useRef } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import { useQueryClient } from '@/hooks/core';
 import { useWebSocketStore, useAppStore } from '@/stores';
@@ -526,6 +526,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
   const { user, currentClinic } = useAppStore();
   const session = useAuthStore((state) => state.session);
   const { addNotification } = useNotificationStore();
+  const currentClinicId = currentClinic?.id;
   
   const {
     isConnected,
@@ -546,6 +547,29 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
     APP_CONFIG.API.RAW_URL ||
     (typeof window !== 'undefined' ? window.location.origin : '');
 
+  const autoConnect = options.autoConnect ?? true;
+  const subscribeToQueues = options.subscribeToQueues ?? true;
+  const subscribeToAppointments = options.subscribeToAppointments ?? true;
+  const resolvedTenantId = useMemo(
+    () =>
+      options.tenantId ||
+      currentClinicId ||
+      session?.user?.clinicId ||
+      'default',
+    [currentClinicId, options.tenantId, session?.user?.clinicId]
+  );
+  const resolvedUserId = useMemo(
+    () => options.userId || user?.id || undefined,
+    [options.userId, user?.id]
+  );
+  const resolvedClinicId = useMemo(
+    () => options.clinicId || currentClinicId || session?.user?.clinicId,
+    [currentClinicId, options.clinicId, session?.user?.clinicId]
+  );
+  const accessToken = session?.access_token;
+  const tenantId = resolvedTenantId;
+  const clinicId = resolvedClinicId;
+
   const logAppointmentNamespace = useCallback((action: string, context?: Record<string, unknown>) => {
     logger.info(`Appointment live websocket: ${action}`, {
       component: 'appointment-live-ws',
@@ -554,188 +578,67 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
     });
   }, []);
 
-  const {
-    autoConnect = true,
-    subscribeToQueues = true,
-    subscribeToAppointments = true,
-    tenantId = currentClinic?.id || session?.user?.clinicId || 'default',
-    userId = user?.id || undefined,
-    clinicId = currentClinic?.id || session?.user?.clinicId
-  } = options;
+  const handleNotificationEvent = useCallback((rawData: unknown) => {
+    const data = rawData as Record<string, unknown>;
 
-  const authRefreshTimerRef = useRef<number | null>(null);
+    if (!resolvedUserId) return;
 
-  const clearAuthRefreshTimer = useCallback(() => {
-    if (authRefreshTimerRef.current !== null) {
-      window.clearTimeout(authRefreshTimerRef.current);
-      authRefreshTimerRef.current = null;
-    }
-  }, []);
-
-  const scheduleAuthRefresh = useCallback(
-    (accessToken?: string) => {
-      clearAuthRefreshTimer();
-      if (!accessToken) {
-        return;
-      }
-
-      const delayMs = getJwtRefreshDelayMs(accessToken);
-      if (delayMs === null) {
-        return;
-      }
-
-      authRefreshTimerRef.current = window.setTimeout(async () => {
-        if (authRefreshInFlightRef.current) {
-          return;
-        }
-
-        authRefreshInFlightRef.current = true;
-        try {
-          const refreshedSession = await refreshClientSessionForRealtime('appointment-live-ws');
-          if (!refreshedSession?.access_token) {
-            return;
-          }
-
-          connect(websocketUrl, {
-            tenantId,
-            userId,
-            token: refreshedSession.access_token,
-            withCredentials: true,
-            autoReconnect: true,
-            reconnectionAttempts: 5,
-            onAuthError: async () => {
-              if (authRefreshInFlightRef.current) return;
-              authRefreshInFlightRef.current = true;
-              try {
-                const failedRefreshSession = await refreshClientSessionForRealtime('appointment-live-ws');
-                if (!failedRefreshSession?.access_token) {
-                  return;
-                }
-
-                connect(websocketUrl, {
-                  tenantId,
-                  userId,
-                  token: failedRefreshSession.access_token,
-                  withCredentials: true,
-                  autoReconnect: true,
-                  reconnectionAttempts: 5,
-                });
-              } catch (refreshError) {
-                logger.warn('Socket auth refresh failed', {
-                  component: 'appointment-live-ws',
-                  error: refreshError instanceof Error ? refreshError.message : String(refreshError),
-                });
-              } finally {
-                authRefreshInFlightRef.current = false;
-              }
-            },
-          });
-
-          scheduleAuthRefresh(refreshedSession.access_token);
-        } catch (refreshError) {
-          logger.warn('Scheduled socket auth refresh failed', {
-            component: 'appointment-live-ws',
-            error: refreshError instanceof Error ? refreshError.message : String(refreshError),
-          });
-        } finally {
-          authRefreshInFlightRef.current = false;
-        }
-      }, Math.max(delayMs, 5_000));
-    },
-    [clearAuthRefreshTimer, connect, tenantId, userId, websocketUrl]
-  );
-
-  // Initialize WebSocket connection - Real-time enabled
-  useEffect(() => {
-    if (!autoConnect) return;
-
-    // Create async function to handle WebSocket initialization
-    const initializeWebSocket = async () => {
-      try {
-        // ⚠️ SECURITY: Use APP_CONFIG instead of hardcoded URLs
-        const accessToken = session?.access_token;
-        if (!accessToken) {
-          disconnect();
-          clearError();
-          return;
-        }
-
-        // Connect to main namespace
-        connect(websocketUrl, {
-          tenantId,
-          userId,
-          token: accessToken,
-          withCredentials: true,
-          autoReconnect: true,
-          reconnectionAttempts: 5,
-          onAuthError: async () => {
-            if (authRefreshInFlightRef.current) return;
-            authRefreshInFlightRef.current = true;
-            try {
-              const refreshedSession = await refreshClientSessionForRealtime('appointment-live-ws');
-              if (!refreshedSession?.access_token) {
-                return;
-              }
-
-              connect(websocketUrl, {
-                tenantId,
-                userId,
-                token: refreshedSession.access_token,
-                withCredentials: true,
-                autoReconnect: true,
-                reconnectionAttempts: 5,
-              });
-            } catch (refreshError) {
-              logger.warn('Socket auth refresh failed', {
-                component: 'appointment-live-ws',
-                error: refreshError instanceof Error ? refreshError.message : String(refreshError),
-              });
-            } finally {
-              authRefreshInFlightRef.current = false;
-            }
-          },
-        });
-        scheduleAuthRefresh(accessToken);
-
-      } catch (error) {
-        logger.warn('Failed to initialize appointment websocket', {
-          component: 'appointment-live-ws',
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
+    const notificationType = (data.type || data.category || 'SYSTEM') as Notification['type'];
+    const notification: Notification = {
+      id: (data.id as string) || `ws-${Date.now()}-${Math.random()}`,
+      userId: resolvedUserId,
+      type: notificationType,
+      title: (data.title as string) || 'New Notification',
+      message: (data.message as string) || (data.body as string) || '',
+      data: {
+        ...((data.data || data.metadata || {}) as Record<string, any>),
+        url: (data.url as string) || (data.link as string),
+      },
+      isRead: false,
+      createdAt: (data.createdAt as string) || nowIso(),
     };
 
-    // Call the async function
-    initializeWebSocket();
-
-    return () => {
-      // Cleanup subscriptions
-      clearAuthRefreshTimer();
-      subscriptionsRef.current.forEach(unsubscribe => unsubscribe());
-      subscriptionsRef.current = [];
-    };
-  }, [autoConnect, tenantId, userId, session?.access_token, connect, disconnect, clearError, scheduleAuthRefresh, clearAuthRefreshTimer]);
-
-  // Refresh once on connect so missed payment/slot changes are reconciled from the backend snapshot.
-  useEffect(() => {
-    if (!isConnected) {
-      hasSyncedOnConnectRef.current = false;
-      return;
+    if (notificationType === 'SYSTEM' || notificationType === 'APPOINTMENT') {
+      showInfoToast(notification.title, {
+        id: TOAST_IDS.NOTIFICATION.NEW,
+        description: notification.message,
+        duration: 5000,
+      });
     }
 
-    if (hasSyncedOnConnectRef.current) return;
-    hasSyncedOnConnectRef.current = true;
-    logAppointmentNamespace('sync-on-connect');
-    invalidateAppointmentQueryFamilies(queryClient);
-  }, [isConnected, logAppointmentNamespace, queryClient]);
+    addNotification(notification);
+  }, [addNotification, resolvedUserId]);
 
-  // Subscribe to real-time events once connected
-  useEffect(() => {
-    if (!isConnected) return;
+  const handleSystemUpdateEvent = useCallback((rawData: unknown) => {
+    const data = rawData as Record<string, unknown>;
+
+    if (data.type !== 'maintenance' || !resolvedUserId) return;
+
+    const notification: Notification = {
+      id: `system-${Date.now()}-${Math.random()}`,
+      userId: resolvedUserId,
+      type: 'SYSTEM',
+      title: 'System Maintenance',
+      message: (data.message as string) || 'System maintenance scheduled',
+      data: (data.data as Record<string, any>) || {},
+      isRead: false,
+      createdAt: nowIso(),
+    };
+
+    showWarningToast(notification.title, {
+      id: TOAST_IDS.NOTIFICATION.NEW,
+      description: notification.message,
+      duration: 5000,
+    });
+
+    addNotification(notification);
+  }, [addNotification, resolvedUserId]);
+
+  const registerRealtimeSubscriptions = useCallback(() => {
+    subscriptionsRef.current.forEach((unsubscribe) => unsubscribe());
 
     const unsubscribeCallbacks: (() => void)[] = [];
 
-    // Subscribe to appointment updates
     if (subscribeToAppointments && clinicId) {
       const invalidateAppointmentQueries = () => {
         invalidateAppointmentQueryFamilies(queryClient);
@@ -865,7 +768,6 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
           if (event === 'doctor.availability.changed') {
             invalidateDoctorAvailabilityQueryFamilies(queryClient);
           }
-
         })
       );
 
@@ -1099,7 +1001,6 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
       );
     }
 
-    // Subscribe to queue updates
     if (subscribeToQueues && clinicId) {
       const invalidateQueueQueries = (payload?: Record<string, unknown>) => {
         const payloadLocationId =
@@ -1116,7 +1017,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
 
         if (payloadLocationId || payloadQueueName) {
           void queryClient.invalidateQueries({
-            queryKey: getQueueStatusQueryKey(currentClinic?.id, payloadLocationId, payloadQueueName),
+            queryKey: getQueueStatusQueryKey(currentClinicId, payloadLocationId, payloadQueueName),
             exact: true,
           });
         }
@@ -1183,7 +1084,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
 
       const unsubscribeQueueMetrics = subscribe('queue_metrics_update', (rawData: unknown) => {
         const data = rawData as Record<string, unknown>;
-        if (currentClinic?.id) {
+        if (currentClinicId) {
           const payloadLocationId =
             typeof data.locationId === 'string' ? data.locationId : undefined;
           const payloadQueueName =
@@ -1191,7 +1092,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
           const snapshot = normalizeQueueStatusSnapshot(data.status || data.metrics || data);
 
           queryClient.setQueryData(
-            getQueueStatusQueryKey(currentClinic.id, payloadLocationId, payloadQueueName),
+            getQueueStatusQueryKey(currentClinicId, payloadLocationId, payloadQueueName),
             snapshot
           );
         }
@@ -1201,7 +1102,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
 
       const unsubscribeQueueMetricsEnterprise = subscribe('queue.metrics.updated', (rawData: unknown) => {
         const data = rawData as Record<string, unknown>;
-        if (currentClinic?.id) {
+        if (currentClinicId) {
           const payloadLocationId =
             typeof data.locationId === 'string' ? data.locationId : undefined;
           const payloadQueueName =
@@ -1209,7 +1110,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
           const snapshot = normalizeQueueStatusSnapshot(data.metrics || data.status || data);
 
           queryClient.setQueryData(
-            getQueueStatusQueryKey(currentClinic.id, payloadLocationId, payloadQueueName),
+            getQueueStatusQueryKey(currentClinicId, payloadLocationId, payloadQueueName),
             snapshot
           );
         }
@@ -1266,43 +1167,6 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
       );
     }
 
-    // Subscribe to general notifications
-    // Backend handles push/email/SMS/WhatsApp delivery
-    // Frontend only shows in-app notification and toast for reading
-    const handleNotificationEvent = (rawData: unknown) => {
-      const data = rawData as Record<string, unknown>;
-
-      if (!userId) return;
-
-      // Map WebSocket notification to store format
-      const notificationType = (data.type || data.category || 'SYSTEM') as Notification['type'];
-      const notification: Notification = {
-        id: (data.id as string) || `ws-${Date.now()}-${Math.random()}`,
-        userId,
-        type: notificationType,
-        title: (data.title as string) || 'New Notification',
-        message: (data.message as string) || (data.body as string) || '',
-        data: {
-          ...((data.data || data.metadata || {}) as Record<string, any>),
-          url: (data.url as string) || (data.link as string),
-        },
-        isRead: false,
-        createdAt: (data.createdAt as string) || nowIso(),
-      };
-
-      // Show toast for important notification types
-      if (notificationType === 'SYSTEM' || notificationType === 'APPOINTMENT') {
-        showInfoToast(notification.title, {
-          id: TOAST_IDS.NOTIFICATION.NEW,
-          description: notification.message,
-          duration: 5000,
-        });
-      }
-
-      // Add to notification store for reading
-      addNotification(notification);
-    };
-
     const unsubscribeNotification = subscribe('notification', handleNotificationEvent);
     const unsubscribeCommunicationSent = subscribe('communication.sent', handleNotificationEvent);
     const unsubscribePatientNotification = subscribe(
@@ -1310,35 +1174,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
       handleNotificationEvent
     );
 
-    const unsubscribeSystemUpdate = subscribe('system:update', (rawData: unknown) => {
-      const data = rawData as Record<string, unknown>;
-      
-      // Handle system-wide updates
-      // Backend handles delivery via all channels
-      // Frontend only shows in-app notification and toast for reading
-      if (data.type !== 'maintenance' || !userId) return;
-
-      const notification: Notification = {
-        id: `system-${Date.now()}-${Math.random()}`,
-        userId,
-        type: 'SYSTEM',
-        title: 'System Maintenance',
-        message: (data.message as string) || 'System maintenance scheduled',
-        data: (data.data as Record<string, any>) || {},
-        isRead: false,
-        createdAt: nowIso(),
-      };
-      
-      // Show toast
-      showWarningToast(notification.title, {
-        id: TOAST_IDS.NOTIFICATION.NEW,
-        description: notification.message,
-        duration: 5000,
-      });
-      
-      // Add to notification store for reading
-      addNotification(notification);
-    });
+    const unsubscribeSystemUpdate = subscribe('system:update', handleSystemUpdateEvent);
 
     unsubscribeCallbacks.push(
       unsubscribeNotification,
@@ -1347,33 +1183,197 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
       unsubscribeSystemUpdate
     );
 
-    // Store unsubscribe callbacks
-    subscriptionsRef.current = unsubscribeCallbacks;
+    if (clinicId) {
+      emit('joinRoom', { room: `clinic:${clinicId}` });
 
-    return () => {
-      unsubscribeCallbacks.forEach(unsubscribe => unsubscribe());
-    };
+      if (subscribeToAppointments && resolvedUserId) {
+        emit('joinRoom', { room: `user:${resolvedUserId}` });
+      }
+    }
+
+    subscriptionsRef.current = unsubscribeCallbacks;
   }, [
-    isConnected,
+    clinicId,
+    emit,
+    currentClinicId,
+    handleNotificationEvent,
+    handleSystemUpdateEvent,
+    logAppointmentNamespace,
+    queryClient,
+    subscribe,
     subscribeToAppointments,
     subscribeToQueues,
-    clinicId,
-    subscribe,
-    queryClient,
-    addNotification,
-    userId
+    resolvedUserId,
   ]);
 
-  // Auto-subscribe to relevant channels once connected
-  useEffect(() => {
-    if (!isConnected || !clinicId) return;
+  const authRefreshTimerRef = useRef<number | null>(null);
 
-    emit('joinRoom', { room: `clinic:${clinicId}` });
-
-    if (subscribeToAppointments && userId) {
-      emit('joinRoom', { room: `user:${userId}` });
+  const clearAuthRefreshTimer = useCallback(() => {
+    if (authRefreshTimerRef.current !== null) {
+      window.clearTimeout(authRefreshTimerRef.current);
+      authRefreshTimerRef.current = null;
     }
-  }, [isConnected, clinicId, userId, subscribeToAppointments, emit]);
+  }, []);
+
+  const scheduleAuthRefresh = useCallback(
+    (accessToken?: string) => {
+      clearAuthRefreshTimer();
+      if (!accessToken) {
+        return;
+      }
+
+      const delayMs = getJwtRefreshDelayMs(accessToken);
+      if (delayMs === null) {
+        return;
+      }
+
+      authRefreshTimerRef.current = window.setTimeout(async () => {
+        if (authRefreshInFlightRef.current) {
+          return;
+        }
+
+        authRefreshInFlightRef.current = true;
+        try {
+          const refreshedSession = await refreshClientSessionForRealtime('appointment-live-ws');
+          if (!refreshedSession?.access_token) {
+            return;
+          }
+
+          connect(websocketUrl, {
+            tenantId,
+            userId: resolvedUserId,
+            token: refreshedSession.access_token,
+            withCredentials: true,
+            autoReconnect: true,
+            reconnectionAttempts: 5,
+            onConnect: registerRealtimeSubscriptions,
+            onAuthError: async () => {
+              if (authRefreshInFlightRef.current) return;
+              authRefreshInFlightRef.current = true;
+              try {
+                const failedRefreshSession = await refreshClientSessionForRealtime('appointment-live-ws');
+                if (!failedRefreshSession?.access_token) {
+                  return;
+                }
+
+              connect(websocketUrl, {
+                tenantId,
+                userId: resolvedUserId,
+                token: failedRefreshSession.access_token,
+                withCredentials: true,
+                autoReconnect: true,
+                reconnectionAttempts: 5,
+                onConnect: registerRealtimeSubscriptions,
+              });
+              } catch (refreshError) {
+                logger.warn('Socket auth refresh failed', {
+                  component: 'appointment-live-ws',
+                  error: refreshError instanceof Error ? refreshError.message : String(refreshError),
+                });
+              } finally {
+                authRefreshInFlightRef.current = false;
+              }
+            },
+          });
+
+          scheduleAuthRefresh(refreshedSession.access_token);
+        } catch (refreshError) {
+          logger.warn('Scheduled socket auth refresh failed', {
+            component: 'appointment-live-ws',
+            error: refreshError instanceof Error ? refreshError.message : String(refreshError),
+          });
+        } finally {
+          authRefreshInFlightRef.current = false;
+        }
+      }, Math.max(delayMs, 5_000));
+    },
+    [clearAuthRefreshTimer, connect, registerRealtimeSubscriptions, tenantId, resolvedUserId, websocketUrl]
+  );
+
+  // Initialize WebSocket connection - Real-time enabled
+  useEffect(() => {
+    if (!autoConnect) return;
+    const currentSubscriptions = subscriptionsRef.current;
+
+    // Create async function to handle WebSocket initialization
+    const initializeWebSocket = async () => {
+      try {
+        // ⚠️ SECURITY: Use APP_CONFIG instead of hardcoded URLs
+        if (!accessToken) {
+          disconnect();
+          clearError();
+          return;
+        }
+
+        // Connect to main namespace
+        connect(websocketUrl, {
+          tenantId,
+          userId: resolvedUserId,
+          token: accessToken,
+          withCredentials: true,
+          autoReconnect: true,
+          reconnectionAttempts: 5,
+          onConnect: registerRealtimeSubscriptions,
+          onAuthError: async () => {
+            if (authRefreshInFlightRef.current) return;
+            authRefreshInFlightRef.current = true;
+            try {
+              const refreshedSession = await refreshClientSessionForRealtime('appointment-live-ws');
+              if (!refreshedSession?.access_token) {
+                return;
+              }
+
+              connect(websocketUrl, {
+                tenantId,
+                userId: resolvedUserId,
+                token: refreshedSession.access_token,
+                withCredentials: true,
+                autoReconnect: true,
+                reconnectionAttempts: 5,
+                onConnect: registerRealtimeSubscriptions,
+              });
+            } catch (refreshError) {
+              logger.warn('Socket auth refresh failed', {
+                component: 'appointment-live-ws',
+                error: refreshError instanceof Error ? refreshError.message : String(refreshError),
+              });
+            } finally {
+              authRefreshInFlightRef.current = false;
+            }
+          },
+        });
+        scheduleAuthRefresh(accessToken);
+
+      } catch (error) {
+        logger.warn('Failed to initialize appointment websocket', {
+          component: 'appointment-live-ws',
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    };
+
+    // Call the async function
+    initializeWebSocket();
+
+    return () => {
+      // Cleanup subscriptions
+      clearAuthRefreshTimer();
+      currentSubscriptions.forEach((unsubscribe) => unsubscribe());
+    };
+  }, [accessToken, autoConnect, tenantId, resolvedUserId, websocketUrl, connect, disconnect, clearError, scheduleAuthRefresh, clearAuthRefreshTimer, registerRealtimeSubscriptions]);
+
+  // Refresh once on connect so missed payment/slot changes are reconciled from the backend snapshot.
+  useEffect(() => {
+    if (!isConnected) {
+      hasSyncedOnConnectRef.current = false;
+      return;
+    }
+
+    if (hasSyncedOnConnectRef.current) return;
+    hasSyncedOnConnectRef.current = true;
+    logAppointmentNamespace('sync-on-connect');
+    invalidateAppointmentQueryFamilies(queryClient);
+  }, [isConnected, logAppointmentNamespace, queryClient]);
 
   // Utility functions
   const reconnect = useCallback(() => {
@@ -1413,6 +1413,7 @@ export function useQueueWebSocketIntegration(queueName: string) {
   const { isConnected, emit, subscribe } = useWebSocketStore();
   const queryClient = useQueryClient();
   const { currentClinic } = useAppStore();
+  const currentClinicId = currentClinic?.id;
   const normalizedQueueName = queueName.trim();
 
   const subscribeToQueue = useCallback((filters?: Record<string, unknown>) => {
@@ -1441,7 +1442,7 @@ export function useQueueWebSocketIntegration(queueName: string) {
       if (data.queueName === normalizedQueueName) {
         queryClient.setQueryData(
           getQueueStatusQueryKey(
-            currentClinic?.id,
+            currentClinicId,
             typeof data.locationId === 'string' ? data.locationId : undefined,
             normalizedQueueName
           ),
@@ -1461,7 +1462,7 @@ export function useQueueWebSocketIntegration(queueName: string) {
       unsubscribeQueueStatus();
       unsubscribeQueueMetrics();
     };
-  }, [currentClinic?.id, isConnected, queryClient, normalizedQueueName, subscribe]);
+  }, [currentClinicId, isConnected, queryClient, normalizedQueueName, subscribe]);
 
   return {
     subscribeToQueue,

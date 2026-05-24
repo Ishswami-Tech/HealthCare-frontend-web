@@ -207,11 +207,15 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
     enabled: !!user?.clinicId && !!user?.id,
   });
 
-  const prescriptions = Array.isArray(prescriptionsData)
-    ? (prescriptionsData as PrescriptionResponseItem[])
-    : Array.isArray((prescriptionsData as { prescriptions?: PrescriptionResponseItem[] })?.prescriptions)
-      ? ((prescriptionsData as { prescriptions?: PrescriptionResponseItem[] }).prescriptions ?? [])
-      : [];
+  const prescriptions = useMemo(
+    () =>
+      Array.isArray(prescriptionsData)
+        ? (prescriptionsData as PrescriptionResponseItem[])
+        : Array.isArray((prescriptionsData as { prescriptions?: PrescriptionResponseItem[] })?.prescriptions)
+          ? ((prescriptionsData as { prescriptions?: PrescriptionResponseItem[] }).prescriptions ?? [])
+          : [],
+    [prescriptionsData]
+  );
 
   const displayPrescriptions = useMemo(
     () =>

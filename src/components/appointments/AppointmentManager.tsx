@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useReducer, useCallback, useMemo, useEffect, useRef } from "react";
+import { useState, useReducer, useCallback, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -182,6 +182,7 @@ type AppointmentManagerState = {
   isRejectDialogOpen: boolean;
   rejectReason: string;
   currentPage: number;
+  expandedCard: string | null;
 };
 
 type AppointmentManagerAction =
@@ -195,7 +196,11 @@ type AppointmentManagerAction =
     }
   | { type: "setIsRejectDialogOpen"; value: boolean }
   | { type: "setRejectReason"; value: string }
-  | { type: "setCurrentPage"; value: number }
+  | {
+      type: "setCurrentPage";
+      value: number | ((prev: number) => number);
+    }
+  | { type: "setExpandedCard"; value: string | null }
   | { type: "resetRescheduleState" };
 
 const initialAppointmentManagerState: AppointmentManagerState = {
@@ -205,6 +210,7 @@ const initialAppointmentManagerState: AppointmentManagerState = {
   isRejectDialogOpen: false,
   rejectReason: "",
   currentPage: 1,
+  expandedCard: null,
 };
 
 function appointmentManagerReducer(
@@ -229,7 +235,15 @@ function appointmentManagerReducer(
     case "setRejectReason":
       return { ...state, rejectReason: action.value };
     case "setCurrentPage":
-      return { ...state, currentPage: action.value };
+      return {
+        ...state,
+        currentPage:
+          typeof action.value === "function"
+            ? action.value(state.currentPage)
+            : action.value,
+      };
+    case "setExpandedCard":
+      return { ...state, expandedCard: action.value };
     case "resetRescheduleState":
       return {
         ...state,
@@ -237,6 +251,7 @@ function appointmentManagerReducer(
         rescheduleData: { date: "", time: "" },
         isRejectDialogOpen: false,
         rejectReason: "",
+        expandedCard: null,
       };
     default:
       return state;
@@ -474,14 +489,35 @@ export default function AppointmentManager({
 
   const selectedAppointmentRef = useRef<AppointmentWithRelations | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
-  const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: "", end: "" });
-  const [isRescheduleDialogOpen, setIsRescheduleDialogOpen] = useState(false);
-  const [rescheduleData, setRescheduleData] = useState({ date: "", time: "" });
-  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
-  const [rejectReason, setRejectReason] = useState("");
-  const [expandedCard, setExpandedCard] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [
+    {
+      searchQuery,
+      isRescheduleDialogOpen,
+      rescheduleData,
+      isRejectDialogOpen,
+      rejectReason,
+      currentPage,
+      expandedCard,
+    },
+    dispatch,
+  ] = useReducer(appointmentManagerReducer, initialAppointmentManagerState);
+
+  const setSearchQuery = (value: string) => dispatch({ type: "setSearchQuery", value });
+  const setIsRescheduleDialogOpen = (value: boolean) =>
+    dispatch({ type: "setIsRescheduleDialogOpen", value });
+  const setRescheduleData = (
+    value:
+      | { date: string; time: string }
+      | ((prev: { date: string; time: string }) => { date: string; time: string })
+  ) => dispatch({ type: "setRescheduleData", value });
+  const setIsRejectDialogOpen = (value: boolean) =>
+    dispatch({ type: "setIsRejectDialogOpen", value });
+  const setRejectReason = (value: string) => dispatch({ type: "setRejectReason", value });
+  const setCurrentPage = (
+    value: number | ((prev: number) => number)
+  ) => dispatch({ type: "setCurrentPage", value });
+  const setExpandedCard = (value: string | null) => dispatch({ type: "setExpandedCard", value });
   const ITEMS_PER_PAGE = 5;
 
   // â”€â”€â”€ Data Fetching â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

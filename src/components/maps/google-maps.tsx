@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { MapPin, Navigation, Phone, Clock, Loader2 } from "lucide-react";
 import { APP_CONFIG } from "@/lib/config/config";
 import { cn } from "@/lib/utils";
@@ -68,6 +68,41 @@ export function GoogleMaps({
 
   const lat = latitude || DEFAULT_CLINIC.coordinates.lat;
   const lng = longitude || DEFAULT_CLINIC.coordinates.lng;
+
+  const handleGetDirections = useCallback(() => {
+    const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+    window.open(directionsUrl, "_blank", "noopener,noreferrer");
+  }, [lat, lng]);
+
+  const handleCallClinic = useCallback(() => {
+    const phoneNumber =
+      clinicPhone?.split(",")[0]?.trim().replace(/\s/g, "") || clinicPhone;
+    if (phoneNumber) {
+      window.location.href = `tel:${phoneNumber}`;
+    }
+  }, [clinicPhone]);
+
+  const loadGoogleMapsAPI = useCallback((): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      if (typeof window.google !== "undefined") {
+        resolve();
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${
+        apiKey || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""
+      }&libraries=places`;
+      script.async = true;
+      script.defer = true;
+
+      script.onload = () => resolve();
+      script.onerror = () =>
+        reject(new Error("Failed to load Google Maps API"));
+
+      document.head.appendChild(script);
+    });
+  }, [apiKey]);
 
   // Initialize Google Maps
   useEffect(() => {
@@ -208,50 +243,17 @@ export function GoogleMaps({
       }
     };
   }, [
-    lat,
-    lng,
-    zoom,
     address,
+    clinicHours,
     clinicName,
     clinicPhone,
-    clinicHours,
+    handleGetDirections,
+    loadGoogleMapsAPI,
+    lat,
+    lng,
     showInfoWindow,
+    zoom,
   ]);
-
-  const loadGoogleMapsAPI = (): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      if (typeof window.google !== "undefined") {
-        resolve();
-        return;
-      }
-
-      const script = document.createElement("script");
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${
-        apiKey || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""
-      }&libraries=places`;
-      script.async = true;
-      script.defer = true;
-
-      script.onload = () => resolve();
-      script.onerror = () =>
-        reject(new Error("Failed to load Google Maps API"));
-
-      document.head.appendChild(script);
-    });
-  };
-
-  const handleGetDirections = () => {
-    const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-    window.open(directionsUrl, "_blank", "noopener,noreferrer");
-  };
-
-  const handleCallClinic = () => {
-    const phoneNumber =
-      clinicPhone?.split(",")[0]?.trim().replace(/\s/g, "") || clinicPhone;
-    if (phoneNumber) {
-      window.location.href = `tel:${phoneNumber}`;
-    }
-  };
 
   if (hasError) {
     return (
@@ -299,7 +301,7 @@ export function GoogleMaps({
         <div className="absolute inset-0 flex items-center justify-center bg-white z-10">
           <div className="text-center">
             <Loader2 className="size-8 animate-spin text-green-600 mx-auto mb-2" />
-            <p className="text-gray-600">Loading map...</p>
+            <p className="text-gray-600">Loading map…</p>
           </div>
         </div>
       )}
@@ -356,3 +358,4 @@ export function GoogleMaps({
     </div>
   );
 }
+

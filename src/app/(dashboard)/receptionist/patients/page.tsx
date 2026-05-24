@@ -116,6 +116,32 @@ type ReceptionistPatientsAction =
   | { type: "updateNewPatient"; field: keyof NewPatientFormState; value: string }
   | { type: "resetAfterCreate" };
 
+type PatientAllergiesListProps = {
+  allergies: string[] | string | null | undefined;
+};
+
+function PatientAllergiesList({ allergies }: PatientAllergiesListProps) {
+  if (!allergies) return null;
+
+  return (
+    <div>
+      <strong>Allergies:</strong>
+      <div className="mt-1 gap-y-1">
+        {Array.isArray(allergies) ? (
+          allergies.map((allergy: string) => (
+            <div key={allergy} className="flex items-center gap-2">
+              <AlertCircle className="size-4 text-red-500" />
+              <span className="text-sm">{allergy}</span>
+            </div>
+          ))
+        ) : (
+          <span className="text-sm ml-2">{allergies}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const initialNewPatientFormState: NewPatientFormState = {
   firstName: "",
   lastName: "",
@@ -1271,31 +1297,9 @@ export default function ReceptionistPatients() {
                                       </div>
                                     )}
                                     {selectedPatient.allergies && (
-                                      <div>
-                                        <strong>Allergies:</strong>
-                                        <div className="mt-1 gap-y-1">
-                                          {Array.isArray(
-                                            selectedPatient.allergies
-                                          ) ? (
-                                            selectedPatient.allergies.map((allergy: string) => (
-                                                <div
-                                                  key={allergy}
-                                                  className="flex items-center gap-2"
-                                                >
-                                                  <AlertCircle className="size-4 text-red-500" />
-                                                  <span className="text-sm">
-                                                    {allergy}
-                                                  </span>
-                                                </div>
-                                              )
-                                            )
-                                          ) : (
-                                            <span className="text-sm ml-2">
-                                              {selectedPatient.allergies}
-                                            </span>
-                                          )}
-                                        </div>
-                                      </div>
+                                      <PatientAllergiesList
+                                        allergies={selectedPatient.allergies}
+                                      />
                                     )}
                                   </CardContent>
                                 </Card>

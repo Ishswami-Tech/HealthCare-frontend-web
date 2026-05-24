@@ -37,6 +37,7 @@ export interface ConnectionOptions {
   reconnectionAttempts?: number;
   reconnectionDelay?: number;
   onAuthError?: (error: Error) => void;
+  onConnect?: () => void;
 }
 
 export const useWebSocketStore = create<WebSocketState>()(
@@ -146,6 +147,9 @@ export const useWebSocketStore = create<WebSocketState>()(
                 totalConnections: state.connectionMetrics.totalConnections + 1,
               },
             }));
+            if (typeof options.onConnect === 'function') {
+              options.onConnect();
+            }
           });
 
           socket.on('disconnect', (reason) => {

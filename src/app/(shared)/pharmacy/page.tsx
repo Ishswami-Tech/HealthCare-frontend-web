@@ -48,6 +48,122 @@ import {
   CreditCard,
 } from "lucide-react";
 
+function getStatusColor(status: string) {
+  switch (status.toLowerCase()) {
+    case "in stock":
+      return "bg-green-100 text-green-800";
+    case "low stock":
+      return "bg-yellow-100 text-yellow-800";
+    case "out of stock":
+      return "bg-red-100 text-red-800";
+    case "delivered":
+      return "bg-green-100 text-green-800";
+    case "processing":
+      return "bg-blue-100 text-blue-800";
+    case "shipped":
+      return "bg-purple-100 text-purple-800";
+    case "cancelled":
+      return "bg-red-100 text-red-800";
+    default:
+      return "bg-gray-100 text-gray-800";
+  }
+}
+
+function getCategoryIcon(category: string) {
+  switch (category.toLowerCase()) {
+    case "digestive health":
+      return <Droplets className="size-4 text-blue-600" />;
+    case "stress & immunity":
+      return <Leaf className="size-4 text-green-600" />;
+    case "mental wellness":
+      return <Sun className="size-4 text-yellow-600" />;
+    case "respiratory":
+      return <Moon className="size-4 text-purple-600" />;
+    default:
+      return <Pill className="size-4 text-gray-600" />;
+  }
+}
+
+type PharmacyMedicineCardProps = {
+  medicine: any;
+};
+
+function PharmacyMedicineCard({ medicine }: PharmacyMedicineCardProps) {
+  return (
+    <div className="p-4 border rounded-lg hover:bg-gray-50">
+      <div className="flex items-start justify-between">
+        <div className="flex items-start gap-4 flex-1">
+          <div className="size-12 bg-green-100 rounded-lg flex items-center justify-center">
+            {getCategoryIcon(medicine.category)}
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <h3 className="font-semibold text-lg">{medicine.name}</h3>
+              <Badge className={getStatusColor(medicine.status)}>
+                {medicine.status}
+              </Badge>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+              <div>
+                <p className="text-gray-600">Category:</p>
+                <p className="font-medium">{medicine.category}</p>
+              </div>
+              <div>
+                <p className="text-gray-600">Manufacturer:</p>
+                <p className="font-medium">{medicine.manufacturer}</p>
+              </div>
+              <div>
+                <p className="text-gray-600">Stock:</p>
+                <p
+                  className={`font-medium ${
+                    medicine.stock <= medicine.minStock
+                      ? "text-red-600"
+                      : "text-green-600"
+                  }`}
+                >
+                  {medicine.stock} {medicine.unit}
+                </p>
+              </div>
+              <div>
+                <p className="text-gray-600">Price:</p>
+                <p className="font-medium">₹{medicine.price}</p>
+              </div>
+            </div>
+            <div className="mt-3 p-3 bg-green-50 rounded-lg">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                <div>
+                  <p className="text-green-700">
+                    <strong>Benefits:</strong> {medicine.benefits}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-green-700">
+                    <strong>Dosage:</strong> {medicine.dosage}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-col gap-2 ml-4">
+          <Button variant="outline" size="sm">
+            <Eye className="size-3 mr-1" />
+            View
+          </Button>
+          <Button variant="outline" size="sm">
+            <Edit className="size-3 mr-1" />
+            Edit
+          </Button>
+          <Button variant="outline" size="sm">
+            <ShoppingCart className="size-3 mr-1" />
+            Order
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function PharmacySystem() {
   const { session } = useAuth();
   const user = session?.user;
@@ -309,42 +425,6 @@ export default function PharmacySystem() {
     },
   ];
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "in stock":
-        return "bg-green-100 text-green-800";
-      case "low stock":
-        return "bg-yellow-100 text-yellow-800";
-      case "out of stock":
-        return "bg-red-100 text-red-800";
-      case "delivered":
-        return "bg-green-100 text-green-800";
-      case "processing":
-        return "bg-blue-100 text-blue-800";
-      case "shipped":
-        return "bg-purple-100 text-purple-800";
-      case "cancelled":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  const getCategoryIcon = (category: string) => {
-    switch (category.toLowerCase()) {
-      case "digestive health":
-        return <Droplets className="size-4 text-blue-600" />;
-      case "stress & immunity":
-        return <Leaf className="size-4 text-green-600" />;
-      case "mental wellness":
-        return <Sun className="size-4 text-yellow-600" />;
-      case "respiratory":
-        return <Moon className="size-4 text-purple-600" />;
-      default:
-        return <Pill className="size-4 text-gray-600" />;
-    }
-  };
-
   return (
     
       <div className="p-6 gap-y-6">
@@ -469,94 +549,10 @@ export default function PharmacySystem() {
 
                     <div className="grid gap-4">
                       {ayurvedicMedicines?.map((medicine: any) => (
-                        <div
+                        <PharmacyMedicineCard
                           key={medicine.id}
-                          className="p-4 border rounded-lg hover:bg-gray-50"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-start gap-4 flex-1">
-                              <div className="size-12 bg-green-100 rounded-lg flex items-center justify-center">
-                                {getCategoryIcon(medicine.category)}
-                              </div>
-                              <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-2">
-                                  <h3 className="font-semibold text-lg">
-                                    {medicine.name}
-                                  </h3>
-                                  <Badge
-                                    className={getStatusColor(medicine.status)}
-                                  >
-                                    {medicine.status}
-                                  </Badge>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                                  <div>
-                                    <p className="text-gray-600">Category:</p>
-                                    <p className="font-medium">
-                                      {medicine.category}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-gray-600">
-                                      Manufacturer:
-                                    </p>
-                                    <p className="font-medium">
-                                      {medicine.manufacturer}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-gray-600">Stock:</p>
-                                    <p
-                                      className={`font-medium ${
-                                        medicine.stock <= medicine.minStock
-                                          ? "text-red-600"
-                                          : "text-green-600"
-                                      }`}
-                                    >
-                                      {medicine.stock} {medicine.unit}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-gray-600">Price:</p>
-                                    <p className="font-medium">
-                                      ₹{medicine.price}
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="mt-3 p-3 bg-green-50 rounded-lg">
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                                    <div>
-                                      <p className="text-green-700">
-                                        <strong>Benefits:</strong>{" "}
-                                        {medicine.benefits}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <p className="text-green-700">
-                                        <strong>Dosage:</strong>{" "}
-                                        {medicine.dosage}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex flex-col gap-2 ml-4">
-                              <Button variant="outline" size="sm">
-                                <Eye className="size-3 mr-1" />
-                                View
-                              </Button>
-                              <Button variant="outline" size="sm">
-                                <Edit className="size-3 mr-1" />
-                                Edit
-                              </Button>
-                              <Button variant="outline" size="sm">
-                                <ShoppingCart className="size-3 mr-1" />
-                                Order
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
+                          medicine={medicine}
+                        />
                       ))}
                     </div>
 
@@ -991,5 +987,6 @@ export default function PharmacySystem() {
     
   );
 }
+
 
 

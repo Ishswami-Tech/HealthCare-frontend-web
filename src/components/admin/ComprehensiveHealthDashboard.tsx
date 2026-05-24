@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -172,7 +172,7 @@ export function ComprehensiveHealthDashboard({
       <div className={cn("flex items-center justify-center p-12", className)}>
         <div className="text-center">
           <Loader2 className="size-8 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-gray-600">Loading health status...</p>
+          <p className="text-gray-600">Loading health status…</p>
         </div>
       </div>
     );
@@ -794,12 +794,12 @@ export function ComprehensiveHealthDashboard({
             ) : connectionStatus === "connecting" ? (
               <>
                 <RefreshCw className="size-4 animate-spin" />
-                <span>Connecting to Socket.IO...</span>
+                <span>Connecting to Socket.IO…</span>
               </>
             ) : (
               <>
                 <AlertTriangle className="size-4" />
-                <span>Disconnected - attempting to reconnect...</span>
+                <span>Disconnected - attempting to reconnect…</span>
               </>
             )}
           </div>
@@ -808,6 +808,9 @@ export function ComprehensiveHealthDashboard({
     </div>
   );
 }
+
+
+
 
 
 

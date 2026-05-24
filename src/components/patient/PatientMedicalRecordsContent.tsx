@@ -163,7 +163,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
             : null,
       },
     ],
-    [vitalHistoryRows]
+    []
   );
 
   // ✅ Show loading only if auth is actually loading (not just if user is null initially)

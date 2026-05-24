@@ -64,8 +64,11 @@ function PaymentCallbackPageContent() {
   const { replace } = useRouter();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
-  const getSearchParam = useMemo(() => searchParams.get.bind(searchParams), [searchParams]);
   const [{ state, message, secondsLeft }, dispatch] = useReducer(callbackReducer, initialCallbackState);
+  const getSearchParam = useMemo(
+    () => searchParams.get.bind(searchParams),
+    [searchParams]
+  );
 
   const params = useMemo(() => {
     const orderId =
@@ -83,7 +86,7 @@ function PaymentCallbackPageContent() {
     const appointmentId = getSearchParam("appointmentId") || "";
     const appointmentType = (getSearchParam("appointmentType") || "").toUpperCase();
     return { orderId, paymentId, provider, clinicId, appointmentId, appointmentType };
-  }, [searchParams]);
+  }, [getSearchParam]);
 
   const redirectPath =
     params.appointmentType === "VIDEO_CALL"

@@ -38,8 +38,19 @@ type NavigationItem = {
 };
 
 type MobileTreatmentsAccordionProps = {
-  subItems?: NavigationItem[];
+  subItems: NavigationItem[] | undefined;
   pathname: string;
+  onSelect: () => void;
+};
+
+type MobileNavMenuItemProps = {
+  item: NavigationItem & {
+    hasDropdown?: boolean;
+    subItems?: NavigationItem[];
+  };
+  pathname: string;
+  isTreatmentsDropdownOpen: boolean;
+  onToggleTreatmentsDropdown: () => void;
   onSelect: () => void;
 };
 
@@ -87,6 +98,58 @@ const MobileTreatmentsAccordion = ({
     ))}
   </div>
 );
+
+const MobileNavMenuItem = ({
+  item,
+  pathname,
+  isTreatmentsDropdownOpen,
+  onToggleTreatmentsDropdown,
+  onSelect,
+}: MobileNavMenuItemProps) =>
+  item.hasDropdown ? (
+    <div>
+      <button
+        type="button"
+        onClick={onToggleTreatmentsDropdown}
+        className={cn(
+          "w-full text-left text-gray-800 dark:text-gray-200 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 font-semibold py-4 px-5 rounded-xl flex items-center justify-between transition-all duration-200 touch-manipulation min-h-[52px] border border-transparent hover:border-orange-200 dark:hover:border-orange-800 text-base",
+          (pathname === item.href ||
+            item.subItems?.some((subItem) => pathname === subItem.href)) &&
+            "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800"
+        )}
+      >
+        <span>{item.name}</span>
+        <div
+          className={`transform transition-transform duration-150 ${
+            isTreatmentsDropdownOpen ? "rotate-90" : "rotate-0"
+          }`}
+        >
+          <ChevronRight className="size-4" />
+        </div>
+      </button>
+
+      {isTreatmentsDropdownOpen && (
+        <MobileTreatmentsAccordion
+          subItems={item.subItems}
+          pathname={pathname}
+          onSelect={onSelect}
+        />
+      )}
+    </div>
+  ) : (
+    <Link
+      href={item.href}
+      prefetch={false}
+      className={cn(
+        "text-gray-800 dark:text-gray-200 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 font-semibold py-4 px-5 rounded-xl flex items-center transition-all duration-200 touch-manipulation min-h-[52px] border border-transparent hover:border-orange-200 dark:hover:border-orange-800 text-base",
+        pathname === item.href &&
+          "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800"
+      )}
+      onClick={onSelect}
+    >
+      {item.name}
+    </Link>
+  );
 
 const Navigation = () => {
   const mounted = useHydrated();
@@ -178,12 +241,13 @@ const Navigation = () => {
 
   // Cleanup timeout on unmount
   useEffect(() => {
+    const timeoutRef = hoverTimeoutRef;
     return () => {
-      if (hoverTimeoutRef.current) {
-        clearTimeout(hoverTimeoutRef.current);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
       }
     };
-  }, [hoverTimeoutRef]);
+  }, []);
 
   // Authentication handlers
   const handleLogin = () => {
@@ -671,61 +735,21 @@ const Navigation = () => {
                     <div className="flex-1 px-8 py-6">
                       <div className="flex flex-col gap-y-3">
                         {navItems.map((item) => (
-                          <Fragment key={item.name}>
-                            {item.hasDropdown ? (
-                              <div>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setIsTreatmentsDropdownOpen(
-                                      !isTreatmentsDropdownOpen
-                                    )
-                                  }
-                                  className={cn(
-                                    "w-full text-left text-gray-800 dark:text-gray-200 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 font-semibold py-4 px-5 rounded-xl flex items-center justify-between transition-all duration-200 touch-manipulation min-h-[52px] border border-transparent hover:border-orange-200 dark:hover:border-orange-800 text-base",
-                                    (pathname === item.href ||
-                                      item.subItems?.some(
-                                        (subItem) => pathname === subItem.href
-                                      )) &&
-                                      "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800"
-                                  )}
-                                >
-                                  <span>{item.name}</span>
-                                  <div
-                                    className={`transform transition-transform duration-150 ${
-                                      isTreatmentsDropdownOpen
-                                        ? "rotate-90"
-                                        : "rotate-0"
-                                    }`}
-                                  >
-                                    <ChevronRight className="size-4" />
-                                  </div>
-                                </button>
-
-                                {/* Mobile Accordion */}
-                                {isTreatmentsDropdownOpen && (
-                                  <MobileTreatmentsAccordion
-                                    subItems={item.subItems}
-                                    pathname={pathname}
-                                    onSelect={() => setIsMobileMenuOpen(false)}
-                                  />
-                                )}
-                              </div>
-                            ) : (
-                              <Link
-                                href={item.href}
-                                prefetch={false}
-                                className={cn(
-                                  "text-gray-800 dark:text-gray-200 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 font-semibold py-4 px-5 rounded-xl flex items-center transition-all duration-200 touch-manipulation min-h-[52px] border border-transparent hover:border-orange-200 dark:hover:border-orange-800 text-base",
-                                  pathname === item.href &&
-                                    "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800"
-                                )}
-                                onClick={() => setIsMobileMenuOpen(false)}
-                              >
-                                {item.name}
-                              </Link>
-                            )}
-                          </Fragment>
+                          <MobileNavMenuItem
+                            key={item.name}
+                            item={item as NavigationItem & {
+                              hasDropdown?: boolean;
+                              subItems?: NavigationItem[];
+                            }}
+                            pathname={pathname}
+                            isTreatmentsDropdownOpen={isTreatmentsDropdownOpen}
+                            onToggleTreatmentsDropdown={() =>
+                              setIsTreatmentsDropdownOpen(
+                                !isTreatmentsDropdownOpen
+                              )
+                            }
+                            onSelect={() => setIsMobileMenuOpen(false)}
+                          />
                         ))}
                       </div>
                     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, type ComponentType } from "react";
 import { useTranslation } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,6 +25,38 @@ import { PageTransition } from "@/components/ui/animated-wrapper";
 import { LazySection } from "@/components/ui/lazy-section";
 import { SectionSkeleton } from "@/lib/dynamic-imports-skeletons";
 import { getIconColorScheme } from "@/lib/config/color-palette";
+
+type AchievementItem = {
+  number: string;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+  colorScheme: { text: string };
+};
+
+function AchievementCard({ achievement }: { achievement: AchievementItem }) {
+  const IconComponent = achievement.icon;
+
+  return (
+    <div className="group relative">
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl blur-lg group-hover:blur-xl transition-all duration-500"></div>
+      <div className="relative text-center glass p-4 rounded-xl interactive hover:scale-110 hover:-translate-y-2 transition-all duration-300 bg-gradient-to-br from-background/60 to-muted/40 dark:from-background/70 dark:to-muted/50 border border-border/30 dark:border-border/40 shadow-lg hover:shadow-xl">
+        <div className="flex items-center justify-center gap-x-3 mb-3">
+          <IconComponent
+            className={`size-6 ${achievement.colorScheme.text} group-hover:scale-125 transition-transform duration-300`}
+          />
+          <span
+            className={`font-bold text-2xl ${achievement.colorScheme.text} gradient-text`}
+          >
+            {achievement.number}
+          </span>
+        </div>
+        <span className="text-sm text-muted-foreground font-semibold">
+          {achievement.label}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 export default function AboutPage() {
   const { t } = useTranslation();
@@ -320,27 +352,7 @@ export default function AboutPage() {
                           {/* Enhanced Achievements Grid */}
                           <div className="grid grid-cols-2 gap-4">
                             {achievements.map((achievement) => {
-                              const IconComponent = achievement.icon;
-                              return (
-                                <div key={achievement.number} className="group relative">
-                                  <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl blur-lg group-hover:blur-xl transition-all duration-500"></div>
-                                  <div className="relative text-center glass p-4 rounded-xl interactive hover:scale-110 hover:-translate-y-2 transition-all duration-300 bg-gradient-to-br from-background/60 to-muted/40 dark:from-background/70 dark:to-muted/50 border border-border/30 dark:border-border/40 shadow-lg hover:shadow-xl">
-                                    <div className="flex items-center justify-center gap-x-3 mb-3">
-                                      <IconComponent
-                                        className={`size-6 ${achievement.colorScheme.text} group-hover:scale-125 transition-transform duration-300`}
-                                      />
-                                      <span
-                                        className={`font-bold text-2xl ${achievement.colorScheme.text} gradient-text`}
-                                      >
-                                        {achievement.number}
-                                      </span>
-                                    </div>
-                                    <span className="text-sm text-muted-foreground font-semibold">
-                                      {achievement.label}
-                                    </span>
-                                  </div>
-                                </div>
-                              );
+                              return <AchievementCard key={achievement.number} achievement={achievement} />;
                             })}
                           </div>
                         </div>

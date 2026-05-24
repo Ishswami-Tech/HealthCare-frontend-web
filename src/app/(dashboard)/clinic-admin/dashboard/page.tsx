@@ -483,7 +483,7 @@ export default function ClinicAdminDashboard() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] gap-4">
         <Loader2 className="size-12 animate-spin text-primary" />
-        <p className="text-muted-foreground font-medium animate-pulse text-lg">Waking up the clinic dashboard...</p>
+        <p className="text-muted-foreground font-medium animate-pulse text-lg">Waking up the clinic dashboard…</p>
       </div>
     );
   }
@@ -494,7 +494,7 @@ export default function ClinicAdminDashboard() {
         eyebrow="Clinic Admin"
         title="Operations Dashboard"
         description="Track clinic workload, staff access, live queue movement, and medicine-desk readiness from one practical console."
-        meta={`${currentClinic?.name || "Clinic"} • Live operational status`}
+        meta={`${currentClinic?.name || "Clinic"} â€¢ Live operational status`}
         actionsSlot={
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -821,7 +821,7 @@ export default function ClinicAdminDashboard() {
               </Badge>
             </div>
             <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
-              Notifications {clinicSettingsSnapshot.notificationsEnabled ? "enabled" : "disabled"} · Auto billing {clinicSettingsSnapshot.autoBilling ? "on" : "off"}
+              Notifications {clinicSettingsSnapshot.notificationsEnabled ? "enabled" : "disabled"} Â· Auto billing {clinicSettingsSnapshot.autoBilling ? "on" : "off"}
             </div>
           </CardContent>
         </Card>
@@ -907,7 +907,7 @@ export default function ClinicAdminDashboard() {
                             {highlightedQueueItem.locationName || highlightedQueueItem.locationId || "Main clinic"}
                           </Badge>
                           <span>{highlightedQueueItem.doctorName || "Assigned doctor pending"}</span>
-                          <span className="text-muted-foreground/60">·</span>
+                          <span className="text-muted-foreground/60">Â·</span>
                           <span>Queue #{highlightedQueueItem.position || 0}</span>
                         </div>
                       </div>
@@ -1139,7 +1139,7 @@ export default function ClinicAdminDashboard() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right text-sm font-medium text-muted-foreground">
-                            {item.pendingAmount > 0 ? `INR ${item.pendingAmount.toFixed(2)}` : "—"}
+                            {item.pendingAmount > 0 ? `INR ${item.pendingAmount.toFixed(2)}` : "â€”"}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -1316,5 +1316,6 @@ export default function ClinicAdminDashboard() {
     </DashboardPageShell>
   );
 }
+
 
 

@@ -1,14 +1,12 @@
 /**
- * ✅ Consolidated Language Switcher Component
+ * Consolidated Language Switcher Component
  * Single source of truth for all language switching UI
- * Follows DRY, SOLID, KISS principles
- * Supports multiple variants for different use cases
  */
 
 "use client";
 
-import React, { useState } from "react";
-import { ChevronDown, Globe, Check, Languages } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, Globe, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -20,10 +18,6 @@ import { useLanguage } from "@/lib/i18n/context";
 import { SupportedLanguage, locales, localeNames, localeFlags, type Locale } from "@/lib/i18n/config";
 import { cn } from "@/lib/utils/index";
 
-// ============================================================================
-// MAIN LANGUAGE SWITCHER
-// ============================================================================
-
 export interface LanguageSwitcherProps {
   variant?: "default" | "compact" | "mobile" | "ghost" | "outline" | "secondary";
   size?: "default" | "sm" | "lg" | "icon";
@@ -33,10 +27,6 @@ export interface LanguageSwitcherProps {
   showNativeName?: boolean;
 }
 
-/**
- * ✅ Consolidated Language Switcher
- * Supports multiple variants for different UI contexts
- */
 export function LanguageSwitcher({
   variant = "default",
   size = "default",
@@ -57,17 +47,26 @@ export function LanguageSwitcher({
         )}
       >
         <Globe className="size-4" />
-        <div className="w-16 h-4 bg-gray-200 rounded"></div>
+        <div className="w-16 h-4 bg-gray-200 rounded" />
       </div>
     );
   }
 
   const currentLanguage = supportedLanguages[language];
   const locale = language as Locale;
-  const currentLocale = locales.find((l) => l === locale) || (locales.length > 0 ? locales[0] : undefined);
+  const currentLocale =
+    locales.find((l) => l === locale) || (locales.length > 0 ? locales[0] : undefined);
   const defaultLocale = locales.length > 0 ? locales[0] : undefined;
-  const currentFlag = currentLocale ? localeFlags[currentLocale] : (defaultLocale ? localeFlags[defaultLocale] : '🌐');
-  const currentName = currentLocale ? localeNames[currentLocale] : (defaultLocale ? localeNames[defaultLocale] : 'Language');
+  const currentFlag = currentLocale
+    ? localeFlags[currentLocale]
+    : defaultLocale
+      ? localeFlags[defaultLocale]
+      : "🌐";
+  const currentName = currentLocale
+    ? localeNames[currentLocale]
+    : defaultLocale
+      ? localeNames[defaultLocale]
+      : "Language";
 
   const handleLanguageChange = (newLanguage: SupportedLanguage) => {
     setLanguage(newLanguage);
@@ -93,7 +92,10 @@ export function LanguageSwitcher({
               </span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48 p-1.5 rounded-xl border-border/50 shadow-xl backdrop-blur-xl bg-background/95">
+          <DropdownMenuContent
+            align="end"
+            className="w-48 p-1.5 rounded-xl border-border/50 shadow-xl backdrop-blur-xl bg-background/95"
+          >
             <div className="px-2 py-1.5 mb-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
               Select Language
             </div>
@@ -103,8 +105,8 @@ export function LanguageSwitcher({
                 onClick={() => handleLanguageChange(code as SupportedLanguage)}
                 className={cn(
                   "flex items-center gap-3 cursor-pointer rounded-lg px-2 py-2 transition-colors",
-                  language === code 
-                    ? "bg-primary/10 text-primary font-medium" 
+                  language === code
+                    ? "bg-primary/10 text-primary font-medium"
                     : "hover:bg-muted focus:bg-muted text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -126,7 +128,6 @@ export function LanguageSwitcher({
     );
   }
 
-  // Mobile variant (full width with expanded view)
   if (variant === "mobile") {
     return (
       <div className={cn("w-full", className)}>
@@ -169,9 +170,7 @@ export function LanguageSwitcher({
                 <div className="flex-1">
                   <div className="font-medium">{lang.name}</div>
                   {showNativeName && lang.nativeName !== lang.name && (
-                    <div className="text-sm text-gray-500">
-                      {lang.nativeName}
-                    </div>
+                    <div className="text-sm text-gray-500">{lang.nativeName}</div>
                   )}
                 </div>
                 {language === code && <Check className="size-5" />}
@@ -183,10 +182,10 @@ export function LanguageSwitcher({
     );
   }
 
-  // Default variant (dropdown with button)
-  const buttonVariant = variant === "ghost" || variant === "outline" || variant === "secondary" 
-    ? variant 
-    : "default";
+  const buttonVariant =
+    variant === "ghost" || variant === "outline" || variant === "secondary"
+      ? variant
+      : "default";
 
   return (
     <DropdownMenu>
@@ -239,147 +238,3 @@ export function LanguageSwitcher({
     </DropdownMenu>
   );
 }
-
-// ============================================================================
-// SIMPLE LANGUAGE TOGGLE (Icon only, no dropdown)
-// ============================================================================
-
-export interface SimpleLanguageToggleProps {
-  className?: string;
-}
-
-/**
- * ✅ Simple Language Toggle
- * Icon-only button that cycles through languages
- */
-export function SimpleLanguageToggle({ className }: SimpleLanguageToggleProps) {
-  const { language, setLanguage, supportedLanguages } = useLanguage();
-  const languages = Object.keys(supportedLanguages) as SupportedLanguage[];
-  const currentIndex = languages.indexOf(language);
-  const nextLanguage = languages[(currentIndex + 1) % languages.length];
-
-  const handleToggle = () => {
-    if (nextLanguage) {
-      setLanguage(nextLanguage);
-    }
-  };
-
-  const currentLanguage = supportedLanguages[language];
-
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={handleToggle}
-      className={cn("transition-all duration-200 hover:scale-105", className)}
-      aria-label={`Switch to ${nextLanguage ? supportedLanguages[nextLanguage]?.name : 'next language'}`}
-    >
-      <span className="text-lg">{currentLanguage.flag}</span>
-      <span className="sr-only">Toggle language</span>
-    </Button>
-  );
-}
-
-// ============================================================================
-// LANGUAGE SELECTOR (Text-based, inline)
-// ============================================================================
-
-export interface LanguageSelectorProps {
-  className?: string;
-  variant?: "inline" | "compact";
-}
-
-/**
- * ✅ Language Selector
- * Text-based language selector for inline use
- */
-export function LanguageSelector({ 
-  className, 
-  variant = "inline" 
-}: LanguageSelectorProps) {
-  const { language, setLanguage } = useLanguage();
-  const locale = language as Locale;
-
-  const handleLanguageChange = (newLocale: Locale) => {
-    setLanguage(newLocale as SupportedLanguage);
-  };
-
-  const { supportedLanguages: supportedLangs } = useLanguage();
-  const languages = Object.entries(supportedLangs || {}).map(([code, lang]: [string, any]) => ({
-    code,
-    name: lang.nativeName,
-  }));
-
-  if (variant === "compact") {
-    return (
-      <div className={cn("flex items-center gap-2", className)}>
-        <Languages className="size-4 text-muted-foreground" />
-        <div className="flex gap-1">
-          {locales.map((localeOption) => (
-            <button
-              key={localeOption}
-              type="button"
-              onClick={() => handleLanguageChange(localeOption)}
-              className={cn(
-                "px-2 py-1 text-xs font-medium rounded transition-all duration-200 hover:scale-105",
-                locale === localeOption
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              )}
-              aria-label={`Switch to ${localeNames[localeOption]}`}
-              title={localeNames[localeOption]}
-            >
-              {localeOption.toUpperCase()}
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // Inline variant
-  return (
-    <div className={cn("flex items-center gap-x-1", className)}>
-      {languages.map((lang, index) => (
-        <React.Fragment key={lang.code}>
-          <button
-            type="button"
-            onClick={() => handleLanguageChange(lang.code as Locale)}
-            className={cn(
-              "text-sm transition-colors",
-              language === lang.code
-                ? "text-orange-600 dark:text-orange-400 font-medium"
-                : "text-gray-600 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400"
-            )}
-          >
-            {lang.name}
-          </button>
-          {index < languages.length - 1 && (
-            <span className="text-gray-400 dark:text-gray-600">|</span>
-          )}
-        </React.Fragment>
-      ))}
-    </div>
-  );
-}
-
-// ============================================================================
-// COMPACT LANGUAGE SWITCHER (Mobile-optimized)
-// ============================================================================
-
-export interface CompactLanguageSwitcherProps {
-  className?: string;
-}
-
-/**
- * ✅ Compact Language Switcher
- * Mobile-optimized compact version
- */
-export function CompactLanguageSwitcher({ className }: CompactLanguageSwitcherProps) {
-  return <LanguageSwitcher variant="compact" {...(className ? { className } : {})} />;
-}
-
-// ✅ Consolidated: All language switching components are in this file
-// No backward compatibility re-exports needed
-
-

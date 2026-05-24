@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React from "react";
 import {
@@ -60,7 +60,7 @@ import { getAvatarTone } from "@/lib/config/color-palette";
 import type { VideoRoomAccess } from "@/components/video/VideoAppointmentRoomWorkspace";
 import { isDoctorRole } from "@/components/video/daily-in-app-call-utils";
 
-// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Types ────────────────────────────────────────────────────────────────────
 type MeetPanel = "chat" | "people";
 type VideoLayout = "auto" | "spotlight" | "tiled";
 
@@ -98,7 +98,7 @@ type DailyInAppCallProps = {
   renderPanelContent?: (panel: MeetPanel | null) => React.ReactNode;
 };
 
-// â”€â”€â”€ Singleton call object â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Singleton call object ────────────────────────────────────────────────────
 let sharedDailyCallObject: DailyCall | null = null;
 
 function getOrCreateCallObject(): DailyCall {
@@ -118,7 +118,7 @@ function getOrCreateCallObject(): DailyCall {
   return sharedDailyCallObject;
 }
 
-// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function getMeetingStateLabel(state: DailyMeetingState | null) {
   switch (state) {
     case "joined-meeting":
@@ -202,9 +202,9 @@ function getTileBgColor(name: string | undefined): string {
   return TILE_BG_COLORS[Math.abs(hash) % TILE_BG_COLORS.length] ?? "#1a237e";
 }
 
-// â”€â”€â”€ Shared loading screen (used across all video states) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Shared loading screen (used across all video states) ────────────────────
 function VideoLoadingScreen({
-  message = "Getting readyâ€¦",
+  message = "Getting ready…",
   sub = "",
 }: {
   message?: string;
@@ -272,7 +272,7 @@ function DeviceSelect({
   );
 }
 
-// â”€â”€â”€ DeviceChevronMenu â€” small ^ button next to mic/camera â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── DeviceChevronMenu — small ^ button next to mic/camera ───────────────────
 function DeviceChevronMenu({
   label,
   devices,
@@ -438,7 +438,7 @@ function DeviceChevronMenu({
   );
 }
 
-// â”€â”€â”€ MicGroup â€” mic button + ^ chevron â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── MicGroup — mic button + ^ chevron ───────────────────────────────────────
 function MicGroup({
   isOn,
   onToggle,
@@ -486,7 +486,7 @@ function MicGroup({
   );
 }
 
-// â”€â”€â”€ CameraGroup â€” camera button + ^ chevron â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── CameraGroup — camera button + ^ chevron ─────────────────────────────────
 function CameraGroup({
   isOn,
   onToggle,
@@ -534,7 +534,7 @@ function CameraGroup({
   );
 }
 
-// â”€â”€â”€ ScreenShareMenu â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── ScreenShareMenu ──────────────────────────────────────────────────────────
 function ScreenShareMenu({
   isSharingScreen,
   onStartShare,
@@ -605,7 +605,7 @@ function ScreenShareMenu({
   );
 }
 
-// â”€â”€â”€ ToolbarBtn â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── ToolbarBtn ───────────────────────────────────────────────────────────────
 type ToolbarBtnProps = {
   icon: React.ElementType;
   label: string;
@@ -664,7 +664,7 @@ function ToolbarBtn({
 
 ToolbarBtn.displayName = "ToolbarBtn";
 
-// â”€â”€â”€ ParticipantTile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── ParticipantTile ──────────────────────────────────────────────────────────
 function ParticipantTile({
   sessionId,
   isLocal = false,
@@ -727,7 +727,7 @@ function ParticipantTile({
                 filter: "blur(8px)",
               }}
             />
-          {/* Avatar circle â€” responsive size */}
+          {/* Avatar circle — responsive size */}
           <div className="relative flex size-16 sm:h-24 sm:w-24 lg:h-28 lg:w-28 items-center justify-center rounded-full bg-white/15 border-2 border-white/25 shadow-2xl">
             <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white tracking-tight select-none">
               {initials}
@@ -749,7 +749,7 @@ function ParticipantTile({
         </div>
       )}
 
-      {/* Active speaker wave â€” bottom-right corner, away from LIVE badge and name tag */}
+      {/* Active speaker wave — bottom-right corner, away from LIVE badge and name tag */}
       {isActiveSpeaker && audioOn && (
         <div className="absolute bottom-8 right-2 flex items-center gap-[3px] rounded-full bg-black/60 backdrop-blur-sm border border-[#8ab4f8]/40 px-2 py-1">
           {[0, 1, 2].map((i) => (
@@ -769,7 +769,7 @@ function ParticipantTile({
         </div>
       )}
 
-      {/* Name tag â€” bottom-left, always visible */}
+      {/* Name tag — bottom-left, always visible */}
       <div className="absolute bottom-2 left-2 flex items-center gap-1 rounded-md bg-black/70 backdrop-blur-sm px-2 py-1 border border-white/10 max-w-[calc(100%-1rem)]">
         {!audioOn && <MicOff className="size-2.5 text-[#ea4335] shrink-0" />}
         <span className="truncate text-[10px] sm:text-[11px] font-medium text-white leading-none">
@@ -780,7 +780,7 @@ function ParticipantTile({
   );
 }
 
-// â”€â”€â”€ ScreenShareTile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── ScreenShareTile ──────────────────────────────────────────────────────────
 function ScreenShareTile({
   sessionId,
   remoteNameFallback,
@@ -850,7 +850,7 @@ function ScreenShareTile({
   );
 }
 
-// â”€â”€â”€ SidebarParticipantRow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── SidebarParticipantRow ────────────────────────────────────────────────────
 function SidebarParticipantRow({
   sessionId,
   isLocal,
@@ -941,7 +941,7 @@ function SidebarParticipantRow({
   );
 }
 
-// â”€â”€â”€ MeetingSidebar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── MeetingSidebar ───────────────────────────────────────────────────────────
 function MeetingSidebar({
   appointmentId,
   activePanel,
@@ -978,7 +978,7 @@ function MeetingSidebar({
 
   return (
     <div className="flex h-full flex-col bg-[#1e1f20] text-white border-l border-white/10">
-      {/* â”€â”€ Header â”€â”€ */}
+      {/* ── Header ── */}
       <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 shrink-0">
         <h2 className="text-[16px] font-semibold text-white">{panelTitle}</h2>
         <button
@@ -991,7 +991,7 @@ function MeetingSidebar({
         </button>
       </div>
 
-      {/* â”€â”€ Body â”€â”€ */}
+      {/* ── Body ── */}
       <div className="flex flex-1 flex-col min-h-0 overflow-hidden">
         {activePanel === "chat" ? (
           <>
@@ -1118,12 +1118,12 @@ function MeetingSidebar({
             </div>
           </>
         ) : (
-          /* â”€â”€ People panel â”€â”€ */
+          /* ── People panel ── */
           <div className="flex-1 overflow-y-auto p-4 min-h-0 gap-y-5">
             {waitingParticipants.length > 0 && (
               <div>
                 <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#9aa0a6]">
-                  Waiting to join Â· {waitingParticipants.length}
+                  Waiting to join · {waitingParticipants.length}
                 </p>
                 <div className="gap-y-2">
                   {waitingParticipants.map((p) => {
@@ -1172,7 +1172,7 @@ function MeetingSidebar({
 
             <div>
               <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#9aa0a6]">
-                In call Â· {participantIds.length}
+                In call · {participantIds.length}
               </p>
               <div className="gap-y-2">
                 {participantIds.map((id) => (
@@ -1194,7 +1194,7 @@ function MeetingSidebar({
   );
 }
 
-// â”€â”€â”€ EndCallModal â€” leave meeting vs complete & end appointment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── EndCallModal — leave meeting vs complete & end appointment ───────────────
 function EndCallModal({
   onLeave,
   appointmentId,
@@ -1214,7 +1214,7 @@ function EndCallModal({
 
   return (
     <>
-      {/* Trigger button â€” red PhoneOff */}
+      {/* Trigger button — red PhoneOff */}
       <m.button
         type="button"
         whileHover={{ scale: 1.06 }}
@@ -1239,7 +1239,7 @@ function EndCallModal({
           </DialogHeader>
 
           <div className="mt-4 gap-y-2">
-            {/* Leave Meeting â€” no API call */}
+            {/* Leave Meeting — no API call */}
             <button
               type="button"
               disabled={isCompleting}
@@ -1262,7 +1262,7 @@ function EndCallModal({
               </div>
             </button>
 
-            {/* Complete & End Appointment â€” only for doctors */}
+            {/* Complete & End Appointment — only for doctors */}
             {isDoctor && (
               <>
                 <div className="border-t border-white/10" />
@@ -1432,7 +1432,7 @@ function GridLayout({
   );
 }
 
-// â”€â”€â”€ DailyCallSurfaceContent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── DailyCallSurfaceContent ──────────────────────────────────────────────────
 function DailyCallSurfaceContent({
   access,
   appointmentId,
@@ -1458,11 +1458,29 @@ function DailyCallSurfaceContent({
   const devices = useDevices();
   const screenShare = useScreenShare();
 
-  const [joinError, setJoinError] = React.useState<string | null>(null);
-  const [settingsOpen, setSettingsOpen] = React.useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
-  const [layout, setLayout] = React.useState<VideoLayout>("auto");
-  const [now, setNow] = React.useState(() => new Date());
+  type DailyInAppUiState = {
+    joinError: string | null;
+    settingsOpen: boolean;
+    mobileMenuOpen: boolean;
+    layout: VideoLayout;
+    now: Date;
+  };
+
+  const [uiState, setUiState] = React.useState<DailyInAppUiState>({
+    joinError: null,
+    settingsOpen: false,
+    mobileMenuOpen: false,
+    layout: "auto",
+    now: new Date(),
+  });
+  const { joinError, settingsOpen, mobileMenuOpen, layout, now } = uiState;
+  const patchUiState = (patch: Partial<DailyInAppUiState>) =>
+    setUiState((current) => ({ ...current, ...patch }));
+  const setJoinError = (value: string | null) => patchUiState({ joinError: value });
+  const setSettingsOpen = (value: boolean) => patchUiState({ settingsOpen: value });
+  const setMobileMenuOpen = (value: boolean) => patchUiState({ mobileMenuOpen: value });
+  const setLayout = (value: VideoLayout) => patchUiState({ layout: value });
+  const setNow = (value: Date) => patchUiState({ now: value });
   const hasJoinedRef = React.useRef(false);
   const desktopSettingsOpen = settingsOpen && !activePanel;
 
@@ -1490,9 +1508,6 @@ function DailyCallSurfaceContent({
 
   React.useEffect(() => {
     activePanelRef.current = activePanel;
-    if (activePanel === "chat") {
-      lastReadMessageCountRef.current = receivedMessagesRef.current.length;
-    }
   }, [activePanel]);
 
   const handleAppMessage = React.useCallback((event: { data: unknown }) => {
@@ -1504,7 +1519,7 @@ function DailyCallSurfaceContent({
     if (activePanelRef.current !== "chat") {
       showInfoToast(`New message from ${msg.senderName || "Participant"}`, {
         description:
-          msg.text.length > 50 ? `${msg.text.slice(0, 50)}â€¦` : msg.text,
+          msg.text.length > 50 ? `${msg.text.slice(0, 50)}…` : msg.text,
       });
     }
   }, []);
@@ -1564,7 +1579,7 @@ function DailyCallSurfaceContent({
         /* ignore */
       }
     };
-  }, [access.meetingUrl, daily, displayName, userData]);
+  }, [access.meetingUrl, access.token, daily, displayName, userData]);
 
   // Clock
   React.useEffect(() => {
@@ -1603,7 +1618,11 @@ function DailyCallSurfaceContent({
   const sessionLabel = appointmentId.slice(-8).toUpperCase();
 
   const handleTogglePanel = (panel: MeetPanel) => {
-    onOpenPanel?.(activePanel === panel ? null : panel);
+    const nextPanel = activePanel === panel ? null : panel;
+    if (nextPanel === "chat") {
+      lastReadMessageCountRef.current = receivedMessagesRef.current.length;
+    }
+    onOpenPanel?.(nextPanel);
   };
 
   return (
@@ -1624,17 +1643,17 @@ function DailyCallSurfaceContent({
           message="Joining consultation"
           sub={
             meetingState === "joining-meeting"
-              ? "Connecting to the secure video roomâ€¦"
-              : "Initialising your video sessionâ€¦"
+              ? "Connecting to the secure video room…"
+              : "Initialising your video session…"
           }
         />
       ) : (
         <>
-          {/* â”€â”€ Middle row: video + sidebar â”€â”€ */}
+          {/* ── Middle row: video + sidebar ── */}
           <div className="flex flex-1 min-h-0 overflow-hidden">
             {/* Video area */}
             <div className="relative flex flex-1 min-w-0 flex-col overflow-hidden">
-              {/* Header overlay â€” title left, LIVE badge right, no overlap */}
+              {/* Header overlay — title left, LIVE badge right, no overlap */}
               <div className="absolute top-0 inset-x-0 z-20 flex items-start justify-between gap-2 px-3 pt-3 md:px-4 md:pt-4 pointer-events-none">
                 {/* Left: title pill */}
                 <div className="flex items-center gap-2 rounded-xl bg-black/60 backdrop-blur-md px-2.5 py-1.5 border border-white/10 pointer-events-auto min-w-0 max-w-[60%]">
@@ -1658,12 +1677,12 @@ function DailyCallSurfaceContent({
                     <p className="text-[9px] text-[#9aa0a6]">
                       {remoteParticipantIds.length > 0
                         ? `${remoteParticipantIds.length + 1} participants`
-                        : "Waiting for othersâ€¦"}
+                        : "Waiting for others…"}
                     </p>
                   </div>
                 </div>
 
-                {/* Right: LIVE badge only â€” no overlap */}
+                {/* Right: LIVE badge only — no overlap */}
                 <div className="flex items-center gap-1.5 pointer-events-auto shrink-0">
                   {isLocalSharing && (
                     <div className="hidden md:flex items-center gap-1 rounded-full bg-[#8ab4f8]/20 border border-[#8ab4f8]/40 px-2 py-1 text-[10px] font-semibold text-[#8ab4f8]">
@@ -1736,12 +1755,12 @@ function DailyCallSurfaceContent({
                 )}
               </div>
 
-              {/* Waiting overlay â€” top-center, below header, never covers name tag */}
+              {/* Waiting overlay — top-center, below header, never covers name tag */}
               {remoteParticipantIds.length === 0 && !hasScreenShare && (
                 <div className="absolute top-16 inset-x-0 flex justify-center z-10 pointer-events-none px-4">
                   <div className="rounded-2xl bg-black/70 backdrop-blur-md border border-white/10 px-4 py-3 text-center max-w-[80vw] sm:max-w-xs">
                     <p className="text-[13px] sm:text-[14px] font-medium text-white">
-                      Waiting for {waitingForName}â€¦
+                      Waiting for {waitingForName}…
                     </p>
                     <p className="mt-0.5 text-[11px] text-[#9aa0a6]">
                       You&apos;re the only one here right now.
@@ -1751,7 +1770,7 @@ function DailyCallSurfaceContent({
               )}
             </div>
 
-            {/* Sidebar â€” bottom sheet on mobile, side panel on desktop */}
+            {/* Sidebar — bottom sheet on mobile, side panel on desktop */}
             <AnimatePresence>
               {activePanel && (
                 <>
@@ -1815,9 +1834,9 @@ function DailyCallSurfaceContent({
             </AnimatePresence>
           </div>
 
-          {/* â”€â”€ Bottom toolbar â”€â”€ */}
+          {/* ── Bottom toolbar ── */}
           <div className="relative z-30 shrink-0 bg-[#202124] border-t border-white/10">
-            {/* Mobile toolbar â€” shown below md (768px) */}
+            {/* Mobile toolbar — shown below md (768px) */}
             <div className="flex items-center justify-between gap-2 px-4 py-3 md:hidden">
               {/* Mic + chevron */}
               <MicGroup
@@ -1845,7 +1864,7 @@ function DailyCallSurfaceContent({
                 />
               )}
 
-              {/* More menu â€” separate state from desktop settings */}
+              {/* More menu — separate state from desktop settings */}
               <Popover open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <PopoverTrigger asChild>
                 <m.button
@@ -1996,7 +2015,7 @@ function DailyCallSurfaceContent({
               </Popover>
             </div>
 
-            {/* Desktop toolbar â€” shown at md (768px) and above */}
+            {/* Desktop toolbar — shown at md (768px) and above */}
             <div className="hidden md:flex items-center justify-between gap-3 p-4 max-w-5xl mx-auto">
               {/* Left: clock + session */}
               <div className="hidden lg:flex items-center gap-3 min-w-0 flex-1">
@@ -2199,7 +2218,7 @@ function DailyCallSurfaceContent({
   );
 }
 
-// â”€â”€â”€ DailyCallSurface (public export) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── DailyCallSurface (public export) ────────────────────────────────────────
 function DailyCallSurface(props: DailyInAppCallProps) {
   const [callObject] = React.useState<DailyCall | false>(() => {
     try {
@@ -2247,6 +2266,7 @@ function DailyCallSurface(props: DailyInAppCallProps) {
 }
 
 export { DailyCallSurface };
+
 
 
 

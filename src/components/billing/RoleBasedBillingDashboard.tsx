@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Role } from "@/types/auth.types";
 import {
@@ -110,31 +110,108 @@ export function RoleBasedBillingDashboard({
   const canMarkInvoicesPaid = isAdmin || isReceptionist;
   const canViewAnalytics = isAdmin || userRole === Role.FINANCE_BILLING;
 
-  const [activeTabOverride, setActiveTabOverride] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState("all");
-  const [paymentStatusFilter, setPaymentStatusFilter] = useState("all");
-  const [paymentMethodFilter, setPaymentMethodFilter] = useState("all");
-  const [startDateFilter, setStartDateFilter] = useState("");
-  const [endDateFilter, setEndDateFilter] = useState("");
-  const [isCreateInvoiceOpen, setIsCreateInvoiceOpen] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
-  const [isCreatePlanOpen, setIsCreatePlanOpen] = useState(false);
-  const [planToConfirm, setPlanToConfirm] = useState<BillingPlan | null>(null);
-  const [isSubscriptionPaymentOpen, setIsSubscriptionPaymentOpen] = useState(false);
-  const [newPlanName, setNewPlanName] = useState("");
-  const [newPlanPrice, setNewPlanPrice] = useState("");
-  const [newPlanCycle, setNewPlanCycle] = useState<"MONTHLY" | "QUARTERLY" | "YEARLY">("MONTHLY");
-  const [newPlanAppointments, setNewPlanAppointments] = useState("");
-  const [newPlanUnlimited, setNewPlanUnlimited] = useState(false);
-  const [createPlanError, setCreatePlanError] = useState<string>("");
-  const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
-  const [pendingSubscriptionPayment, setPendingSubscriptionPayment] = useState<{
+  type BillingUiState = {
+    activeTabOverride: string | null;
+    searchTerm: string;
+    invoiceStatusFilter: string;
+    paymentStatusFilter: string;
+    paymentMethodFilter: string;
+    startDateFilter: string;
+    endDateFilter: string;
+    isCreateInvoiceOpen: boolean;
+    selectedInvoice: Invoice | null;
+    isCreatePlanOpen: boolean;
+    planToConfirm: BillingPlan | null;
+    isSubscriptionPaymentOpen: boolean;
+    newPlanName: string;
+    newPlanPrice: string;
+    newPlanCycle: "MONTHLY" | "QUARTERLY" | "YEARLY";
+    newPlanAppointments: string;
+    newPlanUnlimited: boolean;
+    createPlanError: string;
+    markingPaidId: string | null;
+    pendingSubscriptionPayment: {
+      subscriptionId: string;
+      planName: string;
+      amount: number;
+    } | null;
+    subscribeError: string;
+  };
+
+  const [uiState, setUiState] = useState<BillingUiState>({
+    activeTabOverride: null,
+    searchTerm: "",
+    invoiceStatusFilter: "all",
+    paymentStatusFilter: "all",
+    paymentMethodFilter: "all",
+    startDateFilter: "",
+    endDateFilter: "",
+    isCreateInvoiceOpen: false,
+    selectedInvoice: null,
+    isCreatePlanOpen: false,
+    planToConfirm: null,
+    isSubscriptionPaymentOpen: false,
+    newPlanName: "",
+    newPlanPrice: "",
+    newPlanCycle: "MONTHLY",
+    newPlanAppointments: "",
+    newPlanUnlimited: false,
+    createPlanError: "",
+    markingPaidId: null,
+    pendingSubscriptionPayment: null,
+    subscribeError: "",
+  });
+  const {
+    activeTabOverride,
+    searchTerm,
+    invoiceStatusFilter,
+    paymentStatusFilter,
+    paymentMethodFilter,
+    startDateFilter,
+    endDateFilter,
+    isCreateInvoiceOpen,
+    selectedInvoice,
+    isCreatePlanOpen,
+    planToConfirm,
+    isSubscriptionPaymentOpen,
+    newPlanName,
+    newPlanPrice,
+    newPlanCycle,
+    newPlanAppointments,
+    newPlanUnlimited,
+    createPlanError,
+    markingPaidId,
+    pendingSubscriptionPayment,
+    subscribeError,
+  } = uiState;
+  const patchUiState = useCallback((patch: Partial<BillingUiState>) => {
+    setUiState((current) => ({ ...current, ...patch }));
+  }, []);
+  const setActiveTabOverride = useCallback((value: string | null) => patchUiState({ activeTabOverride: value }), [patchUiState]);
+  const setSearchTerm = useCallback((value: string) => patchUiState({ searchTerm: value }), [patchUiState]);
+  const setInvoiceStatusFilter = useCallback((value: string) => patchUiState({ invoiceStatusFilter: value }), [patchUiState]);
+  const setPaymentStatusFilter = useCallback((value: string) => patchUiState({ paymentStatusFilter: value }), [patchUiState]);
+  const setPaymentMethodFilter = useCallback((value: string) => patchUiState({ paymentMethodFilter: value }), [patchUiState]);
+  const setStartDateFilter = useCallback((value: string) => patchUiState({ startDateFilter: value }), [patchUiState]);
+  const setEndDateFilter = useCallback((value: string) => patchUiState({ endDateFilter: value }), [patchUiState]);
+  const setIsCreateInvoiceOpen = useCallback((value: boolean) => patchUiState({ isCreateInvoiceOpen: value }), [patchUiState]);
+  const setSelectedInvoice = useCallback((value: Invoice | null) => patchUiState({ selectedInvoice: value }), [patchUiState]);
+  const setIsCreatePlanOpen = useCallback((value: boolean) => patchUiState({ isCreatePlanOpen: value }), [patchUiState]);
+  const setPlanToConfirm = useCallback((value: BillingPlan | null) => patchUiState({ planToConfirm: value }), [patchUiState]);
+  const setIsSubscriptionPaymentOpen = useCallback((value: boolean) => patchUiState({ isSubscriptionPaymentOpen: value }), [patchUiState]);
+  const setNewPlanName = useCallback((value: string) => patchUiState({ newPlanName: value }), [patchUiState]);
+  const setNewPlanPrice = useCallback((value: string) => patchUiState({ newPlanPrice: value }), [patchUiState]);
+  const setNewPlanCycle = useCallback((value: "MONTHLY" | "QUARTERLY" | "YEARLY") => patchUiState({ newPlanCycle: value }), [patchUiState]);
+  const setNewPlanAppointments = useCallback((value: string) => patchUiState({ newPlanAppointments: value }), [patchUiState]);
+  const setNewPlanUnlimited = useCallback((value: boolean) => patchUiState({ newPlanUnlimited: value }), [patchUiState]);
+  const setCreatePlanError = useCallback((value: string) => patchUiState({ createPlanError: value }), [patchUiState]);
+  const setMarkingPaidId = useCallback((value: string | null) => patchUiState({ markingPaidId: value }), [patchUiState]);
+  const setPendingSubscriptionPayment = useCallback((value: {
     subscriptionId: string;
     planName: string;
     amount: number;
-  } | null>(null);
-  const [subscribeError, setSubscribeError] = useState<string>("");
+  } | null) => patchUiState({ pendingSubscriptionPayment: value }), [patchUiState]);
+  const setSubscribeError = useCallback((value: string) => patchUiState({ subscribeError: value }), [patchUiState]);
   const releasePayoutMutation = useReleaseAppointmentPayout();
   const reconcilePaymentMutation = useReconcilePayment();
   const createSubscriptionMutation = useCreateSubscription();
@@ -357,7 +434,7 @@ export function RoleBasedBillingDashboard({
     }
   };
 
-  const handleMarkInvoicePaid = async (invoiceId: string) => {
+  const handleMarkInvoicePaid = useCallback(async (invoiceId: string) => {
     setMarkingPaidId(invoiceId);
     try {
       await markInvoiceAsPaidMutation.mutateAsync(invoiceId);
@@ -365,7 +442,7 @@ export function RoleBasedBillingDashboard({
     } finally {
       setMarkingPaidId(null);
     }
-  };
+  }, [markInvoiceAsPaidMutation, onRefetch, setMarkingPaidId]);
 
   const invoiceColumns = useMemo<ColumnDef<Invoice>[]>(
     () => [
@@ -482,9 +559,12 @@ export function RoleBasedBillingDashboard({
       canMarkInvoicesPaid,
       canManageBilling,
       generateInvoicePDFMutation.isPending,
+      handleMarkInvoicePaid,
       markInvoiceAsPaidMutation.isPending,
       markingPaidId,
+      sendInvoiceWhatsAppMutation.mutate,
       sendInvoiceWhatsAppMutation.isPending,
+      setSelectedInvoice,
     ]
   );
 
@@ -1258,6 +1338,7 @@ export function RoleBasedBillingDashboard({
     </div>
   );
 }
+
 
 
 

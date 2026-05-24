@@ -99,7 +99,7 @@ function NurseVitalsContent() {
         form: { ...prev.form, patientId, patientName: patientName || "" },
       }));
     }
-  }, [searchParams]);
+  }, [getSearchParam]);
 
   const nurseId = user?.id;
 
@@ -121,7 +121,7 @@ function NurseVitalsContent() {
     setEditingId(null);
     setFormError("");
     setFormOpen(true);
-  }, []);
+  }, [setEditingId, setForm, setFormError, setFormOpen]);
 
   const openEditForm = useCallback((record: any) => {
     setForm({
@@ -138,7 +138,7 @@ function NurseVitalsContent() {
     setEditingId(record.id);
     setFormError("");
     setFormOpen(true);
-  }, []);
+  }, [setEditingId, setForm, setFormError, setFormOpen]);
 
   const handleSubmit = useCallback(async () => {
     if (!form.patientId && !form.patientName) {
@@ -173,7 +173,7 @@ function NurseVitalsContent() {
     } catch {
       setFormError("Failed to save vitals. Please try again.");
     }
-  }, [form, editingId, nurseId, createMutation, updateMutation]);
+  }, [createMutation, editingId, form, nurseId, setFormError, setFormOpen, updateMutation]);
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
 

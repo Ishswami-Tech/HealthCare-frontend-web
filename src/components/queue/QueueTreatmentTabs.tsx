@@ -165,7 +165,10 @@ export function QueueTreatmentTabs({
     [queueFilterCatalog]
   );
 
-  const treatmentFilters = treatmentGroup?.filters || [];
+  const treatmentFilters = useMemo(
+    () => treatmentGroup?.filters || [],
+    [treatmentGroup?.filters]
+  );
   const consultationQueueFilters = useMemo<QueueFilterOption[]>(
     () =>
       treatmentFilters.reduce<QueueFilterOption[]>((acc, filter) => {

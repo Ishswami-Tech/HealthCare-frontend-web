@@ -14,6 +14,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { ROUTES, getProtectedRouteRoles } from "@/lib/config/routes";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { RouteRedirect } from "@/components/navigation/RouteRedirect";
 
 // Layout imports
 import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
@@ -187,17 +188,7 @@ export function DashboardLayout({
       pageTitle: resolvedPageTitle || "Dashboard",
       displayUser: userDisplayData,
     });
-
-    if (redirectTarget) {
-      replace(redirectTarget);
-    }
-  }, [
-    redirectTarget,
-    replace,
-    resolvedPageTitle,
-    setDashboardMeta,
-    userDisplayData,
-  ]);
+  }, [resolvedPageTitle, setDashboardMeta, userDisplayData]);
 
   if (isPending || (!user && !session)) {
     return (
@@ -232,6 +223,10 @@ export function DashboardLayout({
         </div>
       </div>
     );
+  }
+
+  if (redirectTarget) {
+    return <RouteRedirect target={redirectTarget} />;
   }
 
   // Profile completeness check

@@ -423,13 +423,19 @@ export function PaymentButton({
     }
   };
 
+  const handlePaymentRef = useRef(handlePayment);
+
+  useEffect(() => {
+    handlePaymentRef.current = handlePayment;
+  });
+
   useEffect(() => {
     if (!autoStart || disabled || hasAutoStartedRef.current || isProcessing) {
       return;
     }
 
     hasAutoStartedRef.current = true;
-    void handlePayment();
+    void handlePaymentRef.current();
   }, [autoStart, disabled, isProcessing]);
 
   return (

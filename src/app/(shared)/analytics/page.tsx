@@ -293,7 +293,7 @@ export default function AnalyticsDashboard() {
             <div className="flex items-center justify-center py-12">
               <div className="flex items-center gap-2">
                 <RefreshCw className="size-5 animate-spin" />
-                <span>Loading analytics data...</span>
+                <span>Loading analytics data…</span>
               </div>
             </div>
           )}
@@ -363,7 +363,7 @@ export default function AnalyticsDashboard() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-purple-600">
-                      ₹{(overallStats.totalRevenue / 100000).toFixed(1)}L
+                      â‚¹{(overallStats.totalRevenue / 100000).toFixed(1)}L
                     </div>
                     <div className="flex items-center text-xs text-muted-foreground">
                       <TrendingUp className="size-3 text-green-500 mr-1" />
@@ -472,7 +472,7 @@ export default function AnalyticsDashboard() {
                                 <div>
                                   <p className="text-gray-600">Revenue</p>
                                   <p className="font-semibold">
-                                    ₹{(dept.revenue / 100000).toFixed(1)}L
+                                    â‚¹{(dept.revenue / 100000).toFixed(1)}L
                                   </p>
                                 </div>
                                 <div>
@@ -574,7 +574,7 @@ export default function AnalyticsDashboard() {
                               Successful bookings
                             </p>
                             <div className="mt-2 text-xs text-blue-700">
-                              ↑ 2.1% from last month
+                              â†‘ 2.1% from last month
                             </div>
                           </div>
 
@@ -589,7 +589,7 @@ export default function AnalyticsDashboard() {
                               Below industry average
                             </p>
                             <div className="mt-2 text-xs text-green-700">
-                              ↓ 1.3% from last month
+                              â†“ 1.3% from last month
                             </div>
                           </div>
 
@@ -604,7 +604,7 @@ export default function AnalyticsDashboard() {
                               Within normal range
                             </p>
                             <div className="mt-2 text-xs text-purple-700">
-                              ↑ 0.5% from last month
+                              â†‘ 0.5% from last month
                             </div>
                           </div>
                         </div>
@@ -1171,5 +1171,6 @@ export default function AnalyticsDashboard() {
     
   );
 }
+
 
 

@@ -374,11 +374,11 @@ export default function Sidebar({ links, user, children }: SidebarProps) {
 
 
 
-  const handleLogoutClick = useCallback(() => {
+  const handleLogoutClick = () => {
     setShowLogoutDialog(true);
-  }, []);
+  };
 
-  const handleLogoutConfirm = useCallback(async () => {
+  const handleLogoutConfirm = async () => {
     startLoading("Logging out...");
     try {
       await logout();
@@ -392,7 +392,7 @@ export default function Sidebar({ links, user, children }: SidebarProps) {
     } finally {
       setShowLogoutDialog(false);
     }
-  }, [logout, push, startLoading, stopLoading]);
+  };
 
   return (
     <LazyMotion features={domAnimation}>

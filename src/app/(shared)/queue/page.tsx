@@ -946,9 +946,12 @@ export default function QueuePage() {
   }, [pauseQueueMutation, refetchQueue]);
 
   // Real-time queue data from API - filter by queue section
-  const getQueueByType = (type: string) => {
-    return scopedQueueEntries.filter((item: QueueDisplayItem) => matchesQueueSection(item, type));
-  };
+  const getQueueByType = useCallback(
+    (type: string) => {
+      return scopedQueueEntries.filter((item: QueueDisplayItem) => matchesQueueSection(item, type));
+    },
+    [scopedQueueEntries]
+  );
 
   const consultationQueueSections = useMemo(
     () =>
@@ -957,7 +960,7 @@ export default function QueuePage() {
         title: option.label,
         items: getQueueByType(option.value),
       })),
-    [consultationQueueFilters, scopedQueueEntries]
+    [consultationQueueFilters, getQueueByType]
   );
 
   const resolvedActiveConsultationLane = useMemo(() => {
@@ -986,7 +989,7 @@ export default function QueuePage() {
         title: option.label,
         items: getQueueByType(option.value),
       })),
-    [procedureQueueFilters, scopedQueueEntries]
+    [procedureQueueFilters, getQueueByType]
   );
 
   const activeQueueTabs = useMemo(
@@ -1078,19 +1081,7 @@ export default function QueuePage() {
         ),
       },
     ],
-    [
-      canTransfer,
-      canAssignDoctor,
-      transferringId,
-      isUnassignedQueueItem,
-      handleTransfer,
-      openAssignDoctorDialog,
-      reassignAppointmentMutation.isPending,
-      updateQueueStatusOptimistic.isPending,
-      handlePauseQueue,
-      refetchQueue,
-      clinicId,
-    ]
+    []
   );
 
   const laneColumns = useMemo<ColumnDef<QueueDisplayItem>[]>(
@@ -1136,7 +1127,7 @@ export default function QueuePage() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-3xl font-semibold">Queue Management</h1>
-            <p className="text-gray-600">Synchronizing live queue...</p>
+            <p className="text-gray-600">Synchronizing live queue…</p>
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -1146,7 +1137,7 @@ export default function QueuePage() {
           <Skeleton className="h-[104px] w-full rounded-xl" />
         </div>
         <div className="mt-24">
-          <PageLoading text="Loading active queue flow..." />
+          <PageLoading text="Loading active queue flow…" />
         </div>
       </div>
     );
@@ -1225,7 +1216,7 @@ export default function QueuePage() {
             disabled={isCleaningUp}
             className="border-amber-500/50 bg-amber-50/10 text-amber-200 hover:bg-amber-500/20"
           >
-            {isCleaningUp ? "Cleaning up..." : "Cancel All Stale Entries"}
+            {isCleaningUp ? "Cleaning up…" : "Cancel All Stale Entries"}
           </Button>
         </div>
       )}
@@ -1667,7 +1658,7 @@ export default function QueuePage() {
               {reassignAppointmentMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 size-4 animate-spin" />
-                  Assigning...
+                  Assigning…
                 </>
               ) : (
                 "Assign Doctor"
@@ -1679,6 +1670,7 @@ export default function QueuePage() {
     </DashboardPageShell>
   );
 }
+
 
 
 

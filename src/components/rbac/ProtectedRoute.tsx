@@ -9,6 +9,7 @@ import { Role } from "@/types/auth.types";
 import { ROUTES } from "@/lib/config/routes";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { RouteRedirect } from "@/components/navigation/RouteRedirect";
 import { Lock, ArrowLeft } from "lucide-react";
 import { useAuthStore } from "@/stores";
 
@@ -95,13 +96,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     getDefaultRoute,
   ]);
 
-  // Handle Redirection Side-Effects
-  React.useEffect(() => {
-    if (redirectTarget) {
-      replace(redirectTarget);
-    }
-  }, [redirectTarget, replace]);
-
   // Early return for loading
   if (isPending) {
     return (
@@ -113,7 +107,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // Early return if not authenticated (useEffect handles redirect)
   if (redirectTarget) {
-    return null;
+    return <RouteRedirect target={redirectTarget} />;
   }
 
   // Render check: Unofficial role access

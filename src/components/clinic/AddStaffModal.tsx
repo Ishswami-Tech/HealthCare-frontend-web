@@ -489,7 +489,7 @@ export function AddStaffModal({ open, onOpenChange, onSuccess }: AddStaffModalPr
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 size-4 animate-spin" />
-                    Adding Staff...
+                    Adding Staff…
                   </>
                 ) : (
                   "Create Staff Member"
@@ -502,5 +502,6 @@ export function AddStaffModal({ open, onOpenChange, onSuccess }: AddStaffModalPr
     </Dialog>
   );
 }
+
 
 

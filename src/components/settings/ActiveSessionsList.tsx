@@ -46,7 +46,7 @@ export function ActiveSessionsList() {
         <CardContent className="py-12">
           <div className="flex flex-col items-center justify-center gap-y-4">
             <Loader2 className="size-8 animate-spin text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Loading sessions...</p>
+            <p className="text-sm text-muted-foreground">Loading sessions…</p>
           </div>
         </CardContent>
       </Card>
@@ -96,7 +96,7 @@ export function ActiveSessionsList() {
                     )}
                   </div>
                   <CardDescription suppressHydrationWarning>
-                    IP: {session.ipAddress} • Last active{' '}
+                    IP: {session.ipAddress} â€¢ Last active{' '}
                     {formatDistanceToNow(new Date(session.lastActivity), { addSuffix: true })}
                   </CardDescription>
                 </div>
@@ -111,7 +111,7 @@ export function ActiveSessionsList() {
                   {revokingId === session.id ? (
                     <>
                       <Loader2 className="mr-2 size-4 animate-spin" />
-                      Revoking...
+                      Revoking…
                     </>
                   ) : (
                     'Sign Out'
@@ -125,5 +125,7 @@ export function ActiveSessionsList() {
     </div>
   );
 }
+
+
 
 

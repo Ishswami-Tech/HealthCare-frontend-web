@@ -35,7 +35,10 @@ export default function SuperAdminDashboard() {
 
   // Calculate real stats from fetched data
   const clinicsArray = useMemo(() => (clinics as any)?.clinics || [], [clinics]);
-  const usersArray = Array.isArray(users) ? users : (users as any)?.users || [];
+  const usersArray = useMemo(
+    () => (Array.isArray(users) ? users : (users as any)?.users || []),
+    [users]
+  );
   const appointments = (appointmentsData as any)?.appointments || [];
   const revenue = (revenueData as any)?.totalRevenue || (revenueData as any)?.monthlyRevenue || 0;
 

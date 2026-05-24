@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useReducer, useState, type ReactElement } from "react";
+import { useCallback, useMemo, useReducer, useState, type ReactElement } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -548,12 +548,12 @@ export default function PharmacistPrescriptionsPage() {
     0,
   );
 
-  const openDispenseDialog = (prescription: PrescriptionRow) => {
+  const openDispenseDialog = useCallback((prescription: PrescriptionRow) => {
     setSelectedPrescription(prescription);
     setDispenseLines(prescription.medicines.map(createDispenseLine));
     setDispenseNotes("");
     setDispenseFormError(null);
-  };
+  }, []);
 
   const closeDispenseDialog = () => {
     dispatch({ type: "resetDispenseDialog" });
@@ -623,11 +623,11 @@ export default function PharmacistPrescriptionsPage() {
     );
   };
 
-  const openReverseDialog = (prescription: PrescriptionRow) => {
+  const openReverseDialog = useCallback((prescription: PrescriptionRow) => {
     setSelectedReversalPrescription(prescription);
     setReversalReason("");
     setReversalError(null);
-  };
+  }, []);
 
   const closeReverseDialog = () => {
     dispatch({ type: "resetReverseDialog" });
@@ -1074,7 +1074,7 @@ export default function PharmacistPrescriptionsPage() {
       <div className="flex min-h-[40vh] items-center justify-center">
         <div className="text-center">
           <div className="mx-auto size-10 animate-spin rounded-full border-b-2 border-blue-600" />
-          <p className="mt-3 text-sm text-gray-600">Loading prescriptions...</p>
+          <p className="mt-3 text-sm text-gray-600">Loading prescriptions…</p>
         </div>
       </div>
     );
@@ -1674,5 +1674,6 @@ export default function PharmacistPrescriptionsPage() {
     </div>
   );
 }
+
 
 

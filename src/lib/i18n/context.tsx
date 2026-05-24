@@ -3,7 +3,6 @@
 import {
   createContext,
   use,
-  useEffect,
   useTransition,
   useState,
   ReactNode,
@@ -122,20 +121,15 @@ export function LanguageProvider({
   );
   const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
-    if (typeof document !== "undefined") {
-      document.documentElement.lang = language;
-      document.documentElement.dir = SUPPORTED_LANGUAGES[language].dir;
-    }
-
-    const storedLanguage = getStoredLanguage();
-    if (storedLanguage !== language) {
-      storeLanguage(language);
-    }
-  }, [language]);
-
   const setLanguage = (newLanguage: SupportedLanguage) => {
     if (Object.keys(SUPPORTED_LANGUAGES).includes(newLanguage)) {
+      if (typeof document !== "undefined") {
+        document.documentElement.lang = newLanguage;
+        document.documentElement.dir = SUPPORTED_LANGUAGES[newLanguage].dir;
+      }
+
+      storeLanguage(newLanguage);
+
       startTransition(() => {
         setLanguageState(newLanguage);
       });

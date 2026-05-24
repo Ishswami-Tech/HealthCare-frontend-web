@@ -1,7 +1,7 @@
 "use client";
 import { nowIso } from '@/lib/utils/date-time';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import { useQueryData, useOptimisticMutation, useQueryClient } from '@/hooks/core';
 import {
@@ -241,15 +241,15 @@ export function useRealTimeQueueStatus(queueName?: string, locationId?: string) 
     }
   );
 
-  useEffect(() => {
-    if (!isConnected || !currentClinic) return;
+  const invalidateQueueStatus = useCallback(() => {
+    queryClient.invalidateQueries({
+      queryKey: getQueueStatusQueryKey(resolvedClinicId, locationId, queueName),
+      exact: false,
+    });
+  }, [locationId, queueName, queryClient, resolvedClinicId]);
 
-    const invalidateQueueStatus = () => {
-      queryClient.invalidateQueries({
-        queryKey: getQueueStatusQueryKey(currentClinic.id, locationId, queueName),
-        exact: false,
-      });
-    };
+  useEffect(() => {
+    if (!isConnected || !resolvedClinicId) return;
 
     const queueEvents = [
       'queue_status_update',
@@ -273,7 +273,7 @@ export function useRealTimeQueueStatus(queueName?: string, locationId?: string) 
           status?: QueueStatusSnapshot;
         };
 
-        if (data.clinicId && data.clinicId !== currentClinic.id) {
+        if (data.clinicId && data.clinicId !== resolvedClinicId) {
           return;
         }
 
@@ -288,7 +288,7 @@ export function useRealTimeQueueStatus(queueName?: string, locationId?: string) 
 
         if (data.status) {
           queryClient.setQueryData(
-            getQueueStatusQueryKey(currentClinic.id, locationId, queueName),
+            getQueueStatusQueryKey(resolvedClinicId, locationId, queueName),
             normalizeQueueStatusSnapshot(data.status)
           );
         } else {
@@ -300,7 +300,7 @@ export function useRealTimeQueueStatus(queueName?: string, locationId?: string) 
     return () => {
       unsubscribes.forEach((unsubscribe) => unsubscribe());
     };
-  }, [isConnected, resolvedClinicId, locationId, queueName, queryClient, subscribe]);
+  }, [invalidateQueueStatus, isConnected, locationId, queueName, queryClient, resolvedClinicId, subscribe]);
 
   return {
     ...query,

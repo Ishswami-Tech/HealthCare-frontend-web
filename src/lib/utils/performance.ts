@@ -284,11 +284,11 @@ export function useBatchedUpdates<T>(initialValue: T, batchDelay: number = 50) {
       }
       timeoutRef.current = null;
     }, batchDelay);
-  }, [batchDelay]);
+  }, [batchDelay, setValue]);
 
   useEffect(() => {
+    const timeoutId = timeoutRef.current;
     return () => {
-      const timeoutId = timeoutRef.current;
       if (timeoutId) {
         clearTimeout(timeoutId);
       }

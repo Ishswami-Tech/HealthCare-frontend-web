@@ -154,7 +154,13 @@ export default function ReceptionistDashboard() {
     }
   };
 
-  const medicineDeskQueue = Array.isArray(medicineDeskQueueResult) ? medicineDeskQueueResult : (medicineDeskQueueResult as any)?.prescriptions || [];
+  const medicineDeskQueue = useMemo(
+    () =>
+      Array.isArray(medicineDeskQueueResult)
+        ? medicineDeskQueueResult
+        : (medicineDeskQueueResult as any)?.prescriptions || [],
+    [medicineDeskQueueResult]
+  );
 
   const appointments = useMemo(() => {
     const raw = appointmentsData?.appointments || [];

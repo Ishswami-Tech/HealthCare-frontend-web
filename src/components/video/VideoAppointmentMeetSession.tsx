@@ -169,17 +169,58 @@ export function VideoAppointmentMeetSession({
   const { data: appointmentQuery, isPending, error } =
     useVideoAppointment(resolvedAppointmentId);
   const { data: appointmentRecordQuery } = useAppointment(resolvedAppointmentId);
-  const [isRequesting, setIsRequesting] = React.useState(true);
-  const [permissionError, setPermissionError] = React.useState<string | null>(null);
-  const [videoDevices, setVideoDevices] = React.useState<MediaDeviceInfo[]>([]);
-  const [audioDevices, setAudioDevices] = React.useState<MediaDeviceInfo[]>([]);
-  const [selectedVideoDeviceId, setSelectedVideoDeviceId] = React.useState("");
-  const [selectedAudioDeviceId, setSelectedAudioDeviceId] = React.useState("");
-  const [isAudioEnabled, setIsAudioEnabled] = React.useState(true);
-  const [isVideoEnabled, setIsVideoEnabled] = React.useState(true);
-  const [isMirrored, setIsMirrored] = React.useState(true);
-  const [isJoiningRoom, setIsJoiningRoom] = React.useState(false);
-  const [joinedAccess, setJoinedAccess] = React.useState<VideoRoomAccess | null>(null);
+  type VideoMeetState = {
+    isRequesting: boolean;
+    permissionError: string | null;
+    videoDevices: MediaDeviceInfo[];
+    audioDevices: MediaDeviceInfo[];
+    selectedVideoDeviceId: string;
+    selectedAudioDeviceId: string;
+    isAudioEnabled: boolean;
+    isVideoEnabled: boolean;
+    isMirrored: boolean;
+    isJoiningRoom: boolean;
+    joinedAccess: VideoRoomAccess | null;
+  };
+
+  const [uiState, setUiState] = React.useState<VideoMeetState>({
+    isRequesting: true,
+    permissionError: null,
+    videoDevices: [],
+    audioDevices: [],
+    selectedVideoDeviceId: "",
+    selectedAudioDeviceId: "",
+    isAudioEnabled: true,
+    isVideoEnabled: true,
+    isMirrored: true,
+    isJoiningRoom: false,
+    joinedAccess: null,
+  });
+  const {
+    isRequesting,
+    permissionError,
+    videoDevices,
+    audioDevices,
+    selectedVideoDeviceId,
+    selectedAudioDeviceId,
+    isAudioEnabled,
+    isVideoEnabled,
+    isMirrored,
+    isJoiningRoom,
+    joinedAccess,
+  } = uiState;
+  const patchUiState = (patch: Partial<VideoMeetState>) => setUiState((current) => ({ ...current, ...patch }));
+  const setIsRequesting = (value: boolean) => patchUiState({ isRequesting: value });
+  const setPermissionError = (value: string | null) => patchUiState({ permissionError: value });
+  const setVideoDevices = (value: MediaDeviceInfo[]) => patchUiState({ videoDevices: value });
+  const setAudioDevices = (value: MediaDeviceInfo[]) => patchUiState({ audioDevices: value });
+  const setSelectedVideoDeviceId = (value: string) => patchUiState({ selectedVideoDeviceId: value });
+  const setSelectedAudioDeviceId = (value: string) => patchUiState({ selectedAudioDeviceId: value });
+  const setIsAudioEnabled = (value: boolean) => patchUiState({ isAudioEnabled: value });
+  const setIsVideoEnabled = (value: boolean) => patchUiState({ isVideoEnabled: value });
+  const setIsMirrored = (value: boolean) => patchUiState({ isMirrored: value });
+  const setIsJoiningRoom = (value: boolean) => patchUiState({ isJoiningRoom: value });
+  const setJoinedAccess = (value: VideoRoomAccess | null) => patchUiState({ joinedAccess: value });
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const mediaStreamRef = React.useRef<MediaStream | null>(null);
   const previewHandedOffRef = React.useRef(false);
@@ -497,17 +538,19 @@ export function VideoAppointmentMeetSession({
   );
 
   React.useEffect(() => {
+    const previewHandedOff = previewHandedOffRef.current;
+    const currentMediaStream = mediaStreamRef.current;
+    const currentVideoElement = videoRef.current;
     void loadPreviewStream("", "", true, true);
 
     return () => {
-      if (previewHandedOffRef.current) {
+      if (previewHandedOff) {
         return;
       }
 
-      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
-      mediaStreamRef.current = null;
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
+      currentMediaStream?.getTracks().forEach((track) => track.stop());
+      if (currentVideoElement) {
+        currentVideoElement.srcObject = null;
       }
     };
   }, [loadPreviewStream]);
@@ -906,6 +949,7 @@ export function VideoAppointmentMeetSession({
     </div>
   );
 }
+
 
 
 

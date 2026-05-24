@@ -106,44 +106,6 @@ export function useFCM(): UseFCMReturn {
   }, [isSupported, token, session?.user?.id, addNotification]);
 
   /**
-   * Request notification permission
-   */
-  const requestPermission = useCallback(async () => {
-    if (!isSupported) {
-      setError('Push notifications are not supported in this browser');
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const permissionResult = await requestNotificationPermission();
-      setPermission(permissionResult);
-
-      if (permissionResult === 'granted') {
-        // Get FCM token after permission is granted
-        const fcmToken = await getFCMToken();
-        if (fcmToken) {
-          setToken(fcmToken);
-          await registerToken(fcmToken);
-        }
-      } else if (permissionResult === 'denied') {
-        setError('Notification permission was denied');
-        showErrorToast('Notification permission denied. Please enable it in your browser settings.', {
-          id: TOAST_IDS.NOTIFICATION.PERMISSION_DENIED,
-        });
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to request permission';
-      setError(errorMessage);
-      console.error('Error requesting notification permission:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isSupported]);
-
-  /**
    * Register FCM token with backend
    */
   const registerToken = useCallback(async (tokenToRegister?: string) => {
@@ -213,6 +175,44 @@ export function useFCM(): UseFCMReturn {
       setIsLoading(false);
     }
   }, [token, session]);
+
+  /**
+   * Request notification permission
+   */
+  const requestPermission = useCallback(async () => {
+    if (!isSupported) {
+      setError('Push notifications are not supported in this browser');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const permissionResult = await requestNotificationPermission();
+      setPermission(permissionResult);
+
+      if (permissionResult === 'granted') {
+        // Get FCM token after permission is granted
+        const fcmToken = await getFCMToken();
+        if (fcmToken) {
+          setToken(fcmToken);
+          await registerToken(fcmToken);
+        }
+      } else if (permissionResult === 'denied') {
+        setError('Notification permission was denied');
+        showErrorToast('Notification permission denied. Please enable it in your browser settings.', {
+          id: TOAST_IDS.NOTIFICATION.PERMISSION_DENIED,
+        });
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to request permission';
+      setError(errorMessage);
+      console.error('Error requesting notification permission:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isSupported, registerToken]);
 
   /**
    * Unregister FCM token

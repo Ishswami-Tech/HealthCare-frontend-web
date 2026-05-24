@@ -254,11 +254,11 @@ function Textarea({
     }
   }, [autoHeight, maxHeight]);
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     if (autoHeight) {
       adjustHeight();
     }
-  }, [adjustHeight, props.value]);
+  }, [adjustHeight, autoHeight, props.value]);
 
   return (
     <div className="gap-y-2">

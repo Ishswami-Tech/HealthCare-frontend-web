@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect, useMemo, useCallback, useRef, useReducer, type SetStateAction } from "react";
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+  useReducer,
+  type SetStateAction,
+} from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, LazyMotion, domAnimation, m } from "framer-motion";
 import { load } from "@cashfreepayments/cashfree-js";
@@ -275,7 +283,7 @@ function getConsultationVisual(
   );
 }
 
-//  Slot grouping helper Ã¢â‚¬Â
+//  Slot grouping helper â‚
 
 function groupSlotsByPeriod(slots: string[]) {
   const morning: string[] = [];
@@ -314,7 +322,7 @@ const STEP_LABELS: Record<WizardStepId, string> = {
   confirm: "Confirm",
   success: "Done",
 };
-/** Each appointment slot is 3 minutes Ã¢â‚¬Â 20 bookable slots per hour. */
+/** Each appointment slot is 3 minutes â‚ 20 bookable slots per hour. */
 const IN_PERSON_APPOINTMENT_SLOT_DURATION_MINUTES = 3;
 const VIDEO_APPOINTMENT_SLOT_DURATION_MINUTES = 15;
 const VIDEO_CONSULTATION_TREATMENT_TYPE: TreatmentType = "GENERAL_CONSULTATION";
@@ -1562,7 +1570,7 @@ function BookAppointmentStep4({
       key: "afternoon" as const,
       label: "Afternoon",
       icon: <CloudSun className="size-4" />,
-      range: "12pm Ã¢â‚¬Å“ 5pm",
+      range: "12pm â‚¬Å“ 5pm",
       slots: slotGroups.afternoon,
     },
     {
@@ -2112,10 +2120,10 @@ function BookAppointmentStep5({
             }`}
           >
             {isSubscriptionGateLoading
-              ? "WeÃ¢â€žÂ¢re checking your plan before booking this in-person appointment."
+              ? "Weâ€žÂ¢re checking your plan before booking this in-person appointment."
               : needsSubscriptionPlan
                 ? "You need an active plan for this clinic to continue."
-                : "WeÃ¢â€žÂ¢ll verify your plan before confirming this appointment."}
+                : "Weâ€žÂ¢ll verify your plan before confirming this appointment."}
           </p>
         </div>
       )}
@@ -2302,7 +2310,7 @@ function BookAppointmentStep6({
   );
 }
 
-//  Component Ã¢â‚¬ÂÃ¢â‚¬Â
+//  Component â‚â‚
 
 /**
  * Helper to get Today in IST (India Standard Time)
@@ -2474,9 +2482,15 @@ export function BookAppointmentDialog({
   type BookingFlowAction =
     | { type: "setStep"; value: SetStateAction<number> }
     | { type: "setServiceFilter"; value: SetStateAction<string> }
-    | { type: "setStepDirection"; value: SetStateAction<"forward" | "backward"> }
+    | {
+        type: "setStepDirection";
+        value: SetStateAction<"forward" | "backward">;
+      }
     | { type: "setSelectedLocationId"; value: SetStateAction<string> }
-    | { type: "setConsultationMode"; value: SetStateAction<"IN_PERSON" | "VIDEO"> }
+    | {
+        type: "setConsultationMode";
+        value: SetStateAction<"IN_PERSON" | "VIDEO">;
+      }
     | { type: "setSelectedServiceId"; value: SetStateAction<string> }
     | { type: "setSelectedDoctorId"; value: SetStateAction<string> }
     | { type: "setSelectedDate"; value: SetStateAction<Date | undefined> }
@@ -2490,7 +2504,10 @@ export function BookAppointmentDialog({
     | { type: "setSelectedPatientId"; value: SetStateAction<string> }
     | { type: "setPatientSearch"; value: SetStateAction<string> }
     | { type: "setShowQuickCreatePatient"; value: SetStateAction<boolean> }
-    | { type: "setShowQuickCreateAdditionalDetails"; value: SetStateAction<boolean> }
+    | {
+        type: "setShowQuickCreateAdditionalDetails";
+        value: SetStateAction<boolean>;
+      }
     | {
         type: "setRecentlyCreatedPatient";
         value: SetStateAction<BookingFlowState["recentlyCreatedPatient"]>;
@@ -2520,62 +2537,136 @@ export function BookAppointmentDialog({
       showQuickCreateAdditionalDetails: false,
       recentlyCreatedPatient: null,
     }),
-    [initialConsultationMode, initialDoctorId, initialPatientId, initialServiceId, locationId]
+    [
+      initialConsultationMode,
+      initialDoctorId,
+      initialPatientId,
+      initialServiceId,
+      locationId,
+    ],
   );
   const bookingFlowReducer = useCallback(
     (state: BookingFlowState, action: BookingFlowAction): BookingFlowState => {
       const resolve = <T,>(value: SetStateAction<T>, current: T) =>
-        typeof value === "function" ? (value as (previous: T) => T)(current) : value;
+        typeof value === "function"
+          ? (value as (previous: T) => T)(current)
+          : value;
 
       switch (action.type) {
         case "setStep":
           return { ...state, step: resolve(action.value, state.step) };
         case "setServiceFilter":
-          return { ...state, serviceFilter: resolve(action.value, state.serviceFilter) };
+          return {
+            ...state,
+            serviceFilter: resolve(action.value, state.serviceFilter),
+          };
         case "setStepDirection":
-          return { ...state, stepDirection: resolve(action.value, state.stepDirection) };
+          return {
+            ...state,
+            stepDirection: resolve(action.value, state.stepDirection),
+          };
         case "setSelectedLocationId":
-          return { ...state, selectedLocationId: resolve(action.value, state.selectedLocationId) };
+          return {
+            ...state,
+            selectedLocationId: resolve(action.value, state.selectedLocationId),
+          };
         case "setConsultationMode":
-          return { ...state, consultationMode: resolve(action.value, state.consultationMode) };
+          return {
+            ...state,
+            consultationMode: resolve(action.value, state.consultationMode),
+          };
         case "setSelectedServiceId":
-          return { ...state, selectedServiceId: resolve(action.value, state.selectedServiceId) };
+          return {
+            ...state,
+            selectedServiceId: resolve(action.value, state.selectedServiceId),
+          };
         case "setSelectedDoctorId":
-          return { ...state, selectedDoctorId: resolve(action.value, state.selectedDoctorId) };
+          return {
+            ...state,
+            selectedDoctorId: resolve(action.value, state.selectedDoctorId),
+          };
         case "setSelectedDate":
-          return { ...state, selectedDate: resolve(action.value, state.selectedDate) };
+          return {
+            ...state,
+            selectedDate: resolve(action.value, state.selectedDate),
+          };
         case "setSelectedSlot":
-          return { ...state, selectedSlot: resolve(action.value, state.selectedSlot) };
+          return {
+            ...state,
+            selectedSlot: resolve(action.value, state.selectedSlot),
+          };
         case "setChiefComplaint":
-          return { ...state, chiefComplaint: resolve(action.value, state.chiefComplaint) };
+          return {
+            ...state,
+            chiefComplaint: resolve(action.value, state.chiefComplaint),
+          };
         case "setUrgency":
           return { ...state, urgency: resolve(action.value, state.urgency) };
         case "setBookedAppointmentId":
-          return { ...state, bookedAppointmentId: resolve(action.value, state.bookedAppointmentId) };
+          return {
+            ...state,
+            bookedAppointmentId: resolve(
+              action.value,
+              state.bookedAppointmentId,
+            ),
+          };
         case "setRequiresVideoPayment":
-          return { ...state, requiresVideoPayment: resolve(action.value, state.requiresVideoPayment) };
+          return {
+            ...state,
+            requiresVideoPayment: resolve(
+              action.value,
+              state.requiresVideoPayment,
+            ),
+          };
         case "setVideoPaymentCompleted":
-          return { ...state, videoPaymentCompleted: resolve(action.value, state.videoPaymentCompleted) };
+          return {
+            ...state,
+            videoPaymentCompleted: resolve(
+              action.value,
+              state.videoPaymentCompleted,
+            ),
+          };
         case "setAcceptedVideoPaymentPolicy":
-          return { ...state, acceptedVideoPaymentPolicy: resolve(action.value, state.acceptedVideoPaymentPolicy) };
+          return {
+            ...state,
+            acceptedVideoPaymentPolicy: resolve(
+              action.value,
+              state.acceptedVideoPaymentPolicy,
+            ),
+          };
         case "setSelectedPatientId":
-          return { ...state, selectedPatientId: resolve(action.value, state.selectedPatientId) };
+          return {
+            ...state,
+            selectedPatientId: resolve(action.value, state.selectedPatientId),
+          };
         case "setPatientSearch":
-          return { ...state, patientSearch: resolve(action.value, state.patientSearch) };
+          return {
+            ...state,
+            patientSearch: resolve(action.value, state.patientSearch),
+          };
         case "setShowQuickCreatePatient":
-          return { ...state, showQuickCreatePatient: resolve(action.value, state.showQuickCreatePatient) };
+          return {
+            ...state,
+            showQuickCreatePatient: resolve(
+              action.value,
+              state.showQuickCreatePatient,
+            ),
+          };
         case "setShowQuickCreateAdditionalDetails":
           return {
             ...state,
             showQuickCreateAdditionalDetails: resolve(
               action.value,
-              state.showQuickCreateAdditionalDetails
+              state.showQuickCreateAdditionalDetails,
             ),
           };
         case "setRecentlyCreatedPatient":
           return {
             ...state,
-            recentlyCreatedPatient: resolve(action.value, state.recentlyCreatedPatient),
+            recentlyCreatedPatient: resolve(
+              action.value,
+              state.recentlyCreatedPatient,
+            ),
           };
         case "resetBookingFlow":
           return action.payload;
@@ -2583,7 +2674,7 @@ export function BookAppointmentDialog({
           return state;
       }
     },
-    []
+    [],
   );
   const [internalOpen, setInternalOpen] = useState(() => defaultOpen);
   const isControlledOpen = typeof open === "boolean";
@@ -2591,7 +2682,7 @@ export function BookAppointmentDialog({
   const [bookingFlow, dispatchBookingFlow] = useReducer(
     bookingFlowReducer,
     undefined,
-    createBookingFlowState
+    createBookingFlowState,
   );
   const {
     step,
@@ -2621,24 +2712,33 @@ export function BookAppointmentDialog({
   const setServiceFilter = useCallback((value: SetStateAction<string>) => {
     dispatchBookingFlow({ type: "setServiceFilter", value });
   }, []);
-  const setStepDirection = useCallback((value: SetStateAction<"forward" | "backward">) => {
-    dispatchBookingFlow({ type: "setStepDirection", value });
-  }, []);
+  const setStepDirection = useCallback(
+    (value: SetStateAction<"forward" | "backward">) => {
+      dispatchBookingFlow({ type: "setStepDirection", value });
+    },
+    [],
+  );
   const setSelectedLocationId = useCallback((value: SetStateAction<string>) => {
     dispatchBookingFlow({ type: "setSelectedLocationId", value });
   }, []);
-  const setConsultationMode = useCallback((value: SetStateAction<"IN_PERSON" | "VIDEO">) => {
-    dispatchBookingFlow({ type: "setConsultationMode", value });
-  }, []);
+  const setConsultationMode = useCallback(
+    (value: SetStateAction<"IN_PERSON" | "VIDEO">) => {
+      dispatchBookingFlow({ type: "setConsultationMode", value });
+    },
+    [],
+  );
   const setSelectedServiceId = useCallback((value: SetStateAction<string>) => {
     dispatchBookingFlow({ type: "setSelectedServiceId", value });
   }, []);
   const setSelectedDoctorId = useCallback((value: SetStateAction<string>) => {
     dispatchBookingFlow({ type: "setSelectedDoctorId", value });
   }, []);
-  const setSelectedDate = useCallback((value: SetStateAction<Date | undefined>) => {
-    dispatchBookingFlow({ type: "setSelectedDate", value });
-  }, []);
+  const setSelectedDate = useCallback(
+    (value: SetStateAction<Date | undefined>) => {
+      dispatchBookingFlow({ type: "setSelectedDate", value });
+    },
+    [],
+  );
   const setSelectedSlot = useCallback((value: SetStateAction<string>) => {
     dispatchBookingFlow({ type: "setSelectedSlot", value });
   }, []);
@@ -2648,41 +2748,58 @@ export function BookAppointmentDialog({
   const setUrgency = useCallback((value: SetStateAction<string>) => {
     dispatchBookingFlow({ type: "setUrgency", value });
   }, []);
-  const setBookedAppointmentId = useCallback((value: SetStateAction<string>) => {
-    dispatchBookingFlow({ type: "setBookedAppointmentId", value });
-  }, []);
-  const setRequiresVideoPayment = useCallback((value: SetStateAction<boolean>) => {
-    dispatchBookingFlow({ type: "setRequiresVideoPayment", value });
-  }, []);
-  const setVideoPaymentCompleted = useCallback((value: SetStateAction<boolean>) => {
-    dispatchBookingFlow({ type: "setVideoPaymentCompleted", value });
-  }, []);
-  const setAcceptedVideoPaymentPolicy = useCallback((value: SetStateAction<boolean>) => {
-    dispatchBookingFlow({ type: "setAcceptedVideoPaymentPolicy", value });
-  }, []);
+  const setBookedAppointmentId = useCallback(
+    (value: SetStateAction<string>) => {
+      dispatchBookingFlow({ type: "setBookedAppointmentId", value });
+    },
+    [],
+  );
+  const setRequiresVideoPayment = useCallback(
+    (value: SetStateAction<boolean>) => {
+      dispatchBookingFlow({ type: "setRequiresVideoPayment", value });
+    },
+    [],
+  );
+  const setVideoPaymentCompleted = useCallback(
+    (value: SetStateAction<boolean>) => {
+      dispatchBookingFlow({ type: "setVideoPaymentCompleted", value });
+    },
+    [],
+  );
+  const setAcceptedVideoPaymentPolicy = useCallback(
+    (value: SetStateAction<boolean>) => {
+      dispatchBookingFlow({ type: "setAcceptedVideoPaymentPolicy", value });
+    },
+    [],
+  );
   const setSelectedPatientId = useCallback((value: SetStateAction<string>) => {
     dispatchBookingFlow({ type: "setSelectedPatientId", value });
   }, []);
   const setPatientSearch = useCallback((value: SetStateAction<string>) => {
     dispatchBookingFlow({ type: "setPatientSearch", value });
   }, []);
-  const setShowQuickCreatePatient = useCallback((value: SetStateAction<boolean>) => {
-    dispatchBookingFlow({ type: "setShowQuickCreatePatient", value });
-  }, []);
-  const setShowQuickCreateAdditionalDetails = useCallback((value: SetStateAction<boolean>) => {
-    dispatchBookingFlow({ type: "setShowQuickCreateAdditionalDetails", value });
-  }, []);
+  const setShowQuickCreatePatient = useCallback(
+    (value: SetStateAction<boolean>) => {
+      dispatchBookingFlow({ type: "setShowQuickCreatePatient", value });
+    },
+    [],
+  );
+  const setShowQuickCreateAdditionalDetails = useCallback(
+    (value: SetStateAction<boolean>) => {
+      dispatchBookingFlow({
+        type: "setShowQuickCreateAdditionalDetails",
+        value,
+      });
+    },
+    [],
+  );
   const setRecentlyCreatedPatient = useCallback(
     (value: SetStateAction<BookingFlowState["recentlyCreatedPatient"]>) => {
       dispatchBookingFlow({ type: "setRecentlyCreatedPatient", value });
     },
-    []
+    [],
   );
-  const autoSelectionToastIds = useRef<Set<string>>(new Set());
-  const lastAutoSelectedLocationIdRef = useRef("");
-  const lastAutoSelectedDoctorIdRef = useRef("");
-
-  // Ã¢â‚¬ÂÃ¢â‚¬Â Selections Ã¢â‚¬ÂÃ¢â‚¬Â
+  // â‚â‚ Selections â‚â‚
   const [newPatient, setNewPatient] = useState({
     firstName: "",
     lastName: "",
@@ -2698,7 +2815,10 @@ export function BookAppointmentDialog({
     currentMedications: "",
   });
   const resetBookingFlowState = useCallback(() => {
-    dispatchBookingFlow({ type: "resetBookingFlow", payload: createBookingFlowState() });
+    dispatchBookingFlow({
+      type: "resetBookingFlow",
+      payload: createBookingFlowState(),
+    });
     setNewPatient({
       firstName: "",
       lastName: "",
@@ -2713,23 +2833,7 @@ export function BookAppointmentDialog({
       allergies: "",
       currentMedications: "",
     });
-  }, [
-    createBookingFlowState,
-  ]);
-  const handleOpenChange = useCallback(
-    (nextOpen: boolean) => {
-      if (onOpenChange) {
-        onOpenChange(nextOpen);
-      } else {
-        setInternalOpen(nextOpen);
-      }
-
-      if (!nextOpen) {
-        resetBookingFlowState();
-      }
-    },
-    [onOpenChange, resetBookingFlowState],
-  );
+  }, [createBookingFlowState]);
   const isPrivilegedScheduler = [
     "RECEPTIONIST",
     "DOCTOR",
@@ -2948,10 +3052,17 @@ export function BookAppointmentDialog({
       onBooked?.();
       showSuccessToast("Payment verified.", { id: TOAST_IDS.PAYMENT.SUCCESS });
     },
-    [activeClinicId, onBooked],
+    [
+      activeClinicId,
+      onBooked,
+      queryClient,
+      setRequiresVideoPayment,
+      setVideoPaymentCompleted,
+      setStep,
+    ],
   );
 
-  //  Queries Ã¢â‚¬Â
+  //  Queries â‚
   const {
     data: activeLocations = [],
     isPending: locationsLoading,
@@ -3007,7 +3118,7 @@ export function BookAppointmentDialog({
     shouldLoadDoctors ? { enabled: true } : undefined,
   );
   // Only RECEPTIONIST needs the full patient list to select a patient.
-  // Patients book for themselves Ã¢â‚¬Â calling this admin endpoint as a PATIENT
+  // Patients book for themselves â‚ calling this admin endpoint as a PATIENT
   // returns 403 Forbidden. Pass an empty clinicId to disable the query.
   const { data: patientsData = [] } = usePatients(
     isPrivilegedScheduler ? activeClinicId : "",
@@ -3029,20 +3140,31 @@ export function BookAppointmentDialog({
     ],
   );
 
-  useEffect(() => {
-    if (!dialogOpen) {
-      return;
-    }
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (nextOpen && profileCompletionBlocked) {
+        replace(profileCompletionRedirectUrl);
+        return;
+      }
 
-    if (profileCompletionBlocked) {
-      replace(profileCompletionRedirectUrl);
-    }
-  }, [
-    dialogOpen,
-    profileCompletionBlocked,
-    profileCompletionRedirectUrl,
-    replace,
-  ]);
+      if (onOpenChange) {
+        onOpenChange(nextOpen);
+      } else {
+        setInternalOpen(nextOpen);
+      }
+
+      if (!nextOpen) {
+        resetBookingFlowState();
+      }
+    },
+    [
+      onOpenChange,
+      profileCompletionBlocked,
+      profileCompletionRedirectUrl,
+      replace,
+      resetBookingFlowState,
+    ],
+  );
 
   const clinicVideoCallWindow = useMemo(() => {
     const normalizeWindowTime = (value: unknown): string | null => {
@@ -3265,7 +3387,7 @@ export function BookAppointmentDialog({
     shouldLoadSubscriptions,
   );
 
-  //  Derived Ã¢â‚¬Â
+  //  Derived â‚
   const modeAppointmentType: AppointmentType =
     consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON";
   const visibleServices = useMemo(() => {
@@ -3554,7 +3676,7 @@ export function BookAppointmentDialog({
       );
       setStep(nextIndex + 1);
     },
-    [activeSteps, currentStepIndex],
+    [activeSteps, currentStepIndex, setStep, setStepDirection],
   );
 
   const stepTitle = useMemo(() => {
@@ -3753,17 +3875,10 @@ export function BookAppointmentDialog({
 
     return refreshedSlots;
   }, [
-    activeClinicId,
     availabilityQueryKey,
-    consultationMode,
-    connectionStatus,
-    dateString,
     extractAvailabilitySlots,
-    isConnected,
     queryClient,
     refetchAvailability,
-    resolvedDoctorId,
-    resolvedLocationId,
   ]);
 
   useEffect(() => {
@@ -3918,66 +4033,7 @@ export function BookAppointmentDialog({
         : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300";
   const showLiveSyncBanner = APP_CONFIG.ENVIRONMENT === "development";
 
-  useEffect(() => {
-    if (!dialogOpen || !autoSelectedLocationId) {
-      lastAutoSelectedLocationIdRef.current = "";
-      lastAutoSelectedDoctorIdRef.current = "";
-      autoSelectionToastIds.current.clear();
-      return;
-    }
-    if (lastAutoSelectedLocationIdRef.current === autoSelectedLocationId) {
-      return;
-    }
-
-    lastAutoSelectedLocationIdRef.current = autoSelectedLocationId;
-    const singleLocation = locations[0];
-    if (!singleLocation) {
-      return;
-    }
-
-    const toastId = `${TOAST_IDS.APPOINTMENT.BOOKING}-location`;
-    if (!autoSelectionToastIds.current.has(toastId)) {
-      autoSelectionToastIds.current.add(toastId);
-      showInfoToast(
-        `Auto-selected ${singleLocation.name || "the only available location"}`,
-        {
-          id: toastId,
-          description:
-            "Only one clinic location is available for this booking.",
-        },
-      );
-    }
-  }, [autoSelectedLocationId, dialogOpen, locations]);
-
-  useEffect(() => {
-    if (!dialogOpen || !autoSelectedDoctorId) {
-      return;
-    }
-
-    if (lastAutoSelectedDoctorIdRef.current === autoSelectedDoctorId) {
-      return;
-    }
-
-    lastAutoSelectedDoctorIdRef.current = autoSelectedDoctorId;
-    const singleDoctor = doctorsList[0];
-    if (!singleDoctor) {
-      return;
-    }
-
-    const toastId = `${TOAST_IDS.APPOINTMENT.BOOKING}-doctor`;
-    if (!autoSelectionToastIds.current.has(toastId)) {
-      autoSelectionToastIds.current.add(toastId);
-      showInfoToast(
-        `Auto-selected ${singleDoctor.name || "the only available doctor"}`,
-        {
-          id: toastId,
-          description: "Only one doctor matches the current selection.",
-        },
-      );
-    }
-  }, [autoSelectedDoctorId, dialogOpen, doctorsList]);
-
-  //  Book appointment Ã¢â‚¬ÂÃ¢â‚¬Â
+  //  Book appointment â‚â‚
   const handleBook = useCallback(async () => {
     const selectedSlot = activeSelectedSlot;
     const appointmentDoctorId = resolvedDoctorId;
@@ -4445,7 +4501,6 @@ export function BookAppointmentDialog({
     userRole,
     activeSubscription,
     push,
-    replace,
     queryClient,
     availabilityQueryKey,
     validateLatestAvailability,
@@ -4457,13 +4512,18 @@ export function BookAppointmentDialog({
     session?.user?.phone,
     session?.user?.address,
     shouldCollectVideoPayment,
-    selectedService,
-    resolvedDoctorId,
-    selectedDate,
-    activeSelectedSlot,
+    setSelectedSlot,
+    setBookedAppointmentId,
+    setRequiresVideoPayment,
+    setVideoPaymentCompleted,
+    setAcceptedVideoPaymentPolicy,
+    launchVideoPayment,
+    selectedDoctor?.name,
+    setStep,
+    activeSteps.length,
   ]);
 
-  //  Navigation Ã¢â‚¬Â
+  //  Navigation â‚
   const canNext = useMemo(() => {
     if (currentStepId === "mode") {
       return (
@@ -4501,14 +4561,14 @@ export function BookAppointmentDialog({
   const goNext = useCallback(() => {
     setStepDirection("forward");
     setStep((s) => Math.min(s + 1, activeSteps.length || 1));
-  }, [activeSteps.length]);
+  }, [activeSteps.length, setStep, setStepDirection]);
 
   const goBack = useCallback(() => {
     setStepDirection("backward");
     setStep((s) => Math.max(s - 1, 1));
-  }, []);
+  }, [setStep, setStepDirection]);
 
-  //  QR data Ã¢â‚¬Â
+  //  QR data â‚
   // const qrData = useMemo(() => {
   // return JSON.stringify({
   // appointmentId: bookedAppointmentId,
@@ -4529,9 +4589,9 @@ export function BookAppointmentDialog({
 
   // Step 4: Slot
 
-  //  Main render Ã¢â‚¬Â
+  //  Main render â‚
 
-  const stepContent = useMemo(() => {
+  const stepContent = (() => {
     switch (currentStepId) {
       case "mode":
         return (
@@ -4712,31 +4772,7 @@ export function BookAppointmentDialog({
           </AppointmentStepWrapper>
         );
     }
-  }, [
-    activeSteps.length,
-    availability,
-    availabilityError,
-    bookedAppointmentId,
-    acceptedVideoPaymentPolicy,
-    consultationMode,
-    currentStepId,
-    doctorsLoading,
-    locationsLoading,
-    requiresVideoPayment,
-    selectedDate,
-    resolvedDoctorId,
-    resolvedLocationId,
-    selectedServiceId,
-    selectedSlot,
-    servicesLoading,
-    profileCompletionBlocked,
-    showAvailabilityLoader,
-    videoPaymentCompleted,
-    profileCompletionRedirectUrl,
-    activeLocationsError,
-    allLocationsError,
-    doctorsError,
-  ]);
+  })();
 
   return (
     <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
@@ -4772,7 +4808,7 @@ export function BookAppointmentDialog({
             </DialogDescription>
           </DialogHeader>
 
-          {/* Step bar Ã¢â‚¬Â hide on success screen */}
+          {/* Step bar â‚ hide on success screen */}
           {!isSuccessStep && (
             <div className="mt-3 overflow-x-auto">
               <BookAppointmentStepBar
@@ -4806,7 +4842,7 @@ export function BookAppointmentDialog({
           </LazyMotion>
         </div>
 
-        {/* Footer Ã¢â‚¬Â hide on success screen */}
+        {/* Footer â‚ hide on success screen */}
         {!isSuccessStep && (
           <div className="px-4 sm:px-6 py-4 border-t bg-background flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:gap-4 shrink-0">
             <Button

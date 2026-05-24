@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useReducer, useState } from "react";
+import { useCallback, useMemo, useReducer, useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
 import {
   Calendar as CalendarIcon,
@@ -257,21 +257,21 @@ export default function ReceptionistCheckInPage() {
     dispatch,
   ] = useReducer(receptionistCheckInReducer, initialReceptionistCheckInState);
 
-  const setSearchTerm = (value: string) => {
+  const setSearchTerm = useCallback((value: string) => {
     dispatch({ type: "setSearchTerm", value });
-  };
+  }, []);
 
-  const setActiveTab = (value: "upcoming" | "history") => {
+  const setActiveTab = useCallback((value: "upcoming" | "history") => {
     dispatch({ type: "setActiveTab", value });
-  };
+  }, []);
 
-  const setSelectedDates = (value: Date[]) => {
+  const setSelectedDates = useCallback((value: Date[]) => {
     dispatch({ type: "setSelectedDates", value });
-  };
+  }, []);
 
-  const setCheckingInId = (value: string | null) => {
+  const setCheckingInId = useCallback((value: string | null) => {
     dispatch({ type: "setCheckingInId", value });
-  };
+  }, []);
   const todayDate = getTodayDateInIst();
   const todayDisplayDate = useMemo(
     () =>
@@ -296,14 +296,14 @@ export default function ReceptionistCheckInPage() {
   const earliestSelectedDate = selectedDatesSorted[0];
   const queryStartDate = earliestSelectedDate ? formatISODateInIST(earliestSelectedDate) : todayDate;
   const checkInMutation = useForceCheckInAppointment();
-  const updateSelectedDates = (dates: Date[]) => {
+  const updateSelectedDates = useCallback((dates: Date[]) => {
     const unique = Array.from(
       new Map(dates.map((date) => [formatISODateInIST(date), date])).values()
     );
     setSelectedDates(unique.toSorted((left, right) => left.getTime() - right.getTime()));
-  };
+  }, [setSelectedDates]);
 
-  const applyPreset = (preset: "today" | "tomorrow" | "week" | "clear") => {
+  const applyPreset = useCallback((preset: "today" | "tomorrow" | "week" | "clear") => {
     const today = createIstDate(todayDate);
     if (preset === "clear") {
       setSelectedDates([]);
@@ -320,7 +320,7 @@ export default function ReceptionistCheckInPage() {
     if (preset === "week") {
       setSelectedDates(Array.from({ length: 7 }, (_, index) => addIstDays(today, index)));
     }
-  };
+  }, [setSelectedDates, todayDate]);
   const assignedLocationId = useMemo(() => {
     const user = session?.user as Record<string, unknown> | undefined;
     const candidate =
@@ -361,9 +361,13 @@ export default function ReceptionistCheckInPage() {
     limit: 400,
   });
 
-  const appointments: AppointmentListItem[] = Array.isArray(appointmentsData)
-    ? appointmentsData
-    : appointmentsData?.appointments || [];
+  const appointments: AppointmentListItem[] = useMemo(
+    () =>
+      Array.isArray(appointmentsData)
+        ? appointmentsData
+        : appointmentsData?.appointments || [],
+    [appointmentsData]
+  );
 
   const filteredAppointments = useMemo(
     () =>
@@ -433,7 +437,7 @@ export default function ReceptionistCheckInPage() {
           isConfirmedArrival,
         };
       }),
-    [confirmedAppointmentIds, filteredAppointments, hasCheckInLocationForAssignedLocation, isCheckInLocationsLoading]
+    [assignedLocationId, confirmedAppointmentIds, filteredAppointments, hasCheckInLocationForAssignedLocation, isCheckInLocationsLoading]
   );
 
   const historyAppointments = useMemo(
@@ -588,7 +592,7 @@ export default function ReceptionistCheckInPage() {
     []
   );
 
-  const handleCheckIn = async (appointmentId: string, locationId?: string) => {
+  const handleCheckIn = useCallback(async (appointmentId: string, locationId?: string) => {
     const locationToSend = assignedLocationId || locationId;
     if (!locationToSend) {
       showErrorToast("Reception location is required for manual check-in.", {
@@ -611,7 +615,7 @@ export default function ReceptionistCheckInPage() {
     } finally {
       setCheckingInId(null);
     }
-  };
+  }, [assignedLocationId, checkInMutation, refetch, setCheckingInId]);
 
   const columns = useMemo<ColumnDef<CheckInRow>[]>(
     () => [
@@ -714,7 +718,7 @@ export default function ReceptionistCheckInPage() {
         ),
       },
     ],
-    [checkingInId]
+    [checkingInId, handleCheckIn, hasCheckInLocationForAssignedLocation]
   );
 
   const headerMeta = useMemo(
@@ -745,7 +749,7 @@ export default function ReceptionistCheckInPage() {
         <CardContent className="gap-y-3 pt-4 sm:gap-y-4 sm:pt-5">
           {isCheckInLocationsLoading ? (
             <div className="rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-              Checking manual check-in setup...
+              Checking manual check-in setup…
             </div>
           ) : !hasCheckInLocationForAssignedLocation ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
@@ -756,7 +760,7 @@ export default function ReceptionistCheckInPage() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search by patient name, doctor, or phone..."
+              placeholder="Search by patient name, doctor, or phone…"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9"
@@ -927,7 +931,7 @@ export default function ReceptionistCheckInPage() {
               <DataTable
                 columns={historyColumns}
                 data={filteredHistoryRows}
-                emptyMessage={isCheckInHistoryLoading ? "Loading check-in history..." : "No check-in history found"}
+                emptyMessage={isCheckInHistoryLoading ? "Loading check-in history…" : "No check-in history found"}
                 pageSize={10}
                 compact
               />
@@ -938,5 +942,8 @@ export default function ReceptionistCheckInPage() {
     </DashboardPageShell>
   );
 }
+
+
+
 
 

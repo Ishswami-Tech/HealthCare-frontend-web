@@ -671,7 +671,7 @@ export function AssignRoleModal({
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 size-4 animate-spin" />
-                  Saving Changes...
+                  Saving Changes…
                 </>
               ) : (
                 "Save Changes"
@@ -683,5 +683,6 @@ export function AssignRoleModal({
     </Dialog>
   );
 }
+
 
 

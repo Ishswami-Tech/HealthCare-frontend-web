@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { AnimatePresence, LazyMotion, domAnimation, m, useInView, useAnimation } from "framer-motion";
+import { AnimatePresence, LazyMotion, domAnimation, m } from "framer-motion";
 
 const motionFeatures = domAnimation;
 
@@ -30,10 +30,6 @@ const FadeIn: React.FC<FadeInProps> = ({
   className,
   once = true,
 }) => {
-  const ref = React.useRef(null);
-  const isInView = useInView(ref, { once });
-  const controls = useAnimation();
-
   const directionVariants = {
     up: { y: 50, opacity: 0 },
     down: { y: -50, opacity: 0 },
@@ -41,18 +37,12 @@ const FadeIn: React.FC<FadeInProps> = ({
     right: { x: -50, opacity: 0 },
   };
 
-  React.useEffect(() => {
-    if (isInView) {
-      controls.start({ x: 0, y: 0, opacity: 1 });
-    }
-  }, [isInView, controls]);
-
   return (
     <MotionRoot>
       <m.div
-        ref={ref}
         initial={directionVariants[direction]}
-        animate={controls}
+        whileInView={{ x: 0, y: 0, opacity: 1 }}
+        viewport={{ once }}
         transition={{ duration, delay }}
         className={className}
       >
@@ -520,15 +510,12 @@ const RevealOnScroll: React.FC<RevealOnScrollProps> = ({
   threshold = 0.1,
   className,
 }) => {
-  const ref = React.useRef(null);
-  const isInView = useInView(ref, { once: true });
-
   return (
     <MotionRoot>
       <m.div
-        ref={ref}
         initial={{ opacity: 0, y: 50 }}
-        animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
         transition={{ duration: 0.8, ease: "easeOut" }}
         className={className}
       >

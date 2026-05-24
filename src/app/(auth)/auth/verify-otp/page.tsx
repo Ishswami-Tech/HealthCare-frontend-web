@@ -144,8 +144,8 @@ function VerifyOTPPageContent() {
       push(ROUTES.LOGIN);
       return;
     }
-    setEmail(emailParam);
-  }, [push, searchParams]);
+    dispatch({ type: "setEmail", value: emailParam });
+  }, [dispatch, getSearchParam, push]);
 
   const form = useZodForm(
     otpSchema,

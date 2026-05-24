@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { Suspense, useState, useEffect, useRef, useMemo } from "react";
+import { Suspense, useState, useEffect, useRef, useMemo, useReducer } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
@@ -55,6 +55,54 @@ import { useCurrentTimestamp } from "@/hooks/utils/useClientDate";
 
 interface ProfileCompletionFormProps {
   onComplete?: () => void;
+}
+
+type ProfileCompletionState = {
+  isSubmitting: boolean;
+  isSendingOtp: boolean;
+  showOtpModal: boolean;
+  pendingPhone: string;
+  isPhoneVerified: boolean;
+  isEmailVerified: boolean;
+};
+
+type ProfileCompletionAction =
+  | { type: "setIsSubmitting"; value: boolean }
+  | { type: "setIsSendingOtp"; value: boolean }
+  | { type: "setShowOtpModal"; value: boolean }
+  | { type: "setPendingPhone"; value: string }
+  | { type: "setIsPhoneVerified"; value: boolean }
+  | { type: "setIsEmailVerified"; value: boolean };
+
+const initialProfileCompletionState: ProfileCompletionState = {
+  isSubmitting: false,
+  isSendingOtp: false,
+  showOtpModal: false,
+  pendingPhone: "",
+  isPhoneVerified: false,
+  isEmailVerified: false,
+};
+
+function profileCompletionReducer(
+  state: ProfileCompletionState,
+  action: ProfileCompletionAction
+): ProfileCompletionState {
+  switch (action.type) {
+    case "setIsSubmitting":
+      return { ...state, isSubmitting: action.value };
+    case "setIsSendingOtp":
+      return { ...state, isSendingOtp: action.value };
+    case "setShowOtpModal":
+      return { ...state, showOtpModal: action.value };
+    case "setPendingPhone":
+      return { ...state, pendingPhone: action.value };
+    case "setIsPhoneVerified":
+      return { ...state, isPhoneVerified: action.value };
+    case "setIsEmailVerified":
+      return { ...state, isEmailVerified: action.value };
+    default:
+      return state;
+  }
 }
 
 function resolveNameParts(
@@ -247,17 +295,43 @@ function ProfileCompletionFormContent({
   const setProfileCompletion = useAuthStore((state) => state.setProfileCompletion);
   const currentTimestamp = useCurrentTimestamp();
   const getSearchParam = useMemo(() => searchParams.get.bind(searchParams), [searchParams]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSendingOtp, setIsSendingOtp] = useState(false);
-  const [showOtpModal, setShowOtpModal] = useState(false);
-  const [pendingPhone, setPendingPhone] = useState("");
-  const hasInitializedRef = useRef(false);
-
   // Login method flags (must be defined before useState hooks that use them)
   const loginMethod = sessionUser?.loginMethod;
   const isGoogleLogin = loginMethod === 'google_oauth';
   const isEmailOtpLogin = loginMethod === 'email_otp';
   const isPhoneOtpLogin = loginMethod === 'phone_otp';
+
+  const [
+    {
+      isSubmitting,
+      isSendingOtp,
+      showOtpModal,
+      pendingPhone,
+      isPhoneVerified,
+      isEmailVerified,
+    },
+    dispatch,
+  ] = useReducer(profileCompletionReducer, {
+    ...initialProfileCompletionState,
+    // Phone is verified only if backend marked it during login (Phone OTP login marks phone as verified)
+    // For Email OTP and Google login, phone is NOT verified at login time - user must verify via OTP
+    isPhoneVerified: Boolean(sessionUser?.phoneVerified),
+    isEmailVerified: Boolean(sessionUser?.emailVerified || isEmailOtpLogin),
+  });
+  const hasInitializedRef = useRef(false);
+
+  const setIsSubmitting = (value: boolean) =>
+    dispatch({ type: "setIsSubmitting", value });
+  const setIsSendingOtp = (value: boolean) =>
+    dispatch({ type: "setIsSendingOtp", value });
+  const setShowOtpModal = (value: boolean) =>
+    dispatch({ type: "setShowOtpModal", value });
+  const setPendingPhone = (value: string) =>
+    dispatch({ type: "setPendingPhone", value });
+  const setIsPhoneVerified = (value: boolean) =>
+    dispatch({ type: "setIsPhoneVerified", value });
+  const setIsEmailVerified = (value: boolean) =>
+    dispatch({ type: "setIsEmailVerified", value });
 
   // Check if a value looks like a valid name (not email or phone)
   const looksLikeValidName = (value: string | undefined | null): boolean => {
@@ -299,16 +373,6 @@ function ProfileCompletionFormContent({
   const autoFilledLastName = getAutoLastName();
   const autoFilledEmail = sessionUser?.email || '';
 
-  const [isPhoneVerified, setIsPhoneVerified] = useState(
-    Boolean(sessionUser?.phoneVerified)
-  );
-  const [isEmailVerified, setIsEmailVerified] = useState(
-    Boolean(
-      sessionUser?.emailVerified ||
-      isEmailOtpLogin    // Email OTP login = email already verified
-    )
-  );
-
   const redirectUrl = getSearchParam("redirect") || "/";
 
   const formatPhoneNumber = (phone: string | undefined | null) => {
@@ -343,6 +407,8 @@ function ProfileCompletionFormContent({
   const watchedPhone = form.watch("phone");
 
   useEffect(() => {
+    // Phone is verified ONLY if backend marked it during login
+    // For all login types (Phone OTP, Email OTP, Google), user may need to verify phone via OTP
     setIsPhoneVerified(Boolean(sessionUser?.phoneVerified));
     setIsEmailVerified(
       Boolean(
@@ -525,7 +591,7 @@ function ProfileCompletionFormContent({
         return;
       }
 
-      // Google login: needs phone verification (name/email auto-filled)
+      // Google login: needs phone verification (phone not verified at login time)
       if (isGoogleLogin && !isPhoneVerified) {
         form.setError("phone", {
           type: "manual",
@@ -533,6 +599,8 @@ function ProfileCompletionFormContent({
         });
         return;
       }
+
+      // Phone OTP: phone already verified by backend, no extra validation needed
 
       // Phone OTP login: needs name (email optional)
       if (isPhoneOtpLogin && (!data.firstName?.trim() || !data.lastName?.trim())) {
@@ -923,11 +991,12 @@ function ProfileCompletionFormContent({
                       <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
                         <MapPin className="size-3" />
                         Address
+                        <span className="text-muted-foreground text-[10px]">(Optional)</span>
                       </FormLabel>
                       <Textarea
                         placeholder="Enter address"
                         aria-invalid={!!form.formState.errors.address}
-                        className="min-h-[60px] sm:min-h-[50px] resize-none text-sm h-10 sm:h-9"
+                        className="min-h-[60px] sm:min-h-[70px] resize-none text-sm"
                         {...field}
                       />
                       <FormMessage />
@@ -937,14 +1006,14 @@ function ProfileCompletionFormContent({
               </section>
 
               {/* â”€â”€ Emergency Contact â”€â”€ */}
-              <section className="rounded-lg border p-3 sm:p-4">
-                <h3 className="text-xs sm:text-sm font-medium text-foreground mb-2 sm:mb-3">
+              <section className="rounded-lg border p-3 sm:p-4 space-y-3">
+                <h3 className="text-xs sm:text-sm font-medium text-foreground">
                   Emergency Contact
                 </h3>
 
-                <div className="gap-y-2 sm:gap-y-3">
+                <div className="space-y-3">
                   {/* Row 1: Name & Relation */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <FormField
                       control={form.control}
                       name="emergencyContactName"

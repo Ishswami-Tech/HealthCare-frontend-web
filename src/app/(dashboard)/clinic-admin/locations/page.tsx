@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useState, useMemo } from "react";
+import { useCallback, useMemo, useReducer, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -395,11 +395,47 @@ function WorkingHoursTable({
 export default function ClinicLocationsPage() {
   useAuth();
   const { clinicId } = useClinicContext();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  type ClinicLocationsUiState = {
+    searchTerm: string;
+    isCreateDialogOpen: boolean;
+    isEditDialogOpen: boolean;
+    isDeleting: boolean;
+  };
+
+  type ClinicLocationsUiAction =
+    | { type: "setSearchTerm"; value: string }
+    | { type: "setIsCreateDialogOpen"; value: boolean }
+    | { type: "setIsEditDialogOpen"; value: boolean }
+    | { type: "setIsDeleting"; value: boolean };
+
+  const [uiState, dispatchUi] = useReducer(
+    (state: ClinicLocationsUiState, action: ClinicLocationsUiAction): ClinicLocationsUiState => {
+      switch (action.type) {
+        case "setSearchTerm":
+          return { ...state, searchTerm: action.value };
+        case "setIsCreateDialogOpen":
+          return { ...state, isCreateDialogOpen: action.value };
+        case "setIsEditDialogOpen":
+          return { ...state, isEditDialogOpen: action.value };
+        case "setIsDeleting":
+          return { ...state, isDeleting: action.value };
+        default:
+          return state;
+      }
+    },
+    {
+      searchTerm: "",
+      isCreateDialogOpen: false,
+      isEditDialogOpen: false,
+      isDeleting: false,
+    }
+  );
+  const { searchTerm, isCreateDialogOpen, isEditDialogOpen, isDeleting } = uiState;
+  const setSearchTerm = useCallback((value: string) => dispatchUi({ type: "setSearchTerm", value }), []);
+  const setIsCreateDialogOpen = useCallback((value: boolean) => dispatchUi({ type: "setIsCreateDialogOpen", value }), []);
+  const setIsEditDialogOpen = useCallback((value: boolean) => dispatchUi({ type: "setIsEditDialogOpen", value }), []);
+  const setIsDeleting = useCallback((value: boolean) => dispatchUi({ type: "setIsDeleting", value }), []);
   const [selectedLocation, setSelectedLocation] = useState<any>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch real locations data
   const { data: locationsData, isPending: isPendingLocations } =
@@ -597,7 +633,7 @@ export default function ClinicLocationsPage() {
     }
   };
 
-  const handleEditLocation = (location: any) => {
+  const handleEditLocation = useCallback((location: any) => {
     setSelectedLocation({
       ...location,
       latitude: location.latitude ?? "",
@@ -606,7 +642,7 @@ export default function ClinicLocationsPage() {
       permissions: normalizeLocationPermissions(location),
     });
     setIsEditDialogOpen(true);
-  };
+  }, [setIsEditDialogOpen]);
 
   const handleUpdateLocation = async () => {
     if (!clinicId || !selectedLocation?.id) {
@@ -636,7 +672,7 @@ export default function ClinicLocationsPage() {
     }
   };
 
-  const handleDeleteLocation = async (locationId: string) => {
+  const handleDeleteLocation = useCallback(async (locationId: string) => {
     if (!confirm("Are you sure you want to delete this location?")) return;
     if (!clinicId) {
       showErrorToast("Clinic ID is required", {
@@ -663,7 +699,7 @@ export default function ClinicLocationsPage() {
     } finally {
       setIsDeleting(false);
     }
-  };
+  }, [clinicId, deleteLocationMutation, setIsDeleting]);
 
   const locationRows = useMemo<LocationRow[]>(
     () =>
@@ -799,7 +835,7 @@ export default function ClinicLocationsPage() {
         ),
       },
     ],
-    [handleDeleteLocation, isDeleting]
+    [handleDeleteLocation, handleEditLocation, isDeleting]
   );
 
   if (isPendingLocations) {
@@ -1435,6 +1471,8 @@ export default function ClinicLocationsPage() {
     
   );
 }
+
+
 
 
 

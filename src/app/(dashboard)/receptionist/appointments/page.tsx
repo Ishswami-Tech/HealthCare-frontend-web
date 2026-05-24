@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useReducer, useState } from "react";
+import { useMemo, useReducer, useState, useCallback } from "react";
 import { Bell, Calendar, Loader2, QrCode, Search, Stethoscope, UserCheck, Eye, MoreHorizontal, UserMinus } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { format } from "date-fns";
@@ -438,6 +438,20 @@ export default function ReceptionistAppointmentsPage() {
     return Array.from(grouped.values()).sort((a, b) => b.confirmed - a.confirmed || b.scheduled - a.scheduled);
   }, [filteredAppointments]);
 
+  const handleNotifyNext = useCallback(async (doctorId: string, appointmentId: string | null) => {
+    if (!doctorId || !appointmentId) {
+      showErrorToast("No queued patient is available for this doctor", { id: TOAST_IDS.QUEUE.CALL_NEXT });
+      return;
+    }
+    dispatch({ type: "setActiveDoctorId", value: doctorId });
+    try {
+      await callNextPatientMutation.mutateAsync({ doctorId, appointmentId });
+      await refetch?.();
+    } finally {
+      dispatch({ type: "setActiveDoctorId", value: null });
+    }
+  }, [callNextPatientMutation, refetch]);
+
   const doctorQueueColumns = useMemo<ColumnDef<(typeof doctorBacklog)[number]>[]>(
     () => [
       {
@@ -504,7 +518,7 @@ export default function ReceptionistAppointmentsPage() {
         ),
       },
     ],
-    [activeDoctorId]
+    [activeDoctorId, handleNotifyNext]
   );
 
   async function handleConfirmArrival(appointmentId: string, locationId?: string) {
@@ -535,20 +549,6 @@ export default function ReceptionistAppointmentsPage() {
       await refetch?.();
     } finally {
       dispatch({ type: "setActiveActionId", value: null });
-    }
-  }
-
-  async function handleNotifyNext(doctorId: string, appointmentId: string | null) {
-    if (!doctorId || !appointmentId) {
-      showErrorToast("No queued patient is available for this doctor", { id: TOAST_IDS.QUEUE.CALL_NEXT });
-      return;
-    }
-    dispatch({ type: "setActiveDoctorId", value: doctorId });
-    try {
-      await callNextPatientMutation.mutateAsync({ doctorId, appointmentId });
-      await refetch?.();
-    } finally {
-      dispatch({ type: "setActiveDoctorId", value: null });
     }
   }
 

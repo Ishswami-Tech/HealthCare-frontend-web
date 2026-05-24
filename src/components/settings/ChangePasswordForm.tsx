@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -158,7 +158,7 @@ export function ChangePasswordForm() {
         {isChangingPassword ? (
           <>
             <Loader2 className="mr-2 size-4 animate-spin" />
-            Changing Password...
+            Changing Password…
           </>
         ) : (
           'Change Password'
@@ -167,6 +167,7 @@ export function ChangePasswordForm() {
     </form>
   );
 }
+
 
 
 

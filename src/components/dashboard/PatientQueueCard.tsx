@@ -122,7 +122,7 @@ export function PatientQueueCard({
       activeAppointment,
       queueSource: activeAppointment,
     };
-  }, [appointmentsData]);
+  }, [appointmentsData, appointmentPayload?.appointments, appointmentPayload?.data]);
 
   const { hasAppointments, hasInPersonAppointment, queueSource } = queueContext;
   const { data: appointmentServices = [] } = useAppointmentServices(Boolean(queueSource));

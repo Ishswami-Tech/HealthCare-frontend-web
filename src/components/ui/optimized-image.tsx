@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import Image from "next/image";
@@ -29,10 +29,6 @@ interface OptimizedImageProps {
   fallbackSrc?: string;
 }
 
-/**
- * Optimized Image component with loading states, error handling, and animations
- * Built on top of Next.js Image component for maximum performance
- */
 export const OptimizedImage: React.FC<OptimizedImageProps> = ({
   src,
   alt,
@@ -78,7 +74,6 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
     onError?.();
   };
 
-  // Generate blur data URL if not provided (Next.js 15 optimized)
   const defaultBlurDataURL =
     blurDataURL ||
     `data:image/svg+xml;base64,${btoa(
@@ -145,14 +140,12 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
 
   return (
     <div className={cn("relative overflow-hidden", className)}>
-      {/* Loading skeleton */}
       {isLoading && (
         <div className="absolute inset-0 bg-gray-200 animate-pulse flex items-center justify-center">
-          <div className="size-8 border-2 border-gray-300 border-t-orange-600 rounded-full animate-spin"></div>
+          <div className="size-8 border-2 border-gray-300 border-t-orange-600 rounded-full animate-spin" />
         </div>
       )}
 
-      {/* Error state */}
       {hasError && !isLoading && (
         <div className="absolute inset-0 bg-gray-100 flex flex-col items-center justify-center text-gray-500">
           <svg
@@ -172,150 +165,7 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
         </div>
       )}
 
-      {/* Main image */}
       {imageElement}
     </div>
   );
 };
-
-/**
- * Avatar component with optimized loading and fallback
- */
-interface AvatarImageProps
-  extends Omit<OptimizedImageProps, "width" | "height"> {
-  size?: "sm" | "md" | "lg" | "xl";
-  name?: string;
-}
-
-export const AvatarImage: React.FC<AvatarImageProps> = ({
-  size = "md",
-  name,
-  className,
-  ...props
-}) => {
-  const sizeClasses = {
-    sm: "size-8",
-    md: "size-12",
-    lg: "size-16",
-    xl: "size-24",
-  };
-
-  const sizePixels = {
-    sm: { width: 32, height: 32 },
-    md: { width: 48, height: 48 },
-    lg: { width: 64, height: 64 },
-    xl: { width: 96, height: 96 },
-  };
-
-  // Generate initials fallback
-  const initials =
-    name
-      ?.split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2) || "?";
-
-  return (
-    <div
-      className={cn(
-        "relative rounded-full overflow-hidden bg-gradient-to-br from-orange-400 to-red-500",
-        sizeClasses[size],
-        className
-      )}
-    >
-      <OptimizedImage
-        {...props}
-        {...sizePixels[size]}
-        className="rounded-full"
-        objectFit="cover"
-        fallbackSrc={`data:image/svg+xml;base64,${Buffer.from(
-          `<svg width="${sizePixels[size].width}" height="${
-            sizePixels[size].height
-          }" xmlns="http://www.w3.org/2000/svg">
-            <rect width="100%" height="100%" fill="url(#gradient)"/>
-            <defs>
-              <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" style="stop-color:#f97316;stop-opacity:1" />
-                <stop offset="100%" style="stop-color:#dc2626;stop-opacity:1" />
-              </linearGradient>
-            </defs>
-            <text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="white" font-family="Arial, sans-serif" font-size="${
-              sizePixels[size].width / 3
-            }" font-weight="bold">
-              ${initials}
-            </text>
-          </svg>`
-        ).toString("base64")}`}
-      />
-    </div>
-  );
-};
-
-/**
- * Hero image component with parallax and overlay support
- */
-interface HeroImageProps extends OptimizedImageProps {
-  overlay?: boolean;
-  overlayOpacity?: number;
-  parallax?: boolean;
-  parallaxOffset?: number;
-  children?: React.ReactNode;
-}
-
-export const HeroImage: React.FC<HeroImageProps> = ({
-  overlay = true,
-  overlayOpacity = 0.4,
-  parallax = false,
-  parallaxOffset = 50,
-  className,
-  children,
-  ...props
-}) => {
-  const imageElement = parallax ? (
-    <LazyMotion features={domAnimation} strict>
-      <m.div
-        initial={{ y: 0 }}
-        whileInView={{ y: -parallaxOffset }}
-        viewport={{ once: false, amount: 0.5 }}
-        transition={{ duration: 0.8, ease: "easeOut" as any }}
-        className="w-full h-full"
-      >
-        <OptimizedImage
-          {...props}
-          priority
-          quality={90}
-          className="w-full h-full object-cover"
-        />
-      </m.div>
-    </LazyMotion>
-  ) : (
-    <OptimizedImage
-      {...props}
-      priority
-      quality={90}
-      className="w-full h-full object-cover"
-    />
-  );
-
-  return (
-    <div className={cn("relative overflow-hidden", className)}>
-      {imageElement}
-
-      {overlay && (
-        <div
-          className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/30 to-black/50"
-          style={{ opacity: overlayOpacity }}
-        />
-      )}
-
-      {children && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          {children}
-        </div>
-      )}
-    </div>
-  );
-};
-
-
