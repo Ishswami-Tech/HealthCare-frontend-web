@@ -725,29 +725,29 @@ function ProfileCompletionFormContent({
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-3 sm:p-4">
-      <Card className="w-full max-w-sm sm:max-w-lg border-border">
+    <div className="w-full max-w-sm sm:max-w-lg">
+      <Card className="w-full border-border shadow-sm">
 
         {/* â”€â”€ Header â”€â”€ */}
-        <CardHeader className="px-4 py-3 sm:px-6 sm:py-4 pb-0">
+        <CardHeader className="px-5 pt-5 pb-3 sm:px-6 sm:pt-6 sm:pb-4">
           <CardTitle className="text-base sm:text-lg font-semibold text-center">
             Complete Your Profile
           </CardTitle>
         </CardHeader>
 
         {/* â”€â”€ Body â”€â”€ */}
-        <CardContent className="px-4 py-3 sm:px-6 sm:py-4">
+        <CardContent className="px-5 pb-5 sm:px-6 sm:pb-6">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="gap-y-4 sm:gap-y-3">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
 
               {/* â”€â”€ Basic Information â”€â”€ */}
-              <section className="gap-y-3">
+              <section className="space-y-4">
                 <h3 className="text-sm font-medium text-foreground">
                   Basic Information
                 </h3>
 
                 {/* First Name / Last Name */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="firstName"
@@ -1012,14 +1012,14 @@ function ProfileCompletionFormContent({
               </section>
 
               {/* â”€â”€ Emergency Contact â”€â”€ */}
-              <section className="rounded-lg border p-3 sm:p-4 space-y-3">
-                <h3 className="text-xs sm:text-sm font-medium text-foreground">
+              <section className="rounded-lg border p-4 space-y-4">
+                <h3 className="text-sm font-medium text-foreground">
                   Emergency Contact
                 </h3>
 
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {/* Row 1: Name & Relation */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="emergencyContactName"
@@ -1072,11 +1072,11 @@ function ProfileCompletionFormContent({
 
               {/* â”€â”€ Professional Information (doctors only) â”€â”€ */}
               {isDoctor && (
-                <section className="gap-y-3">
-                  <h3 className="text-xs sm:text-sm font-medium text-foreground">
+                <section className="space-y-4">
+                  <h3 className="text-sm font-medium text-foreground">
                     Professional Info
                   </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                  <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="specialization"
