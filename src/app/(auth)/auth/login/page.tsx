@@ -187,6 +187,7 @@ function LoginPageContent() {
           isRequestingOTP,
           isVerifyingOTP,
         }}
+        successPhase={successPhase}
         otpMethod={otpMethod}
         authError={authError}
         loginIdentifiers={loginIdentifiers}

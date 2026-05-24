@@ -27,6 +27,7 @@ interface LoginAuthCardProps {
     isRequestingOTP: boolean;
     isVerifyingOTP: boolean;
   };
+  successPhase: "none" | "alert" | "redirecting";
   otpMethod: OtpMethod;
   authError: string | null;
   loginIdentifiers: LoginIdentifierState;
@@ -45,6 +46,7 @@ interface LoginAuthCardProps {
 
 export function LoginAuthCard({
   uiState,
+  successPhase,
   otpMethod,
   authError,
   loginIdentifiers,
@@ -94,7 +96,8 @@ export function LoginAuthCard({
             </div>
           )}
 
-          {!showOTPInput && (
+          {/* Show "Authentication successful!" ONLY when login succeeds (successPhase === "alert") */}
+          {successPhase === "alert" && (
             <div className="mb-4 flex items-center gap-3 rounded-lg border border-green-200 bg-green-50/80 p-3 animate-in fade-in zoom-in duration-300 dark:border-green-800 dark:bg-green-900/20">
               <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/50">
                 <CheckCircle2 className="size-4 text-green-600 dark:text-green-400" />
