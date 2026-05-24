@@ -212,8 +212,14 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
         });
         window.location.href = '/auth/login';
       } else {
-        setErrorMessage("Invalid OTP. Please try again.");
-        showErrorToast("Invalid OTP. Please try again.", { id: TOAST_IDS.PROFILE.OTP });
+        const errorMessage = error instanceof Error ? error.message : "Invalid OTP. Please try again.";
+        const lowerMessage = errorMessage.toLowerCase();
+        const displayMessage =
+          lowerMessage.includes("invalid otp") || lowerMessage.includes("otp")
+            ? "Invalid OTP. Please try again."
+            : errorMessage;
+        setErrorMessage(displayMessage);
+        showErrorToast(displayMessage, { id: TOAST_IDS.PROFILE.OTP });
       }
     } finally {
       setIsVerifying(false);
