@@ -1,48 +1,41 @@
 "use client";
 
-import { useEffect } from 'react';
-import { useReportWebVitals } from 'next/web-vitals';
-import { fetchWithAbort } from '@/lib/utils/fetch-with-abort';
-import { APP_CONFIG } from '@/lib/config/config';
-
-// ============================================================================
-// WEB VITALS TRACKING WITH NEXT.JS 15
-// ============================================================================
+import { useEffect } from "react";
+import { useReportWebVitals } from "next/web-vitals";
+import { fetchWithAbort } from "@/lib/utils/fetch-with-abort";
+import { APP_CONFIG } from "@/lib/config/config";
 
 interface WebVitalsMetric {
   id: string;
   name: string;
   value: number;
-  label: 'web-vital' | 'custom';
+  label: "web-vital" | "custom";
   startTime?: number;
   delta?: number;
 }
 
-// Enhanced Web Vitals tracking for Next.js 15
 export function WebVitalsTracker() {
   useReportWebVitals((metric: WebVitalsMetric) => {
-    // Track Core Web Vitals
     switch (metric.name) {
-      case 'FCP': // First Contentful Paint
-        trackWebVital('First Contentful Paint', metric.value);
+      case "FCP":
+        trackWebVital("First Contentful Paint", metric.value);
         break;
-      case 'LCP': // Largest Contentful Paint
-        trackWebVital('Largest Contentful Paint', metric.value);
+      case "LCP":
+        trackWebVital("Largest Contentful Paint", metric.value);
         break;
-      case 'CLS': // Cumulative Layout Shift
-        trackWebVital('Cumulative Layout Shift', metric.value);
+      case "CLS":
+        trackWebVital("Cumulative Layout Shift", metric.value);
         break;
-      case 'FID': // First Input Delay
-        trackWebVital('First Input Delay', metric.value);
+      case "FID":
+        trackWebVital("First Input Delay", metric.value);
         break;
-      case 'TTFB': // Time to First Byte
-        trackWebVital('Time to First Byte', metric.value);
+      case "TTFB":
+        trackWebVital("Time to First Byte", metric.value);
         break;
-      case 'INP': // Interaction to Next Paint (new in 2024)
-        trackWebVital('Interaction to Next Paint', metric.value);
+      case "INP":
+        trackWebVital("Interaction to Next Paint", metric.value);
         break;
       default:
-        // Custom metrics
         trackCustomMetric(metric.name, metric.value);
     }
   });
@@ -50,26 +43,20 @@ export function WebVitalsTracker() {
   return null;
 }
 
-// ============================================================================
-// PERFORMANCE MONITORING UTILITIES
-// ============================================================================
-
 function trackWebVital(name: string, value: number) {
-  // Send to analytics
-  if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('event', 'web_vitals', {
-      event_category: 'Web Vitals',
+  if (typeof window !== "undefined" && (window as any).gtag) {
+    (window as any).gtag("event", "web_vitals", {
+      event_category: "Web Vitals",
       event_label: name,
       value: Math.round(value),
       non_interaction: true,
     });
   }
 
-  // Send to custom analytics endpoint
-  if (process.env.NODE_ENV === 'production' && APP_CONFIG.FEATURES.ANALYTICS) {
-    void fetchWithAbort('/api/analytics/web-vitals', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+  if (process.env.NODE_ENV === "production" && APP_CONFIG.FEATURES.ANALYTICS) {
+    void fetchWithAbort("/api/analytics/web-vitals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name,
         value,
@@ -78,16 +65,16 @@ function trackWebVital(name: string, value: number) {
         userAgent: navigator.userAgent,
       }),
       timeout: 3000,
-      cache: 'no-store',
-      credentials: 'same-origin',
+      cache: "no-store",
+      credentials: "same-origin",
     }).catch(console.error);
   }
 }
 
 function trackCustomMetric(name: string, value: number) {
-  if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('event', 'custom_metric', {
-      event_category: 'Performance',
+  if (typeof window !== "undefined" && (window as any).gtag) {
+    (window as any).gtag("event", "custom_metric", {
+      event_category: "Performance",
       event_label: name,
       value: Math.round(value),
       non_interaction: true,
@@ -95,24 +82,20 @@ function trackCustomMetric(name: string, value: number) {
   }
 }
 
-// ============================================================================
-// RESOURCE LOADING PERFORMANCE
-// ============================================================================
-
 export function ResourcePerformanceTracker() {
   useEffect(() => {
-    // Track resource loading performance
     const observer = new PerformanceObserver((list) => {
       list.getEntries().forEach((entry) => {
-        if (entry.entryType === 'resource') {
+        if (entry.entryType === "resource") {
           const resourceEntry = entry as PerformanceResourceTiming;
-          
-          // Track slow resources
+
           if (resourceEntry.duration > 1000) {
-            trackCustomMetric(`slow_resource_${resourceEntry.initiatorType}`, resourceEntry.duration);
+            trackCustomMetric(
+              `slow_resource_${resourceEntry.initiatorType}`,
+              resourceEntry.duration
+            );
           }
-          
-          // Track failed resources
+
           if (resourceEntry.transferSize === 0 && resourceEntry.decodedBodySize === 0) {
             trackCustomMetric(`failed_resource_${resourceEntry.initiatorType}`, 1);
           }
@@ -120,7 +103,7 @@ export function ResourcePerformanceTracker() {
       });
     });
 
-    observer.observe({ entryTypes: ['resource'] });
+    observer.observe({ entryTypes: ["resource"] });
 
     return () => observer.disconnect();
   }, []);
@@ -128,29 +111,38 @@ export function ResourcePerformanceTracker() {
   return null;
 }
 
-// ============================================================================
-// NAVIGATION PERFORMANCE
-// ============================================================================
-
 export function NavigationPerformanceTracker() {
   useEffect(() => {
-    // Track navigation timing
     const observer = new PerformanceObserver((list) => {
       list.getEntries().forEach((entry) => {
-        if (entry.entryType === 'navigation') {
+        if (entry.entryType === "navigation") {
           const navEntry = entry as PerformanceNavigationTiming;
-          
-          // Track key navigation metrics
-          trackCustomMetric('dns_lookup_time', navEntry.domainLookupEnd - navEntry.domainLookupStart);
-          trackCustomMetric('tcp_connect_time', navEntry.connectEnd - navEntry.connectStart);
-          trackCustomMetric('server_response_time', navEntry.responseEnd - navEntry.requestStart);
-          trackCustomMetric('dom_processing_time', navEntry.domComplete - (navEntry as any).domLoading);
-          trackCustomMetric('page_load_time', navEntry.loadEventEnd - navEntry.loadEventStart);
+
+          trackCustomMetric(
+            "dns_lookup_time",
+            navEntry.domainLookupEnd - navEntry.domainLookupStart
+          );
+          trackCustomMetric(
+            "tcp_connect_time",
+            navEntry.connectEnd - navEntry.connectStart
+          );
+          trackCustomMetric(
+            "server_response_time",
+            navEntry.responseEnd - navEntry.requestStart
+          );
+          trackCustomMetric(
+            "dom_processing_time",
+            navEntry.domComplete - (navEntry as any).domLoading
+          );
+          trackCustomMetric(
+            "page_load_time",
+            navEntry.loadEventEnd - navEntry.loadEventStart
+          );
         }
       });
     });
 
-    observer.observe({ entryTypes: ['navigation'] });
+    observer.observe({ entryTypes: ["navigation"] });
 
     return () => observer.disconnect();
   }, []);
@@ -158,39 +150,29 @@ export function NavigationPerformanceTracker() {
   return null;
 }
 
-// ============================================================================
-// MEMORY PERFORMANCE TRACKING
-// ============================================================================
-
 export function MemoryPerformanceTracker() {
   useEffect(() => {
-    // Track memory usage (if supported)
-    if ('memory' in performance) {
+    if ("memory" in performance) {
       const memoryInfo = (performance as any).memory;
-      
+
       const trackMemory = () => {
-        trackCustomMetric('js_heap_used', memoryInfo.usedJSHeapSize);
-        trackCustomMetric('js_heap_total', memoryInfo.totalJSHeapSize);
-        trackCustomMetric('js_heap_limit', memoryInfo.jsHeapSizeLimit);
+        trackCustomMetric("js_heap_used", memoryInfo.usedJSHeapSize);
+        trackCustomMetric("js_heap_total", memoryInfo.totalJSHeapSize);
+        trackCustomMetric("js_heap_limit", memoryInfo.jsHeapSizeLimit);
       };
 
-      // Track memory on page load
       trackMemory();
 
-      // Track memory periodically
-      const interval = setInterval(trackMemory, 30000); // Every 30 seconds
+      const interval = setInterval(trackMemory, 30000);
 
       return () => clearInterval(interval);
     }
-    return () => {}; // Return empty cleanup function if memory is not supported
+
+    return () => {};
   }, []);
 
   return null;
 }
-
-// ============================================================================
-// COMPREHENSIVE PERFORMANCE PROVIDER
-// ============================================================================
 
 interface PerformanceProviderProps {
   children: React.ReactNode;
@@ -215,11 +197,11 @@ export function PerformanceProvider({
     enableWebVitals = true,
     enableResourceTracking = true,
     enableNavigationTracking = true,
-    enableMemoryTracking = false, // Disabled by default as it's experimental
+    enableMemoryTracking = false,
   } = resolvedTracking;
 
   return (
-    <div style={{ display: 'contents' }}>
+    <div style={{ display: "contents" }}>
       {enableWebVitals && <WebVitalsTracker />}
       {enableResourceTracking && <ResourcePerformanceTracker />}
       {enableNavigationTracking && <NavigationPerformanceTracker />}
@@ -229,24 +211,20 @@ export function PerformanceProvider({
   );
 }
 
-// ============================================================================
-// PERFORMANCE BUDGET MONITORING
-// ============================================================================
-
 interface PerformanceBudget {
-  fcp: number; // First Contentful Paint (ms)
-  lcp: number; // Largest Contentful Paint (ms)
-  cls: number; // Cumulative Layout Shift
-  fid: number; // First Input Delay (ms)
-  ttfb: number; // Time to First Byte (ms)
+  fcp: number;
+  lcp: number;
+  cls: number;
+  fid: number;
+  ttfb: number;
 }
 
 const DEFAULT_BUDGET: PerformanceBudget = {
-  fcp: 1800,  // 1.8s
-  lcp: 2500,  // 2.5s
-  cls: 0.1,   // 0.1
-  fid: 100,   // 100ms
-  ttfb: 800,  // 800ms
+  fcp: 1800,
+  lcp: 2500,
+  cls: 0.1,
+  fid: 100,
+  ttfb: 800,
 };
 
 export function PerformanceBudgetMonitor(budget: Partial<PerformanceBudget> = {}) {
@@ -257,23 +235,23 @@ export function PerformanceBudgetMonitor(budget: Partial<PerformanceBudget> = {}
     let exceeded = false;
 
     switch (metric.name) {
-      case 'FCP':
+      case "FCP":
         budgetValue = fullBudget.fcp;
         exceeded = metric.value > budgetValue;
         break;
-      case 'LCP':
+      case "LCP":
         budgetValue = fullBudget.lcp;
         exceeded = metric.value > budgetValue;
         break;
-      case 'CLS':
+      case "CLS":
         budgetValue = fullBudget.cls;
         exceeded = metric.value > budgetValue;
         break;
-      case 'FID':
+      case "FID":
         budgetValue = fullBudget.fid;
         exceeded = metric.value > budgetValue;
         break;
-      case 'TTFB':
+      case "TTFB":
         budgetValue = fullBudget.ttfb;
         exceeded = metric.value > budgetValue;
         break;
@@ -282,10 +260,9 @@ export function PerformanceBudgetMonitor(budget: Partial<PerformanceBudget> = {}
     }
 
     if (exceeded) {
-      // Alert about budget exceeded
-      console.warn(`Performance budget exceeded for ${metric.name}: ${metric.value}ms > ${budgetValue}ms`);
-      
-      // Track budget violations
+      console.warn(
+        `Performance budget exceeded for ${metric.name}: ${metric.value}ms > ${budgetValue}ms`
+      );
       trackCustomMetric(`budget_exceeded_${metric.name.toLowerCase()}`, metric.value - budgetValue);
     }
   });
@@ -293,22 +270,17 @@ export function PerformanceBudgetMonitor(budget: Partial<PerformanceBudget> = {}
   return null;
 }
 
-// ============================================================================
-// PERFORMANCE DEBUGGING (Development Only)
-// ============================================================================
-
 export function PerformanceDebugger() {
   useEffect(() => {
-    if (process.env.NODE_ENV !== 'development') return;
+    if (process.env.NODE_ENV !== "development") return;
 
-    // Log performance entries to console
     const observer = new PerformanceObserver((list) => {
       list.getEntries().forEach((entry) => {
         console.debug(`[Performance] ${entry.name}: ${entry.duration}ms`);
       });
     });
 
-    observer.observe({ entryTypes: ['measure', 'navigation', 'resource'] });
+    observer.observe({ entryTypes: ["measure", "navigation", "resource"] });
 
     return () => observer.disconnect();
   }, []);

@@ -15,11 +15,6 @@ const createUnavailableStatus = (error: string): DetailedHealthStatus => ({
 });
 
 export async function getDetailedHealthStatus(): Promise<DetailedHealthStatus> {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-
   const healthUrl = `${APP_CONFIG.API.HEALTH_BASE_URL}${API_ENDPOINTS.HEALTH.DETAILED}`;
 
   try {
