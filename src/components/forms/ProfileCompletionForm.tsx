@@ -528,9 +528,10 @@ function ProfileCompletionFormContent({
     setIsPhoneVerified(true);
   };
 
-  const updateProfile = async (data: Record<string, unknown>) => {
-    const result = await updateProfileMutation.mutateAsync(data);
-    const response = result as { success?: boolean; error?: string };
+  const updateProfile = async (profileData: Record<string, unknown>) => {
+    const result = await updateProfileMutation.mutateAsync(profileData);
+    // The response has user data in 'data' field, not 'user' field
+    const response = result as { success?: boolean; error?: string; data?: any };
     if (response && response.success === false && response.error) {
       showErrorToast(response.error, { id: TOAST_IDS.PROFILE.COMPLETE });
       return;
@@ -542,10 +543,20 @@ function ProfileCompletionFormContent({
 
     await setProfileCompleteMutation.mutateAsync(true);
     setProfileCompletion(true, false);
+
+    // Update the full session with user data from response (including clinicId)
     queryClient.setQueryData<Session | null>(["session"], (current) => {
       const source = current || session;
       if (!source?.user) return source;
-      return { ...source, user: { ...source.user, profileComplete: true } };
+
+      // Merge the updated user data from response (backend returns user in 'data' field)
+      // This ensures clinicId and other fields are properly synced
+      const responseUserData = response?.data;
+      const updatedUser = responseUserData
+        ? { ...source.user, ...responseUserData, profileComplete: true }
+        : { ...source.user, profileComplete: true };
+
+      return { ...source, user: updatedUser };
     });
 
     // Invalidate all clinic-related queries to ensure fresh data loads immediately

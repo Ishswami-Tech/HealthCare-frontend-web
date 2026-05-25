@@ -2460,11 +2460,11 @@ export function BookAppointmentDialog({
     sessionClinicId ||
     safeContextClinicId ||
     currentClinicId ||
-    (userRole !== "PATIENT" ? clinicFallbackId : "");
+    clinicFallbackId;  // Always allow fallback to default clinic for all roles
   const resolvedClinicId = authClinicId;
   const hasExplicitClinicId = !!resolvedClinicId;
   const activeClinicId =
-    resolvedClinicId || (userRole !== "PATIENT" ? clinicFallbackId : "");
+    resolvedClinicId || clinicFallbackId;  // Always allow fallback for all roles
 
   type BookingFlowState = {
     step: number;

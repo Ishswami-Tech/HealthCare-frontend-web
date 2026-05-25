@@ -4,10 +4,14 @@
  * ✅ Auth Layout
  * Simple layout for authentication pages
  * Loading states are handled by Next.js loading.tsx
+ * Note: We only show the secure session loading when user is actually authenticated
+ * and we need to redirect them away from auth pages.
+ * When user comes to auth page with error params (like session_expired), we should
+ * show the login form immediately without the loading state.
  */
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { resolveRedirect } from "@/lib/utils/redirect";
 import { PageLoading } from "@/components/ui/loading";
@@ -19,6 +23,13 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   const { replace } = useRouter();
+  const searchParams = useSearchParams();
+
+  // Check if user came with error params (like session_expired) - these indicate
+  // intentional navigation to login, not needing session restoration
+  const hasErrorParams = searchParams.get('error') !== null;
+  const callbackUrl = searchParams.get('callbackUrl');
+
   const { isPending, session, isAuthenticated } = useAuth();
 
   useEffect(() => {
@@ -36,7 +47,9 @@ export default function AuthLayout({
     }
   }, [isPending, isAuthenticated, replace, session?.user]);
 
-  if (isPending || (isAuthenticated && session?.user)) {
+  // Only show loading when we need to redirect an authenticated user away from auth pages
+  // Don't show loading when user intentionally navigated to login with error params
+  if ((isPending || (isAuthenticated && session?.user)) && !hasErrorParams) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <PageLoading text="Preparing secure session..." />
