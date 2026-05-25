@@ -590,21 +590,29 @@ export function useAuth() {
         // Convert AuthResponse to Session
         const profileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
         const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
-        const { ...restUser } = data.user;
-          const sessionData: Session = {
-           user: {
-             ...restUser,
-             ...(clinicId ? { clinicId } : {}),
-             profileComplete,
-           } as User,
-           access_token: data.access_token || '',
-           session_id: data.session_id || '',
-           isAuthenticated: true,
-          };
-          
-          resetQueryCacheForAuthTransition(sessionData);
-          void prefetchAuthenticatedWorkspace(clinicId, sessionData.session_id || sessionData.user.id || 'guest');
-        
+        // Determine login method: use backend's loginMethod, or infer from identifier
+        const userRecord = data.user as unknown as Record<string, unknown>;
+        const loginMethod = userRecord.loginMethod as string ||
+          (data.identifier?.includes('@') ? 'email_otp' : 'phone_otp');
+        // Phone verified is true for OTP login since they just verified via OTP
+        const phoneVerified = userRecord.phoneVerified as boolean ?? true;
+
+        const sessionData: Session = {
+          user: {
+            ...data.user,
+            ...(clinicId ? { clinicId } : {}),
+            profileComplete,
+            loginMethod: loginMethod as User['loginMethod'],
+            phoneVerified,
+          } as User,
+          access_token: data.access_token || '',
+          session_id: data.session_id || '',
+          isAuthenticated: true,
+        };
+
+        resetQueryCacheForAuthTransition(sessionData);
+        void prefetchAuthenticatedWorkspace(clinicId, sessionData.session_id || sessionData.user.id || 'guest');
+
         // ✅ Use centralized redirect utility
         const currentPath = typeof window !== 'undefined' ? window.location.pathname : undefined;
         // ... (rest of function)
@@ -622,7 +630,7 @@ export function useAuth() {
           redirectContext.redirectUrl = data.redirectUrl;
         }
         const redirect = resolveRedirect(redirectContext);
-        
+
         router.push(redirect.path);
       },
       onError: (error) => {

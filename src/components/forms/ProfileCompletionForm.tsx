@@ -321,7 +321,7 @@ function ProfileCompletionFormContent({
     ...initialProfileCompletionState,
     // Phone is verified only if backend marked it during login (Phone OTP login marks phone as verified)
     // For Email OTP and Google login, phone is NOT verified at login time - user must verify via OTP
-    isPhoneVerified: Boolean(sessionUser?.phoneVerified),
+    isPhoneVerified: Boolean(sessionUser?.phoneVerified) || isPhoneOtpLogin,
     isEmailVerified: Boolean(sessionUser?.emailVerified || isEmailOtpLogin),
   });
   const hasInitializedRef = useRef(false);
@@ -413,9 +413,8 @@ function ProfileCompletionFormContent({
   const watchedPhone = form.watch("phone");
 
   useEffect(() => {
-    // Phone is verified ONLY if backend marked it during login
-    // For all login types (Phone OTP, Email OTP, Google), user may need to verify phone via OTP
-    setIsPhoneVerified(Boolean(sessionUser?.phoneVerified));
+    // Phone is verified if backend marked it OR if user logged in via Phone OTP (phone already verified at login)
+    setIsPhoneVerified(Boolean(sessionUser?.phoneVerified) || isPhoneOtpLogin);
     setIsEmailVerified(
       Boolean(
         sessionUser?.emailVerified ||
@@ -425,11 +424,14 @@ function ProfileCompletionFormContent({
   }, [
     sessionUser?.phoneVerified,
     sessionUser?.emailVerified,
-    isEmailOtpLogin
+    isEmailOtpLogin,
+    isPhoneOtpLogin
   ]);
 
   useEffect(() => {
     if (!watchedPhone) return;
+    // Only unverify phone if user changed it to a different number
+    // For phone OTP login, changing phone means they need to re-verify
     if (watchedPhone !== formatPhoneNumber(sessionUser?.phone)) {
       setIsPhoneVerified(false);
     }
