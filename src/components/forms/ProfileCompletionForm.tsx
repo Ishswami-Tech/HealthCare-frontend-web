@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { Suspense, useState, useEffect, useRef, useMemo, useReducer } from "react";
+import React, { Suspense, useState, useEffect, useRef, useMemo, useReducer } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
@@ -729,7 +729,7 @@ function ProfileCompletionFormContent({
       <Card className="w-full border-border shadow-sm">
 
         {/* â”€â”€ Header â”€â”€ */}
-        <CardHeader className="px-5 pt-5 pb-3 sm:px-6 sm:pt-6 sm:pb-4">
+        <CardHeader className="px-5  sm:px-6 ">
           <CardTitle className="text-base sm:text-lg font-semibold text-center">
             Complete Your Profile
           </CardTitle>

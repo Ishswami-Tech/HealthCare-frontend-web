@@ -214,6 +214,7 @@ export function DoctorProfileContent({
           <DoctorProfilePersonalTab
             profileData={profileData}
             updatePersonalInfo={updatePersonalInfo}
+            phoneVerified={(userProfile as Record<string, unknown>)?.phoneVerified as boolean | undefined}
           />
         </TabsContent>
 

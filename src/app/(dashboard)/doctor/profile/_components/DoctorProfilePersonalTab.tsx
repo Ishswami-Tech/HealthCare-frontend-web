@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UserCheck } from "lucide-react";
 import type {
@@ -13,11 +14,13 @@ import type {
 interface DoctorProfilePersonalTabProps {
   profileData: DoctorProfileFormState;
   updatePersonalInfo: (field: string, value: string) => void;
+  phoneVerified?: boolean | undefined;
 }
 
 export function DoctorProfilePersonalTab({
   profileData,
   updatePersonalInfo,
+  phoneVerified,
 }: DoctorProfilePersonalTabProps) {
   return (
     <Card>
@@ -57,8 +60,13 @@ export function DoctorProfilePersonalTab({
               onChange={(e) => updatePersonalInfo("email", e.target.value)}
             />
           </div>
-          <div>
-            <Label htmlFor="phone">Phone Number</Label>
+          <div className="gap-y-1.5">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="phone">Phone Number</Label>
+              {phoneVerified && (
+                <Badge variant="outline" className="text-green-600 border-green-600 text-xs">Verified</Badge>
+              )}
+            </div>
             <Input
               id="phone"
               value={profileData.personalInfo.phone}

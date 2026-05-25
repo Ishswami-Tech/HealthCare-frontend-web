@@ -77,9 +77,12 @@ function createInitialProfileData(user?: ReceptionistProfileUser): ReceptionistP
   };
 }
 
+import { useUserProfile } from "@/hooks/query/useUsers";
+
 export default function ReceptionistProfileContent() {
   const { session } = useAuth();
   const user = session?.user;
+  const { data: userProfile } = useUserProfile();
 
   const [profileData, setProfileData] = useState(() => createInitialProfileData(user));
   const [showPassword, setShowPassword] = useState(false);
@@ -144,6 +147,7 @@ export default function ReceptionistProfileContent() {
           <ReceptionistProfilePersonalTab
             profileData={profileData}
             updatePersonalInfo={updatePersonalInfo}
+            phoneVerified={(userProfile as Record<string, unknown>)?.phoneVerified as boolean | undefined}
           />
         </TabsContent>
 

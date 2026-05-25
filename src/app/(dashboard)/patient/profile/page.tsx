@@ -370,7 +370,12 @@ export default function PatientProfile() {
                       <Input id="email" type="email" value={profileData.personalInfo.email} onChange={(e) => updatePersonalInfo('email', e.target.value)} />
                     </div>
                     <div className="gap-y-1.5">
-                      <Label htmlFor="phone">Phone Number</Label>
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="phone">Phone Number</Label>
+                        {(userProfile as { phoneVerified?: boolean })?.phoneVerified && (
+                          <Badge variant="outline" className="text-green-600 border-green-600 text-xs">Verified</Badge>
+                        )}
+                      </div>
                       <Input id="phone" value={profileData.personalInfo.phone} onChange={(e) => updatePersonalInfo('phone', e.target.value)} />
                     </div>
                   </div>
