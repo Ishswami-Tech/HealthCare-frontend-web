@@ -174,6 +174,8 @@ interface BookAppointmentDialogProps {
   initialServiceId?: string;
   initialDoctorId?: string;
   initialPatientId?: string;
+  /** When true, forces VIDEO mode and skips mode selection step */
+  videoOnly?: boolean;
 }
 
 //  Consultation catalogue
@@ -398,6 +400,18 @@ function BookAppointmentStepBar({
             </button>
           );
         })}
+      </div>
+
+      {/* Support banner for video appointments */}
+      <div className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-amber-50 to-orange-50 px-3 py-2 text-xs text-amber-800 dark:from-amber-950/30 dark:to-orange-950/30 dark:text-amber-200 sm:text-sm">
+        <span>Need help?</span>
+        <a
+          href="tel:+917218378311"
+          className="font-semibold text-amber-700 underline-offset-2 hover:underline dark:text-amber-300"
+        >
+          Call +91 7218378311
+        </a>
+        <span>for booking assistance</span>
       </div>
     </div>
   );
@@ -2413,6 +2427,7 @@ export function BookAppointmentDialog({
   initialServiceId,
   initialDoctorId,
   initialPatientId,
+  videoOnly = true,
 }: BookAppointmentDialogProps) {
   const { push, replace } = useRouter();
   const pathname = usePathname();
@@ -2520,7 +2535,7 @@ export function BookAppointmentDialog({
       serviceFilter: "All",
       stepDirection: "forward",
       selectedLocationId: locationId || "",
-      consultationMode: initialConsultationMode || "IN_PERSON",
+      consultationMode: "VIDEO", // Always VIDEO - in-person appointments disabled
       selectedServiceId: initialServiceId || "",
       selectedDoctorId: initialDoctorId || "",
       selectedDate: getTodayIST(),
@@ -2543,6 +2558,7 @@ export function BookAppointmentDialog({
       initialPatientId,
       initialServiceId,
       locationId,
+      videoOnly,
     ],
   );
   const bookingFlowReducer = useCallback(
@@ -3646,6 +3662,11 @@ export function BookAppointmentDialog({
     const hasMultipleDoctors = doctorsLoading || doctorsList.length !== 1;
 
     return STEP_ORDER.filter((stepId) => {
+      // Skip mode selection step when videoOnly mode
+      if (stepId === "mode") {
+        return !videoOnly;
+      }
+
       if (stepId === "service") {
         return consultationMode !== "VIDEO";
       }
@@ -3656,7 +3677,7 @@ export function BookAppointmentDialog({
 
       return true;
     });
-  }, [consultationMode, doctorsList.length, doctorsLoading]);
+  }, [consultationMode, doctorsList.length, doctorsLoading, videoOnly]);
 
   const currentStep = Math.max(1, Math.min(step, activeSteps.length || 1));
   const currentStepIndex = currentStep - 1;

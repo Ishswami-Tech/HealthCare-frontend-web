@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, CheckCircle, Clock, Play, Search, XCircle, AlertCircle } from "lucide-react";
+import { Calendar, CheckCircle, Clock, Play, Search, XCircle, AlertCircle, Video } from "lucide-react";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
@@ -53,9 +53,9 @@ export function DoctorAppointmentsSummary({
               {...(clinicId ? { clinicId } : {})}
               {...(userId ? { initialDoctorId: userId } : {})}
               trigger={
-                <Button className="rounded-xl border-0 bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-500/30">
-                  <Calendar className="mr-2 size-4" />
-                  Book Appointment
+                <Button className="rounded-xl border-0 bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm hover:from-orange-600 hover:to-amber-600 focus-visible:ring-2 focus-visible:ring-orange-500/30 animate-pulse">
+                  <Video className="mr-2 size-4" />
+                  Book Video Appointment
                 </Button>
               }
             />

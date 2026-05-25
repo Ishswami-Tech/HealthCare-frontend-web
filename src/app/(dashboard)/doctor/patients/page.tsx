@@ -31,6 +31,7 @@ import {
   Loader2,
   Clock,
   TrendingUp,
+  Video,
 } from "lucide-react";
 
 type RecordLike = Record<string, any>;
@@ -262,6 +263,12 @@ export default function DoctorPatients() {
       {...(clinicId ? { clinicId } : {})}
       {...(doctorId ? { initialDoctorId: doctorId } : {})}
       initialPatientId={scheduleTarget.id}
+      trigger={
+        <Button className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white animate-pulse">
+          <Video className="mr-2 size-4" />
+          Book Video Appointment
+        </Button>
+      }
       onBooked={() => dispatch({ type: "set_schedule_target", value: null })}
     />
   ) : null;

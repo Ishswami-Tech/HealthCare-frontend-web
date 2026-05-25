@@ -841,17 +841,16 @@ export default function AppointmentManager({
             )}
 
             {!hideBookButton && (
-              <BookAppointmentDialog 
+              <BookAppointmentDialog
                 defaultOpen={autoOpenBookDialog}
-                {...(defaultConsultationMode ? { initialConsultationMode: defaultConsultationMode } : {})}
                 {...(propClinicId ? { clinicId: propClinicId } : {})}
                 {...(propPatientId ? { initialPatientId: propPatientId } : {})}
                 trigger={
                 <Button
-                  className="h-9 w-full gap-2 rounded-xl border-0 bg-emerald-600 px-4 text-sm font-bold text-white shadow-md transition-all active:scale-95 hover:bg-emerald-700 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-emerald-500/30 sm:w-auto sm:px-5"
+                  className="h-9 w-full gap-2 rounded-xl border-0 bg-gradient-to-r from-orange-500 to-amber-500 px-4 text-sm font-bold text-white shadow-md transition-all active:scale-95 hover:from-orange-600 hover:to-amber-600 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-orange-500/30 sm:w-auto sm:px-5 animate-pulse"
                 >
-                  <CalendarPlus className="size-4" />
-                  Book Appointment
+                  <Video className="size-4" />
+                  Book Video Appointment
                 </Button>
                 }
               />
@@ -1055,13 +1054,12 @@ export default function AppointmentManager({
           {allAppointments.length === 0 && !hideBookButton && (
             <BookAppointmentDialog
               defaultOpen={autoOpenBookDialog}
-              {...(defaultConsultationMode ? { initialConsultationMode: defaultConsultationMode } : {})}
               {...(propClinicId ? { clinicId: propClinicId } : {})}
               {...(propPatientId ? { initialPatientId: propPatientId } : {})}
               trigger={
-                <Button className="mt-4 gap-2">
-                  <CalendarPlus className="size-4" />
-                  Book Appointment
+                <Button className="mt-4 gap-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 animate-pulse">
+                  <Video className="size-4" />
+                  Book Video Appointment
                 </Button>
               }
             />

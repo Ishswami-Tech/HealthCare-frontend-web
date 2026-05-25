@@ -5,7 +5,7 @@ import { nowIso } from '@/lib/utils/date-time';
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Activity, AlertCircle, Calendar, CheckCircle, Clock, QrCode, Users, ExternalLink, Receipt, ChevronRight, Pill, Plus } from "lucide-react";
+import { Activity, AlertCircle, Calendar, CheckCircle, Clock, QrCode, Users, ExternalLink, Receipt, ChevronRight, Pill, Plus, Video } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -568,11 +568,11 @@ export default function ReceptionistDashboard() {
                 Confirm Arrival
               </Link>
             </Button>
-            <BookAppointmentDialog 
+            <BookAppointmentDialog
               trigger={
-                <Button className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
-                  <Plus className="size-4" />
-                  Register Walk-in
+                <Button className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white gap-2 animate-pulse">
+                  <Video className="size-4" />
+                  Book Video Appointment
                 </Button>
               }
               onBooked={() => refetchMedicineDesk?.()}
@@ -896,9 +896,9 @@ export default function ReceptionistDashboard() {
               </p>
               <BookAppointmentDialog
                 trigger={
-                  <Button size="sm" className="w-full bg-blue-600 text-white hover:bg-blue-700">
-                    <Plus className="size-4 mr-2" />
-                    Create Appointment
+                  <Button size="sm" className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white animate-pulse">
+                    <Video className="size-4 mr-2" />
+                    Book Video Appointment
                   </Button>
                 }
                 onBooked={() => refetchMedicineDesk?.()}
