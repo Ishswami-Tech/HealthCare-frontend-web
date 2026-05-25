@@ -219,13 +219,13 @@ export function PerformanceProvider({
   } = resolvedTracking;
 
   return (
-    <>
+    <div style={{ display: 'contents' }}>
       {enableWebVitals && <WebVitalsTracker />}
       {enableResourceTracking && <ResourcePerformanceTracker />}
       {enableNavigationTracking && <NavigationPerformanceTracker />}
       {enableMemoryTracking && <MemoryPerformanceTracker />}
       {children}
-    </>
+    </div>
   );
 }
 
