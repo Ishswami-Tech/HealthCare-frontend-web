@@ -125,7 +125,7 @@ export interface User {
   phoneVerified?: boolean | undefined;
   phoneVerifiedAt?: string | undefined;
   emailVerified?: boolean | undefined;
-  loginMethod?: 'password' | 'phone_otp' | 'email_otp' | 'google_oauth' | 'facebook_oauth' | 'apple_oauth' | undefined;
+  loginMethod?: 'password' | 'otp' | 'phone_otp' | 'email_otp' | 'google_oauth' | 'facebook_oauth' | 'apple_oauth' | undefined;
   clinicId?: string | undefined;
   clinicName?: string | undefined;
   createdAt?: string | undefined;

@@ -47,9 +47,9 @@ export default function AuthLayout({
     }
   }, [isPending, isAuthenticated, replace, session?.user]);
 
-  // Only show loading when we need to redirect an authenticated user away from auth pages
-  // Don't show loading when user intentionally navigated to login with error params
-  if ((isPending || (isAuthenticated && session?.user)) && !hasErrorParams) {
+  // Only show loading when we have a real authenticated session to redirect away from auth pages.
+  // Unauthenticated users should see the login form immediately.
+  if (isAuthenticated && session?.user && !hasErrorParams) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <PageLoading text="Preparing secure session..." />

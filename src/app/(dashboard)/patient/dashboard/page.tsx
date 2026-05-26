@@ -101,6 +101,26 @@ export default function PatientDashboard() {
     });
   }, [appointmentsData]);
 
+  const resolvePatientDisplayName = (value: {
+    firstName?: string | undefined;
+    lastName?: string | undefined;
+    name?: string | undefined;
+  } | null | undefined) => {
+    const fullName = [value?.firstName, value?.lastName].filter(Boolean).join(" ").trim();
+    if (fullName) {
+      return fullName;
+    }
+
+    const fallbackName = value?.name?.trim() || "";
+    const looksLikePhoneNumber = /^[+\d][\d\s().-]{6,}$/.test(fallbackName);
+
+    if (fallbackName && !looksLikePhoneNumber) {
+      return fallbackName;
+    }
+
+    return "Patient";
+  };
+
   // Transform real data
   const patientData = useMemo(() => {
     // Helper for safe date formatting
@@ -297,10 +317,7 @@ export default function PatientDashboard() {
 
     return {
       personalInfo: {
-        name:
-          user?.name ||
-          `${user?.firstName || ""} ${user?.lastName || ""}`.trim() ||
-          "Patient",
+        name: resolvePatientDisplayName(user),
         age: calculateAge((user as any)?.dateOfBirth),
         gender: (user as any)?.gender || "Unknown",
         phone: (user as any)?.phone || (user as any)?.phoneNumber || "",
@@ -415,7 +432,7 @@ export default function PatientDashboard() {
         <PatientPageShell className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
           <PatientPageHeader
             eyebrow="Patient Dashboard"
-            title={`${t("dashboard.welcomeBack")}, ${patientData.personalInfo.name.split(" ")[0]}`}
+            title={`${t("dashboard.welcomeBack")}, ${patientData.personalInfo.name}`}
             description={t("dashboard.overview")}
             actionsSlot={
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

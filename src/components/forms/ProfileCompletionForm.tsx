@@ -304,8 +304,10 @@ function ProfileCompletionFormContent({
   // Login method flags (must be defined before useState hooks that use them)
   const loginMethod = sessionUser?.loginMethod;
   const isGoogleLogin = loginMethod === 'google_oauth';
-  const isEmailOtpLogin = loginMethod === 'email_otp';
-  const isPhoneOtpLogin = loginMethod === 'phone_otp';
+  // Email OTP login: explicit email_otp or 'otp' with email
+  const isEmailOtpLogin = loginMethod === 'email_otp' || (loginMethod === 'otp' && !!sessionUser?.email);
+  // Phone OTP login: explicit phone_otp, or 'otp' without email, or has phoneVerified from phone OTP flow
+  const isPhoneOtpLogin = loginMethod === 'phone_otp' || loginMethod === 'otp' || (loginMethod === undefined && !!sessionUser?.phoneVerified);
 
   const [
     {
@@ -534,8 +536,11 @@ function ProfileCompletionFormContent({
     const result = await updateProfileMutation.mutateAsync(profileData);
     // The response has user data in 'data' field, not 'user' field
     const response = result as { success?: boolean; error?: string; data?: any };
-    if (response && response.success === false && response.error) {
-      showErrorToast(response.error, { id: TOAST_IDS.PROFILE.COMPLETE });
+
+    // Backend validation is the source of truth
+    // Only proceed if backend confirms success
+    if (!response || response.success === false) {
+      showErrorToast(response?.error || "Failed to complete profile", { id: TOAST_IDS.PROFILE.COMPLETE });
       return;
     }
 
@@ -543,6 +548,7 @@ function ProfileCompletionFormContent({
       id: TOAST_IDS.PROFILE.COMPLETE,
     });
 
+    // Only mark profile complete after backend confirmation
     await setProfileCompleteMutation.mutateAsync(true);
     setProfileCompletion(true, false);
 
@@ -555,8 +561,8 @@ function ProfileCompletionFormContent({
       // This ensures clinicId and other fields are properly synced
       const responseUserData = response?.data;
       const updatedUser = responseUserData
-        ? { ...source.user, ...responseUserData, profileComplete: true }
-        : { ...source.user, profileComplete: true };
+        ? { ...source.user, ...responseUserData, profileComplete: true, isProfileComplete: true }
+        : { ...source.user, profileComplete: true, isProfileComplete: true };
 
       return { ...source, user: updatedUser };
     });
@@ -598,6 +604,7 @@ function ProfileCompletionFormContent({
         address: data.address,
         phoneVerified: isPhoneVerified,
         emailVerified: isEmailVerified,
+        ...(sessionUser?.clinicId ? { clinicId: sessionUser.clinicId } : {}),
       };
 
       // Validation based on login method

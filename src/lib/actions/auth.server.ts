@@ -731,7 +731,15 @@ export async function getServerSession(): Promise<Session | null> {
           const refreshedSession = await refreshToken();
           return refreshedSession;
         }
-        if (response.status === 401 || response.status === 403) {
+        if (response.status === 403) {
+          logger.warn('getServerSession - User fetch forbidden, preserving token-derived session', {
+            sessionId,
+            hasPayload: !!payload,
+          });
+          session.user.profileComplete = authoritativeProfileComplete || profileComplete;
+          return session;
+        }
+        if (response.status === 401) {
           await clearSession();
           return null;
         }

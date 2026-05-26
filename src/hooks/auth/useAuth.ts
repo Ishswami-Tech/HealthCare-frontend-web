@@ -590,10 +590,10 @@ export function useAuth() {
         // Convert AuthResponse to Session
         const profileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
         const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
-        // Determine login method: use backend's loginMethod, or infer from identifier
+        // Determine login method: use backend's loginMethod, or infer from user email/phone
         const userRecord = data.user as unknown as Record<string, unknown>;
         const loginMethod = userRecord.loginMethod as string ||
-          (data.identifier?.includes('@') ? 'email_otp' : 'phone_otp');
+          (userRecord.email ? 'email_otp' : 'phone_otp');
         // Phone verified is true for OTP login since they just verified via OTP
         const phoneVerified = userRecord.phoneVerified as boolean ?? true;
 

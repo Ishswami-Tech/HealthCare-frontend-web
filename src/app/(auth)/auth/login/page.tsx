@@ -49,7 +49,7 @@ function LoginPageContent() {
 
   const [loginFlow, setLoginFlow] = useState<{ showOTPInput: boolean; otpMethod: OtpMethod }>({
     showOTPInput: false,
-    otpMethod: "email",
+    otpMethod: "phone",
   });
   const [successPhase, setSuccessPhase] = useState<SuccessPhase>("none");
   const [isRestoringSession, setIsRestoringSession] = useState(false);
