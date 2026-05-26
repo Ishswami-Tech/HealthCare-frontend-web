@@ -268,6 +268,7 @@ function extractClinicIdFromPayload(
 
 function resolveProfileComplete(userData: Record<string, unknown> | undefined): boolean {
   if (!userData) return false;
+  if (String(userData.role || '').toUpperCase() !== String(Role.PATIENT)) return true;
   if (typeof userData.profileComplete === 'boolean') return userData.profileComplete;
   if (typeof userData.isProfileComplete === 'boolean') return userData.isProfileComplete;
   if (typeof userData.requiresProfileCompletion === 'boolean') {
@@ -281,6 +282,11 @@ function resolveProfileCompleteFromPayload(
 ): boolean | undefined {
   if (!payload) {
     return undefined;
+  }
+
+  const directRole = String(payload['role'] || '').toUpperCase();
+  if (directRole && directRole !== String(Role.PATIENT)) {
+    return true;
   }
 
   if (typeof payload['profileComplete'] === 'boolean') {
@@ -297,6 +303,10 @@ function resolveProfileCompleteFromPayload(
 
   const nestedUser = payload['user'];
   if (nestedUser && typeof nestedUser === 'object') {
+    const nestedRole = String((nestedUser as Record<string, unknown>)['role'] || '').toUpperCase();
+    if (nestedRole && nestedRole !== String(Role.PATIENT)) {
+      return true;
+    }
     return resolveProfileComplete(nestedUser as Record<string, unknown>);
   }
 
@@ -892,11 +902,23 @@ export async function setSession(data: {
       }
     }
 
-    if (currentSessionId && currentUserRole) {
+    logger.info('setSession: Processing token-based session recovery', {
+      hasAccessToken: !!accessTokenValue,
+      hasRefreshToken: !!refreshTokenValue,
+      hasSessionId: !!(newSessionId || currentSessionId),
+      hasUserRole: !!(tokenUserRole || currentUserRole),
+      tokenUserRole,
+      currentUserRole,
+    });
+
+    if (currentSessionId) {
        const tokenPayload = accessTokenValue ? parseJwtPayload(accessTokenValue) : null;
        const tokenClinicId = normalizeClinicId(
          extractClinicIdFromPayload(tokenPayload) || cookieStore.get('clinic_id')?.value
        );
+
+       // Recover userRole from JWT if not in cookie
+       const resolvedUserRole = tokenUserRole || currentUserRole;
 
        if (accessTokenValue) {
           cookieStore.set({
@@ -912,7 +934,7 @@ export async function setSession(data: {
              ...refreshTokenOptions(),
           });
        }
-       
+
        if (newSessionId && newSessionId !== currentSessionId) {
           cookieStore.set({
              name: 'session_id',
@@ -928,14 +950,23 @@ export async function setSession(data: {
            ...cookieOptions(),
          });
        }
-       
+
+       // Store user_role if we have a JWT role and cookie doesn't have one
+       if (resolvedUserRole && !cookieStore.get('user_role')?.value) {
+         cookieStore.set({
+           name: 'user_role',
+           value: resolvedUserRole,
+           ...cookieOptions(),
+         });
+       }
+
        const session: Session = {
          access_token: accessTokenValue || '',
-         session_id: newSessionId,
+         session_id: newSessionId || currentSessionId,
          user: {
-           id: tokenUserId,
-           email: tokenUserEmail,
-           role: tokenUserRole,
+           id: tokenUserId || '',
+           email: tokenUserEmail || '',
+           role: resolvedUserRole,
            firstName: '',
            lastName: '',
            phone: '',

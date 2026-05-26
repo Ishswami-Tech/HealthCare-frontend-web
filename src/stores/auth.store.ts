@@ -61,6 +61,11 @@ function resolveProfileCompleteFromPayload(
   const userRecord = user as unknown as Record<string, unknown> | null | undefined;
   const sessionUserRecord = session?.user as unknown as Record<string, unknown> | null | undefined;
 
+  const userRole = String(userRecord?.role || sessionUserRecord?.role || '').toUpperCase();
+  if (userRole && userRole !== 'PATIENT') {
+    return true;
+  }
+
   if (typeof userRecord?.profileComplete === 'boolean') {
     return userRecord.profileComplete;
   }

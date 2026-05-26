@@ -54,6 +54,15 @@ export interface UserProfileData {
  * Check if a user's profile is complete based on their role
  */
 export function checkProfileCompletion(profileData: UserProfileData): ProfileCompletionStatus {
+  if (profileData.role !== Role.PATIENT) {
+    return {
+      isComplete: true,
+      missingFields: [],
+      requiredFields: [],
+      optionalFields: [],
+    };
+  }
+
   const requiredFields: string[] = [
     'firstName',
     'lastName', 
@@ -62,13 +71,6 @@ export function checkProfileCompletion(profileData: UserProfileData): ProfileCom
   ];
 
   const optionalFields: string[] = [];
-
-  // Add role-specific optional fields
-  if (profileData.role === Role.DOCTOR || profileData.role === Role.ASSISTANT_DOCTOR) {
-    optionalFields.push('specialization', 'licenseNumber', 'experience');
-  } else if (profileData.role === Role.CLINIC_ADMIN) {
-    optionalFields.push('clinicName', 'clinicAddress');
-  }
 
   const missingFields: string[] = [];
 
@@ -128,6 +130,10 @@ export function shouldRedirectToProfileCompletion(
  */
 export function calculateProfileCompletion(userData: UserProfileData): boolean {
   if (!userData) return false;
+
+  if (userData.role !== Role.PATIENT) {
+    return true;
+  }
 
   if (typeof userData.profileComplete === 'boolean') {
     return userData.profileComplete;
@@ -192,7 +198,11 @@ export function getProfileCompletionRedirectUrl(
 /**
  * Get required fields for a specific role
  */
-export function getRequiredFieldsForRole(): string[] {
+export function getRequiredFieldsForRole(role?: Role): string[] {
+  if (role && role !== Role.PATIENT) {
+    return [];
+  }
+
   const baseFields = [
     'firstName',
     'lastName',
@@ -225,7 +235,7 @@ export function validateProfileData(
   data: Partial<UserProfileData>
 ): { isValid: boolean; errors: string[] } {
   const errors: string[] = [];
-  const requiredFields = getRequiredFieldsForRole();
+  const requiredFields = getRequiredFieldsForRole(data.role as Role | undefined);
 
   requiredFields.forEach(field => {
     const value = getNestedValue(data as UserProfileData, field);
@@ -258,6 +268,9 @@ export function getProfileCompletionPercentage(
 ): number {
   const status = checkProfileCompletion(profileData);
   const totalRequired = status.requiredFields.length;
+  if (totalRequired === 0) {
+    return status.isComplete ? 100 : 0;
+  }
   const completed = totalRequired - status.missingFields.length;
   
   return Math.round((completed / totalRequired) * 100);
@@ -267,8 +280,11 @@ export function getProfileCompletionPercentage(
  * Transform API response to match our expected format
  */
 export function transformApiResponse(apiData: Record<string, unknown>): UserProfileData {
+  const role = (apiData.role as string) || '';
   const profileComplete =
-    typeof apiData.profileComplete === 'boolean'
+    String(role).toUpperCase() !== String(Role.PATIENT)
+      ? true
+      : typeof apiData.profileComplete === 'boolean'
       ? apiData.profileComplete
       : typeof apiData.isProfileComplete === 'boolean'
         ? apiData.isProfileComplete
@@ -281,7 +297,7 @@ export function transformApiResponse(apiData: Record<string, unknown>): UserProf
     firstName: (apiData.firstName as string) || '',
     lastName: (apiData.lastName as string) || '',
     email: (apiData.email as string) || '',
-    role: (apiData.role as string) || '',
+    role,
     phone: (apiData.phone as string) || '',
     address: (apiData.address as string) || '',
     city: (apiData.city as string) || '',

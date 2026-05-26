@@ -256,6 +256,7 @@ export const useUserStatusColor = () => {
 export const useIsProfileComplete = () => {
   return (user: Record<string, unknown> | null): boolean => {
     if (!user) return false;
+    if (String(user.role || '').toUpperCase() !== 'PATIENT') return true;
 
     if (typeof user.profileComplete === 'boolean') {
       return user.profileComplete;

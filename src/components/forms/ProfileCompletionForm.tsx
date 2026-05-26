@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { useQueryClient } from "@/hooks/core";
 import { useSetProfileComplete, useUpdateUserProfile } from "@/hooks/query";
 import { getProfileCompletionRedirectUrl } from "@/lib/config/profile";
+import { getDashboardByRole, ROUTES } from "@/lib/config/routes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -44,7 +45,6 @@ import { format } from "date-fns";
 import { showSuccessToast, showErrorToast, showWarningToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { Loader2, Phone, MapPin, Calendar, Venus, CalendarIcon, ShieldCheck, Mail } from "lucide-react";
 import { Role } from "@/types/auth.types";
-import { ROUTES } from "@/lib/config/routes";
 import { profileCompletionSchema, type SchemaProfileCompletionFormData as ProfileCompletionFormData } from "@/lib/schema";
 import { useAuthStore } from "@/stores";
 import type { Session } from "@/types/auth.types";
@@ -304,10 +304,13 @@ function ProfileCompletionFormContent({
   // Login method flags (must be defined before useState hooks that use them)
   const loginMethod = sessionUser?.loginMethod;
   const isGoogleLogin = loginMethod === 'google_oauth';
-  // Email OTP login: explicit email_otp or 'otp' with email
-  const isEmailOtpLogin = loginMethod === 'email_otp' || (loginMethod === 'otp' && !!sessionUser?.email);
-  // Phone OTP login: explicit phone_otp, or 'otp' without email, or has phoneVerified from phone OTP flow
-  const isPhoneOtpLogin = loginMethod === 'phone_otp' || loginMethod === 'otp' || (loginMethod === undefined && !!sessionUser?.phoneVerified);
+  // Email OTP login: explicit email_otp only
+  const isEmailOtpLogin = loginMethod === 'email_otp';
+  // Phone OTP login: explicit phone_otp, or legacy otp with verified phone
+  const isPhoneOtpLogin =
+    loginMethod === 'phone_otp' ||
+    (loginMethod === 'otp' && !!sessionUser?.phoneVerified) ||
+    (loginMethod === undefined && !!sessionUser?.phoneVerified);
 
   const [
     {
@@ -321,10 +324,13 @@ function ProfileCompletionFormContent({
     dispatch,
   ] = useReducer(profileCompletionReducer, {
     ...initialProfileCompletionState,
-    // Phone is verified only if backend marked it during login (Phone OTP login marks phone as verified)
-    // For Email OTP and Google login, phone is NOT verified at login time - user must verify via OTP
-    isPhoneVerified: Boolean(sessionUser?.phoneVerified) || isPhoneOtpLogin,
-    isEmailVerified: Boolean(sessionUser?.emailVerified || isEmailOtpLogin),
+    // Backend provides verification status:
+    // - phoneOTP login: phoneVerified=true
+    // - emailOTP login: emailVerified=true, phone NOT verified
+    // - Google login: emailVerified=true, phone NOT verified
+    // - Password login: neither verified
+    isPhoneVerified: Boolean(sessionUser?.phoneVerified),
+    isEmailVerified: Boolean(sessionUser?.emailVerified),
   });
   const hasInitializedRef = useRef(false);
 
@@ -415,20 +421,12 @@ function ProfileCompletionFormContent({
   const watchedPhone = form.watch("phone");
 
   useEffect(() => {
-    // Phone is verified if backend marked it OR if user logged in via Phone OTP (phone already verified at login)
-    setIsPhoneVerified(Boolean(sessionUser?.phoneVerified) || isPhoneOtpLogin);
-    setIsEmailVerified(
-      Boolean(
-        sessionUser?.emailVerified ||
-        isEmailOtpLogin
-      )
-    );
-  }, [
-    sessionUser?.phoneVerified,
-    sessionUser?.emailVerified,
-    isEmailOtpLogin,
-    isPhoneOtpLogin
-  ]);
+    // Use backend-provided verification status
+    // Backend sets phoneVerified=true for phone OTP login
+    // Backend sets emailVerified=true for email OTP and Google login
+    setIsPhoneVerified(Boolean(sessionUser?.phoneVerified));
+    setIsEmailVerified(Boolean(sessionUser?.emailVerified));
+  }, [sessionUser?.phoneVerified, sessionUser?.emailVerified]);
 
   useEffect(() => {
     if (!watchedPhone) return;
@@ -731,9 +729,18 @@ function ProfileCompletionFormContent({
   };
 
   const userRole = sessionUser?.role as Role;
+  const isPatient = userRole === Role.PATIENT;
   const isDoctor = userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR;
 
-  if (!sessionUser || !hasInitializedRef.current) {
+  useEffect(() => {
+    if (!sessionUser) return;
+    if (userRole !== Role.PATIENT) {
+      const finalRedirect = getDashboardByRole(userRole);
+      push(finalRedirect);
+    }
+  }, [sessionUser, userRole, push, redirectUrl]);
+
+  if (!sessionUser || !hasInitializedRef.current || !isPatient) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="flex flex-col items-center gap-3">
@@ -825,20 +832,20 @@ function ProfileCompletionFormContent({
                       <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
                         Email
                         {isGoogleLogin && <ShieldCheck className="size-3 text-emerald-500" aria-label="Auto-filled from Google" />}
-                        {isEmailOtpLogin && isEmailVerified && <ShieldCheck className="size-3 text-emerald-500" aria-label="Verified via Email OTP" />}
+                        {sessionUser?.emailVerified && <ShieldCheck className="size-3 text-emerald-500" aria-label="Verified" />}
                       </FormLabel>
                       <div className="flex flex-col sm:flex-row gap-2">
                         <div className="flex-1">
-                          <Input
-                            type="email"
-                            placeholder="Email"
-                            disabled={isGoogleLogin || isEmailOtpLogin}
-                            className="h-10 sm:h-9 text-sm"
-                            aria-invalid={!!form.formState.errors.email}
-                            {...field}
+                        <Input
+                          type="email"
+                          placeholder="Email"
+                          disabled={isGoogleLogin || isEmailOtpLogin}
+                          className="h-10 sm:h-9 text-sm"
+                          aria-invalid={!!form.formState.errors.email}
+                          {...field}
                           />
                         </div>
-                        {isEmailVerified && (
+                        {sessionUser?.emailVerified && (
                           <div className="flex items-center justify-center gap-1 text-emerald-600 text-xs font-medium h-10 sm:h-9 px-3 sm:px-2">
                             <ShieldCheck className="size-3" />
                             <span>Verified</span>

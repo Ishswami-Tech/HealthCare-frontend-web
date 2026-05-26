@@ -160,7 +160,7 @@ export function DashboardLayout({
     if (isPending) return null;
     if (!user) return ROUTES.LOGIN;
     if (!hasAccess) return getDefaultRoute();
-    if (user?.profileComplete === false && !isProfileComplete) {
+    if (normalizedUserRole === Role.PATIENT && user?.profileComplete === false && !isProfileComplete) {
       return ROUTES.PROFILE_COMPLETION;
     }
     return null;
@@ -230,7 +230,7 @@ export function DashboardLayout({
   }
 
   // Profile completeness check
-  if (user?.profileComplete === false && !isProfileComplete) {
+  if (normalizedUserRole === Role.PATIENT && user?.profileComplete === false && !isProfileComplete) {
     return (
       <div className={cn(
         "flex items-center justify-center bg-background",

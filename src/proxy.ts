@@ -12,6 +12,7 @@
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { logger } from '@/lib/utils/logger';
 import { Role } from '@/types/auth.types';
 import { shouldRedirectToProfileCompletion } from '@/lib/config/profile';
 import {
@@ -44,6 +45,7 @@ function parseRole(roleStr: string | undefined): Role | undefined {
 
 function resolveProfileCompletionFromUserData(userData: Record<string, unknown> | null): boolean | undefined {
   if (!userData) return undefined;
+  if (String(userData.role || '').toUpperCase() !== String(Role.PATIENT)) return true;
   if (typeof userData.profileComplete === 'boolean') return userData.profileComplete;
   if (typeof userData.isProfileComplete === 'boolean') return userData.isProfileComplete;
   if (typeof userData.requiresProfileCompletion === 'boolean') {
@@ -89,11 +91,21 @@ async function fetchBackendProfileCompletion(
  * @param accessToken - JWT access token
  * @returns User data object or null
  */
+/**
+ * Decode base64url string to JSON (handles JWT base64url encoding)
+ */
+function base64UrlDecode(str: string): string {
+  // Replace URL-safe chars and add padding
+  const normalized = str.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+  return atob(padded);
+}
+
 function extractUserDataFromToken(accessToken: string): Record<string, unknown> | null {
   try {
     const tokenParts = accessToken.split('.');
     if (tokenParts.length >= 2 && tokenParts[1]) {
-      const payload = JSON.parse(atob(tokenParts[1]));
+      const payload = JSON.parse(base64UrlDecode(tokenParts[1]));
       return {
         firstName: payload.firstName || '',
         lastName: payload.lastName || '',
@@ -107,8 +119,9 @@ function extractUserDataFromToken(accessToken: string): Record<string, unknown> 
         role: payload.role || undefined, // Extract role from token
       };
     }
-  } catch {
+  } catch (error) {
     // Error parsing JWT token
+    logger.warn('Failed to extract user data from token', { error: error instanceof Error ? error.message : String(error) });
   }
   return null;
 }

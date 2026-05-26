@@ -70,7 +70,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       return ROUTES.LOGIN;
     }
 
-    if (user.profileComplete === false && !isProfileComplete) {
+    if (
+      String(userRole || '').toUpperCase() === String(Role.PATIENT) &&
+      user.profileComplete === false &&
+      !isProfileComplete
+    ) {
       return `${ROUTES.PROFILE_COMPLETION}?redirect=${encodeURIComponent(pathname || "/")}`;
     }
 

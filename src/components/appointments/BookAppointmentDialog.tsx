@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { logger } from "@/lib/utils/logger";
 import {
   useState,
   useEffect,
@@ -51,6 +52,7 @@ import {
   useQuickRegisterPatient,
 } from "@/hooks/query/usePatients";
 import { useUserProfile } from "@/hooks/query/useUsers";
+import { Role } from "@/types/auth.types";
 import {
   useAppointmentServices,
   useCreateAppointment,
@@ -1724,6 +1726,11 @@ function BookAppointmentStep4({
                   "Clinic/doctor settings currently block this consultation type"
                 : "Try a different date or doctor"}
             </p>
+            {clinicVideoCallWindow && (
+              <p className="text-xs mt-2 p-2 bg-amber-500/10 rounded-md text-amber-600 border border-amber-500/20 max-w-[90%] text-center">
+                Video hours: {clinicVideoCallWindow.start} - {clinicVideoCallWindow.end}
+              </p>
+            )}
             {hasAvailabilityError && (
               <p className="text-xs mt-4 p-2 bg-red-500/10 rounded-md text-red-500 border border-red-500/20 max-w-[90%] text-center">
                 Error: {(availabilityError as any).message || "Unknown error"}
@@ -3144,7 +3151,8 @@ export function BookAppointmentDialog({
   const { data: currentPatientProfile } = useUserProfile();
   const profileCompletionBlocked = useMemo(
     () =>
-      session?.user?.profileComplete === false ||
+      (String(session?.user?.role || '').toUpperCase() === String(Role.PATIENT) &&
+        session?.user?.profileComplete === false) ||
       isProfileCompletionError(activeLocationsError) ||
       isProfileCompletionError(allLocationsError) ||
       isProfileCompletionError(doctorsError),
@@ -3598,26 +3606,39 @@ export function BookAppointmentDialog({
       return selectedPatientId;
     }
 
-    // currentPatientProfile is a User object with nested patient object
-    // We need the Patient entity ID (patient.id), not the User ID
+    // currentPatientProfile can be:
+    // 1. Direct user object with patientId (backend returns flat structure)
+    // 2. User object with nested patient.id
+    // 3. Wrapped response { data: { patientId, ... } }
+    // Try all possible locations for the patient record ID
+    const rawProfile = currentPatientProfile as Record<string, unknown> | undefined;
     const patientRecordId =
-      (currentPatientProfile as any)?.patient?.id ||
-      (currentPatientProfile as any)?.patientId;
+      // Direct patientId on user (backend returns flat structure)
+      (rawProfile as any)?.patientId ||
+      // Nested patient.id (some APIs return this way)
+      ((rawProfile as any)?.patient as Record<string, unknown>)?.id ||
+      // Wrapped in data field
+      ((rawProfile as any)?.data as Record<string, unknown>)?.patientId ||
+      // User inside data wrapper
+      (((rawProfile as any)?.data as Record<string, unknown>)?.patient as Record<string, unknown>)?.id ||
+      // Nested inside user field
+      ((rawProfile as any)?.user as Record<string, unknown>)?.patientId ||
+      (((rawProfile as any)?.user as Record<string, unknown>)?.patient as Record<string, unknown>)?.id;
 
     if (!patientRecordId) {
-      console.warn(
+      logger.warn(
         "[BookAppointmentDialog] Patient profile not found or missing patient.id",
         {
           hasProfile: !!currentPatientProfile,
-          userId: session?.user?.id,
-          profileKeys: currentPatientProfile
-            ? Object.keys(currentPatientProfile)
+          userId: session?.user?.id || 'unknown',
+          profileKeys: currentPatientProfile && typeof currentPatientProfile === 'object'
+            ? Object.keys(currentPatientProfile as Record<string, unknown>)
             : [],
         },
       );
     }
 
-    return patientRecordId || "";
+    return (patientRecordId as string) || "";
   }, [
     currentPatientProfile,
     isPrivilegedScheduler,
@@ -4060,7 +4081,7 @@ export function BookAppointmentDialog({
     const appointmentDoctorId = resolvedDoctorId;
     const appointmentLocationId = resolvedLocationId;
 
-    console.info("[BookAppointmentDialog] Confirm click", {
+    logger.info("[BookAppointmentDialog] Confirm click", {
       consultationMode,
       hasService: Boolean(selectedService),
       doctorId: appointmentDoctorId,
@@ -4181,7 +4202,7 @@ export function BookAppointmentDialog({
           return;
         }
 
-        console.info("[BookAppointmentDialog] Creating video appointment", {
+        logger.info("[BookAppointmentDialog] Creating video appointment", {
           clinicId: activeClinicId,
           doctorId: appointmentDoctorId,
           date: selectedDateString,
@@ -4203,7 +4224,7 @@ export function BookAppointmentDialog({
           priority: "NORMAL",
         });
 
-        console.info(
+        logger.info(
           "[BookAppointmentDialog] Video appointment create response received",
           {
             hasResult: Boolean(createdAppointment),
@@ -4378,7 +4399,7 @@ export function BookAppointmentDialog({
           patientId: bookingPatientId,
         };
 
-        console.info("[BookAppointmentDialog] Creating appointment", {
+        logger.info("[BookAppointmentDialog] Creating appointment", {
           clinicId: activeClinicId,
           doctorId: resolvedDoctorId,
           date: formatDateIST(appointmentDate),
@@ -4387,7 +4408,7 @@ export function BookAppointmentDialog({
         });
 
         const appointment = await createAppointment(payload);
-        console.info(
+        logger.info(
           "[BookAppointmentDialog] Appointment create response received",
           {
             hasResult: Boolean(appointment),

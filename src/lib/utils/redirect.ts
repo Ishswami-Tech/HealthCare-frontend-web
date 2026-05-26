@@ -65,7 +65,7 @@ export function getLoginRedirect(context: RedirectContext): RedirectResult {
   const userRole = user.role as Role;
 
   // Priority 1: Check if profile is incomplete
-  if (user.profileComplete === false) {
+  if (userRole === Role.PATIENT && user.profileComplete === false) {
     const profileUrl = new URL(ROUTES.PROFILE_COMPLETION, window.location.origin);
     if (isSafeInternalPath(currentPath) && !isAuthPath(currentPath)) {
       profileUrl.searchParams.set('redirect', currentPath);
@@ -144,7 +144,7 @@ export function getUnauthorizedRedirect(context: RedirectContext): RedirectResul
 
   const userRole = user.role as Role;
 
-  if (user.profileComplete === false) {
+  if (userRole === Role.PATIENT && user.profileComplete === false) {
     return getProfileCompletionRedirect(userRole, currentPath);
   }
 
@@ -276,7 +276,7 @@ export function resolveRedirect(context: RedirectContext): RedirectResult {
   }
 
   // Handle profile completion
-  if (user.profileComplete === false) {
+  if (user.role && String(user.role).toUpperCase() === String(Role.PATIENT) && user.profileComplete === false) {
     return getProfileCompletionRedirect(user.role as Role, currentPath);
   }
 

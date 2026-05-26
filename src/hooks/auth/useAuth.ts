@@ -78,7 +78,8 @@ function getRedirectPath(
   user: { role?: Role | string; profileComplete?: boolean | undefined } | null | undefined,
   redirectUrl?: string
 ): string {
-  if (user?.profileComplete === false) {
+  const isPatient = String(user?.role || '').toUpperCase() === String(Role.PATIENT);
+  if (isPatient && user?.profileComplete === false) {
     return ROUTES.PROFILE_COMPLETION;
   }
   if (redirectUrl && !redirectUrl.includes('/auth/')) {
@@ -116,6 +117,7 @@ function isAuthError(error: unknown): boolean {
 
 function resolveProfileComplete(user: Record<string, unknown> | null | undefined): boolean {
   if (!user) return false;
+  if (user.role && String(user.role).toUpperCase() !== String(Role.PATIENT)) return true;
   if (typeof user.profileComplete === 'boolean') return user.profileComplete;
   if (typeof user.isProfileComplete === 'boolean') return user.isProfileComplete;
   if (typeof user.requiresProfileCompletion === 'boolean') {
@@ -245,9 +247,9 @@ export function useAuth() {
       refetchInterval: false, // Disabled - will be enabled after successful login
       refetchOnWindowFocus: false, // Don't refetch on window focus
       refetchOnMount: false, // ✅ CRITICAL: Don't refetch on mount - prevents blocking navigation
-      // ✅ Add caching to prevent duplicate calls - reduced staleTime for faster logout
-      staleTime: 500, // Consider data fresh for only 500ms to prevent stale session after logout
-      gcTime: 60000, // Cache for 60 seconds to prevent unnecessary refetches
+      // ✅ Add caching to prevent duplicate calls - optimized for session data
+      staleTime: 5 * 60 * 1000, // 5 minutes - session doesn't change frequently
+      gcTime: 10 * 60 * 1000, // Cache for 10 minutes to prevent unnecessary refetches
       // ✅ Make query non-blocking - don't wait for it
       enabled: true, // Keep enabled but make it non-blocking
       // ✅ Prevent duplicate calls in development (React Strict Mode)
@@ -590,10 +592,24 @@ export function useAuth() {
         // Convert AuthResponse to Session
         const profileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
         const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
-        // Determine login method: use backend's loginMethod, or infer from user email/phone
+        // Determine login method from backend metadata, with a safe legacy fallback.
         const userRecord = data.user as unknown as Record<string, unknown>;
-        const loginMethod = userRecord.loginMethod as string ||
-          (userRecord.email ? 'email_otp' : 'phone_otp');
+        const loginMethod = (() => {
+          const method = typeof userRecord.loginMethod === 'string' ? userRecord.loginMethod : '';
+          if (method && method !== 'otp') {
+            return method;
+          }
+
+          if (userRecord.phoneVerified === true) {
+            return 'phone_otp';
+          }
+
+          if (userRecord.emailVerified === true) {
+            return 'email_otp';
+          }
+
+          return 'phone_otp';
+        })();
         // Phone verified is true for OTP login since they just verified via OTP
         const phoneVerified = userRecord.phoneVerified as boolean ?? true;
 
