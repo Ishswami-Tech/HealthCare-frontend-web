@@ -10,7 +10,7 @@ export function AutomaticInvoiceGenerator() {
       <CardHeader>
         <CardTitle>Automatic Invoice Generator</CardTitle>
       </CardHeader>
-      <CardContent className="gap-y-3">
+      <CardContent className="flex flex-col gap-y-3">
         <p className="text-sm text-muted-foreground">
           Automatic generation is available from billing workflows and backend cron jobs.
         </p>

@@ -228,7 +228,7 @@ function NurseVitalsContent() {
               <p className="text-gray-500">No vitals recorded yet</p>
             </div>
           ) : (
-            <div className="gap-y-4">
+            <div className="flex flex-col gap-y-4">
               {filteredRecords.map((record: any) => (
                 <div key={record.id} className="p-4 border rounded-lg hover:bg-gray-50">
                   <div className="flex items-start justify-between gap-4">
@@ -237,7 +237,7 @@ function NurseVitalsContent() {
                         <h4 className="font-semibold">{record.patientName}</h4>
                         <span className="text-sm text-gray-500">({record.patientId})</span>
                       </div>
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
                         <div className="p-3 bg-red-50 rounded-lg">
                           <div className="flex items-center gap-1 mb-1">
                             <Activity className="size-4 text-red-600" />
@@ -332,9 +332,9 @@ function NurseVitalsContent() {
             <DialogTitle>{editingId ? "Edit Vitals" : "Record New Vitals"}</DialogTitle>
           </DialogHeader>
 
-          <div className="gap-y-4 py-2">
+          <div className="flex flex-col gap-y-4 py-2">
             {/* Patient selector */}
-            <div className="gap-y-1">
+            <div className="flex flex-col gap-y-1">
               <Label>Patient</Label>
               {patientsList.length > 0 ? (
                 <select

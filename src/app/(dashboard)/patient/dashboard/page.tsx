@@ -469,7 +469,7 @@ export default function PatientDashboard() {
           <Card className="overflow-hidden border border-emerald-200/70 bg-linear-to-br from-emerald-50 via-background to-sky-50 shadow-sm dark:border-emerald-900/40 dark:from-emerald-950/30 dark:via-card dark:to-sky-950/20">
             <CardContent className="p-3 sm:p-4">
               <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
-                <div className="min-w-0 flex-1 gap-y-2.5">
+                <div className="flex min-w-0 flex-1 flex-col gap-y-2.5">
                   <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
                     <Clock className="size-4" />
                     Healthcare Workspace
@@ -490,7 +490,7 @@ export default function PatientDashboard() {
                         </Badge>
                       </div>
 
-                      <div className="mt-3 max-h-72 gap-y-2.5 overflow-y-auto pr-1 sm:mt-4 sm:gap-y-3">
+                      <div className="mt-3 flex max-h-72 flex-col gap-y-2.5 overflow-y-auto pr-1 sm:mt-4 sm:gap-y-3">
                         {patientData.upcomingAppointments.map((appointment: any) => {
                           const videoSessionDecision = appointment.isOnline
                             ? getVideoSessionDecision(appointment)
@@ -533,7 +533,7 @@ export default function PatientDashboard() {
                                   </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 shadow-sm dark:border-slate-800 dark:bg-slate-950/30 md:min-w-[10.5rem]">
+                                <div className="grid grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 shadow-sm dark:border-slate-800 dark:bg-slate-950/30 sm:grid-cols-2 md:min-w-[10.5rem]">
                                   <div className="min-w-0">
                                     <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                                       Date
@@ -602,7 +602,7 @@ export default function PatientDashboard() {
                 </div>
               </div>
 
-              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-3">
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3 xl:grid-cols-3">
                 <div className="rounded-2xl border border-border bg-card px-3 py-2 shadow-sm">
                   <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Medicines</div>
                   <div className="mt-1 text-lg font-bold leading-none text-foreground">
@@ -639,7 +639,7 @@ export default function PatientDashboard() {
                   <Pill className="size-4" />
                 </div>
               </CardHeader>
-              <CardContent className="gap-y-2.5 sm:gap-y-3">
+              <CardContent className="flex flex-col gap-y-2.5 sm:gap-y-3">
                 <div>
                   <div className="text-xl font-bold leading-none text-emerald-700 dark:text-emerald-300 sm:text-2xl">
                     {patientData.medications.length}
@@ -668,7 +668,7 @@ export default function PatientDashboard() {
                   <CreditCard className="size-4" />
                 </div>
               </CardHeader>
-              <CardContent className="gap-y-2.5 sm:gap-y-3">
+              <CardContent className="flex flex-col gap-y-2.5 sm:gap-y-3">
                 <div>
                   <div className="text-xl font-bold leading-none text-sky-700 dark:text-sky-300 sm:text-2xl">
                     {patientData.billingSummary.openInvoices}
@@ -697,7 +697,7 @@ export default function PatientDashboard() {
                   <Video className="size-4" />
                 </div>
               </CardHeader>
-              <CardContent className="gap-y-2.5 sm:gap-y-3">
+              <CardContent className="flex flex-col gap-y-2.5 sm:gap-y-3">
                 <div>
                   <div className="text-xl font-bold leading-none text-violet-700 dark:text-violet-300 sm:text-2xl">
                     {patientData.videoAppointments.length}
@@ -726,7 +726,7 @@ export default function PatientDashboard() {
                   <FileText className="size-4" />
                 </div>
               </CardHeader>
-              <CardContent className="gap-y-2.5 sm:gap-y-3">
+              <CardContent className="flex flex-col gap-y-2.5 sm:gap-y-3">
                 <div>
                   <div className="text-xl font-bold leading-none text-amber-700 dark:text-amber-300 sm:text-2xl">
                     {patientData.recordsCount}

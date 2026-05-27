@@ -139,24 +139,24 @@ function DoctorSchedulesTab({
   const totalAvailableDays = selectedDoctor ? selectedDoctor.schedules.filter((schedule) => schedule.available).length : 0;
 
   return (
-    <Card className="gap-4 py-4 border-indigo-200 bg-indigo-50/70 shadow-sm dark:border-indigo-900/70 dark:bg-indigo-950/20">
+      <Card className="border-indigo-200 bg-indigo-50/70 py-4 shadow-sm dark:border-indigo-900/70 dark:bg-indigo-950/20">
       <CardHeader className="px-4 sm:px-5">
         <CardTitle className="flex items-center gap-2">
           <Calendar className="size-5" />
           Doctor Schedule Planner
         </CardTitle>
       </CardHeader>
-      <CardContent className="px-4 sm:px-5 gap-y-5">
+      <CardContent className="flex flex-col gap-y-5 px-4 sm:px-5">
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
-          <div className="gap-y-4">
+          <div className="flex flex-col gap-y-4">
             <div className="grid gap-3 sm:grid-cols-3">
-              <div className="gap-y-2 sm:col-span-2">
+              <div className="flex flex-col gap-y-2 sm:col-span-2">
                 <Label>Select Doctor</Label>
                 <div className="rounded-md border border-emerald-200 bg-emerald-50/80 px-3 py-2 text-sm font-medium shadow-sm dark:border-emerald-900/70 dark:bg-emerald-950/20">
                   {selectedDoctor ? selectedDoctor.doctorName : "No doctor selected"}
                 </div>
               </div>
-              <div className="gap-y-2">
+              <div className="flex flex-col gap-y-2">
                 <Label>Current State</Label>
                 <div className="flex min-h-10 items-center justify-between gap-3 rounded-md border border-emerald-200 bg-emerald-50/80 px-3 py-2 text-sm font-medium text-emerald-900 shadow-sm dark:border-emerald-900/70 dark:bg-emerald-950/20 dark:text-emerald-100">
                   <div className="min-w-0">
@@ -206,12 +206,12 @@ function DoctorSchedulesTab({
             </div>
           </div>
 
-          <div className="gap-y-3">
+        <div className="flex flex-col gap-y-3">
             <Card className="gap-4 py-4 border-emerald-200 bg-emerald-50/70 shadow-sm dark:border-emerald-900/70 dark:bg-emerald-950/20">
               <CardHeader className="px-4 sm:px-5">
                 <CardTitle>Doctor Snapshot</CardTitle>
               </CardHeader>
-              <CardContent className="px-4 sm:px-5 gap-y-3">
+              <CardContent className="flex flex-col gap-y-3 px-4 sm:px-5">
                 <div className="rounded-lg border border-emerald-100 bg-white/80 px-3 py-2 dark:border-emerald-900/60 dark:bg-background/40">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Selected Doctor</p>
                   <p className="text-sm font-semibold text-foreground">{selectedDoctor?.doctorName || "No doctor selected"}</p>
@@ -234,7 +234,7 @@ function DoctorSchedulesTab({
               <CardHeader className="px-4 sm:px-5">
                 <CardTitle>Consultation Durations</CardTitle>
               </CardHeader>
-              <CardContent className="px-4 sm:px-5 gap-y-2">
+              <CardContent className="flex flex-col gap-y-2 px-4 sm:px-5">
                 {[
                   ["General Consultation", "15 min"],
                   ["Nadi Pariksha", "45 min"],
@@ -255,7 +255,7 @@ function DoctorSchedulesTab({
               <CardHeader className="px-4 sm:px-5">
                 <CardTitle>Quick Notes</CardTitle>
               </CardHeader>
-              <CardContent className="px-4 sm:px-5 gap-y-2">
+              <CardContent className="flex flex-col gap-y-2 px-4 sm:px-5">
                 <div className="rounded-lg border border-emerald-100 bg-white/80 px-3 py-2 text-sm dark:border-emerald-900/60 dark:bg-background/40">
                   Use the select field to switch doctors and update weekly hours before saving.
                 </div>
@@ -289,9 +289,9 @@ function HolidayManagementTab({
           <CardTitle>Add New Holiday</CardTitle>
           <p className="text-sm text-muted-foreground">Pick the date, choose the holiday type, and add a clear title before saving.</p>
         </CardHeader>
-        <CardContent className="px-4 sm:px-5 gap-y-4">
+        <CardContent className="flex flex-col gap-y-4 px-4 sm:px-5">
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="gap-y-2">
+            <div className="flex flex-col gap-y-2">
               <Label>Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
@@ -313,7 +313,7 @@ function HolidayManagementTab({
                 </PopoverContent>
               </Popover>
             </div>
-            <div className="gap-y-2">
+            <div className="flex flex-col gap-y-2">
               <Label>Holiday Type</Label>
               <div className="rounded-md border border-emerald-200 bg-white/80 px-3 py-2 text-sm shadow-sm dark:border-emerald-900/60 dark:bg-background/40">
                 {newHoliday.type}
@@ -321,7 +321,7 @@ function HolidayManagementTab({
             </div>
           </div>
 
-          <div className="gap-y-2">
+          <div className="flex flex-col gap-y-2">
             <Label>Holiday Title</Label>
             <div className="rounded-md border border-emerald-200 bg-white/80 px-3 py-2 text-sm shadow-sm dark:border-emerald-900/60 dark:bg-background/40">
               {newHoliday.title || "Holiday title"}
@@ -330,7 +330,7 @@ function HolidayManagementTab({
 
           <div className="rounded-xl border border-emerald-100 bg-white/80 p-3 shadow-sm dark:border-emerald-900/60 dark:bg-background/40">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Holiday Preview</p>
-            <div className="mt-2 gap-y-2">
+            <div className="mt-2 flex flex-col gap-y-2">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-sm font-medium text-foreground">{newHoliday.title || "Holiday title"}</span>
                 <Badge variant="outline" className="rounded-full">{newHoliday.type}</Badge>
@@ -353,7 +353,7 @@ function HolidayManagementTab({
           <CardTitle>Scheduled Holidays</CardTitle>
         </CardHeader>
         <CardContent className="px-4 sm:px-5">
-          <div className="gap-y-3">
+          <div className="flex flex-col gap-y-3">
             {holidayList.length > 0 ? (
               holidayList.map((holiday) => (
                 <div key={holiday.id} className="flex flex-col gap-3 rounded-xl border border-amber-100 bg-white/80 p-4 shadow-sm dark:border-amber-900/60 dark:bg-background/40 sm:flex-row sm:items-center sm:justify-between">
@@ -393,7 +393,7 @@ function ConflictsTab({ scheduleConflicts }: Pick<ClinicAdminScheduleContentProp
         </CardTitle>
       </CardHeader>
       <CardContent className="px-4 sm:px-5">
-        <div className="gap-y-4">
+        <div className="flex flex-col gap-y-4">
           {scheduleConflicts.length > 0 ? (
             scheduleConflicts.map((conflict) => (
               <div key={conflict.id} className="flex items-start gap-3 rounded-xl border border-rose-200 bg-white/80 p-4 shadow-sm dark:border-rose-900/60 dark:bg-background/40">
@@ -493,7 +493,7 @@ export function ClinicAdminScheduleContent({
         scheduleConflicts={scheduleConflicts}
       />
 
-      <Tabs defaultValue="doctor-schedules" className="gap-y-3">
+      <Tabs defaultValue="doctor-schedules" className="flex flex-col gap-y-3">
         <TabsList className="grid h-auto w-full grid-cols-1 gap-1 rounded-xl border border-border bg-card p-1 sm:grid-cols-3">
           <TabsTrigger value="doctor-schedules" className="flex h-10 items-center gap-2 rounded-lg">
             <Stethoscope className="size-4" />
@@ -509,7 +509,7 @@ export function ClinicAdminScheduleContent({
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="doctor-schedules" className="gap-y-3">
+        <TabsContent value="doctor-schedules" className="flex flex-col gap-y-3">
           <DoctorSchedulesTab
             selectedDoctor={selectedDoctor}
             selectedDoctorWeeklySlots={selectedDoctorWeeklySlots}
@@ -518,7 +518,7 @@ export function ClinicAdminScheduleContent({
           />
         </TabsContent>
 
-        <TabsContent value="holidays" className="gap-y-3">
+        <TabsContent value="holidays" className="flex flex-col gap-y-3">
           <HolidayManagementTab
             holidayList={holidayList}
             newHoliday={newHoliday}
@@ -529,7 +529,7 @@ export function ClinicAdminScheduleContent({
           />
         </TabsContent>
 
-        <TabsContent value="conflicts" className="gap-y-3">
+        <TabsContent value="conflicts" className="flex flex-col gap-y-3">
           <ConflictsTab scheduleConflicts={scheduleConflicts} />
         </TabsContent>
       </Tabs>

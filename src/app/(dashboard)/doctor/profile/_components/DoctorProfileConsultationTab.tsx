@@ -24,7 +24,7 @@ export function DoctorProfileConsultationTab({
           Consultation Settings
         </CardTitle>
       </CardHeader>
-      <CardContent className="gap-y-4">
+      <CardContent className="flex flex-col gap-y-4">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div>
             <Label htmlFor="consultationFee">Consultation Fee (₹)</Label>
@@ -61,7 +61,7 @@ export function DoctorProfileConsultationTab({
           </div>
         </div>
 
-        <div className="gap-y-4">
+        <div className="flex flex-col gap-y-4">
           <SettingRow
             label="Online Consultation"
             description="Allow patients to book online consultations"

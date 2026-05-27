@@ -111,7 +111,7 @@ export default function ReceptionistProfileContent() {
   };
 
   return (
-    <div className="gap-y-6 p-6">
+    <div className="flex flex-col gap-y-6 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-semibold">My Profile</h1>
         <Button className="flex items-center gap-2" type="button">
@@ -122,7 +122,7 @@ export default function ReceptionistProfileContent() {
 
       <ReceptionistProfileOverviewCard profileData={profileData} />
 
-      <Tabs defaultValue="personal" className="gap-y-4">
+      <Tabs defaultValue="personal" className="flex flex-col gap-y-4">
         <div className="-mx-4 overflow-x-auto px-4 pb-2 scrollbar-hide sm:mx-0 sm:px-0">
           <TabsList className="inline-flex w-max min-w-full sm:grid sm:w-full sm:grid-cols-5">
             <TabsTrigger className="px-3 text-[11px] sm:text-sm" value="personal">

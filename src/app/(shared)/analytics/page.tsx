@@ -257,7 +257,7 @@ export default function AnalyticsDashboard() {
 
   return (
     
-      <div className="p-6 gap-y-6">
+      <div className="flex flex-col gap-y-6 p-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-semibold">Analytics Dashboard</h1>
@@ -391,8 +391,8 @@ export default function AnalyticsDashboard() {
                 </Card>
               </div>
 
-              <Tabs defaultValue="overview" className="gap-y-6">
-                <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 xl:grid-cols-6">
+              <Tabs defaultValue="overview" className="flex flex-col gap-y-6">
+                <TabsList className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3 xl:grid-cols-6">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="performance">Performance</TabsTrigger>
                   <TabsTrigger value="patients">Patient Analytics</TabsTrigger>
@@ -414,7 +414,7 @@ export default function AnalyticsDashboard() {
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="gap-y-4">
+                        <div className="flex flex-col gap-y-4">
                           {performanceMetrics.map((metric) => (
                             <div
                               key={metric.metric}

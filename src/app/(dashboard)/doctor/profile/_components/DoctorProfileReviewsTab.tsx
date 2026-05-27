@@ -13,7 +13,7 @@ export function DoctorProfileReviewsTab({
   recentReviews,
 }: DoctorProfileReviewsTabProps) {
   return (
-    <div className="gap-y-6">
+    <div className="flex flex-col gap-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -34,7 +34,7 @@ export function DoctorProfileReviewsTab({
           <CardTitle>Recent Reviews</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="gap-y-4">
+          <div className="flex flex-col gap-y-4">
             {recentReviews.map((review) => (
               <div
                 key={`${review.patientName}-${review.date}`}

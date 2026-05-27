@@ -82,7 +82,7 @@ export default function AyurvedaConsultationTypes({
   }, {} as Record<string, ConsultationType[]>);
 
   return (
-    <div className="gap-y-6">
+    <div className="flex flex-col gap-y-6">
       <div className="text-center">
         <h2 className="text-2xl font-semibold mb-2">{t("consultations.selectType")}</h2>
         <p className="text-gray-600">
@@ -91,7 +91,7 @@ export default function AyurvedaConsultationTypes({
       </div>
 
       {Object.entries(groupedConsultations).map(([category, consultations]) => (
-        <div key={category} className="gap-y-3">
+        <div key={category} className="flex flex-col gap-y-3">
           <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">
             {category.replace(/_/g, " ")} {t("consultations.treatments")}
           </h3>

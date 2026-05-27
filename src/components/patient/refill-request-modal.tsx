@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import type * as React from "react";
 import { useState } from "react";
@@ -51,10 +51,10 @@ function RefillRequestModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="gap-y-4 py-4">
+        <div className="flex flex-col gap-y-4 py-4">
           <div className="bg-muted p-3 rounded-lg">
             <p className="text-sm font-medium mb-2">Medications:</p>
-            <ul className="text-sm text-muted-foreground gap-y-1">
+            <ul className="space-y-1 text-sm text-muted-foreground">
               {prescription.medications.map((med) => (
                 <li key={med.name}>• {med.name}</li>
               ))}

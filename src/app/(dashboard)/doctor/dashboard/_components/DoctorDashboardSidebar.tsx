@@ -11,7 +11,7 @@ interface DoctorDashboardSidebarProps {
 
 export function DoctorDashboardSidebar({ onNavigateAppointments, onNavigatePatients }: DoctorDashboardSidebarProps) {
   return (
-    <div className="gap-y-6">
+    <div className="flex flex-col gap-y-6">
       <Card className="overflow-hidden border-l-2 border-l-slate-400 shadow-sm">
         <div className="border-b border-border bg-muted/40 p-3">
           <h3 className="flex items-center gap-2 font-semibold text-foreground">
@@ -19,7 +19,7 @@ export function DoctorDashboardSidebar({ onNavigateAppointments, onNavigatePatie
             Workspace Tools
           </h3>
         </div>
-        <CardContent className="gap-y-2.5 p-3">
+        <CardContent className="flex flex-col gap-y-2.5 p-3">
           <Button
             variant="outline"
             className="h-12 w-full justify-start border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-100 dark:hover:bg-emerald-500/20"

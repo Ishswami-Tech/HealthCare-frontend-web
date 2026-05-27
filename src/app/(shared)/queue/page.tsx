@@ -1354,7 +1354,7 @@ export default function QueuePage() {
           ))}
         </TabsList>
 
-        <TabsContent value="consultations" className="gap-y-4">
+        <TabsContent value="consultations" className="flex flex-col gap-y-4">
           <Card className="border-border/60 bg-background/90 shadow-sm backdrop-blur-sm">
             <CardHeader className="flex flex-col gap-3 px-4 pb-2 pt-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
@@ -1370,7 +1370,7 @@ export default function QueuePage() {
                 </p>
               </div>
             </CardHeader>
-            <CardContent className="gap-y-3 px-4 pb-4 pt-2">
+            <CardContent className="flex flex-col gap-y-3 px-4 pb-4 pt-2">
               <div className="flex flex-wrap gap-2">
                 {consultationQueueSections.map((section) => (
                   <Badge

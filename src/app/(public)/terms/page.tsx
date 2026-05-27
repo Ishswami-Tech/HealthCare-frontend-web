@@ -9,7 +9,7 @@ import { ROUTES } from "@/lib/config/routes";
 export default function TermsOfServicePage() {
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto gap-y-8">
+      <div className="mx-auto flex max-w-4xl flex-col gap-y-8">
         <div className="flex items-center justify-between">
             <Link href={ROUTES.LOGIN} prefetch={false}>
             <Button variant="ghost" className="gap-2">
@@ -24,7 +24,7 @@ export default function TermsOfServicePage() {
         </div>
 
         <Card className="shadow-lg border-t-4 border-t-blue-600">
-          <CardHeader className="gap-y-4 pb-8 border-b">
+          <CardHeader className="flex flex-col gap-y-4 border-b pb-8">
             <div className="flex items-center gap-3 mb-2">
                 <div className="size-10 rounded-full bg-blue-100 flex items-center justify-center">
                     <Scale className="size-5 text-blue-600" />
@@ -38,8 +38,8 @@ export default function TermsOfServicePage() {
               Welcome to Dr Chandrakumar Deshmukh. By accessing or using our platform, you agree to be bound by these Terms of Service. Please read them carefully.
             </p>
           </CardHeader>
-          <CardContent className="gap-y-8 pt-8 px-6 sm:px-10">
-            <section className="gap-y-3">
+          <CardContent className="flex flex-col gap-y-8 px-6 pt-8 sm:px-10">
+            <section className="flex flex-col gap-y-3">
               <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
                  <ShieldCheck className="size-5 text-blue-600" />
                  1. Acceptance of Terms
@@ -49,7 +49,7 @@ export default function TermsOfServicePage() {
               </p>
             </section>
 
-             <section className="gap-y-3">
+             <section className="flex flex-col gap-y-3">
               <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
                  <FileWarning className="size-5 text-blue-600" />
                  2. No Medical Advice
@@ -59,7 +59,7 @@ export default function TermsOfServicePage() {
               </p>
             </section>
 
-             <section className="gap-y-3">
+             <section className="flex flex-col gap-y-3">
               <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
                  <Gavel className="size-5 text-blue-600" />
                  3. User Responsibilities
@@ -69,7 +69,7 @@ export default function TermsOfServicePage() {
               </p>
             </section>
 
-            <section className="gap-y-3">
+            <section className="flex flex-col gap-y-3">
               <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
                  <FileWarning className="size-5 text-blue-600" />
                  4. Video Appointments and Payments
@@ -77,14 +77,14 @@ export default function TermsOfServicePage() {
               <p className="text-gray-600 leading-relaxed">
                 Video appointment fees are non-refundable once payment is completed. If you miss your scheduled video appointment, you must book a new available slot to be seen again.
               </p>
-              <ul className="list-disc list-inside text-gray-600 gap-y-2 ml-2">
+              <ul className="list-inside list-disc space-y-2 text-gray-600 ml-2">
                   <li>Payment confirms the selected video slot for the scheduled time.</li>
                   <li>Missed appointments are not carried forward automatically.</li>
                   <li>Any rebooking is subject to the clinic&apos;s live availability.</li>
               </ul>
             </section>
 
-             <section className="gap-y-3">
+             <section className="flex flex-col gap-y-3">
               <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
                  <Scale className="size-5 text-blue-600" />
                  5. Limitation of Liability

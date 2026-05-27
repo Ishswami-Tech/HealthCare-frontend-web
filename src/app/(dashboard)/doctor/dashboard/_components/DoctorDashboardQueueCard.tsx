@@ -152,7 +152,7 @@ export function DoctorDashboardQueueCard({
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="gap-y-3 p-3 sm:p-4">
+      <CardContent className="flex flex-col gap-y-3 p-3 sm:p-4">
         {highlightedQueuePatient ? (
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3 shadow-sm dark:border-emerald-900 dark:bg-emerald-950/40">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

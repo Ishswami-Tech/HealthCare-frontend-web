@@ -297,7 +297,7 @@ export default function DoctorPatients() {
         cell: ({ row }) => {
           const patient = row.original;
           return (
-            <div className="gap-y-1 text-sm">
+            <div className="flex flex-col gap-y-1 text-sm">
               <div className="text-foreground">{patient.phone || "No phone"}</div>
               <div className="text-muted-foreground">{patient.email || "No email"}</div>
             </div>
@@ -319,7 +319,7 @@ export default function DoctorPatients() {
         cell: ({ row }) => {
           const patient = row.original;
           return (
-            <div className="gap-y-1 text-sm">
+            <div className="flex flex-col gap-y-1 text-sm">
               <div className="text-foreground">{patient.totalVisits !== undefined ? `${patient.totalVisits} total` : "—"}</div>
               <div className="text-muted-foreground">
                 {patient.lastVisit ? `Last: ${formatDateInIST(patient.lastVisit)}` : "No visit"}
@@ -532,5 +532,4 @@ export default function DoctorPatients() {
     </DashboardPageShell>
   );
 }
-
 

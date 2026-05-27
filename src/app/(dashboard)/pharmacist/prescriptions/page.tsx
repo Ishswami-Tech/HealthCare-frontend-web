@@ -1081,7 +1081,7 @@ export default function PharmacistPrescriptionsPage() {
   }
 
   return (
-    <div className="gap-y-6 p-6">
+    <div className="flex flex-col gap-y-6 p-6">
       <div>
         <h1 className="text-3xl font-semibold">Prescription Management</h1>
         <p className="text-gray-600">
@@ -1117,14 +1117,14 @@ export default function PharmacistPrescriptionsPage() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="active" className="gap-y-6">
+      <Tabs defaultValue="active" className="flex flex-col gap-y-6">
         <TabsList>
           <TabsTrigger value="active">Active</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
           <TabsTrigger value="audit">Batch audit</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="active" className="gap-y-4">
+        <TabsContent value="active" className="flex flex-col gap-y-4">
           {activePrescriptions.length > 0 ? (
             <Card>
               <CardContent className="p-4">
@@ -1154,7 +1154,7 @@ export default function PharmacistPrescriptionsPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="history" className="gap-y-4">
+        <TabsContent value="history" className="flex flex-col gap-y-4">
           {historyPrescriptions.length > 0 ? (
             <Card>
               <CardContent className="p-4">
@@ -1181,7 +1181,7 @@ export default function PharmacistPrescriptionsPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="audit" className="gap-y-4">
+        <TabsContent value="audit" className="flex flex-col gap-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

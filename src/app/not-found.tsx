@@ -20,7 +20,7 @@ export default function NotFound() {
           </div>
         </div>
 
-        <div className="gap-y-4">
+        <div className="flex flex-col gap-y-4">
           <Button asChild className="w-full">
             <Link href="/" prefetch={false} className="flex items-center justify-center">
               <Home className="size-4 mr-2" />

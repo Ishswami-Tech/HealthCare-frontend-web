@@ -570,7 +570,7 @@ export function RoleBasedBillingDashboard({
 
   return (
     <div className="min-h-screen">
-      <div className="max-w-6xl mx-auto p-6 gap-y-8">
+      <div className="flex flex-col max-w-6xl mx-auto gap-y-8 p-6">
         <PatientPageHeader
           eyebrow={isPatient ? "BILLING" : isReceptionist ? "COLLECTIONS" : "BILLING DASHBOARD"}
           title={isPatient ? "My Billing" : isReceptionist ? "Collections & Payments" : "Billing Dashboard"}
@@ -646,7 +646,7 @@ export function RoleBasedBillingDashboard({
         </div>
       )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTabOverride} className="gap-y-8">
+      <Tabs value={activeTab} onValueChange={setActiveTabOverride} className="flex flex-col gap-y-8">
           <TabsList>
             {[...(isPatient ? patientTabs : staffTabs)].map((val) => (
               <TabsTrigger
@@ -749,7 +749,7 @@ export function RoleBasedBillingDashboard({
           )}
 
         {!isPatient && (
-          <TabsContent value="overview" className="gap-y-4">
+          <TabsContent value="overview" className="flex flex-col gap-y-4">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -757,7 +757,7 @@ export function RoleBasedBillingDashboard({
                   Overview
                 </CardTitle>
               </CardHeader>
-              <CardContent className="gap-y-2">
+              <CardContent className="flex flex-col gap-y-2">
                 <p className="text-sm">Total Paid Revenue: INR {(paidAmount ?? 0).toLocaleString("en-IN")}</p>
                 <p className="text-sm">Total Pending: INR {(pendingAmount ?? 0).toLocaleString("en-IN")}</p>
                 {isPatient && <p className="text-sm">Active Subscriptions: {patientAnalytics.activeSubscriptions}</p>}
@@ -767,10 +767,10 @@ export function RoleBasedBillingDashboard({
         )}
 
         {showPlansTab && (
-        <TabsContent value="plans" className="gap-y-4">
+          <TabsContent value="plans" className="flex flex-col gap-y-4">
           {plans.length === 0 ? (
             <Card>
-              <CardContent className="py-8 text-center gap-y-3">
+              <CardContent className="flex flex-col gap-y-3 py-8 text-center">
                 <p className="font-medium">No subscription plans available right now.</p>
                 <p className="text-sm text-muted-foreground">
                   Please refresh or contact clinic admin to publish billing plans for this clinic.
@@ -782,7 +782,7 @@ export function RoleBasedBillingDashboard({
               </CardContent>
             </Card>
           ) : (
-            <div className="gap-y-4">
+            <div className="flex flex-col gap-y-4">
               {subscribeError ? (
                 <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                   {subscribeError}
@@ -833,7 +833,7 @@ export function RoleBasedBillingDashboard({
         )}
 
         {showSubscriptionsTab && (
-        <TabsContent value="subscriptions" className="gap-y-4">
+          <TabsContent value="subscriptions" className="flex flex-col gap-y-4">
           {subscriptions.length === 0 ? (
             <Card className="rounded-2xl border-dashed border-border/70 bg-muted/30">
               <CardContent className="py-12 text-center">
@@ -880,7 +880,7 @@ export function RoleBasedBillingDashboard({
         </TabsContent>
         )}
 
-        <TabsContent value="invoices" className="gap-y-4">
+          <TabsContent value="invoices" className="flex flex-col gap-y-4">
           {filteredInvoices.length === 0 ? (
             <Card className="rounded-2xl border-dashed border-border/70 bg-muted/30">
               <CardContent className="py-12 text-center">
@@ -901,12 +901,12 @@ export function RoleBasedBillingDashboard({
           )}
         </TabsContent>
 
-        <TabsContent value="payments" className="gap-y-4">
+          <TabsContent value="payments" className="flex flex-col gap-y-4">
           <PaymentHistory payments={filteredPayments} onRefetch={onRefetch} compact={isPatient} />
         </TabsContent>
 
         {showLedgerTab && (
-          <TabsContent value="ledger" className="gap-y-6">
+          <TabsContent value="ledger" className="flex flex-col gap-y-6">
             {!ledger ? (
               <Card className="rounded-2xl border-dashed border-border/70 bg-muted/30">
                 <CardContent className="py-12 text-center text-muted-foreground">
@@ -914,7 +914,7 @@ export function RoleBasedBillingDashboard({
                 </CardContent>
               </Card>
             ) : (
-              <div className="gap-y-6">
+              <div className="flex flex-col gap-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <StatCard 
                     label="TOTAL COLLECTIONS"
@@ -1081,7 +1081,7 @@ export function RoleBasedBillingDashboard({
             ) : null}
           </DialogHeader>
           {selectedInvoice && (
-            <div className="gap-y-6">
+            <div className="flex flex-col gap-y-6">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-xl border bg-card p-4">
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -1204,7 +1204,7 @@ export function RoleBasedBillingDashboard({
           <DialogHeader>
             <DialogTitle>Create Billing Plan</DialogTitle>
           </DialogHeader>
-          <div className="gap-y-3">
+          <div className="flex flex-col gap-y-3">
             {createPlanError && (
               <p className="text-sm text-destructive">{createPlanError}</p>
             )}
@@ -1275,8 +1275,8 @@ export function RoleBasedBillingDashboard({
             <DialogTitle>Confirm Subscription</DialogTitle>
           </DialogHeader>
           {planToConfirm && (
-            <div className="gap-y-4 py-4">
-              <div className="bg-muted p-4 rounded-lg gap-y-2">
+            <div className="flex flex-col gap-y-4 py-4">
+              <div className="flex flex-col gap-y-2 rounded-lg bg-muted p-4">
                 <div className="flex justify-between items-center wrap-break-word">
                   <span className="font-semibold text-lg">{planToConfirm?.name}</span>
                   <span className="font-bold text-lg whitespace-nowrap ml-2">INR {(planToConfirm?.price ?? 0).toLocaleString("en-IN")}</span>
@@ -1310,7 +1310,7 @@ export function RoleBasedBillingDashboard({
             <DialogTitle>Complete Subscription Payment</DialogTitle>
           </DialogHeader>
           {pendingSubscriptionPayment && (
-            <div className="gap-y-4">
+            <div className="flex flex-col gap-y-4">
               <p className="text-sm text-muted-foreground">
                 Plan: <span className="font-medium text-foreground">{pendingSubscriptionPayment?.planName}</span>
               </p>

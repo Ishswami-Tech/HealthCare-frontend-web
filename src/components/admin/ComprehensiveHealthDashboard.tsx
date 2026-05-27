@@ -227,7 +227,7 @@ export function ComprehensiveHealthDashboard({
       : "degraded";
 
   return (
-    <div className={cn("gap-y-6", className)}>
+    <div className={cn("flex flex-col gap-y-6", className)}>
       {/* Header with overall status */}
       <div className="flex items-center justify-between">
         <div>
@@ -300,7 +300,7 @@ export function ComprehensiveHealthDashboard({
         )}
       >
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <CardTitle className="text-xl">Overall System Health</CardTitle>
               <CardDescription>

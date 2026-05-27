@@ -30,7 +30,7 @@ export function DoctorProfilePersonalTab({
           Personal Information
         </CardTitle>
       </CardHeader>
-      <CardContent className="gap-y-4">
+      <CardContent className="flex flex-col gap-y-4">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <Label htmlFor="firstName">First Name</Label>
@@ -60,7 +60,7 @@ export function DoctorProfilePersonalTab({
               onChange={(e) => updatePersonalInfo("email", e.target.value)}
             />
           </div>
-          <div className="gap-y-1.5">
+          <div className="flex flex-col gap-y-1.5">
             <div className="flex items-center gap-2">
               <Label htmlFor="phone">Phone Number</Label>
               {phoneVerified && (

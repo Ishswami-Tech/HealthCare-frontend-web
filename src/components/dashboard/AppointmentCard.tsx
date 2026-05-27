@@ -136,7 +136,7 @@ function AppointmentCardComponent({
         </div>
       </CardHeader>
 
-      <CardContent className="gap-y-4">
+      <CardContent className="flex flex-col gap-y-4">
         {/* Doctor/Patient Info */}
         {showDoctor && appointment.doctor && (
           <div className="flex items-center gap-3">
@@ -175,7 +175,7 @@ function AppointmentCardComponent({
         )}
 
         {/* Appointment Details */}
-        <div className="gap-y-2">
+        <div className="flex flex-col gap-y-2">
           {appointment.reason && (
             <div className="flex items-start gap-2">
               <FileText className="size-4 mt-0.5 text-muted-foreground" />

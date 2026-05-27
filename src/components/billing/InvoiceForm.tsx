@@ -105,8 +105,8 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
   return (
     <Card className="border-0 shadow-none">
       <CardContent className="p-0">
-        <form onSubmit={handleSubmit} className="gap-y-4">
-          <div className="gap-y-2">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-y-4">
+          <div className="flex flex-col gap-y-2">
             <Label>Description</Label>
             <Input
               value={description}
@@ -114,8 +114,8 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
               placeholder="Consultation Charges"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="gap-y-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-y-2">
               <Label>Quantity</Label>
               <Input
                 type="number"
@@ -124,7 +124,7 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
                 onChange={(e) => setQuantity(Number(e.target.value) || 1)}
               />
             </div>
-            <div className="gap-y-2">
+            <div className="flex flex-col gap-y-2">
               <Label>Unit Price</Label>
               <Input
                 type="number"
@@ -134,7 +134,7 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
               />
             </div>
           </div>
-          <div className="gap-y-2">
+          <div className="flex flex-col gap-y-2">
             <Label>Total Amount</Label>
             <Input
               type="number"
@@ -143,7 +143,7 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
               onChange={(e) => setAmount(Number(e.target.value) || 0)}
             />
           </div>
-          <div className="gap-y-2">
+          <div className="flex flex-col gap-y-2">
             <Label>Due Date</Label>
             <Input
               type="date"

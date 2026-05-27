@@ -28,23 +28,23 @@ export function ReceptionistProfilePersonalTab({
           Personal Information
         </CardTitle>
       </CardHeader>
-      <CardContent className="gap-y-4">
+      <CardContent className="flex flex-col gap-y-4">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="gap-y-1.5">
+          <div className="flex flex-col gap-y-1.5">
             <Label htmlFor="firstName">First Name</Label>
             <Input id="firstName" value={profileData.personalInfo.firstName} onChange={(e) => updatePersonalInfo("firstName", e.target.value)} />
           </div>
-          <div className="gap-y-1.5">
+          <div className="flex flex-col gap-y-1.5">
             <Label htmlFor="lastName">Last Name</Label>
             <Input id="lastName" value={profileData.personalInfo.lastName} onChange={(e) => updatePersonalInfo("lastName", e.target.value)} />
           </div>
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="gap-y-1.5">
+          <div className="flex flex-col gap-y-1.5">
             <Label htmlFor="email">Email Address</Label>
             <Input id="email" type="email" value={profileData.personalInfo.email} onChange={(e) => updatePersonalInfo("email", e.target.value)} />
           </div>
-          <div className="gap-y-1.5">
+          <div className="flex flex-col gap-y-1.5">
             <div className="flex items-center gap-2">
               <Label htmlFor="phone">Phone Number</Label>
               {phoneVerified && (
@@ -55,7 +55,7 @@ export function ReceptionistProfilePersonalTab({
           </div>
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="gap-y-1.5">
+          <div className="flex flex-col gap-y-1.5">
             <Label htmlFor="dateOfBirth">Date of Birth</Label>
             <Input
               id="dateOfBirth"
@@ -93,26 +93,26 @@ export function ReceptionistProfilePersonalTab({
             </Select>
           </div>
         </div>
-        <div className="gap-y-1.5">
+        <div className="flex flex-col gap-y-1.5">
           <Label htmlFor="address">Address</Label>
           <Input id="address" value={profileData.personalInfo.address} onChange={(e) => updatePersonalInfo("address", e.target.value)} />
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="gap-y-1.5">
+          <div className="flex flex-col gap-y-1.5">
             <Label htmlFor="city">City</Label>
             <Input id="city" className="min-h-11" value={profileData.personalInfo.city} onChange={(e) => updatePersonalInfo("city", e.target.value)} />
           </div>
-          <div className="gap-y-1.5">
+          <div className="flex flex-col gap-y-1.5">
             <Label htmlFor="state">State</Label>
             <Input id="state" className="min-h-11" value={profileData.personalInfo.state} onChange={(e) => updatePersonalInfo("state", e.target.value)} />
           </div>
-          <div className="gap-y-1.5">
+          <div className="flex flex-col gap-y-1.5">
             <Label htmlFor="zipCode">ZIP Code</Label>
             <Input id="zipCode" className="min-h-11" value={profileData.personalInfo.zipCode} onChange={(e) => updatePersonalInfo("zipCode", e.target.value)} />
           </div>
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="gap-y-1.5">
+          <div className="flex flex-col gap-y-1.5">
             <Label htmlFor="occupation">Occupation</Label>
             <Input id="occupation" className="min-h-11" value={profileData.personalInfo.occupation} onChange={(e) => updatePersonalInfo("occupation", e.target.value)} />
           </div>

@@ -134,7 +134,7 @@ export default function EnhancedDoctorDashboard() {
           <div className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-40">
             <div className="px-6 py-4">
               <div className="flex items-center justify-between">
-                <div className="gap-y-1">
+                <div className="flex flex-col gap-y-1">
                   <h1 className="text-3xl font-semibold text-blue-700 dark:text-blue-300">
                     Good morning, Dr. {user?.firstName || "Doctor"}
                   </h1>
@@ -195,7 +195,7 @@ export default function EnhancedDoctorDashboard() {
           </div>
 
           {/* Main Content */}
-          <div className="p-6 gap-y-6">
+          <div className="flex flex-col gap-y-6 p-6">
             {/* Urgent Notifications */}
             {urgentNotifications.length > 0 && (
               <div className="grid gap-3">
@@ -304,7 +304,7 @@ export default function EnhancedDoctorDashboard() {
                       </Button>
                     </div>
                   </CardHeader>
-                  <CardContent className="gap-y-3">
+                  <CardContent className="flex flex-col gap-y-3">
                     {todaysQueue.map((patient) => (
                       <div
                         key={patient.id}
@@ -319,7 +319,7 @@ export default function EnhancedDoctorDashboard() {
                             <div className="size-12 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
                               <User className="size-6 text-blue-600" />
                             </div>
-                            <div className="gap-y-1 flex-1">
+                            <div className="flex flex-1 flex-col gap-y-1">
                               <div className="flex items-center gap-2">
                                 <h4 className="font-semibold text-gray-900">{patient.patientName}</h4>
                                 {patient.priority === "critical" && (
@@ -394,7 +394,7 @@ export default function EnhancedDoctorDashboard() {
               </div>
 
               {/* Right Sidebar */}
-              <div className="gap-y-6">
+              <div className="flex flex-col gap-y-6">
                 {/* Today's Progress */}
                 <Card>
                   <CardHeader>
@@ -403,8 +403,8 @@ export default function EnhancedDoctorDashboard() {
                       Today's Progress
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="gap-y-4">
-                    <div className="gap-y-2">
+                  <CardContent className="flex flex-col gap-y-4">
+                    <div className="flex flex-col gap-y-2">
                       <div className="flex justify-between text-sm">
                         <span>Appointments</span>
                         <span className="font-medium">{stats.completedToday} / {stats.todayAppointments}</span>

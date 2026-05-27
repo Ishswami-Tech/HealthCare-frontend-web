@@ -331,7 +331,7 @@ export default function SuperAdminUsers() {
         accessorKey: "name",
         header: "User",
         cell: ({ row }) => (
-          <div className="gap-y-1">
+          <div className="flex flex-col gap-y-1">
             <div className="font-semibold">{row.original.name}</div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Mail className="size-4" />
@@ -395,7 +395,7 @@ export default function SuperAdminUsers() {
   }
 
   return (
-    <div className="p-4 gap-y-4 sm:p-6 sm:gap-y-5">
+    <div className="flex flex-col gap-y-4 p-4 sm:gap-y-5 sm:p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-semibold">User Administration</h1>
@@ -512,10 +512,10 @@ export default function SuperAdminUsers() {
               Create a new user and assign clinic/role access in one step.
           </DialogDescription>
         </DialogHeader>
-          <div className="gap-y-4">
+          <div className="flex flex-col gap-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {USER_CREATE_FIELDS.map(({ key, label }) => (
-                <div key={key} className="gap-y-2">
+                <div key={key} className="flex flex-col gap-y-2">
                   <Label>{label}</Label>
                   <Input
                     type={key === "password" ? "password" : "text"}
@@ -526,7 +526,7 @@ export default function SuperAdminUsers() {
                   />
                 </div>
               ))}
-              <div className="gap-y-2">
+              <div className="flex flex-col gap-y-2">
                 <Label>Role</Label>
                 <Select
                   value={createForm.role}
@@ -544,7 +544,7 @@ export default function SuperAdminUsers() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="gap-y-2">
+              <div className="flex flex-col gap-y-2">
                 <Label>Clinic</Label>
                 <Select
                   value={createForm.clinicId}
@@ -593,9 +593,9 @@ export default function SuperAdminUsers() {
             </div>
 
             {showCreateAdditionalDetails && (
-              <div className="gap-y-4 rounded-2xl border border-border bg-muted/20 p-4">
+              <div className="flex flex-col gap-y-4 rounded-2xl border border-border bg-muted/20 p-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="gap-y-2">
+                  <div className="flex flex-col gap-y-2">
                     <Label>Gender</Label>
                     <Select
                       value={createForm.gender}
@@ -613,7 +613,7 @@ export default function SuperAdminUsers() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="gap-y-2">
+                  <div className="flex flex-col gap-y-2">
                     <Label>Date of Birth</Label>
                     <Input
                       type="date"
@@ -623,7 +623,7 @@ export default function SuperAdminUsers() {
                       }
                     />
                   </div>
-                  <div className="gap-y-2 md:col-span-2">
+                  <div className="flex flex-col gap-y-2 md:col-span-2">
                     <Label>Address</Label>
                     <Textarea
                       value={createForm.address}
@@ -633,7 +633,7 @@ export default function SuperAdminUsers() {
                       placeholder="Street, city, state"
                     />
                   </div>
-                  <div className="gap-y-2">
+                  <div className="flex flex-col gap-y-2">
                     <Label>City</Label>
                     <Input
                       value={createForm.city}
@@ -642,7 +642,7 @@ export default function SuperAdminUsers() {
                       }
                     />
                   </div>
-                  <div className="gap-y-2">
+                  <div className="flex flex-col gap-y-2">
                     <Label>State</Label>
                     <Input
                       value={createForm.state}
@@ -651,7 +651,7 @@ export default function SuperAdminUsers() {
                       }
                     />
                   </div>
-                  <div className="gap-y-2">
+                  <div className="flex flex-col gap-y-2">
                     <Label>Zip Code</Label>
                     <Input
                       value={createForm.zipCode}
@@ -660,7 +660,7 @@ export default function SuperAdminUsers() {
                       }
                     />
                   </div>
-                  <div className="gap-y-2">
+                  <div className="flex flex-col gap-y-2">
                     <Label>Emergency Contact</Label>
                     <Input
                       value={createForm.emergencyContact}
@@ -669,7 +669,7 @@ export default function SuperAdminUsers() {
                       }
                     />
                   </div>
-                  <div className="gap-y-2">
+                  <div className="flex flex-col gap-y-2">
                     <Label>Emergency Phone</Label>
                     <Input
                       value={createForm.emergencyPhone}
@@ -678,7 +678,7 @@ export default function SuperAdminUsers() {
                       }
                     />
                   </div>
-                  <div className="gap-y-2 md:col-span-2">
+                  <div className="flex flex-col gap-y-2 md:col-span-2">
                     <Label>Medical History</Label>
                     <Textarea
                       value={createForm.medicalHistory}
@@ -687,7 +687,7 @@ export default function SuperAdminUsers() {
                       }
                     />
                   </div>
-                  <div className="gap-y-2">
+                  <div className="flex flex-col gap-y-2">
                     <Label>Allergies</Label>
                     <Input
                       value={createForm.allergies}
@@ -696,7 +696,7 @@ export default function SuperAdminUsers() {
                       }
                     />
                   </div>
-                  <div className="gap-y-2">
+                  <div className="flex flex-col gap-y-2">
                     <Label>Current Medications</Label>
                     <Textarea
                       value={createForm.currentMedications}

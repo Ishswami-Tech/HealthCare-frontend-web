@@ -389,7 +389,7 @@ export default function DoctorPrescriptions() {
               </EmptyContent>
             </Empty>
           ) : (
-            <div className="gap-y-4">
+            <div className="flex flex-col gap-y-4">
               {filteredPrescriptions.map((prescription: any) => (
                 <div
                   key={prescription.id}
@@ -496,8 +496,8 @@ export default function DoctorPrescriptions() {
               Create or update a prescription with the patientâ€™s medication plan and clinical notes.
             </DialogDescription>
             </DialogHeader>
-          <div className="gap-y-4 py-2">
-            <div className="gap-y-1.5">
+          <div className="flex flex-col gap-y-4 py-2">
+            <div className="flex flex-col gap-y-1.5">
               <Label htmlFor="doctor-prescription-notes">Diagnosis / Notes</Label>
               <textarea
                 id="doctor-prescription-notes"
@@ -509,7 +509,7 @@ export default function DoctorPrescriptions() {
               />
             </div>
             {!editingPrescription && (
-              <div className="gap-y-1.5">
+              <div className="flex flex-col gap-y-1.5">
                 <Label htmlFor="doctor-prescription-medicines">Medicines (comma-separated)</Label>
                 <Input
                   id="doctor-prescription-medicines"
@@ -519,7 +519,7 @@ export default function DoctorPrescriptions() {
                 />
               </div>
             )}
-            <div className="gap-y-1.5">
+            <div className="flex flex-col gap-y-1.5">
               <Label htmlFor="doctor-prescription-status">Status</Label>
               <Select
                 value={editForm.status}

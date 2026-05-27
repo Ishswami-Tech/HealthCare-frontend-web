@@ -727,10 +727,10 @@ export default function ReceptionistAppointmentsPage() {
       </div>
 
 
-      <div className="gap-y-6">
+      <div className="flex flex-col gap-y-6">
         <div>
           <Card>
-            <CardHeader className="border-b bg-muted/40 dark:bg-muted/20 px-4 py-3 gap-y-3">
+            <CardHeader className="flex flex-col gap-y-3 border-b bg-muted/40 dark:bg-muted/20 px-4 py-3">
               {/* Row 1: Title + Live badge */}
               <div className="flex items-center justify-between gap-3">
                 <CardTitle className="text-base font-bold inline-flex items-center gap-2">

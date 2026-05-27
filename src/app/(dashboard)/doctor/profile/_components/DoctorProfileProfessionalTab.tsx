@@ -18,7 +18,7 @@ export function DoctorProfileProfessionalTab({
   updateProfessionalInfo,
 }: DoctorProfileProfessionalTabProps) {
   return (
-    <div className="gap-y-6">
+    <div className="flex flex-col gap-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -26,7 +26,7 @@ export function DoctorProfileProfessionalTab({
             Professional Information
           </CardTitle>
         </CardHeader>
-        <CardContent className="gap-y-4">
+        <CardContent className="flex flex-col gap-y-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <Label htmlFor="medicalLicense">Medical License</Label>
@@ -96,7 +96,7 @@ export function DoctorProfileProfessionalTab({
         <CardHeader>
           <CardTitle>Education & Certifications</CardTitle>
         </CardHeader>
-        <CardContent className="gap-y-4">
+        <CardContent className="flex flex-col gap-y-4">
           <div>
             <h4 className="mb-2 font-semibold">Education</h4>
             {profileData.professionalInfo.education.map((edu) => (

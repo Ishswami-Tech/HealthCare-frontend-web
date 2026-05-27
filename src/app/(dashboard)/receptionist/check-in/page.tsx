@@ -746,7 +746,7 @@ export default function ReceptionistCheckInPage() {
       />
 
       <Card>
-        <CardContent className="gap-y-3 pt-4 sm:gap-y-4 sm:pt-5">
+        <CardContent className="flex flex-col gap-y-3 pt-4 sm:gap-y-4 sm:pt-5">
           {isCheckInLocationsLoading ? (
             <div className="rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
               Checking manual check-in setup…
@@ -770,7 +770,7 @@ export default function ReceptionistCheckInPage() {
           <Tabs
             value={activeTab}
             onValueChange={(value) => setActiveTab(value as "upcoming" | "history")}
-            className="gap-y-3"
+            className="flex flex-col gap-y-3"
           >
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <TabsList className="w-full sm:w-auto">
@@ -789,11 +789,11 @@ export default function ReceptionistCheckInPage() {
               </p>
             </div>
 
-            <TabsContent value="upcoming" className="gap-y-3">
+            <TabsContent value="upcoming" className="flex flex-col gap-y-3">
               <div className="rounded-2xl border border-border/60 bg-muted/30 p-3 sm:p-3.5">
                 <div className="flex flex-col gap-2.5">
                   <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="gap-y-1">
+                    <div className="flex flex-col gap-y-1">
                       <p className="text-sm font-semibold">Filter by date</p>
                       <p className="text-xs text-muted-foreground">
                         Pick one or more dates to narrow the manual check-in list.

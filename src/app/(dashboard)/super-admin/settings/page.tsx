@@ -443,7 +443,7 @@ export default function SuperAdminSettings() {
   }
 
   return (
-    <div className="p-4 gap-y-4 sm:p-6 sm:gap-y-5">
+    <div className="flex flex-col gap-y-4 p-4 sm:gap-y-5 sm:p-6">
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-semibold">System Settings</h1>
@@ -481,9 +481,9 @@ export default function SuperAdminSettings() {
             Global Video Provider
           </CardTitle>
         </CardHeader>
-        <CardContent className="gap-y-4">
+        <CardContent className="flex flex-col gap-y-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto] md:items-end">
-            <div className="gap-y-2">
+            <div className="flex flex-col gap-y-2">
               <Label htmlFor="globalVideoProvider">Default provider for all clinics</Label>
               <Select
                 value={effectiveGlobalVideoProvider}
@@ -520,7 +520,7 @@ export default function SuperAdminSettings() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="general" className="gap-y-6">
+      <Tabs defaultValue="general" className="flex flex-col gap-y-6">
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
           <TabsTrigger value="general" className="flex items-center gap-2">
             <Globe className="size-4" />
@@ -548,36 +548,36 @@ export default function SuperAdminSettings() {
                 General Settings
               </CardTitle>
             </CardHeader>
-            <CardContent className="gap-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="gap-y-2">
+            <CardContent className="flex flex-col gap-y-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="flex flex-col gap-y-2">
                   <Label htmlFor="siteName">Site Name</Label>
                   <Input id="siteName" value={systemSettings.siteName} onChange={e => updateSystemSetting("siteName", e.target.value)} />
                 </div>
-                <div className="gap-y-2">
+                <div className="flex flex-col gap-y-2">
                   <Label htmlFor="supportEmail">Support Email</Label>
                   <Input id="supportEmail" type="email" value={systemSettings.supportEmail} onChange={e => updateSystemSetting("supportEmail", e.target.value)} />
                 </div>
               </div>
-              <div className="gap-y-2">
+              <div className="flex flex-col gap-y-2">
                 <Label htmlFor="siteDescription">Site Description</Label>
                 <Textarea id="siteDescription" value={systemSettings.siteDescription} onChange={e => updateSystemSetting("siteDescription", e.target.value)} rows={3} />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="gap-y-2">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="flex flex-col gap-y-2">
                   <Label htmlFor="maxFileSize">Max File Size (MB)</Label>
                   <Input id="maxFileSize" type="number" value={systemSettings.maxFileSize} onChange={e => updateSystemSetting("maxFileSize", e.target.value)} />
                 </div>
-                <div className="gap-y-2">
+                <div className="flex flex-col gap-y-2">
                   <Label htmlFor="sessionTimeout">Session Timeout (minutes)</Label>
                   <Input id="sessionTimeout" type="number" value={systemSettings.sessionTimeout} onChange={e => updateSystemSetting("sessionTimeout", e.target.value)} />
                 </div>
-                <div className="gap-y-2">
+                <div className="flex flex-col gap-y-2">
                   <Label htmlFor="defaultLanguage">Default Language</Label>
                   <Input id="defaultLanguage" value={systemSettings.defaultLanguage} onChange={e => updateSystemSetting("defaultLanguage", e.target.value)} />
                 </div>
               </div>
-              <div className="gap-y-2">
+              <div className="flex flex-col gap-y-2">
                 <Label htmlFor="clinicVideoProvider">Clinic Video Provider</Label>
                 <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
                   <div>
@@ -652,22 +652,22 @@ export default function SuperAdminSettings() {
                 Security Settings
               </CardTitle>
             </CardHeader>
-            <CardContent className="gap-y-4">
+            <CardContent className="flex flex-col gap-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="gap-y-2">
+                <div className="flex flex-col gap-y-2">
                   <Label htmlFor="passwordExpiry">Password Expiry (days)</Label>
                   <Input id="passwordExpiry" type="number" value={securitySettings.passwordExpiry} onChange={e => updateSecuritySetting("passwordExpiry", e.target.value)} />
                 </div>
-                <div className="gap-y-2">
+                <div className="flex flex-col gap-y-2">
                   <Label htmlFor="maxLoginAttempts">Max Login Attempts</Label>
                   <Input id="maxLoginAttempts" type="number" value={securitySettings.maxLoginAttempts} onChange={e => updateSecuritySetting("maxLoginAttempts", e.target.value)} />
                 </div>
               </div>
-              <div className="gap-y-2">
+              <div className="flex flex-col gap-y-2">
                 <Label htmlFor="ipWhitelist">IP Whitelist (comma-separated)</Label>
                 <Textarea id="ipWhitelist" value={securitySettings.ipWhitelist} onChange={e => updateSecuritySetting("ipWhitelist", e.target.value)} rows={3} />
               </div>
-              <div className="gap-y-4">
+              <div className="flex flex-col gap-y-4">
                 {[
                   ["Two-Factor Authentication Required", "Require 2FA for admin users", "twoFactorRequired", securitySettings.twoFactorRequired],
                   ["Audit Logging", "Record all critical actions", "auditLogging", securitySettings.auditLogging],
@@ -699,7 +699,7 @@ export default function SuperAdminSettings() {
                 Notification Settings
               </CardTitle>
             </CardHeader>
-            <CardContent className="gap-y-4">
+            <CardContent className="flex flex-col gap-y-4">
               {[
                 ["Appointment Reminders", "Send appointment reminders to patients", "appointmentReminders", notificationSettings.appointmentReminders],
                 ["System Alerts", "Receive alerts for system issues", "systemAlerts", notificationSettings.systemAlerts],

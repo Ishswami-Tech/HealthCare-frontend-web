@@ -71,7 +71,7 @@ function ModernDashboardCardComponent({
           {Icon && <Icon className={cn('size-4', iconColor)} />}
         </div>
       </CardHeader>
-      <CardContent className="gap-y-3">
+      <CardContent className="flex flex-col gap-y-3">
         <div className="flex items-center justify-between">
           <div className="text-2xl font-bold">
             {value}
@@ -96,7 +96,7 @@ function ModernDashboardCardComponent({
         )}
         
         {progress && (
-          <div className="gap-y-1">
+          <div className="flex flex-col gap-y-1">
             <div className="flex justify-between text-xs">
               <span>Progress</span>
               <span>{progress.value}%</span>

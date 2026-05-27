@@ -125,7 +125,7 @@ export function PaymentHistory({ payments, onRefetch, compact = false }: Payment
   );
 
   return (
-    <div className="gap-y-4">
+    <div className="flex flex-col gap-y-4">
       {!compact && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <StatCard

@@ -66,7 +66,7 @@ export function DoctorProfileOverviewCard({
           </div>
 
           <div className="text-right">
-            <div className="grid grid-cols-2 gap-4 text-center">
+            <div className="grid grid-cols-1 gap-4 text-center sm:grid-cols-2">
               <div>
                 <div className="text-2xl font-bold text-blue-600">
                   {stats.certifications}

@@ -29,7 +29,7 @@ interface DashboardPageHeaderProps {
 
 export function DashboardPageShell({ children, className }: DashboardPageShellProps) {
   return (
-    <div className={cn("gap-y-3 text-foreground sm:gap-y-4", className)}>
+    <div className={cn("flex flex-col gap-y-3 text-foreground sm:gap-y-4", className)}>
       {children}
     </div>
   );
@@ -49,7 +49,7 @@ export function DashboardPageHeader({
 
       <div className="relative px-4 pb-4 pt-5 sm:px-6 sm:pb-5 sm:pt-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-0">
-          <div className="min-w-0 gap-y-1">
+          <div className="flex min-w-0 flex-col gap-y-1">
             <span className="inline-block text-[9px] font-extrabold uppercase tracking-[0.25em] text-primary sm:text-[11px]">
               {eyebrow}
             </span>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
@@ -262,7 +262,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
         />
       )}
 
-          <Tabs defaultValue="history" className="gap-y-6">
+          <Tabs defaultValue="history" className="flex flex-col gap-y-6">
             <TabsList className="max-w-full overflow-x-auto h-auto p-1 justify-start scrollbar-hide">
               <TabsTrigger value="history" className="text-xs sm:text-sm px-3 sm:px-4">History</TabsTrigger>
               <TabsTrigger value="prescriptions" className="text-xs sm:text-sm px-3 sm:px-4">Prescriptions</TabsTrigger>
@@ -273,7 +273,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
             </TabsList>
 
             <TabsContent value="history">
-              <div className="gap-y-4">
+              <div className="flex flex-col gap-y-4">
                 <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -282,7 +282,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="gap-y-4">
+                    <div className="flex flex-col gap-y-4">
                       <div className="flex gap-4">
                         <div className="relative flex-1">
                           <Search
@@ -301,7 +301,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                         </Button>
                       </div>
 
-                      <div className="gap-y-4">
+                      <div className="flex flex-col gap-y-4">
                         {filteredMedicalHistory.length === 0 ? (
                           <EmptyState
                             title={searchTerm ? "No matching records" : "No medical history"}
@@ -389,7 +389,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
             </TabsContent>
 
             <TabsContent value="prescriptions">
-              <div className="gap-y-4">
+              <div className="flex flex-col gap-y-4">
                 <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -398,7 +398,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="gap-y-6">
+                    <div className="flex flex-col gap-y-6">
                       {prescriptions.map((prescription: PatientPrescriptionEntry) => (
                         <div key={prescription.id} className="rounded-2xl border border-border/70 p-3 sm:p-4 dark:border-border/60">
                           <div className="flex items-center justify-between mb-4">
@@ -425,7 +425,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                             </div>
                           </div>
 
-                          <div className="gap-y-3">
+                          <div className="flex flex-col gap-y-3">
                             <h4 className="font-medium">Medications:</h4>
                             {prescription.medications.map((med) => (
                               <div
@@ -482,7 +482,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
             </TabsContent>
 
             <TabsContent value="reports">
-              <div className="gap-y-4">
+              <div className="flex flex-col gap-y-4">
                 <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -491,7 +491,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="gap-y-6">
+                    <div className="flex flex-col gap-y-6">
                       {labReports.map((report: PatientLabReportEntry) => (
                         <div key={report.id} className="border rounded-lg p-3 sm:p-4">
                           <div className="flex items-center justify-between mb-4">
@@ -516,7 +516,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                             </div>
                           </div>
 
-                          <div className="gap-y-3">
+                          <div className="flex flex-col gap-y-3">
                             <h4 className="font-medium">Results:</h4>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                               {report.results.map((result) => (
@@ -556,7 +556,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
             </TabsContent>
 
             <TabsContent value="vitals">
-              <div className="gap-y-4">
+              <div className="flex flex-col gap-y-4">
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -565,8 +565,8 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="gap-y-6">
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                    <div className="flex flex-col gap-y-6">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4">
                         <div
                           className={`p-3 sm:p-4 ${theme.containers.featureRed} rounded-lg`}
                         >
@@ -690,7 +690,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
             </TabsContent>
 
             <TabsContent value="allergies">
-              <div className="gap-y-4">
+              <div className="flex flex-col gap-y-4">
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -699,7 +699,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="gap-y-4">
+                    <div className="flex flex-col gap-y-4">
                       {allergies.length === 0 ? (
                         <EmptyState
                           title="No allergies recorded"
@@ -759,7 +759,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
             </TabsContent>
 
             <TabsContent value="diet">
-              <div className="gap-y-4">
+              <div className="flex flex-col gap-y-4">
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -784,7 +784,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
               <CardTitle>Quick Upload</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4 sm:gap-4">
                 <Button
                   variant="outline"
                   className="h-20 flex flex-col items-center justify-center gap-2"
@@ -832,7 +832,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
           
           {selectedRecord && (
             <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <h4 className="font-semibold text-sm text-muted-foreground mb-1">Date</h4>
                   <p>{formatDateInIST(selectedRecord.date, { day: "2-digit", month: "short", year: "numeric" }, "en-IN")}</p>

@@ -483,7 +483,7 @@ function BookAppointmentStep1({
         <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
           <div className="flex items-start gap-3">
             <AlertTriangle className="mt-0.5 size-5 shrink-0" />
-            <div className="gap-y-1">
+            <div className="flex flex-col gap-y-1">
               <p className="font-semibold">Complete your profile first</p>
               <p className="text-xs text-amber-800/90 dark:text-amber-200/90">
                 We need your profile details before loading locations or
@@ -523,7 +523,7 @@ function BookAppointmentStep1({
             <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
               <div className="flex items-start gap-3">
                 <Building className="mt-0.5 size-5 shrink-0" />
-                <div className="gap-y-1">
+                <div className="flex flex-col gap-y-1">
                   <p className="font-semibold">Clinic unavailable</p>
                   <p className="text-xs text-amber-800/90 dark:text-amber-200/90">
                     {clinicName
@@ -545,7 +545,7 @@ function BookAppointmentStep1({
               </div>
             </div>
           ) : (
-            <div className="gap-y-2">
+            <div className="flex flex-col gap-y-2">
               {hasOnlyInactiveLocations && (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                   No active locations are configured yet. Showing all clinic
@@ -609,7 +609,7 @@ function BookAppointmentStep1({
         <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
           Consultation Mode
         </p>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {(
             [
               {
@@ -889,7 +889,7 @@ function BookAppointmentStep2Service({
         What type of consultation do you need?
       </p>
       {isPrivilegedScheduler && (
-        <div className="gap-y-3 rounded-2xl border border-border bg-muted/20 p-4">
+        <div className="flex flex-col gap-y-3 rounded-2xl border border-border bg-muted/20 p-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -926,7 +926,7 @@ function BookAppointmentStep2Service({
             </p>
           )}
 
-          <div className="max-h-60 gap-y-2 overflow-y-auto pr-1">
+          <div className="flex max-h-60 flex-col gap-y-2 overflow-y-auto pr-1">
             {filteredPatientsList.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border bg-background/60 px-4 py-6 text-center text-sm text-muted-foreground">
                 No patient matches the search.
@@ -982,7 +982,7 @@ function BookAppointmentStep2Service({
 
           {showQuickCreatePatient && (
             <Card className="border-emerald-200/70 bg-background/80 shadow-sm dark:border-emerald-900/50">
-              <CardContent className="gap-y-4 p-4">
+              <CardContent className="flex flex-col gap-y-4 p-4">
                 <div className="flex items-start gap-3">
                   <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300">
                     <User className="size-4" />
@@ -997,7 +997,7 @@ function BookAppointmentStep2Service({
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="gap-y-2">
+                  <div className="flex flex-col gap-y-2">
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       First name
                     </Label>
@@ -1012,7 +1012,7 @@ function BookAppointmentStep2Service({
                       placeholder="John"
                     />
                   </div>
-                  <div className="gap-y-2">
+                  <div className="flex flex-col gap-y-2">
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Last name
                     </Label>
@@ -1027,7 +1027,7 @@ function BookAppointmentStep2Service({
                       placeholder="Doe"
                     />
                   </div>
-                  <div className="gap-y-2">
+                  <div className="flex flex-col gap-y-2">
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Phone
                     </Label>
@@ -1042,7 +1042,7 @@ function BookAppointmentStep2Service({
                       placeholder="+91 98765 43210"
                     />
                   </div>
-                  <div className="gap-y-2">
+                  <div className="flex flex-col gap-y-2">
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Email
                     </Label>
@@ -1095,7 +1095,7 @@ function BookAppointmentStep2Service({
 
                 {showQuickCreateAdditionalDetails && (
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="gap-y-2">
+                    <div className="flex flex-col gap-y-2">
                       <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         Date of birth
                       </Label>
@@ -1110,7 +1110,7 @@ function BookAppointmentStep2Service({
                         }
                       />
                     </div>
-                    <div className="gap-y-2">
+                    <div className="flex flex-col gap-y-2">
                       <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         Gender
                       </Label>
@@ -1133,7 +1133,7 @@ function BookAppointmentStep2Service({
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="gap-y-2 sm:col-span-2">
+                    <div className="flex flex-col gap-y-2 sm:col-span-2">
                       <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         Address
                       </Label>
@@ -1149,7 +1149,7 @@ function BookAppointmentStep2Service({
                         className="min-h-20"
                       />
                     </div>
-                    <div className="gap-y-2">
+                    <div className="flex flex-col gap-y-2">
                       <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         Emergency contact
                       </Label>
@@ -1164,7 +1164,7 @@ function BookAppointmentStep2Service({
                         placeholder="Contact name"
                       />
                     </div>
-                    <div className="gap-y-2">
+                    <div className="flex flex-col gap-y-2">
                       <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         Emergency phone
                       </Label>
@@ -1179,7 +1179,7 @@ function BookAppointmentStep2Service({
                         placeholder="+91 98765 43210"
                       />
                     </div>
-                    <div className="gap-y-2 sm:col-span-2">
+                    <div className="flex flex-col gap-y-2 sm:col-span-2">
                       <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         Medical history
                       </Label>
@@ -1195,7 +1195,7 @@ function BookAppointmentStep2Service({
                         className="min-h-20"
                       />
                     </div>
-                    <div className="gap-y-2">
+                    <div className="flex flex-col gap-y-2">
                       <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         Allergies
                       </Label>
@@ -1210,7 +1210,7 @@ function BookAppointmentStep2Service({
                         placeholder="Comma separated"
                       />
                     </div>
-                    <div className="gap-y-2">
+                    <div className="flex flex-col gap-y-2">
                       <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         Current medications
                       </Label>
@@ -1279,7 +1279,7 @@ function BookAppointmentStep2Service({
         </div>
       )}
       {servicesLoading ? (
-        <div className="gap-y-2">
+        <div className="flex flex-col gap-y-2">
           {Array.from({ length: 4 }).map((_, index) => (
             <div
               key={index}
@@ -1304,7 +1304,7 @@ function BookAppointmentStep2Service({
           </button>
         ))}
       </div>
-      <div className="gap-y-2">
+      <div className="flex flex-col gap-y-2">
         {!servicesLoading && filtered.length === 0 ? (
           <div className="text-center py-10 text-muted-foreground border border-dashed rounded-xl">
             <Activity className="size-8 mx-auto mb-2 opacity-30" />
@@ -1388,7 +1388,7 @@ function BookAppointmentStep2({
         Choose your preferred doctor
       </p>
       {doctorsLoading || !doctorsFetched ? (
-        <div className="gap-y-2">
+        <div className="flex flex-col gap-y-2">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-16 rounded-xl bg-muted animate-pulse" />
           ))}
@@ -1397,7 +1397,7 @@ function BookAppointmentStep2({
         <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
           <div className="flex items-start gap-3">
             <User className="mt-0.5 size-5 shrink-0" />
-            <div className="gap-y-1">
+            <div className="flex flex-col gap-y-1">
               <p className="font-semibold">No doctors available</p>
               <p className="text-xs text-amber-800/90 dark:text-amber-200/90">
                 {selectedLocationId
@@ -1419,7 +1419,7 @@ function BookAppointmentStep2({
           </div>
         </div>
       ) : (
-        <div className="gap-y-2">
+        <div className="flex flex-col gap-y-2">
           {doctorsList.map((doctor: any) => (
             <button
               key={doctor.id}
@@ -1603,7 +1603,7 @@ function BookAppointmentStep4({
   if (consultationMode === "VIDEO") {
     return (
       <div className="flex flex-col gap-4">
-        <div className="rounded-xl border bg-slate-50/80 dark:bg-slate-900/40 border-slate-200/80 dark:border-slate-800 p-3 gap-y-3">
+        <div className="flex flex-col rounded-xl border bg-slate-50/80 dark:bg-slate-900/40 border-slate-200/80 dark:border-slate-800 p-3 gap-y-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-foreground">
@@ -1738,7 +1738,7 @@ function BookAppointmentStep4({
             )}
           </div>
         ) : (
-          <div className="gap-y-4">
+          <div className="flex flex-col gap-y-4">
             {visiblePeriods.map((period) => (
               <div
                 key={period.key}
@@ -1879,7 +1879,7 @@ function BookAppointmentStep4({
           )}
         </div>
       ) : (
-        <div className="gap-y-4">
+        <div className="flex flex-col gap-y-4">
           {visiblePeriods.map((period) => (
             <div
               key={period.key}
@@ -2032,7 +2032,7 @@ function BookAppointmentStep5({
       </div>
 
       {consultationMode === "VIDEO" && shouldCollectVideoPayment && (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30 p-4 gap-y-2">
+        <div className="flex flex-col rounded-2xl border border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30 p-4 gap-y-2">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">
               Video visit fee
@@ -2055,7 +2055,7 @@ function BookAppointmentStep5({
                 }
                 className="mt-0.5"
               />
-              <div className="gap-y-1">
+              <div className="flex flex-col gap-y-1">
                 <Label
                   htmlFor="video-payment-policy"
                   className="text-sm font-semibold leading-snug text-foreground"
@@ -2114,7 +2114,7 @@ function BookAppointmentStep5({
 
       {needsSubscriptionPlan && (
         <div
-          className={`rounded-2xl border p-4 gap-y-2 ${
+          className={`flex flex-col rounded-2xl border p-4 gap-y-2 ${
             needsSubscriptionPlan
               ? "border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30"
               : "border-blue-200 bg-blue-50/70 dark:border-blue-900 dark:bg-blue-950/30"
@@ -2149,7 +2149,7 @@ function BookAppointmentStep5({
         </div>
       )}
 
-      <div className="gap-y-3">
+      <div className="flex flex-col gap-y-3">
         <div>
           <label
             htmlFor="book-appointment-chief-complaint"
@@ -2555,7 +2555,7 @@ export function BookAppointmentDialog({
       stepDirection: "forward",
       selectedLocationId: locationId || "",
       consultationMode: "VIDEO", // Always VIDEO - in-person appointments disabled
-      selectedServiceId: initialServiceId || "",
+      selectedServiceId: initialServiceId || (videoOnly ? VIDEO_CONSULTATION_TREATMENT_TYPE : ""),
       selectedDoctorId: initialDoctorId || "",
       selectedDate: getTodayIST(),
       selectedSlot: "",
@@ -3468,6 +3468,33 @@ export function BookAppointmentDialog({
     userRole === "PATIENT" &&
     videoPaymentAmount > 0;
 
+  // DEBUG: Log video payment state
+  console.log('[BookAppointmentDialog] Video payment state:', {
+    consultationMode,
+    userRole,
+    selectedServiceId,
+    selectedService: selectedService?.label || 'none',
+    videoPaymentAmount,
+    shouldCollectVideoPayment,
+    visibleServicesCount: visibleServices.length,
+    visibleServicesTreatmentTypes: visibleServices.map(s => s.treatmentType),
+    allServicesCount: appointmentServices.length,
+    allServicesTreatmentTypes: (appointmentServices as AppointmentServiceDefinition[]).map(s => s.treatmentType),
+  });
+
+  // DEBUG: Log appointment services data
+  console.log('[BookAppointmentDialog] Appointment services:', {
+    servicesLoading,
+    servicesCount: appointmentServices.length,
+    services: (appointmentServices as AppointmentServiceDefinition[]).map(s => ({
+      treatmentType: s.treatmentType,
+      label: s.label,
+      active: s.active,
+      appointmentModes: s.appointmentModes,
+      videoConsultationFee: s.videoConsultationFee,
+    }))
+  });
+
   const doctorsList: any[] = useMemo(() => {
     // The GET /doctors API returns User records with a nested `doctor` relation:
     // { id: userId, name, doctor: { id: doctorId, specialization, ... } }
@@ -3588,17 +3615,6 @@ export function BookAppointmentDialog({
         : {}),
     },
   );
-
-  // DEBUG: Log availability loading
-  console.log('[BookAppointmentDialog] Availability state:', {
-    resolvedDoctorId,
-    dateString,
-    shouldLoadAvailability,
-    consultationMode,
-    availabilitySlots: availability?.length || 0,
-    availabilityLoading,
-    availabilityError: availabilityError?.message || availabilityError
-  });
 
   const showAvailabilityLoader =
     shouldLoadAvailability &&
@@ -3939,22 +3955,98 @@ export function BookAppointmentDialog({
     return false;
   }, [consultationMode, restrictions]);
 
+  // Extract videoCallWindow from availability response (authoritative source from backend)
+  // The backend already filters slots by videoCallWindow for VIDEO_CALL appointments,
+  // so we trust the backend's availableSlots directly.
+  const backendVideoCallWindow = useMemo(() => {
+    const availabilityData = availability as Record<string, unknown> | undefined;
+    if (!availabilityData) return null;
+
+    // Check at root level (backend returns videoCallWindow in response)
+    const windowValue = availabilityData.videoCallWindow as
+      | { start?: unknown; end?: unknown }
+      | undefined;
+    if (windowValue && typeof windowValue === "object" && windowValue !== null) {
+      const start =
+        typeof windowValue.start === "string" ? windowValue.start.trim() : null;
+      const end =
+        typeof windowValue.end === "string" ? windowValue.end.trim() : null;
+      if (start && end && /^([01]\d|2[0-3]):([0-5]\d)$/.test(start) && /^([01]\d|2[0-3]):([0-5]\d)$/.test(end)) {
+        return { start, end };
+      }
+    }
+
+    // Check in nested data.data structure
+    const nestedData = availabilityData.data as Record<string, unknown> | undefined;
+    if (nestedData) {
+      const nestedWindow = nestedData.videoCallWindow as
+        | { start?: unknown; end?: unknown }
+        | undefined;
+      if (nestedWindow && typeof nestedWindow === "object" && nestedWindow !== null) {
+        const start =
+          typeof nestedWindow.start === "string" ? nestedWindow.start.trim() : null;
+        const end =
+          typeof nestedWindow.end === "string" ? nestedWindow.end.trim() : null;
+        if (
+          start &&
+          end &&
+          /^([01]\d|2[0-3]):([0-5]\d)$/.test(start) &&
+          /^([01]\d|2[0-3]):([0-5]\d)$/.test(end)
+        ) {
+          return { start, end };
+        }
+      }
+    }
+
+    return null;
+  }, [availability]);
+
+  // For VIDEO_CALL appointments, trust the backend's filtered availableSlots directly.
+  // The backend already filters by videoCallWindow when appointmentType is VIDEO_CALL.
+  // Only apply additional filtering if we don't have backend-filtered slots.
   const effectiveSlots = useMemo(() => {
     if (consultationBlocked) {
       return [];
     }
 
     const baseSlots = slots as string[];
-    if (consultationMode !== "VIDEO" || !clinicVideoCallWindow) {
+
+    // For VIDEO_CALL: backend already filtered by videoCallWindow, use slots directly
+    // For IN_PERSON or no window: use all slots
+    if (consultationMode !== "VIDEO" || !backendVideoCallWindow) {
       return baseSlots;
     }
 
-    return baseSlots.filter(isSlotWithinClinicVideoWindow);
+    // Only apply frontend filtering as a safety measure using the backend's window
+    // This handles edge cases where backend might not have filtered
+    const parseMinutes = (value: string) => {
+      const [hoursRaw, minutesRaw] = value.split(":");
+      const hours = Number(hoursRaw);
+      const minutes = Number(minutesRaw);
+      if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+      return hours * 60 + minutes;
+    };
+
+    const windowStart = parseMinutes(backendVideoCallWindow.start);
+    const windowEnd = parseMinutes(backendVideoCallWindow.end);
+
+    if (windowStart === null || windowEnd === null) {
+      return baseSlots;
+    }
+
+    return baseSlots.filter((slot) => {
+      const slotStart = parseMinutes(slot);
+      if (slotStart === null) return true;
+
+      // Slot must start at or after window start
+      // Slot end (start + 15 min) must be at or before window end
+      const slotEnd = slotStart + VIDEO_APPOINTMENT_SLOT_DURATION_MINUTES;
+      return slotStart >= windowStart && slotEnd <= windowEnd;
+    });
   }, [
-    clinicVideoCallWindow,
+    backendVideoCallWindow,
     consultationBlocked,
     consultationMode,
-    isSlotWithinClinicVideoWindow,
     slots,
   ]);
   const validateLatestAvailability = useCallback(async () => {
@@ -3970,6 +4062,26 @@ export function BookAppointmentDialog({
     queryClient,
     refetchAvailability,
   ]);
+
+  // DEBUG: Log availability loading
+  console.log('[BookAppointmentDialog] Availability state:', {
+    resolvedDoctorId,
+    dateString,
+    shouldLoadAvailability,
+    consultationMode,
+    rawSlots: slots.length,
+    effectiveSlots: effectiveSlots.length,
+    backendVideoWindow: backendVideoCallWindow,
+    clinicVideoWindow: clinicVideoCallWindow,
+    // Log raw availability to debug backend response
+    availabilityKeys: availability ? Object.keys(availability) : null,
+    availabilityAvailableSlots: (availability as any)?.availableSlots,
+    availabilityBookedSlots: (availability as any)?.bookedSlots,
+    availabilityVideoWindow: (availability as any)?.videoCallWindow,
+    availabilityRestrictions: (availability as any)?.restrictions,
+    availabilityLoading,
+    availabilityError: availabilityError?.message || availabilityError
+  });
 
   useEffect(() => {
     if (!dialogOpen || !isConnected || !resolvedDoctorId || !dateString) {

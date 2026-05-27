@@ -89,7 +89,7 @@ export default function DoctorDashboardContent() {
       />
 
       <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-4">
-        <div className="gap-y-4 lg:col-span-3">
+        <div className="flex flex-col gap-y-4 lg:col-span-3">
           <DoctorDashboardQueueCard
             doctorQueueSections={data.doctorQueueSections}
             resolvedActiveDoctorQueueLane={data.resolvedActiveDoctorQueueLane}

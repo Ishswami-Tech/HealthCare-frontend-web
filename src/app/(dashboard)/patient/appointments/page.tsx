@@ -224,9 +224,9 @@ function PatientAppointmentsContent() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div className="gap-y-4">
+              <div className="flex flex-col gap-y-4">
                 <h4 className="text-lg font-semibold">Traditional Therapies</h4>
-                <div className="gap-y-3">
+                <div className="flex flex-col gap-y-3">
                   <div className="flex items-start gap-3">
                     <Droplets className={`mt-0.5 size-5 ${theme.iconColors.cyan}`} />
                     <div>
@@ -257,9 +257,9 @@ function PatientAppointmentsContent() {
                 </div>
               </div>
 
-              <div className="gap-y-4">
+              <div className="flex flex-col gap-y-4">
                 <h4 className="text-lg font-semibold">Diagnostic Methods</h4>
-                <div className="gap-y-3">
+                <div className="flex flex-col gap-y-3">
                   <div className="flex items-start gap-3">
                     <Heart className={`mt-0.5 size-5 ${theme.iconColors.red}`} />
                     <div>

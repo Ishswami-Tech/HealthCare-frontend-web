@@ -9,7 +9,7 @@ import { ROUTES } from "@/lib/config/routes";
 export default function DataDeletionPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto gap-y-8">
+      <div className="mx-auto flex max-w-4xl flex-col gap-y-8">
         <div className="flex items-center justify-between">
           <Link href={ROUTES.LOGIN} prefetch={false}>
             <Button variant="ghost" className="gap-2">
@@ -24,7 +24,7 @@ export default function DataDeletionPage() {
         </div>
 
         <Card className="shadow-lg border-t-4 border-t-blue-600">
-          <CardHeader className="gap-y-4 pb-8 border-b">
+          <CardHeader className="flex flex-col gap-y-4 border-b pb-8">
             <div className="flex items-center gap-3 mb-2">
               <div className="size-10 rounded-full bg-blue-100 flex items-center justify-center">
                 <ShieldAlert className="size-5 text-blue-600" />
@@ -39,8 +39,8 @@ export default function DataDeletionPage() {
             </p>
           </CardHeader>
 
-          <CardContent className="gap-y-8 pt-8 px-6 sm:px-10">
-            <section className="gap-y-3">
+          <CardContent className="flex flex-col gap-y-8 px-6 pt-8 sm:px-10">
+            <section className="flex flex-col gap-y-3">
               <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
                 <FileText className="size-5 text-blue-600" />
                 1. What will be deleted
@@ -50,7 +50,7 @@ export default function DataDeletionPage() {
               </p>
             </section>
 
-            <section className="gap-y-3">
+            <section className="flex flex-col gap-y-3">
               <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
                 <Mail className="size-5 text-blue-600" />
                 2. How to request deletion
@@ -70,12 +70,12 @@ export default function DataDeletionPage() {
               </p>
             </section>
 
-            <section className="gap-y-3">
+            <section className="flex flex-col gap-y-3">
               <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
                 <ShieldAlert className="size-5 text-blue-600" />
                 3. What happens next
               </h2>
-              <ul className="list-disc list-inside text-gray-600 gap-y-2 ml-2">
+              <ul className="list-inside list-disc space-y-2 text-gray-600 ml-2">
                 <li>We verify the request before processing deletion.</li>
                 <li>We delete account data that is eligible for deletion.</li>
                 <li>We keep records only where retention is required by law, billing, or clinical compliance.</li>

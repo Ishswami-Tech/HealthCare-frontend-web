@@ -127,15 +127,15 @@ export default function PrakritiVikritiCard({
         )}
       </CardHeader>
 
-      <CardContent className="gap-y-6">
+      <CardContent className="flex flex-col gap-y-6">
         {/* Constitution Comparison */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="gap-y-4">
+          <div className="flex flex-col gap-y-4">
             <h3 className="font-semibold text-lg flex items-center gap-2">
               <Activity className="size-4 text-blue-600" />
               {t("prakritiVikriti.constitutionAnalysis")}
             </h3>
-            <div className="gap-y-4">
+            <div className="flex flex-col gap-y-4">
               <DoshaComparison
                 doshaKey="vata"
                 prakriti={prakriti}
@@ -172,9 +172,9 @@ export default function PrakritiVikritiCard({
             </div>
           </div>
 
-          <div className="gap-y-4">
+          <div className="flex flex-col gap-y-4">
             <h3 className="font-semibold text-lg">{t("prakritiVikriti.balanceOverview")}</h3>
-            <div className="p-4 bg-gray-50 rounded-lg gap-y-3">
+            <div className="flex flex-col gap-y-3 rounded-lg bg-gray-50 p-4">
               <div className="flex items-center gap-2">
                 <BalanceIcon className={cn("size-5", balanceStatus.color)} />
                 <span
@@ -184,7 +184,7 @@ export default function PrakritiVikritiCard({
                 </span>
               </div>
 
-              <div className="text-sm text-gray-600 gap-y-2">
+              <div className="flex flex-col gap-y-2 text-sm text-gray-600">
                 <p>
                   <strong>{t("prakritiVikriti.prakriti")}</strong> {t("prakritiVikriti.prakritDescription")}
                 </p>
@@ -194,9 +194,9 @@ export default function PrakritiVikritiCard({
               </div>
 
               {/* Key Imbalances */}
-              <div className="gap-y-2">
+              <div className="flex flex-col gap-y-2">
                 <h4 className="font-medium text-sm">{t("prakritiVikriti.keyObservations")}:</h4>
-                <div className="gap-y-1">
+                <div className="flex flex-col gap-y-1">
                   {(["vata", "pitta", "kapha"] as const).map((dosha) => {
                     const diff = getDifference(dosha);
                     if (Math.abs(diff) > 10) {

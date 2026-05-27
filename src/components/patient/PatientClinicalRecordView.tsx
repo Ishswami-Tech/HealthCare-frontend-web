@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -320,7 +320,7 @@ export function PatientClinicalRecordView({
   );
 
   return (
-    <div className={cn("gap-y-4", className)}>
+    <div className={cn("flex flex-col gap-y-4", className)}>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {summaryCards.map((card) => (
           <Card key={card.label} className="border-border/70 bg-card shadow-sm">
@@ -335,7 +335,7 @@ export function PatientClinicalRecordView({
         ))}
       </div>
 
-      <Tabs defaultValue="overview" className="gap-y-4">
+      <Tabs defaultValue="overview" className="flex flex-col gap-y-4">
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
           <TabsTrigger value="overview" className="gap-2">
             <UserRound className="size-4" />
@@ -363,7 +363,7 @@ export function PatientClinicalRecordView({
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="gap-y-4">
+        <TabsContent value="overview" className="flex flex-col gap-y-4">
           <div className="grid gap-4 lg:grid-cols-3">
             <Card className="border-border/70 bg-card shadow-sm lg:col-span-2">
               <CardHeader className="pb-3">
@@ -392,7 +392,7 @@ export function PatientClinicalRecordView({
               <CardHeader className="pb-3">
                 <CardTitle className="text-base font-bold text-foreground">Clinical Summary</CardTitle>
               </CardHeader>
-              <CardContent className="gap-y-3 text-sm text-muted-foreground">
+              <CardContent className="flex flex-col gap-y-3 text-sm text-muted-foreground">
                 <div className="flex items-center justify-between">
                   <span>Upcoming appointments</span>
                   <span className="font-semibold text-foreground">{upcomingAppointments.length}</span>

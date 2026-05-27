@@ -484,7 +484,7 @@ export default function ClinicAdminSettingsPage() {
       />
 
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="gap-y-3">
+        <div className="flex flex-col gap-y-3">
           <Card className={PROFILE_CARD_CLASS}>
             <CardHeader className={COMPACT_CARD_HEADER}>
               <CardTitle>Clinic Profile</CardTitle>
@@ -546,13 +546,13 @@ export default function ClinicAdminSettingsPage() {
         </Card>
         </div>
 
-        <div className="gap-y-3">
+        <div className="flex flex-col gap-y-3">
           <Card className={BOOKING_CARD_CLASS}>
             <CardHeader className={COMPACT_CARD_HEADER}>
               <CardTitle>Booking Policy</CardTitle>
               <CardDescription>Appointment limits and patient self-service rules.</CardDescription>
             </CardHeader>
-            <CardContent className={`${COMPACT_CARD_CONTENT} gap-y-3`}>
+            <CardContent className={`${COMPACT_CARD_CONTENT} flex flex-col gap-y-3`}>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
                 <SettingField label="Duration (minutes)">
                   <Input className={FORM_INPUT_CLASS} type="number" value={settings.appointmentDuration} onChange={(e) => setSF("appointmentDuration", toNumber(e.target.value, 30))} />
@@ -622,7 +622,7 @@ export default function ClinicAdminSettingsPage() {
               <CardTitle>Emergency / OPD Controls</CardTitle>
               <CardDescription>Temporarily restrict clinic consultations.</CardDescription>
             </CardHeader>
-            <CardContent className={`${COMPACT_CARD_CONTENT} gap-y-3`}>
+            <CardContent className={`${COMPACT_CARD_CONTENT} flex flex-col gap-y-3`}>
               <ToggleRow label="Pause Clinic OPD" checked={settings.clinicPaused} onCheckedChange={(value) => setSF("clinicPaused", value)} />
               <SettingField label="Pause Reason">
                 <Input className={FORM_INPUT_CLASS} value={settings.pauseReason} onChange={(e) => setSF("pauseReason", e.target.value)} />
@@ -652,7 +652,7 @@ export default function ClinicAdminSettingsPage() {
               <CardTitle>Billing</CardTitle>
               <CardDescription>Payment methods and policy fees.</CardDescription>
             </CardHeader>
-            <CardContent className={`${COMPACT_CARD_CONTENT} gap-y-3`}>
+            <CardContent className={`${COMPACT_CARD_CONTENT} flex flex-col gap-y-3`}>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
                 <SettingField label="Currency">
                   <Input className={FORM_INPUT_CLASS} value={clinicForm.currency} onChange={(e) => setCF("currency", e.target.value)} />

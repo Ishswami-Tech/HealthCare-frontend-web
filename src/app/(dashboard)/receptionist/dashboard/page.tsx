@@ -646,7 +646,7 @@ export default function ReceptionistDashboard() {
         />
       </div>
 
-      <div className="gap-y-6">
+      <div className="flex flex-col gap-y-6">
         <Card className="overflow-hidden border-l-2 border-l-emerald-400 shadow-sm">
           <CardHeader className="flex flex-col gap-3 border-b border-border bg-muted/40 px-4 pb-4 pt-4 sm:flex-row sm:items-end sm:justify-between">
             <CardTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
@@ -673,7 +673,7 @@ export default function ReceptionistDashboard() {
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="gap-y-3 p-3 sm:p-4">
+          <CardContent className="flex flex-col gap-y-3 p-3 sm:p-4">
             {highlightedQueuePatient ? (
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3 shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-3">

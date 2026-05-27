@@ -731,7 +731,7 @@ export default function ClinicLocationsPage() {
         accessorKey: "name",
         header: "Location",
         cell: ({ row }) => (
-          <div className="w-[280px] gap-y-1.5">
+          <div className="flex w-[280px] flex-col gap-y-1.5">
             <div className="truncate font-semibold text-foreground">{displayValue(row.original.name)}</div>
             <div className="flex items-start gap-1.5 text-xs leading-5 text-muted-foreground">
               <MapPin className="mt-0.5 size-3.5 shrink-0" />
@@ -744,7 +744,7 @@ export default function ClinicLocationsPage() {
         accessorKey: "contact",
         header: "Contact",
         cell: ({ row }) => (
-          <div className="w-[128px] gap-y-1 text-xs">
+          <div className="flex w-[128px] flex-col gap-y-1 text-xs">
             <div className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
               <Phone className="size-3.5 shrink-0" />
               <span className="truncate">{displayValue(row.original.phone)}</span>
@@ -873,7 +873,7 @@ export default function ClinicLocationsPage() {
                       Add a new clinic location or branch office
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="gap-y-5 px-4 py-5 sm:px-6">
+                  <div className="flex flex-col gap-y-5 px-4 py-5 sm:px-6">
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className={FORM_FIELD_CLASS}>
                         <Label htmlFor="name">Location Name *</Label>

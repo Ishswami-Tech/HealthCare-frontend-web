@@ -417,7 +417,7 @@ export default function AssistantDoctorDashboard() {
                 </EmptyContent>
               </Empty>
             ) : (
-              <div className="gap-y-3">
+              <div className="flex flex-col gap-y-3">
                 {upcomingAppointments.map((apt: Record<string, unknown>, idx: number) => {
                   const status = String(apt.status ?? "").toUpperCase();
                   const isInProgress = status === "IN_PROGRESS";
@@ -485,12 +485,12 @@ export default function AssistantDoctorDashboard() {
           </CardContent>
         </Card>
 
-        <div className="gap-y-6">
+        <div className="flex flex-col gap-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Quick Actions</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-3">
+            <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Button
                 variant="outline"
                 className="flex flex-col h-20 gap-1 border-slate-100 hover:bg-blue-50"
@@ -541,7 +541,7 @@ export default function AssistantDoctorDashboard() {
                 Day Summary
               </CardTitle>
             </CardHeader>
-            <CardContent className="gap-y-3">
+            <CardContent className="flex flex-col gap-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Completed</span>
                 <span className="font-semibold text-emerald-600 flex items-center gap-1">

@@ -119,7 +119,7 @@ import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { CalendarPlus, Filter } from "lucide-react";
 import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 
-// ─── Module-scope pure helpers ───────────────────────────────────────────────
+// â”€â”€â”€ Module-scope pure helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function extractAppointments(data: unknown): VideoAppointment[] {
   const rawAppointments: VideoAppointment[] = (() => {
@@ -476,20 +476,20 @@ const AppointmentCard = ({
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <FileText className="size-3" />
-                  Session {appointmentSessionId ? appointmentSessionId.slice(-6).toUpperCase() : "â€”"}
+                  Session {appointmentSessionId ? appointmentSessionId.slice(-6).toUpperCase() : "Ã¢â‚¬â€"}
                 </span>
               </div>
               {!paymentCompleted && paymentAmount > 0 && (
                 <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
-                  Join unlocks after payment of â‚¹{paymentAmount.toLocaleString("en-IN")}.
+                  Join unlocks after payment of Ã¢â€šÂ¹{paymentAmount.toLocaleString("en-IN")}.
                 </p>
               )}
             </div>
           </div>
           <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3">
              <div className="text-left sm:text-right">
-                <p className="text-xs font-semibold text-foreground leading-none">{appointmentDateTime ? formatTimeInIST(appointmentDateTime, { hour: "2-digit", minute: "2-digit", hour12: true }) : "â€”"}</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">{appointmentDateTime ? formatDateInIST(appointmentDateTime, { month: "short", day: "2-digit" }) : "â€”"}</p>
+                <p className="text-xs font-semibold text-foreground leading-none">{appointmentDateTime ? formatTimeInIST(appointmentDateTime, { hour: "2-digit", minute: "2-digit", hour12: true }) : "Ã¢â‚¬â€"}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{appointmentDateTime ? formatDateInIST(appointmentDateTime, { month: "short", day: "2-digit" }) : "Ã¢â‚¬â€"}</p>
              </div>
              <div className="flex items-center gap-2">
                <span className={cn("inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-0.5 text-[11px] font-semibold shadow-sm", cfg.color)}>
@@ -504,40 +504,40 @@ const AppointmentCard = ({
 
       {isExpanded && (
           <div className="px-4 sm:px-5 pb-4 sm:pb-5 overflow-hidden">
-             <div className="pt-3 border-t border-border gap-y-3">
-                <div className="gap-y-3 pt-1.5">
+             <div className="flex flex-col gap-y-3 border-t border-border pt-3">
+                <div className="flex flex-col gap-y-3 pt-1.5">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 gap-y-1.5">
+                    <div className="flex flex-col gap-y-1.5 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
                       <span className="text-xs font-medium text-muted-foreground">Diagnostic Context</span>
                       <p className="text-sm text-foreground leading-snug">
                         {(appointment as any).chiefComplaint || "Routine video checkup and clinical review."}
                       </p>
                     </div>
-                    <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 gap-y-1.5">
+                    <div className="flex flex-col gap-y-1.5 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
                       <span className="text-xs font-medium text-muted-foreground">Appointment Time</span>
                       <p className="font-medium text-foreground text-sm">
-                        {appointmentDateLabel || "Date pending"} {appointmentTimeLabel ? `â€¢ ${appointmentTimeLabel}` : ""}
+                        {appointmentDateLabel || "Date pending"} {appointmentTimeLabel ? `Ã¢â‚¬Â¢ ${appointmentTimeLabel}` : ""}
                       </p>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 gap-y-1.5">
+                    <div className="flex flex-col gap-y-1.5 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
                       <span className="text-xs font-medium text-muted-foreground">Session ID</span>
                       <p className="font-medium text-foreground text-sm break-all">
                         {appointmentSessionId || "Pending"}
                       </p>
                     </div>
-                    <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 gap-y-1.5">
+                    <div className="flex flex-col gap-y-1.5 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
                       <span className="text-xs font-medium text-muted-foreground">Protocol Type</span>
                       <p className="font-medium text-foreground text-sm">{serviceLabel}</p>
                     </div>
-                    <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 gap-y-1.5">
+                    <div className="flex flex-col gap-y-1.5 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
                       <span className="text-xs font-medium text-muted-foreground">Authorization</span>
                       <p className="font-medium text-emerald-600 text-sm">{role} Access</p>
                     </div>
                   </div>
                   {finalSlotSourceLabel && (
-                    <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 gap-y-1.5">
+                    <div className="flex flex-col gap-y-1.5 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
                       <span className="text-xs font-medium text-muted-foreground">Final Slot</span>
                       <p className="font-medium text-foreground text-sm">{finalSlotSourceLabel}</p>
                     </div>
@@ -562,7 +562,7 @@ const AppointmentCard = ({
                     <>
                       {!paymentCompleted && paymentAmount > 0 && (
                         <PaymentButton appointmentId={getEffectiveAppointmentId(appointment)} amount={getVideoPaymentAmount(appointment, appointmentServices)} appointmentType="VIDEO_CALL" description={serviceLabel} className="h-8 px-3 rounded-xl text-xs font-semibold">
-                          Pay â‚¹{paymentAmount}
+                          Pay Ã¢â€šÂ¹{paymentAmount}
                         </PaymentButton>
                       )}
                       <Button variant="outline" size="sm" onClick={() => openReschedule(appointment)} className="h-8 px-3 rounded-xl text-xs">Reschedule</Button>
@@ -584,7 +584,7 @@ const AppointmentCard = ({
                   )}
                   {showEndButton && appointment.status === "in-progress" && (
                     <Button size="sm" variant="destructive" onClick={() => handleEndAppointment(getEffectiveAppointmentId(appointment))} className="h-8 px-3 rounded-xl text-xs" disabled={endVideoAppointment.isPending}>
-                      {endVideoAppointment.isPending ? "Ending�" : "End Session"}
+                      {endVideoAppointment.isPending ? "Ending…" : "End Session"}
                     </Button>
                   )}
                   {showDownloadButton && appointment.status === "completed" && appointment.recordingUrl && (
@@ -953,7 +953,7 @@ export function VideoAppointmentsList({
     setRescheduleTime("");
   };
 
-  // ─── Module-scope components ────────────────────────────────────────────────────
+  // â”€â”€â”€ Module-scope components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /*
 interface VideoAppointmentCardProps {
@@ -1079,20 +1079,20 @@ const AppointmentCard = ({
                   </span>
                   <span className="inline-flex items-center gap-1">
                     <FileText className="size-3" />
-                    Session {appointmentSessionId ? appointmentSessionId.slice(-6).toUpperCase() : "—"}
+                    Session {appointmentSessionId ? appointmentSessionId.slice(-6).toUpperCase() : "â€”"}
                   </span>
                 </div>
                 {!paymentCompleted && paymentAmount > 0 && (
                   <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
-                    Join unlocks after payment of ₹{paymentAmount.toLocaleString("en-IN")}.
+                    Join unlocks after payment of â‚¹{paymentAmount.toLocaleString("en-IN")}.
                   </p>
                 )}
               </div>
             </div>
             <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3">
                <div className="text-left sm:text-right">
-                  <p className="text-xs font-semibold text-foreground leading-none">{appointmentDateTime ? formatTimeInIST(appointmentDateTime, { hour: "2-digit", minute: "2-digit", hour12: true }) : "—"}</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">{appointmentDateTime ? formatDateInIST(appointmentDateTime, { month: "short", day: "2-digit" }) : "—"}</p>
+                  <p className="text-xs font-semibold text-foreground leading-none">{appointmentDateTime ? formatTimeInIST(appointmentDateTime, { hour: "2-digit", minute: "2-digit", hour12: true }) : "â€”"}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{appointmentDateTime ? formatDateInIST(appointmentDateTime, { month: "short", day: "2-digit" }) : "â€”"}</p>
                </div>
                <div className="flex items-center gap-2">
                  <span className={cn("inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-0.5 text-[11px] font-semibold shadow-sm", cfg.color)}>
@@ -1107,40 +1107,40 @@ const AppointmentCard = ({
 
         {isExpanded && (
             <div className="px-4 sm:px-5 pb-4 sm:pb-5 overflow-hidden">
-               <div className="pt-3 border-t border-border gap-y-3">
-                  <div className="gap-y-3 pt-1.5">
+               <div className="flex flex-col gap-y-3 border-t border-border pt-3">
+                  <div className="flex flex-col gap-y-3 pt-1.5">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 gap-y-1.5">
+                      <div className="flex flex-col gap-y-1.5 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
                         <span className="text-xs font-medium text-muted-foreground">Diagnostic Context</span>
                         <p className="text-sm text-foreground leading-snug">
                           {(appointment as any).chiefComplaint || "Routine video checkup and clinical review."}
                         </p>
                       </div>
-                      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 gap-y-1.5">
+                      <div className="flex flex-col gap-y-1.5 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
                         <span className="text-xs font-medium text-muted-foreground">Appointment Time</span>
                         <p className="font-medium text-foreground text-sm">
-                          {appointmentDateLabel || "Date pending"} {appointmentTimeLabel ? `• ${appointmentTimeLabel}` : ""}
+                          {appointmentDateLabel || "Date pending"} {appointmentTimeLabel ? `â€¢ ${appointmentTimeLabel}` : ""}
                         </p>
                       </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 gap-y-1.5">
+                      <div className="flex flex-col gap-y-1.5 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
                         <span className="text-xs font-medium text-muted-foreground">Session ID</span>
                         <p className="font-medium text-foreground text-sm break-all">
                           {appointmentSessionId || "Pending"}
                         </p>
                       </div>
-                      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 gap-y-1.5">
+                      <div className="flex flex-col gap-y-1.5 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
                         <span className="text-xs font-medium text-muted-foreground">Protocol Type</span>
                         <p className="font-medium text-foreground text-sm">{serviceLabel}</p>
                       </div>
-                      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 gap-y-1.5">
+                      <div className="flex flex-col gap-y-1.5 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
                         <span className="text-xs font-medium text-muted-foreground">Authorization</span>
                         <p className="font-medium text-emerald-600 text-sm">{role} Access</p>
                       </div>
                     </div>
                     {finalSlotSourceLabel && (
-                      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 gap-y-1.5">
+                      <div className="flex flex-col gap-y-1.5 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
                         <span className="text-xs font-medium text-muted-foreground">Final Slot</span>
                         <p className="font-medium text-foreground text-sm">{finalSlotSourceLabel}</p>
                       </div>
@@ -1165,7 +1165,7 @@ const AppointmentCard = ({
                       <>
                         {!paymentCompleted && paymentAmount > 0 && (
                           <PaymentButton appointmentId={getEffectiveAppointmentId(appointment)} amount={getVideoPaymentAmount(appointment, appointmentServices)} appointmentType="VIDEO_CALL" description={serviceLabel} className="h-8 px-3 rounded-xl text-xs font-semibold">
-                            Pay ₹{paymentAmount}
+                            Pay â‚¹{paymentAmount}
                           </PaymentButton>
                         )}
                         <Button variant="outline" size="sm" onClick={() => openReschedule(appointment)} className="h-8 px-3 rounded-xl text-xs">Reschedule</Button>
@@ -1187,7 +1187,7 @@ const AppointmentCard = ({
                     )}
                     {showEndButton && appointment.status === "in-progress" && (
                       <Button size="sm" variant="destructive" onClick={() => handleEndAppointment(getEffectiveAppointmentId(appointment))} className="h-8 px-3 rounded-xl text-xs" disabled={endVideoAppointment.isPending}>
-                        {endVideoAppointment.isPending ? "Ending�" : "End Session"}
+                        {endVideoAppointment.isPending ? "Ending…" : "End Session"}
                       </Button>
                     )}
                     {showDownloadButton && appointment.status === "completed" && appointment.recordingUrl && (
@@ -1236,10 +1236,10 @@ const AppointmentCard = ({
           </div>
         )}
 
-        <div className="gap-y-3 mb-3">
+        <div className="mb-3 flex flex-col gap-y-3">
           <div className="relative">
              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-             <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search by doctor or session ID�" className="h-10 pl-9 rounded-xl border-border bg-muted/50 text-sm" />
+             <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search by doctor or session ID…" className="h-10 pl-9 rounded-xl border-border bg-muted/50 text-sm" />
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
              <Tabs value={filterStatus} onValueChange={setFilterStatus} className="w-full sm:w-auto">
@@ -1257,9 +1257,9 @@ const AppointmentCard = ({
           </div>
         </div>
 
-        <div className="gap-y-3">
+        <div className="flex flex-col gap-y-3">
           {isLoading ? (
-            <div className="py-14 flex flex-col items-center justify-center gap-2.5"><Loader2 className="size-7 animate-spin text-muted-foreground/30" /><p className="text-muted-foreground font-medium text-[11px] uppercase tracking-widest">Loading sessions�</p></div>
+            <div className="py-14 flex flex-col items-center justify-center gap-2.5"><Loader2 className="size-7 animate-spin text-muted-foreground/30" /><p className="text-muted-foreground font-medium text-[11px] uppercase tracking-widest">Loading sessions…</p></div>
           ) : filteredAppointments.length === 0 ? (
             <div className="py-12 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center text-center px-5">
               <CalendarClock className="size-11 text-muted-foreground/20 mb-3" />
@@ -1276,7 +1276,7 @@ const AppointmentCard = ({
               )}
             </div>
           ) : (
-            <div className="gap-y-4">
+            <div className="flex flex-col gap-y-4">
               <div className="grid gap-4" suppressHydrationWarning>
                 {filteredAppointments
                   .slice((safeCurrentPage - 1) * PAGE_SIZE, safeCurrentPage * PAGE_SIZE)
@@ -1321,8 +1321,8 @@ const AppointmentCard = ({
               <DialogTitle>Modify Schedule</DialogTitle>
               <DialogDescription>Select a new session date and pick from the available time slots.</DialogDescription>
             </DialogHeader>
-            <div className="gap-y-3.5 py-3.5">
-              <div className="gap-y-2">
+            <div className="flex flex-col gap-y-3.5 py-3.5">
+              <div className="flex flex-col gap-y-2">
                 <Label>Date</Label>
                 <Popover>
                   <PopoverTrigger asChild>
@@ -1348,7 +1348,7 @@ const AppointmentCard = ({
                   </PopoverContent>
                 </Popover>
               </div>
-              <div className="gap-y-3">
+              <div className="flex flex-col gap-y-3">
                 <div className="flex items-center justify-between">
                   <Label>Available slots</Label>
                   {rescheduleDate && (
@@ -1361,13 +1361,13 @@ const AppointmentCard = ({
                 {isRescheduleAvailabilityLoading ? (
                   <div className="flex items-center gap-2 justify-center rounded-xl border border-dashed py-6 text-sm text-muted-foreground">
                     <Loader2 className="size-4 animate-spin" />
-                    Loading available slots�
+                    Loading available slots…
                   </div>
                 ) : availableRescheduleSlots.length > 0 ? (
-                  <div className="gap-y-4">
+                  <div className="flex flex-col gap-y-4">
                     {[
                       { key: "morning" as const, label: "Morning", range: "Before 12pm", slots: rescheduleSlotGroups.morning },
-                      { key: "afternoon" as const, label: "Afternoon", range: "12pm – 5pm", slots: rescheduleSlotGroups.afternoon },
+                      { key: "afternoon" as const, label: "Afternoon", range: "12pm â€“ 5pm", slots: rescheduleSlotGroups.afternoon },
                       { key: "evening" as const, label: "Evening", range: "After 5pm", slots: rescheduleSlotGroups.evening },
                     ].map((period) =>
                       period.slots.length === 0 ? null : (
@@ -1426,9 +1426,9 @@ const AppointmentCard = ({
                   </div>
                 )}
               </div>
-              <div className="gap-y-2">
+              <div className="flex flex-col gap-y-2">
                 <Label>Reason</Label>
-                <Textarea placeholder="Reason for change�" value={actionReason} onChange={e => setActionReason(e.target.value)} className="min-h-[90px]" />
+                <Textarea placeholder="Reason for change…" value={actionReason} onChange={e => setActionReason(e.target.value)} className="min-h-[90px]" />
               </div>
             </div>
             <div className="flex gap-3">
@@ -1443,10 +1443,10 @@ const AppointmentCard = ({
               <DialogTitle>Cancel Session</DialogTitle>
               <DialogDescription>Are you sure you want to cancel this video session?</DialogDescription>
             </DialogHeader>
-            <div className="gap-y-4 py-4">
-              <div className="gap-y-2">
+            <div className="flex flex-col gap-y-4 py-4">
+              <div className="flex flex-col gap-y-2">
                 <Label>Reason</Label>
-                <Textarea placeholder="Cancellation reason�" value={actionReason} onChange={e => setActionReason(e.target.value)} className="min-h-[90px]" />
+                <Textarea placeholder="Cancellation reason…" value={actionReason} onChange={e => setActionReason(e.target.value)} className="min-h-[90px]" />
               </div>
             </div>
             <div className="flex gap-3">

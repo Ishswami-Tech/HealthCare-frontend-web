@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
@@ -195,7 +195,7 @@ export function PatientQueueCard({
     return (
       <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
         <div className="mb-3 flex items-start justify-between gap-2">
-          <div className="min-w-0 gap-y-0.5">
+          <div className="flex min-w-0 flex-col gap-y-0.5">
             <h3 className="text-base font-semibold tracking-tight text-foreground">Join queue</h3>
             <p className="text-[11px] text-muted-foreground">
               {hasInPersonAppointment
@@ -364,7 +364,7 @@ export function PatientQueueCard({
   return (
     <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
       <div className="mb-2 flex items-start justify-between gap-2">
-        <div className="min-w-0 gap-y-0.5">
+        <div className="flex min-w-0 flex-col gap-y-0.5">
           <h3 className="text-base font-semibold tracking-tight text-foreground">Live queue</h3>
           <p className="text-[11px] text-muted-foreground">Position and check-in status</p>
         </div>
@@ -383,7 +383,7 @@ export function PatientQueueCard({
 
       <div className="mb-3 rounded-xl border border-border/70 bg-muted/25 p-2.5">
         <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 gap-y-1">
+          <div className="flex min-w-0 flex-col gap-y-1">
             <h4 className="truncate text-[15px] font-semibold tracking-tight text-foreground sm:text-base">
               {queueLabel}
             </h4>

@@ -489,7 +489,7 @@ export default function ClinicAdminDashboard() {
   }
 
   return (
-    <DashboardPageShell className="mx-auto max-w-7xl gap-y-4 px-4 pb-6 pt-0 sm:gap-y-5 sm:px-6 lg:px-8">
+    <DashboardPageShell className="mx-auto flex max-w-7xl flex-col gap-y-4 px-4 pb-6 pt-0 sm:gap-y-5 sm:px-6 lg:px-8">
       <DashboardPageHeader
         eyebrow="Clinic Admin"
         title="Operations Dashboard"
@@ -530,8 +530,8 @@ export default function ClinicAdminDashboard() {
 
       <Card className="overflow-hidden border border-border bg-card shadow-sm">
         <CardHeader className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="gap-y-1">
-              <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+          <div className="flex flex-col gap-y-1">
+            <CardTitle className="flex items-center gap-2 text-lg font-semibold">
               <Activity className="size-5 text-primary" />
               Workflow Shortcuts
             </CardTitle>
@@ -891,7 +891,7 @@ export default function ClinicAdminDashboard() {
                 <Loader2 className="size-8 animate-spin text-primary" />
               </div>
             ) : queueItems.length > 0 ? (
-              <div className="gap-y-3">
+        <div className="flex flex-col gap-y-3">
                 {highlightedQueueItem ? (
                   <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3 shadow-sm">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -1093,7 +1093,7 @@ export default function ClinicAdminDashboard() {
 
           <Card className="overflow-hidden border-l-2 border-l-amber-400 shadow-sm">
             <CardHeader className="flex flex-col gap-2 border-b border-border bg-muted/40 px-4 pb-4 pt-4 sm:flex-row sm:items-end sm:justify-between">
-              <div className="gap-y-1">
+          <div className="flex flex-col gap-y-1">
                 <CardTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
                   <div className="flex size-7 items-center justify-center rounded-full bg-amber-100 text-amber-600">
                     <Activity className="size-4" />
@@ -1108,7 +1108,7 @@ export default function ClinicAdminDashboard() {
                 Live medication flow
               </Badge>
             </CardHeader>
-            <CardContent className="gap-y-3 p-3 sm:p-4">
+          <CardContent className="flex flex-col gap-y-3 p-3 sm:p-4">
               {medicineDeskItems.length > 0 ? (
                 <div className="overflow-hidden rounded-xl border border-border">
                   <Table>

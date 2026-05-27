@@ -146,7 +146,7 @@ export function DoctorAppointmentsContent(props: Props) {
         cell: ({ row }) => {
           const app = row.original;
           return (
-            <div className="gap-y-1">
+            <div className="flex flex-col gap-y-1">
               <div className="text-sm font-medium text-foreground">{app.type}</div>
               <div className="text-xs text-muted-foreground">
                 {app.appointmentDate}  {app.time}  {app.duration}
@@ -166,7 +166,7 @@ export function DoctorAppointmentsContent(props: Props) {
         cell: ({ row }) => {
           const app = row.original;
           return (
-            <div className="min-w-0 gap-y-1">
+            <div className="flex min-w-0 flex-col gap-y-1">
               <div className="text-sm text-foreground line-clamp-1">{app.chiefComplaint}</div>
               <div className="text-xs text-muted-foreground">{app.patientPhone || app.patientEmail || "Not available"}</div>
             </div>

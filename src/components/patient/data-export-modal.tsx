@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import type * as React from "react";
 import { useState } from "react";
@@ -62,7 +62,7 @@ function DataExportModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="gap-y-4 py-4">
+        <div className="flex flex-col gap-y-4 py-4">
           <Alert>
             <AlertCircle className="size-4" />
             <AlertDescription className="text-sm">

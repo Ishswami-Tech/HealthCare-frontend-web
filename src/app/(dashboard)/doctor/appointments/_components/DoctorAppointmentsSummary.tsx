@@ -64,7 +64,7 @@ export function DoctorAppointmentsSummary({
         }
       />
 
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
         <DashboardMetricCard
           label="Active"
           value={activeAppointmentsCount}
@@ -120,7 +120,7 @@ export function DoctorAppointmentsSummary({
           <CardTitle className="text-base font-semibold">Filter Appointments</CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4 pt-0">
-          <div className="gap-y-3">
+          <div className="flex flex-col gap-y-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-500" />
               <Input

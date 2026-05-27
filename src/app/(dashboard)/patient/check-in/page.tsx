@@ -267,7 +267,7 @@ export default function PatientCheckInPage() {
         <m.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-sm text-center gap-y-6 sm:gap-y-8"
+          className="flex w-full max-w-sm flex-col gap-y-6 text-center sm:gap-y-8"
         >
           <div
             className={`relative mx-auto size-20 sm:w-24 sm:h-24 ${theme.badges.emerald} rounded-full flex items-center justify-center shadow-inner border-none`}
@@ -281,7 +281,7 @@ export default function PatientCheckInPage() {
             </m.div>
           </div>
 
-          <div className="gap-y-2">
+          <div className="flex flex-col gap-y-2">
             <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Check-in Confirmed!</h1>
             <p className="text-muted-foreground text-xs sm:text-sm font-medium">
               You&apos;re all set for your visit.
@@ -365,7 +365,7 @@ export default function PatientCheckInPage() {
   if (selectingAppointment && eligibleAppointments.length > 0) {
     return (
       <LazyMotion features={domAnimation}>
-      <div className="max-w-xl mx-auto gap-y-6 py-4">
+      <div className="mx-auto flex max-w-xl flex-col gap-y-6 py-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Select Appointment</h1>
           <p className="text-muted-foreground text-sm">
@@ -373,7 +373,7 @@ export default function PatientCheckInPage() {
           </p>
         </div>
 
-        <div className="gap-y-3">
+        <div className="flex flex-col gap-y-3">
           {eligibleAppointments.map((apt) => {
             const derivedDoctorName = `${apt.doctor?.firstName || ""} ${apt.doctor?.lastName || ""}`.trim();
             const doctorName = (apt.doctorName ?? apt.doctor?.name ?? derivedDoctorName) || "Doctor";
@@ -391,7 +391,7 @@ export default function PatientCheckInPage() {
                 onClick={() => void handleSelectAppointment(apt.id)}
               >
                 <div className="flex items-center justify-between">
-                  <div className="gap-y-1">
+                  <div className="flex flex-col gap-y-1">
                     <div className="flex items-center gap-2">
                       <Stethoscope className="size-4 text-muted-foreground" />
                       <span className="font-semibold">{doctorName}</span>
@@ -474,7 +474,7 @@ export default function PatientCheckInPage() {
                   <div className="absolute inset-0 blur-2xl bg-primary/20 scale-150 rounded-full animate-pulse" />
                   <Loader2 className="size-10 text-primary animate-spin relative z-10" />
                 </div>
-                <div className="gap-y-1">
+                <div className="flex flex-col gap-y-1">
                   <h3 className="text-lg font-semibold">Connecting</h3>
                   <p className="text-muted-foreground text-xs">Syncing your arrival data securely</p>
                 </div>
@@ -505,7 +505,7 @@ export default function PatientCheckInPage() {
                   </DrawerDescription>
                 </DrawerHeader>
                 <div className="p-4 pb-0">
-                  <form id="manual-checkin-form" onSubmit={handleManualCheckIn} className="gap-y-6">
+                  <form id="manual-checkin-form" onSubmit={handleManualCheckIn} className="flex flex-col gap-y-6">
                     <Input
                       placeholder="Enter location code"
                       value={manualCode}

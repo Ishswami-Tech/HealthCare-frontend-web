@@ -204,7 +204,7 @@ function PaymentCallbackPageContent() {
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-xl border bg-card p-6 text-center gap-y-4">
+      <div className="flex w-full max-w-md flex-col gap-y-4 rounded-xl border bg-card p-6 text-center">
         {state === "loading" && (
           <Loader2 className="mx-auto size-8 animate-spin text-primary" />
         )}
@@ -218,7 +218,7 @@ function PaymentCallbackPageContent() {
         <h1 className="text-lg font-semibold">Payment Callback</h1>
         <p className="text-sm text-muted-foreground">{message}</p>
         {state === "success" && (
-          <div className="gap-y-3">
+          <div className="flex flex-col gap-y-3">
             <p className="text-sm font-medium text-primary">
               Payment is confirmed. You will be redirected in {secondsLeft ?? 0} seconds.
             </p>

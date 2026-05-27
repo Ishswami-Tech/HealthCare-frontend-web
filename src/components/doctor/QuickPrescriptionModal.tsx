@@ -424,7 +424,7 @@ export function QuickPrescriptionModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="max-h-[calc(90vh-5rem)] gap-y-5 overflow-y-auto px-4 py-2 sm:px-6">
+        <div className="flex max-h-[calc(90vh-5rem)] flex-col gap-y-5 overflow-y-auto px-4 py-2 sm:px-6">
           <Card className="border-border/70">
             <CardContent className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
               <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
@@ -446,7 +446,7 @@ export function QuickPrescriptionModal({
             </CardContent>
           </Card>
 
-          <div className="gap-y-2">
+          <div className="flex flex-col gap-y-2">
             <Label
               htmlFor="diagnosis"
               className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground"
@@ -463,7 +463,7 @@ export function QuickPrescriptionModal({
             />
           </div>
 
-          <div className="gap-y-2">
+          <div className="flex flex-col gap-y-2">
             <Label
               htmlFor="treatment-plan"
               className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground"
@@ -480,7 +480,7 @@ export function QuickPrescriptionModal({
             />
           </div>
 
-          <div className="gap-y-2">
+          <div className="flex flex-col gap-y-2">
             <Label
               htmlFor="clinical-notes"
               className="text-xs font-bold uppercase tracking-wider text-muted-foreground"
@@ -497,9 +497,9 @@ export function QuickPrescriptionModal({
           </div>
 
           <Card className="border-border/70">
-            <CardContent className="gap-y-4 p-4">
+            <CardContent className="flex flex-col gap-y-4 p-4">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div className="gap-y-1">
+                <div className="flex flex-col gap-y-1">
                   <p className="text-sm font-semibold">Medicines</p>
                   <p className="text-xs text-muted-foreground">
                     Select an inventory medicine to create a pharmacy-dispensable prescription. Free text remains in the chart summary.
@@ -539,7 +539,7 @@ export function QuickPrescriptionModal({
                 </div>
               </div>
 
-              <div className="gap-y-3">
+              <div className="flex flex-col gap-y-3">
                 {medications.map((medication, index) => {
                   const selectedMedicine = medication.medicineId
                     ? medicinesById.get(medication.medicineId)
@@ -551,7 +551,7 @@ export function QuickPrescriptionModal({
                       className="rounded-2xl border border-border/70 bg-muted/20 p-3"
                     >
                       <div className="mb-3 flex items-center justify-between gap-2">
-                        <div className="gap-y-1">
+                        <div className="flex flex-col gap-y-1">
                           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                             Medicine {index + 1}
                           </p>
@@ -582,7 +582,7 @@ export function QuickPrescriptionModal({
                       </div>
 
                       <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="gap-y-2 sm:col-span-2">
+                        <div className="flex flex-col gap-y-2 sm:col-span-2">
                           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                             Inventory medicine
                           </Label>
@@ -624,7 +624,7 @@ export function QuickPrescriptionModal({
                           )}
                         </div>
 
-                        <div className="gap-y-2 sm:col-span-2">
+                        <div className="flex flex-col gap-y-2 sm:col-span-2">
                           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                             Prescription label
                           </Label>
@@ -635,7 +635,7 @@ export function QuickPrescriptionModal({
                           />
                         </div>
 
-                        <div className="gap-y-2">
+                        <div className="flex flex-col gap-y-2">
                           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                             Dose
                           </Label>
@@ -646,7 +646,7 @@ export function QuickPrescriptionModal({
                           />
                         </div>
 
-                        <div className="gap-y-2">
+                        <div className="flex flex-col gap-y-2">
                           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                             Frequency
                           </Label>
@@ -657,7 +657,7 @@ export function QuickPrescriptionModal({
                           />
                         </div>
 
-                        <div className="gap-y-2">
+                        <div className="flex flex-col gap-y-2">
                           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                             Duration
                           </Label>
@@ -668,7 +668,7 @@ export function QuickPrescriptionModal({
                           />
                         </div>
 
-                        <div className="gap-y-2">
+                        <div className="flex flex-col gap-y-2">
                           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                             Quantity
                           </Label>
@@ -682,7 +682,7 @@ export function QuickPrescriptionModal({
                           />
                         </div>
 
-                        <div className="gap-y-2 sm:col-span-2">
+                        <div className="flex flex-col gap-y-2 sm:col-span-2">
                           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                             Instructions
                           </Label>
@@ -702,7 +702,7 @@ export function QuickPrescriptionModal({
 
           <Card className="border-border/70">
             <CardContent className="grid gap-3 p-4 sm:grid-cols-2">
-              <div className="gap-y-2">
+              <div className="flex flex-col gap-y-2">
                 <Label
                   htmlFor="follow-up-date"
                   className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground"
@@ -717,7 +717,7 @@ export function QuickPrescriptionModal({
                   onChange={(event) => setFollowUpDate(event.target.value)}
                 />
               </div>
-              <div className="gap-y-2">
+              <div className="flex flex-col gap-y-2">
                 <Label
                   htmlFor="follow-up-notes"
                   className="text-xs font-bold uppercase tracking-wider text-muted-foreground"

@@ -47,8 +47,8 @@ export function DoctorAppointmentsDetailsDialog({
     <Dialog open={!!selectedAppointment} onOpenChange={(open) => !open && setSelectedAppointment(null)}>
       <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto p-0">
         {selectedAppointment && (
-          <div className="gap-y-4 p-5 sm:p-6">
-            <DialogHeader className="gap-y-2 border-b border-border pb-4">
+          <div className="flex flex-col gap-y-4 p-5 sm:p-6">
+            <DialogHeader className="flex flex-col gap-y-2 border-b border-border pb-4">
               <DialogTitle className="flex flex-col gap-1 text-left sm:flex-row sm:items-center sm:justify-between">
                 <span>Patient Details: {selectedAppointment.patientName}</span>
                 <span className="text-sm font-normal text-muted-foreground">
@@ -76,7 +76,7 @@ export function DoctorAppointmentsDetailsDialog({
               </div>
             </div>
 
-            <Tabs defaultValue="patient-info" className="gap-y-4">
+            <Tabs defaultValue="patient-info" className="flex flex-col gap-y-4">
               <TabsList className="grid h-11 w-full grid-cols-3 rounded-xl bg-muted p-1">
                 <TabsTrigger value="patient-info">Patient Info</TabsTrigger>
                 <TabsTrigger value="consultation" disabled={selectedAppointmentIsClosed}>
@@ -89,10 +89,10 @@ export function DoctorAppointmentsDetailsDialog({
 
               <TabsContent value="patient-info">
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  <div className="gap-y-4">
+                  <div className="flex flex-col gap-y-4">
                     <div>
                       <h4 className="mb-2 font-semibold">Contact Information</h4>
-                      <div className="gap-y-2 text-sm">
+                      <div className="flex flex-col gap-y-2 text-sm">
                         <div className="flex items-center gap-2">
                           <Phone className="size-4" />
                           <span>{selectedAppointment.patientPhone || "Not available"}</span>
@@ -119,11 +119,11 @@ export function DoctorAppointmentsDetailsDialog({
                     </div>
                   </div>
 
-                  <div className="gap-y-4">
+                  <div className="flex flex-col gap-y-4">
                     {selectedAppointment.vitalSigns && (
                       <div>
                         <h4 className="mb-2 font-semibold">Vital Signs</h4>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
                           <div>BP: {selectedAppointment.vitalSigns.bp ?? "-"}</div>
                           <div>Pulse: {selectedAppointment.vitalSigns.pulse ?? "-"}</div>
                           <div>Temp: {selectedAppointment.vitalSigns.temperature ?? "-"}</div>
@@ -235,7 +235,7 @@ export function DoctorAppointmentsDetailsDialog({
                   </div>
 
                   <div className="rounded-2xl border border-border bg-muted/20 p-4">
-                    <div className="gap-y-2">
+                    <div className="flex flex-col gap-y-2">
                       <p className="text-sm font-medium text-foreground">Workflow actions</p>
                       <p className="text-sm text-muted-foreground">
                         Save a draft first if you want to preserve interim notes before finalizing the prescription.

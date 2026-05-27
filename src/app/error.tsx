@@ -34,7 +34,7 @@ export default function Error({
           </p>
         </div>
 
-        <div className="gap-y-4">
+        <div className="flex flex-col gap-y-4">
           <Button onClick={reset} className="w-full" asChild={false}>
             <span className="flex items-center justify-center">
               <RefreshCw className="size-4 mr-2" />

@@ -316,7 +316,7 @@ export function PatientBillingContent({
         <Card><CardContent className="flex items-center gap-3 p-3 sm:p-4"><div className="rounded-full bg-blue-100 p-3 dark:bg-blue-950/40"><Wallet className="size-5 text-blue-600 dark:text-blue-300" /></div><div><p className="text-sm text-muted-foreground">Active Subscriptions</p><p className="text-2xl font-bold">{activeSubscriptionCount}</p></div></CardContent></Card>
       </div>
 
-      <Tabs defaultValue="plans" className="gap-y-4">
+      <Tabs defaultValue="plans" className="flex flex-col gap-y-4">
         <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
           <TabsList className="inline-flex w-max min-w-full sm:flex sm:w-full">
             <TabsTrigger id="patient-billing-plans-trigger" value="plans" className="px-4 text-xs sm:text-sm">Plans</TabsTrigger>
@@ -326,13 +326,13 @@ export function PatientBillingContent({
           </TabsList>
         </div>
 
-        <TabsContent value="plans" className="gap-y-4 mt-4">
+        <TabsContent value="plans" className="mt-4 flex flex-col gap-y-4">
           {plansPending ? (
             <Card><CardContent className="py-10 text-center"><RefreshCw className="mx-auto mb-3 size-5 animate-spin text-muted-foreground" /><p className="text-sm text-muted-foreground">Loading plans…</p></CardContent></Card>
           ) : activePlans.length === 0 ? (
             <Empty><EmptyContent><EmptyMedia><Wallet className="size-5" /></EmptyMedia><EmptyTitle>No subscription plans are available right now.</EmptyTitle><EmptyDescription>Try refreshing or check again later.</EmptyDescription><Button variant="outline" className="mt-2" onClick={() => { void onRefetchClinicPlans(); void onRefetchFallbackPlans(); }}>Refresh Plans</Button></EmptyContent></Empty>
           ) : (
-            <div className="gap-y-4">
+            <div className="flex flex-col gap-y-4">
               {currentActiveSubscription && (
                 <Card className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30"><CardContent className="flex items-start gap-3 py-4"><div className="rounded-full bg-green-100 p-2 dark:bg-green-900/40 shrink-0"><CheckCircle2 className="size-4 text-green-700 dark:text-green-300" /></div><div className="min-w-0"><p className="font-semibold text-green-900 dark:text-green-200 text-sm">{currentActiveSubscription.plan?.name ? `${currentActiveSubscription.plan.name} is active` : "You have an active subscription"}</p><p className="text-xs text-green-700 dark:text-green-300 mt-0.5">You can still review or switch plans below.</p></div></CardContent></Card>
               )}
@@ -342,9 +342,9 @@ export function PatientBillingContent({
                   return (
                     <Card key={plan.id} className={`overflow-hidden ${isCurrentPlan ? "border-green-300 dark:border-green-900" : ""}`}>
                       {isCurrentPlan && <div className="h-1 w-full bg-green-500" />}
-                      <CardContent className="p-4 sm:p-5 gap-y-3">
+                      <CardContent className="flex flex-col gap-y-3 p-4 sm:p-5">
                         <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1 gap-y-1">
+                          <div className="flex min-w-0 flex-1 flex-col gap-y-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <p className="font-semibold text-base leading-tight">{plan.name}</p>
                               {isCurrentPlan && <Badge className="bg-green-600 text-white hover:bg-green-600 dark:bg-green-700 text-xs px-2 py-0">Active</Badge>}
@@ -369,7 +369,7 @@ export function PatientBillingContent({
           )}
         </TabsContent>
 
-        <TabsContent value="invoices" className="gap-y-3 mt-4">
+        <TabsContent value="invoices" className="mt-4 flex flex-col gap-y-3">
           {invoicesPending ? (
             <Card><CardContent className="py-10 text-center"><RefreshCw className="mx-auto mb-3 size-5 animate-spin text-muted-foreground" /><p className="text-sm text-muted-foreground">Loading invoices…</p></CardContent></Card>
           ) : invoices.length === 0 ? (
@@ -379,7 +379,7 @@ export function PatientBillingContent({
           )}
         </TabsContent>
 
-        <TabsContent value="payments" className="gap-y-3 mt-4">
+        <TabsContent value="payments" className="mt-4 flex flex-col gap-y-3">
           {paymentsPending ? (
             <Card><CardContent className="py-10 text-center"><RefreshCw className="mx-auto mb-3 size-5 animate-spin text-muted-foreground" /><p className="text-sm text-muted-foreground">Loading payments…</p></CardContent></Card>
           ) : payments.length === 0 ? (
@@ -389,7 +389,7 @@ export function PatientBillingContent({
           )}
         </TabsContent>
 
-        <TabsContent value="subscriptions" className="gap-y-4 mt-4">
+        <TabsContent value="subscriptions" className="mt-4 flex flex-col gap-y-4">
           {subscriptionsPending ? (
             <Card><CardContent className="py-10 text-center"><RefreshCw className="mx-auto mb-3 size-5 animate-spin text-muted-foreground" /><p className="text-sm text-muted-foreground">Loading subscriptions…</p></CardContent></Card>
           ) : displayedSubscriptions.length === 0 ? (
@@ -412,8 +412,8 @@ export function PatientBillingContent({
         <DialogContent className="w-[calc(100vw-2rem)] max-w-md sm:w-full">
           <DialogHeader><DialogTitle>Confirm Subscription</DialogTitle></DialogHeader>
           {planToConfirm && (
-            <div className="gap-y-4 py-4">
-              <div className="bg-muted p-4 rounded-lg gap-y-2">
+            <div className="flex flex-col gap-y-4 py-4">
+              <div className="flex flex-col gap-y-2 rounded-lg bg-muted p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><span className="font-semibold text-lg break-words">{planToConfirm.name}</span><span className="font-bold text-lg whitespace-nowrap">{formatAmount(planToConfirm.price ?? 0, planToConfirm.currency)}</span></div>
                 {planToConfirm.description && <p className="text-sm text-muted-foreground">{planToConfirm.description}</p>}
               </div>
@@ -433,7 +433,7 @@ export function PatientBillingContent({
         <DialogContent className="w-[calc(100vw-2rem)] max-w-md sm:w-full">
           <DialogHeader><DialogTitle>Complete Subscription Payment</DialogTitle></DialogHeader>
           {pendingSubscriptionPayment && (
-            <div className="gap-y-4">
+            <div className="flex flex-col gap-y-4">
               <p className="text-sm text-muted-foreground">Plan: <span className="font-medium text-foreground">{pendingSubscriptionPayment.planName}</span></p>
               <PaymentButton subscriptionId={pendingSubscriptionPayment.subscriptionId} amount={pendingSubscriptionPayment.amount} description={pendingSubscriptionPayment.planName} autoStart className="w-full" onSuccess={() => { onSetPendingSubscriptionPayment(null); onRefetchSubscriptions(); onRefetchActiveSubscription(); onRefetchInvoices(); onRefetchPayments(); onRefetchClinicPlans(); onRefetchFallbackPlans(); }}>
                 Pay {formatAmount(pendingSubscriptionPayment.amount)}

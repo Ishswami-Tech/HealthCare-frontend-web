@@ -362,7 +362,7 @@ export function AssignRoleModal({
               <div className="size-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                 <ShieldCheck className="size-6" />
               </div>
-              <div className="gap-y-0.5">
+              <div className="flex flex-col gap-y-0.5">
                 <DialogTitle className="text-xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
                   Assign Role & Permissions
                 </DialogTitle>
@@ -400,10 +400,10 @@ export function AssignRoleModal({
         <div className="flex flex-1 overflow-hidden min-h-0 bg-neutral-50/50 dark:bg-neutral-900/10">
           {/* Navigation Sidebar */}
           <div className="hidden sm:flex w-60 lg:w-68 border-r border-neutral-200 dark:border-neutral-800 flex-col p-4 gap-4 shrink-0 bg-white dark:bg-neutral-900/50">
-            <div className="gap-y-1">
+            <div className="flex flex-col gap-y-1">
               <h3 className="px-3 text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-3">Settings</h3>
               
-              <div className="gap-y-1">
+              <div className="flex flex-col gap-y-1">
                 <button 
                   type="button"
                   onClick={() => setActiveTab("role")}
@@ -450,7 +450,7 @@ export function AssignRoleModal({
                 <Settings2 className="size-4" />
                 <span className="text-[11px] font-bold uppercase tracking-wider">Current Selection</span>
               </div>
-              <div className="gap-y-1">
+              <div className="flex flex-col gap-y-1">
                 <p className="text-xs text-neutral-500 font-medium">Active Role</p>
                 <p className="text-sm font-bold text-neutral-900 dark:text-white truncate">
                   {ROLE_INFO[selectedRole]?.label || selectedRole}
@@ -464,7 +464,7 @@ export function AssignRoleModal({
             <div className="flex-1 overflow-y-auto">
               <div className="p-6 lg:p-10 pb-24">
                 {activeTab === "role" && (
-              <div className="gap-y-6">
+              <div className="flex flex-col gap-y-6">
                     <div className="border-b pb-4 border-neutral-100 dark:border-neutral-800">
                       <h3 className="text-xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">Select Staff Role</h3>
                       <p className="text-sm text-neutral-500 mt-1">Choose the main access level for this account.</p>
@@ -501,7 +501,7 @@ export function AssignRoleModal({
                                 </div>
                               )}
                             </div>
-                            <div className="gap-y-1">
+                            <div className="flex flex-col gap-y-1">
                               <h4 className={cn(
                                 "font-bold text-sm",
                                 isSelected ? "text-primary" : "text-neutral-900 dark:text-neutral-100"
@@ -516,7 +516,7 @@ export function AssignRoleModal({
                 )}
 
                 {activeTab === "permissions" && (
-                  <div className="gap-y-6 animate-in fade-in duration-500">
+                  <div className="flex flex-col gap-y-6 animate-in fade-in duration-500">
                     <div className="flex items-center justify-between border-b pb-4 border-neutral-100 dark:border-neutral-800">
                       <div>
                         <h3 className="text-xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">Custom Permissions</h3>
@@ -543,14 +543,14 @@ export function AssignRoleModal({
                       />
                     </div>
                     
-                    <Accordion type="multiple" defaultValue={PERMISSION_GROUPS.map(g => g.name)} className="gap-y-4">
+                    <Accordion type="multiple" defaultValue={PERMISSION_GROUPS.map(g => g.name)} className="flex flex-col gap-y-4">
                       {Object.entries(groupedPermissions).map(([groupName, perms], groupIndex) => {
                         if (perms.length === 0) return null;
                         const selectedCount = perms.filter(p => selectedPermissions.includes(p)).length;
                         const variantClass = PERMISSION_GROUP_VARIANTS[groupIndex % PERMISSION_GROUP_VARIANTS.length];
  
                         return (
-                          <div key={groupName} className="gap-y-2">
+                          <div key={groupName} className="flex flex-col gap-y-2">
                             <AccordionItem value={groupName} className={cn("rounded-2xl border p-3", variantClass)}>
                               <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-3">

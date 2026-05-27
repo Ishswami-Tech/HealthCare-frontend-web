@@ -60,11 +60,11 @@ export function DoctorDashboardConsultationCard({
           In-Person Consultation
         </CardTitle>
       </CardHeader>
-      <CardContent className="gap-y-4 p-4">
+      <CardContent className="flex flex-col gap-y-4 p-4">
         {currentInPersonConsult ? (
           <>
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <div className="min-w-0 gap-y-2">
+              <div className="flex min-w-0 flex-col gap-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                 <Badge
                   variant="outline"
@@ -122,7 +122,7 @@ export function DoctorDashboardConsultationCard({
               </div>
             </div>
 
-            <div className="gap-y-2">
+            <div className="flex flex-col gap-y-2">
               <label htmlFor="consultation-summary" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Consultation summary
               </label>

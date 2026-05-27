@@ -54,7 +54,7 @@ export function ClinicInfo({
 
   if (variant === "compact") {
     return (
-      <div className={cn("gap-y-4", className)}>
+      <div className={cn("flex flex-col gap-y-4", className)}>
         {showContact && (
           <div className="flex items-center gap-3">
             <Phone className="size-5 text-green-600 flex-shrink-0" />
@@ -107,14 +107,14 @@ export function ClinicInfo({
           </p>
         </div>
 
-        <div className="p-6 gap-y-6 bg-white dark:bg-gray-800">
+        <div className="flex flex-col gap-y-6 bg-white p-6 dark:bg-gray-800">
           {showDoctor && (
             <div>
               <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                 <User className="size-5 text-green-600" />
                 {t("doctor.title")}
               </h3>
-              <div className="gap-y-2">
+              <div className="flex flex-col gap-y-2">
                 <p className="font-medium text-lg text-gray-900">
                   {clinicData.doctor.name}
                 </p>
@@ -139,7 +139,7 @@ export function ClinicInfo({
                 <Clock className="size-5 text-green-600" />
                 {t("clinic.timings")}
               </h3>
-              <div className="gap-y-2">
+              <div className="flex flex-col gap-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Chinchwad</span>
                   <span className="font-medium text-gray-900 text-xs">
@@ -173,7 +173,7 @@ export function ClinicInfo({
               <h3 className="font-semibold text-gray-900 mb-3">
                 Contact Information
               </h3>
-              <div className="gap-y-3">
+              <div className="flex flex-col gap-y-3">
                 <div className="flex items-center gap-3">
                   <Phone className="size-4 text-green-600" />
                   <span className="text-gray-700">{clinicData.phone}</span>
@@ -198,7 +198,7 @@ export function ClinicInfo({
 
   // Full variant
   return (
-    <div className={cn("gap-y-8", className)}>
+    <div className={cn("flex flex-col gap-y-8", className)}>
       {/* Clinic Header */}
       <div className="text-center">
         <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
@@ -226,7 +226,7 @@ export function ClinicInfo({
                 {clinicData.doctor.title}
               </p>
 
-              <div className="gap-y-2">
+              <div className="flex flex-col gap-y-2">
                 <div className="flex items-center gap-2">
                   <Award className="size-4 text-green-600" />
                   <span className="text-gray-700">
@@ -267,7 +267,7 @@ export function ClinicInfo({
               Contact Information
             </h2>
 
-            <div className="gap-y-4">
+            <div className="flex flex-col gap-y-4">
               <div className="flex items-center gap-3">
                 <Phone className="size-5 text-green-600" />
                 <div>
@@ -309,7 +309,7 @@ export function ClinicInfo({
               {t("clinic.timings")}
             </h2>
 
-            <div className="gap-y-4">
+            <div className="flex flex-col gap-y-4">
               <div className="bg-green-50 rounded-lg p-4">
                 <div className="flex justify-between items-center mb-2">
                   <span className="font-medium text-gray-900">

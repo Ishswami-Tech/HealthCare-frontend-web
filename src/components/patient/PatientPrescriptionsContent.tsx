@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 
@@ -310,7 +310,7 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
         />
       )}
 
-      <Tabs defaultValue="prescriptions" className="gap-y-6">
+      <Tabs defaultValue="prescriptions" className="flex flex-col gap-y-6">
         <TabsList className="max-w-full overflow-x-auto h-auto p-1 justify-start scrollbar-hide">
           <TabsTrigger value="prescriptions" className="text-xs sm:text-sm px-3 sm:px-4">Current Prescriptions</TabsTrigger>
           <TabsTrigger value="plan" className="text-xs sm:text-sm px-3 sm:px-4">Medication Plan</TabsTrigger>
@@ -318,7 +318,7 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
           <TabsTrigger value="history" className="text-xs sm:text-sm px-3 sm:px-4">Prescription History</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="prescriptions" className="gap-y-4">
+        <TabsContent value="prescriptions" className="flex flex-col gap-y-4">
           <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
             <CardContent className="p-4">
               <div className="flex flex-col gap-3 sm:flex-row">
@@ -369,12 +369,12 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
               icon={Pill}
             />
           ) : (
-            <div className="gap-y-6">
+            <div className="flex flex-col gap-y-6">
               {filteredPrescriptions.map((prescription) => (
                 <Card key={prescription.id} className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
                   <CardHeader>
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="gap-y-1">
+                      <div className="flex flex-col gap-y-1">
                         <h3 className="text-base sm:text-lg font-semibold">Prescription #{prescription.id}</h3>
                         <p className={`text-xs sm:text-sm ${theme.textColors.secondary}`}>
                           Prescribed by {prescription.doctor} • {formatDateInIST(prescription.date)}
@@ -390,7 +390,7 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="gap-y-4">
+                  <CardContent className="flex flex-col gap-y-4">
                     <div>
                       <h4 className="font-medium mb-3">Medicines</h4>
                       <div className="grid gap-3">
@@ -402,7 +402,7 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                               <div className="flex items-start gap-3">
                                 <Leaf className={`size-4 sm:w-5 sm:h-5 ${theme.iconColors.green} mt-1`} />
-                                <div className="gap-y-1">
+                                <div className="flex flex-col gap-y-1">
                                   <h5 className={`text-sm sm:text-base font-semibold ${theme.textColors.success}`}>{medication.name}</h5>
                                   <p className={`text-xs sm:text-sm ${theme.textColors.success}`}>
                                     {medication.dosage} • {medication.duration}
@@ -451,7 +451,7 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
                     ) : null}
 
                     <div className={`flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between p-3 sm:p-4 ${theme.backgrounds.secondary} rounded-xl`}>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 text-xs sm:text-sm">
+                      <div className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 md:grid-cols-3 sm:gap-4 sm:text-sm">
                         <div>
                           <span className={theme.textColors.secondary}>Total Cost:</span>
                           <span className={`font-semibold ml-1 sm:ml-2 ${theme.textColors.heading}`}>
@@ -507,7 +507,7 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
           )}
         </TabsContent>
 
-        <TabsContent value="plan" className="gap-y-4">
+        <TabsContent value="plan" className="flex flex-col gap-y-4">
           <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -523,7 +523,7 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
                   icon={Bell}
                 />
               ) : (
-                <div className="gap-y-4">
+                <div className="flex flex-col gap-y-4">
                   {medicationPlan.map((entry) => (
                     <div key={entry.id} className="flex flex-col gap-3 rounded-2xl border border-border/70 p-3 sm:p-4 sm:flex-row sm:items-center sm:justify-between dark:border-border/60">
                       <div className="flex items-center gap-3 sm:gap-4">
@@ -549,7 +549,7 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
             <CardHeader>
               <CardTitle>Reminder Settings</CardTitle>
             </CardHeader>
-            <CardContent className="gap-y-4">
+            <CardContent className="flex flex-col gap-y-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">Medication Reminders</p>
@@ -598,11 +598,11 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
                   icon={ShoppingCart}
                 />
               ) : (
-                <div className="gap-y-4">
+                <div className="flex flex-col gap-y-4">
                   {medicineDeskQueue.map((prescription) => (
                     <div key={prescription.id} className="rounded-2xl border border-border/70 p-3 sm:p-4 dark:border-border/60">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="gap-y-1">
+                        <div className="flex flex-col gap-y-1">
                           <h3 className="text-sm sm:text-base font-semibold">Prescription #{prescription.id}</h3>
                           <p className={`text-xs sm:text-sm ${theme.textColors.secondary}`}>
                             {prescription.doctor} • {formatDateInIST(prescription.date)}
@@ -622,7 +622,7 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
                         </div>
                       </div>
 
-                      <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs sm:text-sm">
+                      <div className="mt-4 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 sm:grid-cols-3 sm:text-sm">
                         <div>
                           <span className={theme.textColors.secondary}>Lane:</span>
                           <span className="ml-1 sm:ml-2 font-medium">
@@ -682,11 +682,11 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
                   icon={FileText}
                 />
               ) : (
-                <div className="gap-y-4">
+                <div className="flex flex-col gap-y-4">
                   {displayPrescriptions.map((prescription) => (
                     <div key={prescription.id} className="p-3 sm:p-4 border rounded-xl">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
-                        <div className="gap-y-1">
+                        <div className="flex flex-col gap-y-1">
                           <h3 className="text-sm sm:text-base font-semibold">Prescription #{prescription.id}</h3>
                           <p className={`text-xs sm:text-sm ${theme.textColors.secondary}`}>
                             {prescription.doctor} • {formatDateInIST(prescription.date)}

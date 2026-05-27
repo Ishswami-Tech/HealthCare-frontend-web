@@ -21,7 +21,7 @@ function PatientHealthPageContent() {
         description="Your records and medicines in one place."
       />
 
-      <Tabs defaultValue={initialTab} className="gap-y-4">
+      <Tabs defaultValue={initialTab} className="flex flex-col gap-y-4">
         <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
           <TabsList className="inline-flex w-max min-w-full sm:grid sm:w-full sm:grid-cols-2">
           <TabsTrigger value="records">Records</TabsTrigger>
@@ -29,11 +29,11 @@ function PatientHealthPageContent() {
           </TabsList>
         </div>
 
-        <TabsContent value="records" className="gap-y-4">
+        <TabsContent value="records" className="flex flex-col gap-y-4">
           <PatientMedicalRecords embedded />
         </TabsContent>
 
-        <TabsContent value="medicines" className="gap-y-4">
+        <TabsContent value="medicines" className="flex flex-col gap-y-4">
           <PatientPrescriptions embedded />
         </TabsContent>
       </Tabs>

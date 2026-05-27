@@ -73,7 +73,7 @@ export default function PharmacistProfile() {
   const initials = `${formData.firstName?.charAt(0) || ""}${formData.lastName?.charAt(0) || ""}`.toUpperCase() || "P";
 
   return (
-    <div className="gap-y-6">
+    <div className="flex flex-col gap-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Pharmacist Profile</h1>
@@ -99,7 +99,7 @@ export default function PharmacistProfile() {
               <Badge variant="outline">{(userProfile as any)?.isVerified ? "Verified" : "Unverified"}</Badge>
             </div>
           </CardHeader>
-          <CardContent className="gap-y-4">
+          <CardContent className="flex flex-col gap-y-4">
             <div className="flex items-center gap-3 text-sm">
               <Mail className="size-4 text-muted-foreground" />
               <span>{formData.email}</span>
@@ -123,15 +123,15 @@ export default function PharmacistProfile() {
               <TabsTrigger value="security">Security</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="personal" className="gap-y-4 pt-4">
+            <TabsContent value="personal" className="flex flex-col gap-y-4 pt-4">
               <Card>
                 <CardHeader>
                   <CardTitle>Personal Details</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <form onSubmit={handleSubmit} className="gap-y-4">
+                  <form onSubmit={handleSubmit} className="flex flex-col gap-y-4">
                     <div className="grid gap-4 md:grid-cols-2">
-                      <div className="gap-y-2">
+                      <div className="flex flex-col gap-y-2">
                         <Label htmlFor="firstName">First Name</Label>
                         <Input
                           id="firstName"
@@ -141,7 +141,7 @@ export default function PharmacistProfile() {
                           placeholder="John"
                         />
                       </div>
-                      <div className="gap-y-2">
+                      <div className="flex flex-col gap-y-2">
                         <Label htmlFor="lastName">Last Name</Label>
                         <Input
                           id="lastName"
@@ -153,7 +153,7 @@ export default function PharmacistProfile() {
                       </div>
                     </div>
 
-                    <div className="gap-y-2">
+                    <div className="flex flex-col gap-y-2">
                       <Label htmlFor="email">Email Address</Label>
                       <Input
                         id="email"
@@ -166,7 +166,7 @@ export default function PharmacistProfile() {
                       <p className="text-xs text-muted-foreground">Email cannot be changed directly</p>
                     </div>
 
-                    <div className="gap-y-2">
+                    <div className="flex flex-col gap-y-2">
                       <Label htmlFor="phone">Phone Number</Label>
                       <Input
                         id="phone"
@@ -177,7 +177,7 @@ export default function PharmacistProfile() {
                       />
                     </div>
 
-                    <div className="gap-y-2">
+                    <div className="flex flex-col gap-y-2">
                       <Label htmlFor="address">Address</Label>
                       <Input
                         id="address"
@@ -189,7 +189,7 @@ export default function PharmacistProfile() {
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-3">
-                      <div className="gap-y-2">
+                      <div className="flex flex-col gap-y-2">
                         <Label htmlFor="city">City</Label>
                         <Input
                           id="city"
@@ -199,7 +199,7 @@ export default function PharmacistProfile() {
                           placeholder="City"
                         />
                       </div>
-                      <div className="gap-y-2">
+                      <div className="flex flex-col gap-y-2">
                         <Label htmlFor="state">State</Label>
                         <Input
                           id="state"
@@ -209,7 +209,7 @@ export default function PharmacistProfile() {
                           placeholder="State"
                         />
                       </div>
-                      <div className="gap-y-2">
+                      <div className="flex flex-col gap-y-2">
                         <Label htmlFor="zipCode">Zip Code</Label>
                         <Input
                           id="zipCode"
@@ -265,21 +265,21 @@ export default function PharmacistProfile() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="security" className="gap-y-4 pt-4">
+            <TabsContent value="security" className="flex flex-col gap-y-4 pt-4">
               <Card>
                 <CardHeader>
                   <CardTitle>Account Security</CardTitle>
                 </CardHeader>
-                <CardContent className="gap-y-4">
+                <CardContent className="flex flex-col gap-y-4">
                   <div className="flex items-center justify-between rounded-lg border p-4">
-                    <div className="gap-y-1">
+                    <div className="flex flex-col gap-y-1">
                       <p className="font-medium">Password</p>
                       <p className="text-sm text-muted-foreground">Change your account password</p>
                     </div>
                     <Button variant="outline">Update</Button>
                   </div>
                   <div className="flex items-center justify-between rounded-lg border p-4">
-                    <div className="gap-y-1">
+                    <div className="flex flex-col gap-y-1">
                       <p className="font-medium">Two-Factor Authentication</p>
                       <p className="text-sm text-muted-foreground">Add an extra layer of security</p>
                     </div>

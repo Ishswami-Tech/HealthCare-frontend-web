@@ -812,9 +812,9 @@ export default function AppointmentManager({
 
   if (isAppointmentsLoading) {
     return (
-      <div className="gap-y-4 p-6">
+    <div className="flex flex-col gap-y-4 p-6">
         <div className="h-8 w-64 bg-muted animate-pulse rounded-lg" />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
           {[1, 2, 3, 4].map(i => <div key={i} className="h-20 bg-muted animate-pulse rounded-2xl" />)}
         </div>
         {[1, 2, 3].map(i => <div key={i} className="h-24 bg-muted animate-pulse rounded-2xl" />)}
@@ -872,7 +872,7 @@ export default function AppointmentManager({
         </div>
       </CardHeader>
 
-      <CardContent className="gap-y-4 sm:gap-y-5">
+      <CardContent className="flex flex-col gap-y-4 sm:gap-y-5">
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4 lg:gap-4">
@@ -923,7 +923,7 @@ export default function AppointmentManager({
       </div>
 
       {/* Search and Filters (REPLICATING DASHBOARD EXACTLY) */}
-      <div className="mb-6 gap-y-3.5 sm:mb-8 sm:gap-y-4">
+      <div className="mb-6 flex flex-col gap-y-3.5 sm:mb-8 sm:gap-y-4">
         {/* 1. Search Bar */}
         <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -1066,7 +1066,7 @@ export default function AppointmentManager({
           )}
         </div>
       ) : (
-        <div className="gap-y-2.5 sm:gap-y-3">
+        <div className="flex flex-col gap-y-2.5 sm:gap-y-3">
           <div className="flex items-center justify-between">
             <p className="text-xs font-medium text-muted-foreground">
               Showing {filteredAppointments.length === 0 ? 0 : (safeCurrentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(safeCurrentPage * ITEMS_PER_PAGE, filteredAppointments.length)} of {filteredAppointments.length}
@@ -1157,7 +1157,7 @@ export default function AppointmentManager({
               Choose a new date and time for your appointment.
             </DialogDescription>
           </DialogHeader>
-          <div className="gap-y-4 py-2">
+          <div className="flex flex-col gap-y-4 py-2">
             <div>
               <span className="mb-1.5 block text-sm font-medium">New Date</span>
               <Popover>

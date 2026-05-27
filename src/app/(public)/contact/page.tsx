@@ -491,9 +491,9 @@ export default function ContactPage() {
                         </p>
                       </CardHeader>
                       <CardContent className="p-4 pt-0">
-                        <form onSubmit={handleSubmit} className="gap-y-3">
+                        <form onSubmit={handleSubmit} className="flex flex-col gap-y-3">
                           <div className="grid md:grid-cols-2 gap-3">
-                            <div className="gap-y-1">
+                            <div className="flex flex-col gap-y-1">
                               <label className="block text-xs font-semibold text-foreground">
                                 {t("contact.form.fields.fullName")}
                               </label>
@@ -508,7 +508,7 @@ export default function ContactPage() {
                                 className="h-9 rounded-lg border-border/50 dark:border-border/60 focus:border-primary transition-colors duration-300"
                               />
                             </div>
-                            <div className="gap-y-1">
+                            <div className="flex flex-col gap-y-1">
                               <label className="block text-xs font-semibold text-foreground">
                                 {t("contact.form.fields.phoneNumber")}
                               </label>
@@ -525,7 +525,7 @@ export default function ContactPage() {
                             </div>
                           </div>
 
-                          <div className="gap-y-2">
+                          <div className="flex flex-col gap-y-2">
                             <label className="block text-sm font-semibold text-foreground">
                               {t("contact.form.fields.emailAddress")}
                             </label>
@@ -542,7 +542,7 @@ export default function ContactPage() {
                             />
                           </div>
 
-                          <div className="gap-y-2">
+                          <div className="flex flex-col gap-y-2">
                             <label className="block text-sm font-semibold text-foreground">
                               {t("contact.form.fields.healthCondition")}
                             </label>
@@ -557,7 +557,7 @@ export default function ContactPage() {
                             />
                           </div>
 
-                          <div className="gap-y-2">
+                          <div className="flex flex-col gap-y-2">
                             <label className="block text-sm font-semibold text-foreground">
                               {t("contact.form.fields.message")}
                             </label>
@@ -596,7 +596,7 @@ export default function ContactPage() {
                   </div>
 
                   {/* Contact Information */}
-                  <div className="gap-y-4 animate-fade-in-right">
+                  <div className="flex flex-col gap-y-4 animate-fade-in-right">
                     {contactInfo.map((info, index) => {
                       const IconComponent = info.icon;
 
@@ -621,7 +621,7 @@ export default function ContactPage() {
                                   <h3 className="text-base font-semibold text-foreground mb-2 gradient-text">
                                     {info.title}
                                   </h3>
-                                  <div className="gap-y-1">
+                                  <div className="flex flex-col gap-y-1">
                                     {(Array.isArray(info.details)
                                       ? info.details
                                       : [info.details]
@@ -757,8 +757,8 @@ export default function ContactPage() {
                   "Fill in your details and we'll contact you to confirm your appointment."}
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleBookingSubmit} className="gap-y-4">
-              <div className="gap-y-2">
+            <form onSubmit={handleBookingSubmit} className="flex flex-col gap-y-4">
+              <div className="flex flex-col gap-y-2">
                 <label className="block text-sm font-semibold text-foreground">
                   {t("contact.form.fields.fullName") || "Full Name"} *
                 </label>
@@ -775,7 +775,7 @@ export default function ContactPage() {
                 />
               </div>
 
-              <div className="gap-y-2">
+              <div className="flex flex-col gap-y-2">
                 <label className="block text-sm font-semibold text-foreground">
                   {t("contact.form.fields.phoneNumber") || "Phone Number"} *
                 </label>
@@ -794,7 +794,7 @@ export default function ContactPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="gap-y-2">
+                <div className="flex flex-col gap-y-2">
                   <label className="block text-sm font-semibold text-foreground">
                     {t("contact.booking.preferredDate") || "Preferred Date"}
                   </label>
@@ -808,7 +808,7 @@ export default function ContactPage() {
                   />
                 </div>
 
-                <div className="gap-y-2">
+                <div className="flex flex-col gap-y-2">
                   <label className="block text-sm font-semibold text-foreground">
                     {t("contact.booking.preferredTime") || "Preferred Time"}
                   </label>
@@ -822,7 +822,7 @@ export default function ContactPage() {
                 </div>
               </div>
 
-              <div className="gap-y-2">
+              <div className="flex flex-col gap-y-2">
                 <label className="block text-sm font-semibold text-foreground">
                   {t("contact.booking.reason") || "Reason for Consultation"}
                 </label>

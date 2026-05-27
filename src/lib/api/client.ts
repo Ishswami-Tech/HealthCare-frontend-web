@@ -426,8 +426,8 @@ export class ApiClient {
   ): Promise<ApiResponse<T>> {
     // ✅ Add API prefix if this is ClinicApiClient and endpoint doesn't already include it
     const apiPrefix = (this as any).API_PREFIX || '';
-    const prefixedEndpoint = apiPrefix && !endpoint.startsWith(apiPrefix) 
-      ? `${apiPrefix}${endpoint}` 
+    const prefixedEndpoint = apiPrefix && !endpoint.startsWith(apiPrefix)
+      ? `${apiPrefix}${endpoint}`
       : endpoint;
     const url = `${this.resolveBaseURL(prefixedEndpoint)}${prefixedEndpoint}`;
     const method = (options.method || 'GET').toUpperCase();

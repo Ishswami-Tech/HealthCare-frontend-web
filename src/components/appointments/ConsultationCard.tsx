@@ -96,11 +96,11 @@ export default function ConsultationCard({
         </p>
 
         {showDetails && isExpanded && (
-          <div className="gap-y-3 border-t pt-3">
+          <div className="flex flex-col gap-y-3 border-t pt-3">
             {consultation.prerequisites && consultation.prerequisites.length > 0 && (
               <div>
                 <h4 className="font-medium text-sm text-green-700 mb-1">{t("consultations.prerequisites")}:</h4>
-                <ul className="text-xs text-gray-600 gap-y-1">
+                <ul className="list-disc space-y-1 text-xs text-gray-600">
                   {consultation.prerequisites.map((prereq) => (
                     <li key={prereq} className="flex items-start gap-1">
                       <span className="text-green-600 mt-0.5">•</span>
@@ -114,7 +114,7 @@ export default function ConsultationCard({
             {consultation.contraindications && consultation.contraindications.length > 0 && (
               <div>
                 <h4 className="font-medium text-sm text-red-700 mb-1">{t("consultations.contraindications")}:</h4>
-                <ul className="text-xs text-gray-600 gap-y-1">
+                <ul className="list-disc space-y-1 text-xs text-gray-600">
                   {consultation.contraindications.map((contra) => (
                     <li key={contra} className="flex items-start gap-1">
                       <span className="text-red-600 mt-0.5">•</span>

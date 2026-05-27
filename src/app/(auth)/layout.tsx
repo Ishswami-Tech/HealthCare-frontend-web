@@ -67,7 +67,7 @@ export default function AuthLayout({
           <p className="text-lg xl:text-xl">
             Your comprehensive healthcare management solution. Connect withdoctors, manage appointments, and access your medical recordssecurely.
           </p>
-          <div className="mt-12 gap-y-8">
+          <div className="mt-12 flex flex-col gap-y-8">
             <div className="flex items-start gap-x-4">
               <div className="flex-shrink-0">
                 <div className="size-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">

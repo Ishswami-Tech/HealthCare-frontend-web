@@ -113,7 +113,7 @@ const isLoading = clinicsLoading || myClinicLoading || defaultClinicLoading;
                      onClick={() => setSelectedClinicId(clinic.id)}
                      className="w-full justify-start rounded-xl border p-4 text-left hover:border-blue-500 hover:shadow-sm bg-card"
                    >
-                     <div className="gap-y-1">
+                      <div className="flex flex-col gap-y-1">
                        <h4 className="font-semibold">{clinic.name}</h4>
                        <p className="text-sm text-muted-foreground">{clinic.address}</p>
                      </div>
@@ -132,13 +132,13 @@ const isLoading = clinicsLoading || myClinicLoading || defaultClinicLoading;
                 </p>
               </div>
               <ScrollArea className="flex-1 h-[400px]">
-                <div className="p-4 pt-2 gap-y-3">
+                <div className="flex flex-col gap-y-3 p-4 pt-2">
                   {locationsLoading ? (
                     <div className="flex items-center justify-center py-12">
                       <Loader2 className="size-6 animate-spin text-blue-600" />
                     </div>
                   ) : locations.length === 0 ? (
-                    <div className="text-center py-12 gap-y-3">
+                    <div className="flex flex-col gap-y-3 py-12 text-center">
                       <div className="size-12 rounded-full bg-muted flex items-center justify-center mx-auto">
                          <MapPin className="size-6 text-muted-foreground" />
                       </div>
@@ -154,7 +154,7 @@ const isLoading = clinicsLoading || myClinicLoading || defaultClinicLoading;
                         className="group w-full justify-start text-left p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 hover:border-blue-500 hover:ring-2 hover:ring-blue-500/20 transition-all bg-white dark:bg-neutral-900 shadow-sm"
                       >
                         <div className="flex items-center justify-between">
-                          <div className="gap-y-1">
+                      <div className="flex flex-col gap-y-1">
                             <h4 className="font-semibold text-base group-hover:text-blue-600 transition-colors">
                               {loc.name}
                             </h4>

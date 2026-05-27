@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import type * as React from "react";
 import { useState } from "react";
@@ -83,7 +83,7 @@ function PasswordChangeModal({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="gap-y-4 py-4">
+          <div className="flex flex-col gap-y-4 py-4">
             {error && (
               <Alert variant="destructive">
                 <AlertCircle className="size-4" />
@@ -91,7 +91,7 @@ function PasswordChangeModal({
               </Alert>
             )}
 
-            <div className="gap-y-2">
+            <div className="flex flex-col gap-y-2">
               <Label htmlFor="currentPassword">Current Password</Label>
               <Input
                 id="currentPassword"
@@ -105,7 +105,7 @@ function PasswordChangeModal({
               />
             </div>
 
-            <div className="gap-y-2">
+            <div className="flex flex-col gap-y-2">
               <Label htmlFor="newPassword">New Password</Label>
               <Input
                 id="newPassword"
@@ -123,7 +123,7 @@ function PasswordChangeModal({
               </p>
             </div>
 
-            <div className="gap-y-2">
+            <div className="flex flex-col gap-y-2">
               <Label htmlFor="confirmPassword">Confirm New Password</Label>
               <Input
                 id="confirmPassword"

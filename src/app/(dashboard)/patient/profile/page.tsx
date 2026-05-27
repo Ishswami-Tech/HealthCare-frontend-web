@@ -318,7 +318,7 @@ export default function PatientProfile() {
                   </div>
                 </div>
                 <div className="w-full border-t border-border pt-3 text-center sm:w-auto sm:border-t-0 sm:pt-0 sm:text-left">
-                  <div className="grid grid-cols-2 gap-2.5 text-center sm:grid-cols-1 sm:gap-3">
+                  <div className="grid grid-cols-1 gap-2.5 text-center sm:grid-cols-2 sm:gap-3">
                     <div>
                       <div className={`text-lg sm:text-xl font-bold ${theme.iconColors.green}`}>{profileData.vitals.bmi}</div>
                       <div className={`text-[10px] sm:text-xs ${theme.textColors.secondary} uppercase tracking-wider font-bold`}>BMI</div>
@@ -333,7 +333,7 @@ export default function PatientProfile() {
             </CardContent>
           </Card>
 
-          <Tabs defaultValue="personal" className="gap-y-4">
+          <Tabs defaultValue="personal" className="flex flex-col gap-y-4">
             <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
               <TabsList className="inline-flex w-max min-w-full sm:grid sm:w-full sm:grid-cols-3 lg:grid-cols-6">
                 <TabsTrigger value="personal" className="px-3 text-[11px] sm:text-sm">Personal</TabsTrigger>
@@ -353,23 +353,23 @@ export default function PatientProfile() {
                     Personal Information
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="gap-y-4">
+                <CardContent className="flex flex-col gap-y-4">
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div className="gap-y-1.5">
+                    <div className="flex flex-col gap-y-1.5">
                       <Label htmlFor="firstName">First Name</Label>
                       <Input id="firstName" value={profileData.personalInfo.firstName} onChange={(e) => updatePersonalInfo('firstName', e.target.value)} />
                     </div>
-                    <div className="gap-y-1.5">
+                    <div className="flex flex-col gap-y-1.5">
                       <Label htmlFor="lastName">Last Name</Label>
                       <Input id="lastName" value={profileData.personalInfo.lastName} onChange={(e) => updatePersonalInfo('lastName', e.target.value)} />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div className="gap-y-1.5">
+                    <div className="flex flex-col gap-y-1.5">
                       <Label htmlFor="email">Email Address</Label>
                       <Input id="email" type="email" value={profileData.personalInfo.email} onChange={(e) => updatePersonalInfo('email', e.target.value)} />
                     </div>
-                    <div className="gap-y-1.5">
+                    <div className="flex flex-col gap-y-1.5">
                       <div className="flex items-center gap-2">
                         <Label htmlFor="phone">Phone Number</Label>
                         {(userProfile as { phoneVerified?: boolean })?.phoneVerified && (
@@ -380,7 +380,7 @@ export default function PatientProfile() {
                     </div>
                   </div>
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                    <div className="gap-y-1.5">
+                    <div className="flex flex-col gap-y-1.5">
                       <Label htmlFor="dateOfBirth">Date of Birth</Label>
                       <Input
                         id="dateOfBirth"
@@ -390,7 +390,7 @@ export default function PatientProfile() {
                         onChange={(e) => updatePersonalInfo('dateOfBirth', e.target.value)}
                       />
                     </div>
-                    <div className="gap-y-1.5">
+                    <div className="flex flex-col gap-y-1.5">
                       <Label htmlFor="gender">Gender</Label>
                       <Select value={profileData.personalInfo.gender} onValueChange={(value) => updatePersonalInfo('gender', value)}>
                         <SelectTrigger className="w-full min-h-11">
@@ -403,7 +403,7 @@ export default function PatientProfile() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="gap-y-1.5">
+                    <div className="flex flex-col gap-y-1.5">
                       <Label htmlFor="maritalStatus">Marital Status</Label>
                       <Select value={profileData.personalInfo.maritalStatus} onValueChange={(value) => updatePersonalInfo('maritalStatus', value)}>
                         <SelectTrigger className="w-full min-h-11">
@@ -418,12 +418,12 @@ export default function PatientProfile() {
                       </Select>
                     </div>
                   </div>
-                  <div className="gap-y-1.5">
+                  <div className="flex flex-col gap-y-1.5">
                     <Label htmlFor="address">Address</Label>
                     <Input id="address" value={profileData.personalInfo.address} onChange={(e) => updatePersonalInfo('address', e.target.value)} />
                   </div>
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                    <div className="gap-y-1.5">
+                    <div className="flex flex-col gap-y-1.5">
                       <Label htmlFor="city">City</Label>
                       <Input
                         id="city"
@@ -432,7 +432,7 @@ export default function PatientProfile() {
                         onChange={(e) => updatePersonalInfo('city', e.target.value)}
                       />
                     </div>
-                    <div className="gap-y-1.5">
+                    <div className="flex flex-col gap-y-1.5">
                       <Label htmlFor="state">State</Label>
                       <Input
                         id="state"
@@ -441,7 +441,7 @@ export default function PatientProfile() {
                         onChange={(e) => updatePersonalInfo('state', e.target.value)}
                       />
                     </div>
-                    <div className="gap-y-1.5">
+                    <div className="flex flex-col gap-y-1.5">
                       <Label htmlFor="zipCode">ZIP Code</Label>
                       <Input
                         id="zipCode"
@@ -452,7 +452,7 @@ export default function PatientProfile() {
                     </div>
                   </div>
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div className="gap-y-1.5">
+                    <div className="flex flex-col gap-y-1.5">
                       <Label htmlFor="occupation">Occupation</Label>
                       <Input
                         id="occupation"
@@ -461,7 +461,7 @@ export default function PatientProfile() {
                         onChange={(e) => updatePersonalInfo('occupation', e.target.value)}
                       />
                     </div>
-                    <div className="gap-y-1.5">
+                    <div className="flex flex-col gap-y-1.5">
                       <Label htmlFor="emergencyContact">Emergency Contact</Label>
                       <Input
                         id="emergencyContact"
@@ -473,7 +473,7 @@ export default function PatientProfile() {
                   </div>
                   <div className="border-t pt-4">
                     <h4 className="mb-4 text-sm font-semibold sm:text-base">Vital Statistics</h4>
-                    <div className="grid grid-cols-2 gap-3 md:grid-cols-4 sm:gap-3.5">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4 sm:gap-3.5">
                       <div className={`rounded-lg p-3 text-center ${theme.containers.featureBlue}`}>
                         <div className={`text-[10px] sm:text-xs ${theme.textColors.secondary} uppercase font-bold`}>Height</div>
                         <div className={`text-base sm:text-lg font-semibold ${theme.iconColors.blue}`}>{profileData.vitals.height}</div>
@@ -504,9 +504,9 @@ export default function PatientProfile() {
                     Ayurvedic Profile
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="gap-y-3.5">
+                <CardContent className="flex flex-col gap-y-3.5">
                   <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-                    <div className="gap-y-1.5">
+                    <div className="flex flex-col gap-y-1.5">
                       <Label>Primary Dosha</Label>
                       <div className={`rounded-lg p-2.5 ${getDoshaColor(profileData.ayurvedaProfile.primaryDosha)}`}>
                         <div className="flex items-center gap-1.5">
@@ -515,26 +515,26 @@ export default function PatientProfile() {
                         </div>
                       </div>
                     </div>
-                    <div className="gap-y-1.5">
+                    <div className="flex flex-col gap-y-1.5">
                       <Label>Constitution Type</Label>
                       <Input className="min-h-11" value={profileData.ayurvedaProfile.constitution} disabled />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-                    <div className="gap-y-1.5">
+                    <div className="flex flex-col gap-y-1.5">
                       <Label>Body Type</Label>
                       <Input className="min-h-11" value={profileData.ayurvedaProfile.bodyType} disabled />
                     </div>
-                    <div className="gap-y-1.5">
+                    <div className="flex flex-col gap-y-1.5">
                       <Label>Mental Constitution</Label>
                       <Input className="min-h-11" value={profileData.ayurvedaProfile.mentalConstitution} disabled />
                     </div>
                   </div>
-                  <div className="gap-y-1.5">
+                  <div className="flex flex-col gap-y-1.5">
                     <Label>Digestive Fire (Agni)</Label>
                     <Input className="min-h-11" value={profileData.ayurvedaProfile.digestiveFire} disabled />
                   </div>
-                  <div className="gap-y-1.5">
+                  <div className="flex flex-col gap-y-1.5">
                     <Label>Current Imbalances</Label>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {profileData.ayurvedaProfile.currentImbalances.map((imbalance) => (
@@ -542,7 +542,7 @@ export default function PatientProfile() {
                       ))}
                     </div>
                   </div>
-                  <div className="gap-y-1.5">
+                  <div className="flex flex-col gap-y-1.5">
                     <Label>Preferred Treatments</Label>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {profileData.ayurvedaProfile.preferredTreatments.map((treatment) => (
@@ -550,9 +550,9 @@ export default function PatientProfile() {
                       ))}
                     </div>
                   </div>
-                  <div className="gap-y-1.5">
+                  <div className="flex flex-col gap-y-1.5">
                     <Label>Seasonal Tendencies</Label>
-                    <div className="mt-2 gap-y-1.5">
+                    <div className="mt-2 flex flex-col gap-y-1.5">
                       {profileData.ayurvedaProfile.seasonalTendencies.map((tendency) => (
                         <div key={tendency} className={`flex items-center gap-2 rounded p-2 ${theme.containers.featureBlue}`}>
                           <Info className={`size-3.5 ${theme.iconColors.blue}`} />
@@ -573,8 +573,8 @@ export default function PatientProfile() {
                     Medical History
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="gap-y-3.5">
-                  <div className="gap-y-1.5">
+                <CardContent className="flex flex-col gap-y-3.5">
+                  <div className="flex flex-col gap-y-1.5">
                     <Label>Chronic Conditions</Label>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {profileData.medicalHistory.chronicConditions.map((condition) => (
@@ -582,7 +582,7 @@ export default function PatientProfile() {
                       ))}
                     </div>
                   </div>
-                  <div className="gap-y-1.5">
+                  <div className="flex flex-col gap-y-1.5">
                     <Label>Known Allergies</Label>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {profileData.medicalHistory.allergies.map((allergy) => (
@@ -593,9 +593,9 @@ export default function PatientProfile() {
                       ))}
                     </div>
                   </div>
-                  <div className="gap-y-1.5">
+                  <div className="flex flex-col gap-y-1.5">
                     <Label>Current Medications</Label>
-                    <div className="mt-2 gap-y-1.5">
+                    <div className="mt-2 flex flex-col gap-y-1.5">
                       {profileData.medicalHistory.currentMedications.map((medication) => (
                         <div key={medication} className={`rounded-lg border p-2.5 ${theme.containers.featureGreen} ${theme.borders.green}`}>
                           <div className="flex items-center gap-2">
@@ -606,7 +606,7 @@ export default function PatientProfile() {
                       ))}
                     </div>
                   </div>
-                  <div className="gap-y-1.5">
+                  <div className="flex flex-col gap-y-1.5">
                     <Label>Family History</Label>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {profileData.medicalHistory.familyHistory.map((history) => (
@@ -631,10 +631,10 @@ export default function PatientProfile() {
                     Lifestyle & Wellness
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="gap-y-4">
+                <CardContent className="flex flex-col gap-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="gap-y-3.5">
-                      <div className="gap-y-1.5">
+                    <div className="flex flex-col gap-y-3.5">
+                      <div className="flex flex-col gap-y-1.5">
                         <Label>Diet Preferences</Label>
                         <Select value={profileData.lifestyle.dietPreferences} onValueChange={(value) => setProfileData(prev => ({ ...prev, lifestyle: { ...prev.lifestyle, dietPreferences: value }}))}>
                           <SelectTrigger className="w-full min-h-11"><SelectValue /></SelectTrigger>
@@ -646,20 +646,20 @@ export default function PatientProfile() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="gap-y-1.5">
+                      <div className="flex flex-col gap-y-1.5">
                         <Label>Exercise Routine</Label>
                         <Textarea className="min-h-20" value={profileData.lifestyle.exerciseRoutine} onChange={(e) => setProfileData(prev => ({ ...prev, lifestyle: { ...prev.lifestyle, exerciseRoutine: e.target.value }}))} rows={2} />
                       </div>
-                      <div className="gap-y-1.5">
+                      <div className="flex flex-col gap-y-1.5">
                         <Label>Sleep Pattern</Label>
                         <Input className="min-h-11" value={profileData.lifestyle.sleepPattern} onChange={(e) => setProfileData(prev => ({ ...prev, lifestyle: { ...prev.lifestyle, sleepPattern: e.target.value }}))} />
                       </div>
-                      <div className="gap-y-1.5">
+                      <div className="flex flex-col gap-y-1.5">
                         <Label>Meditation Practice</Label>
                         <Textarea className="min-h-20" value={profileData.lifestyle.meditationPractice} onChange={(e) => setProfileData(prev => ({ ...prev, lifestyle: { ...prev.lifestyle, meditationPractice: e.target.value }}))} rows={2} />
                       </div>
                     </div>
-                    <div className="gap-y-4">
+                    <div className="flex flex-col gap-y-4">
                       <div>
                         <Label>Stress Level</Label>
                         <Select value={profileData.lifestyle.stressLevel} onValueChange={(value) => setProfileData(prev => ({ ...prev, lifestyle: { ...prev.lifestyle, stressLevel: value }}))}>
@@ -696,7 +696,7 @@ export default function PatientProfile() {
                        Health Documents
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="gap-y-3.5">
+                  <CardContent className="flex flex-col gap-y-3.5">
                     <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                       {profileData.documents.map((doc) => (
                         <div key={`${doc.name}-${doc.date}`} className="flex items-center justify-between rounded-xl border p-2.5 hover:bg-muted/50 transition-colors">
@@ -713,7 +713,7 @@ export default function PatientProfile() {
                         <Info className="size-4 sm:w-5 sm:h-5 text-emerald-600 mt-0.5 shrink-0" />
                         <div className="text-[11px] sm:text-sm text-muted-foreground">
                           <p className="font-bold mb-1 text-emerald-900">Guidelines:</p>
-                          <ul className="list-disc list-inside gap-y-1">
+                          <ul className="list-inside list-disc space-y-1">
                             <li>PDF, JPG, PNG (Max 10MB)</li>
                             <li>Ensure documents are clear and readable</li>
                           </ul>
@@ -725,7 +725,7 @@ export default function PatientProfile() {
             </TabsContent>
 
             <TabsContent value="preferences">
-              <div className="gap-y-4">
+              <div className="flex flex-col gap-y-4">
                 <Card>
                 <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-2">
@@ -733,9 +733,9 @@ export default function PatientProfile() {
                       Communication
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="gap-y-3.5">
+                  <CardContent className="flex flex-col gap-y-3.5">
                       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                      <div className="gap-y-1.5">
+                      <div className="flex flex-col gap-y-1.5">
                         <Label>Language</Label>
                         <Select value={profileData.preferences.language} onValueChange={(value) => updatePreferences('language', value)}>
                           <SelectTrigger className="w-full min-h-11"><SelectValue /></SelectTrigger>
@@ -745,7 +745,7 @@ export default function PatientProfile() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="gap-y-1.5">
+                      <div className="flex flex-col gap-y-1.5">
                         <Label>Method</Label>
                         <Select value={profileData.preferences.communicationMethod} onValueChange={(value) => updatePreferences('communicationMethod', value)}>
                           <SelectTrigger className="w-full min-h-11"><SelectValue /></SelectTrigger>
@@ -756,9 +756,9 @@ export default function PatientProfile() {
                         </Select>
                       </div>
                     </div>
-                    <div className="gap-y-3.5 border-t pt-3.5">
+                    <div className="flex flex-col gap-y-3.5 border-t pt-3.5">
                       <h4 className="font-semibold text-sm">Notifications</h4>
-                      <div className="gap-y-3">
+                      <div className="flex flex-col gap-y-3">
                         <div className="flex items-center justify-between">
                           <div><Label className="text-sm">Appointments</Label><p className="text-[11px] text-muted-foreground">Reminders and updates</p></div>
                           <Switch checked={profileData.preferences.notificationSettings.appointmentReminders} onCheckedChange={(checked) => updateNotificationSettings('appointmentReminders', checked)} />

@@ -215,14 +215,14 @@ function PatientDetailsSections({
   getStatusColor: (status: string) => string;
 }) {
   return (
-    <div className="gap-y-6">
+    <div className="flex flex-col gap-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">
             Personal Information
           </CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <CardContent className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
           <div>
             <strong>Full Name:</strong>{" "}
             {selectedPatient.name ||
@@ -704,7 +704,7 @@ export default function ReceptionistPatients() {
                 </DialogHeader>
 
                 <div className="flex-1 overflow-y-auto p-5 pt-3">
-                  <div className="gap-y-4">
+        <div className="flex flex-col gap-y-4">
                     {/* Identity & Contact Section */}
                     <section className="group/section rounded-xl border border-slate-100 bg-card/60 p-3.5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900/30">
                       <div className="flex items-center gap-2 mb-2.5">
@@ -715,7 +715,7 @@ export default function ReceptionistPatients() {
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-2.5">
-                        <div className="gap-y-1">
+                        <div className="flex flex-col gap-y-1">
                           <Label htmlFor="firstName" className="text-[11px] font-semibold text-slate-700 flex items-center gap-1">
                             First Name <span className="text-emerald-500">*</span>
                           </Label>

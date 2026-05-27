@@ -253,7 +253,7 @@ function VerifyOTPPageContent() {
             </div>
             <Loader2 className="absolute size-20 animate-spin text-green-500/40" />
           </div>
-          <div className="text-center gap-y-1">
+          <div className="flex flex-col gap-y-1 text-center">
             <p className="font-semibold text-gray-900 dark:text-gray-100">Successfully signed in!</p>
             <p className="text-sm text-gray-500 dark:text-gray-400">Redirectingâ€¦</p>
           </div>
@@ -293,7 +293,7 @@ function VerifyOTPPageContent() {
           </div>
         )}
         <Form {...form}>
-          <form onSubmit={form.onFormSubmit} className="gap-y-6">
+          <form onSubmit={form.onFormSubmit} className="flex flex-col gap-y-6">
             <FormField
               control={form.control}
               name="otp"
@@ -320,7 +320,7 @@ function VerifyOTPPageContent() {
               )}
             />
 
-            <div className="gap-y-4">
+            <div className="flex flex-col gap-y-4">
               <Button
                 type="submit"
                 className="w-full"
@@ -369,7 +369,6 @@ export default function VerifyOTPPage() {
     </Suspense>
   );
 }
-
 
 
 
