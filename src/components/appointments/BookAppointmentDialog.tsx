@@ -2473,6 +2473,18 @@ export function BookAppointmentDialog({
   const activeClinicId =
     resolvedClinicId || clinicFallbackId;  // Always allow fallback for all roles
 
+  // DEBUG: Log clinicId resolution
+  console.log('[BookAppointmentDialog] ClinicId resolution:', {
+    propsClinicId: clinicId,
+    sessionClinicId,
+    safeContextClinicId,
+    currentClinicId,
+    clinicFallbackId,
+    authClinicId,
+    resolvedClinicId,
+    activeClinicId
+  });
+
   type BookingFlowState = {
     step: number;
     serviceFilter: string;
@@ -3481,6 +3493,30 @@ export function BookAppointmentDialog({
     return normalize(raw);
   }, [doctorsData]);
 
+  // DEBUG: Log doctors data processing
+  console.log('[BookAppointmentDialog] doctorsData raw:', {
+    type: typeof doctorsData,
+    isArray: Array.isArray(doctorsData),
+    hasData: !!(doctorsData as any)?.data,
+    doctorsCount: Array.isArray(doctorsData) ? doctorsData.length : ((doctorsData as any)?.data ? ((doctorsData as any).data.doctors?.length || (doctorsData as any).data.length || 'unknown') : 'no data'),
+    firstFew: Array.isArray(doctorsData) ? doctorsData.slice(0, 2) : ((doctorsData as any)?.data?.doctors?.slice(0, 2) || (doctorsData as any)?.data?.slice(0, 2))
+  });
+
+  // DEBUG: Log doctorsList and selection state
+  console.log('[BookAppointmentDialog] doctors state:', {
+    doctorsListLength: doctorsList.length,
+    doctorsLoading,
+    doctorsFetched,
+    doctorsError: doctorsError?.message || doctorsError,
+    shouldLoadDoctors,
+    dialogOpen,
+    activeClinicId,
+    consultationMode,
+    resolvedLocationId,
+    resolvedDoctorId,
+    selectedDoctor: selectedDoctor?.name || 'none'
+  });
+
   const autoSelectedDoctorId = useMemo(() => {
     if (
       !dialogOpen ||
@@ -3552,6 +3588,18 @@ export function BookAppointmentDialog({
         : {}),
     },
   );
+
+  // DEBUG: Log availability loading
+  console.log('[BookAppointmentDialog] Availability state:', {
+    resolvedDoctorId,
+    dateString,
+    shouldLoadAvailability,
+    consultationMode,
+    availabilitySlots: availability?.length || 0,
+    availabilityLoading,
+    availabilityError: availabilityError?.message || availabilityError
+  });
+
   const showAvailabilityLoader =
     shouldLoadAvailability &&
     availabilityLoading &&

@@ -56,8 +56,13 @@ export const useDoctors = (clinicId: string, filters?: {
   const { isConnected } = useWebSocketStatus();
   const authScope = useDoctorQueryScope();
 
+  console.log('[useDoctors] Hook called with clinicId:', clinicId, 'filters:', filters, 'enabled:', !!clinicId && (options?.enabled ?? true));
+
   return useQueryData(['doctors', clinicId, authScope, filters], async () => {
-    return await getDoctors(clinicId, filters);
+    console.log('[useDoctors] Fetching doctors for clinicId:', clinicId, 'filters:', filters);
+    const result = await getDoctors(clinicId, filters);
+    console.log('[useDoctors] Received doctors:', result?.length || 0, 'doctors');
+    return result;
   }, {
     enabled: !!clinicId && (options?.enabled ?? true),
     refetchInterval: isConnected ? false : 120_000,

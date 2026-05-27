@@ -74,6 +74,13 @@ export async function getDoctors(clinicId: string, filters?: {
   const serverClinicId = session.user.clinicId;
   const resolvedClinicId = serverClinicId || clinicId;
 
+  console.log('[getDoctors] Called with:', {
+    inputClinicId: clinicId,
+    serverClinicId,
+    resolvedClinicId,
+    sessionUser: { id: session.user.id, clinicId: session.user.clinicId, role: session.user.role }
+  });
+
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
@@ -85,13 +92,24 @@ export async function getDoctors(clinicId: string, filters?: {
 
   if (resolvedClinicId) {
     params.append('clinicId', resolvedClinicId);
+    console.log('[getDoctors] Sending request with clinicId:', resolvedClinicId);
   }
 
   const endpoint = `${API_ENDPOINTS.DOCTORS.GET_ALL}${params.toString() ? `?${params.toString()}` : ''}`;
+  console.log('[getDoctors] Endpoint:', endpoint);
+
   const { data } = await authenticatedApi(endpoint, {
     ...(resolvedClinicId ? { headers: { 'X-Clinic-ID': resolvedClinicId } } : {}),
     cache: 'no-store',
   });
+
+  console.log('[getDoctors] Response received:', {
+    hasData: !!data,
+    dataKeys: data ? Object.keys(data) : [],
+    doctorsCount: Array.isArray(data) ? data.length : (data?.data ? (Array.isArray(data.data) ? data.data.length : 'not array') : 'no data'),
+    doctors: Array.isArray(data) ? data : (data?.data || data)
+  });
+
   return normalizeCollectionResponse(data);
 }
 

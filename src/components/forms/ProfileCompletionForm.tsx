@@ -205,21 +205,46 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
         showErrorToast("Invalid OTP. Please try again.", { id: TOAST_IDS.PROFILE.OTP });
       }
     } catch (error) {
-      if (error instanceof Error && error.message.includes("expired")) {
-        showErrorToast("Session expired. Please log in again.", {
-          id: TOAST_IDS.AUTH.LOGIN,
-          duration: 5000,
-        });
-        window.location.href = '/auth/login';
+      // Use structured error handling instead of string matching
+      if (error instanceof Error) {
+        const errorMsg = error.message.toLowerCase();
+
+        // Handle specific error types with clear messages - order matters (most specific first)
+        if (errorMsg.includes("auth_otp_invalid")) {
+          setErrorMessage("Invalid OTP. Please check and try again.");
+          showErrorToast("Invalid OTP. Please check and try again.", { id: TOAST_IDS.PROFILE.OTP });
+        } else if (errorMsg.includes("expired") || errorMsg.includes("session")) {
+          showErrorToast("Session expired. Please log in again.", {
+            id: TOAST_IDS.AUTH.LOGIN,
+            duration: 5000,
+          });
+          window.location.href = '/auth/login';
+        } else if (
+          errorMsg.includes("otp_not_found") ||
+          errorMsg.includes("otp_expired") ||
+          errorMsg.includes("invalid_verification_code") ||
+          errorMsg.includes("invalid verification code")
+        ) {
+          setErrorMessage("Invalid or expired OTP. Please request a new one.");
+          showErrorToast("Invalid or expired OTP. Please request a new one.", { id: TOAST_IDS.PROFILE.OTP });
+        } else if (errorMsg.includes("locked") || errorMsg.includes("too many attempts")) {
+          setErrorMessage("Too many attempts. Please wait before trying again.");
+          showErrorToast("Account locked. Please wait before trying again.", { id: TOAST_IDS.PROFILE.OTP });
+        } else if (
+          errorMsg.includes("network") ||
+          errorMsg.includes("fetch") ||
+          errorMsg.includes("request")
+        ) {
+          setErrorMessage("Network error. Please check your connection.");
+          showErrorToast("Network error. Please check your connection.", { id: TOAST_IDS.PROFILE.OTP });
+        } else {
+          // Show the actual error message for other errors
+          setErrorMessage(error.message);
+          showErrorToast(error.message, { id: TOAST_IDS.PROFILE.OTP });
+        }
       } else {
-        const errorMessage = error instanceof Error ? error.message : "Invalid OTP. Please try again.";
-        const lowerMessage = errorMessage.toLowerCase();
-        const displayMessage =
-          lowerMessage.includes("invalid otp") || lowerMessage.includes("otp")
-            ? "Invalid OTP. Please try again."
-            : errorMessage;
-        setErrorMessage(displayMessage);
-        showErrorToast(displayMessage, { id: TOAST_IDS.PROFILE.OTP });
+        setErrorMessage("Verification failed. Please try again.");
+        showErrorToast("Verification failed. Please try again.", { id: TOAST_IDS.PROFILE.OTP });
       }
     } finally {
       setIsVerifying(false);

@@ -224,7 +224,7 @@ function getJwtExpiryMs(token: string): number | null {
   return Math.floor(exp * 1000);
 }
 
-function shouldRefreshJwt(token: string, thresholdMs = 5 * 60 * 1000): boolean {
+function shouldRefreshJwt(token: string, thresholdMs = 60 * 60 * 1000): boolean {
   const expiryMs = getJwtExpiryMs(token);
   if (expiryMs === null) {
     return false;

@@ -122,16 +122,27 @@ function VerifyOTPPageContent() {
     errorMessage: "OTP verification failed. Please try again.",
     showToast: false,
     onError: (error) => {
-      // Handle specific error cases
+      // Handle specific error cases with proper error code matching
       const errorMsg = error.message.toLowerCase();
-      if (errorMsg.includes('locked') || errorMsg.includes('too many') || errorMsg.includes('minutes')) {
+      if (errorMsg.includes('locked') || errorMsg.includes('too many attempts')) {
         // Account locked - show the lockout message
         setFormError(error.message);
-      } else if (errorMsg.includes('user not found') || errorMsg.includes('invalid otp')) {
+      } else if (
+        errorMsg.includes('auth_otp_invalid') ||
+        errorMsg.includes('invalid verification code') ||
+        errorMsg.includes('otp not found') ||
+        errorMsg.includes('otp expired') ||
+        errorMsg.includes('invalid otp')
+      ) {
         setFormError("Invalid OTP. Please check and try again.");
-      } else if (errorMsg.includes('expired')) {
+      } else if (errorMsg.includes('expired') || errorMsg.includes('session')) {
         setFormError("OTP has expired. Please request a new one.");
+      } else if (errorMsg.includes('user not found') || errorMsg.includes('user_already_exists')) {
+        setFormError("User not found. Please check your details or sign up first.");
+      } else if (errorMsg.includes('clinic_id') || errorMsg.includes('clinic not found')) {
+        setFormError("Clinic not found. Please check your clinic selection.");
       } else {
+        // Show the actual error for other cases
         setFormError(error.message);
       }
     },

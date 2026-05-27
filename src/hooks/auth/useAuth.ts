@@ -56,7 +56,7 @@ import { clearInflightRequests } from '@/hooks/core/requestDeduper';
 import { normalizeClinicId } from '@/lib/utils/clinic-id';
 
 // Constants
-const TOKEN_REFRESH_THRESHOLD = 5 * 60 * 1000; // 5 minutes
+const TOKEN_REFRESH_THRESHOLD = 60 * 60 * 1000; // 60 minutes - refresh tokens that expire within 1 hour
 // SESSION_REFRESH_INTERVAL and MAX_RETRY_ATTEMPTS removed - not used
 
 // Types
