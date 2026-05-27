@@ -98,16 +98,25 @@ export async function getDoctors(clinicId: string, filters?: {
   const endpoint = `${API_ENDPOINTS.DOCTORS.GET_ALL}${params.toString() ? `?${params.toString()}` : ''}`;
   console.log('[getDoctors] Endpoint:', endpoint);
 
-  const { data } = await authenticatedApi(endpoint, {
+  const { data } = await authenticatedApi<unknown>(endpoint, {
     ...(resolvedClinicId ? { headers: { 'X-Clinic-ID': resolvedClinicId } } : {}),
     cache: 'no-store',
   });
+  const responseObject =
+    data && typeof data === 'object' && !Array.isArray(data)
+      ? (data as { data?: unknown })
+      : null;
+  const nestedData = responseObject?.data;
 
   console.log('[getDoctors] Response received:', {
     hasData: !!data,
-    dataKeys: data ? Object.keys(data) : [],
-    doctorsCount: Array.isArray(data) ? data.length : (data?.data ? (Array.isArray(data.data) ? data.data.length : 'not array') : 'no data'),
-    doctors: Array.isArray(data) ? data : (data?.data || data)
+    dataKeys: data && typeof data === 'object' ? Object.keys(data) : [],
+    doctorsCount: Array.isArray(data)
+      ? data.length
+      : nestedData
+        ? (Array.isArray(nestedData) ? nestedData.length : 'not array')
+        : 'no data',
+    doctors: Array.isArray(data) ? data : (nestedData || data)
   });
 
   return normalizeCollectionResponse(data);

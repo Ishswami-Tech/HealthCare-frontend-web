@@ -879,13 +879,16 @@ export async function setSession(data: {
   };
 }) {
   const cookieStore = await cookies();
+  const rawSessionData = data as Record<string, any>;
+  const accessTokenValue = data.access_token || rawSessionData.accessToken;
+  const refreshTokenValue = data.refresh_token || rawSessionData.refreshToken;
+  const sessionIdValue = data.session_id || rawSessionData.sessionId;
+
   if (!data.user) {
     const currentSessionId = cookieStore.get('session_id')?.value;
     const currentUserRole = cookieStore.get('user_role')?.value as Role;
     const currentProfileComplete = cookieStore.get('profile_complete')?.value === 'true';
-    const accessTokenValue = data.access_token || (data as Record<string, any>).accessToken;
-    const refreshTokenValue = data.refresh_token || (data as Record<string, any>).refreshToken;
-    const newSessionId = data.session_id || (data as Record<string, any>).sessionId || currentSessionId;
+    const newSessionId = sessionIdValue || currentSessionId;
 
     // Recover user claims from JWT when refresh response does not include user payload.
     let tokenUserId = '';
@@ -911,7 +914,7 @@ export async function setSession(data: {
       currentUserRole,
     });
 
-    if (currentSessionId) {
+    if (newSessionId) {
        const tokenPayload = accessTokenValue ? parseJwtPayload(accessTokenValue) : null;
        const tokenClinicId = normalizeClinicId(
          extractClinicIdFromPayload(tokenPayload) || cookieStore.get('clinic_id')?.value
@@ -962,7 +965,7 @@ export async function setSession(data: {
 
        const session: Session = {
          access_token: accessTokenValue || '',
-         session_id: newSessionId || currentSessionId,
+         session_id: newSessionId,
          user: {
            id: tokenUserId || '',
            email: tokenUserEmail || '',
@@ -986,8 +989,8 @@ export async function setSession(data: {
   }
 
   const session: Session = {
-    access_token: data.access_token,
-    session_id: data.session_id,
+    access_token: accessTokenValue,
+    session_id: sessionIdValue,
     user: {
       id: data.user.id,
       email: data.user.email,
@@ -1006,9 +1009,6 @@ export async function setSession(data: {
     isAuthenticated: true
   };
 
-  const accessTokenValue = data.access_token || (data as any).accessToken;
-  const refreshTokenValue = data.refresh_token || (data as any).refreshToken;
-
   // Set cookies using Next.js 15 cookie API
   cookieStore.set({
     name: 'access_token',
@@ -1024,7 +1024,7 @@ export async function setSession(data: {
   
   cookieStore.set({
     name: 'session_id',
-    value: data.session_id,
+    value: sessionIdValue,
     ...cookieOptions(),
   });
   

@@ -3502,21 +3502,6 @@ export function BookAppointmentDialog({
     firstFew: Array.isArray(doctorsData) ? doctorsData.slice(0, 2) : ((doctorsData as any)?.data?.doctors?.slice(0, 2) || (doctorsData as any)?.data?.slice(0, 2))
   });
 
-  // DEBUG: Log doctorsList and selection state
-  console.log('[BookAppointmentDialog] doctors state:', {
-    doctorsListLength: doctorsList.length,
-    doctorsLoading,
-    doctorsFetched,
-    doctorsError: doctorsError?.message || doctorsError,
-    shouldLoadDoctors,
-    dialogOpen,
-    activeClinicId,
-    consultationMode,
-    resolvedLocationId,
-    resolvedDoctorId,
-    selectedDoctor: selectedDoctor?.name || 'none'
-  });
-
   const autoSelectedDoctorId = useMemo(() => {
     if (
       !dialogOpen ||
@@ -3534,6 +3519,21 @@ export function BookAppointmentDialog({
     () => doctorsList.find((d: any) => d.id === resolvedDoctorId),
     [doctorsList, resolvedDoctorId],
   );
+
+  // DEBUG: Log doctorsList and selection state
+  console.log('[BookAppointmentDialog] doctors state:', {
+    doctorsListLength: doctorsList.length,
+    doctorsLoading,
+    doctorsFetched,
+    doctorsError: doctorsError?.message || doctorsError,
+    shouldLoadDoctors,
+    dialogOpen,
+    activeClinicId,
+    consultationMode,
+    resolvedLocationId,
+    resolvedDoctorId,
+    selectedDoctor: selectedDoctor?.name || 'none'
+  });
 
   const dateString = useMemo(
     () => (selectedDate ? formatDateIST(selectedDate) : ""),
