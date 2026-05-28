@@ -449,7 +449,7 @@ export function useAuth() {
           const sessionData: Session = {
           user: {
             id: data.user.id,
-            email: data.user.email,
+            email: data.user.email ?? undefined,
             role: data.user.role,
             name: data.user.name || [data.user.firstName, data.user.lastName].filter(Boolean).join(' ').trim(),
             firstName: data.user.firstName || data.user.name?.split(/\s+/)[0] || '',

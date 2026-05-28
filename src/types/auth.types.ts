@@ -112,7 +112,7 @@ export interface OTPFormData {
 // User Types
 export interface User {
   id: string;
-  email: string;
+  email?: string; // Optional for phone OTP login users
   role: Role | string;
   firstName?: string | undefined;
   lastName?: string | undefined;

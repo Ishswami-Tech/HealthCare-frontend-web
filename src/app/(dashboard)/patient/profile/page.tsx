@@ -168,7 +168,8 @@ export default function PatientProfile() {
       setValidationErrors({});
       const result = await updateProfileMutation.mutateAsync(profileData as any);
       if (!result?.success) {
-        setValidationErrors({ general: result?.error || "Failed to save profile" });
+        const errorMsg = 'error' in result && typeof result.error === 'string' ? result.error : "Failed to save profile";
+        setValidationErrors({ general: errorMsg });
       }
     } catch (error) {
       console.error('Failed to save profile:', error);

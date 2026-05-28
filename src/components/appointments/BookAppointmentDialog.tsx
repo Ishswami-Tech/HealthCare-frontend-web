@@ -4307,8 +4307,9 @@ export function BookAppointmentDialog({
             await updateUserProfile(profileUpdatePayload);
           if (!profileUpdateResult.success) {
             throw new Error(
-              profileUpdateResult.error ||
-                "Patient profile is incomplete. Please complete your profile first.",
+              'error' in profileUpdateResult && typeof profileUpdateResult.error === 'string'
+                ? profileUpdateResult.error
+                : "Patient profile is incomplete. Please complete your profile first.",
             );
           }
         }

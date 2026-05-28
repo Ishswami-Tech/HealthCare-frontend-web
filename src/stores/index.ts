@@ -49,7 +49,7 @@ export function StoreProvider({ children }: StoreProviderProps) {
 
     const mappedUser = {
       id: authUser.id,
-      email: authUser.email,
+      email: authUser.email ?? undefined,
       name: authUser.name || `${authUser.firstName || ''} ${authUser.lastName || ''}`.trim(),
       role: authUser.role as AppUser['role'],
       clinicId: authUser.clinicId ?? '',

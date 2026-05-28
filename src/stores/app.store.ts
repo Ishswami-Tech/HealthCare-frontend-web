@@ -9,7 +9,7 @@ import { normalizeClinicId } from "@/lib/utils/clinic-id";
 // Global App State Types
 export interface User {
   id: string;
-  email: string;
+  email?: string; // Optional for phone OTP login users
   name: string;
   role: 'SUPER_ADMIN' | 'CLINIC_ADMIN' | 'DOCTOR' | 'RECEPTIONIST' | 'PHARMACIST' | 'PATIENT';
   clinicId?: string;
