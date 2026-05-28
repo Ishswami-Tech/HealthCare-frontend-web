@@ -59,11 +59,6 @@ function LoginPageContent() {
 
   const { showOTPInput, otpMethod } = loginFlow;
 
-  const [loginIdentifiers, dispatchLoginIdentifiers] = useReducer(
-    loginIdentifierReducer,
-    initialLoginIdentifierState
-  );
-
   const {
     requestOTP,
     verifyOTP,
@@ -73,6 +68,22 @@ function LoginPageContent() {
     refreshSession,
     getRedirectPath,
   } = useAuth();
+
+  // Reset state when user is not authenticated (e.g., after logout)
+  useEffect(() => {
+    if (!session?.user && !isRestoringSession) {
+      setLoginFlow({ showOTPInput: false, otpMethod: "phone" });
+      setSuccessPhase("none");
+      setAuthError(null);
+      setIsSendingOtp(false);
+      requestOtpLockRef.current = false;
+    }
+  }, [session?.user, isRestoringSession]);
+
+  const [loginIdentifiers, dispatchLoginIdentifiers] = useReducer(
+    loginIdentifierReducer,
+    initialLoginIdentifierState
+  );
 
   const isFormDisabled = isGoogleLoggingIn || successPhase !== "none";
 
@@ -125,7 +136,23 @@ function LoginPageContent() {
           lowerMsg.includes("invalid_verification_code")
         ) {
           setAuthError("OTP not found or expired. Please request a new one.");
-        } else if (lowerMsg.includes("locked") || lowerMsg.includes("too many attempts")) {
+        } else if (
+          lowerMsg.includes("maximum otp attempts exceeded") ||
+          lowerMsg.includes("too many otp requests")
+        ) {
+          setAuthError("Maximum OTP attempts exceeded. Please try again in 1 hour.");
+        } else if (
+          lowerMsg.includes("wait") ||
+          lowerMsg.includes("cooldown")
+        ) {
+          // Extract minutes from message like "Please wait 5 minute(s)"
+          const minuteMatch = errorMsg.match(/wait\s+(\d+)\s+minute/i);
+          const minutes = minuteMatch ? minuteMatch[1] : '';
+          setAuthError(minutes ? `Please wait ${minutes} minute(s) before requesting another OTP.` : errorMsg);
+        } else if (
+          lowerMsg.includes("locked") ||
+          lowerMsg.includes("too many attempts")
+        ) {
           setAuthError(errorMsg);
         } else if (lowerMsg.includes("user_already_exists")) {
           setAuthError("User already exists. Please log in instead.");
@@ -161,15 +188,18 @@ function LoginPageContent() {
     try {
       setAuthError(null);
       const result = await requestOTP({ identifier, clinicId: defaultClinicId });
-      if (!result.success) {
-        throw new Error(result.message || 'Failed to request OTP');
-      }
+      // Request succeeded - update both states immediately
+      setIsSendingOtp(false);
       setLoginFlow((current) => ({ ...current, showOTPInput: true }));
+      if (!result.success) {
+        // Edge case: success=false but no error thrown
+        setAuthError(result.message || 'Failed to request OTP');
+      }
     } catch (error) {
+      setIsSendingOtp(false);
       setAuthError(error instanceof Error ? error.message : "Failed to request OTP");
     } finally {
       requestOtpLockRef.current = false;
-      setIsSendingOtp(false);
     }
   };
 
@@ -192,7 +222,23 @@ function LoginPageContent() {
           lowerMsg.includes("invalid_verification_code")
         ) {
           setAuthError("OTP not found or expired. Please request a new one.");
-        } else if (lowerMsg.includes("locked") || lowerMsg.includes("too many attempts")) {
+        } else if (
+          lowerMsg.includes("maximum otp attempts exceeded") ||
+          lowerMsg.includes("too many otp requests")
+        ) {
+          setAuthError("Maximum OTP attempts exceeded. Please try again in 1 hour.");
+        } else if (
+          lowerMsg.includes("wait") ||
+          lowerMsg.includes("cooldown")
+        ) {
+          // Extract minutes from message like "Please wait 5 minute(s)"
+          const minuteMatch = errorMsg.match(/wait\s+(\d+)\s+minute/i);
+          const minutes = minuteMatch ? minuteMatch[1] : '';
+          setAuthError(minutes ? `Please wait ${minutes} minute(s) before requesting another OTP.` : errorMsg);
+        } else if (
+          lowerMsg.includes("locked") ||
+          lowerMsg.includes("too many attempts")
+        ) {
           setAuthError(errorMsg);
         } else if (lowerMsg.includes("user_already_exists")) {
           setAuthError("User already exists. Please log in instead.");

@@ -13,9 +13,9 @@ export default function ProfileCompleteLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
       <ProfileCompletionHeader />
-      <div className="flex-1 flex items-center justify-center p-4">
+      <div className="flex-1 flex items-start justify-center px-4 py-6 sm:items-center sm:py-10">
         {children}
       </div>
     </div>

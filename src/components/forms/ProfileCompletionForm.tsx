@@ -315,19 +315,21 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[400px]">
+      <DialogContent className="sm:max-w-[400px] border-border bg-background text-foreground shadow-xl dark:bg-slate-950">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ShieldCheck className="size-5 text-emerald-600" />
+          <DialogTitle className="flex items-center gap-2 text-foreground">
+            <ShieldCheck className="size-5 text-emerald-600 dark:text-emerald-400" />
             Verify Phone Number
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-muted-foreground">
             Enter the 4-6 digit code sent to{" "}
-            <span className="font-medium text-foreground">{phone}</span>
+            <span className="font-medium text-foreground dark:text-slate-100">
+              {phone}
+            </span>
           </DialogDescription>
         </DialogHeader>
 
-        <div className="gap-y-6 py-4">
+        <div className="flex flex-col gap-6 py-4">
           <div className="flex flex-col items-center gap-4">
             <OtpCodeInput
               value={otp}
@@ -350,12 +352,12 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
           <Button
             onClick={handleVerify}
             disabled={otp.length < 6 || isVerifying}
-            className="w-full"
+            className="w-full bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:text-slate-950 dark:hover:bg-emerald-400"
           >
             {isVerifying ? (
               <>
                 <Loader2 className="mr-2 size-4 animate-spin" />
-                Verifying…
+                Verifying...
               </>
             ) : (
               "Verify"
@@ -369,7 +371,7 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
             size="sm"
             onClick={handleResend}
             disabled={countdown > 0}
-            className="text-muted-foreground"
+            className="text-muted-foreground hover:text-foreground"
           >
             Resend OTP {countdown > 0 && `(${countdown}s)`}
           </Button>
@@ -736,9 +738,14 @@ function ProfileCompletionFormContent({
       id: TOAST_IDS.PROFILE.COMPLETE,
     });
 
-    // Only mark profile complete after backend confirmation
-    await setProfileCompleteMutation.mutateAsync(true);
-    setProfileCompletion(true, false);
+    // Use backend's response for profileComplete status
+    const isProfileCompleteFromBackend = response?.data?.profileComplete === true || response?.data?.isProfileComplete === true;
+
+    if (isProfileCompleteFromBackend) {
+      // Backend confirmed profile is complete - update frontend state
+      await setProfileCompleteMutation.mutateAsync(true);
+      setProfileCompletion(true, false);
+    }
 
     // Update the full session with user data from response (including clinicId)
     queryClient.setQueryData<Session | null>(["session"], (current) => {
@@ -746,16 +753,17 @@ function ProfileCompletionFormContent({
       if (!source?.user) return source;
 
       // Merge the updated user data from response (backend returns user in 'data' field)
-      // This ensures clinicId and other fields are properly synced
+      // Use backend's profileComplete status, not hardcoded value
       const responseUserData = response?.data;
+      const backendProfileComplete = responseUserData?.profileComplete === true || responseUserData?.isProfileComplete === true;
       const updatedUser = responseUserData
         ? {
             ...source.user,
             ...responseUserData,
-            profileComplete: true,
-            isProfileComplete: true,
+            profileComplete: backendProfileComplete,
+            isProfileComplete: backendProfileComplete,
           }
-        : { ...source.user, profileComplete: true, isProfileComplete: true };
+        : { ...source.user, profileComplete: backendProfileComplete, isProfileComplete: backendProfileComplete };
 
       return { ...source, user: updatedUser };
     });
@@ -774,25 +782,32 @@ function ProfileCompletionFormContent({
       queryClient.invalidateQueries({ queryKey: [key] });
     });
 
-    setTimeout(() => {
-      try {
-        if (onComplete) {
-          onComplete();
-        } else {
-          const userRole = sessionUser?.role as Role;
-          const finalRedirect = getProfileCompletionRedirectUrl(
-            userRole,
-            redirectUrl,
+    // Only redirect if backend confirmed profile is complete
+    if (isProfileCompleteFromBackend) {
+      setTimeout(() => {
+        try {
+          if (onComplete) {
+            onComplete();
+          } else {
+            const userRole = sessionUser?.role as Role;
+            // Only use redirectUrl if it's not "/" and not an auth route
+            const safeRedirectUrl = redirectUrl && redirectUrl !== "/" && !redirectUrl.startsWith('/auth/')
+              ? redirectUrl
+              : undefined;
+            const finalRedirect = getProfileCompletionRedirectUrl(
+              userRole,
+              safeRedirectUrl,
+            );
+            window.location.replace(finalRedirect);
+          }
+        } catch (_redirectError) {
+          showErrorToast(
+            "Profile was updated but there was an error redirecting. Please try navigating manually.",
+            { id: TOAST_IDS.PROFILE.COMPLETE },
           );
-          window.location.replace(finalRedirect);
         }
-      } catch (_redirectError) {
-        showErrorToast(
-          "Profile was updated but there was an error redirecting. Please try navigating manually.",
-          { id: TOAST_IDS.PROFILE.COMPLETE },
-        );
-      }
-    }, 1500);
+      }, 1500);
+    }
   };
 
   const onSubmit = async (data: ProfileCompletionFormData) => {
@@ -822,15 +837,18 @@ function ProfileCompletionFormContent({
       }
 
       // For email OTP and Google login, email is already verified and included from session
+      // For phone OTP login, DO NOT include email at all (security - email not verified for phone-only users)
       // For other methods, include email from form if provided
-      const resolvedEmail = (isEmailOtpLogin || isGoogleLogin)
-        ? sessionUser?.email
-        : data.email?.trim() || undefined;
+      const resolvedEmail = isPhoneOtpLogin
+        ? undefined // Phone OTP users cannot update email through profile form
+        : (isEmailOtpLogin || isGoogleLogin)
+          ? sessionUser?.email
+          : data.email?.trim() || undefined;
 
       const baseProfileData: Record<string, unknown> = {
         firstName: data.firstName,
         lastName: data.lastName,
-        // Include email if available (verified or filled)
+        // Include email if available (verified or filled) - NOT for phone OTP login
         ...(resolvedEmail ? { email: resolvedEmail } : {}),
         // Include phone if available and verified
         ...(resolvedPhone ? { phone: resolvedPhone } : {}),
@@ -1032,7 +1050,7 @@ function ProfileCompletionFormContent({
 
   return (
     <div className="w-full max-w-sm sm:max-w-lg">
-      <Card className="w-full border-border shadow-sm">
+      <Card className="w-full border-border bg-card text-card-foreground shadow-sm">
         {/* â”€â”€ Header â”€â”€ */}
         <CardHeader className="px-5  sm:px-6 ">
           <CardTitle className="text-base sm:text-lg font-semibold text-center">
@@ -1143,7 +1161,7 @@ function ProfileCompletionFormContent({
                         </div>
                         {/* Use reducer state for email verification to persist after verification */}
                         {isEmailVerified && (
-                          <div className="flex items-center justify-center gap-1 text-emerald-600 text-xs font-medium h-10 sm:h-9 px-3 sm:px-2">
+                          <div className="inline-flex h-10 items-center justify-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 text-xs font-medium text-emerald-700 sm:h-9 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
                             <ShieldCheck className="size-3" />
                             <span>Verified</span>
                           </div>
@@ -1177,12 +1195,12 @@ function ProfileCompletionFormContent({
                       </FormLabel>
                       {isPhoneOtpLogin ? (
                         <div className="flex flex-col gap-2">
-                          <div className="flex h-10 items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-sm text-emerald-900 sm:h-9 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200">
+                          <div className="flex h-10 items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-sm text-emerald-900 sm:h-9 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-100">
                             <span className="truncate">
                               {formatPhoneNumber(sessionUser?.phone) ||
                                 "Phone verified"}
                             </span>
-                            <span className="ml-3 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
+                            <span className="ml-3 inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/50 dark:text-emerald-300">
                               <ShieldCheck className="size-3" />
                               Verified
                             </span>
@@ -1203,7 +1221,7 @@ function ProfileCompletionFormContent({
                             />
                           </div>
                           {isPhoneVerified ? (
-                            <div className="flex items-center justify-center gap-1 text-emerald-600 text-xs font-medium h-10 sm:h-9 px-3 sm:px-2">
+                            <div className="inline-flex h-10 items-center justify-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 text-xs font-medium text-emerald-700 sm:h-9 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
                               <ShieldCheck className="size-3" />
                               <span>Verified</span>
                             </div>
