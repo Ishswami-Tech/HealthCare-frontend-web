@@ -531,6 +531,8 @@ function ProfileCompletionFormContent({
     const nextEmailVerified =
       isEmailOtpLogin || isGoogleLogin || Boolean(sessionUser?.emailVerified);
 
+    // Only update verification flags if NOT already verified locally
+    // This prevents re-renders from resetting the verified state after OTP verification
     if (nextPhoneVerified && !isPhoneVerified) {
       setIsPhoneVerified(true);
     }
@@ -551,11 +553,19 @@ function ProfileCompletionFormContent({
   useEffect(() => {
     if (!watchedPhone) return;
     // Only unverify phone if user changed it to a different number
-    // For phone OTP login, changing phone means they need to re-verify
-    if (watchedPhone !== formatPhoneNumber(sessionUser?.phone)) {
-      setIsPhoneVerified(false);
+    // For phone OTP login: compare with session phone
+    // For email OTP/Google login: compare with the verified phone (pendingPhone)
+    if (isPhoneOtpLogin) {
+      if (watchedPhone !== formatPhoneNumber(sessionUser?.phone)) {
+        setIsPhoneVerified(false);
+      }
+    } else if (isEmailOtpLogin || isGoogleLogin) {
+      // For email OTP/Google login, if phone is verified and user changes it, require re-verification
+      if (isPhoneVerified && watchedPhone !== pendingPhone && watchedPhone.trim()) {
+        setIsPhoneVerified(false);
+      }
     }
-  }, [watchedPhone, sessionUser?.phone]);
+  }, [watchedPhone, sessionUser?.phone, pendingPhone, isPhoneOtpLogin, isEmailOtpLogin, isGoogleLogin, isPhoneVerified]);
 
   useEffect(() => {
     if (!sessionUser || hasInitializedRef.current) return;
@@ -710,17 +720,8 @@ function ProfileCompletionFormContent({
         }
 
         if (hasFieldError) {
-          // Show an informative toast with the actual field errors
-          const errorSummary = response.validationErrors
-            .map((e) => {
-              const field = e.field.charAt(0).toUpperCase() + e.field.slice(1);
-              return `${field}: ${Object.values(e.constraints).join(", ")}`;
-            })
-            .join("; ");
-          showWarningToast("Please fix the following issues:", {
-            id: TOAST_IDS.PROFILE.COMPLETE,
-            description: errorSummary,
-          });
+          // Field errors are displayed inline via FormMessage components
+          // No toast needed - user will see errors next to each field
           return;
         }
       }
@@ -797,43 +798,51 @@ function ProfileCompletionFormContent({
   const onSubmit = async (data: ProfileCompletionFormData) => {
     setIsSubmitting(true);
     try {
-      const resolvedPhone =
-        formatPhoneNumber(data.phone) ||
-        (isPhoneOtpLogin ? formatPhoneNumber(sessionUser?.phone) : "");
+      // Validation: For email OTP and Google login, phone must be verified
+      // Check if user entered a phone but hasn't verified it yet
+      const hasEnteredPhone = data.phone?.trim() && !isPhoneOtpLogin;
+      if ((isEmailOtpLogin || isGoogleLogin) && hasEnteredPhone && !isPhoneVerified) {
+        form.setError("phone", {
+          type: "manual",
+          message: "Please verify your phone number via OTP before completing the profile.",
+        });
+        return;
+      }
+
+      // For phone OTP login, use the verified phone from session
+      // For email OTP / Google login, include verified email from session
+      // For other login methods, include fields as filled in the form
+      let resolvedPhone: string | undefined;
+      if (isPhoneOtpLogin) {
+        // Phone is already verified by backend, use session phone
+        resolvedPhone = formatPhoneNumber(sessionUser?.phone) || undefined;
+      } else if (data.phone?.trim() && isPhoneVerified) {
+        // For other login methods, include phone only if user has verified it
+        resolvedPhone = formatPhoneNumber(data.phone);
+      }
+
+      // For email OTP and Google login, email is already verified and included from session
+      // For other methods, include email from form if provided
+      const resolvedEmail = (isEmailOtpLogin || isGoogleLogin)
+        ? sessionUser?.email
+        : data.email?.trim() || undefined;
+
       const baseProfileData: Record<string, unknown> = {
         firstName: data.firstName,
         lastName: data.lastName,
+        // Include email if available (verified or filled)
+        ...(resolvedEmail ? { email: resolvedEmail } : {}),
+        // Include phone if available and verified
         ...(resolvedPhone ? { phone: resolvedPhone } : {}),
-        dateOfBirth: data.dateOfBirth,
+        // Only include dateOfBirth if it's not empty
+        ...(data.dateOfBirth?.trim() ? { dateOfBirth: data.dateOfBirth } : {}),
         gender: data.gender ? data.gender.toUpperCase() : undefined,
-        address: data.address,
+        // Only include address if it's not empty
+        ...(data.address?.trim() ? { address: data.address } : {}),
         phoneVerified: isPhoneVerified,
         emailVerified: isEmailVerified,
         ...(sessionUser?.clinicId ? { clinicId: sessionUser.clinicId } : {}),
       };
-
-      // Validation based on login method
-      // Email OTP login: needs phone verification
-      if (isEmailOtpLogin && !isPhoneVerified) {
-        form.setError("phone", {
-          type: "manual",
-          message:
-            "Please verify your phone number via OTP before completing the profile.",
-        });
-        return;
-      }
-
-      // Google login: needs phone verification (phone not verified at login time)
-      if (isGoogleLogin && !isPhoneVerified) {
-        form.setError("phone", {
-          type: "manual",
-          message:
-            "Please verify your phone number via OTP before completing the profile.",
-        });
-        return;
-      }
-
-      // Phone OTP: phone already verified by backend, no extra validation needed
 
       if (!data.firstName?.trim() || !data.lastName?.trim()) {
         if (!data.firstName?.trim()) {
@@ -885,39 +894,84 @@ function ProfileCompletionFormContent({
         error instanceof Error ? error : new Error(String(error)),
       );
 
-      if (error instanceof Error && error.message.includes("validation")) {
-        try {
-          const errorData = JSON.parse(
-            error.message.replace("validation error: ", ""),
-          );
-          if (errorData.errors) {
-            Object.entries(errorData.errors).forEach(([field, message]) => {
-              form.setError(field as keyof ProfileCompletionFormData, {
-                type: "server",
-                message: message as string,
-              });
-            });
-            const { ERROR_MESSAGES } = await import("@/lib/config/config");
-            showErrorToast(ERROR_MESSAGES.VALIDATION_ERROR, {
-              id: TOAST_IDS.PROFILE.COMPLETE,
-            });
-            return;
-          }
-        } catch (parseError) {
-          logger.warn("Error parsing validation error", {
-            error:
-              parseError instanceof Error
-                ? parseError.message
-                : String(parseError),
-          });
+      // Helper function to extract field-level validation errors from various error structures
+      const extractFieldErrors = (err: unknown): Array<{ field: string; message: string }> | null => {
+        if (!err || typeof err !== 'object') return null;
+
+        const record = err as Record<string, unknown>;
+
+        // Check for validationErrors array (from our server action)
+        if (Array.isArray(record.validationErrors) && record.validationErrors.length > 0) {
+          return record.validationErrors.map((e: { field: string; constraints: Record<string, string> }) => ({
+            field: e.field,
+            message: Object.values(e.constraints)[0] || 'Invalid value'
+          }));
         }
+
+        // Check for errors array (common backend pattern)
+        if (Array.isArray(record.errors) && record.errors.length > 0) {
+          return record.errors.map((e: Record<string, unknown>) => ({
+            field: String(e.field || e.property || ''),
+            message: String(e.message || 'Invalid value')
+          }));
+        }
+
+        // Check for details nested object
+        if (record.details && typeof record.details === 'object') {
+          return extractFieldErrors(record.details);
+        }
+
+        // Check for response nested object (axios-style errors)
+        if (record.response && typeof record.response === 'object') {
+          return extractFieldErrors(record.response);
+        }
+
+        return null;
+      };
+
+      // Try to extract and set field-level errors
+      const fieldErrors = extractFieldErrors(error);
+      if (fieldErrors && fieldErrors.length > 0) {
+        fieldErrors.forEach(({ field, message }) => {
+          form.setError(field as keyof ProfileCompletionFormData, {
+            type: "server",
+            message,
+          });
+        });
+        // Errors are displayed inline via FormMessage components
+        return;
       }
 
+      // Fallback: check if error message contains JSON with errors
       if (error instanceof Error) {
+        const msg = error.message;
+
+        // Try to parse JSON errors embedded in message
+        const jsonMatch = msg.match(/\{[\s\S]*"errors"[\s\S]*\}/i) || msg.match(/\{[\s\S]*"validationErrors"[\s\S]*\}/i);
+        if (jsonMatch) {
+          try {
+            const errorData = JSON.parse(jsonMatch[0]);
+            if (errorData.errors || errorData.validationErrors) {
+              const errors = errorData.errors || errorData.validationErrors;
+              Object.entries(errors).forEach(([field, message]) => {
+                form.setError(field as keyof ProfileCompletionFormData, {
+                  type: "server",
+                  message: message as string,
+                });
+              });
+              return;
+            }
+          } catch {
+            // JSON parsing failed, continue to other handlers
+          }
+        }
+
+        // Check for session errors
         if (
-          error.message.includes("Session validation failed") ||
-          error.message.includes("Invalid device") ||
-          error.message.includes("Invalid session")
+          msg.includes("Session validation failed") ||
+          msg.includes("Invalid device") ||
+          msg.includes("Invalid session") ||
+          msg.includes("invalid session")
         ) {
           showErrorToast(
             "Your session appears to be invalid or expired. Please log in again.",
@@ -928,15 +982,15 @@ function ProfileCompletionFormContent({
           );
           push(ROUTES.LOGIN);
         } else if (
-          error.message.includes("500") ||
-          error.message.includes("Server encountered an error")
+          msg.includes("500") ||
+          msg.includes("Server encountered an error")
         ) {
           showErrorToast(
             "The server encountered an error. Please try again in a few moments.",
             { id: TOAST_IDS.GLOBAL.ERROR, duration: 5000 },
           );
         } else {
-          showErrorToast(`Failed to complete profile: ${error.message}`, {
+          showErrorToast(msg || "Failed to complete profile. Please try again.", {
             id: TOAST_IDS.PROFILE.COMPLETE,
             duration: 5000,
           });
@@ -1068,7 +1122,8 @@ function ProfileCompletionFormContent({
                             aria-label="Auto-filled from Google"
                           />
                         )}
-                        {sessionUser?.emailVerified && (
+                        {/* Use reducer state for email verification to persist after verification */}
+                        {isEmailVerified && (
                           <ShieldCheck
                             className="size-3 text-emerald-500"
                             aria-label="Verified"
@@ -1086,7 +1141,8 @@ function ProfileCompletionFormContent({
                             {...field}
                           />
                         </div>
-                        {sessionUser?.emailVerified && (
+                        {/* Use reducer state for email verification to persist after verification */}
+                        {isEmailVerified && (
                           <div className="flex items-center justify-center gap-1 text-emerald-600 text-xs font-medium h-10 sm:h-9 px-3 sm:px-2">
                             <ShieldCheck className="size-3" />
                             <span>Verified</span>
@@ -1107,12 +1163,11 @@ function ProfileCompletionFormContent({
                       <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
                         <Phone className="size-3" />
                         Phone
+                        {/* Phone is required only for email OTP and Google login (not verified at login) */}
                         {(isGoogleLogin || isEmailOtpLogin) && (
                           <span className="text-destructive">*</span>
                         )}
-                        {isPhoneOtpLogin && (
-                          <span className="text-destructive">*</span>
-                        )}
+                        {/* Phone is already verified for phone OTP login */}
                         {isPhoneVerified && (
                           <ShieldCheck
                             className="size-3 text-emerald-500"

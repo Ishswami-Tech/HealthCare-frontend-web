@@ -124,15 +124,54 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
       originalError: error instanceof Error ? error.message : String(error)
     });
 
-    // Extract validation errors from ApiError details for field-level display
-    const validationErrors = (error && typeof error === 'object' && 'details' in error)
-      ? (error as { details?: { validationErrors?: Array<{ field: string; constraints: Record<string, string> }> } }).details?.validationErrors
-      : undefined;
+    // Extract validation errors from nested error structures (ApiError, details, errors, etc.)
+    let validationErrors: Array<{ field: string; constraints: Record<string, string> }> | undefined;
+
+    const extractValidationErrors = (obj: unknown): Array<{ field: string; constraints: Record<string, string> }> | undefined => {
+      if (!obj || typeof obj !== 'object') return undefined;
+
+      const record = obj as Record<string, unknown>;
+
+      // Check for validationErrors array
+      if (Array.isArray(record.validationErrors)) {
+        return record.validationErrors as Array<{ field: string; constraints: Record<string, string> }>;
+      }
+
+      // Check for errors array (common pattern)
+      if (Array.isArray(record.errors)) {
+        const errors = record.errors as Array<Record<string, unknown>>;
+        if (errors.length > 0 && typeof errors[0] === 'object') {
+          return errors.map((e) => ({
+            field: String(e.field || e.property || ''),
+            constraints: (e.constraints as Record<string, string>) || { message: String(e.message || 'Invalid value') }
+          }));
+        }
+      }
+
+      // Check for details nested object
+      if (record.details && typeof record.details === 'object') {
+        return extractValidationErrors(record.details);
+      }
+
+      // Check for response nested object (from axios-style errors)
+      if (record.response && typeof record.response === 'object') {
+        return extractValidationErrors(record.response);
+      }
+
+      // Check for data nested object
+      if (record.data && typeof record.data === 'object') {
+        return extractValidationErrors(record.data);
+      }
+
+      return undefined;
+    };
+
+    validationErrors = extractValidationErrors(error);
 
     return {
       success: false,
       error: errorMessage,
-      ...(validationErrors ? { validationErrors } : {}),
+      ...(validationErrors && validationErrors.length > 0 ? { validationErrors } : {}),
     };
   }
 }

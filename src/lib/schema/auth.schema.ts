@@ -118,11 +118,11 @@ const profileCompletionBaseSchema = z.object({
     .string()
     .optional()
     .refine((date) => {
-      if (!date) return true;
+      if (!date || date.trim() === '') return true;
       return new Date(date) <= new Date();
     }, 'Date of birth cannot be in the future')
     .refine((date) => {
-      if (!date) return true;
+      if (!date || date.trim() === '') return true;
       const birthDate = new Date(date);
       const today = new Date();
       let age = today.getFullYear() - birthDate.getFullYear();
@@ -154,9 +154,13 @@ export type ProfileCompletionSchemaOptions = {
 
 export const createProfileCompletionSchema = (
   options: ProfileCompletionSchemaOptions = {}
-) =>
-  profileCompletionBaseSchema.superRefine((data, ctx) => {
-    if (!options.isPhoneOtpLogin && (!data.phone || !data.phone.trim())) {
+) => {
+  // For phone OTP login, phone is already verified by the backend, so skip phone validation
+  // For email OTP and Google login, phone is required and needs verification
+  const phoneRequired = !options.isPhoneOtpLogin;
+
+  return profileCompletionBaseSchema.superRefine((data, ctx) => {
+    if (phoneRequired && (!data.phone || !data.phone.trim())) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['phone'],
@@ -164,6 +168,7 @@ export const createProfileCompletionSchema = (
       });
     }
   });
+};
 
 export const profileCompletionSchema = createProfileCompletionSchema();
 

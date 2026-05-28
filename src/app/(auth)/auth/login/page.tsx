@@ -54,6 +54,7 @@ function LoginPageContent() {
   const [successPhase, setSuccessPhase] = useState<SuccessPhase>("none");
   const [isRestoringSession, setIsRestoringSession] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
   const requestOtpLockRef = useRef(false);
 
   const { showOTPInput, otpMethod } = loginFlow;
@@ -67,7 +68,6 @@ function LoginPageContent() {
     requestOTP,
     verifyOTP,
     isVerifyingOTP,
-    isRequestingOTP,
     isGoogleLoggingIn,
     session,
     refreshSession,
@@ -155,8 +155,9 @@ function LoginPageContent() {
   });
 
   const handleRequestOTP = async (identifier: string) => {
-    if (requestOtpLockRef.current || isRequestingOTP) return;
+    if (requestOtpLockRef.current || isSendingOtp) return;
     requestOtpLockRef.current = true;
+    setIsSendingOtp(true);
     try {
       setAuthError(null);
       const result = await requestOTP({ identifier, clinicId: defaultClinicId });
@@ -168,6 +169,7 @@ function LoginPageContent() {
       setAuthError(error instanceof Error ? error.message : "Failed to request OTP");
     } finally {
       requestOtpLockRef.current = false;
+      setIsSendingOtp(false);
     }
   };
 
@@ -218,14 +220,14 @@ function LoginPageContent() {
 
   return (
       <LoginAuthCard
-        uiState={{
-          sessionExpired,
-          isRestoringSession,
-          showOTPInput,
-          isFormDisabled,
-          isRequestingOTP,
-          isVerifyingOTP,
-        }}
+          uiState={{
+            sessionExpired,
+            isRestoringSession,
+            showOTPInput,
+            isFormDisabled,
+            isRequestingOTP: isSendingOtp,
+            isVerifyingOTP,
+          }}
         successPhase={successPhase}
         otpMethod={otpMethod}
         authError={authError}
