@@ -119,7 +119,7 @@ import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { CalendarPlus, Filter } from "lucide-react";
 import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 
-// â”€â”€â”€ Module-scope pure helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+//”€â”€â”€ Module-scope pure helpers”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function extractAppointments(data: unknown): VideoAppointment[] {
   const rawAppointments: VideoAppointment[] = (() => {
@@ -953,7 +953,7 @@ export function VideoAppointmentsList({
     setRescheduleTime("");
   };
 
-  // â”€â”€â”€ Module-scope components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  //”€â”€â”€ Module-scope components”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /*
 interface VideoAppointmentCardProps {
@@ -1084,7 +1084,7 @@ const AppointmentCard = ({
                 </div>
                 {!paymentCompleted && paymentAmount > 0 && (
                   <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
-                    Join unlocks after payment of â‚¹{paymentAmount.toLocaleString("en-IN")}.
+                    Join unlocks after payment of‚¹{paymentAmount.toLocaleString("en-IN")}.
                   </p>
                 )}
               </div>
@@ -1165,7 +1165,7 @@ const AppointmentCard = ({
                       <>
                         {!paymentCompleted && paymentAmount > 0 && (
                           <PaymentButton appointmentId={getEffectiveAppointmentId(appointment)} amount={getVideoPaymentAmount(appointment, appointmentServices)} appointmentType="VIDEO_CALL" description={serviceLabel} className="h-8 px-3 rounded-xl text-xs font-semibold">
-                            Pay â‚¹{paymentAmount}
+                            Pay‚¹{paymentAmount}
                           </PaymentButton>
                         )}
                         <Button variant="outline" size="sm" onClick={() => openReschedule(appointment)} className="h-8 px-3 rounded-xl text-xs">Reschedule</Button>
@@ -1367,7 +1367,7 @@ const AppointmentCard = ({
                   <div className="flex flex-col gap-y-4">
                     {[
                       { key: "morning" as const, label: "Morning", range: "Before 12pm", slots: rescheduleSlotGroups.morning },
-                      { key: "afternoon" as const, label: "Afternoon", range: "12pm â€“ 5pm", slots: rescheduleSlotGroups.afternoon },
+                      { key: "afternoon" as const, label: "Afternoon", range: "12pm€“ 5pm", slots: rescheduleSlotGroups.afternoon },
                       { key: "evening" as const, label: "Evening", range: "After 5pm", slots: rescheduleSlotGroups.evening },
                     ].map((period) =>
                       period.slots.length === 0 ? null : (

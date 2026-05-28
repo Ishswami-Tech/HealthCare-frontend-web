@@ -141,11 +141,11 @@ function PatientAppointmentsContent() {
                 Scan QR
               </Button>
               <Button
-                className="h-10 gap-2 rounded-xl border-0 bg-emerald-600 px-4 font-semibold text-white hover:bg-emerald-700"
+                className="h-10 gap-2 rounded-xl border border-amber-400 bg-amber-600 px-4 font-semibold text-white shadow-[0_8px_20px_rgba(217,119,6,0.22)] transition-all hover:-translate-y-0.5 hover:border-amber-500 hover:bg-amber-700 hover:shadow-[0_12px_28px_rgba(217,119,6,0.28)] active:scale-95 focus-visible:ring-2 focus-visible:ring-amber-300 dark:border-amber-700 dark:bg-amber-600 dark:shadow-[0_8px_20px_rgba(245,158,11,0.15)] dark:hover:bg-amber-500"
                 onClick={() => setIsBookingDialogOpen(true)}
               >
                 <BookOpen className="size-4" />
-                Book Appointment
+                Book Video Appointment
               </Button>
             </div>
           }

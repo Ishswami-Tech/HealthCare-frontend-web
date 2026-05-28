@@ -148,7 +148,7 @@ export default function ContactPage() {
             message: "",
           });
 
-          // âœ… Use centralized toast manager
+          //… Use centralized toast manager
           showSuccessToast(
             t("contact.form.success.title") || "Message Sent Successfully!",
             {
@@ -160,7 +160,7 @@ export default function ContactPage() {
           );
         },
         onError: (error: any) => {
-          // âœ… Use centralized error handler
+          //… Use centralized error handler
           showErrorToast(sanitizeErrorMessage(error) || "Failed to send message", {
             id: TOAST_IDS.CONTACT.SUBMIT,
             description:
@@ -715,7 +715,7 @@ export default function ContactPage() {
                             showInfoWindow={true}
                             clinicName={clinicName}
                             clinicPhone="9860370961, 7709399925"
-                            clinicHours="Mon-Fri: 11:45 AM â€“ 11:30 PM"
+                            clinicHours="Mon-Fri: 11:45 AM€“ 11:30 PM"
                           />
                         </Suspense>
                       </div>

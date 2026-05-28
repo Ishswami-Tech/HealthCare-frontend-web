@@ -96,7 +96,7 @@ export function ActiveSessionsList() {
                     )}
                   </div>
                   <CardDescription suppressHydrationWarning>
-                    IP: {session.ipAddress} â€¢ Last active{' '}
+                    IP: {session.ipAddress}€¢ Last active{' '}
                     {formatDistanceToNow(new Date(session.lastActivity), { addSuffix: true })}
                   </CardDescription>
                 </div>

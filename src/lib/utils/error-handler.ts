@@ -174,14 +174,20 @@ export function getErrorMessageForStatus(
       }
       return 'Too many requests. Please try again later.';
     case 500:
-      return ERROR_MESSAGES.SERVER_ERROR;
+      return backendMessage && !isTechnicalError(backendMessage)
+        ? backendMessage
+        : ERROR_MESSAGES.SERVER_ERROR;
     case 502:
     case 503:
     case 504:
-      return ERROR_MESSAGES.SERVICE_UNAVAILABLE;
+      return backendMessage && !isTechnicalError(backendMessage)
+        ? backendMessage
+        : ERROR_MESSAGES.SERVICE_UNAVAILABLE;
     default:
       if (status >= 500) {
-        return ERROR_MESSAGES.SERVER_ERROR;
+        return backendMessage && !isTechnicalError(backendMessage)
+          ? backendMessage
+          : ERROR_MESSAGES.SERVER_ERROR;
       }
       if (status >= 400) {
         return ERROR_MESSAGES.TRY_AGAIN;

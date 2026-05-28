@@ -596,7 +596,7 @@ export default function ClinicAdminSettingsPage() {
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {videoCallPreview.label} Â· {videoCallPreview.slotDuration} minute video slots
+                  {videoCallPreview.label}· {videoCallPreview.slotDuration} minute video slots
                 </p>
                 <p
                   className={`mt-1 text-xs ${

@@ -69,13 +69,18 @@ export function OtpCodeInput({
       id={props.id}
       name={props.name}
       pattern={REGEXP_ONLY_DIGITS}
-      className={cn("justify-center", invalid && "text-destructive", className)}
-      containerClassName={cn("flex items-center justify-center gap-2", containerClassName)}
+      className={cn("justify-center text-foreground dark:text-slate-100", invalid && "text-destructive", className)}
+      containerClassName={cn("flex items-center justify-center gap-2 bg-transparent", containerClassName)}
     >
       {shouldSplit ? (
         <>
           <InputOTPGroup className="gap-0">{leftSlots}</InputOTPGroup>
-          <InputOTPSeparator className={invalid ? "text-destructive" : undefined} />
+          <InputOTPSeparator
+            className={cn(
+              "shrink-0",
+              invalid ? "text-destructive" : "text-muted-foreground dark:text-slate-400"
+            )}
+          />
           <InputOTPGroup className="gap-0">{rightSlots}</InputOTPGroup>
         </>
       ) : (

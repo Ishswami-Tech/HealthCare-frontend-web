@@ -287,7 +287,7 @@ function getConsultationVisual(
   );
 }
 
-//  Slot grouping helper â‚
+//  Slot grouping helper‚
 
 function groupSlotsByPeriod(slots: string[]) {
   const morning: string[] = [];
@@ -326,7 +326,7 @@ const STEP_LABELS: Record<WizardStepId, string> = {
   confirm: "Confirm",
   success: "Done",
 };
-/** Each appointment slot is 3 minutes â‚ 20 bookable slots per hour. */
+/** Each appointment slot is 3 minutes‚ 20 bookable slots per hour. */
 const IN_PERSON_APPOINTMENT_SLOT_DURATION_MINUTES = 3;
 const VIDEO_APPOINTMENT_SLOT_DURATION_MINUTES = 15;
 const VIDEO_CONSULTATION_TREATMENT_TYPE: TreatmentType = "GENERAL_CONSULTATION";
@@ -1586,7 +1586,7 @@ function BookAppointmentStep4({
       key: "afternoon" as const,
       label: "Afternoon",
       icon: <CloudSun className="size-4" />,
-      range: "12pm â‚¬Å“ 5pm",
+      range: "12pm - 5pm",
       slots: slotGroups.afternoon,
     },
     {
@@ -1679,7 +1679,7 @@ function BookAppointmentStep4({
                 </span>
               </div>
               <p className="mt-1 text-[11px] text-emerald-700 dark:text-emerald-300">
-                {selectedDate ? format(selectedDate, "d MMM yyyy") : ""} Ã‚Â·{" "}
+                {selectedDate ? format(selectedDate, "d MMM yyyy") : ""} {" "}
                 {appointmentDurationMinutes} min video call
               </p>
             </div>
@@ -2331,7 +2331,7 @@ function BookAppointmentStep6({
   );
 }
 
-//  Component â‚â‚
+//  Component‚â‚
 
 /**
  * Helper to get Today in IST (India Standard Time)
@@ -2834,7 +2834,7 @@ export function BookAppointmentDialog({
     },
     [],
   );
-  // â‚â‚ Selections â‚â‚
+  //‚â‚ Selections‚â‚
   const [newPatient, setNewPatient] = useState({
     firstName: "",
     lastName: "",
@@ -3097,7 +3097,7 @@ export function BookAppointmentDialog({
     ],
   );
 
-  //  Queries â‚
+  //  Queries‚
   const {
     data: activeLocations = [],
     isPending: locationsLoading,
@@ -3153,7 +3153,7 @@ export function BookAppointmentDialog({
     shouldLoadDoctors ? { enabled: true } : undefined,
   );
   // Only RECEPTIONIST needs the full patient list to select a patient.
-  // Patients book for themselves â‚ calling this admin endpoint as a PATIENT
+  // Patients book for themselves‚ calling this admin endpoint as a PATIENT
   // returns 403 Forbidden. Pass an empty clinicId to disable the query.
   const { data: patientsData = [] } = usePatients(
     isPrivilegedScheduler ? activeClinicId : "",
@@ -3423,7 +3423,7 @@ export function BookAppointmentDialog({
     shouldLoadSubscriptions,
   );
 
-  //  Derived â‚
+  //  Derived‚
   const modeAppointmentType: AppointmentType =
     consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON";
   const visibleServices = useMemo(() => {
@@ -3796,7 +3796,7 @@ export function BookAppointmentDialog({
 
     if (currentStepId === "mode") {
       return consultationMode === "VIDEO"
-        ? "Consultation Mode"
+        ? "Book Video Appointment"
         : "Location & Mode";
     }
 
@@ -4235,7 +4235,7 @@ export function BookAppointmentDialog({
         : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300";
   const showLiveSyncBanner = APP_CONFIG.ENVIRONMENT === "development";
 
-  //  Book appointment â‚â‚
+  //  Book appointment‚â‚
   const handleBook = useCallback(async () => {
     const selectedSlot = activeSelectedSlot;
     const appointmentDoctorId = resolvedDoctorId;
@@ -4725,7 +4725,7 @@ export function BookAppointmentDialog({
     activeSteps.length,
   ]);
 
-  //  Navigation â‚
+  //  Navigation‚
   const canNext = useMemo(() => {
     if (currentStepId === "mode") {
       return (
@@ -4770,7 +4770,7 @@ export function BookAppointmentDialog({
     setStep((s) => Math.max(s - 1, 1));
   }, [setStep, setStepDirection]);
 
-  //  QR data â‚
+  //  QR data‚
   // const qrData = useMemo(() => {
   // return JSON.stringify({
   // appointmentId: bookedAppointmentId,
@@ -4791,7 +4791,7 @@ export function BookAppointmentDialog({
 
   // Step 4: Slot
 
-  //  Main render â‚
+  //  Main render‚
 
   const stepContent = (() => {
     switch (currentStepId) {
@@ -4981,9 +4981,9 @@ export function BookAppointmentDialog({
       {!hideTrigger && (
         <DialogTrigger asChild>
           {trigger || (
-            <Button className="flex items-center gap-2 rounded-xl border-0 bg-emerald-600 p-6 font-semibold text-white shadow-glow-subtle transition-all hover:bg-emerald-700 hover:shadow-glow-medium transform hover:-translate-y-0.5 active:scale-95 focus-visible:ring-2 focus-visible:ring-emerald-500/30">
+            <Button className="flex items-center gap-2 rounded-xl border border-amber-400 bg-amber-600 p-6 font-semibold text-white shadow-[0_8px_20px_rgba(217,119,6,0.22)] transition-all hover:-translate-y-0.5 hover:border-amber-500 hover:bg-amber-700 hover:shadow-[0_12px_28px_rgba(217,119,6,0.28)] active:scale-95 focus-visible:ring-2 focus-visible:ring-amber-300 dark:border-amber-700 dark:bg-amber-600 dark:shadow-[0_8px_20px_rgba(245,158,11,0.15)] dark:hover:bg-amber-500">
               <Plus className="size-5" />
-              Book Appointment
+              Book Video Appointment
             </Button>
           )}
         </DialogTrigger>
@@ -5004,13 +5004,18 @@ export function BookAppointmentDialog({
             <DialogTitle className="text-base sm:text-lg font-bold truncate">
               {stepTitle}
             </DialogTitle>
+            {consultationMode === "VIDEO" && (
+              <p className="mt-1 inline-flex w-fit items-center rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                Video booking flow
+              </p>
+            )}
             <DialogDescription className="sr-only">
               Book an in-person or video appointment by selecting location,
               service, doctor, date, and time.
             </DialogDescription>
           </DialogHeader>
 
-          {/* Step bar â‚ hide on success screen */}
+          {/* Step bar‚ hide on success screen */}
           {!isSuccessStep && (
             <div className="mt-3 overflow-x-auto">
               <BookAppointmentStepBar
@@ -5044,7 +5049,7 @@ export function BookAppointmentDialog({
           </LazyMotion>
         </div>
 
-        {/* Footer â‚ hide on success screen */}
+        {/* Footer‚ hide on success screen */}
         {!isSuccessStep && (
           <div className="px-4 sm:px-6 py-4 border-t bg-background flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:gap-4 shrink-0">
             <Button
@@ -5086,7 +5091,7 @@ export function BookAppointmentDialog({
                   : consultationMode === "VIDEO"
                     ? shouldCollectVideoPayment
                       ? `Create appointment and pay INR ${videoPaymentAmount.toFixed(0)}`
-                      : "Book video appointment"
+                      : "Book Video Appointment"
                     : needsSubscriptionPlan
                       ? "Choose plan to continue"
                       : "Confirm & Book";

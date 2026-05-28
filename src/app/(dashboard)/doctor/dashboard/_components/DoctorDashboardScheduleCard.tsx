@@ -125,12 +125,12 @@ export function DoctorDashboardScheduleCard({
           const videoSessionDecision = appointment.isVideo ? getVideoSessionDecision(appointment) : null;
 
           return (
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2">
               {appointment.statusEnum === "CONFIRMED" && appointment.isVideo && videoSessionDecision?.canJoin && (
                 <div className="flex flex-col items-start gap-1.5">
                   <Button
                     size="sm"
-                    className="h-8 gap-1.5 bg-emerald-600 text-white shadow-sm hover:bg-emerald-700"
+                    className="h-9 w-full justify-center gap-1.5 border-0 bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md transition-all hover:from-orange-600 hover:to-amber-600 hover:shadow-lg"
                     onClick={() => onJoinVideoSession(appointment.id)}
                   >
                     <Play className="size-3 fill-current" />
@@ -144,7 +144,7 @@ export function DoctorDashboardScheduleCard({
               {appointment.statusEnum === "CONFIRMED" && !appointment.isVideo && (
                 <Button
                   size="sm"
-                  className="h-8 gap-1.5 bg-emerald-600 text-white shadow-sm hover:bg-emerald-700"
+                  className="h-8 w-full gap-1.5 bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 sm:w-auto"
                   disabled={isStartPending}
                   onClick={() => onStartConsultationForAppointment(appointment.id, appointment.doctorId)}
                 >
@@ -153,7 +153,7 @@ export function DoctorDashboardScheduleCard({
                 </Button>
               )}
               {appointment.statusEnum === "IN_PROGRESS" && (
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button
                     size="sm"
                     variant="outline"

@@ -159,7 +159,10 @@ function LoginPageContent() {
     requestOtpLockRef.current = true;
     try {
       setAuthError(null);
-      await requestOTP({ identifier, clinicId: defaultClinicId });
+      const result = await requestOTP({ identifier, clinicId: defaultClinicId });
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to request OTP');
+      }
       setLoginFlow((current) => ({ ...current, showOTPInput: true }));
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "Failed to request OTP");

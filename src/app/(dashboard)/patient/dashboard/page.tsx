@@ -49,6 +49,7 @@ import {
   Heart,
   Leaf,
   Stethoscope,
+  Loader2,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -445,7 +446,7 @@ export default function PatientDashboard() {
                       return;
                     }
                     openQrGate({
-                      bookLabel: "Open appointments",
+                      bookLabel: "Book Video Appointment",
                       onBookAppointment: () => push("/patient/appointments"),
                     });
                   }}
@@ -456,11 +457,11 @@ export default function PatientDashboard() {
                   Scan Check-In
                 </Button>
                 <Button
-                  className="h-9 gap-2 rounded-xl border-0 bg-emerald-600 px-3 text-sm font-semibold text-white hover:bg-emerald-700 sm:h-10 sm:px-4"
+                  className="h-9 gap-2 rounded-xl border border-amber-400 bg-amber-600 px-3 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(217,119,6,0.22)] transition-all hover:-translate-y-0.5 hover:border-amber-500 hover:bg-amber-700 hover:shadow-[0_12px_28px_rgba(217,119,6,0.28)] sm:h-10 sm:px-4 active:scale-95 focus-visible:ring-2 focus-visible:ring-amber-300 dark:border-amber-700 dark:bg-amber-600 dark:shadow-[0_8px_20px_rgba(245,158,11,0.15)] dark:hover:bg-amber-500"
                   onClick={() => push("/patient/appointments?openBooking=1")}
                 >
                   <Plus className="size-4" />
-                  Book Appointment
+                  Book Video Appointment
                 </Button>
               </div>
             }
@@ -474,8 +475,41 @@ export default function PatientDashboard() {
                     <Clock className="size-4" />
                     Healthcare Workspace
                   </div>
-                  {patientData.upcomingAppointments.length > 0 ? (
+                  {isPendingAppointments ? (
                     <div className="rounded-2xl border border-emerald-200/80 bg-white/80 p-3 shadow-sm backdrop-blur dark:border-emerald-900/40 dark:bg-card/80 sm:p-4">
+                      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700/80 dark:text-emerald-300/80">
+                        <Loader2 className="size-4 animate-spin" />
+                        Loading current appointments
+                      </div>
+                      <div className="mt-4 space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1 space-y-2">
+                            <Skeleton className="h-3 w-24 rounded-full" />
+                            <Skeleton className="h-5 w-48 rounded-lg" />
+                          </div>
+                          <Skeleton className="h-6 w-24 rounded-full" />
+                        </div>
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <Skeleton className="h-14 rounded-xl" />
+                          <Skeleton className="h-14 rounded-xl" />
+                        </div>
+                        <Skeleton className="h-9 w-28 rounded-xl" />
+                      </div>
+                    </div>
+                  ) : patientData.upcomingAppointments.length > 0 ? (
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Open appointments page"
+                      className="group cursor-pointer rounded-2xl border border-emerald-200/80 bg-white/80 p-3 shadow-sm backdrop-blur transition-all hover:border-emerald-300 hover:bg-white hover:shadow-md dark:border-emerald-900/40 dark:bg-card/80 dark:hover:border-emerald-800/60 dark:hover:bg-card sm:p-4"
+                      onClick={() => push("/patient/appointments")}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          push("/patient/appointments");
+                        }
+                      }}
+                    >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700/80 dark:text-emerald-300/80">
@@ -558,7 +592,10 @@ export default function PatientDashboard() {
                                   <Button
                                     size="sm"
                                     className="h-8 rounded-xl bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700"
-                                    onClick={() => push(buildVideoSessionRoute(appointment.id))}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      push(buildVideoSessionRoute(appointment.id));
+                                    }}
                                   >
                                     Join Session
                                   </Button>

@@ -96,6 +96,7 @@ function VerifyOTPPageContent() {
     },
     dispatch,
   ] = useReducer(verifyOTPReducer, initialVerifyOTPState);
+  const isPhoneFlow = email.length > 0 && !email.includes("@");
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
 
   const setEmail = (value: string) => dispatch({ type: "setEmail", value });
@@ -114,7 +115,7 @@ function VerifyOTPPageContent() {
     setTimeout(() => setSuccessPhase("redirecting"), 1500);
   }, []);
 
-  // âœ… Use unified auth form hook for consistent patterns
+  //… Use unified auth form hook for consistent patterns
   const { executeAuthOperation } = useAuthForm({
     toastId: TOAST_IDS.AUTH.OTP,
     loadingMessage: "Verifying OTP...",
@@ -179,12 +180,16 @@ function VerifyOTPPageContent() {
   );
   const otpValue = form.watch("otp");
 
-  // âœ… Use unified auth form hook for OTP resend
+  //… Use unified auth form hook for OTP resend
   const { executeAuthOperation: executeOTPResend } = useAuthForm({
     toastId: TOAST_IDS.AUTH.OTP,
-    loadingMessage: "Sending OTP...",
-    successMessage: "A new OTP has been sent to your email.",
-    errorMessage: "Failed to resend OTP. Please try again.",
+    loadingMessage: isPhoneFlow ? "Sending WhatsApp OTP..." : "Sending OTP...",
+    successMessage: isPhoneFlow
+      ? "A new WhatsApp OTP has been sent to your phone."
+      : "A new OTP has been sent to your email.",
+    errorMessage: isPhoneFlow
+      ? "Failed to resend WhatsApp OTP. Please try again."
+      : "Failed to resend OTP. Please try again.",
     showToast: false,
     onError: (error) => {
       setFormError(error.message);
@@ -245,7 +250,7 @@ function VerifyOTPPageContent() {
   // Redirecting overlay
   if (successPhase === "redirecting") {
     return (
-      <Card className="w-full max-w-md mx-auto shadow-lg px-4 sm:px-0">
+      <Card className="w-full max-w-md mx-auto border-border/60 bg-card px-4 shadow-lg sm:px-0">
         <CardContent className="flex flex-col items-center justify-center py-16 gap-5">
           <div className="relative flex items-center justify-center">
             <div className="size-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
@@ -263,15 +268,20 @@ function VerifyOTPPageContent() {
   }
 
   return (
-    <Card className="w-full max-w-md mx-auto shadow-lg px-4 sm:px-0">
+    <Card className="w-full max-w-md mx-auto border-border/60 bg-card px-4 shadow-lg sm:px-0">
       <CardHeader className="px-4 sm:px-6">
         <h2 className="text-xl sm:text-2xl font-semibold text-center">
           Verify OTP
         </h2>
-        <p className="text-xs sm:text-sm text-gray-600 text-center mt-2 break-words">
+        <p className="text-xs sm:text-sm text-muted-foreground text-center mt-2 break-words">
           Enter the 6-digit code sent to{" "}
           <span className="font-medium">{email}</span>
         </p>
+        {isPhoneFlow ? (
+          <p className="mt-2 text-center text-xs font-medium text-emerald-600 dark:text-emerald-400">
+            Phone OTP is delivered via WhatsApp only.
+          </p>
+        ) : null}
       </CardHeader>
       <CardContent className="px-4 sm:px-6">
         {/* Success alert */}
@@ -320,6 +330,10 @@ function VerifyOTPPageContent() {
               )}
             />
 
+            <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-3 py-2 text-center text-xs text-muted-foreground">
+              Didn&apos;t receive the code? You can resend it after the cooldown ends.
+            </div>
+
             <div className="flex flex-col gap-y-4">
               <Button
                 type="submit"
@@ -339,19 +353,21 @@ function VerifyOTPPageContent() {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full"
+                className="w-full border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 hover:text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200 dark:hover:bg-amber-900/40"
                 onClick={handleResendOTP}
                 disabled={isRequestingOTP || successPhase !== "none" || countdown > 0}
               >
                 {isRequestingOTP ? (
                   <div className="flex items-center justify-center">
                     <div className="size-5 border-t-2 border-b-2 border-current rounded-full animate-spin mr-2" />
-                    Sending…
+                    {isPhoneFlow ? "Sending WhatsApp code..." : "Sending…"}
                   </div>
                 ) : countdown > 0 ? (
-                  `Resend in ${countdown}s`
+                  isPhoneFlow
+                    ? `Resend WhatsApp OTP in ${countdown}s`
+                    : `Resend OTP in ${countdown}s`
                 ) : (
-                  "Resend OTP"
+                  isPhoneFlow ? "Resend WhatsApp OTP" : "Resend OTP"
                 )}
               </Button>
             </div>
@@ -369,6 +385,3 @@ export default function VerifyOTPPage() {
     </Suspense>
   );
 }
-
-
-

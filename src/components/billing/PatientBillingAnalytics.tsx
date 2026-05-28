@@ -59,7 +59,7 @@ export function PatientBillingAnalytics({
   );
 }
 
-// â”€â”€â”€ Local StatCard Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+//”€â”€â”€ Local StatCard Component”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function StatCard({ 
   label, 
   value, 

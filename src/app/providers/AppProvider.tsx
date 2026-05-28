@@ -1,7 +1,7 @@
 ﻿"use client";
 
 /**
- * âœ… App Provider
+ *… App Provider
  * Root provider stack for the application
  * NO loading overlay - uses inline loading states
  */

@@ -582,7 +582,7 @@ export async function admitFromWaitingRoom(
   const doctorId = session?.user?.id || '';
   
   if (!doctorId) {
-    // âœ… Use centralized error messages
+    //… Use centralized error messages
     const { ERROR_MESSAGES } = await import('@/lib/config/config');
     throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
@@ -656,7 +656,7 @@ export async function createMedicalNote(
   const userId = session?.user?.id || '';
   
   if (!userId) {
-    // âœ… Use centralized error messages
+    //… Use centralized error messages
     const { ERROR_MESSAGES } = await import('@/lib/config/config');
     throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
@@ -757,7 +757,7 @@ export async function saveNoteToEHR(_appointmentId: string, noteId: string) {
   const userId = session?.user?.id || '';
   
   if (!userId) {
-    // âœ… Use centralized error messages
+    //… Use centralized error messages
     const { ERROR_MESSAGES } = await import('@/lib/config/config');
     throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
@@ -815,7 +815,7 @@ export async function updateQualityMetrics(
   const userId = session?.user?.id || '';
   
   if (!userId) {
-    // âœ… Use centralized error messages
+    //… Use centralized error messages
     const { ERROR_MESSAGES } = await import('@/lib/config/config');
     throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
@@ -893,7 +893,7 @@ export async function createAnnotation(
   const userId = session?.user?.id || '';
   
   if (!userId) {
-    // âœ… Use centralized error messages
+    //… Use centralized error messages
     const { ERROR_MESSAGES } = await import('@/lib/config/config');
     throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
@@ -937,7 +937,7 @@ export async function deleteAnnotation(_appointmentId: string, annotationId: str
   const userId = session?.user?.id || '';
   
   if (!userId) {
-    // âœ… Use centralized error messages
+    //… Use centralized error messages
     const { ERROR_MESSAGES } = await import('@/lib/config/config');
     throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
@@ -1116,7 +1116,7 @@ export async function saveTranscriptToEHR(appointmentId: string) {
   const userId = session?.user?.id || '';
   
   if (!userId) {
-    // âœ… Use centralized error messages
+    //… Use centralized error messages
     const { ERROR_MESSAGES } = await import('@/lib/config/config');
     throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }

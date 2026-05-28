@@ -284,6 +284,7 @@ function AppointmentCard({
       : apt.type === "IN_PERSON"
         ? "In-Person Visit"
         : String(apt.type || "Appointment").replace(/_/g, " ");
+  const isVideoAppointment = apt.type === "VIDEO_CALL";
   const displayTimeLabel = getReceptionistAppointmentTimeLabel(
     apt as unknown as Record<string, unknown>
   );
@@ -294,7 +295,7 @@ function AppointmentCard({
   const isCancelled = effectiveStatus === "CANCELLED" || effectiveStatus === "NO_SHOW";
   const isConfirmed = effectiveStatus === "CONFIRMED";
   return (
-    <div className={`overflow-hidden rounded-2xl border transition-all duration-200 hover:shadow-md ${
+    <div className={`w-full overflow-visible rounded-2xl border transition-all duration-200 hover:shadow-md ${
       isCancelled
         ? "bg-red-50 border-red-200 dark:bg-red-950/25 dark:border-red-900/50 hover:border-red-300"
         : isConfirmed
@@ -304,7 +305,7 @@ function AppointmentCard({
       {/* Card header */}
       <button
         type="button"
-        className="cursor-pointer p-3 sm:p-4"
+        className="flex w-full cursor-pointer flex-col p-3 text-left sm:p-4"
         onClick={() => {
           onExpand(isExpanded ? null : apt.id);
           onSelect(isExpanded ? null : apt);
@@ -386,10 +387,12 @@ function AppointmentCard({
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Status</p>
                 <p className="text-sm font-medium">{statusLabel}</p>
               </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Check-in Route</p>
-                <p className="text-sm font-medium">{checkInRoute}</p>
-              </div>
+              {!isVideoAppointment && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Check-in Route</p>
+                  <p className="text-sm font-medium">{checkInRoute}</p>
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <div>
@@ -398,33 +401,62 @@ function AppointmentCard({
               </div>
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Actions</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => onReschedule(apt)}
-                    disabled={cancellingAppointment}
-                  >
-                    Reschedule
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => onCancelAppointment(apt.id)}
-                    disabled={cancellingAppointment}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => handleJoinVideo(apt)}
-                  >
-                    Join Video
-                  </Button>
-                </div>
+                {isVideoAppointment ? (
+                  <div className="mt-2 flex flex-col gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-10 w-full justify-center border-0 bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md transition-all hover:from-orange-600 hover:to-amber-600 hover:shadow-lg"
+                      onClick={() => handleJoinVideo(apt)}
+                    >
+                      <Video className="mr-2 size-4" />
+                      Join Video
+                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onReschedule(apt)}
+                        disabled={cancellingAppointment}
+                        className="flex-1 sm:flex-none"
+                      >
+                        Reschedule
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onCancelAppointment(apt.id)}
+                        disabled={cancellingAppointment}
+                        className="flex-1 sm:flex-none"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onReschedule(apt)}
+                      disabled={cancellingAppointment}
+                    >
+                      Reschedule
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onCancelAppointment(apt.id)}
+                      disabled={cancellingAppointment}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -520,7 +552,7 @@ export default function AppointmentManager({
   const setExpandedCard = (value: string | null) => dispatch({ type: "setExpandedCard", value });
   const ITEMS_PER_PAGE = 5;
 
-  // â”€â”€â”€ Data Fetching â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  //”€â”€â”€ Data Fetching”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   
   // Choose hook based on view role
   // Sanitize filters to avoid undefined properties breaking exactOptionalPropertyTypes
@@ -577,7 +609,7 @@ export default function AppointmentManager({
 
   const allAppointments = fetchedAppointments;
   const patientScopedAppointments = useMemo(() => {
-    // Admin views already fetch filtered by clinic/patient â€” don't re-filter.
+    // Admin views already fetch filtered by clinic/patient€” don't re-filter.
     if (isAdminView) return allAppointments;
 
     // Patient view uses /appointments/my-appointments (already server scoped).
@@ -977,7 +1009,7 @@ export default function AppointmentManager({
               <Button
                 variant="outline"
                 className={cn(
-                  "h-9 w-full justify-start rounded-lg border-border bg-background text-left text-sm font-normal sm:w-44",
+                  "h-9 w-full justify-between rounded-xl border-border/70 bg-background text-left text-sm font-medium shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50 dark:hover:border-emerald-900/50 dark:hover:bg-emerald-950/30 sm:w-44",
                   !dateFilter.start && "text-muted-foreground"
                 )}
               >
@@ -985,7 +1017,7 @@ export default function AppointmentManager({
                 {formatDateValue(dateFilter.start, "From date")}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
+            <PopoverContent className="w-auto rounded-2xl border border-border/60 bg-popover p-3 shadow-xl" align="start" sideOffset={8}>
               <CalendarPicker
                 mode="single"
                 selected={parseDateValue(dateFilter.start)}
@@ -1000,7 +1032,7 @@ export default function AppointmentManager({
               <Button
                 variant="outline"
                 className={cn(
-                  "h-9 w-full justify-start rounded-lg border-border bg-background text-left text-sm font-normal sm:w-44",
+                  "h-9 w-full justify-between rounded-xl border-border/70 bg-background text-left text-sm font-medium shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50 dark:hover:border-emerald-900/50 dark:hover:bg-emerald-950/30 sm:w-44",
                   !dateFilter.end && "text-muted-foreground"
                 )}
               >
@@ -1008,7 +1040,7 @@ export default function AppointmentManager({
                 {formatDateValue(dateFilter.end, "To date")}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
+            <PopoverContent className="w-auto rounded-2xl border border-border/60 bg-popover p-3 shadow-xl" align="start" sideOffset={8}>
               <CalendarPicker
                 mode="single"
                 selected={parseDateValue(dateFilter.end)}
@@ -1165,7 +1197,7 @@ export default function AppointmentManager({
                   <Button
                     variant="outline"
                     className={cn(
-                      "w-full justify-start text-left font-normal",
+                      "w-full justify-between rounded-xl border-border/70 bg-background text-left font-medium shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50 dark:hover:border-emerald-900/50 dark:hover:bg-emerald-950/30",
                       !rescheduleData.date && "text-muted-foreground"
                     )}
                   >
@@ -1173,7 +1205,7 @@ export default function AppointmentManager({
                     {formatDateValue(rescheduleData.date, "Pick a new date")}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start" suppressHydrationWarning>
+                <PopoverContent className="w-auto rounded-2xl border border-border/60 bg-popover p-3 shadow-xl" align="start" sideOffset={8} suppressHydrationWarning>
                   <CalendarPicker
                     mode="single"
                     selected={parseDateValue(rescheduleData.date)}

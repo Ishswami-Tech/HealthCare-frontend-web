@@ -26,7 +26,7 @@ export function PatientQrGateDialog({
   title = "You need an in-person appointment",
   description = "QR scan is available only for in-person visits. Book an appointment first, then return here to scan the clinic QR.",
   closeLabel = "Close",
-  bookLabel = "Book appointment",
+  bookLabel = "Book Video Appointment",
   onBookAppointment,
 }: PatientQrGateDialogProps) {
   return (

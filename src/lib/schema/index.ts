@@ -27,6 +27,7 @@ export {
   resetPasswordSchema,
   changePasswordSchema,
   // Profile
+  createProfileCompletionSchema,
   profileCompletionSchema,
   // Schema-inferred types (for Zod resolver compatibility)
   type SchemaLoginFormData,

@@ -702,7 +702,7 @@ export default function PatientProfile() {
                         <div key={`${doc.name}-${doc.date}`} className="flex items-center justify-between rounded-xl border p-2.5 hover:bg-muted/50 transition-colors">
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="shrink-0 rounded-lg bg-blue-50 p-2 text-blue-600"><FileText className="size-4" /></div>
-                            <div className="min-w-0"><p className="text-sm font-medium truncate">{doc.name}</p><p className="text-[10px] text-muted-foreground">{doc.date} â€¢ {doc.size}</p></div>
+                            <div className="min-w-0"><p className="text-sm font-medium truncate">{doc.name}</p><p className="text-[10px] text-muted-foreground">{doc.date}€¢ {doc.size}</p></div>
                           </div>
                           <Button variant="outline" size="sm" className="size-7 p-0 shrink-0"><Download className="size-4" /></Button>
                         </div>

@@ -96,7 +96,7 @@ export function getVideoTokenRole(role?: string | null): VideoTokenRole {
 }
 
 
-// âœ… Video Appointment Types
+//… Video Appointment Types
 export interface VideoAppointment {
   id: string;
   appointmentId: string;
@@ -151,7 +151,7 @@ export interface VideoAppointmentFilters {
   endDate?: string;
 }
 
-// âœ… Video Appointments Query Hook with WebSocket Integration
+//… Video Appointments Query Hook with WebSocket Integration
 export function useVideoAppointments(filters?: VideoAppointmentFilters) {
   const { session } = useAuth();
   const { hasPermission } = useRBAC();
@@ -221,8 +221,8 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
     }
   );
 
-  // âœ… Subscribe to real-time updates
-  // âš ï¸ OPTIMIZED: Only subscribe when connected (not dependent on query.data to avoid re-subscriptions)
+  //… Subscribe to real-time updates
+  //š ï¸ OPTIMIZED: Only subscribe when connected (not dependent on query.data to avoid re-subscriptions)
   useEffect(() => {
     if (!isConnected) return;
 
@@ -275,7 +275,7 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
   return query;
 }
 
-// âœ… Video Appointment by ID Query Hook with WebSocket Integration
+//… Video Appointment by ID Query Hook with WebSocket Integration
 export function useVideoAppointment(id: string) {
   const { hasPermission } = useRBAC();
   const queryClient = useQueryClient();
@@ -318,7 +318,7 @@ export function useVideoAppointment(id: string) {
     }
   );
 
-  // âœ… Subscribe to real-time updates for this specific appointment
+  //… Subscribe to real-time updates for this specific appointment
   useEffect(() => {
     if (!resolvedAppointmentId) return;
 
@@ -371,7 +371,7 @@ export function useVideoAppointment(id: string) {
   return query;
 }
 
-// âœ… Create Video Appointment Mutation Hook with WebSocket Integration
+//… Create Video Appointment Mutation Hook with WebSocket Integration
 export function useCreateVideoAppointment() {
   const { hasPermission } = useRBAC();
   const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
@@ -441,7 +441,7 @@ export function useCreateVideoAppointment() {
   );
 }
 
-// âœ… Update Video Appointment Mutation Hook with WebSocket Integration
+//… Update Video Appointment Mutation Hook with WebSocket Integration
 export function useUpdateVideoAppointment() {
   const { hasPermission } = useRBAC();
   const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
@@ -504,7 +504,7 @@ export function useUpdateVideoAppointment() {
   );
 }
 
-// âœ… End Video Appointment Mutation Hook with WebSocket Integration
+//… End Video Appointment Mutation Hook with WebSocket Integration
 export function useEndVideoAppointment() {
   const { hasPermission } = useRBAC();
   const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
@@ -555,7 +555,7 @@ export function useEndVideoAppointment() {
   );
 }
 
-// âœ… Delete Video Appointment Mutation Hook
+//… Delete Video Appointment Mutation Hook
 export function useDeleteVideoAppointment() {
   const queryClient = useQueryClient();
   const { hasPermission } = useRBAC();
@@ -603,7 +603,7 @@ export function useDeleteVideoAppointment() {
   );
 }
 
-// âœ… Reschedule Video Appointment Mutation Hook
+//… Reschedule Video Appointment Mutation Hook
 export function useRescheduleVideoAppointment() {
   const { hasPermission } = useRBAC();
   const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
@@ -653,7 +653,7 @@ export function useRescheduleVideoAppointment() {
   );
 }
 
-// âœ… Reject Video Proposal Mutation Hook
+//… Reject Video Proposal Mutation Hook
 export function useRejectVideoProposal() {
   const { hasPermission } = useRBAC();
   const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
@@ -697,7 +697,7 @@ export function useRejectVideoProposal() {
   );
 }
 
-// âœ… Cancel Video Appointment Mutation Hook
+//… Cancel Video Appointment Mutation Hook
 export function useCancelVideoAppointment() {
   const { hasPermission } = useRBAC();
   const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();

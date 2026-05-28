@@ -159,29 +159,29 @@ export function SystemStatusIndicator() {
       
       // If all critical services are healthy, system is active (green)
       if (dbHealthy && cacheHealthy && queueHealthy && apiHealthy) {
-        return 'active'; // âœ… Green - All services healthy
+        return 'active'; //… Green - All services healthy
       }
       
       // If some services are down, show warning (yellow)
       if (dbHealthy || cacheHealthy || queueHealthy) {
-        return 'warning'; // âš ï¸ Yellow - Some services degraded
+        return 'warning'; //š ï¸ Yellow - Some services degraded
       }
       
       // If all critical services are down, show error (red)
-      return 'error'; // âŒ Red - Critical services down
+      return 'error'; // Red - Critical services down
     }
     
     // Priority 2: Fallback to WebSocket connection status
     // If WebSocket is connected, assume system is at least partially online
     if (isRealTimeEnabled && isConnected) {
-      return 'active'; // âœ… Green - Real-time connected
+      return 'active'; //… Green - Real-time connected
     }
     if (isConnected) {
-      return 'warning'; // âš ï¸ Yellow - Connected but no real-time
+      return 'warning'; //š ï¸ Yellow - Connected but no real-time
     }
     
     // Priority 3: No connection at all
-    return 'error'; // âŒ Red - No connection
+    return 'error'; // Red - No connection
   };
 
   const getSystemLabel = () => {
@@ -196,12 +196,12 @@ export function SystemStatusIndicator() {
       const apiHealthy = dbHealthy;
       
       if (dbHealthy && cacheHealthy && queueHealthy && apiHealthy) {
-        return 'System Active'; // âœ… All services healthy
+        return 'System Active'; //… All services healthy
       }
       if (dbHealthy || cacheHealthy || queueHealthy) {
-        return 'System Degraded'; // âš ï¸ Some services down
+        return 'System Degraded'; //š ï¸ Some services down
       }
-      return 'System Offline'; // âŒ Critical services down
+      return 'System Offline'; // Critical services down
     }
     
     // Priority 2: Fallback to WebSocket connection

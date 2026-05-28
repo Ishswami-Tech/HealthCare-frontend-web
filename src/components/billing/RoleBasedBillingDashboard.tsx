@@ -59,7 +59,7 @@ interface RoleBasedBillingDashboardProps {
   onRefetch?: () => void;
 }
 
-// â”€â”€â”€ Module-scope StatCard Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+//”€â”€â”€ Module-scope StatCard Component”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function StatCard({ 
   label, 
   value, 
@@ -609,14 +609,14 @@ export function RoleBasedBillingDashboard({
                 onClick={() => setActiveTabOverride("plans")}
                 className="shrink-0"
               >
-                View Plans â†’
+                View Plans’
               </Button>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Premium Stat Grid â€” only for staff/admin */}
+      {/* Premium Stat Grid€” only for staff/admin */}
       {!isPatient && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <StatCard 
@@ -998,7 +998,7 @@ export function RoleBasedBillingDashboard({
                               <div>
                                 <p className="font-bold text-foreground text-[13px]">{entry.paymentId}</p>
                                 <p className="mt-0.5 text-[11px] font-bold uppercase tracking-tight text-muted-foreground">
-                                  {entry.revenueModel} â€¢ {entry.provider || 'UNKNOWN'} â€¢ {entry.appointmentType || 'OFFLINE'}
+                                  {entry.revenueModel}€¢ {entry.provider || 'UNKNOWN'}€¢ {entry.appointmentType || 'OFFLINE'}
                                 </p>
                               </div>
                             </div>

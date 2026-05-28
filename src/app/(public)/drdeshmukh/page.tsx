@@ -493,8 +493,8 @@ export default function DrDeshmukhPage() {
               />
             </div>
 
-            <div className="gap-y-3 px-4 pb-4 pt-1 text-center md:px-6 md:py-5 md:pl-2 md:text-left">
-              <div className="gap-y-1">
+            <div className="flex flex-col gap-y-3 px-4 pb-4 pt-1 text-center md:px-6 md:py-5 md:pl-2 md:text-left">
+              <div className="flex flex-col gap-y-1">
                 <h2 className="text-lg font-semibold leading-tight text-slate-900 dark:text-slate-100 sm:text-2xl">
                   {doctor.name}
                 </h2>
@@ -532,7 +532,7 @@ export default function DrDeshmukhPage() {
           </div>
         </section>
 
-        <section className="mt-5 gap-y-2">
+        <section className="mt-5 flex flex-col gap-y-2">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-base font-semibold text-sky-700 dark:text-sky-300 sm:text-lg">Links</h3>
             <p className="hidden rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700 dark:bg-sky-500/15 dark:text-sky-300 sm:block">
@@ -540,7 +540,7 @@ export default function DrDeshmukhPage() {
             </p>
           </div>
 
-          <div className="gap-y-1.5">
+          <div className="flex flex-col gap-y-1.5">
             {services.map((service, serviceIndex) => {
               const thumbnail =
                 service.previewKind === "map"
@@ -689,7 +689,7 @@ export default function DrDeshmukhPage() {
               </div>
             </div>
 
-            <div className="max-h-[calc(100vh-13rem)] gap-y-4 overflow-y-auto p-4">
+            <div className="flex max-h-[calc(100vh-13rem)] flex-col gap-y-4 overflow-y-auto p-4">
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
                 <div className="flex items-center gap-2">
                   <p className="min-w-0 flex-1 truncate text-xs text-slate-500 dark:text-slate-400">
@@ -785,15 +785,15 @@ export default function DrDeshmukhPage() {
                   <LinkedInIcon className="size-3.5" />
                   <span className="sr-only">Share on LinkedIn</span>
                 </ServiceLink>
-              <ServiceLink
-                href={activeService.href}
-                className="flex h-8 flex-none items-center justify-center gap-1 rounded-full bg-emerald-500 px-2.5 text-[10px] font-semibold text-white shadow-sm transition-transform hover:scale-[1.01]"
-                aria-label="Open here"
-                title="Open here"
-              >
-                <ExternalLink className="size-2.5" />
-                <span>Open here</span>
-              </ServiceLink>
+                <ServiceLink
+                  href={activeService.href}
+                  className="flex h-8 flex-none items-center justify-center gap-1 rounded-full bg-emerald-500 px-2.5 text-[10px] font-semibold text-white shadow-sm transition-transform hover:scale-[1.01]"
+                  aria-label="Open here"
+                  title="Open here"
+                >
+                  <ExternalLink className="size-2.5" />
+                  <span>Open here</span>
+                </ServiceLink>
               </div>
 
               <div className="pb-1">

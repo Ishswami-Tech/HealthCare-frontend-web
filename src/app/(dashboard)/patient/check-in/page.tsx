@@ -351,8 +351,11 @@ export default function PatientCheckInPage() {
                 <EmptyDescription>
                   Please book an appointment first. Once you arrive at the clinic, you can open this page again to scan the QR code.
                 </EmptyDescription>
-                <Button onClick={() => push("/patient/appointments?openBooking=1")}>
-                  Book appointment
+                <Button
+                  className="border border-amber-400 bg-amber-600 text-white shadow-[0_8px_20px_rgba(217,119,6,0.22)] transition-all hover:-translate-y-0.5 hover:border-amber-500 hover:bg-amber-700 hover:shadow-[0_12px_28px_rgba(217,119,6,0.28)] active:scale-95 focus-visible:ring-2 focus-visible:ring-amber-300 dark:border-amber-700 dark:bg-amber-600 dark:shadow-[0_8px_20px_rgba(245,158,11,0.15)] dark:hover:bg-amber-500"
+                  onClick={() => push("/patient/appointments?openBooking=1")}
+                >
+                  Book Video Appointment
                 </Button>
               </EmptyContent>
             </Empty>

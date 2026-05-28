@@ -1357,6 +1357,10 @@ export async function requestOTP(data: OtpRequestFormData): Promise<{ success: b
       ),
     };
 
+    if (result.success === false) {
+      throw new Error(result.message || 'Failed to request OTP');
+    }
+
     // Set clinic_id cookie for subsequent requests
     const cookieStore = await cookies();
     cookieStore.set({

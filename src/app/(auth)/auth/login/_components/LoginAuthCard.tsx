@@ -84,7 +84,11 @@ export function LoginAuthCard({
               {showOTPInput ? "Verify Code" : "Welcome"}
             </h2>
             <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-              {showOTPInput ? `Code sent to your ${otpMethod}` : "Log in or sign up to continue"}
+              {showOTPInput
+                ? otpMethod === "phone"
+                  ? "Code sent via WhatsApp to your phone"
+                  : `Code sent to your ${otpMethod}`
+                : "Log in or sign up to continue"}
             </p>
           </div>
         </CardHeader>
@@ -226,6 +230,11 @@ export function LoginAuthCard({
                     </FormItem>
                   )}
                 />
+                {otpMethod === "phone" && !showOTPInput ? (
+                  <p className="mt-2 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                    WhatsApp message only. We will send your login code to the phone number above.
+                  </p>
+                ) : null}
               </div>
 
               {showOTPInput && (
@@ -255,6 +264,24 @@ export function LoginAuthCard({
                       </FormItem>
                     )}
                   />
+                  <div className="mt-3 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                    <span>Didn&apos;t receive a code?</span>
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="h-auto px-0 text-xs font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
+                      onClick={() => {
+                        const id = otpForm.getValues("identifier");
+                        if (!id || isRequestingOTP) {
+                          return;
+                        }
+                        onRequestOTP(id);
+                      }}
+                      disabled={isFormDisabled || isRequestingOTP}
+                    >
+                      {isRequestingOTP ? "Sending WhatsApp code..." : "Resend OTP"}
+                    </Button>
+                  </div>
                 </div>
               )}
 
@@ -281,11 +308,11 @@ export function LoginAuthCard({
                   {isRequestingOTP ? (
                     <>
                       <Loader2 className="mr-2 size-4 animate-spin" />
-                      Sending Code…
+                      Sending WhatsApp code...
                     </>
                   ) : (
                     <span className="flex items-center">
-                      Request OTP
+                      Request WhatsApp OTP
                       <ArrowRight className="ml-2 size-4 transition-transform duration-300 group-hover:translate-x-1" />
                     </span>
                   )}

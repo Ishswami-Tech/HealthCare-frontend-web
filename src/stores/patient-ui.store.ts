@@ -24,7 +24,7 @@ const defaultQrGateConfig: PatientQrGateConfig = {
   description:
     "QR scan is available only for in-person visits. Book an appointment first, then return here to scan the clinic QR.",
   closeLabel: "Close",
-  bookLabel: "Book appointment",
+  bookLabel: "Book Video Appointment",
 };
 
 export const usePatientUiStore = create<PatientUiState>()(

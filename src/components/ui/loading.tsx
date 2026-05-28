@@ -1,5 +1,5 @@
 ﻿/**
- * âœ… Enterprise Loading Components
+ *… Enterprise Loading Components
  * Uses shadcn Spinner as single source of truth
  * Follows DRY, SOLID, KISS principles
  * 
@@ -48,7 +48,7 @@ const SPINNER_COLORS = {
 } as const;
 
 /**
- * âœ… LoadingSpinner - Primary loading indicator
+ *… LoadingSpinner - Primary loading indicator
  * Uses shadcn Spinner underneath
  */
 export function LoadingSpinner({
@@ -82,7 +82,7 @@ export interface PageLoadingProps {
 }
 
 /**
- * âœ… PageLoading - Full page loading state (non-blocking)
+ *… PageLoading - Full page loading state (non-blocking)
  * Use in loading.tsx or Suspense fallbacks
  */
 export function PageLoading({ text = "Loading…", className }: PageLoadingProps) {
@@ -107,7 +107,7 @@ export interface InlineLoaderProps {
 }
 
 /**
- * âœ… InlineLoader - Compact spinner for buttons/inputs
+ *… InlineLoader - Compact spinner for buttons/inputs
  */
 export function InlineLoader({ size = "sm", className }: InlineLoaderProps) {
   return <Spinner className={cn(size === "sm" ? "size-4" : "size-5", className)} />;
@@ -335,7 +335,7 @@ export interface LoadingButtonProps extends React.ComponentProps<typeof Button> 
 }
 
 /**
- * âœ… Button with built-in loading state
+ *… Button with built-in loading state
  */
 export function LoadingButton({
   loading,

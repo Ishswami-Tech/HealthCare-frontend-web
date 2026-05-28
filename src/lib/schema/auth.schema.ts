@@ -94,11 +94,26 @@ export const changePasswordSchema = z
   });
 
 
-export const profileCompletionSchema = z.object({
-  firstName: z.string().min(2, 'First name must be at least 2 characters').optional(),
-  lastName: z.string().min(2, 'Last name must be at least 2 characters').optional(),
-  email: z.string().email('Please enter a valid email address').optional(),
-  phone: z.string().min(10, 'Phone number must be at least 10 digits').optional(),
+const profileCompletionBaseSchema = z.object({
+  firstName: z
+    .string()
+    .trim()
+    .min(1, 'First name is required'),
+  lastName: z
+    .string()
+    .trim()
+    .min(1, 'Last name is required'),
+  email: z
+    .string()
+    .trim()
+    .email('Please enter a valid email address')
+    .optional()
+    .or(z.literal('')),
+  phone: z
+    .string()
+    .trim()
+    .optional()
+    .or(z.literal('')),
   dateOfBirth: z
     .string()
     .optional()
@@ -130,6 +145,27 @@ export const profileCompletionSchema = z.object({
   clinicName: z.string().optional(),
   clinicAddress: z.string().optional(),
 });
+
+export type ProfileCompletionSchemaOptions = {
+  isPhoneOtpLogin?: boolean;
+  isEmailOtpLogin?: boolean;
+  isGoogleLogin?: boolean;
+};
+
+export const createProfileCompletionSchema = (
+  options: ProfileCompletionSchemaOptions = {}
+) =>
+  profileCompletionBaseSchema.superRefine((data, ctx) => {
+    if (!options.isPhoneOtpLogin && (!data.phone || !data.phone.trim())) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['phone'],
+        message: 'Phone number is required',
+      });
+    }
+  });
+
+export const profileCompletionSchema = createProfileCompletionSchema();
 
 
 export type SchemaLoginFormData = z.infer<typeof loginSchema>;

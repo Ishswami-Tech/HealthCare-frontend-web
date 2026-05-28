@@ -157,7 +157,7 @@ export function PatientQueueCard({
   const steps = [
       {
         step: "1",
-        title: "Book appointment",
+        title: "Book Video Appointment",
         description: "Choose a doctor and time",
         href: "/patient/appointments?openBooking=1",
         icon: CheckSquare,
@@ -200,7 +200,7 @@ export function PatientQueueCard({
             <p className="text-[11px] text-muted-foreground">
               {hasInPersonAppointment
                 ? "Book a visit, reach the clinic, then scan to join"
-                : "Book an appointment first, then scan QR at the clinic"}
+                : "Book a video appointment first, then scan QR at the clinic"}
             </p>
           </div>
           <Badge

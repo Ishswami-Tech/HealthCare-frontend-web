@@ -17,6 +17,14 @@ import PhoneInput from "@/components/ui/phone-input";
 import { OtpCodeInput } from "@/components/auth/otp-code-input";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   Form,
   FormControl,
   FormField,
@@ -33,19 +41,14 @@ import {
 } from "@/components/ui/select";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { showSuccessToast, showErrorToast, showWarningToast, TOAST_IDS } from "@/hooks/utils/use-toast";
-import { Loader2, Phone, MapPin, Calendar, Venus, CalendarIcon, ShieldCheck, Mail } from "lucide-react";
+import { Loader2, Phone, MapPin, Calendar, Venus, CalendarIcon, ShieldCheck } from "lucide-react";
 import { Role } from "@/types/auth.types";
-import { profileCompletionSchema, type SchemaProfileCompletionFormData as ProfileCompletionFormData } from "@/lib/schema";
+import {
+  createProfileCompletionSchema,
+  type SchemaProfileCompletionFormData as ProfileCompletionFormData,
+} from "@/lib/schema";
 import { useAuthStore } from "@/stores";
 import type { Session } from "@/types/auth.types";
 import { clinicApiClient } from "@/lib/api/client";
@@ -336,6 +339,8 @@ function ProfileCompletionFormContent({
     loginMethod === 'phone_otp' ||
     (loginMethod === 'otp' && !!sessionUser?.phoneVerified) ||
     (loginMethod === undefined && !!sessionUser?.phoneVerified);
+  const initialPhoneVerified = isPhoneOtpLogin || Boolean(sessionUser?.phoneVerified);
+  const initialEmailVerified = isEmailOtpLogin || isGoogleLogin || Boolean(sessionUser?.emailVerified);
 
   const [
     {
@@ -349,13 +354,8 @@ function ProfileCompletionFormContent({
     dispatch,
   ] = useReducer(profileCompletionReducer, {
     ...initialProfileCompletionState,
-    // Backend provides verification status:
-    // - phoneOTP login: phoneVerified=true
-    // - emailOTP login: emailVerified=true, phone NOT verified
-    // - Google login: emailVerified=true, phone NOT verified
-    // - Password login: neither verified
-    isPhoneVerified: Boolean(sessionUser?.phoneVerified),
-    isEmailVerified: Boolean(sessionUser?.emailVerified),
+    isPhoneVerified: initialPhoneVerified,
+    isEmailVerified: initialEmailVerified,
   });
   const hasInitializedRef = useRef(false);
 
@@ -382,27 +382,30 @@ function ProfileCompletionFormContent({
     return value.trim().length > 0;
   };
 
-  // For Google login, extract name from the full name field
   const getAutoFirstName = () => {
-    // Only use firstName if it looks like a valid name
-    if (looksLikeValidName(sessionUser?.firstName)) {
-      return sessionUser?.firstName || "";
+    if (!isGoogleLogin) {
+      return '';
     }
-    if (isGoogleLogin && sessionUser?.name) {
-      const parts = sessionUser.name.split(' ');
+    if (looksLikeValidName(sessionUser?.firstName)) {
+      return sessionUser?.firstName || '';
+    }
+    if (sessionUser?.name) {
+      const parts = sessionUser.name.trim().split(/\s+/);
       return parts[0] || '';
     }
     return '';
   };
 
   const getAutoLastName = () => {
-    // Only use lastName if it looks like a valid name
-    if (looksLikeValidName(sessionUser?.lastName)) {
-      return sessionUser?.lastName || "";
+    if (!isGoogleLogin) {
+      return '';
     }
-    if (isGoogleLogin && sessionUser?.name) {
-      const parts = sessionUser.name.split(' ');
-      parts.shift(); // Remove first name
+    if (looksLikeValidName(sessionUser?.lastName)) {
+      return sessionUser?.lastName || '';
+    }
+    if (sessionUser?.name) {
+      const parts = sessionUser.name.trim().split(/\s+/);
+      parts.shift();
       return parts.join(' ');
     }
     return '';
@@ -410,9 +413,18 @@ function ProfileCompletionFormContent({
 
   const autoFilledFirstName = getAutoFirstName();
   const autoFilledLastName = getAutoLastName();
-  const autoFilledEmail = sessionUser?.email || '';
+  const autoFilledEmail = isPhoneOtpLogin ? '' : sessionUser?.email || '';
 
   const redirectUrl = getSearchParam("redirect") || "/";
+  const profileCompletionSchema = useMemo(
+    () =>
+      createProfileCompletionSchema({
+        isPhoneOtpLogin,
+        isEmailOtpLogin,
+        isGoogleLogin,
+      }),
+    [isPhoneOtpLogin, isEmailOtpLogin, isGoogleLogin]
+  );
 
   const formatPhoneNumber = (phone: string | undefined | null) => {
     if (!phone) return "";
@@ -429,7 +441,7 @@ function ProfileCompletionFormContent({
       firstName: autoFilledFirstName,
       lastName: autoFilledLastName,
       email: autoFilledEmail,
-      phone: formatPhoneNumber(sessionUser?.phone),
+      phone: isPhoneOtpLogin ? formatPhoneNumber(sessionUser?.phone) : '',
       dateOfBirth: "",
       gender: "male",
       address: "",
@@ -446,12 +458,25 @@ function ProfileCompletionFormContent({
   const watchedPhone = form.watch("phone");
 
   useEffect(() => {
-    // Use backend-provided verification status
-    // Backend sets phoneVerified=true for phone OTP login
-    // Backend sets emailVerified=true for email OTP and Google login
-    setIsPhoneVerified(Boolean(sessionUser?.phoneVerified));
-    setIsEmailVerified(Boolean(sessionUser?.emailVerified));
-  }, [sessionUser?.phoneVerified, sessionUser?.emailVerified]);
+    const nextPhoneVerified = isPhoneOtpLogin || Boolean(sessionUser?.phoneVerified);
+    const nextEmailVerified = isEmailOtpLogin || isGoogleLogin || Boolean(sessionUser?.emailVerified);
+
+    if (nextPhoneVerified && !isPhoneVerified) {
+      setIsPhoneVerified(true);
+    }
+
+    if (nextEmailVerified && !isEmailVerified) {
+      setIsEmailVerified(true);
+    }
+  }, [
+    sessionUser?.phoneVerified,
+    sessionUser?.emailVerified,
+    isPhoneOtpLogin,
+    isEmailOtpLogin,
+    isGoogleLogin,
+    isPhoneVerified,
+    isEmailVerified,
+  ]);
 
   useEffect(() => {
     if (!watchedPhone) return;
@@ -464,23 +489,12 @@ function ProfileCompletionFormContent({
 
   useEffect(() => {
     if (!sessionUser || hasInitializedRef.current) return;
-    const resolvedNames = resolveNameParts(sessionUser);
-    // For Google login, also check the full name field
-    const firstName = resolvedNames.firstName || autoFilledFirstName;
-    const lastName = resolvedNames.lastName || autoFilledLastName;
-    // If still empty for Google login, try to split the full name
-    let finalFirstName = firstName;
-    let finalLastName = lastName;
-    if (isGoogleLogin && (!finalFirstName || !finalLastName) && sessionUser.name) {
-      const parts = sessionUser.name.split(' ');
-      finalFirstName = finalFirstName || parts[0] || '';
-      finalLastName = finalLastName || parts.slice(1).join(' ') || '';
-    }
+    const finalFirstName = isGoogleLogin ? (autoFilledFirstName || resolveNameParts(sessionUser).firstName) : '';
+    const finalLastName = isGoogleLogin ? (autoFilledLastName || resolveNameParts(sessionUser).lastName) : '';
     form.reset({
       firstName: finalFirstName,
       lastName: finalLastName,
-      email: sessionUser.email || autoFilledEmail,
-      phone: formatPhoneNumber(sessionUser.phone),
+      email: isPhoneOtpLogin ? '' : (sessionUser.email || autoFilledEmail),
       dateOfBirth: "",
       gender: "male" as const,
       address: "",
@@ -493,7 +507,7 @@ function ProfileCompletionFormContent({
       clinicAddress: "",
     });
     hasInitializedRef.current = true;
-  }, [sessionUser, form, isGoogleLogin, autoFilledFirstName, autoFilledLastName, autoFilledEmail]);
+  }, [sessionUser, form, isGoogleLogin, isPhoneOtpLogin, autoFilledFirstName, autoFilledLastName, autoFilledEmail]);
 
   const updateProfileMutation = useUpdateUserProfile();
   const setProfileCompleteMutation = useSetProfileComplete();
@@ -651,19 +665,7 @@ function ProfileCompletionFormContent({
 
       // Phone OTP: phone already verified by backend, no extra validation needed
 
-      // Phone OTP login: needs name (email optional)
-      if (isPhoneOtpLogin && (!data.firstName?.trim() || !data.lastName?.trim())) {
-        if (!data.firstName?.trim()) {
-          form.setError("firstName", { type: "required", message: "First name is required" });
-        }
-        if (!data.lastName?.trim()) {
-          form.setError("lastName", { type: "required", message: "Last name is required" });
-        }
-        return;
-      }
-
-      // Email OTP login: needs name (email already verified)
-      if (isEmailOtpLogin && (!data.firstName?.trim() || !data.lastName?.trim())) {
+      if (!data.firstName?.trim() || !data.lastName?.trim()) {
         if (!data.firstName?.trim()) {
           form.setError("firstName", { type: "required", message: "First name is required" });
         }
@@ -807,13 +809,12 @@ function ProfileCompletionFormContent({
                       <FormItem>
                         <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
                           First Name
-                          {(isPhoneOtpLogin || isEmailOtpLogin) && <span className="text-destructive">*</span>}
+                          <span className="text-destructive">*</span>
                           {isGoogleLogin && <ShieldCheck className="size-3 text-emerald-500" aria-label="Auto-filled from Google" />}
                         </FormLabel>
                         <FormControl>
                           <Input
                             placeholder="First name"
-                            disabled={isGoogleLogin}
                             className="h-10 sm:h-9 text-sm"
                             aria-invalid={!!form.formState.errors.firstName}
                             {...field}
@@ -830,13 +831,12 @@ function ProfileCompletionFormContent({
                       <FormItem>
                         <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
                           Last Name
-                          {(isPhoneOtpLogin || isEmailOtpLogin) && <span className="text-destructive">*</span>}
+                          <span className="text-destructive">*</span>
                           {isGoogleLogin && <ShieldCheck className="size-3 text-emerald-500" aria-label="Auto-filled from Google" />}
                         </FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Last name"
-                            disabled={isGoogleLogin}
                             className="h-10 sm:h-9 text-sm"
                             aria-invalid={!!form.formState.errors.lastName}
                             {...field}
@@ -895,40 +895,52 @@ function ProfileCompletionFormContent({
                         {isPhoneOtpLogin && <span className="text-destructive">*</span>}
                         {isPhoneVerified && <ShieldCheck className="size-3 text-emerald-500" aria-label="Phone verified" />}
                       </FormLabel>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <div className="flex-1">
-                          <PhoneInput
-                            placeholder="Phone number"
-                            aria-invalid={!!form.formState.errors.phone}
-                            error={!!form.formState.errors.phone}
-                            defaultCountry="IN"
-                            international
-                            disabled={isPhoneVerified}
-                            className="h-10 sm:h-9 text-sm"
-                            {...field}
-                          />
-                        </div>
-                        {isPhoneVerified ? (
-                          <div className="flex items-center justify-center gap-1 text-emerald-600 text-xs font-medium h-10 sm:h-9 px-3 sm:px-2">
-                            <ShieldCheck className="size-3" />
-                            <span>Verified</span>
+                      {isPhoneOtpLogin ? (
+                        <div className="flex flex-col gap-2">
+                          <div className="flex h-10 items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-sm text-emerald-900 sm:h-9 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200">
+                            <span className="truncate">{formatPhoneNumber(sessionUser?.phone) || "Phone verified"}</span>
+                            <span className="ml-3 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
+                              <ShieldCheck className="size-3" />
+                              Verified
+                            </span>
                           </div>
-                        ) : (
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={sendPhoneOtp}
-                            disabled={isSendingOtp || !form.getValues("phone")}
-                            className="h-10 sm:h-9 text-xs sm:text-sm whitespace-nowrap px-4"
-                          >
-                            {isSendingOtp ? (
-                              <Loader2 className="size-3 animate-spin" />
-                            ) : (
-                              "Verify OTP"
-                            )}
-                          </Button>
-                        )}
-                      </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <div className="flex-1">
+                            <PhoneInput
+                              placeholder="Phone number"
+                              aria-invalid={!!form.formState.errors.phone}
+                              error={!!form.formState.errors.phone}
+                              defaultCountry="IN"
+                              international
+                              disabled={isPhoneVerified}
+                              className="h-10 sm:h-9 text-sm"
+                              {...field}
+                            />
+                          </div>
+                          {isPhoneVerified ? (
+                            <div className="flex items-center justify-center gap-1 text-emerald-600 text-xs font-medium h-10 sm:h-9 px-3 sm:px-2">
+                              <ShieldCheck className="size-3" />
+                              <span>Verified</span>
+                            </div>
+                          ) : (
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={sendPhoneOtp}
+                              disabled={isSendingOtp || !form.getValues("phone")}
+                              className="h-10 sm:h-9 text-xs sm:text-sm whitespace-nowrap px-4"
+                            >
+                              {isSendingOtp ? (
+                                <Loader2 className="size-3 animate-spin" />
+                              ) : (
+                                "Verify OTP"
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}

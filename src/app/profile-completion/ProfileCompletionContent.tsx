@@ -1,7 +1,7 @@
 ﻿"use client";
 
 /**
- * âœ… Profile Completion Content
+ *… Profile Completion Content
  * Uses LoadingSpinner for loading states (no blocking overlay)
  */
 

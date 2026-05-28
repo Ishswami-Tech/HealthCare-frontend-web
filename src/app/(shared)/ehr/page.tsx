@@ -486,7 +486,7 @@ export default function EHRSystem() {
                                   {patient.name}
                                 </h4>
                                 <p className="text-sm text-gray-600">
-                                  ID: {patient.id} â€¢ Age: {patient.age}
+                                  ID: {patient.id}€¢ Age: {patient.age}
                                 </p>
                                 <p className="text-xs text-gray-500">
                                   Last visit: {patient.lastVisit}
@@ -920,7 +920,7 @@ export default function EHRSystem() {
                           </div>
                           <div className="flex justify-between">
                             <span>HIPAA Compliance:</span>
-                            <span className="text-green-600">âœ“ Certified</span>
+                            <span className="text-green-600">â“ Certified</span>
                           </div>
                         </div>
                       </div>

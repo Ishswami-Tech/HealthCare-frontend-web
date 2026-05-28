@@ -494,7 +494,7 @@ export default function ClinicAdminDashboard() {
         eyebrow="Clinic Admin"
         title="Operations Dashboard"
         description="Track clinic workload, staff access, live queue movement, and medicine-desk readiness from one practical console."
-        meta={`${currentClinic?.name || "Clinic"} â€¢ Live operational status`}
+        meta={`${currentClinic?.name || "Clinic"}€¢ Live operational status`}
         actionsSlot={
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -821,7 +821,7 @@ export default function ClinicAdminDashboard() {
               </Badge>
             </div>
             <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
-              Notifications {clinicSettingsSnapshot.notificationsEnabled ? "enabled" : "disabled"} Â· Auto billing {clinicSettingsSnapshot.autoBilling ? "on" : "off"}
+              Notifications {clinicSettingsSnapshot.notificationsEnabled ? "enabled" : "disabled"}· Auto billing {clinicSettingsSnapshot.autoBilling ? "on" : "off"}
             </div>
           </CardContent>
         </Card>

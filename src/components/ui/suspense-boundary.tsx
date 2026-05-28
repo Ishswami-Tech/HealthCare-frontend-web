@@ -1,5 +1,5 @@
 ﻿/**
- * âœ… Granular Suspense Boundaries
+ *… Granular Suspense Boundaries
  * For better loading states and streaming
  * Uses consolidated loading components
  */

@@ -44,7 +44,7 @@ export function BillingNotifications({ onMarkAsRead, onClearAll }: BillingNotifi
         id: "1",
         type: "payment_received",
         title: "Payment Received",
-        message: "Payment of â‚¹2,500 received for INV-001",
+        message: "Payment of‚¹2,500 received for INV-001",
         amount: 2500,
         date: new Date(Date.now() - 3600000), // 1 hour ago
         read: false,
