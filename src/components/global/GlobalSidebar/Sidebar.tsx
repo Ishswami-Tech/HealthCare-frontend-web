@@ -361,7 +361,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
 
 export default function Sidebar({ links, user, children }: SidebarProps) {
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
-  const { logout } = useAuth();
+  const { logout, logoutAsync } = useAuth();
   const { startLoading, stopLoading } = useGlobalLoading();
   const { t } = useTranslation();
 
@@ -381,7 +381,9 @@ export default function Sidebar({ links, user, children }: SidebarProps) {
   const handleLogoutConfirm = async () => {
     startLoading("Logging out...");
     try {
-      await logout();
+      // Use logoutAsync for proper promise handling
+      await logoutAsync();
+      // Success and redirect is handled by useMutationOperation callbacks
       push(ROUTES.LOGIN);
     } catch {
       stopLoading();

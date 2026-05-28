@@ -47,7 +47,10 @@ function resolveDisplayNameAndInitials(user: {
   }
 
   const rawName = String(user.name || "").trim();
-  if (rawName) {
+  // Don't use name if it looks like a phone number or temp email
+  const isPhoneOrTempEmail = /^[+\d][\d\s().-]{6,}$/.test(rawName) ||
+    /@(temp|tempemail|fake|test)\./i.test(rawName);
+  if (rawName && !isPhoneOrTempEmail) {
     const candidate = rawName.includes("@") ? rawName.split("@")[0] : rawName;
     const safeCandidate = candidate || "User";
     const tokens = safeCandidate.split(/[^a-zA-Z0-9]+/).filter(Boolean);
@@ -57,11 +60,22 @@ function resolveDisplayNameAndInitials(user: {
     };
   }
 
-  const emailPrefix = String(user.email || "").split("@")[0] || "User";
-  const emailTokens = emailPrefix.split(/[^a-zA-Z0-9]+/).filter(Boolean);
+  // Check if email is valid (not temp/fake email)
+  const rawEmail = String(user.email || "").trim();
+  const isFakeEmail = /@(temp|tempemail|fake|test)\./i.test(rawEmail);
+  if (rawEmail && !isFakeEmail) {
+    const emailPrefix = rawEmail.split("@")[0] || "";
+    const emailTokens = emailPrefix.split(/[^a-zA-Z0-9]+/).filter(Boolean);
+    return {
+      displayName: emailPrefix.replace(/[._-]+/g, " ").trim() || "User",
+      initials: `${emailTokens[0]?.[0] || "U"}${emailTokens[1]?.[0] || emailTokens[0]?.[1] || ""}`.toUpperCase(),
+    };
+  }
+
+  // No valid name or email found
   return {
-    displayName: emailPrefix.replace(/[._-]+/g, " ").trim() || "User",
-    initials: `${emailTokens[0]?.[0] || "U"}${emailTokens[1]?.[0] || emailTokens[0]?.[1] || ""}`.toUpperCase(),
+    displayName: "User",
+    initials: "U",
   };
 }
 

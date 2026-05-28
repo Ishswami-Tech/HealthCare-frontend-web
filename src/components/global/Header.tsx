@@ -46,7 +46,7 @@ function getAvatarGradient(initials?: string) {
 
 export function Header({ className, children, showSidebarTrigger = true }: HeaderProps) {
   const mounted = useHydrated();
-  const { logout } = useAuth();
+  const { logoutAsync } = useAuth();
   const { push } = useRouter();
   
   // ─── Zustand Store State ───────────────────────────────────────────────────
@@ -192,7 +192,7 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
                       
                       <div className="p-1">
                         <DropdownMenuItem 
-                          onClick={() => logout()} 
+                          onClick={() => logoutAsync()} 
                           className="rounded-xl cursor-pointer py-2 text-destructive focus:bg-destructive/5 focus:text-destructive transition-colors"
                         >
                           <LogOut className="mr-3 size-4" />

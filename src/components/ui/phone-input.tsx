@@ -52,6 +52,7 @@ export interface PhoneInputProps extends Omit<
   onChange?: (value: string) => void;
   className?: string;
   error?: boolean;
+  authStyle?: boolean;
 }
 
 type CountrySelectProps = {
@@ -59,10 +60,17 @@ type CountrySelectProps = {
   onChange: (value: Country) => void;
   disabled?: boolean;
   options?: unknown[];
+  authStyle?: boolean;
 };
 
 // Flag image from flagcdn.com — reliable CDN, works on all platforms including Windows
-function FlagImage({ country }: { country: Country }) {
+function FlagImage({
+  country,
+  authStyle = false,
+}: {
+  country: Country;
+  authStyle?: boolean;
+}) {
   const code = country.toLowerCase();
   return (
     <Image
@@ -70,7 +78,7 @@ function FlagImage({ country }: { country: Country }) {
       width={20}
       height={15}
       alt={country}
-      className="rounded-sm object-cover"
+      className={authStyle ? "object-cover" : "rounded-sm object-cover"}
       loading="lazy"
       unoptimized
       onError={(e) => {
@@ -84,10 +92,21 @@ function FlagImage({ country }: { country: Country }) {
   );
 }
 
-function CountryFlag({ country }: { country: Country }) {
+function CountryFlag({
+  country,
+  authStyle = false,
+}: {
+  country: Country;
+  authStyle?: boolean;
+}) {
   return (
-    <span className="inline-flex h-[15px] w-5 shrink-0 items-center justify-center overflow-hidden rounded-sm">
-      <FlagImage country={country} />
+    <span
+      className={cn(
+        "inline-flex h-[15px] w-5 shrink-0 items-center justify-center overflow-hidden",
+        authStyle ? "rounded-none" : "rounded-sm",
+      )}
+    >
+      <FlagImage country={country} authStyle={authStyle} />
       <span className="hidden text-[10px] font-bold leading-none">
         {country}
       </span>
@@ -95,7 +114,12 @@ function CountryFlag({ country }: { country: Country }) {
   );
 }
 
-function CountrySelect({ value, onChange, disabled }: CountrySelectProps) {
+function CountrySelect({
+  value,
+  onChange,
+  disabled,
+  authStyle,
+}: CountrySelectProps) {
   const [open, setOpen] = useState(false);
   const listboxId = React.useId();
 
@@ -115,14 +139,16 @@ function CountrySelect({ value, onChange, disabled }: CountrySelectProps) {
           aria-controls={listboxId}
           disabled={disabled}
           className={cn(
-            "flex h-8 shrink-0 items-center gap-1 rounded-md px-2 hover:bg-accent",
+            authStyle
+              ? "flex h-10 shrink-0 items-center gap-1 rounded-md px-2 hover:bg-accent"
+              : "flex h-8 shrink-0 items-center gap-1 rounded-md px-2 hover:bg-accent",
             "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0",
             disabled && "cursor-not-allowed opacity-50",
           )}
           aria-label={`Select country, current: ${selectedLabel}`}
         >
           {value ? (
-            <CountryFlag country={value} />
+            <CountryFlag country={value} authStyle={authStyle} />
           ) : (
             <span className="text-sm">🌐</span>
           )}
@@ -159,7 +185,7 @@ function CountrySelect({ value, onChange, disabled }: CountrySelectProps) {
                       className="flex cursor-pointer items-center gap-2 px-2 py-1.5"
                     >
                       {/* Flag */}
-                      <CountryFlag country={opt.value} />
+                      <CountryFlag country={opt.value} authStyle={authStyle} />
 
                       {/* Dial code next to flag — fixed width covers +1684 */}
                       <span className="w-[46px] shrink-0 tabular-nums text-xs font-medium text-foreground/70">
@@ -198,6 +224,7 @@ function PhoneInputComponent({
   className,
   onChange,
   error,
+  authStyle,
   value,
   ref,
   ...props
@@ -212,20 +239,26 @@ function PhoneInputComponent({
     <div className="relative w-full">
       <PhoneInput
         className={cn(
-          "flex h-9 w-full items-center rounded-md border border-input bg-background px-3 text-sm",
+          authStyle
+            ? "flex h-11 w-full items-center gap-2.5 rounded-md border border-input bg-background px-3 text-sm"
+            : "flex h-9 w-full items-center rounded-md border border-input bg-background px-3 text-sm",
           "phone-input-container",
           "focus-within:outline-none focus-within:ring-[3px] focus-within:ring-ring/50 focus-within:border-ring",
           "disabled:cursor-not-allowed disabled:opacity-50",
-          error && "border-destructive focus-within:ring-destructive/20 dark:focus-within:ring-destructive/40",
+          error &&
+            "border-destructive focus-within:ring-destructive/20 dark:focus-within:ring-destructive/40",
           className,
         )}
         onChange={(val) => onChange?.(val ?? "")}
         ref={ref as any}
         value={sanitizedValue}
-        countrySelectComponent={CountrySelect as any}
+        countrySelectComponent={(countrySelectProps: CountrySelectProps) => (
+          <CountrySelect {...countrySelectProps} authStyle={authStyle} />
+        )}
         numberInputProps={{
-          className:
-            "PhoneInputInput flex-1 bg-transparent outline-none placeholder:text-muted-foreground",
+          className: authStyle
+            ? "PhoneInputInput flex-1 h-11 bg-transparent px-0 py-0 outline-none placeholder:text-muted-foreground"
+            : "PhoneInputInput flex-1 bg-transparent outline-none placeholder:text-muted-foreground",
           autoComplete: "tel",
           readOnly: false,
         }}
@@ -239,5 +272,3 @@ function PhoneInputComponent({
 PhoneInputComponent.displayName = "PhoneInput";
 
 export default PhoneInputComponent;
-
-

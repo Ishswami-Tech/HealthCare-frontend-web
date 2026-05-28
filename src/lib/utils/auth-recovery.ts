@@ -80,6 +80,13 @@ export function isSessionInvalidError(error: unknown): boolean {
     return false;
   }
 
+  // Also check for network errors that might occur after logout
+  // (e.g., "Failed to fetch" when server is unavailable)
+  const networkPatterns = ["failed to fetch", "fetch failed", "network error", "net::"];
+  if (networkPatterns.some(pattern => message.includes(pattern))) {
+    return true;
+  }
+
   return [
     "no token provided",
     "authentication required",

@@ -3,13 +3,26 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import PhoneInput from "@/components/ui/phone-input";
 import { SocialLogin } from "@/components/auth/social-login";
 import { OtpCodeInput } from "@/components/auth/otp-code-input";
 import { cn } from "@/lib/utils";
-import { Loader2, Smartphone, Mail, ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
+import {
+  Loader2,
+  Smartphone,
+  Mail,
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+} from "lucide-react";
 
 type OtpMethod = "email" | "phone";
 
@@ -62,7 +75,14 @@ export function LoginAuthCard({
   onPhoneChange,
   onEmailChange,
 }: LoginAuthCardProps) {
-  const { sessionExpired, isRestoringSession, showOTPInput, isFormDisabled, isRequestingOTP, isVerifyingOTP } = uiState;
+  const {
+    sessionExpired,
+    isRestoringSession,
+    showOTPInput,
+    isFormDisabled,
+    isRequestingOTP,
+    isVerifyingOTP,
+  } = uiState;
 
   return (
     <div className="relative mx-auto w-full max-w-[380px]">
@@ -106,7 +126,9 @@ export function LoginAuthCard({
               <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/50">
                 <CheckCircle2 className="size-4 text-green-600 dark:text-green-400" />
               </div>
-              <span className="text-sm font-semibold text-green-700 dark:text-green-300">Authentication successful!</span>
+              <span className="text-sm font-semibold text-green-700 dark:text-green-300">
+                Authentication successful!
+              </span>
             </div>
           )}
 
@@ -134,7 +156,7 @@ export function LoginAuthCard({
                       "flex flex-1 items-center justify-center gap-3 rounded-lg border p-2 transition-all duration-300 ease-out",
                       otpMethod === "phone"
                         ? "border-purple-500 bg-purple-50 shadow-sm dark:bg-slate-900"
-                        : "border-transparent bg-transparent text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800"
+                        : "border-transparent bg-transparent text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800",
                     )}
                   >
                     <div
@@ -142,12 +164,21 @@ export function LoginAuthCard({
                         "flex size-8 items-center justify-center rounded-full transition-colors",
                         otpMethod === "phone"
                           ? "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300"
-                          : "bg-gray-200 text-gray-500 dark:bg-slate-700 dark:text-gray-400"
+                          : "bg-gray-200 text-gray-500 dark:bg-slate-700 dark:text-gray-400",
                       )}
                     >
                       <Smartphone className="size-4" />
                     </div>
-                    <span className={cn("text-sm font-bold", otpMethod === "phone" ? "text-purple-800 dark:text-purple-300" : "font-medium text-gray-500")}>Phone</span>
+                    <span
+                      className={cn(
+                        "text-sm font-bold",
+                        otpMethod === "phone"
+                          ? "text-purple-800 dark:text-purple-300"
+                          : "font-medium text-gray-500",
+                      )}
+                    >
+                      Phone
+                    </span>
                   </button>
                   <button
                     type="button"
@@ -160,7 +191,7 @@ export function LoginAuthCard({
                       "flex flex-1 items-center justify-center gap-3 rounded-lg border p-2 transition-all duration-300 ease-out",
                       otpMethod === "email"
                         ? "border-blue-500 bg-blue-50 shadow-sm dark:bg-slate-900"
-                        : "border-transparent bg-transparent text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800"
+                        : "border-transparent bg-transparent text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800",
                     )}
                   >
                     <div
@@ -168,12 +199,21 @@ export function LoginAuthCard({
                         "flex size-8 items-center justify-center rounded-full transition-colors",
                         otpMethod === "email"
                           ? "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
-                          : "bg-gray-200 text-gray-500 dark:bg-slate-700 dark:text-gray-400"
+                          : "bg-gray-200 text-gray-500 dark:bg-slate-700 dark:text-gray-400",
                       )}
                     >
                       <Mail className="size-4" />
                     </div>
-                    <span className={cn("text-sm font-bold", otpMethod === "email" ? "text-blue-800 dark:text-blue-300" : "font-medium text-gray-500")}>Email</span>
+                    <span
+                      className={cn(
+                        "text-sm font-bold",
+                        otpMethod === "email"
+                          ? "text-blue-800 dark:text-blue-300"
+                          : "font-medium text-gray-500",
+                      )}
+                    >
+                      Email
+                    </span>
                   </button>
                 </div>
               )}
@@ -189,7 +229,7 @@ export function LoginAuthCard({
                           <div
                             className={cn(
                               "animate-in fade-in zoom-in-95 rounded-lg border border-gray-200 bg-gray-50/50 transition-all duration-300 dark:border-slate-800 dark:bg-slate-800/30",
-                              "focus-within:ring-2 focus-within:ring-emerald-500/50 focus-within:ring-offset-1"
+                              "focus-within:ring-2 focus-within:ring-emerald-500/50 focus-within:ring-offset-1",
                             )}
                           >
                             <PhoneInput
@@ -197,18 +237,19 @@ export function LoginAuthCard({
                               defaultCountry="IN"
                               disabled={isFormDisabled || showOTPInput}
                               value={loginIdentifiers.phone}
+                              authStyle
                               onChange={(value: string) => {
                                 onPhoneChange(value);
                                 field.onChange(value);
                               }}
-                              className="border-none bg-transparent shadow-none focus-within:ring-0 [&_input]:h-[42px] [&_input]:border-none [&_input]:bg-transparent [&_input]:text-sm [&_input]:shadow-none"
+                              className="border-none bg-transparent shadow-none focus-within:ring-0 [&_input]:border-none [&_input]:bg-transparent [&_input]:text-sm [&_input]:shadow-none"
                             />
                           </div>
                         ) : (
                           <div
                             className={cn(
                               "animate-in fade-in zoom-in-95 rounded-lg border border-gray-200 bg-gray-50/50 transition-all duration-300 dark:border-slate-800 dark:bg-slate-800/30",
-                              "focus-within:ring-2 focus-within:ring-emerald-500/50 focus-within:ring-offset-1"
+                              "focus-within:ring-2 focus-within:ring-emerald-500/50 focus-within:ring-offset-1",
                             )}
                           >
                             <Input
@@ -221,7 +262,7 @@ export function LoginAuthCard({
                               }}
                               disabled={isFormDisabled || showOTPInput}
                               autoComplete="email"
-                              className="h-[42px] rounded-lg border-none bg-transparent px-4 text-sm shadow-none transition-all focus-visible:ring-0 focus-visible:ring-offset-0"
+                              className="h-11 rounded-lg border-none bg-transparent px-4 text-sm shadow-none transition-all focus-visible:ring-0 focus-visible:ring-offset-0"
                             />
                           </div>
                         )}
@@ -232,7 +273,8 @@ export function LoginAuthCard({
                 />
                 {otpMethod === "phone" && !showOTPInput ? (
                   <p className="mt-2 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                    WhatsApp message only. We will send your login code to the phone number above.
+                    WhatsApp message only. We will send your login code to the
+                    phone number above.
                   </p>
                 ) : null}
               </div>
@@ -256,7 +298,10 @@ export function LoginAuthCard({
                                 }
                               }}
                               disabled={isFormDisabled}
-                              invalid={!!fieldState.error || !!otpForm.formState?.errors?.otp}
+                              invalid={
+                                !!fieldState.error ||
+                                !!otpForm.formState?.errors?.otp
+                              }
                             />
                           </div>
                         </FormControl>
@@ -279,7 +324,9 @@ export function LoginAuthCard({
                       }}
                       disabled={isFormDisabled || isRequestingOTP}
                     >
-                      {isRequestingOTP ? "Sending WhatsApp code..." : "Resend OTP"}
+                      {isRequestingOTP
+                        ? "Sending WhatsApp code..."
+                        : "Resend OTP"}
                     </Button>
                   </div>
                 </div>
@@ -298,7 +345,9 @@ export function LoginAuthCard({
                   onClick={() => {
                     const id = otpForm.getValues("identifier");
                     if (!id) {
-                      otpForm.setError("identifier", { message: "Please enter your email or phone" });
+                      otpForm.setError("identifier", {
+                        message: "Please enter your email or phone",
+                      });
                       return;
                     }
                     onRequestOTP(id);
@@ -348,7 +397,10 @@ export function LoginAuthCard({
                           className="size-[18px] rounded-full border-gray-300 text-emerald-600 transition-all data-[state=checked]:border-emerald-600 data-[state=checked]:bg-emerald-600 focus:ring-emerald-600 dark:border-slate-600"
                         />
                       </FormControl>
-                      <label htmlFor="rememberMe" className="ml-1 cursor-pointer select-none text-[13px] font-medium text-gray-500 transition-colors hover:text-gray-800">
+                      <label
+                        htmlFor="rememberMe"
+                        className="ml-1 cursor-pointer select-none text-[13px] font-medium text-gray-500 transition-colors hover:text-gray-800"
+                      >
                         Remember me for 30 days
                       </label>
                     </FormItem>
@@ -359,7 +411,10 @@ export function LoginAuthCard({
           </Form>
           <div className="mt-5 border-t border-gray-100 pt-4 dark:border-slate-800">
             <p className="text-center text-[13px] font-medium text-gray-500">
-              New user? <span className="font-semibold text-emerald-600 dark:text-emerald-400">We'll create an account for you.</span>
+              New user?{" "}
+              <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                We'll create an account for you.
+              </span>
             </p>
           </div>
         </CardContent>
