@@ -52,6 +52,7 @@ export const useUpdateUserProfile = () => {
       toastId: TOAST_IDS.PROFILE.UPDATE,
       loadingMessage: 'Updating user profile...',
       successMessage: 'User profile updated successfully',
+      showToast: false, // Let the caller handle success/error toasts based on response.success
       invalidateQueries: [['userProfile'], ['user'], ['users']],
     }
   );

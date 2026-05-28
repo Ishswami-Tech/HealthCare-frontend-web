@@ -1,6 +1,13 @@
 "use client";
 
-import React, { Suspense, useState, useEffect, useRef, useMemo, useReducer } from "react";
+import React, {
+  Suspense,
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useReducer,
+} from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
@@ -40,10 +47,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { format } from "date-fns";
-import { showSuccessToast, showErrorToast, showWarningToast, TOAST_IDS } from "@/hooks/utils/use-toast";
-import { Loader2, Phone, MapPin, Calendar, Venus, CalendarIcon, ShieldCheck } from "lucide-react";
+import {
+  showSuccessToast,
+  showErrorToast,
+  showWarningToast,
+  TOAST_IDS,
+} from "@/hooks/utils/use-toast";
+import {
+  Loader2,
+  Phone,
+  MapPin,
+  Calendar,
+  Venus,
+  CalendarIcon,
+  ShieldCheck,
+} from "lucide-react";
 import { Role } from "@/types/auth.types";
 import {
   createProfileCompletionSchema,
@@ -88,7 +112,7 @@ const initialProfileCompletionState: ProfileCompletionState = {
 
 function profileCompletionReducer(
   state: ProfileCompletionState,
-  action: ProfileCompletionAction
+  action: ProfileCompletionAction,
 ): ProfileCompletionState {
   switch (action.type) {
     case "setIsSubmitting":
@@ -110,9 +134,13 @@ function profileCompletionReducer(
 
 function resolveNameParts(
   user:
-    | { firstName?: string | undefined; lastName?: string | undefined; name?: string | undefined }
+    | {
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        name?: string | undefined;
+      }
     | null
-    | undefined
+    | undefined,
 ): { firstName: string; lastName: string } {
   const firstName = user?.firstName?.trim() || "";
   const lastName = user?.lastName?.trim() || "";
@@ -164,7 +192,9 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
     setErrorMessage(null);
     try {
       await clinicApiClient.requestOTP({ identifier: phone });
-      showSuccessToast("OTP resent to your phone.", { id: TOAST_IDS.PROFILE.OTP });
+      showSuccessToast("OTP resent to your phone.", {
+        id: TOAST_IDS.PROFILE.OTP,
+      });
       setCountdown(30);
       setOtp("");
     } catch (error) {
@@ -173,11 +203,14 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
           id: TOAST_IDS.AUTH.LOGIN,
           duration: 5000,
         });
-        window.location.href = '/auth/login';
+        window.location.href = "/auth/login";
       } else {
-        showErrorToast(error instanceof Error ? error.message : "Failed to resend OTP", {
-          id: TOAST_IDS.PROFILE.OTP,
-        });
+        showErrorToast(
+          error instanceof Error ? error.message : "Failed to resend OTP",
+          {
+            id: TOAST_IDS.PROFILE.OTP,
+          },
+        );
       }
     }
     return;
@@ -191,21 +224,28 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
     setIsVerifying(true);
     setErrorMessage(null);
     try {
-      const response = await clinicApiClient.post(API_ENDPOINTS.AUTH.VERIFY_PHONE, {
-        phone,
-        otp: otp.trim(),
-      });
+      const response = await clinicApiClient.post(
+        API_ENDPOINTS.AUTH.VERIFY_PHONE,
+        {
+          phone,
+          otp: otp.trim(),
+        },
+      );
       const data = response.data as Record<string, unknown>;
       const result = (data.data || data) as Record<string, unknown>;
       if (result.phoneVerified !== false) {
-        showSuccessToast("Phone number verified!", { id: TOAST_IDS.PROFILE.OTP });
+        showSuccessToast("Phone number verified!", {
+          id: TOAST_IDS.PROFILE.OTP,
+        });
         setOtp("");
         setErrorMessage(null);
         onVerified();
         onOpenChange(false);
       } else {
         setErrorMessage("Invalid OTP. Please try again.");
-        showErrorToast("Invalid OTP. Please try again.", { id: TOAST_IDS.PROFILE.OTP });
+        showErrorToast("Invalid OTP. Please try again.", {
+          id: TOAST_IDS.PROFILE.OTP,
+        });
       }
     } catch (error) {
       // Use structured error handling instead of string matching
@@ -215,13 +255,18 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
         // Handle specific error types with clear messages - order matters (most specific first)
         if (errorMsg.includes("auth_otp_invalid")) {
           setErrorMessage("Invalid OTP. Please check and try again.");
-          showErrorToast("Invalid OTP. Please check and try again.", { id: TOAST_IDS.PROFILE.OTP });
-        } else if (errorMsg.includes("expired") || errorMsg.includes("session")) {
+          showErrorToast("Invalid OTP. Please check and try again.", {
+            id: TOAST_IDS.PROFILE.OTP,
+          });
+        } else if (
+          errorMsg.includes("expired") ||
+          errorMsg.includes("session")
+        ) {
           showErrorToast("Session expired. Please log in again.", {
             id: TOAST_IDS.AUTH.LOGIN,
             duration: 5000,
           });
-          window.location.href = '/auth/login';
+          window.location.href = "/auth/login";
         } else if (
           errorMsg.includes("otp_not_found") ||
           errorMsg.includes("otp_expired") ||
@@ -229,17 +274,28 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
           errorMsg.includes("invalid verification code")
         ) {
           setErrorMessage("Invalid or expired OTP. Please request a new one.");
-          showErrorToast("Invalid or expired OTP. Please request a new one.", { id: TOAST_IDS.PROFILE.OTP });
-        } else if (errorMsg.includes("locked") || errorMsg.includes("too many attempts")) {
-          setErrorMessage("Too many attempts. Please wait before trying again.");
-          showErrorToast("Account locked. Please wait before trying again.", { id: TOAST_IDS.PROFILE.OTP });
+          showErrorToast("Invalid or expired OTP. Please request a new one.", {
+            id: TOAST_IDS.PROFILE.OTP,
+          });
+        } else if (
+          errorMsg.includes("locked") ||
+          errorMsg.includes("too many attempts")
+        ) {
+          setErrorMessage(
+            "Too many attempts. Please wait before trying again.",
+          );
+          showErrorToast("Account locked. Please wait before trying again.", {
+            id: TOAST_IDS.PROFILE.OTP,
+          });
         } else if (
           errorMsg.includes("network") ||
           errorMsg.includes("fetch") ||
           errorMsg.includes("request")
         ) {
           setErrorMessage("Network error. Please check your connection.");
-          showErrorToast("Network error. Please check your connection.", { id: TOAST_IDS.PROFILE.OTP });
+          showErrorToast("Network error. Please check your connection.", {
+            id: TOAST_IDS.PROFILE.OTP,
+          });
         } else {
           // Show the actual error message for other errors
           setErrorMessage(error.message);
@@ -247,7 +303,9 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
         }
       } else {
         setErrorMessage("Verification failed. Please try again.");
-        showErrorToast("Verification failed. Please try again.", { id: TOAST_IDS.PROFILE.OTP });
+        showErrorToast("Verification failed. Please try again.", {
+          id: TOAST_IDS.PROFILE.OTP,
+        });
       }
     } finally {
       setIsVerifying(false);
@@ -264,7 +322,8 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
             Verify Phone Number
           </DialogTitle>
           <DialogDescription>
-            Enter the 4-6 digit code sent to <span className="font-medium text-foreground">{phone}</span>
+            Enter the 4-6 digit code sent to{" "}
+            <span className="font-medium text-foreground">{phone}</span>
           </DialogDescription>
         </DialogHeader>
 
@@ -283,7 +342,9 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
               Enter the 6-digit code sent to your phone
             </p>
             {errorMessage && (
-              <p className="text-sm text-destructive text-center">{errorMessage}</p>
+              <p className="text-sm text-destructive text-center">
+                {errorMessage}
+              </p>
             )}
           </div>
           <Button
@@ -326,21 +387,28 @@ function ProfileCompletionFormContent({
   const { session } = useAuth();
   const sessionUser = session?.user;
   const queryClient = useQueryClient();
-  const setProfileCompletion = useAuthStore((state) => state.setProfileCompletion);
+  const setProfileCompletion = useAuthStore(
+    (state) => state.setProfileCompletion,
+  );
   const currentTimestamp = useCurrentTimestamp();
-  const getSearchParam = useMemo(() => searchParams.get.bind(searchParams), [searchParams]);
+  const getSearchParam = useMemo(
+    () => searchParams.get.bind(searchParams),
+    [searchParams],
+  );
   // Login method flags (must be defined before useState hooks that use them)
   const loginMethod = sessionUser?.loginMethod;
-  const isGoogleLogin = loginMethod === 'google_oauth';
+  const isGoogleLogin = loginMethod === "google_oauth";
   // Email OTP login: explicit email_otp only
-  const isEmailOtpLogin = loginMethod === 'email_otp';
+  const isEmailOtpLogin = loginMethod === "email_otp";
   // Phone OTP login: explicit phone_otp, or legacy otp with verified phone
   const isPhoneOtpLogin =
-    loginMethod === 'phone_otp' ||
-    (loginMethod === 'otp' && !!sessionUser?.phoneVerified) ||
+    loginMethod === "phone_otp" ||
+    (loginMethod === "otp" && !!sessionUser?.phoneVerified) ||
     (loginMethod === undefined && !!sessionUser?.phoneVerified);
-  const initialPhoneVerified = isPhoneOtpLogin || Boolean(sessionUser?.phoneVerified);
-  const initialEmailVerified = isEmailOtpLogin || isGoogleLogin || Boolean(sessionUser?.emailVerified);
+  const initialPhoneVerified =
+    isPhoneOtpLogin || Boolean(sessionUser?.phoneVerified);
+  const initialEmailVerified =
+    isEmailOtpLogin || isGoogleLogin || Boolean(sessionUser?.emailVerified);
 
   const [
     {
@@ -376,7 +444,7 @@ function ProfileCompletionFormContent({
   const looksLikeValidName = (value: string | undefined | null): boolean => {
     if (!value) return false;
     // Check if it looks like an email (contains @)
-    if (value.includes('@')) return false;
+    if (value.includes("@")) return false;
     // Check if it looks like a phone number (mostly digits with optional +)
     if (/^\+?[\d\s\-()]{7,}$/.test(value)) return false;
     return value.trim().length > 0;
@@ -384,36 +452,36 @@ function ProfileCompletionFormContent({
 
   const getAutoFirstName = () => {
     if (!isGoogleLogin) {
-      return '';
+      return "";
     }
     if (looksLikeValidName(sessionUser?.firstName)) {
-      return sessionUser?.firstName || '';
+      return sessionUser?.firstName || "";
     }
     if (sessionUser?.name) {
       const parts = sessionUser.name.trim().split(/\s+/);
-      return parts[0] || '';
+      return parts[0] || "";
     }
-    return '';
+    return "";
   };
 
   const getAutoLastName = () => {
     if (!isGoogleLogin) {
-      return '';
+      return "";
     }
     if (looksLikeValidName(sessionUser?.lastName)) {
-      return sessionUser?.lastName || '';
+      return sessionUser?.lastName || "";
     }
     if (sessionUser?.name) {
       const parts = sessionUser.name.trim().split(/\s+/);
       parts.shift();
-      return parts.join(' ');
+      return parts.join(" ");
     }
-    return '';
+    return "";
   };
 
   const autoFilledFirstName = getAutoFirstName();
   const autoFilledLastName = getAutoLastName();
-  const autoFilledEmail = isPhoneOtpLogin ? '' : sessionUser?.email || '';
+  const autoFilledEmail = isPhoneOtpLogin ? "" : sessionUser?.email || "";
 
   const redirectUrl = getSearchParam("redirect") || "/";
   const profileCompletionSchema = useMemo(
@@ -423,7 +491,7 @@ function ProfileCompletionFormContent({
         isEmailOtpLogin,
         isGoogleLogin,
       }),
-    [isPhoneOtpLogin, isEmailOtpLogin, isGoogleLogin]
+    [isPhoneOtpLogin, isEmailOtpLogin, isGoogleLogin],
   );
 
   const formatPhoneNumber = (phone: string | undefined | null) => {
@@ -441,7 +509,7 @@ function ProfileCompletionFormContent({
       firstName: autoFilledFirstName,
       lastName: autoFilledLastName,
       email: autoFilledEmail,
-      phone: isPhoneOtpLogin ? formatPhoneNumber(sessionUser?.phone) : '',
+      phone: isPhoneOtpLogin ? formatPhoneNumber(sessionUser?.phone) : "",
       dateOfBirth: "",
       gender: "male",
       address: "",
@@ -458,8 +526,10 @@ function ProfileCompletionFormContent({
   const watchedPhone = form.watch("phone");
 
   useEffect(() => {
-    const nextPhoneVerified = isPhoneOtpLogin || Boolean(sessionUser?.phoneVerified);
-    const nextEmailVerified = isEmailOtpLogin || isGoogleLogin || Boolean(sessionUser?.emailVerified);
+    const nextPhoneVerified =
+      isPhoneOtpLogin || Boolean(sessionUser?.phoneVerified);
+    const nextEmailVerified =
+      isEmailOtpLogin || isGoogleLogin || Boolean(sessionUser?.emailVerified);
 
     if (nextPhoneVerified && !isPhoneVerified) {
       setIsPhoneVerified(true);
@@ -489,12 +559,17 @@ function ProfileCompletionFormContent({
 
   useEffect(() => {
     if (!sessionUser || hasInitializedRef.current) return;
-    const finalFirstName = isGoogleLogin ? (autoFilledFirstName || resolveNameParts(sessionUser).firstName) : '';
-    const finalLastName = isGoogleLogin ? (autoFilledLastName || resolveNameParts(sessionUser).lastName) : '';
+    const finalFirstName = isGoogleLogin
+      ? autoFilledFirstName || resolveNameParts(sessionUser).firstName
+      : "";
+    const finalLastName = isGoogleLogin
+      ? autoFilledLastName || resolveNameParts(sessionUser).lastName
+      : "";
     form.reset({
       firstName: finalFirstName,
       lastName: finalLastName,
-      email: isPhoneOtpLogin ? '' : (sessionUser.email || autoFilledEmail),
+      email: isPhoneOtpLogin ? "" : sessionUser.email || autoFilledEmail,
+      phone: isPhoneOtpLogin ? formatPhoneNumber(sessionUser?.phone) : "",
       dateOfBirth: "",
       gender: "male" as const,
       address: "",
@@ -507,7 +582,15 @@ function ProfileCompletionFormContent({
       clinicAddress: "",
     });
     hasInitializedRef.current = true;
-  }, [sessionUser, form, isGoogleLogin, isPhoneOtpLogin, autoFilledFirstName, autoFilledLastName, autoFilledEmail]);
+  }, [
+    sessionUser,
+    form,
+    isGoogleLogin,
+    isPhoneOtpLogin,
+    autoFilledFirstName,
+    autoFilledLastName,
+    autoFilledEmail,
+  ]);
 
   const updateProfileMutation = useUpdateUserProfile();
   const setProfileCompleteMutation = useSetProfileComplete();
@@ -518,14 +601,18 @@ function ProfileCompletionFormContent({
     try {
       const phone = formatPhoneNumber(form.getValues("phone"));
       if (!phone) {
-        showErrorToast("Enter a phone number first.", { id: TOAST_IDS.PROFILE.COMPLETE });
+        showErrorToast("Enter a phone number first.", {
+          id: TOAST_IDS.PROFILE.COMPLETE,
+        });
         return;
       }
 
       // Validate phone length for OTP
       const phoneDigits = phone.replace(/[^\d]/g, "");
       if (phoneDigits.length < 10) {
-        showErrorToast("Please enter a valid phone number with country code.", { id: TOAST_IDS.PROFILE.COMPLETE });
+        showErrorToast("Please enter a valid phone number with country code.", {
+          id: TOAST_IDS.PROFILE.COMPLETE,
+        });
         return;
       }
 
@@ -536,29 +623,44 @@ function ProfileCompletionFormContent({
       });
       setPendingPhone(phone);
       setShowOtpModal(true);
-      showSuccessToast("OTP sent to your phone.", { id: TOAST_IDS.PROFILE.COMPLETE });
+      showSuccessToast("OTP sent to your phone.", {
+        id: TOAST_IDS.PROFILE.COMPLETE,
+      });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       const errorLower = errorMessage.toLowerCase();
 
       if (errorLower.includes("user") && errorLower.includes("not found")) {
-        showErrorToast("This phone is not linked yet. Please try a different number or continue with OTP sign-up.", {
-          id: TOAST_IDS.PROFILE.COMPLETE,
-        });
-      } else if (errorLower.includes("expired") || errorLower.includes("unauthorized")) {
+        showErrorToast(
+          "This phone is not linked yet. Please try a different number or continue with OTP sign-up.",
+          {
+            id: TOAST_IDS.PROFILE.COMPLETE,
+          },
+        );
+      } else if (
+        errorLower.includes("expired") ||
+        errorLower.includes("unauthorized")
+      ) {
         showErrorToast("Session expired. Please log in again.", {
           id: TOAST_IDS.AUTH.LOGIN,
           duration: 5000,
         });
-        window.location.href = '/auth/login';
+        window.location.href = "/auth/login";
       } else if (errorLower.includes("rate limit")) {
-        showErrorToast("Too many requests. Please wait a moment and try again.", {
-          id: TOAST_IDS.PROFILE.COMPLETE,
-        });
+        showErrorToast(
+          "Too many requests. Please wait a moment and try again.",
+          {
+            id: TOAST_IDS.PROFILE.COMPLETE,
+          },
+        );
       } else {
-        showErrorToast(errorMessage || "Failed to send OTP. Please try again.", {
-          id: TOAST_IDS.PROFILE.COMPLETE,
-        });
+        showErrorToast(
+          errorMessage || "Failed to send OTP. Please try again.",
+          {
+            id: TOAST_IDS.PROFILE.COMPLETE,
+          },
+        );
       }
     } finally {
       setIsSendingOtp(false);
@@ -572,12 +674,60 @@ function ProfileCompletionFormContent({
   const updateProfile = async (profileData: Record<string, unknown>) => {
     const result = await updateProfileMutation.mutateAsync(profileData);
     // The response has user data in 'data' field, not 'user' field
-    const response = result as { success?: boolean; error?: string; data?: any };
+    const response = result as {
+      success?: boolean;
+      error?: string;
+      data?: any;
+      validationErrors?: Array<{
+        field: string;
+        constraints: Record<string, string>;
+      }>;
+    };
 
     // Backend validation is the source of truth
     // Only proceed if backend confirms success
     if (!response || response.success === false) {
-      showErrorToast(response?.error || "Failed to complete profile", { id: TOAST_IDS.PROFILE.COMPLETE });
+      // If we have field-level validation errors, set them on the form
+      if (response?.validationErrors && response.validationErrors.length > 0) {
+        const fieldNames = Object.keys(form.getValues()) as Array<
+          keyof ProfileCompletionFormData
+        >;
+        let hasFieldError = false;
+
+        for (const validationError of response.validationErrors) {
+          const fieldName =
+            validationError.field as keyof ProfileCompletionFormData;
+          if (fieldNames.includes(fieldName)) {
+            const constraintMessages = Object.values(
+              validationError.constraints,
+            );
+            form.setError(fieldName, {
+              type: "server",
+              message: constraintMessages[0] || "Invalid value",
+            });
+            hasFieldError = true;
+          }
+        }
+
+        if (hasFieldError) {
+          // Show an informative toast with the actual field errors
+          const errorSummary = response.validationErrors
+            .map((e) => {
+              const field = e.field.charAt(0).toUpperCase() + e.field.slice(1);
+              return `${field}: ${Object.values(e.constraints).join(", ")}`;
+            })
+            .join("; ");
+          showWarningToast("Please fix the following issues:", {
+            id: TOAST_IDS.PROFILE.COMPLETE,
+            description: errorSummary,
+          });
+          return;
+        }
+      }
+
+      showErrorToast(response?.error || "Failed to complete profile", {
+        id: TOAST_IDS.PROFILE.COMPLETE,
+      });
       return;
     }
 
@@ -598,7 +748,12 @@ function ProfileCompletionFormContent({
       // This ensures clinicId and other fields are properly synced
       const responseUserData = response?.data;
       const updatedUser = responseUserData
-        ? { ...source.user, ...responseUserData, profileComplete: true, isProfileComplete: true }
+        ? {
+            ...source.user,
+            ...responseUserData,
+            profileComplete: true,
+            isProfileComplete: true,
+          }
         : { ...source.user, profileComplete: true, isProfileComplete: true };
 
       return { ...source, user: updatedUser };
@@ -606,8 +761,15 @@ function ProfileCompletionFormContent({
 
     // Invalidate all clinic-related queries to ensure fresh data loads immediately
     // Use more permissive invalidation by using prefix matching instead of exact keys
-    const clinicQueryKeys = ['myClinic', 'clinicLocations', 'clinicDoctors', 'doctors', 'activeLocations', 'current-clinic'];
-    clinicQueryKeys.forEach(key => {
+    const clinicQueryKeys = [
+      "myClinic",
+      "clinicLocations",
+      "clinicDoctors",
+      "doctors",
+      "activeLocations",
+      "current-clinic",
+    ];
+    clinicQueryKeys.forEach((key) => {
       queryClient.invalidateQueries({ queryKey: [key] });
     });
 
@@ -617,13 +779,16 @@ function ProfileCompletionFormContent({
           onComplete();
         } else {
           const userRole = sessionUser?.role as Role;
-          const finalRedirect = getProfileCompletionRedirectUrl(userRole, redirectUrl);
+          const finalRedirect = getProfileCompletionRedirectUrl(
+            userRole,
+            redirectUrl,
+          );
           window.location.replace(finalRedirect);
         }
       } catch (_redirectError) {
         showErrorToast(
           "Profile was updated but there was an error redirecting. Please try navigating manually.",
-          { id: TOAST_IDS.PROFILE.COMPLETE }
+          { id: TOAST_IDS.PROFILE.COMPLETE },
         );
       }
     }, 1500);
@@ -632,10 +797,13 @@ function ProfileCompletionFormContent({
   const onSubmit = async (data: ProfileCompletionFormData) => {
     setIsSubmitting(true);
     try {
+      const resolvedPhone =
+        formatPhoneNumber(data.phone) ||
+        (isPhoneOtpLogin ? formatPhoneNumber(sessionUser?.phone) : "");
       const baseProfileData: Record<string, unknown> = {
         firstName: data.firstName,
         lastName: data.lastName,
-        phone: formatPhoneNumber(data.phone),
+        ...(resolvedPhone ? { phone: resolvedPhone } : {}),
         dateOfBirth: data.dateOfBirth,
         gender: data.gender ? data.gender.toUpperCase() : undefined,
         address: data.address,
@@ -649,7 +817,8 @@ function ProfileCompletionFormContent({
       if (isEmailOtpLogin && !isPhoneVerified) {
         form.setError("phone", {
           type: "manual",
-          message: "Please verify your phone number via OTP before completing the profile.",
+          message:
+            "Please verify your phone number via OTP before completing the profile.",
         });
         return;
       }
@@ -658,7 +827,8 @@ function ProfileCompletionFormContent({
       if (isGoogleLogin && !isPhoneVerified) {
         form.setError("phone", {
           type: "manual",
-          message: "Please verify your phone number via OTP before completing the profile.",
+          message:
+            "Please verify your phone number via OTP before completing the profile.",
         });
         return;
       }
@@ -667,10 +837,16 @@ function ProfileCompletionFormContent({
 
       if (!data.firstName?.trim() || !data.lastName?.trim()) {
         if (!data.firstName?.trim()) {
-          form.setError("firstName", { type: "required", message: "First name is required" });
+          form.setError("firstName", {
+            type: "required",
+            message: "First name is required",
+          });
         }
         if (!data.lastName?.trim()) {
-          form.setError("lastName", { type: "required", message: "Last name is required" });
+          form.setError("lastName", {
+            type: "required",
+            message: "Last name is required",
+          });
         }
         return;
       }
@@ -693,17 +869,27 @@ function ProfileCompletionFormContent({
       if (userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR) {
         roleSpecificData = {
           specialization: data.specialization,
-          experience: data.experience ? parseInt(data.experience, 10) : undefined,
+          experience: data.experience
+            ? parseInt(data.experience, 10)
+            : undefined,
         };
       }
 
-      await updateProfile({ ...baseProfileData, ...roleSpecificData } as Record<string, unknown>);
+      await updateProfile({ ...baseProfileData, ...roleSpecificData } as Record<
+        string,
+        unknown
+      >);
     } catch (error) {
-      logger.error("Profile completion error", error instanceof Error ? error : new Error(String(error)));
+      logger.error(
+        "Profile completion error",
+        error instanceof Error ? error : new Error(String(error)),
+      );
 
       if (error instanceof Error && error.message.includes("validation")) {
         try {
-          const errorData = JSON.parse(error.message.replace("validation error: ", ""));
+          const errorData = JSON.parse(
+            error.message.replace("validation error: ", ""),
+          );
           if (errorData.errors) {
             Object.entries(errorData.errors).forEach(([field, message]) => {
               form.setError(field as keyof ProfileCompletionFormData, {
@@ -712,12 +898,17 @@ function ProfileCompletionFormContent({
               });
             });
             const { ERROR_MESSAGES } = await import("@/lib/config/config");
-            showErrorToast(ERROR_MESSAGES.VALIDATION_ERROR, { id: TOAST_IDS.PROFILE.COMPLETE });
+            showErrorToast(ERROR_MESSAGES.VALIDATION_ERROR, {
+              id: TOAST_IDS.PROFILE.COMPLETE,
+            });
             return;
           }
         } catch (parseError) {
           logger.warn("Error parsing validation error", {
-            error: parseError instanceof Error ? parseError.message : String(parseError),
+            error:
+              parseError instanceof Error
+                ? parseError.message
+                : String(parseError),
           });
         }
       }
@@ -728,15 +919,21 @@ function ProfileCompletionFormContent({
           error.message.includes("Invalid device") ||
           error.message.includes("Invalid session")
         ) {
-          showErrorToast("Your session appears to be invalid or expired. Please log in again.", {
-            id: TOAST_IDS.AUTH.LOGIN,
-            duration: 5000,
-          });
+          showErrorToast(
+            "Your session appears to be invalid or expired. Please log in again.",
+            {
+              id: TOAST_IDS.AUTH.LOGIN,
+              duration: 5000,
+            },
+          );
           push(ROUTES.LOGIN);
-        } else if (error.message.includes("500") || error.message.includes("Server encountered an error")) {
+        } else if (
+          error.message.includes("500") ||
+          error.message.includes("Server encountered an error")
+        ) {
           showErrorToast(
             "The server encountered an error. Please try again in a few moments.",
-            { id: TOAST_IDS.GLOBAL.ERROR, duration: 5000 }
+            { id: TOAST_IDS.GLOBAL.ERROR, duration: 5000 },
           );
         } else {
           showErrorToast(`Failed to complete profile: ${error.message}`, {
@@ -757,7 +954,8 @@ function ProfileCompletionFormContent({
 
   const userRole = sessionUser?.role as Role;
   const isPatient = userRole === Role.PATIENT;
-  const isDoctor = userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR;
+  const isDoctor =
+    userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR;
 
   useEffect(() => {
     if (!sessionUser) return;
@@ -781,7 +979,6 @@ function ProfileCompletionFormContent({
   return (
     <div className="w-full max-w-sm sm:max-w-lg">
       <Card className="w-full border-border shadow-sm">
-
         {/* â”€â”€ Header â”€â”€ */}
         <CardHeader className="px-5  sm:px-6 ">
           <CardTitle className="text-base sm:text-lg font-semibold text-center">
@@ -793,7 +990,6 @@ function ProfileCompletionFormContent({
         <CardContent className="px-5 pb-5 sm:px-6 sm:pb-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-
               {/* â”€â”€ Basic Information â”€â”€ */}
               <section className="space-y-4">
                 <h3 className="text-sm font-medium text-foreground">
@@ -810,7 +1006,12 @@ function ProfileCompletionFormContent({
                         <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
                           First Name
                           <span className="text-destructive">*</span>
-                          {isGoogleLogin && <ShieldCheck className="size-3 text-emerald-500" aria-label="Auto-filled from Google" />}
+                          {isGoogleLogin && (
+                            <ShieldCheck
+                              className="size-3 text-emerald-500"
+                              aria-label="Auto-filled from Google"
+                            />
+                          )}
                         </FormLabel>
                         <FormControl>
                           <Input
@@ -832,7 +1033,12 @@ function ProfileCompletionFormContent({
                         <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
                           Last Name
                           <span className="text-destructive">*</span>
-                          {isGoogleLogin && <ShieldCheck className="size-3 text-emerald-500" aria-label="Auto-filled from Google" />}
+                          {isGoogleLogin && (
+                            <ShieldCheck
+                              className="size-3 text-emerald-500"
+                              aria-label="Auto-filled from Google"
+                            />
+                          )}
                         </FormLabel>
                         <FormControl>
                           <Input
@@ -856,18 +1062,28 @@ function ProfileCompletionFormContent({
                     <FormItem>
                       <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
                         Email
-                        {isGoogleLogin && <ShieldCheck className="size-3 text-emerald-500" aria-label="Auto-filled from Google" />}
-                        {sessionUser?.emailVerified && <ShieldCheck className="size-3 text-emerald-500" aria-label="Verified" />}
+                        {isGoogleLogin && (
+                          <ShieldCheck
+                            className="size-3 text-emerald-500"
+                            aria-label="Auto-filled from Google"
+                          />
+                        )}
+                        {sessionUser?.emailVerified && (
+                          <ShieldCheck
+                            className="size-3 text-emerald-500"
+                            aria-label="Verified"
+                          />
+                        )}
                       </FormLabel>
                       <div className="flex flex-col sm:flex-row gap-2">
                         <div className="flex-1">
-                        <Input
-                          type="email"
-                          placeholder="Email"
-                          disabled={isGoogleLogin || isEmailOtpLogin}
-                          className="h-10 sm:h-9 text-sm"
-                          aria-invalid={!!form.formState.errors.email}
-                          {...field}
+                          <Input
+                            type="email"
+                            placeholder="Email"
+                            disabled={isGoogleLogin || isEmailOtpLogin}
+                            className="h-10 sm:h-9 text-sm"
+                            aria-invalid={!!form.formState.errors.email}
+                            {...field}
                           />
                         </div>
                         {sessionUser?.emailVerified && (
@@ -891,14 +1107,26 @@ function ProfileCompletionFormContent({
                       <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
                         <Phone className="size-3" />
                         Phone
-                        {(isGoogleLogin || isEmailOtpLogin) && <span className="text-destructive">*</span>}
-                        {isPhoneOtpLogin && <span className="text-destructive">*</span>}
-                        {isPhoneVerified && <ShieldCheck className="size-3 text-emerald-500" aria-label="Phone verified" />}
+                        {(isGoogleLogin || isEmailOtpLogin) && (
+                          <span className="text-destructive">*</span>
+                        )}
+                        {isPhoneOtpLogin && (
+                          <span className="text-destructive">*</span>
+                        )}
+                        {isPhoneVerified && (
+                          <ShieldCheck
+                            className="size-3 text-emerald-500"
+                            aria-label="Phone verified"
+                          />
+                        )}
                       </FormLabel>
                       {isPhoneOtpLogin ? (
                         <div className="flex flex-col gap-2">
                           <div className="flex h-10 items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-sm text-emerald-900 sm:h-9 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200">
-                            <span className="truncate">{formatPhoneNumber(sessionUser?.phone) || "Phone verified"}</span>
+                            <span className="truncate">
+                              {formatPhoneNumber(sessionUser?.phone) ||
+                                "Phone verified"}
+                            </span>
                             <span className="ml-3 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
                               <ShieldCheck className="size-3" />
                               Verified
@@ -929,7 +1157,9 @@ function ProfileCompletionFormContent({
                               type="button"
                               size="sm"
                               onClick={sendPhoneOtp}
-                              disabled={isSendingOtp || !form.getValues("phone")}
+                              disabled={
+                                isSendingOtp || !form.getValues("phone")
+                              }
                               className="h-10 sm:h-9 text-xs sm:text-sm whitespace-nowrap px-4"
                             >
                               {isSendingOtp ? (
@@ -946,16 +1176,25 @@ function ProfileCompletionFormContent({
                   )}
                 />
 
-                
                 {/* Date of Birth / Gender */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField
                     control={form.control}
                     name="dateOfBirth"
                     render={({ field }) => {
-                      const today = currentTimestamp ? new Date(currentTimestamp) : new Date(0);
-                      const maxDate = new Date(today.getFullYear() - 12, today.getMonth(), today.getDate());
-                      const minDate = new Date(today.getFullYear() - 100, today.getMonth(), today.getDate());
+                      const today = currentTimestamp
+                        ? new Date(currentTimestamp)
+                        : new Date(0);
+                      const maxDate = new Date(
+                        today.getFullYear() - 12,
+                        today.getMonth(),
+                        today.getDate(),
+                      );
+                      const minDate = new Date(
+                        today.getFullYear() - 100,
+                        today.getMonth(),
+                        today.getDate(),
+                      );
                       return (
                         <FormItem className="flex flex-col">
                           <FormLabel className="flex items-center gap-1">
@@ -969,7 +1208,9 @@ function ProfileCompletionFormContent({
                                   variant="outline"
                                   className={
                                     "h-9 w-full justify-start text-left font-normal" +
-                                    (!field.value ? " text-muted-foreground" : "")
+                                    (!field.value
+                                      ? " text-muted-foreground"
+                                      : "")
                                   }
                                   suppressHydrationWarning
                                 >
@@ -980,31 +1221,50 @@ function ProfileCompletionFormContent({
                                 </Button>
                               </FormControl>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0 bg-background dark:bg-neutral-950 border border-border" align="start">
+                            <PopoverContent
+                              className="w-auto p-0 bg-background dark:bg-neutral-950 border border-border"
+                              align="start"
+                            >
                               <CalendarComponent
                                 mode="single"
-                                selected={field.value ? new Date(field.value) : undefined}
+                                selected={
+                                  field.value
+                                    ? new Date(field.value)
+                                    : undefined
+                                }
                                 onSelect={(date) => {
                                   if (!date) return;
                                   if (!currentTimestamp) return;
                                   const today = new Date(currentTimestamp);
-                                  let age = today.getFullYear() - date.getFullYear();
+                                  let age =
+                                    today.getFullYear() - date.getFullYear();
                                   const m = today.getMonth() - date.getMonth();
-                                  if (m < 0 || (m === 0 && today.getDate() < date.getDate())) age--;
+                                  if (
+                                    m < 0 ||
+                                    (m === 0 &&
+                                      today.getDate() < date.getDate())
+                                  )
+                                    age--;
                                   if (age < 12) {
-                                    showWarningToast("You must be at least 12 years old", {
-                                      id: TOAST_IDS.PROFILE.COMPLETE,
-                                    });
+                                    showWarningToast(
+                                      "You must be at least 12 years old",
+                                      {
+                                        id: TOAST_IDS.PROFILE.COMPLETE,
+                                      },
+                                    );
                                     form.setError("dateOfBirth", {
                                       type: "manual",
-                                      message: "You must be at least 12 years old",
+                                      message:
+                                        "You must be at least 12 years old",
                                     });
                                   } else {
                                     form.clearErrors("dateOfBirth");
                                     field.onChange(format(date, "yyyy-MM-dd"));
                                   }
                                 }}
-                                disabled={(date) => date > maxDate || date < minDate}
+                                disabled={(date) =>
+                                  date > maxDate || date < minDate
+                                }
                                 captionLayout="dropdown"
                                 fromYear={today.getFullYear() - 100}
                                 toYear={today.getFullYear() - 12}
@@ -1036,7 +1296,10 @@ function ProfileCompletionFormContent({
                           defaultValue="male"
                         >
                           <FormControl>
-                            <SelectTrigger aria-invalid={!!form.formState.errors.gender} className="h-10 sm:h-9">
+                            <SelectTrigger
+                              aria-invalid={!!form.formState.errors.gender}
+                              className="h-10 sm:h-9"
+                            >
                               <SelectValue placeholder="Select" />
                             </SelectTrigger>
                           </FormControl>
@@ -1061,7 +1324,9 @@ function ProfileCompletionFormContent({
                       <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
                         <MapPin className="size-3" />
                         Address
-                        <span className="text-muted-foreground text-[10px]">(Optional)</span>
+                        <span className="text-muted-foreground text-[10px]">
+                          (Optional)
+                        </span>
                       </FormLabel>
                       <Textarea
                         placeholder="Enter address"
@@ -1089,8 +1354,14 @@ function ProfileCompletionFormContent({
                       name="emergencyContactName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-xs sm:text-sm">Name</FormLabel>
-                          <Input placeholder="Emergency contact name" className="h-10 sm:h-9 text-sm" {...field} />
+                          <FormLabel className="text-xs sm:text-sm">
+                            Name
+                          </FormLabel>
+                          <Input
+                            placeholder="Emergency contact name"
+                            className="h-10 sm:h-9 text-sm"
+                            {...field}
+                          />
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1100,8 +1371,14 @@ function ProfileCompletionFormContent({
                       name="emergencyContactRelationship"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-xs sm:text-sm">Relation</FormLabel>
-                          <Input placeholder="e.g., Parent, Spouse" className="h-10 sm:h-9 text-sm" {...field} />
+                          <FormLabel className="text-xs sm:text-sm">
+                            Relation
+                          </FormLabel>
+                          <Input
+                            placeholder="e.g., Parent, Spouse"
+                            className="h-10 sm:h-9 text-sm"
+                            {...field}
+                          />
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1146,8 +1423,14 @@ function ProfileCompletionFormContent({
                       name="specialization"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-xs sm:text-sm">Specialization</FormLabel>
-                          <Input placeholder="e.g., Cardiology" className="h-10 sm:h-9 text-sm" {...field} />
+                          <FormLabel className="text-xs sm:text-sm">
+                            Specialization
+                          </FormLabel>
+                          <Input
+                            placeholder="e.g., Cardiology"
+                            className="h-10 sm:h-9 text-sm"
+                            {...field}
+                          />
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1157,8 +1440,14 @@ function ProfileCompletionFormContent({
                       name="experience"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-xs sm:text-sm">Experience</FormLabel>
-                          <Input placeholder="Years" className="h-10 sm:h-9 text-sm" {...field} />
+                          <FormLabel className="text-xs sm:text-sm">
+                            Experience
+                          </FormLabel>
+                          <Input
+                            placeholder="Years"
+                            className="h-10 sm:h-9 text-sm"
+                            {...field}
+                          />
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1176,7 +1465,9 @@ function ProfileCompletionFormContent({
                 {isSubmitting || updatingProfile ? (
                   <>
                     <Loader2 className="mr-2 size-4 sm:h-3.5 animate-spin" />
-                    <span className="hidden sm:inline">Completing Profile…</span>
+                    <span className="hidden sm:inline">
+                      Completing Profile…
+                    </span>
                     <span className="sm:hidden">Submitting…</span>
                   </>
                 ) : (
@@ -1199,13 +1490,12 @@ function ProfileCompletionFormContent({
   );
 }
 
-export default function ProfileCompletionForm(props: ProfileCompletionFormProps) {
+export default function ProfileCompletionForm(
+  props: ProfileCompletionFormProps,
+) {
   return (
     <Suspense fallback={null}>
       <ProfileCompletionFormContent {...props} />
     </Suspense>
   );
 }
-
-
-

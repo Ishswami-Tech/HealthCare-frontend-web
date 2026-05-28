@@ -295,7 +295,7 @@ async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
       path: response.url,
       method: 'GET', // This will be overridden by the actual method
       requestId: requestId || generateRequestId(),
-      details: data?.details,
+      details: data?.details || (data?.errors ? { validationErrors: data.errors } : undefined),
     };
     
     throw ApiError.fromResponse(errorResponse);

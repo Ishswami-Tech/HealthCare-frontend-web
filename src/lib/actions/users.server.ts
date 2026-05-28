@@ -123,7 +123,17 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
       error: errorMessage,
       originalError: error instanceof Error ? error.message : String(error)
     });
-    return { success: false, error: errorMessage };
+
+    // Extract validation errors from ApiError details for field-level display
+    const validationErrors = (error && typeof error === 'object' && 'details' in error)
+      ? (error as { details?: { validationErrors?: Array<{ field: string; constraints: Record<string, string> }> } }).details?.validationErrors
+      : undefined;
+
+    return {
+      success: false,
+      error: errorMessage,
+      ...(validationErrors ? { validationErrors } : {}),
+    };
   }
 }
 
