@@ -1358,7 +1358,7 @@ export async function requestOTP(data: OtpRequestFormData): Promise<{ success: b
     };
 
     if (result.success === false) {
-      throw new Error(result.message || 'Failed to request OTP');
+      return { success: false, message: result.message || 'Failed to request OTP' };
     }
 
     // Set clinic_id cookie for subsequent requests
@@ -1375,7 +1375,10 @@ export async function requestOTP(data: OtpRequestFormData): Promise<{ success: b
     };
   } catch (error) {
     logger.error('OTP request error', error instanceof Error ? error : new Error(String(error)));
-    throw error instanceof Error ? error : new Error('Failed to request OTP');
+    // Return error as structured response instead of throwing
+    // This ensures Next.js production builds don't mask the error message
+    const errorMessage = extractErrorMessage(error) || 'Failed to request OTP. Please try again.';
+    return { success: false, message: errorMessage };
   }
 }
 

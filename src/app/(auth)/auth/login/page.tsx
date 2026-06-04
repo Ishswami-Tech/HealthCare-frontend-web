@@ -1,6 +1,14 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { showErrorToast } from "@/hooks/utils/use-toast";
@@ -29,7 +37,10 @@ const initialLoginIdentifierState: LoginIdentifierState = {
   phone: "",
 };
 
-function loginIdentifierReducer(state: LoginIdentifierState, action: LoginIdentifierAction): LoginIdentifierState {
+function loginIdentifierReducer(
+  state: LoginIdentifierState,
+  action: LoginIdentifierAction,
+): LoginIdentifierState {
   switch (action.type) {
     case "set_email":
       return { ...state, email: action.value };
@@ -43,11 +54,17 @@ function loginIdentifierReducer(state: LoginIdentifierState, action: LoginIdenti
 function LoginPageContent() {
   const { replace } = useRouter();
   const searchParams = useSearchParams();
-  const getSearchParam = useMemo(() => searchParams.get.bind(searchParams), [searchParams]);
+  const getSearchParam = useMemo(
+    () => searchParams.get.bind(searchParams),
+    [searchParams],
+  );
   const sessionExpired = getSearchParam("reason") === "session-expired";
   const defaultClinicId = APP_CONFIG.CLINIC.ID;
 
-  const [loginFlow, setLoginFlow] = useState<{ showOTPInput: boolean; otpMethod: OtpMethod }>({
+  const [loginFlow, setLoginFlow] = useState<{
+    showOTPInput: boolean;
+    otpMethod: OtpMethod;
+  }>({
     showOTPInput: false,
     otpMethod: "phone",
   });
@@ -82,7 +99,7 @@ function LoginPageContent() {
 
   const [loginIdentifiers, dispatchLoginIdentifiers] = useReducer(
     loginIdentifierReducer,
-    initialLoginIdentifierState
+    initialLoginIdentifierState,
   );
 
   const isFormDisabled = isGoogleLoggingIn || successPhase !== "none";
@@ -94,7 +111,13 @@ function LoginPageContent() {
   }, []);
 
   useEffect(() => {
-    if (!sessionExpired || session?.user || isRestoringSession || isGoogleLoggingIn || successPhase !== "none") {
+    if (
+      !sessionExpired ||
+      session?.user ||
+      isRestoringSession ||
+      isGoogleLoggingIn ||
+      successPhase !== "none"
+    ) {
       return;
     }
 
@@ -114,12 +137,26 @@ function LoginPageContent() {
     return () => {
       cancelled = true;
     };
-  }, [getRedirectPath, isRestoringSession, isGoogleLoggingIn, refreshSession, replace, session?.user, sessionExpired, successPhase]);
+  }, [
+    getRedirectPath,
+    isRestoringSession,
+    isGoogleLoggingIn,
+    refreshSession,
+    replace,
+    session?.user,
+    sessionExpired,
+    successPhase,
+  ]);
 
-  const otpMutation = async (data: z.infer<typeof otpSchema>): Promise<AuthResponse> => {
+  const otpMutation = async (
+    data: z.infer<typeof otpSchema>,
+  ): Promise<AuthResponse> => {
     setAuthError(null);
     try {
-      const result = await verifyOTP({ ...data, clinicId: defaultClinicId } as OTPFormData);
+      const result = await verifyOTP({
+        ...data,
+        clinicId: defaultClinicId,
+      } as OTPFormData);
       triggerSuccessFlow();
       return result;
     } catch (error) {
@@ -140,15 +177,18 @@ function LoginPageContent() {
           lowerMsg.includes("maximum otp attempts exceeded") ||
           lowerMsg.includes("too many otp requests")
         ) {
-          setAuthError("Maximum OTP attempts exceeded. Please try again in 1 hour.");
-        } else if (
-          lowerMsg.includes("wait") ||
-          lowerMsg.includes("cooldown")
-        ) {
+          setAuthError(
+            "Maximum OTP attempts exceeded. Please try again in 1 hour.",
+          );
+        } else if (lowerMsg.includes("wait") || lowerMsg.includes("cooldown")) {
           // Extract minutes from message like "Please wait 5 minute(s)"
           const minuteMatch = errorMsg.match(/wait\s+(\d+)\s+minute/i);
-          const minutes = minuteMatch ? minuteMatch[1] : '';
-          setAuthError(minutes ? `Please wait ${minutes} minute(s) before requesting another OTP.` : errorMsg);
+          const minutes = minuteMatch ? minuteMatch[1] : "";
+          setAuthError(
+            minutes
+              ? `Please wait ${minutes} minute(s) before requesting another OTP.`
+              : errorMsg,
+          );
         } else if (
           lowerMsg.includes("locked") ||
           lowerMsg.includes("too many attempts")
@@ -158,11 +198,19 @@ function LoginPageContent() {
           setAuthError("User already exists. Please log in instead.");
           showErrorToast("User already exists");
         } else if (lowerMsg.includes("user_not_found")) {
-          setAuthError("User not found. Please check your details or sign up first.");
+          setAuthError(
+            "User not found. Please check your details or sign up first.",
+          );
           showErrorToast("User not found");
-        } else if (lowerMsg.includes("clinic_not_found") || lowerMsg.includes("clinic_id")) {
+        } else if (
+          lowerMsg.includes("clinic_not_found") ||
+          lowerMsg.includes("clinic_id")
+        ) {
           setAuthError("Clinic not found. Please check your clinic selection.");
-        } else if (lowerMsg.includes("expired") || lowerMsg.includes("session")) {
+        } else if (
+          lowerMsg.includes("expired") ||
+          lowerMsg.includes("session")
+        ) {
           setAuthError("OTP has expired. Please request a new one.");
         } else {
           // Show the actual error message for unknown errors
@@ -176,7 +224,8 @@ function LoginPageContent() {
   };
 
   const otpForm = useZodForm(otpSchema, otpMutation, {
-    identifier: otpMethod === "phone" ? loginIdentifiers.phone : loginIdentifiers.email,
+    identifier:
+      otpMethod === "phone" ? loginIdentifiers.phone : loginIdentifiers.email,
     otp: "",
     rememberMe: false,
   });
@@ -187,17 +236,23 @@ function LoginPageContent() {
     setIsSendingOtp(true);
     try {
       setAuthError(null);
-      const result = await requestOTP({ identifier, clinicId: defaultClinicId });
-      // Request succeeded - update both states immediately
+      const result = await requestOTP({
+        identifier,
+        clinicId: defaultClinicId,
+      });
       setIsSendingOtp(false);
-      setLoginFlow((current) => ({ ...current, showOTPInput: true }));
       if (!result.success) {
-        // Edge case: success=false but no error thrown
-        setAuthError(result.message || 'Failed to request OTP');
+        // Display the backend error message (e.g., rate limit, validation errors)
+        setAuthError(result.message || "Failed to request OTP");
+        return;
       }
+      // Request succeeded - show OTP input
+      setLoginFlow((current) => ({ ...current, showOTPInput: true }));
     } catch (error) {
       setIsSendingOtp(false);
-      setAuthError(error instanceof Error ? error.message : "Failed to request OTP");
+      setAuthError(
+        error instanceof Error ? error.message : "Failed to request OTP",
+      );
     } finally {
       requestOtpLockRef.current = false;
     }
@@ -226,15 +281,18 @@ function LoginPageContent() {
           lowerMsg.includes("maximum otp attempts exceeded") ||
           lowerMsg.includes("too many otp requests")
         ) {
-          setAuthError("Maximum OTP attempts exceeded. Please try again in 1 hour.");
-        } else if (
-          lowerMsg.includes("wait") ||
-          lowerMsg.includes("cooldown")
-        ) {
+          setAuthError(
+            "Maximum OTP attempts exceeded. Please try again in 1 hour.",
+          );
+        } else if (lowerMsg.includes("wait") || lowerMsg.includes("cooldown")) {
           // Extract minutes from message like "Please wait 5 minute(s)"
           const minuteMatch = errorMsg.match(/wait\s+(\d+)\s+minute/i);
-          const minutes = minuteMatch ? minuteMatch[1] : '';
-          setAuthError(minutes ? `Please wait ${minutes} minute(s) before requesting another OTP.` : errorMsg);
+          const minutes = minuteMatch ? minuteMatch[1] : "";
+          setAuthError(
+            minutes
+              ? `Please wait ${minutes} minute(s) before requesting another OTP.`
+              : errorMsg,
+          );
         } else if (
           lowerMsg.includes("locked") ||
           lowerMsg.includes("too many attempts")
@@ -244,11 +302,19 @@ function LoginPageContent() {
           setAuthError("User already exists. Please log in instead.");
           showErrorToast("User already exists");
         } else if (lowerMsg.includes("user_not_found")) {
-          setAuthError("User not found. Please check your details or sign up first.");
+          setAuthError(
+            "User not found. Please check your details or sign up first.",
+          );
           showErrorToast("User not found");
-        } else if (lowerMsg.includes("clinic_not_found") || lowerMsg.includes("clinic_id")) {
+        } else if (
+          lowerMsg.includes("clinic_not_found") ||
+          lowerMsg.includes("clinic_id")
+        ) {
           setAuthError("Clinic not found. Please check your clinic selection.");
-        } else if (lowerMsg.includes("expired") || lowerMsg.includes("session")) {
+        } else if (
+          lowerMsg.includes("expired") ||
+          lowerMsg.includes("session")
+        ) {
           setAuthError("OTP has expired. Please request a new one.");
         } else {
           // Show the actual error message for unknown errors
@@ -265,27 +331,29 @@ function LoginPageContent() {
   }
 
   return (
-      <LoginAuthCard
-          uiState={{
-            sessionExpired,
-            isRestoringSession,
-            showOTPInput,
-            isFormDisabled,
-            isRequestingOTP: isSendingOtp,
-            isVerifyingOTP,
-          }}
-        successPhase={successPhase}
-        otpMethod={otpMethod}
-        authError={authError}
-        loginIdentifiers={loginIdentifiers}
-        otpForm={otpForm}
+    <LoginAuthCard
+      uiState={{
+        sessionExpired,
+        isRestoringSession,
+        showOTPInput,
+        isFormDisabled,
+        isRequestingOTP: isSendingOtp,
+        isVerifyingOTP,
+      }}
+      successPhase={successPhase}
+      otpMethod={otpMethod}
+      authError={authError}
+      loginIdentifiers={loginIdentifiers}
+      otpForm={otpForm}
       defaultClinicId={defaultClinicId}
       onBack={() => {
         setLoginFlow((current) => ({ ...current, showOTPInput: false }));
         setAuthError(null);
         otpForm.setValue("otp", "");
       }}
-      onSwitchOtpMethod={(method) => setLoginFlow((current) => ({ ...current, otpMethod: method }))}
+      onSwitchOtpMethod={(method) =>
+        setLoginFlow((current) => ({ ...current, otpMethod: method }))
+      }
       onRequestOTP={handleRequestOTP}
       onVerifyOTP={handleVerifyOTP}
       onOtpChange={(value) => {
@@ -296,8 +364,12 @@ function LoginPageContent() {
       }}
       onSocialSuccess={triggerSuccessFlow}
       onSocialError={(error) => setAuthError(error.message)}
-      onPhoneChange={(value) => dispatchLoginIdentifiers({ type: "set_phone", value })}
-      onEmailChange={(value) => dispatchLoginIdentifiers({ type: "set_email", value })}
+      onPhoneChange={(value) =>
+        dispatchLoginIdentifiers({ type: "set_phone", value })
+      }
+      onEmailChange={(value) =>
+        dispatchLoginIdentifiers({ type: "set_email", value })
+      }
     />
   );
 }
