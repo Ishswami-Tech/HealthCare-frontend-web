@@ -2,7 +2,15 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Mic, MicOff, Video, VideoOff, Shield, ArrowLeft } from "lucide-react";
+import {
+  Loader2,
+  Mic,
+  MicOff,
+  Video,
+  VideoOff,
+  Shield,
+  ArrowLeft,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
@@ -15,7 +23,11 @@ import {
 import { useAppointment } from "@/hooks/query/useAppointments";
 import { useVideoAppointment } from "@/hooks/query/useVideoAppointments";
 import { useAuth } from "@/hooks/auth/useAuth";
-import { formatDateTimeInIST, formatTimeInIST, nowIso } from "@/lib/utils/date-time";
+import {
+  formatDateTimeInIST,
+  formatTimeInIST,
+  nowIso,
+} from "@/lib/utils/date-time";
 import {
   getAppointmentDoctorName,
   getAppointmentPatientName,
@@ -24,7 +36,10 @@ import {
 } from "@/lib/utils/appointmentUtils";
 import { getVideoSessionExitRoute } from "@/lib/utils/video-session-route";
 import { generateVideoToken } from "@/lib/actions/video.server";
-import { VideoAppointmentRoomWorkspace, type VideoRoomAccess } from "@/components/video/VideoAppointmentRoomWorkspace";
+import {
+  VideoAppointmentRoomWorkspace,
+  type VideoRoomAccess,
+} from "@/components/video/VideoAppointmentRoomWorkspace";
 import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
 
 const MEET_MEDIA_BUTTON_ON =
@@ -49,10 +64,10 @@ type VideoAppointmentMeetSessionProps = {
 
 function normalizeAppointment(
   appointment: any,
-  fallbackId: string
+  fallbackId: string,
 ): VideoAppointment | null {
   const resolvedAppointmentId = String(
-    appointment?.appointmentId || fallbackId || appointment?.id || ""
+    appointment?.appointmentId || fallbackId || appointment?.id || "",
   );
 
   if (!resolvedAppointmentId) return null;
@@ -69,7 +84,9 @@ function normalizeAppointment(
   const endTime =
     appointment?.scheduledEndTime ||
     appointment?.endTime ||
-    new Date(new Date(startTime).getTime() + VIDEO_ACTIVE_WINDOW_MS).toISOString();
+    new Date(
+      new Date(startTime).getTime() + VIDEO_ACTIVE_WINDOW_MS,
+    ).toISOString();
 
   return {
     id: resolvedAppointmentId,
@@ -111,8 +128,14 @@ function isMergeableValue(value: unknown): boolean {
   return value !== undefined && value !== null;
 }
 
-function resolveVideoTokenRole(role?: string | null): "patient" | "doctor" | "receptionist" | "clinic_admin" {
-  switch (String(role || "").trim().toUpperCase()) {
+function resolveVideoTokenRole(
+  role?: string | null,
+): "patient" | "doctor" | "receptionist" | "clinic_admin" {
+  switch (
+    String(role || "")
+      .trim()
+      .toUpperCase()
+  ) {
     case "DOCTOR":
     case "ASSISTANT_DOCTOR":
     case "THERAPIST":
@@ -132,14 +155,22 @@ function resolveVideoTokenRole(role?: string | null): "patient" | "doctor" | "re
 
 function resolveVideoProvider(
   accessProvider?: string | null,
-  meetingUrl?: string | null
+  meetingUrl?: string | null,
 ): VideoRoomAccess["provider"] {
-  const normalized = String(accessProvider || "").trim().toLowerCase();
-  if (normalized === "cloudflare" || normalized === "daily" || normalized === "google-meet") {
+  const normalized = String(accessProvider || "")
+    .trim()
+    .toLowerCase();
+  if (
+    normalized === "cloudflare" ||
+    normalized === "daily" ||
+    normalized === "google-meet"
+  ) {
     return normalized;
   }
 
-  const url = String(meetingUrl || "").trim().toLowerCase();
+  const url = String(meetingUrl || "")
+    .trim()
+    .toLowerCase();
   if (url.includes("meet.google.com")) return "google-meet";
   if (url.includes("daily.co")) return "daily";
   return "cloudflare";
@@ -166,9 +197,14 @@ export function VideoAppointmentMeetSession({
   const { replace } = useRouter();
   const { session } = useAuth();
   const resolvedAppointmentId = appointmentId.trim();
-  const { data: appointmentQuery, isPending, error } =
-    useVideoAppointment(resolvedAppointmentId);
-  const { data: appointmentRecordQuery } = useAppointment(resolvedAppointmentId);
+  const {
+    data: appointmentQuery,
+    isPending,
+    error,
+  } = useVideoAppointment(resolvedAppointmentId);
+  const { data: appointmentRecordQuery } = useAppointment(
+    resolvedAppointmentId,
+  );
   type VideoMeetState = {
     isRequesting: boolean;
     permissionError: string | null;
@@ -209,18 +245,29 @@ export function VideoAppointmentMeetSession({
     isJoiningRoom,
     joinedAccess,
   } = uiState;
-  const patchUiState = (patch: Partial<VideoMeetState>) => setUiState((current) => ({ ...current, ...patch }));
-  const setIsRequesting = (value: boolean) => patchUiState({ isRequesting: value });
-  const setPermissionError = (value: string | null) => patchUiState({ permissionError: value });
-  const setVideoDevices = (value: MediaDeviceInfo[]) => patchUiState({ videoDevices: value });
-  const setAudioDevices = (value: MediaDeviceInfo[]) => patchUiState({ audioDevices: value });
-  const setSelectedVideoDeviceId = (value: string) => patchUiState({ selectedVideoDeviceId: value });
-  const setSelectedAudioDeviceId = (value: string) => patchUiState({ selectedAudioDeviceId: value });
-  const setIsAudioEnabled = (value: boolean) => patchUiState({ isAudioEnabled: value });
-  const setIsVideoEnabled = (value: boolean) => patchUiState({ isVideoEnabled: value });
+  const patchUiState = (patch: Partial<VideoMeetState>) =>
+    setUiState((current) => ({ ...current, ...patch }));
+  const setIsRequesting = (value: boolean) =>
+    patchUiState({ isRequesting: value });
+  const setPermissionError = (value: string | null) =>
+    patchUiState({ permissionError: value });
+  const setVideoDevices = (value: MediaDeviceInfo[]) =>
+    patchUiState({ videoDevices: value });
+  const setAudioDevices = (value: MediaDeviceInfo[]) =>
+    patchUiState({ audioDevices: value });
+  const setSelectedVideoDeviceId = (value: string) =>
+    patchUiState({ selectedVideoDeviceId: value });
+  const setSelectedAudioDeviceId = (value: string) =>
+    patchUiState({ selectedAudioDeviceId: value });
+  const setIsAudioEnabled = (value: boolean) =>
+    patchUiState({ isAudioEnabled: value });
+  const setIsVideoEnabled = (value: boolean) =>
+    patchUiState({ isVideoEnabled: value });
   const setIsMirrored = (value: boolean) => patchUiState({ isMirrored: value });
-  const setIsJoiningRoom = (value: boolean) => patchUiState({ isJoiningRoom: value });
-  const setJoinedAccess = (value: VideoRoomAccess | null) => patchUiState({ joinedAccess: value });
+  const setIsJoiningRoom = (value: boolean) =>
+    patchUiState({ isJoiningRoom: value });
+  const setJoinedAccess = (value: VideoRoomAccess | null) =>
+    patchUiState({ joinedAccess: value });
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const mediaStreamRef = React.useRef<MediaStream | null>(null);
   const previewHandedOffRef = React.useRef(false);
@@ -230,11 +277,14 @@ export function VideoAppointmentMeetSession({
       (appointmentRecordQuery as any)?.data ||
       appointmentRecordQuery ||
       null,
-    [appointmentRecordQuery]
+    [appointmentRecordQuery],
   );
   const appointmentConsultationSource = React.useMemo(
-    () => (appointmentQuery as any)?.appointment || (appointmentQuery as any)?.data || null,
-    [appointmentQuery]
+    () =>
+      (appointmentQuery as any)?.appointment ||
+      (appointmentQuery as any)?.data ||
+      null,
+    [appointmentQuery],
   );
   const appointmentDetailsSource = React.useMemo(() => {
     if (appointmentRecordSource && appointmentConsultationSource) {
@@ -243,8 +293,18 @@ export function VideoAppointmentMeetSession({
         ...(appointmentRecordSource as Record<string, unknown>),
       };
 
-      const consultation = appointmentConsultationSource as Record<string, unknown>;
-      const protectedSessionFields = ['roomName', 'meetingUrl', 'roomId', 'meetingId', 'provider', 'token'];
+      const consultation = appointmentConsultationSource as Record<
+        string,
+        unknown
+      >;
+      const protectedSessionFields = [
+        "roomName",
+        "meetingUrl",
+        "roomId",
+        "meetingId",
+        "provider",
+        "token",
+      ];
       for (const key of protectedSessionFields) {
         const value = consultation[key];
         if (isMergeableValue(value)) {
@@ -252,7 +312,11 @@ export function VideoAppointmentMeetSession({
         }
       }
 
-      if (isMergeableValue(consultation.id) && consultation.id !== (appointmentRecordSource as Record<string, unknown>).id) {
+      if (
+        isMergeableValue(consultation.id) &&
+        consultation.id !==
+          (appointmentRecordSource as Record<string, unknown>).id
+      ) {
         merged.sessionId = consultation.id;
       }
 
@@ -272,40 +336,50 @@ export function VideoAppointmentMeetSession({
       appointmentDetailsSource
         ? normalizeAppointment(appointmentDetailsSource, resolvedAppointmentId)
         : null,
-    [appointmentDetailsSource, resolvedAppointmentId]
+    [appointmentDetailsSource, resolvedAppointmentId],
   );
   const videoSessionDecision = React.useMemo(
     () => getVideoSessionDecision(appointmentDetailsSource || appointment),
-    [appointment, appointmentDetailsSource]
+    [appointment, appointmentDetailsSource],
   );
   const meetingUrl = React.useMemo(() => {
-    const raw = (appointmentDetailsSource as { meetingUrl?: unknown } | null | undefined)?.meetingUrl;
+    const raw = (
+      appointmentDetailsSource as { meetingUrl?: unknown } | null | undefined
+    )?.meetingUrl;
     return typeof raw === "string" ? raw.trim() : "";
   }, [appointmentDetailsSource]);
-  const appointmentDoctorName = getAppointmentDoctorName(appointmentDetailsSource);
-  const appointmentPatientName = getAppointmentPatientName(appointmentDetailsSource);
-  const appointmentRecordScheduleSource = appointmentRecordSource as
-    | {
-        appointmentDate?: string;
-        date?: string;
-        time?: string;
-        scheduledFor?: string;
-        scheduledStartTime?: string;
-        scheduledEndTime?: string;
-        startTime?: string;
-        endTime?: string;
-        scheduledTime?: string;
-      }
-    | null;
+  const appointmentDoctorName = getAppointmentDoctorName(
+    appointmentDetailsSource,
+  );
+  const appointmentPatientName = getAppointmentPatientName(
+    appointmentDetailsSource,
+  );
+  const appointmentRecordScheduleSource = appointmentRecordSource as {
+    appointmentDate?: string;
+    date?: string;
+    time?: string;
+    scheduledFor?: string;
+    scheduledStartTime?: string;
+    scheduledEndTime?: string;
+    startTime?: string;
+    endTime?: string;
+    scheduledTime?: string;
+  } | null;
   const appointmentDateValue =
     appointmentRecordScheduleSource?.scheduledStartTime ||
     appointmentRecordScheduleSource?.appointmentDate ||
-    (appointmentRecordScheduleSource?.date && appointmentRecordScheduleSource?.time
+    (appointmentRecordScheduleSource?.date &&
+    appointmentRecordScheduleSource?.time
       ? `${appointmentRecordScheduleSource.date}T${appointmentRecordScheduleSource.time}`
       : "") ||
     appointmentRecordScheduleSource?.scheduledFor ||
     appointmentRecordScheduleSource?.startTime ||
-    (appointmentDetailsSource as { scheduledStartTime?: string } | null | undefined)?.scheduledStartTime ||
+    (
+      appointmentDetailsSource as
+        | { scheduledStartTime?: string }
+        | null
+        | undefined
+    )?.scheduledStartTime ||
     appointmentDetailsSource?.appointmentDate ||
     appointmentDetailsSource?.date ||
     appointmentDetailsSource?.scheduledFor ||
@@ -316,7 +390,12 @@ export function VideoAppointmentMeetSession({
     appointmentRecordScheduleSource?.time ||
     appointmentRecordScheduleSource?.scheduledTime ||
     appointmentRecordScheduleSource?.startTime ||
-    (appointmentDetailsSource as { scheduledStartTime?: string } | null | undefined)?.scheduledStartTime ||
+    (
+      appointmentDetailsSource as
+        | { scheduledStartTime?: string }
+        | null
+        | undefined
+    )?.scheduledStartTime ||
     appointmentDetailsSource?.time ||
     appointmentDetailsSource?.startTime ||
     appointmentDetailsSource?.scheduledTime ||
@@ -330,41 +409,85 @@ export function VideoAppointmentMeetSession({
     ? resolvedAppointmentId.slice(-8).toUpperCase()
     : "TBD";
   const appointmentProvider = String(
-    (appointmentDetailsSource as { provider?: unknown } | null | undefined)?.provider || ""
+    (appointmentDetailsSource as { provider?: unknown } | null | undefined)
+      ?.provider || "",
   )
     .trim()
     .toLowerCase();
-  const isDailyProvider = resolveVideoProvider(
-    appointmentProvider || null,
-    meetingUrl
-  ) === "daily";
-  const meetingUrlLabel =
-    isDailyProvider
-      ? "In-app room available"
-      : meetingUrl.length > 0
-        ? meetingUrl.length > 64
-          ? `${meetingUrl.slice(0, 61)}...`
-          : meetingUrl
-        : "Waiting for the backend to generate a meeting link";
+  const isDailyProvider =
+    resolveVideoProvider(appointmentProvider || null, meetingUrl) === "daily";
+  const meetingUrlLabel = isDailyProvider
+    ? "In-app room available"
+    : meetingUrl.length > 0
+      ? meetingUrl.length > 64
+        ? `${meetingUrl.slice(0, 61)}...`
+        : meetingUrl
+      : "Waiting for the backend to generate a meeting link";
   const appointmentDoctorLabel = appointmentDoctorName || "Doctor assigned";
   const appointmentPatientLabel = appointmentPatientName || "Patient TBD";
-  const viewerRoleNormalized = String(viewerRole || "").trim().toUpperCase();
+  const viewerRoleNormalized = String(viewerRole || "")
+    .trim()
+    .toUpperCase();
   const exitRoute = getVideoSessionExitRoute(viewerRoleNormalized);
   const meetingWithLabel =
     viewerRoleNormalized === "PATIENT"
-      ? appointmentDoctorLabel
-      : viewerRoleNormalized === "DOCTOR" || viewerRoleNormalized === "ASSISTANT_DOCTOR"
-        ? appointmentPatientLabel
+      ? `${appointmentDoctorLabel} (doctor)`
+      : viewerRoleNormalized === "DOCTOR" ||
+          viewerRoleNormalized === "ASSISTANT_DOCTOR"
+        ? `${appointmentPatientLabel} (patient)`
         : appointmentDoctorLabel !== "Doctor TBD"
-          ? appointmentDoctorLabel
+          ? `${appointmentDoctorLabel} (doctor)`
           : appointmentPatientLabel !== "Patient TBD"
-            ? appointmentPatientLabel
+            ? `${appointmentPatientLabel} (patient)`
             : viewerRoleNormalized === "PATIENT"
               ? "Doctor"
-              : viewerRoleNormalized === "DOCTOR" || viewerRoleNormalized === "ASSISTANT_DOCTOR"
+              : viewerRoleNormalized === "DOCTOR" ||
+                  viewerRoleNormalized === "ASSISTANT_DOCTOR"
                 ? "Patient"
                 : "Video appointment";
   const blockedReason = videoSessionDecision.blockedReason || "";
+  const [countdownTime, setCountdownTime] = React.useState<string | null>(null);
+
+  // Calculate countdown timer for "join opens"
+  React.useEffect(() => {
+    const updateCountdown = () => {
+      const normalized = blockedReason.toLowerCase();
+      if (!normalized.includes("join opens") || !appointment?.startTime) {
+        setCountdownTime(null);
+        return;
+      }
+
+      const now = new Date().getTime();
+      const startTime = new Date(appointment.startTime).getTime();
+      // Join opens 10 minutes before the appointment
+      const joinOpenTime = startTime - 10 * 60 * 1000;
+      const timeUntilJoinOpens = joinOpenTime - now;
+
+      if (timeUntilJoinOpens <= 0) {
+        setCountdownTime(null);
+        return;
+      }
+
+      const hours = Math.floor(timeUntilJoinOpens / (1000 * 60 * 60));
+      const minutes = Math.floor(
+        (timeUntilJoinOpens % (1000 * 60 * 60)) / (1000 * 60),
+      );
+      const seconds = Math.floor((timeUntilJoinOpens % (1000 * 60)) / 1000);
+
+      if (hours > 0) {
+        setCountdownTime(`${hours}h ${minutes}m`);
+      } else if (minutes > 0) {
+        setCountdownTime(`${minutes}m ${seconds}s`);
+      } else {
+        setCountdownTime(`${seconds}s`);
+      }
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [blockedReason, appointment?.startTime]);
+
   const sessionStateLabel = React.useMemo(() => {
     const normalized = blockedReason.toLowerCase();
     if (normalized.includes("join opens")) {
@@ -373,7 +496,11 @@ export function VideoAppointmentMeetSession({
     if (normalized.includes("payment is required")) {
       return "Payment required";
     }
-    if (normalized.includes("cancelled") || normalized.includes("completed") || normalized.includes("no-show")) {
+    if (
+      normalized.includes("cancelled") ||
+      normalized.includes("completed") ||
+      normalized.includes("no-show")
+    ) {
       return "This session is closed";
     }
     return "Session unavailable";
@@ -385,20 +512,22 @@ export function VideoAppointmentMeetSession({
 
     const normalized = blockedReason.toLowerCase();
     if (normalized.includes("join opens")) {
-      return "Your appointment is confirmed. Join opens automatically in the allowed window.";
+      return countdownTime
+        ? `Your appointment is confirmed. Join link will be available in ${countdownTime}.`
+        : "Your appointment is confirmed. Join opens automatically in the allowed window.";
     }
     if (normalized.includes("payment is required")) {
       return "The appointment needs a verified payment before video access can open.";
     }
     return blockedReason;
-  }, [blockedReason]);
+  }, [blockedReason, countdownTime]);
 
   const loadPreviewStream = React.useCallback(
     async (
       nextVideoDeviceId: string,
       nextAudioDeviceId: string,
       nextVideoEnabled: boolean,
-      nextAudioEnabled: boolean
+      nextAudioEnabled: boolean,
     ) => {
       const shouldShowLoader = !mediaStreamRef.current;
       if (shouldShowLoader) {
@@ -441,7 +570,10 @@ export function VideoAppointmentMeetSession({
                 : false,
             });
           } catch (combinedErr) {
-            console.warn("[VIDEO] Combined preview capture failed, retrying with video only:", combinedErr);
+            console.warn(
+              "[VIDEO] Combined preview capture failed, retrying with video only:",
+              combinedErr,
+            );
             stream = await navigator.mediaDevices.getUserMedia({
               video: nextVideoDeviceId
                 ? { deviceId: { exact: nextVideoDeviceId } }
@@ -455,19 +587,24 @@ export function VideoAppointmentMeetSession({
 
           if (!hasAudioTrack && nextAudioEnabled) {
             try {
-              const audioOnlyStream = await navigator.mediaDevices.getUserMedia({
-                video: false,
-                audio: nextAudioDeviceId
-                  ? { deviceId: { exact: nextAudioDeviceId } }
-                  : true,
-              });
+              const audioOnlyStream = await navigator.mediaDevices.getUserMedia(
+                {
+                  video: false,
+                  audio: nextAudioDeviceId
+                    ? { deviceId: { exact: nextAudioDeviceId } }
+                    : true,
+                },
+              );
               const audioTrack = audioOnlyStream.getAudioTracks()[0];
               if (audioTrack) {
                 stream.addTrack(audioTrack);
                 hasAudioTrack = true;
               }
             } catch (audioErr) {
-              console.warn("[VIDEO] Microphone preview unavailable, keeping video preview only:", audioErr);
+              console.warn(
+                "[VIDEO] Microphone preview unavailable, keeping video preview only:",
+                audioErr,
+              );
             }
           }
         } else if (nextAudioEnabled) {
@@ -485,8 +622,12 @@ export function VideoAppointmentMeetSession({
         }
 
         const devices = await navigator.mediaDevices.enumerateDevices();
-        const nextVideoDevices = devices.filter((device) => device.kind === "videoinput");
-        const nextAudioDevices = devices.filter((device) => device.kind === "audioinput");
+        const nextVideoDevices = devices.filter(
+          (device) => device.kind === "videoinput",
+        );
+        const nextAudioDevices = devices.filter(
+          (device) => device.kind === "audioinput",
+        );
         const resolvedVideoDeviceId =
           stream.getVideoTracks()[0]?.getSettings()?.deviceId ||
           nextVideoDeviceId ||
@@ -511,7 +652,9 @@ export function VideoAppointmentMeetSession({
           if (video.readyState >= 2) {
             startPlayback();
           } else {
-            video.addEventListener("loadedmetadata", startPlayback, { once: true });
+            video.addEventListener("loadedmetadata", startPlayback, {
+              once: true,
+            });
           }
         }
         setVideoDevices(nextVideoDevices);
@@ -523,10 +666,10 @@ export function VideoAppointmentMeetSession({
       } catch (err) {
         setPermissionError(
           err instanceof Error
-            ? (err.name === "AbortError" || err.message.includes("Timeout"))
+            ? err.name === "AbortError" || err.message.includes("Timeout")
               ? "Your camera took too long to start. Try refreshing or selecting a different device."
               : err.message
-            : "Camera and microphone access is required to join the meeting."
+            : "Camera and microphone access is required to join the meeting.",
         );
       } finally {
         if (shouldShowLoader) {
@@ -534,7 +677,7 @@ export function VideoAppointmentMeetSession({
         }
       }
     },
-    []
+    [],
   );
 
   React.useEffect(() => {
@@ -566,19 +709,34 @@ export function VideoAppointmentMeetSession({
 
   const toggleVideo = () => {
     const next = !isVideoEnabled;
-    void loadPreviewStream(selectedVideoDeviceId, selectedAudioDeviceId, next, isAudioEnabled);
+    void loadPreviewStream(
+      selectedVideoDeviceId,
+      selectedAudioDeviceId,
+      next,
+      isAudioEnabled,
+    );
   };
 
   const handleVideoDeviceChange = (deviceId: string) => {
     const resolvedDeviceId = deviceId === "default-camera" ? "" : deviceId;
     setSelectedVideoDeviceId(resolvedDeviceId);
-    void loadPreviewStream(resolvedDeviceId, selectedAudioDeviceId, isVideoEnabled, isAudioEnabled);
+    void loadPreviewStream(
+      resolvedDeviceId,
+      selectedAudioDeviceId,
+      isVideoEnabled,
+      isAudioEnabled,
+    );
   };
 
   const handleAudioDeviceChange = (deviceId: string) => {
     const resolvedDeviceId = deviceId === "default-mic" ? "" : deviceId;
     setSelectedAudioDeviceId(resolvedDeviceId);
-    void loadPreviewStream(selectedVideoDeviceId, resolvedDeviceId, isVideoEnabled, isAudioEnabled);
+    void loadPreviewStream(
+      selectedVideoDeviceId,
+      resolvedDeviceId,
+      isVideoEnabled,
+      isAudioEnabled,
+    );
   };
 
   const handleJoin = async () => {
@@ -600,11 +758,15 @@ export function VideoAppointmentMeetSession({
       const tokenResult = await generateVideoToken({
         appointmentId: resolvedAppointmentId,
         userId: currentUserId,
-        userRole: resolveVideoTokenRole(viewerRole || session?.user?.role || null),
+        userRole: resolveVideoTokenRole(
+          viewerRole || session?.user?.role || null,
+        ),
         userInfo: {
           displayName:
             session?.user?.name ||
-            [session?.user?.firstName, session?.user?.lastName].filter(Boolean).join(" ") ||
+            [session?.user?.firstName, session?.user?.lastName]
+              .filter(Boolean)
+              .join(" ") ||
             "Participant",
           email: session?.user?.email || "",
         },
@@ -612,29 +774,44 @@ export function VideoAppointmentMeetSession({
 
       const resolvedAccess: VideoRoomAccess = {
         provider: resolveVideoProvider(
-          (tokenResult as { provider?: string | null })?.provider || (appointmentDetailsSource as { provider?: string | null })?.provider,
-          (tokenResult as { meetingUrl?: string | null })?.meetingUrl || meetingUrl
+          (tokenResult as { provider?: string | null })?.provider ||
+            (appointmentDetailsSource as { provider?: string | null })
+              ?.provider,
+          (tokenResult as { meetingUrl?: string | null })?.meetingUrl ||
+            meetingUrl,
         ),
         token: String((tokenResult as { token?: string | null })?.token || ""),
         roomName: String(
           (tokenResult as { roomName?: string | null })?.roomName ||
             appointmentDetailsSource?.roomName ||
             appointmentDoctorLabel ||
-            `Room ${appointmentSessionLabel}`
+            `Room ${appointmentSessionLabel}`,
         ),
-        meetingUrl: String((tokenResult as { meetingUrl?: string | null })?.meetingUrl || meetingUrl),
-        roomId: String((tokenResult as { roomId?: string | null })?.roomId || ""),
-        meetingId: String((tokenResult as { meetingId?: string | null })?.meetingId || ""),
+        meetingUrl: String(
+          (tokenResult as { meetingUrl?: string | null })?.meetingUrl ||
+            meetingUrl,
+        ),
+        roomId: String(
+          (tokenResult as { roomId?: string | null })?.roomId || "",
+        ),
+        meetingId: String(
+          (tokenResult as { meetingId?: string | null })?.meetingId || "",
+        ),
       };
 
-      if (resolvedAccess.provider === "google-meet" && resolvedAccess.meetingUrl) {
+      if (
+        resolvedAccess.provider === "google-meet" &&
+        resolvedAccess.meetingUrl
+      ) {
         window.open(resolvedAccess.meetingUrl, "_blank", "noopener,noreferrer");
       }
 
       setJoinedAccess(resolvedAccess);
     } catch (error) {
       setPermissionError(
-        error instanceof Error ? error.message : "Unable to join the video consultation."
+        error instanceof Error
+          ? error.message
+          : "Unable to join the video consultation.",
       );
     } finally {
       setIsJoiningRoom(false);
@@ -669,7 +846,7 @@ export function VideoAppointmentMeetSession({
       window.close();
       return;
     }
-      replace(exitRoute);
+    replace(exitRoute);
   }, [exitRoute, onBack, replace]);
 
   const handleLeavePreview = () => {
@@ -686,7 +863,7 @@ export function VideoAppointmentMeetSession({
       window.close();
       return;
     }
-      replace(exitRoute);
+    replace(exitRoute);
   };
 
   if (isPending || !appointment || isRequesting) {
@@ -701,7 +878,9 @@ export function VideoAppointmentMeetSession({
           </div>
           <div>
             <p className="text-[16px] font-medium text-white">Getting ready…</p>
-            <p className="mt-1 text-[13px] text-[#9aa0a6]">Preparing your consultation.</p>
+            <p className="mt-1 text-[13px] text-[#9aa0a6]">
+              Preparing your consultation.
+            </p>
           </div>
         </div>
       </div>
@@ -749,7 +928,6 @@ export function VideoAppointmentMeetSession({
 
       {/* Full-height centered on desktop, scrollable column on mobile */}
       <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-0 px-4 py-6 sm:px-6 sm:py-8 lg:min-h-dvh lg:flex-row lg:items-center lg:gap-10 lg:px-10 lg:py-0">
-
         {/* ── Left: Video preview ── */}
         <div className="w-full flex-shrink-0 lg:w-[56%]">
           {/* Video card */}
@@ -771,7 +949,9 @@ export function VideoAppointmentMeetSession({
                   <div className="flex size-28 items-center justify-center rounded-full bg-[#3c4043]">
                     <VideoOff className="size-12 text-[#9aa0a6]" />
                   </div>
-                  <p className="mt-3 text-[13px] text-[#9aa0a6]">Camera is off</p>
+                  <p className="mt-3 text-[13px] text-[#9aa0a6]">
+                    Camera is off
+                  </p>
                 </div>
               )}
 
@@ -781,19 +961,31 @@ export function VideoAppointmentMeetSession({
                   type="button"
                   onClick={toggleAudio}
                   aria-pressed={isAudioEnabled}
-                  aria-label={isAudioEnabled ? "Mute microphone" : "Unmute microphone"}
+                  aria-label={
+                    isAudioEnabled ? "Mute microphone" : "Unmute microphone"
+                  }
                   className={`flex size-14 items-center justify-center rounded-full shadow-lg transition-all ${isAudioEnabled ? "bg-[#3c4043]/90 text-white hover:bg-[#5f6368]" : "bg-[#ea4335] text-white hover:bg-[#d93025]"}`}
                 >
-                  {isAudioEnabled ? <Mic className="size-6" /> : <MicOff className="size-6" />}
+                  {isAudioEnabled ? (
+                    <Mic className="size-6" />
+                  ) : (
+                    <MicOff className="size-6" />
+                  )}
                 </button>
                 <button
                   type="button"
                   onClick={toggleVideo}
                   aria-pressed={isVideoEnabled}
-                  aria-label={isVideoEnabled ? "Turn off camera" : "Turn on camera"}
+                  aria-label={
+                    isVideoEnabled ? "Turn off camera" : "Turn on camera"
+                  }
                   className={`flex size-14 items-center justify-center rounded-full shadow-lg transition-all ${isVideoEnabled ? "bg-[#3c4043]/90 text-white hover:bg-[#5f6368]" : "bg-[#ea4335] text-white hover:bg-[#d93025]"}`}
                 >
-                  {isVideoEnabled ? <Video className="size-6" /> : <VideoOff className="size-6" />}
+                  {isVideoEnabled ? (
+                    <Video className="size-6" />
+                  ) : (
+                    <VideoOff className="size-6" />
+                  )}
                 </button>
               </div>
             </div>
@@ -801,7 +993,10 @@ export function VideoAppointmentMeetSession({
 
           {/* Device selectors — compact */}
           <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
-            <Select value={selectedAudioDeviceId} onValueChange={handleAudioDeviceChange}>
+            <Select
+              value={selectedAudioDeviceId}
+              onValueChange={handleAudioDeviceChange}
+            >
               <SelectTrigger className="h-10 w-full min-w-0 rounded-xl border border-white/10 bg-[#2d2e30] px-3 text-[12px] text-white focus:ring-1 focus:ring-[#8ab4f8]/40 overflow-hidden">
                 <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
                   <Mic className="size-3.5 text-[#9aa0a6] shrink-0" />
@@ -810,12 +1005,24 @@ export function VideoAppointmentMeetSession({
                   </span>
                 </div>
               </SelectTrigger>
-              <SelectContent position="popper" className="rounded-xl border border-white/10 bg-[#2d2e30] text-white">
+              <SelectContent
+                position="popper"
+                className="rounded-xl border border-white/10 bg-[#2d2e30] text-white"
+              >
                 {audioDevices.length === 0 ? (
-                  <SelectItem value="default-mic" className="py-1.5 text-[12px]">Default microphone</SelectItem>
+                  <SelectItem
+                    value="default-mic"
+                    className="py-1.5 text-[12px]"
+                  >
+                    Default microphone
+                  </SelectItem>
                 ) : (
                   audioDevices.map((device, index) => (
-                    <SelectItem key={device.deviceId} value={device.deviceId} className="py-1.5 text-[12px] focus:bg-white/10 focus:text-white">
+                    <SelectItem
+                      key={device.deviceId}
+                      value={device.deviceId}
+                      className="py-1.5 text-[12px] focus:bg-white/10 focus:text-white"
+                    >
                       {device.label || `Microphone ${index + 1}`}
                     </SelectItem>
                   ))
@@ -823,7 +1030,10 @@ export function VideoAppointmentMeetSession({
               </SelectContent>
             </Select>
 
-            <Select value={selectedVideoDeviceId} onValueChange={handleVideoDeviceChange}>
+            <Select
+              value={selectedVideoDeviceId}
+              onValueChange={handleVideoDeviceChange}
+            >
               <SelectTrigger className="h-10 w-full min-w-0 rounded-xl border border-white/10 bg-[#2d2e30] px-3 text-[12px] text-white focus:ring-1 focus:ring-[#8ab4f8]/40 overflow-hidden">
                 <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
                   <Video className="size-3.5 text-[#9aa0a6] shrink-0" />
@@ -832,12 +1042,24 @@ export function VideoAppointmentMeetSession({
                   </span>
                 </div>
               </SelectTrigger>
-              <SelectContent position="popper" className="rounded-xl border border-white/10 bg-[#2d2e30] text-white">
+              <SelectContent
+                position="popper"
+                className="rounded-xl border border-white/10 bg-[#2d2e30] text-white"
+              >
                 {videoDevices.length === 0 ? (
-                  <SelectItem value="default-camera" className="py-1.5 text-[12px]">Default camera</SelectItem>
+                  <SelectItem
+                    value="default-camera"
+                    className="py-1.5 text-[12px]"
+                  >
+                    Default camera
+                  </SelectItem>
                 ) : (
                   videoDevices.map((device, index) => (
-                    <SelectItem key={device.deviceId} value={device.deviceId} className="py-1.5 text-[12px] focus:bg-white/10 focus:text-white">
+                    <SelectItem
+                      key={device.deviceId}
+                      value={device.deviceId}
+                      className="py-1.5 text-[12px] focus:bg-white/10 focus:text-white"
+                    >
                       {device.label || `Camera ${index + 1}`}
                     </SelectItem>
                   ))
@@ -853,23 +1075,29 @@ export function VideoAppointmentMeetSession({
             {sessionStateLabel}
           </h1>
           <p className="mt-2 text-center text-[14px] lg:text-[16px] text-[#9aa0a6] lg:text-left">
-            Meeting with <span className="font-semibold text-white">{meetingWithLabel}</span>
+            Meeting with{" "}
+            <span className="font-semibold text-white">{meetingWithLabel}</span>
           </p>
 
           {/* Provider info — dev only */}
           <div className="mt-3 inline-flex max-w-full items-start gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-left">
             <Shield className="mt-0.5 size-4 shrink-0 text-emerald-300" />
             <p className="text-[12px] leading-5 text-emerald-50/90">
-              Join opens 10 minutes before your visit and stays open for 3 hours after start.
+              Join opens 10 minutes before your visit and stays open for 3 hours
+              after start.
             </p>
           </div>
 
           {process.env.NODE_ENV === "development" && (
             <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
               <span className="text-white/20">·</span>
-              <span className="text-[10px] font-mono text-[#9aa0a6]">{appointmentSessionLabel}</span>
+              <span className="text-[10px] font-mono text-[#9aa0a6]">
+                {appointmentSessionLabel}
+              </span>
               <span className="text-white/20">·</span>
-              <span className="text-[11px] text-[#9aa0a6] truncate min-w-0">{meetingUrlLabel}</span>
+              <span className="text-[11px] text-[#9aa0a6] truncate min-w-0">
+                {meetingUrlLabel}
+              </span>
             </div>
           )}
 
@@ -892,9 +1120,24 @@ export function VideoAppointmentMeetSession({
                 <span className="relative z-10 flex items-center justify-center gap-2">
                   {isJoiningRoom ? (
                     <>
-                      <svg className="size-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      <svg
+                        className="size-4 animate-spin"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                        />
                       </svg>
                       Joining…
                     </>
@@ -936,12 +1179,19 @@ export function VideoAppointmentMeetSession({
           {/* Footer info */}
           <div className="mt-8 flex flex-col items-center gap-1.5 text-[12px] text-[#5f6368] lg:items-start">
             {appointmentTimeSlotLabel !== "TBD" && (
-              <p className="text-[#9aa0a6]">Scheduled: <span className="text-white/70">{appointmentTimeSlotLabel}</span></p>
+              <p className="text-[#9aa0a6]">
+                Scheduled:{" "}
+                <span className="text-white/70">
+                  {appointmentTimeSlotLabel}
+                </span>
+              </p>
             )}
             <p className="flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
               <Shield className="size-3.5 text-[#34a853]" />
               <span className="text-[#34a853]">Secure</span>
-              <span className="text-[#5f6368]">Session: {appointmentSessionLabel}</span>
+              <span className="text-[#5f6368]">
+                Session: {appointmentSessionLabel}
+              </span>
             </p>
           </div>
         </div>
@@ -949,7 +1199,3 @@ export function VideoAppointmentMeetSession({
     </div>
   );
 }
-
-
-
-
