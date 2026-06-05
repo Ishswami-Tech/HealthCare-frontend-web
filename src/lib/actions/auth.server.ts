@@ -988,6 +988,10 @@ export async function setSession(data: {
     throw new Error('Invalid session data');
   }
 
+  // Always prefer JWT-derived clinic ID over user payload or cookie value
+  const jwtClinicId = extractClinicIdFromTokenValue(accessTokenValue);
+  const resolvedClinicId = normalizeClinicId(jwtClinicId || data.user?.clinicId || (data.user as any).primaryClinicId);
+
   const session: Session = {
     access_token: accessTokenValue,
     session_id: sessionIdValue,
@@ -1004,7 +1008,7 @@ export async function setSession(data: {
       address: data.user.address || '',
       isVerified: data.user.isVerified || false,
       profileComplete: resolveProfileComplete(data.user as unknown as Record<string, unknown>),
-      clinicId: normalizeClinicId(data.user.clinicId)
+      clinicId: resolvedClinicId
     },
     isAuthenticated: true
   };
@@ -1040,12 +1044,10 @@ export async function setSession(data: {
     ...cookieOptions(),
   });
 
-  const normalizedClinicId = normalizeClinicId(data.user.clinicId);
-
-  if (normalizedClinicId) {
+  if (resolvedClinicId) {
     cookieStore.set({
       name: 'clinic_id',
-      value: normalizedClinicId,
+      value: resolvedClinicId,
       ...cookieOptions(),
     });
   }
@@ -1714,11 +1716,11 @@ async function setAuthCookies(data: {
     });
   }
 
+  // Always prefer JWT-derived clinic ID over user payload or cookie value
   const normalizedClinicId = normalizeClinicId(
-    data.user?.clinicId ||
-      (data.user as { primaryClinicId?: string } | undefined)?.primaryClinicId ||
-      extractClinicIdFromTokenValue(accessTokenValue)
-    // NO FALLBACK - only set cookie if we have a real clinicId
+    extractClinicIdFromTokenValue(accessTokenValue) ||
+      data.user?.clinicId ||
+      (data.user as { primaryClinicId?: string } | undefined)?.primaryClinicId
   );
 
   if (normalizedClinicId) {

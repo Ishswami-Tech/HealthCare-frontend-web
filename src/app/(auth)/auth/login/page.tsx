@@ -87,14 +87,19 @@ function LoginPageContent() {
   } = useAuth();
 
   // Reset state when user is not authenticated (e.g., after logout)
+  // Use a ref to avoid flickering on mobile when session briefly becomes null during re-renders
+  const prevSessionRef = useRef(session?.user);
   useEffect(() => {
-    if (!session?.user && !isRestoringSession) {
+    // Only reset if session was previously set and is now gone (actual logout)
+    // Don't reset on initial mount or transient null states
+    if (prevSessionRef.current && !session?.user && !isRestoringSession) {
       setLoginFlow({ showOTPInput: false, otpMethod: "phone" });
       setSuccessPhase("none");
       setAuthError(null);
       setIsSendingOtp(false);
       requestOtpLockRef.current = false;
     }
+    prevSessionRef.current = session?.user;
   }, [session?.user, isRestoringSession]);
 
   const [loginIdentifiers, dispatchLoginIdentifiers] = useReducer(
@@ -223,12 +228,17 @@ function LoginPageContent() {
     }
   };
 
-  const otpForm = useZodForm(otpSchema, otpMutation, {
-    identifier:
-      otpMethod === "phone" ? loginIdentifiers.phone : loginIdentifiers.email,
-    otp: "",
-    rememberMe: false,
-  });
+  const otpFormDefaults = useMemo(
+    () => ({
+      identifier:
+        otpMethod === "phone" ? loginIdentifiers.phone : loginIdentifiers.email,
+      otp: "",
+      rememberMe: false,
+    }),
+    [],
+  ); // Empty deps - only set initial defaults once, form.setValue handles updates
+
+  const otpForm = useZodForm(otpSchema, otpMutation, otpFormDefaults);
 
   const handleRequestOTP = async (identifier: string) => {
     if (requestOtpLockRef.current || isSendingOtp) return;
