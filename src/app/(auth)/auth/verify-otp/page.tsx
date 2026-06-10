@@ -20,6 +20,9 @@ import { useAuthForm } from "@/hooks/auth/useAuth";
 import { TOAST_IDS } from "@/hooks/utils/use-toast";
 import { ROUTES } from "@/lib/config/routes";
 import { OtpCodeInput } from "@/components/auth/otp-code-input";
+import { resolveRedirect, type RedirectContext } from "@/lib/utils/redirect";
+import { useAuthStore } from "@/stores/auth.store";
+import { Role } from "@/types/auth.types";
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -171,7 +174,30 @@ function VerifyOTPPageContent() {
       if (!result) {
         return;
       }
+      // Trigger success flow to show toast/redirect UI
       triggerSuccessFlow();
+
+      // Perform redirect after showing success UI
+      setTimeout(() => {
+        // Get session from store for redirect
+        const session = useAuthStore.getState().session;
+        if (session?.user) {
+          const currentPath = typeof window !== 'undefined' ? window.location.pathname : undefined;
+          const redirectContext: RedirectContext = {
+            user: {
+              role: session.user.role as Role,
+              profileComplete: session.user.profileComplete,
+            },
+            isAuthenticated: true,
+            currentPath,
+          };
+          const redirect = resolveRedirect(redirectContext);
+          push(redirect.path);
+        } else {
+          // Fallback to home - auth layout will handle redirect
+          push(ROUTES.HOME);
+        }
+      }, 100);
     },
     {
       identifier: email,

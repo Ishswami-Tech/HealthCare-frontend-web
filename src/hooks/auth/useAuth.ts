@@ -629,25 +629,8 @@ export function useAuth() {
         resetQueryCacheForAuthTransition(sessionData);
         void prefetchAuthenticatedWorkspace(clinicId, sessionData.session_id || sessionData.user.id || 'guest');
 
-        // ✅ Use centralized redirect utility
-        const currentPath = typeof window !== 'undefined' ? window.location.pathname : undefined;
-        // ... (rest of function)
-        const redirectContext: RedirectContext = {
-          user: {
-            role: data.user.role as Role,
-            profileComplete,
-          },
-          isAuthenticated: true,
-        };
-        if (currentPath) {
-          redirectContext.currentPath = currentPath;
-        }
-        if (data.redirectUrl) {
-          redirectContext.redirectUrl = data.redirectUrl;
-        }
-        const redirect = resolveRedirect(redirectContext);
-
-        router.push(redirect.path);
+        // ✅ Redirect logic moved to page component to avoid race conditions
+        // The page will handle navigation after receiving the result
       },
       onError: (error) => {
         if (process.env.NODE_ENV === 'development') {
