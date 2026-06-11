@@ -119,6 +119,8 @@ export interface User {
   name?: string | undefined;
   isVerified?: boolean | undefined;
   profileComplete?: boolean | undefined;
+  isProfileComplete?: boolean | undefined;
+  requiresProfileCompletion?: boolean | undefined;
   profilePicture?: string | undefined;
   googleId?: string | undefined;
   phone?: string | undefined;

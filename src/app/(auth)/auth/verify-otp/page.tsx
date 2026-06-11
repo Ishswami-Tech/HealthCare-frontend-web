@@ -177,27 +177,27 @@ function VerifyOTPPageContent() {
       // Trigger success flow to show toast/redirect UI
       triggerSuccessFlow();
 
-      // Perform redirect after showing success UI
-      setTimeout(() => {
-        // Get session from store for redirect
-        const session = useAuthStore.getState().session;
-        if (session?.user) {
-          const currentPath = typeof window !== 'undefined' ? window.location.pathname : undefined;
-          const redirectContext: RedirectContext = {
-            user: {
-              role: session.user.role as Role,
-              profileComplete: session.user.profileComplete,
-            },
-            isAuthenticated: true,
-            currentPath,
-          };
-          const redirect = resolveRedirect(redirectContext);
-          push(redirect.path);
-        } else {
-          // Fallback to home - auth layout will handle redirect
-          push(ROUTES.HOME);
-        }
-      }, 100);
+      // Use the result directly to determine redirect
+      // This ensures we use the server response, not stale store state
+      const user = result?.user;
+      const currentPath = typeof window !== 'undefined' ? window.location.pathname : undefined;
+
+      if (user) {
+        const redirectContext: RedirectContext = {
+          user: {
+            role: user.role as Role,
+            profileComplete: user.profileComplete ?? user.isProfileComplete ?? !user.requiresProfileCompletion,
+          },
+          isAuthenticated: true,
+          currentPath,
+        };
+        const redirect = resolveRedirect(redirectContext);
+        // Wait a bit to let the toast display then redirect
+        setTimeout(() => push(redirect.path), 100);
+      } else {
+        // Fallback to home - auth layout will handle redirect
+        setTimeout(() => push(ROUTES.HOME), 100);
+      }
     },
     {
       identifier: email,

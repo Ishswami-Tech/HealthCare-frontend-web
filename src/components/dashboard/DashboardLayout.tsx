@@ -73,9 +73,10 @@ function resolveDisplayNameAndInitials(user: {
   }
 
   // No valid name or email found
+  // Show a friendly prompt so the user knows they need to complete their profile.
   return {
-    displayName: "User",
-    initials: "U",
+    displayName: "New Patient",
+    initials: "NP",
   };
 }
 

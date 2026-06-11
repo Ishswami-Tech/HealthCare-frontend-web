@@ -746,7 +746,7 @@ export async function getServerSession(): Promise<Session | null> {
             sessionId,
             hasPayload: !!payload,
           });
-          session.user.profileComplete = authoritativeProfileComplete || profileComplete;
+          session.user.profileComplete = authoritativeProfileComplete ?? profileComplete;
           return session;
         }
         if (response.status === 401) {
@@ -773,6 +773,11 @@ export async function getServerSession(): Promise<Session | null> {
         authoritativeProfileComplete = true;
       }
 
+      // The backend's `resolveProfileComplete` is the source of truth.
+      // Do NOT use `||` to combine sources — if any source says `true`, the cookie gets stuck at `true`
+      // and the user can never be redirected to profile completion even when the actual data is empty.
+      const finalProfileComplete = resolvedFromUserData ?? authoritativeProfileComplete ?? profileComplete;
+
       return {
         user: {
           id: userData.id,
@@ -786,7 +791,7 @@ export async function getServerSession(): Promise<Session | null> {
           gender: userData.gender || '',
           address: userData.address || '',
           isVerified: userData.isVerified || true,
-          profileComplete: authoritativeProfileComplete || resolvedFromUserData || profileComplete,
+          profileComplete: finalProfileComplete,
           clinicId: userData.clinicId || userData.primaryClinicId
         },
         access_token: accessToken,

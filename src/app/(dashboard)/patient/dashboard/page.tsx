@@ -106,6 +106,7 @@ export default function PatientDashboard() {
     firstName?: string | undefined;
     lastName?: string | undefined;
     name?: string | undefined;
+    phone?: string | undefined;
   } | null | undefined) => {
     const fullName = [value?.firstName, value?.lastName].filter(Boolean).join(" ").trim();
     if (fullName) {
@@ -119,7 +120,9 @@ export default function PatientDashboard() {
       return fallbackName;
     }
 
-    return "Patient";
+    // No name set yet. Show a friendly prompt to complete the profile
+    // instead of a generic "Patient" placeholder.
+    return "New Patient";
   };
 
   // Transform real data
@@ -431,6 +434,25 @@ export default function PatientDashboard() {
 
   return (
         <PatientPageShell className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+          {/* Profile completion banner — only for patients missing name fields */}
+          {(!user?.firstName && !user?.lastName) && (
+            <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
+              <div>
+                <p className="font-semibold">Complete your profile</p>
+                <p className="text-xs text-amber-800/80 dark:text-amber-300/80">
+                  Add your name and basic details so your doctors can identify you.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 self-start rounded-lg border-amber-300 bg-white px-3 text-amber-900 hover:bg-amber-100 sm:self-auto dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
+                onClick={() => push("/profile-completion")}
+              >
+                Complete now
+              </Button>
+            </div>
+          )}
           <PatientPageHeader
             eyebrow="Patient Dashboard"
             title={`${t("dashboard.welcomeBack")}, ${patientData.personalInfo.name}`}
