@@ -564,11 +564,23 @@ function ProfileCompletionFormContent({
       }
     } else if (isEmailOtpLogin || isGoogleLogin) {
       // For email OTP/Google login, if phone is verified and user changes it, require re-verification
-      if (isPhoneVerified && watchedPhone !== pendingPhone && watchedPhone.trim()) {
+      if (
+        isPhoneVerified &&
+        watchedPhone !== pendingPhone &&
+        watchedPhone.trim()
+      ) {
         setIsPhoneVerified(false);
       }
     }
-  }, [watchedPhone, sessionUser?.phone, pendingPhone, isPhoneOtpLogin, isEmailOtpLogin, isGoogleLogin, isPhoneVerified]);
+  }, [
+    watchedPhone,
+    sessionUser?.phone,
+    pendingPhone,
+    isPhoneOtpLogin,
+    isEmailOtpLogin,
+    isGoogleLogin,
+    isPhoneVerified,
+  ]);
 
   useEffect(() => {
     if (!sessionUser || hasInitializedRef.current) return;
@@ -740,7 +752,9 @@ function ProfileCompletionFormContent({
     // Backend is the single source of truth for profile completion.
     // It returns a top-level `profileComplete` flag (in addition to the user
     // data in `data`) and refreshes the auth cookies / JWT when complete.
-    const isProfileCompleteFromBackend = response?.profileComplete === true || response?.isProfileComplete === true;
+    const isProfileCompleteFromBackend =
+      response?.profileComplete === true ||
+      response?.isProfileComplete === true;
 
     if (isProfileCompleteFromBackend) {
       // Backend confirmed profile is complete - update frontend state
@@ -757,18 +771,19 @@ function ProfileCompletionFormContent({
 
       const responseUserData = response?.data;
       const backendProfileComplete = isProfileCompleteFromBackend;
-      const updatedUser = responseUserData && typeof responseUserData === "object"
-        ? {
-            ...source.user,
-            ...(responseUserData as Record<string, unknown>),
-            profileComplete: backendProfileComplete,
-            isProfileComplete: backendProfileComplete,
-          }
-        : {
-            ...source.user,
-            profileComplete: backendProfileComplete,
-            isProfileComplete: backendProfileComplete,
-          };
+      const updatedUser =
+        responseUserData && typeof responseUserData === "object"
+          ? {
+              ...source.user,
+              ...(responseUserData as Record<string, unknown>),
+              profileComplete: backendProfileComplete,
+              isProfileComplete: backendProfileComplete,
+            }
+          : {
+              ...source.user,
+              profileComplete: backendProfileComplete,
+              isProfileComplete: backendProfileComplete,
+            };
 
       return { ...source, user: updatedUser };
     });
@@ -795,9 +810,12 @@ function ProfileCompletionFormContent({
         } else {
           const userRole = sessionUser?.role as Role;
           // Only use redirectUrl if it's not "/" and not an auth route
-          const safeRedirectUrl = redirectUrl && redirectUrl !== "/" && !redirectUrl.startsWith('/auth/')
-            ? redirectUrl
-            : undefined;
+          const safeRedirectUrl =
+            redirectUrl &&
+            redirectUrl !== "/" &&
+            !redirectUrl.startsWith("/auth/")
+              ? redirectUrl
+              : undefined;
           const finalRedirect = getProfileCompletionRedirectUrl(
             userRole,
             safeRedirectUrl,
@@ -834,10 +852,15 @@ function ProfileCompletionFormContent({
       // Validation: For email OTP and Google login, phone must be verified
       // Check if user entered a phone but hasn't verified it yet
       const hasEnteredPhone = data.phone?.trim() && !isPhoneOtpLogin;
-      if ((isEmailOtpLogin || isGoogleLogin) && hasEnteredPhone && !isPhoneVerified) {
+      if (
+        (isEmailOtpLogin || isGoogleLogin) &&
+        hasEnteredPhone &&
+        !isPhoneVerified
+      ) {
         form.setError("phone", {
           type: "manual",
-          message: "Please verify your phone number via OTP before completing the profile.",
+          message:
+            "Please verify your phone number via OTP before completing the profile.",
         });
         return;
       }
@@ -859,7 +882,7 @@ function ProfileCompletionFormContent({
       // For other methods, include email from form if provided
       const resolvedEmail = isPhoneOtpLogin
         ? undefined // Phone OTP users cannot update email through profile form
-        : (isEmailOtpLogin || isGoogleLogin)
+        : isEmailOtpLogin || isGoogleLogin
           ? sessionUser?.email
           : data.email?.trim() || undefined;
 
@@ -876,8 +899,17 @@ function ProfileCompletionFormContent({
         // Only include address if it's not empty
         ...(data.address?.trim() ? { address: data.address } : {}),
         phoneVerified: isPhoneVerified,
-        emailVerified: isEmailVerified,
+        // emailVerified is intentionally not sent — the User table has no
+        // `emailVerified` column, so the backend silently drops it. The DTO
+        // was cleaned up to no longer accept this field.
         ...(sessionUser?.clinicId ? { clinicId: sessionUser.clinicId } : {}),
+        // Include clinicName and clinicAddress when provided
+        ...(data.clinicName?.trim()
+          ? { clinicName: data.clinicName.trim() }
+          : {}),
+        ...(data.clinicAddress?.trim()
+          ? { clinicAddress: data.clinicAddress.trim() }
+          : {}),
       };
 
       if (!data.firstName?.trim() || !data.lastName?.trim()) {
@@ -931,34 +963,41 @@ function ProfileCompletionFormContent({
       );
 
       // Helper function to extract field-level validation errors from various error structures
-      const extractFieldErrors = (err: unknown): Array<{ field: string; message: string }> | null => {
-        if (!err || typeof err !== 'object') return null;
+      const extractFieldErrors = (
+        err: unknown,
+      ): Array<{ field: string; message: string }> | null => {
+        if (!err || typeof err !== "object") return null;
 
         const record = err as Record<string, unknown>;
 
         // Check for validationErrors array (from our server action)
-        if (Array.isArray(record.validationErrors) && record.validationErrors.length > 0) {
-          return record.validationErrors.map((e: { field: string; constraints: Record<string, string> }) => ({
-            field: e.field,
-            message: Object.values(e.constraints)[0] || 'Invalid value'
-          }));
+        if (
+          Array.isArray(record.validationErrors) &&
+          record.validationErrors.length > 0
+        ) {
+          return record.validationErrors.map(
+            (e: { field: string; constraints: Record<string, string> }) => ({
+              field: e.field,
+              message: Object.values(e.constraints)[0] || "Invalid value",
+            }),
+          );
         }
 
         // Check for errors array (common backend pattern)
         if (Array.isArray(record.errors) && record.errors.length > 0) {
           return record.errors.map((e: Record<string, unknown>) => ({
-            field: String(e.field || e.property || ''),
-            message: String(e.message || 'Invalid value')
+            field: String(e.field || e.property || ""),
+            message: String(e.message || "Invalid value"),
           }));
         }
 
         // Check for details nested object
-        if (record.details && typeof record.details === 'object') {
+        if (record.details && typeof record.details === "object") {
           return extractFieldErrors(record.details);
         }
 
         // Check for response nested object (axios-style errors)
-        if (record.response && typeof record.response === 'object') {
+        if (record.response && typeof record.response === "object") {
           return extractFieldErrors(record.response);
         }
 
@@ -983,7 +1022,9 @@ function ProfileCompletionFormContent({
         const msg = error.message;
 
         // Try to parse JSON errors embedded in message
-        const jsonMatch = msg.match(/\{[\s\S]*"errors"[\s\S]*\}/i) || msg.match(/\{[\s\S]*"validationErrors"[\s\S]*\}/i);
+        const jsonMatch =
+          msg.match(/\{[\s\S]*"errors"[\s\S]*\}/i) ||
+          msg.match(/\{[\s\S]*"validationErrors"[\s\S]*\}/i);
         if (jsonMatch) {
           try {
             const errorData = JSON.parse(jsonMatch[0]);
