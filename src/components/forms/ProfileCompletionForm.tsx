@@ -384,7 +384,8 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
 function ProfileCompletionFormContent({
   onComplete,
 }: ProfileCompletionFormProps) {
-  const { push } = useRouter();
+  const router = useRouter();
+  const { push } = router;
   const searchParams = useSearchParams();
   const { session } = useAuth();
   const sessionUser = session?.user;
@@ -613,8 +614,9 @@ function ProfileCompletionFormContent({
     try {
       const phone = formatPhoneNumber(form.getValues("phone"));
       if (!phone) {
-        showErrorToast("Enter a phone number first.", {
-          id: TOAST_IDS.PROFILE.COMPLETE,
+        form.setError("phone", {
+          type: "manual",
+          message: "Enter a phone number first.",
         });
         return;
       }
@@ -622,8 +624,9 @@ function ProfileCompletionFormContent({
       // Validate phone length for OTP
       const phoneDigits = phone.replace(/[^\d]/g, "");
       if (phoneDigits.length < 10) {
-        showErrorToast("Please enter a valid phone number with country code.", {
-          id: TOAST_IDS.PROFILE.COMPLETE,
+        form.setError("phone", {
+          type: "manual",
+          message: "Please enter a valid phone number with country code.",
         });
         return;
       }
@@ -635,21 +638,18 @@ function ProfileCompletionFormContent({
       });
       setPendingPhone(phone);
       setShowOtpModal(true);
-      showSuccessToast("OTP sent to your phone.", {
-        id: TOAST_IDS.PROFILE.COMPLETE,
-      });
+      form.clearErrors("phone");
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       const errorLower = errorMessage.toLowerCase();
 
       if (errorLower.includes("user") && errorLower.includes("not found")) {
-        showErrorToast(
-          "This phone is not linked yet. Please try a different number or continue with OTP sign-up.",
-          {
-            id: TOAST_IDS.PROFILE.COMPLETE,
-          },
-        );
+        form.setError("phone", {
+          type: "server",
+          message:
+            "This phone is not linked yet. Please try a different number or continue with OTP sign-up.",
+        });
       } else if (
         errorLower.includes("expired") ||
         errorLower.includes("unauthorized")
@@ -660,19 +660,15 @@ function ProfileCompletionFormContent({
         });
         window.location.href = "/auth/login";
       } else if (errorLower.includes("rate limit")) {
-        showErrorToast(
-          "Too many requests. Please wait a moment and try again.",
-          {
-            id: TOAST_IDS.PROFILE.COMPLETE,
-          },
-        );
+        form.setError("phone", {
+          type: "server",
+          message: "Too many requests. Please wait a moment and try again.",
+        });
       } else {
-        showErrorToast(
-          errorMessage || "Failed to send OTP. Please try again.",
-          {
-            id: TOAST_IDS.PROFILE.COMPLETE,
-          },
-        );
+        form.setError("phone", {
+          type: "server",
+          message: errorMessage || "Failed to send OTP. Please try again.",
+        });
       }
     } finally {
       setIsSendingOtp(false);
@@ -690,6 +686,8 @@ function ProfileCompletionFormContent({
       success?: boolean;
       error?: string;
       data?: any;
+      profileComplete?: boolean;
+      isProfileComplete?: boolean;
       validationErrors?: Array<{
         field: string;
         constraints: Record<string, string>;
@@ -728,18 +726,21 @@ function ProfileCompletionFormContent({
         }
       }
 
-      showErrorToast(response?.error || "Failed to complete profile", {
-        id: TOAST_IDS.PROFILE.COMPLETE,
+      // Show non-field-level failures as a form-wide error
+      form.setError("root", {
+        type: "server",
+        message: response?.error || "Failed to complete profile",
       });
       return;
     }
 
-    showSuccessToast("Profile completed successfully!", {
-      id: TOAST_IDS.PROFILE.COMPLETE,
-    });
+    // Clear any previous form-level error from an earlier failed submit.
+    form.clearErrors("root");
 
-    // Use backend's response for profileComplete status
-    const isProfileCompleteFromBackend = response?.data?.profileComplete === true || response?.data?.isProfileComplete === true;
+    // Backend is the single source of truth for profile completion.
+    // It returns a top-level `profileComplete` flag (in addition to the user
+    // data in `data`) and refreshes the auth cookies / JWT when complete.
+    const isProfileCompleteFromBackend = response?.profileComplete === true || response?.isProfileComplete === true;
 
     if (isProfileCompleteFromBackend) {
       // Backend confirmed profile is complete - update frontend state
@@ -747,23 +748,27 @@ function ProfileCompletionFormContent({
       setProfileCompletion(true, false);
     }
 
-    // Update the full session with user data from response (including clinicId)
+    // Update the full session with user data from response (including clinicId).
+    // Backend is the source of truth: the action returns the updated user
+    // object inside `data` and exposes the completion flag at the top level.
     queryClient.setQueryData<Session | null>(["session"], (current) => {
       const source = current || session;
       if (!source?.user) return source;
 
-      // Merge the updated user data from response (backend returns user in 'data' field)
-      // Use backend's profileComplete status, not hardcoded value
       const responseUserData = response?.data;
-      const backendProfileComplete = responseUserData?.profileComplete === true || responseUserData?.isProfileComplete === true;
-      const updatedUser = responseUserData
+      const backendProfileComplete = isProfileCompleteFromBackend;
+      const updatedUser = responseUserData && typeof responseUserData === "object"
         ? {
             ...source.user,
-            ...responseUserData,
+            ...(responseUserData as Record<string, unknown>),
             profileComplete: backendProfileComplete,
             isProfileComplete: backendProfileComplete,
           }
-        : { ...source.user, profileComplete: backendProfileComplete, isProfileComplete: backendProfileComplete };
+        : {
+            ...source.user,
+            profileComplete: backendProfileComplete,
+            isProfileComplete: backendProfileComplete,
+          };
 
       return { ...source, user: updatedUser };
     });
@@ -782,31 +787,44 @@ function ProfileCompletionFormContent({
       queryClient.invalidateQueries({ queryKey: [key] });
     });
 
-    // Only redirect if backend confirmed profile is complete
     if (isProfileCompleteFromBackend) {
-      setTimeout(() => {
-        try {
-          if (onComplete) {
-            onComplete();
-          } else {
-            const userRole = sessionUser?.role as Role;
-            // Only use redirectUrl if it's not "/" and not an auth route
-            const safeRedirectUrl = redirectUrl && redirectUrl !== "/" && !redirectUrl.startsWith('/auth/')
-              ? redirectUrl
-              : undefined;
-            const finalRedirect = getProfileCompletionRedirectUrl(
-              userRole,
-              safeRedirectUrl,
-            );
-            window.location.replace(finalRedirect);
-          }
-        } catch (_redirectError) {
-          showErrorToast(
-            "Profile was updated but there was an error redirecting. Please try navigating manually.",
-            { id: TOAST_IDS.PROFILE.COMPLETE },
+      // Backend confirmed completion - redirect to the right destination.
+      try {
+        if (onComplete) {
+          onComplete();
+        } else {
+          const userRole = sessionUser?.role as Role;
+          // Only use redirectUrl if it's not "/" and not an auth route
+          const safeRedirectUrl = redirectUrl && redirectUrl !== "/" && !redirectUrl.startsWith('/auth/')
+            ? redirectUrl
+            : undefined;
+          const finalRedirect = getProfileCompletionRedirectUrl(
+            userRole,
+            safeRedirectUrl,
           );
+          // Refresh server components so they pick up the new auth cookies
+          // (the backend regenerates the JWT on profile completion) and then
+          // navigate to the destination.
+          router.refresh();
+          push(finalRedirect);
         }
-      }, 1500);
+      } catch (_redirectError) {
+        form.setError("root", {
+          type: "server",
+          message:
+            "Profile was updated but there was an error redirecting. Please try navigating manually.",
+        });
+      }
+    } else {
+      // Backend reported success but did not confirm completion.
+      // This usually means required fields (firstName, lastName, phone) are
+      // still missing or the phone isn't verified - surface that to the user.
+      form.setError("root", {
+        type: "server",
+        message:
+          response?.error ||
+          "Profile was saved, but the server could not confirm completion. Please verify your name and phone number, then try again.",
+      });
     }
   };
 
@@ -1008,15 +1026,15 @@ function ProfileCompletionFormContent({
             { id: TOAST_IDS.GLOBAL.ERROR, duration: 5000 },
           );
         } else {
-          showErrorToast(msg || "Failed to complete profile. Please try again.", {
-            id: TOAST_IDS.PROFILE.COMPLETE,
-            duration: 5000,
+          form.setError("root", {
+            type: "server",
+            message: msg || "Failed to complete profile. Please try again.",
           });
         }
       } else {
-        showErrorToast("Failed to complete profile. Please try again.", {
-          id: TOAST_IDS.PROFILE.COMPLETE,
-          duration: 5000,
+        form.setError("root", {
+          type: "server",
+          message: "Failed to complete profile. Please try again.",
         });
       }
     } finally {
@@ -1062,6 +1080,14 @@ function ProfileCompletionFormContent({
         <CardContent className="px-5 pb-5 sm:px-6 sm:pb-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+              {form.formState.errors.root?.message ? (
+                <div
+                  role="alert"
+                  className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                >
+                  {form.formState.errors.root.message}
+                </div>
+              ) : null}
               {/* â”€â”€ Basic Information â”€â”€ */}
               <section className="space-y-4">
                 <h3 className="text-sm font-medium text-foreground">
