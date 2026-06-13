@@ -43,7 +43,12 @@ export async function getSupportRequests(
       type: entry.type || 'General Support',
       status: entry.status || 'pending',
       priority: entry.priority || 'normal',
-      requesterName: entry.patient?.name || entry.patientName || 'Unknown',
+      requesterName:
+        entry.patient?.name ||
+        entry.patient?.user?.name ||
+        entry.patientName ||
+        `${entry.patient?.firstName || entry.patient?.user?.firstName || ""} ${entry.patient?.lastName || entry.patient?.user?.lastName || ""}`.trim() ||
+        'Unknown',
       patient: entry.patient,
       createdAt: entry.createdAt,
       updatedAt: entry.updatedAt,

@@ -763,10 +763,10 @@ export function VideoAppointmentMeetSession({
         ),
         userInfo: {
           displayName:
-            session?.user?.name ||
             [session?.user?.firstName, session?.user?.lastName]
               .filter(Boolean)
               .join(" ") ||
+            session?.user?.name ||
             "Participant",
           email: session?.user?.email || "",
         },

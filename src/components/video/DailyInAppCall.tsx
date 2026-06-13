@@ -166,8 +166,12 @@ function resolveParticipantName(
     typed?.displayName ||
     typed?.name ||
     (userData as any)?.displayName ||
-    (userData as any)?.name;
-  const generic = ["Participant", "Guest", "Unknown", "User"];
+    (userData as any)?.name ||
+    typed?.doctorName ||
+    typed?.patientName ||
+    (userData as any)?.doctorName ||
+    (userData as any)?.patientName;
+  const generic = ["Participant", "Guest", "Unknown", "User", "Doctor", "Patient"];
   return (
     fromData ||
     (rawUserName && !generic.includes(rawUserName) ? rawUserName : undefined) ||

@@ -268,11 +268,13 @@ function normalizePrescription(raw: any): PrescriptionRow {
       raw.patient?.user?.name ||
       raw.patient?.name ||
       raw.patientName ||
+      `${raw.patient?.firstName || raw.patient?.user?.firstName || ""} ${raw.patient?.lastName || raw.patient?.user?.lastName || ""}`.trim() ||
       "Unknown Patient",
     doctorName:
       raw.doctor?.user?.name ||
       raw.doctor?.name ||
       raw.doctorName ||
+      `${raw.doctor?.firstName || raw.doctor?.user?.firstName || ""} ${raw.doctor?.lastName || raw.doctor?.user?.lastName || ""}`.trim() ||
       "Unknown Doctor",
     prescribedAt: raw.date || raw.createdAt || nowIso(),
     status: String(raw.status || "PENDING").toUpperCase() as

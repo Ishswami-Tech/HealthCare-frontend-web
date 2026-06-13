@@ -49,7 +49,12 @@ export default function SupportStaffDashboard() {
       queue.push({
         id: String(request.id || ""),
         type: request.type || "General Support",
-        requester: request.requesterName || request.patient?.name || "Unknown User",
+        requester:
+          request.requesterName ||
+          request.patient?.name ||
+          request.patient?.user?.name ||
+          `${request.patient?.firstName || request.patient?.user?.firstName || ""} ${request.patient?.lastName || request.patient?.user?.lastName || ""}`.trim() ||
+          "Unknown User",
         priority: request.priority || "normal",
         time: request.createdAt ? formatTimeInIST(request.createdAt) : "Recent",
         status: String(request.status || "pending"),

@@ -228,8 +228,18 @@ export function VideoAppointmentRoomWorkspace({
       provider: access.provider,
       doctorName: doctorName || "",
       patientName: patientName || "",
+      displayName: currentUserDisplayName || "",
+      name: currentUserDisplayName || "",
     }),
-    [access.provider, appointmentId, appointmentTitle, doctorName, patientName, viewerAccessLabel]
+    [
+      access.provider,
+      appointmentId,
+      appointmentTitle,
+      doctorName,
+      patientName,
+      viewerAccessLabel,
+      currentUserDisplayName,
+    ]
   );
 
   const refreshRoomData = React.useCallback(async () => {

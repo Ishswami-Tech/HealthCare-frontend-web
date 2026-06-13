@@ -203,7 +203,12 @@ export default function EHRSystem() {
   const criticalAlerts = Array.isArray(criticalAlertsData) 
     ? criticalAlertsData.map((alert: any) => ({
         id: alert.id || `A${String(alert.id || Math.random()).padStart(3, '0')}`,
-        patient: alert.patientName || alert.patient?.name || "Unknown Patient",
+        patient:
+          alert.patientName ||
+          alert.patient?.name ||
+          alert.patient?.user?.name ||
+          `${alert.patient?.firstName || alert.patient?.user?.firstName || ""} ${alert.patient?.lastName || alert.patient?.user?.lastName || ""}`.trim() ||
+          "Unknown Patient",
         type: alert.type || alert.alertType || "Alert",
         message: alert.message || alert.description || "Critical alert requires attention",
         severity: alert.severity || alert.priority || "High",

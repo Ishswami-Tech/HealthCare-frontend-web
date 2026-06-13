@@ -14,7 +14,12 @@ type LabTechnicianResultRow = {
   id: string;
   status?: string;
   patientName?: string;
-  patient?: { name?: string };
+  patient?: {
+    name?: string;
+    firstName?: string;
+    lastName?: string;
+    user?: { name?: string; firstName?: string; lastName?: string };
+  };
   testName?: string;
   testType?: string;
   priority?: string;
@@ -76,7 +81,12 @@ export default function LabTechnicianDashboard() {
         .slice(0, 5)
         .map((r) => ({
           id: r.id,
-          patientName: r.patientName || r.patient?.name || "Unknown Patient",
+          patientName:
+            r.patientName ||
+            r.patient?.name ||
+            r.patient?.user?.name ||
+            `${r.patient?.firstName || r.patient?.user?.firstName || ""} ${r.patient?.lastName || r.patient?.user?.lastName || ""}`.trim() ||
+            "Unknown Patient",
           testType: r.testName || r.testType || "General Lab Test",
           priority: r.priority || "normal",
           requestedAt: r.createdAt
@@ -97,7 +107,12 @@ export default function LabTechnicianDashboard() {
         .slice(0, 5)
         .map((r) => ({
           id: r.id,
-          patientName: r.patientName || r.patient?.name || "Unknown Patient",
+          patientName:
+            r.patientName ||
+            r.patient?.name ||
+            r.patient?.user?.name ||
+            `${r.patient?.firstName || r.patient?.user?.firstName || ""} ${r.patient?.lastName || r.patient?.user?.lastName || ""}`.trim() ||
+            "Unknown Patient",
           testType: r.testName || r.testType || "General Lab Test",
           status: r.status || "",
           completedAt: (() => {

@@ -237,7 +237,16 @@ export default function ClinicAdminDashboard() {
             status: String(appointment?.status || "").toUpperCase(),
             locationId: String(appointment?.locationId || appointment?.location?.id || ""),
             locationName: String(appointment?.location?.name || appointment?.locationName || ""),
-            doctorName: String(appointment?.doctor?.name || appointment?.doctorName || appointment?.assignedDoctor?.name || appointment?.assignedDoctorName || ""),
+            doctorName: String(
+              appointment?.doctor?.name ||
+                appointment?.doctor?.user?.name ||
+                appointment?.doctorName ||
+                appointment?.assignedDoctor?.name ||
+                appointment?.assignedDoctor?.user?.name ||
+                appointment?.assignedDoctorName ||
+                `${appointment?.doctor?.firstName || appointment?.doctor?.user?.firstName || appointment?.assignedDoctor?.firstName || appointment?.assignedDoctor?.user?.firstName || ""} ${appointment?.doctor?.lastName || appointment?.doctor?.user?.lastName || appointment?.assignedDoctor?.lastName || appointment?.assignedDoctor?.user?.lastName || ""}`.trim() ||
+                ""
+            ),
             paymentStatus: getAppointmentPaymentDisplayState(appointment).paymentStatus,
             dateLabel: getReceptionistAppointmentDateLabel(appointment),
             timeLabel: getReceptionistAppointmentTimeLabel(appointment),

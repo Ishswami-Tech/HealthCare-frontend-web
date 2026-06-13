@@ -68,6 +68,7 @@
     "html5-qrcode": "^2.3.8",
     "immer": "^11.1.3",
     "input-otp": "^1.4.2",
+    "jotai": "^2.20.1",
     "lucide-react": "^0.562.0",
     "motion": "^12.34.0",
     "next": "^16.2.6",

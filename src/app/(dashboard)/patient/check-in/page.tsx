@@ -378,8 +378,14 @@ export default function PatientCheckInPage() {
 
         <div className="flex flex-col gap-y-3">
           {eligibleAppointments.map((apt) => {
-            const derivedDoctorName = `${apt.doctor?.firstName || ""} ${apt.doctor?.lastName || ""}`.trim();
-            const doctorName = (apt.doctorName ?? apt.doctor?.name ?? derivedDoctorName) || "Doctor";
+            const derivedDoctorName =
+              `${apt.doctor?.firstName || apt.doctor?.user?.firstName || ""} ${apt.doctor?.lastName || apt.doctor?.user?.lastName || ""}`.trim();
+            const doctorName =
+              apt.doctorName ??
+              apt.doctor?.user?.name ??
+              apt.doctor?.name ??
+              derivedDoctorName ??
+              "Doctor";
             const timeStr =
               apt.startTime || apt.time
                 ? formatTimeInIST(apt.startTime || apt.time || "")

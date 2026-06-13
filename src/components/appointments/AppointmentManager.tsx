@@ -56,6 +56,7 @@ import {
   isVideoAppointmentPaymentCompleted,
   isVideoAppointmentJoinable,
   isTerminalAppointment,
+  isTerminalAppointmentStatus,
   normalizeAppointmentStatus,
   normalizePatientAppointment,
   getReceptionistAppointmentTimeLabel,
@@ -326,7 +327,7 @@ function AppointmentCard({
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold leading-tight">{doctorName}</p>
-              <p className="truncate text-xs leading-tight opacity-60">{apt.location?.name || "â€”"}</p>
+              <p className="truncate text-xs leading-tight opacity-60">{locationName || "—"}</p>
             </div>
           </div>
 
@@ -401,7 +402,17 @@ function AppointmentCard({
               </div>
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Actions</p>
-                {isVideoAppointment ? (
+                {isTerminalAppointmentStatus(effectiveStatus) ? (
+                  <p className="mt-2 text-sm italic text-muted-foreground">
+                    {effectiveStatus === "CANCELLED"
+                      ? "This appointment was cancelled. Book a new appointment to continue."
+                      : effectiveStatus === "COMPLETED"
+                        ? "This appointment has been completed."
+                        : effectiveStatus === "NO_SHOW"
+                          ? "Marked as no-show. Book a new appointment if you still need care."
+                          : "No further actions available for this appointment."}
+                  </p>
+                ) : isVideoAppointment ? (
                   <div className="mt-2 flex flex-col gap-2">
                     <Button
                       type="button"
@@ -563,17 +574,19 @@ export default function AppointmentManager({
     };
     if (propPatientId) filters.patientId = propPatientId;
     if (filterType) filters.type = filterType;
-    if (dateFilter.start) filters.date = dateFilter.start;
+    if (dateFilter.start) filters.startDate = dateFilter.start;
+    if (dateFilter.end) filters.endDate = dateFilter.end;
     return filters;
-  }, [isAdminView, propClinicId, propPatientId, filterType, dateFilter.start]);
+  }, [isAdminView, propClinicId, propPatientId, filterType, dateFilter.start, dateFilter.end]);
 
   const personalFilters = useMemo(() => {
     if (isAdminView) return undefined;
     const filters: any = {};
     if (propClinicId) filters.clinicId = propClinicId;
-    if (dateFilter.start) filters.date = dateFilter.start;
+    if (dateFilter.start) filters.startDate = dateFilter.start;
+    if (dateFilter.end) filters.endDate = dateFilter.end;
     return Object.keys(filters).length > 0 ? filters : undefined;
-  }, [isAdminView, dateFilter.start, propClinicId]);
+  }, [isAdminView, dateFilter.start, dateFilter.end, propClinicId]);
 
   const adminAppointments = useAppointments(adminFilters);
   const myPersonalAppointments = useMyAppointments(personalFilters);

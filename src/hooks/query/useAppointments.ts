@@ -1332,6 +1332,8 @@ export const useMyAppointments = (filters?: {
   clinicId?: string;
   status?: string;
   date?: string;
+  startDate?: string;
+  endDate?: string;
   page?: number;
   limit?: number;
 }, options?: {
@@ -1946,7 +1948,12 @@ export interface QrCheckInAppointment {
 export interface QrCheckInSelectionCandidate {
   id: string;
   doctorName?: string;
-  doctor?: { name?: string; firstName?: string; lastName?: string };
+  doctor?: {
+    name?: string;
+    firstName?: string;
+    lastName?: string;
+    user?: { name?: string; firstName?: string; lastName?: string };
+  };
   startTime?: string;
   time?: string;
   type?: string;

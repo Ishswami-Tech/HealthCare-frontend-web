@@ -69,15 +69,21 @@ export function normalizeQueueEntry(raw: any): CanonicalQueueEntry {
     locationId: raw.locationId,
     appointmentId,
     patientId: raw.patientId || raw.patient?.id || '',
-    patientName: 
-      raw.patientName || 
-      raw.patient?.name || 
-      raw.patient?.user?.name || 
+    patientName:
+      raw.patientName ||
+      raw.patient?.name ||
+      raw.patient?.user?.name ||
+      `${raw.patient?.firstName || raw.patient?.user?.firstName || ""} ${raw.patient?.lastName || raw.patient?.user?.lastName || ""}`.trim() ||
       raw.userName ||
       raw.user?.name ||
       raw.name ||
       'Unknown Patient',
-    doctorName: raw.doctorName || raw.doctor?.name || raw.doctor?.user?.name || '',
+    doctorName:
+      raw.doctorName ||
+      raw.doctor?.name ||
+      raw.doctor?.user?.name ||
+      `${raw.doctor?.firstName || raw.doctor?.user?.firstName || ""} ${raw.doctor?.lastName || raw.doctor?.user?.lastName || ""}`.trim() ||
+      '',
     displayLabel: raw.displayLabel || raw.raw?.displayLabel || undefined,
     queueType: raw.queueType || raw.raw?.queueType || raw.type || raw.raw?.type,
     serviceType: raw.serviceType || raw.raw?.serviceType || undefined,
