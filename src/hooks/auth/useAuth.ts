@@ -157,6 +157,8 @@ function normalizeOtpIdentifier(identifier: string): string {
 export function useAuth() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const verifyOtpInFlightRef = useRef(false);
+  const requestOtpInFlightRef = useRef(false);
   
   // ✅ Sync with Zustand auth store
   const setSession = useAuthStore((state) => state.setSession);
@@ -544,6 +546,12 @@ export function useAuth() {
   // OTP verification mutation - ✅ Use core hook
   const verifyOTPMutation = useMutationOperation<AuthResponse, OTPFormData>(
     async (data) => {
+      if (verifyOtpInFlightRef.current) {
+        throw new Error('OTP verification is already in progress');
+      }
+
+      verifyOtpInFlightRef.current = true;
+      try {
       const result = await verifyOTPAction({
         ...data,
         identifier: normalizeOtpIdentifier(data.identifier),
@@ -552,6 +560,9 @@ export function useAuth() {
         throw new Error(result.error);
       }
       return result as AuthResponse;
+      } finally {
+        verifyOtpInFlightRef.current = false;
+      }
     },
     {
       toastId: TOAST_IDS.AUTH.OTP,
@@ -616,10 +627,22 @@ export function useAuth() {
   // Request OTP mutation - ✅ Use core hook
   const requestOTPMutation = useMutationOperation<{ success: boolean; message: string }, OtpRequestFormData>(
     async (data: OtpRequestFormData) => {
+      if (requestOtpInFlightRef.current) {
+        return {
+          success: false,
+          message: 'OTP request is already in progress',
+        };
+      }
+
+      requestOtpInFlightRef.current = true;
+      try {
       return requestOTPAction({
         ...data,
         identifier: normalizeOtpIdentifier(data.identifier),
       }) as Promise<{ success: boolean; message: string }>;
+      } finally {
+        requestOtpInFlightRef.current = false;
+      }
     },
     {
       toastId: TOAST_IDS.AUTH.OTP,
