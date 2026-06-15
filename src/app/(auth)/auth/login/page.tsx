@@ -237,74 +237,6 @@ function LoginPageContent() {
     }
   };
 
-  const handleVerifyOTP = async (data: z.infer<typeof otpSchema>) => {
-    setAuthError(null);
-    try {
-      await verifyOTP({ ...data, clinicId: defaultClinicId } as OTPFormData);
-      triggerSuccessFlow();
-    } catch (error) {
-      if (error instanceof Error) {
-        const errorMsg = error.message;
-        const lowerMsg = errorMsg.toLowerCase();
-
-        // Use specific error code matching - order matters (most specific first)
-        if (lowerMsg.includes("auth_otp_invalid")) {
-          setAuthError("Invalid OTP. Please check and try again.");
-        } else if (
-          lowerMsg.includes("otp_not_found") ||
-          lowerMsg.includes("otp_expired") ||
-          lowerMsg.includes("invalid_verification_code")
-        ) {
-          setAuthError("OTP not found or expired. Please request a new one.");
-        } else if (
-          lowerMsg.includes("maximum otp attempts exceeded") ||
-          lowerMsg.includes("too many otp requests")
-        ) {
-          setAuthError(
-            "Maximum OTP attempts exceeded. Please try again in 1 hour.",
-          );
-        } else if (lowerMsg.includes("wait") || lowerMsg.includes("cooldown")) {
-          // Extract minutes from message like "Please wait 5 minute(s)"
-          const minuteMatch = errorMsg.match(/wait\s+(\d+)\s+minute/i);
-          const minutes = minuteMatch ? minuteMatch[1] : "";
-          setAuthError(
-            minutes
-              ? `Please wait ${minutes} minute(s) before requesting another OTP.`
-              : errorMsg,
-          );
-        } else if (
-          lowerMsg.includes("locked") ||
-          lowerMsg.includes("too many attempts")
-        ) {
-          setAuthError(errorMsg);
-        } else if (lowerMsg.includes("user_already_exists")) {
-          setAuthError("User already exists. Please log in instead.");
-          showErrorToast("User already exists");
-        } else if (lowerMsg.includes("user_not_found")) {
-          setAuthError(
-            "User not found. Please check your details or sign up first.",
-          );
-          showErrorToast("User not found");
-        } else if (
-          lowerMsg.includes("clinic_not_found") ||
-          lowerMsg.includes("clinic_id")
-        ) {
-          setAuthError("Clinic not found. Please check your clinic selection.");
-        } else if (
-          lowerMsg.includes("expired") ||
-          lowerMsg.includes("session")
-        ) {
-          setAuthError("OTP has expired. Please request a new one.");
-        } else {
-          // Show the actual error message for unknown errors
-          setAuthError(errorMsg);
-        }
-      } else {
-        setAuthError("Failed to verify OTP");
-      }
-    }
-  };
-
   if (successPhase === "redirecting") {
     return <LoginSuccessRedirectCard />;
   }
@@ -338,12 +270,8 @@ function LoginPageContent() {
         setLoginFlow((current) => ({ ...current, otpMethod: method }))
       }
       onRequestOTP={handleRequestOTP}
-      onVerifyOTP={handleVerifyOTP}
       onOtpChange={(value) => {
         setAuthError(null);
-        if (value.length === 6) {
-          otpForm.handleSubmit(handleVerifyOTP)();
-        }
       }}
       onSocialSuccess={triggerSuccessFlow}
       onSocialError={(error) => setAuthError(error.message)}

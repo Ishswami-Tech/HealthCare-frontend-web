@@ -44,7 +44,6 @@ interface LoginAuthCardProps {
   onBack: () => void;
   onSwitchOtpMethod: (method: OtpMethod) => void;
   onRequestOTP: (identifier: string) => void;
-  onVerifyOTP: (data: any) => void;
   onOtpChange: (value: string) => void;
   onSocialSuccess: () => void;
   onSocialError: (error: Error) => void;
@@ -63,7 +62,6 @@ export function LoginAuthCard({
   onBack,
   onSwitchOtpMethod,
   onRequestOTP,
-  onVerifyOTP,
   onOtpChange,
   onSocialSuccess,
   onSocialError,
@@ -283,17 +281,14 @@ export function LoginAuthCard({
                       <FormItem>
                         <FormControl>
                           <div className="flex justify-center">
-                            <OtpCodeInput
-                              value={field.value}
-                              onChange={(value) => {
-                                field.onChange(value);
-                                onOtpChange(value);
-                                if (value.length === 6) {
-                                  otpForm.handleSubmit(onVerifyOTP)();
-                                }
-                              }}
-                              disabled={isFormDisabled}
-                              invalid={
+                          <OtpCodeInput
+                            value={field.value}
+                            onChange={(value) => {
+                              field.onChange(value);
+                              onOtpChange(value);
+                            }}
+                            disabled={isFormDisabled}
+                            invalid={
                                 !!fieldState.error ||
                                 !!otpForm.formState?.errors?.otp
                               }
