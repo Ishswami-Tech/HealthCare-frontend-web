@@ -134,6 +134,26 @@ function resolveClinicId(user: Record<string, unknown> | null | undefined): stri
   return normalized || undefined;
 }
 
+function normalizeOtpIdentifier(identifier: string): string {
+  const trimmed = identifier.trim();
+
+  if (trimmed.includes('@')) {
+    return trimmed.toLowerCase();
+  }
+
+  const cleaned = trimmed.replace(/[^\d+]/g, '');
+  if (!cleaned) {
+    return cleaned;
+  }
+  if (cleaned.startsWith('+')) {
+    return cleaned;
+  }
+  if (cleaned.length === 10) {
+    return `+91${cleaned}`;
+  }
+  return `+${cleaned}`;
+}
+
 export function useAuth() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -524,7 +544,10 @@ export function useAuth() {
   // OTP verification mutation - ✅ Use core hook
   const verifyOTPMutation = useMutationOperation<AuthResponse, OTPFormData>(
     async (data) => {
-      const result = await verifyOTPAction(data);
+      const result = await verifyOTPAction({
+        ...data,
+        identifier: normalizeOtpIdentifier(data.identifier),
+      });
       if ('error' in result && result.error) {
         throw new Error(result.error);
       }
@@ -593,7 +616,10 @@ export function useAuth() {
   // Request OTP mutation - ✅ Use core hook
   const requestOTPMutation = useMutationOperation<{ success: boolean; message: string }, OtpRequestFormData>(
     async (data: OtpRequestFormData) => {
-      return requestOTPAction(data) as Promise<{ success: boolean; message: string }>;
+      return requestOTPAction({
+        ...data,
+        identifier: normalizeOtpIdentifier(data.identifier),
+      }) as Promise<{ success: boolean; message: string }>;
     },
     {
       toastId: TOAST_IDS.AUTH.OTP,

@@ -26,11 +26,6 @@ import {
 
 type OtpMethod = "email" | "phone";
 
-interface LoginIdentifierState {
-  email: string;
-  phone: string;
-}
-
 interface LoginAuthCardProps {
   uiState: {
     sessionExpired: boolean;
@@ -43,9 +38,9 @@ interface LoginAuthCardProps {
   successPhase: "none" | "alert" | "redirecting";
   otpMethod: OtpMethod;
   authError: string | null;
-  loginIdentifiers: LoginIdentifierState;
   otpForm: any;
   defaultClinicId: string;
+  getCachedIdentifier: (method: OtpMethod) => string;
   onBack: () => void;
   onSwitchOtpMethod: (method: OtpMethod) => void;
   onRequestOTP: (identifier: string) => void;
@@ -62,9 +57,9 @@ export function LoginAuthCard({
   successPhase,
   otpMethod,
   authError,
-  loginIdentifiers,
   otpForm,
   defaultClinicId,
+  getCachedIdentifier,
   onBack,
   onSwitchOtpMethod,
   onRequestOTP,
@@ -149,7 +144,7 @@ export function LoginAuthCard({
                     type="button"
                     onClick={() => {
                       onSwitchOtpMethod("phone");
-                      otpForm.setValue("identifier", loginIdentifiers.phone);
+                      otpForm.setValue("identifier", getCachedIdentifier("phone"));
                       otpForm.clearErrors("identifier");
                     }}
                     className={cn(
@@ -184,7 +179,7 @@ export function LoginAuthCard({
                     type="button"
                     onClick={() => {
                       onSwitchOtpMethod("email");
-                      otpForm.setValue("identifier", loginIdentifiers.email);
+                      otpForm.setValue("identifier", getCachedIdentifier("email"));
                       otpForm.clearErrors("identifier");
                     }}
                     className={cn(
@@ -236,7 +231,7 @@ export function LoginAuthCard({
                               placeholder="Phone Number"
                               defaultCountry="IN"
                               disabled={isFormDisabled || showOTPInput}
-                              value={loginIdentifiers.phone}
+                              value={field.value}
                               authStyle
                               onChange={(value: string) => {
                                 onPhoneChange(value);
@@ -255,7 +250,7 @@ export function LoginAuthCard({
                             <Input
                               type="email"
                               placeholder="Email Address"
-                              value={loginIdentifiers.email}
+                              value={field.value}
                               onChange={(e) => {
                                 onEmailChange(e.target.value);
                                 field.onChange(e.target.value);

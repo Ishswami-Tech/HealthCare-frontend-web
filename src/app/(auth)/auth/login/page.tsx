@@ -5,7 +5,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useReducer,
   useRef,
   useState,
 } from "react";
@@ -23,34 +22,6 @@ import { LoginSuccessRedirectCard } from "./_components/LoginSuccessRedirectCard
 
 type OtpMethod = "email" | "phone";
 type SuccessPhase = "none" | "alert" | "redirecting";
-
-type LoginIdentifierState = {
-  email: string;
-  phone: string;
-};
-
-type LoginIdentifierAction =
-  | { type: "set_email"; value: string }
-  | { type: "set_phone"; value: string };
-
-const initialLoginIdentifierState: LoginIdentifierState = {
-  email: "",
-  phone: "",
-};
-
-function loginIdentifierReducer(
-  state: LoginIdentifierState,
-  action: LoginIdentifierAction,
-): LoginIdentifierState {
-  switch (action.type) {
-    case "set_email":
-      return { ...state, email: action.value };
-    case "set_phone":
-      return { ...state, phone: action.value };
-    default:
-      return state;
-  }
-}
 
 function LoginPageContent() {
   const { replace } = useRouter();
@@ -74,6 +45,7 @@ function LoginPageContent() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const requestOtpLockRef = useRef(false);
+  const identifierCacheRef = useRef({ email: "", phone: "" });
 
   const { showOTPInput, otpMethod } = loginFlow;
 
@@ -101,11 +73,6 @@ function LoginPageContent() {
     }
     prevSessionRef.current = session?.user;
   }, [session?.user, isRestoringSession]);
-
-  const [loginIdentifiers, dispatchLoginIdentifiers] = useReducer(
-    loginIdentifierReducer,
-    initialLoginIdentifierState,
-  );
 
   const isFormDisabled = isGoogleLoggingIn || successPhase !== "none";
 
@@ -233,8 +200,7 @@ function LoginPageContent() {
 
   const otpFormDefaults = useMemo(
     () => ({
-      identifier:
-        otpMethod === "phone" ? loginIdentifiers.phone : loginIdentifiers.email,
+      identifier: "",
       otp: "",
       rememberMe: false,
     }),
@@ -356,9 +322,13 @@ function LoginPageContent() {
       successPhase={successPhase}
       otpMethod={otpMethod}
       authError={authError}
-      loginIdentifiers={loginIdentifiers}
       otpForm={otpForm}
       defaultClinicId={defaultClinicId}
+      getCachedIdentifier={(method) =>
+        method === "phone"
+          ? identifierCacheRef.current.phone
+          : identifierCacheRef.current.email
+      }
       onBack={() => {
         setLoginFlow((current) => ({ ...current, showOTPInput: false }));
         setAuthError(null);
@@ -377,12 +347,12 @@ function LoginPageContent() {
       }}
       onSocialSuccess={triggerSuccessFlow}
       onSocialError={(error) => setAuthError(error.message)}
-      onPhoneChange={(value) =>
-        dispatchLoginIdentifiers({ type: "set_phone", value })
-      }
-      onEmailChange={(value) =>
-        dispatchLoginIdentifiers({ type: "set_email", value })
-      }
+      onPhoneChange={(value) => {
+        identifierCacheRef.current.phone = value;
+      }}
+      onEmailChange={(value) => {
+        identifierCacheRef.current.email = value;
+      }}
     />
   );
 }
