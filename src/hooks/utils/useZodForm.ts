@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { UseMutateFunction } from "@tanstack/react-query";
 import { useForm, DefaultValues, UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,6 +11,7 @@ const useZodForm = <T extends z.ZodType<any, any, any>>(
 ): UseFormReturn<z.infer<T>> & {
   onFormSubmit: (e?: any) => Promise<void>;
 } => {
+  const isSubmittingRef = useRef(false);
   const form = useForm<z.infer<T>>({
     resolver: zodResolver(schema) as any,
     ...(defaultValues ? { defaultValues } : {}),
@@ -17,12 +19,19 @@ const useZodForm = <T extends z.ZodType<any, any, any>>(
   });
 
   const onFormSubmit = form.handleSubmit(async (values) => {
+    if (isSubmittingRef.current) {
+      return;
+    }
+
+    isSubmittingRef.current = true;
     try {
       await Promise.resolve(mutation(values as z.infer<T>));
     } catch (error) {
       console.error('Form submission error:', error);
       // Re-throw the error so it can be caught by the form's error handler
       throw error;
+    } finally {
+      isSubmittingRef.current = false;
     }
   });
 

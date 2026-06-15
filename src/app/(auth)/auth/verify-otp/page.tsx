@@ -16,8 +16,6 @@ import {
   FormItem,
   FormMessage,
 } from "@/components/ui/form";
-import { useAuthForm } from "@/hooks/auth/useAuth";
-import { TOAST_IDS } from "@/hooks/utils/use-toast";
 import { ROUTES } from "@/lib/config/routes";
 import { OtpCodeInput } from "@/components/auth/otp-code-input";
 
@@ -115,41 +113,6 @@ function VerifyOTPPageContent() {
     setTimeout(() => setSuccessPhase("redirecting"), 1500);
   }, []);
 
-  //… Use unified auth form hook for consistent patterns
-  const { executeAuthOperation } = useAuthForm({
-    toastId: TOAST_IDS.AUTH.OTP,
-    loadingMessage: "Verifying OTP...",
-    successMessage: "OTP verified successfully! Redirecting…",
-    errorMessage: "OTP verification failed. Please try again.",
-    showToast: false,
-    onError: (error) => {
-      // Handle specific error cases with proper error code matching
-      const errorMsg = error.message.toLowerCase();
-      if (errorMsg.includes('locked') || errorMsg.includes('too many attempts')) {
-        // Account locked - show the lockout message
-        setFormError(error.message);
-      } else if (
-        errorMsg.includes('auth_otp_invalid') ||
-        errorMsg.includes('invalid verification code') ||
-        errorMsg.includes('otp not found') ||
-        errorMsg.includes('otp expired') ||
-        errorMsg.includes('invalid otp')
-      ) {
-        setFormError("Invalid OTP. Please check and try again.");
-      } else if (errorMsg.includes('expired') || errorMsg.includes('session')) {
-        setFormError("OTP has expired. Please request a new one.");
-      } else if (errorMsg.includes('user not found') || errorMsg.includes('user_already_exists')) {
-        setFormError("User not found. Please check your details or sign up first.");
-      } else if (errorMsg.includes('clinic_id') || errorMsg.includes('clinic not found')) {
-        setFormError("Clinic not found. Please check your clinic selection.");
-      } else {
-        // Show the actual error for other cases
-        setFormError(error.message);
-      }
-    },
-    // Don't redirect - AuthLayout will handle it
-  });
-
   useEffect(() => {
     const emailParam = getSearchParam("email");
     if (!emailParam) {
@@ -162,11 +125,9 @@ function VerifyOTPPageContent() {
   const form = useZodForm(
     otpSchema,
     async (data: OTPFormData) => {
-      const result = await executeAuthOperation(async () => {
-      return await verifyOTP({
+      const result = await verifyOTP({
         ...data,
         clinicId: clinicId,
-      });
       });
       if (!result) {
         return;
@@ -190,38 +151,20 @@ function VerifyOTPPageContent() {
   );
   const otpValue = form.watch("otp");
 
-  //… Use unified auth form hook for OTP resend
-  const { executeAuthOperation: executeOTPResend } = useAuthForm({
-    toastId: TOAST_IDS.AUTH.OTP,
-    loadingMessage: isPhoneFlow ? "Sending WhatsApp OTP..." : "Sending OTP...",
-    successMessage: isPhoneFlow
-      ? "A new WhatsApp OTP has been sent to your phone."
-      : "A new OTP has been sent to your email.",
-    errorMessage: isPhoneFlow
-      ? "Failed to resend WhatsApp OTP. Please try again."
-      : "Failed to resend OTP. Please try again.",
-    showToast: false,
-    onError: (error) => {
-      setFormError(error.message);
-    },
-    onSuccess: () => {
-      form.setValue("otp", "");
-      form.clearErrors("otp");
-    },
-  });
-
   const handleResendOTP = async () => {
     if (countdown > 0) return; // Don't allow during cooldown
 
-    const result = await executeOTPResend(async () => {
-      return await requestOTP({
-        identifier: email,
-        clinicId: clinicId,
-      });
+    const result = await requestOTP({
+      identifier: email,
+      clinicId: clinicId,
     });
-    if (!result) {
+    if (!result.success) {
+      setFormError(result.message || "Failed to resend OTP. Please try again.");
       return;
     }
+    setFormError(null);
+    form.setValue("otp", "");
+    form.clearErrors("otp");
     restartCountdown(); // Start cooldown after successful request
   };
 
