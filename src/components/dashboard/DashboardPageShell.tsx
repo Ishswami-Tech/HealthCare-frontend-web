@@ -48,7 +48,7 @@ export function DashboardPageHeader({
       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400" />
 
       <div className="relative px-4 pb-4 pt-5 sm:px-6 sm:pb-5 sm:pt-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-0">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div className="flex min-w-0 flex-col gap-y-1">
             <span className="inline-block text-[9px] font-extrabold uppercase tracking-[0.25em] text-primary sm:text-[11px]">
               {eyebrow}
@@ -89,16 +89,16 @@ export function DashboardPageHeader({
                 return (
                   <Button
                     key={action.label}
-                  variant={action.variant ?? "outline"}
-                  onClick={action.onClick}
-                  disabled={action.disabled}
-                  className="h-9 w-full rounded-lg px-4 text-sm font-semibold sm:h-10 sm:w-auto"
-                >
-                  {content}
-                </Button>
+                    variant={action.variant ?? "outline"}
+                    onClick={action.onClick}
+                    disabled={action.disabled}
+                    className="h-9 w-full rounded-lg px-4 text-sm font-semibold sm:h-10 sm:w-auto"
+                  >
+                    {content}
+                  </Button>
                 );
               })}
-              {actionsSlot}
+              {actionsSlot ? <div className="w-full sm:w-auto">{actionsSlot}</div> : null}
             </div>
           ) : null}
         </div>

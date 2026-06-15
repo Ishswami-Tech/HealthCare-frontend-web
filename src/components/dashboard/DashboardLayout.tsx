@@ -22,7 +22,6 @@ import { Header } from "@/components/global/Header";
 import { cn } from "@/lib/utils";
 import { sidebarLinksByRole, SidebarLink } from "@/lib/config/sidebarLinks";
 import { useLayoutStore } from "@/stores/layout.store";
-import { useAuthStore } from "@/stores";
 import { PatientQrGateHost } from "@/components/patient/PatientQrGateHost";
 const DashboardShellContext = createContext<boolean>(false);
 
@@ -110,8 +109,6 @@ export function DashboardLayout({
   const { session, isPending } = useAuth();
   const { back, push, replace } = useRouter();
   const { user } = session || {};
-  const isProfileComplete = useAuthStore((state) => state.isProfileComplete);
-
   // RBAC hooks
   const rbac = useRBAC();
   const { getDefaultRoute } = useRoleBasedNavigation();
@@ -175,11 +172,11 @@ export function DashboardLayout({
     if (isPending) return null;
     if (!user) return ROUTES.LOGIN;
     if (!hasAccess) return getDefaultRoute();
-    if (normalizedUserRole === Role.PATIENT && user?.profileComplete === false && !isProfileComplete) {
+    if (normalizedUserRole === Role.PATIENT && user?.profileComplete === false) {
       return ROUTES.PROFILE_COMPLETION;
     }
     return null;
-  }, [isPending, user, hasAccess, getDefaultRoute, isProfileComplete]);
+  }, [isPending, user, hasAccess, getDefaultRoute]);
 
   // ─── Fetch User Profile (React Query) ──────────────────────────────────────
   // ─── Sync Store Data (Zustand) ─────────────────────────────────────────────
@@ -245,7 +242,7 @@ export function DashboardLayout({
   }
 
   // Profile completeness check
-  if (normalizedUserRole === Role.PATIENT && user?.profileComplete === false && !isProfileComplete) {
+  if (normalizedUserRole === Role.PATIENT && user?.profileComplete === false) {
     return (
       <div className={cn(
         "flex items-center justify-center bg-background",

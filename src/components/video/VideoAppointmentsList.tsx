@@ -112,6 +112,7 @@ import {
 import {
   getAppointmentViewState,
   getVideoSessionDecision,
+  getAppointmentCounterpartyName,
 } from "@/lib/utils/appointmentUtils";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -402,12 +403,13 @@ const AppointmentCard = ({
   const isExpanded = expandedCard === (appointment.appointmentId || appointment.id);
   const appointmentSessionId = getEffectiveAppointmentId(appointment);
   const patientName = getAppointmentPatientName(appointment);
-  const rawDoctorName = (appointment as any).doctorName || getAppointmentDoctorName(appointment);
-  const doctorName = rawDoctorName.startsWith("Consultation ") ||
-    rawDoctorName === "Unknown Doctor" ||
-    rawDoctorName === "Doctor details pending"
-    ? ""
-    : rawDoctorName;
+  const doctorName = getAppointmentDoctorName(appointment);
+  const counterpartyName = getAppointmentCounterpartyName(appointment, role);
+  const isPatientViewer = String(role || "").trim().toUpperCase() === "PATIENT";
+  const primaryLabel = counterpartyName;
+  const primaryRoleLabel = isPatientViewer ? "Doctor" : "Patient";
+  const secondaryLabel = isPatientViewer ? patientName : doctorName;
+  const secondaryRoleLabel = isPatientViewer ? "Patient" : "Doctor";
   const displayDuration = getDisplayAppointmentDuration(appointment);
   const videoSessionDecision = getVideoSessionDecision(appointment);
   const finalSlotSource = String(
@@ -445,13 +447,13 @@ const AppointmentCard = ({
         <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-center gap-2.5">
             <div className="size-8 rounded-full bg-emerald-100 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-900/70 flex items-center justify-center shrink-0 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-              {patientName.charAt(0)}
+              {primaryLabel.charAt(0)}
             </div>
             <div className="min-w-0">
-              <p className="font-semibold text-sm text-foreground leading-tight mb-0.5 truncate">{patientName}</p>
+              <p className="font-semibold text-sm text-foreground leading-tight mb-0.5 truncate">{primaryLabel}</p>
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span className="text-[11px] text-muted-foreground truncate">
-                  {doctorName ? `Doctor: ${doctorName}` : "Doctor details pending"}
+                  {secondaryLabel ? `${secondaryRoleLabel}: ${secondaryLabel}` : `${primaryRoleLabel} details pending`}
                 </span>
                 <Badge
                   variant="outline"
@@ -772,6 +774,7 @@ export function VideoAppointmentsList({
       `${(session?.user as any)?.firstName || ""} ${(session?.user as any)?.lastName || ""}`.trim() ||
       ""
     );
+    const isPatientViewer = String(session?.user?.role || "").trim().toUpperCase() === "PATIENT";
     const mappedAppointments = list.reduce<VideoAppointment[]>((acc, apt: any) => {
       if (String(apt?.type || "").toUpperCase() !== "VIDEO_CALL") {
         return acc;
@@ -788,11 +791,15 @@ export function VideoAppointmentsList({
       const normalizedStatus = String(apt?.status || "")
         .toLowerCase()
         .replace(/_/g, "-");
+      const appointmentRole = isPatientViewer ? "patient" : "doctor";
+      const counterpartyName = getAppointmentCounterpartyName(apt, appointmentRole);
+      const doctorName = getAppointmentDoctorName(apt);
+      const patientName = getAppointmentPatientName(apt);
 
       acc.push({
         id: apt?.appointmentId || apt?.id,
         appointmentId: apt?.appointmentId || apt?.id,
-        roomName: getAppointmentDoctorName(apt),
+        roomName: counterpartyName || getAppointmentDoctorName(apt),
         doctorId: apt?.doctorId || apt?.doctor?.id || "",
         patientId: apt?.patientId || apt?.patient?.id || "",
         patientName: patientName || getAppointmentPatientName(apt),
@@ -804,7 +811,7 @@ export function VideoAppointmentsList({
         notes: apt?.notes,
         treatmentType: apt?.treatmentType,
         createdAt: apt?.createdAt || apt?.updatedAt || startTime,
-        doctorName: getAppointmentDoctorName(apt),
+        doctorName,
         paymentCompleted: getAppointmentViewState(apt).paymentCompleted,
       } as any);
 

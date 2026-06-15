@@ -64,7 +64,7 @@ export interface AuthResponse {
   refresh_token?: string;
   session_id?: string;
   message?: string;
-  redirectUrl?: string;
+  redirectUrl: string;
   isNewUser?: boolean;
   requiresVerification?: boolean;
 }
@@ -187,7 +187,7 @@ export interface GoogleLoginResponse {
     profileComplete?: boolean;
   };
   token?: string;
-  redirectUrl?: string;
+  redirectUrl: string;
 }
 
 export interface TokenData {

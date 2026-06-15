@@ -64,15 +64,13 @@ export function getLoginRedirect(context: RedirectContext): RedirectResult {
 
   const userRole = user.role as Role;
 
-  // Priority 1: Check if profile is incomplete
-  if (userRole === Role.PATIENT && user.profileComplete === false) {
-    const profileUrl = new URL(ROUTES.PROFILE_COMPLETION, window.location.origin);
-    if (isSafeInternalPath(currentPath) && !isAuthPath(currentPath)) {
-      profileUrl.searchParams.set('redirect', currentPath);
-    }
+  // Priority 1: Use redirect URL from the backend if provided and valid.
+  // The backend already decides whether the user should land on the dashboard
+  // or on profile completion, so we should not override that with stale client state.
+  if (isSafeInternalPath(redirectUrl) && !isAuthPath(redirectUrl)) {
     return {
-      path: profileUrl.pathname + profileUrl.search,
-      reason: 'profile_incomplete',
+      path: redirectUrl,
+      reason: 'response_redirect_url',
     };
   }
 
@@ -84,11 +82,15 @@ export function getLoginRedirect(context: RedirectContext): RedirectResult {
     };
   }
 
-  // Priority 3: Use redirect URL from response if provided and valid
-  if (isSafeInternalPath(redirectUrl) && !isAuthPath(redirectUrl)) {
+  // Priority 3: Check if profile is incomplete
+  if (userRole === Role.PATIENT && user.profileComplete === false) {
+    const profileUrl = new URL(ROUTES.PROFILE_COMPLETION, window.location.origin);
+    if (isSafeInternalPath(currentPath) && !isAuthPath(currentPath)) {
+      profileUrl.searchParams.set('redirect', currentPath);
+    }
     return {
-      path: redirectUrl,
-      reason: 'response_redirect_url',
+      path: profileUrl.pathname + profileUrl.search,
+      reason: 'profile_incomplete',
     };
   }
 

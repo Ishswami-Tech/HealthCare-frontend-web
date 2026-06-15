@@ -95,6 +95,14 @@ function normalizeAppointment(
       appointment?.roomName ||
       appointment?.doctorName ||
       `Room ${resolvedAppointmentId}`,
+    patientName:
+      appointment?.patientName ||
+      appointment?.patient?.user?.name ||
+      appointment?.patient?.name,
+    doctorName:
+      appointment?.doctorName ||
+      appointment?.doctor?.user?.name ||
+      appointment?.doctor?.name,
     doctorId:
       appointment?.doctorId ||
       appointment?.doctor?.id ||
@@ -304,12 +312,21 @@ export function VideoAppointmentMeetSession({
         "meetingId",
         "provider",
         "token",
+        "patientName",
+        "doctorName",
       ];
       for (const key of protectedSessionFields) {
         const value = consultation[key];
         if (isMergeableValue(value)) {
           merged[key] = value;
         }
+      }
+
+      if (isMergeableValue(consultation.patientName)) {
+        merged.patientName = consultation.patientName;
+      }
+      if (isMergeableValue(consultation.doctorName)) {
+        merged.doctorName = consultation.doctorName;
       }
 
       if (

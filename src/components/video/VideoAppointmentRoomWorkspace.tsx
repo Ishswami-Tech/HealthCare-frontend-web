@@ -23,6 +23,7 @@ import { useAppointmentServices } from "@/hooks/query/useAppointments";
 import { cn } from "@/lib/utils";
 import {
   getAppointmentDoctorName,
+  getAppointmentCounterpartyName,
   getAppointmentPatientName,
   getAppointmentServiceLabel,
   getAppointmentViewState,
@@ -157,10 +158,12 @@ export function VideoAppointmentRoomWorkspace({
   const viewState = getAppointmentViewState(appointment);
   const doctorName = getAppointmentDoctorName(appointment);
   const patientName = getAppointmentPatientName(appointment);
+  const viewerRoleNormalized = (viewerRole || "").toLowerCase();
+  const counterpartyName = getAppointmentCounterpartyName(appointment, viewerRole);
   const appointmentDuration = getDisplayAppointmentDuration(appointment);
   const serviceLabel = getAppointmentServiceLabel(appointment, appointmentServices as any[]);
   const serviceFee = getVideoAppointmentFee(appointment, appointmentServices as any[]);
-  const appointmentTitle = safeText(doctorName || appointment.roomName, "Video appointment");
+  const appointmentTitle = safeText(counterpartyName || doctorName || appointment.roomName, "Video appointment");
   const viewerAccessLabel = safeText(viewerRole, "participant");
   const inviteLink = React.useMemo(() => {
     if (typeof window === "undefined") {
@@ -171,19 +174,19 @@ export function VideoAppointmentRoomWorkspace({
   }, [appointmentId]);
 
   const currentUserDisplayName = React.useMemo(() => {
-    const role = (viewerRole || "").toLowerCase();
+    const role = viewerRoleNormalized;
     if (role === "patient") return patientName || "Patient";
     if (role === "doctor" || role.includes("doctor") || role.includes("assistant") || role.includes("therapist")) {
       return doctorName || "Doctor";
     }
     return doctorName || patientName || "Participant";
-  }, [viewerRole, patientName, doctorName]);
+  }, [viewerRoleNormalized, patientName, doctorName]);
 
   const remoteNameFallback = React.useMemo(() => {
-    const role = (viewerRole || "").toLowerCase();
+    const role = viewerRoleNormalized;
     if (role === "patient") return doctorName || "Doctor";
     return patientName || "Patient";
-  }, [viewerRole, doctorName, patientName]);
+  }, [viewerRoleNormalized, doctorName, patientName]);
 
   const handleShareInvite = React.useCallback(async () => {
     const url = inviteLink || (typeof window !== "undefined" ? window.location.href : "");
@@ -275,6 +278,7 @@ export function VideoAppointmentRoomWorkspace({
   }, [activePanel]);
 
   const presenterLabel = safeText(doctorName || appointment.roomName, "Class meeting");
+  const presenterLabelResolved = safeText(counterpartyName || presenterLabel, "Class meeting");
 
 
   return (
@@ -350,9 +354,9 @@ export function VideoAppointmentRoomWorkspace({
                     .toUpperCase() || "M"}
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-[#202124]">{presenterLabel} is presenting</p>
+                  <p className="truncate text-sm font-medium text-[#202124]">{presenterLabelResolved} is presenting</p>
                   <p className="truncate text-xs text-[#5f6368]">
-                    {safeText(patientName, "Participant")} - {safeText(viewerRole, "participant")} access
+                    {safeText(counterpartyName, "Participant")} - {safeText(viewerRole, "participant")} access
                   </p>
                 </div>
               </div>

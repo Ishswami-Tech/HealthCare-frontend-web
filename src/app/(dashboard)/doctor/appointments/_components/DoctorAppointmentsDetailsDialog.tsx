@@ -45,7 +45,7 @@ export function DoctorAppointmentsDetailsDialog({
 }: DoctorAppointmentsDetailsDialogProps) {
   return (
     <Dialog open={!!selectedAppointment} onOpenChange={(open) => !open && setSelectedAppointment(null)}>
-      <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto p-0">
+      <DialogContent className="max-h-[90vh] w-[min(96vw,80rem)] overflow-y-auto p-0 sm:w-[min(92vw,80rem)]">
         {selectedAppointment && (
           <div className="flex flex-col gap-y-4 p-5 sm:p-6">
             <DialogHeader className="flex flex-col gap-y-2 border-b border-border pb-4">
@@ -77,7 +77,7 @@ export function DoctorAppointmentsDetailsDialog({
             </div>
 
             <Tabs defaultValue="patient-info" className="flex flex-col gap-y-4">
-              <TabsList className="grid h-11 w-full grid-cols-3 rounded-xl bg-muted p-1">
+              <TabsList className="grid h-auto w-full grid-cols-3 rounded-xl bg-muted p-1">
                 <TabsTrigger value="patient-info">Patient Info</TabsTrigger>
                 <TabsTrigger value="consultation" disabled={selectedAppointmentIsClosed}>
                   Consultation

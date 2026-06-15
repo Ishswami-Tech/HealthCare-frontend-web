@@ -6,12 +6,11 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { useRBAC, useRoleBasedNavigation } from "@/hooks/utils/useRBAC";
 import { Permission } from "@/types/rbac.types";
 import { Role } from "@/types/auth.types";
-import { ROUTES } from "@/lib/config/routes";
+import { ROUTES, getRouteGuardPolicy } from "@/lib/config/routes";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { RouteRedirect } from "@/components/navigation/RouteRedirect";
 import { Lock, ArrowLeft } from "lucide-react";
-import { useAuthStore } from "@/stores";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -40,7 +39,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   showUnauthorized = true,
 }) => {
   const { user, isAuthenticated, isPending } = useAuth();
-  const isProfileComplete = useAuthStore((state) => state.isProfileComplete);
   const rbac = useRBAC();
   const { getDefaultRoute } = useRoleBasedNavigation();
   const { replace } = useRouter();
@@ -59,6 +57,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }, [rbac, permission, permissions, requireAll, resource, action]);
 
   const userRole = user?.role as Role;
+  const routePolicy = React.useMemo(() => getRouteGuardPolicy(pathname || ""), [pathname]);
   const isRoleRestricted = Boolean(
     allowedRoles && allowedRoles.length > 0 && (!userRole || !allowedRoles.includes(userRole))
   );
@@ -70,11 +69,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       return ROUTES.LOGIN;
     }
 
-    if (
-      String(userRole || '').toUpperCase() === String(Role.PATIENT) &&
-      user.profileComplete === false &&
-      !isProfileComplete
-    ) {
+    if (routePolicy.kind === 'profile-gated' && user.profileComplete === false) {
       return `${ROUTES.PROFILE_COMPLETION}?redirect=${encodeURIComponent(pathname || "/")}`;
     }
 
@@ -91,7 +86,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     isPending,
     isAuthenticated,
     user,
-    isProfileComplete,
+    routePolicy.kind,
     pathname,
     isRoleRestricted,
     isPermissionRestricted,

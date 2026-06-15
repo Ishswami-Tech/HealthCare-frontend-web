@@ -13,7 +13,7 @@ import {
 } from '@/types/auth.types';
 
 import { redirect } from 'next/navigation';
-import { getDashboardByRole, ROUTES } from '@/lib/config/routes';
+import { getDashboardByRole, ROUTES, isAuthPath } from '@/lib/config/routes';
 import { calculateProfileCompletion } from '@/lib/config/profile';
 import { cookies, headers as getHeaders } from 'next/headers';
 import { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
@@ -536,7 +536,15 @@ interface GoogleLoginResponse {
     profileComplete?: boolean;
   };
   token?: string;
-  redirectUrl?: string;
+  redirectUrl: string;
+}
+
+function getAuthRedirectUrl(existingRedirectUrl?: string): string {
+  if (!existingRedirectUrl || !isAuthPath(existingRedirectUrl)) {
+    throw new Error('Backend redirectUrl missing or invalid');
+  }
+
+  return existingRedirectUrl;
 }
 
 export async function getServerSession(): Promise<Session | null> {
@@ -773,7 +781,7 @@ export async function getServerSession(): Promise<Session | null> {
         authoritativeProfileComplete = true;
       }
 
-      // The backend's `resolveProfileComplete` is the source of truth.
+      // Prefer the authoritative backend result here.
       // Do NOT use `||` to combine sources — if any source says `true`, the cookie gets stuck at `true`
       // and the user can never be redirected to profile completion even when the actual data is empty.
       const finalProfileComplete = resolvedFromUserData ?? authoritativeProfileComplete ?? profileComplete;
@@ -1331,11 +1339,9 @@ export async function login(data: { email: string; password?: string; otp?: stri
       refresh_token: normalizedResult.refresh_token || '',
       session_id: sessionId || '',
       isAuthenticated: true,
-      redirectUrl:
-        normalizedResult.redirectUrl ||
-        (profileComplete
-          ? getDashboardByRole(normalizedResult.user.role || Role.PATIENT)
-          : ROUTES.PROFILE_COMPLETION)
+      redirectUrl: getAuthRedirectUrl(
+        normalizedResult.redirectUrl
+      )
     };
   } catch (error) {
     logger.error('Login error', error instanceof Error ? error : new Error(String(error)));
@@ -1458,7 +1464,12 @@ export async function verifyOTP(data: OtpVerifyFormData): Promise<AuthResponse |
     };
 
     await setAuthCookies(normalizedResult);
-    return normalizedResult as AuthResponse;
+    return {
+      ...normalizedResult,
+      redirectUrl: getAuthRedirectUrl(
+        normalizedResult.redirectUrl
+      ),
+    } as AuthResponse;
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Failed to verify OTP';
@@ -1519,7 +1530,12 @@ export async function verifyMagicLink(token: string): Promise<AuthResponse> {
       ),
     };
     await setAuthCookies(normalizedResult);
-    return normalizedResult as AuthResponse;
+    return {
+      ...normalizedResult,
+      redirectUrl: getAuthRedirectUrl(
+        normalizedResult.redirectUrl
+      ),
+    } as AuthResponse;
 }
 
 export async function socialLogin(data: { provider: string; token: string; clinicId?: string | undefined }): Promise<AuthResponse> {
@@ -1539,7 +1555,12 @@ export async function socialLogin(data: { provider: string; token: string; clini
     };
     
     await setAuthCookies(normalizedResult);
-    return normalizedResult as AuthResponse;
+    return {
+      ...normalizedResult,
+      redirectUrl: getAuthRedirectUrl(
+        normalizedResult.redirectUrl
+      ),
+    } as AuthResponse;
 }
 
 export async function forgotPassword(data: ForgotPasswordFormData): Promise<MessageResponse> {
@@ -2027,11 +2048,9 @@ export async function googleLogin(
         profileComplete: resolveProfileComplete(result.user as Record<string, unknown>)
       },
       token: result.access_token,
-      redirectUrl:
-        result.redirectUrl ||
-        (resolveProfileComplete(result.user as Record<string, unknown>)
-          ? getDashboardByRole(result.user.role)
-          : ROUTES.PROFILE_COMPLETION)
+      redirectUrl: getAuthRedirectUrl(
+        result.redirectUrl
+      )
     };
     
     logger.info('Google login completed successfully', { userId: outputData.user?.id });
@@ -2059,8 +2078,13 @@ export async function facebookLogin(token: string, clinicId?: string | undefined
       session_id: result.session_id || result.sessionId,
       user: normalizeAuthUserPayload(result.user, result.access_token || result.accessToken),
     };
-  await setAuthCookies(normalizedResult);
-  return normalizedResult as AuthResponse;
+    await setAuthCookies(normalizedResult);
+    return {
+      ...normalizedResult,
+      redirectUrl: getAuthRedirectUrl(
+        normalizedResult.redirectUrl
+      ),
+    } as AuthResponse;
 }
 
 export async function appleLogin(token: string, clinicId?: string | undefined): Promise<{ success: boolean; user?: User; error?: string }> {

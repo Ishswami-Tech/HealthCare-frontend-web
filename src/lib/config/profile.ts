@@ -126,7 +126,8 @@ export function shouldRedirectToProfileCompletion(
 
 /**
  * Calculate profile completion status from user data
- * This replaces the need for a backend profileComplete field
+ * Legacy fallback for older payloads that do not include an explicit
+ * backend `profileComplete` flag.
  */
 export function calculateProfileCompletion(userData: UserProfileData): boolean {
   if (!userData) return false;
@@ -162,6 +163,8 @@ export function calculateProfileCompletion(userData: UserProfileData): boolean {
 
 /**
  * Get profile completion status from user data and cookies
+ * Prefer the backend flag when present; otherwise fall back to the
+ * legacy derived/cookie-based status for compatibility.
  */
 export function getProfileCompletionStatus(
   userData: UserProfileData | null,
@@ -181,6 +184,7 @@ export function getProfileCompletionStatus(
 
 /**
  * Get the appropriate redirect URL after profile completion
+ * This only maps the already-known destination to a route.
  */
 export function getProfileCompletionRedirectUrl(
   userRole: Role,

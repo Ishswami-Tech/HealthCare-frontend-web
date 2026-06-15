@@ -20,9 +20,6 @@ import { useAuthForm } from "@/hooks/auth/useAuth";
 import { TOAST_IDS } from "@/hooks/utils/use-toast";
 import { ROUTES } from "@/lib/config/routes";
 import { OtpCodeInput } from "@/components/auth/otp-code-input";
-import { resolveRedirect, type RedirectContext } from "@/lib/utils/redirect";
-import { useAuthStore } from "@/stores/auth.store";
-import { Role } from "@/types/auth.types";
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -179,25 +176,12 @@ function VerifyOTPPageContent() {
 
       // Use the result directly to determine redirect
       // This ensures we use the server response, not stale store state
-      const user = result?.user;
-      const currentPath = typeof window !== 'undefined' ? window.location.pathname : undefined;
-
-      if (user) {
-        const redirectContext: RedirectContext = {
-          user: {
-            role: user.role as Role,
-            profileComplete: user.profileComplete ?? user.isProfileComplete ?? !user.requiresProfileCompletion,
-          },
-          isAuthenticated: true,
-          currentPath,
-        };
-        const redirect = resolveRedirect(redirectContext);
-        // Wait a bit to let the toast display then redirect
-        setTimeout(() => push(redirect.path), 100);
-      } else {
-        // Fallback to home - auth layout will handle redirect
-        setTimeout(() => push(ROUTES.HOME), 100);
+      const redirectUrl = result?.redirectUrl;
+      if (!redirectUrl || redirectUrl.includes("/auth/")) {
+        throw new Error("Backend redirectUrl missing or invalid");
       }
+      // Wait a bit to let the toast display then redirect
+      setTimeout(() => push(redirectUrl), 100);
     },
     {
       identifier: email,

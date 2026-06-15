@@ -123,6 +123,31 @@ function normalizeNameCandidate(value: unknown): string {
   return String(value || "").trim().replace(/\s+/g, " ");
 }
 
+function isGenericAppointmentName(value: string, kind: "doctor" | "patient" | "any" = "any"): boolean {
+  const normalized = value.trim();
+  if (!normalized) return true;
+
+  const genericPatterns = [
+    /^unknown\s+(doctor|patient)$/i,
+    /^doctor(?:\s+tbd)?$/i,
+    /^patient(?:\s+tbd)?$/i,
+    /^doctor\s+assigned$/i,
+    /^patient\s+assigned$/i,
+    /^doctor\s+details\s+pending$/i,
+    /^patient\s+details\s+pending$/i,
+    /^consultation(?:\s+.*)?$/i,
+    /^video\s+appointment(?:\s+.*)?$/i,
+    /^appointment(?:\s+.*)?$/i,
+    /^room(?:\s+.*)?$/i,
+  ];
+
+  if (genericPatterns.some((pattern) => pattern.test(normalized))) {
+    return true;
+  }
+
+  return false;
+}
+
 function getPersonNameCandidates(person: any): string[] {
   const nestedUser = person?.user || {};
   const nestedProfile = person?.profile || {};
@@ -237,6 +262,27 @@ function getDoctorNameCandidates(appointment: any): string[] {
   }
 
   return normalizedCandidates;
+}
+
+function normalizeViewerRole(role: unknown): string {
+  return String(role || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, "_");
+}
+
+function isDoctorLikeRole(role: unknown): boolean {
+  const normalizedRole = normalizeViewerRole(role);
+  return [
+    "DOCTOR",
+    "ASSISTANT_DOCTOR",
+    "THERAPIST",
+    "COUNSELOR",
+  ].includes(normalizedRole);
+}
+
+function isPatientLikeRole(role: unknown): boolean {
+  return normalizeViewerRole(role) === "PATIENT";
 }
 
 function getPaymentCandidates(appointment: any): Record<string, unknown>[] {
@@ -578,14 +624,44 @@ export function getAppointmentPaymentDisplayState(appointment: any): Appointment
 
 export function getAppointmentDoctorName(appointment: any): string {
   const candidates = getDoctorNameCandidates(appointment);
-  const doctorName = candidates.find((value) => value && !/^doctor(?:\s+tbd)?$/i.test(value));
+  const doctorName = candidates.find((value) => value && !isGenericAppointmentName(value, "doctor"));
   return doctorName || candidates[0] || "Doctor assigned";
 }
 
 export function getAppointmentPatientName(appointment: any): string {
   const candidates = getPersonNameCandidates(appointment?.patient);
-  const patientName = normalizeNameCandidate(appointment?.patientName || candidates[0] || "");
-  return patientName || "Unknown Patient";
+  const patientName = candidates.find((value) => value && !isGenericAppointmentName(value, "patient"));
+  const explicitPatientName = normalizeNameCandidate(appointment?.patientName || "");
+  const resolvedPatientName = !isGenericAppointmentName(explicitPatientName, "patient")
+    ? explicitPatientName
+    : patientName || candidates[0] || "";
+  return resolvedPatientName || "Unknown Patient";
+}
+
+export function getAppointmentCounterpartyName(
+  appointment: any,
+  viewerRole?: string | null
+): string {
+  const doctorName = getAppointmentDoctorName(appointment);
+  const patientName = getAppointmentPatientName(appointment);
+
+  if (isPatientLikeRole(viewerRole)) {
+    return doctorName;
+  }
+
+  if (isDoctorLikeRole(viewerRole)) {
+    return patientName;
+  }
+
+  if (doctorName && !isGenericAppointmentName(doctorName, "doctor")) {
+    return doctorName;
+  }
+
+  if (patientName && !isGenericAppointmentName(patientName, "patient")) {
+    return patientName;
+  }
+
+  return doctorName || patientName || "Participant";
 }
 
 export function getAppointmentLocationName(appointment: any): string {

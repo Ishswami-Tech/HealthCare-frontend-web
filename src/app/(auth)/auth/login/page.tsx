@@ -16,6 +16,7 @@ import useZodForm from "@/hooks/utils/useZodForm";
 import { otpSchema } from "@/lib/schema";
 import { APP_CONFIG } from "@/lib/config/config";
 import type { AuthResponse, OTPFormData } from "@/types/auth.types";
+import { getDashboardByRole, ROUTES } from "@/lib/config/routes";
 import { z } from "zod";
 import { LoginAuthCard } from "./_components/LoginAuthCard";
 import { LoginSuccessRedirectCard } from "./_components/LoginSuccessRedirectCard";
@@ -83,7 +84,6 @@ function LoginPageContent() {
     isGoogleLoggingIn,
     session,
     refreshSession,
-    getRedirectPath,
   } = useAuth();
 
   // Reset state when user is not authenticated (e.g., after logout)
@@ -132,7 +132,11 @@ function LoginPageContent() {
       const restoredSession = await refreshSession(true);
       if (cancelled) return;
       if (restoredSession?.user) {
-        replace(getRedirectPath(restoredSession.user));
+        const nextPath =
+          restoredSession.user.role === "PATIENT" && restoredSession.user.profileComplete === false
+            ? ROUTES.PROFILE_COMPLETION
+            : getDashboardByRole(restoredSession.user.role);
+        replace(nextPath);
         return;
       }
       setIsRestoringSession(false);
@@ -143,7 +147,6 @@ function LoginPageContent() {
       cancelled = true;
     };
   }, [
-    getRedirectPath,
     isRestoringSession,
     isGoogleLoggingIn,
     refreshSession,

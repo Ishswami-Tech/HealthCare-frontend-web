@@ -179,8 +179,8 @@ export function DoctorAppointmentsContent(props: Props) {
         cell: ({ row }) => {
           const app = row.original;
           return (
-            <div className="flex items-center justify-center gap-2 whitespace-nowrap">
-              <Button variant="outline" size="sm" className="size-9 rounded-xl" onClick={() => openAppointmentDetails(app)} aria-label={`View details for ${app.patientName}`}>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Button variant="outline" size="sm" className="h-9 rounded-xl px-3" onClick={() => openAppointmentDetails(app)} aria-label={`View details for ${app.patientName}`}>
                 <Eye className="size-4" />
               </Button>
               {app.status === "CONFIRMED" && app.type === "VIDEO_CALL" && (
@@ -241,7 +241,13 @@ export function DoctorAppointmentsContent(props: Props) {
         setAppointmentViewFilter={setAppointmentViewFilter}
       />
 
-      <DataTable columns={appointmentColumns} data={filteredAppointments} emptyMessage="No appointments match this view" pageSize={10} />
+      <DataTable
+        columns={appointmentColumns}
+        data={filteredAppointments}
+        emptyMessage="No appointments match this view"
+        pageSize={10}
+        scrollable
+      />
 
       <DoctorAppointmentsDetailsDialog
         selectedAppointment={selectedAppointment}

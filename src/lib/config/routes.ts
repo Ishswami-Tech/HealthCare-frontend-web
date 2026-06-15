@@ -1,6 +1,42 @@
 import { Role } from '@/types/auth.types';
 import { getSidebarLinksByRole, SidebarLink } from './sidebarLinks';
 
+export type RouteGuardKind = 'public' | 'auth-only' | 'profile-gated' | 'role-gated' | 'protected';
+
+export interface RouteGuardPolicy {
+  kind: RouteGuardKind;
+  roles?: Role[];
+}
+
+const PUBLIC_ROUTE_PATHS = [
+  '/',
+  '/status',
+  '/about',
+  '/gallery',
+  '/team',
+  '/treatments',
+  '/contact',
+  '/privacy',
+  '/terms',
+  '/disclaimer',
+  '/payment/callback',
+  '/drdeshmukh',
+  '/data-deletion',
+  '/email/unsubscribe',
+  '/auth/login',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/auth/verify-otp',
+];
+
+const AUTH_ONLY_ROUTE_PATHS = [
+  '/profile-completion',
+];
+
+const PROFILE_GATED_ROUTE_PREFIXES = [
+  '/patient',
+];
+
 export const ROUTES = {
   LOGIN: '/auth/login',
   // REGISTER: removed - registration is now handled implicitly via OTP/Google login
@@ -67,40 +103,16 @@ export function isAuthPath(path: string): boolean {
 }
 
 export function isPublicRoute(path: string): boolean {
-  const publicRoutes = [
-    ROUTES.LOGIN,
-    // ROUTES.REGISTER removed - registration now handled via OTP/Google
-    ROUTES.FORGOT_PASSWORD,
-    ROUTES.RESET_PASSWORD,
-    ROUTES.VERIFY_OTP,
-    '/',
-    '/status',
-    '/about',
-    '/gallery',
-    '/team',
-    '/treatments',
-    '/contact',
-    '/privacy',
-    '/terms',
-    '/disclaimer',
-    '/payment/callback',
-    '/drdeshmukh',
-    '/data-deletion',
-    '/email/unsubscribe',
-  ];
-
-  // Check if path matches a public route or any subpage of a public route
-  return publicRoutes.includes(path) ||
-         publicRoutes.some(route => path.startsWith(route + '/')) ||
-         path.startsWith('/api/public');
+  return getRouteGuardPolicy(path).kind === 'public' || path.startsWith('/api/public');
 }
 
 export function isAuthOnlyRoute(path: string): boolean {
-  return path === ROUTES.PROFILE_COMPLETION;
+  return getRouteGuardPolicy(path).kind === 'auth-only';
 }
 
 export function isProtectedRoute(path: string): boolean {
-  return !isPublicRoute(path) && !isAuthOnlyRoute(path);
+  const kind = getRouteGuardPolicy(path).kind;
+  return kind === 'profile-gated' || kind === 'role-gated' || kind === 'protected';
 }
 
 export function shouldSkipProxy(path: string): boolean {
@@ -112,7 +124,40 @@ export function shouldSkipProxy(path: string): boolean {
   );
 }
 
-export function getProtectedRouteRoles(path: string): string[] {
+export function getRouteGuardPolicy(path: string): RouteGuardPolicy {
+  const normalizedPath = path.trim();
+
+  if (
+    PUBLIC_ROUTE_PATHS.includes(normalizedPath) ||
+    PUBLIC_ROUTE_PATHS.some((route) => normalizedPath.startsWith(route + '/'))
+  ) {
+    return { kind: 'public' };
+  }
+
+  if (
+    AUTH_ONLY_ROUTE_PATHS.includes(normalizedPath) ||
+    AUTH_ONLY_ROUTE_PATHS.some((route) => normalizedPath.startsWith(route + '/'))
+  ) {
+    return { kind: 'auth-only' };
+  }
+
+  if (
+    PROFILE_GATED_ROUTE_PREFIXES.some(
+      (route) => normalizedPath === route || normalizedPath.startsWith(`${route}/`)
+    )
+  ) {
+    return { kind: 'profile-gated', roles: [Role.PATIENT] };
+  }
+
+  const roles = getProtectedRouteRoles(normalizedPath);
+  if (roles.length > 0) {
+    return { kind: 'role-gated', roles };
+  }
+
+  return { kind: 'protected' };
+}
+
+export function getProtectedRouteRoles(path: string): Role[] {
   if (path.startsWith('/super-admin')) return [Role.SUPER_ADMIN];
   if (path.startsWith('/clinic-admin')) return [Role.CLINIC_ADMIN];
   if (path.startsWith('/doctor')) return [Role.DOCTOR, Role.ASSISTANT_DOCTOR];

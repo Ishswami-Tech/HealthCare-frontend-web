@@ -19,10 +19,10 @@ export function AppointmentStepWrapper({
   className,
 }: AppointmentStepWrapperProps) {
   return (
-    <section className={cn("flex flex-col gap-4", className)}>
+    <section className={cn("flex w-full min-w-0 flex-col gap-4", className)}>
       {(title || description || badge) && (
         <header className="flex flex-col gap-2">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             {title ? <h3 className="text-sm font-semibold text-foreground">{title}</h3> : <span />}
             {badge}
           </div>

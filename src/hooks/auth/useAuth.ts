@@ -9,7 +9,7 @@ import { ERROR_MESSAGES } from '@/lib/config/config';
 import { useGlobalLoading } from '@/hooks/utils/useGlobalLoading';
 import { logger } from '@/lib/utils/logger';
 import { useAuthStore, resetAllStores } from '@/stores';
-import { resolveRedirect, RedirectContext } from '@/lib/utils/redirect';
+import { RedirectContext } from '@/lib/utils/redirect';
 import { isSessionInvalidError } from '@/lib/utils/auth-recovery';
 import {
   login as loginAction,
@@ -47,7 +47,7 @@ import type {
   Session,
 } from '@/types/auth.types';
 import { Role } from '@/types/auth.types';
-import { getDashboardByRole, ROUTES } from '@/lib/config/routes';
+import { ROUTES } from '@/lib/config/routes';
 import { 
   clearTokens 
 } from '@/lib/utils/token-manager';
@@ -68,27 +68,19 @@ interface GoogleLoginResponse {
     clinicName?: string;
   };
   token?: string;
-  redirectUrl?: string;
+  redirectUrl: string;
 }
 
 // SessionData is replaced by imported Session type
 
 // Helper functions
 function getRedirectPath(
-  user: { role?: Role | string; profileComplete?: boolean | undefined } | null | undefined,
   redirectUrl?: string
 ): string {
-  const isPatient = String(user?.role || '').toUpperCase() === String(Role.PATIENT);
-  if (isPatient && user?.profileComplete === false) {
-    return ROUTES.PROFILE_COMPLETION;
+  if (!redirectUrl || redirectUrl.includes('/auth/')) {
+    throw new Error('Backend redirectUrl missing or invalid');
   }
-  if (redirectUrl && !redirectUrl.includes('/auth/')) {
-    return redirectUrl;
-  }
-  if (user?.role) {
-    return getDashboardByRole(user.role as Role);
-  }
-  return ROUTES.LOGIN;
+  return redirectUrl;
 }
 
 function isTokenExpiringSoon(token: string): boolean {
@@ -115,7 +107,7 @@ function isAuthError(error: unknown): boolean {
   return false;
 }
 
-function resolveProfileComplete(user: Record<string, unknown> | null | undefined): boolean {
+function resolveProfileCompleteFromBackend(user: Record<string, unknown> | null | undefined): boolean {
   if (!user) return false;
   if (user.role && String(user.role).toUpperCase() !== String(Role.PATIENT)) return true;
   if (typeof user.profileComplete === 'boolean') return user.profileComplete;
@@ -378,7 +370,7 @@ export function useAuth() {
       },
       onSuccess: (data) => {
         // Convert AuthResponse to Session
-        const profileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
+        const profileComplete = resolveProfileCompleteFromBackend(data.user as unknown as Record<string, unknown>);
         const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
         const { ...restUser } = data.user;
           const sessionData: Session = {
@@ -396,20 +388,7 @@ export function useAuth() {
           resetQueryCacheForAuthTransition(sessionData);
           void prefetchAuthenticatedWorkspace(clinicId, sessionData.session_id || sessionData.user.id || 'guest');
         
-        // ✅ Use centralized redirect utility
-        const currentPath = typeof window !== 'undefined' ? window.location.pathname : undefined;
-        const redirect = resolveRedirect({
-          user: {
-            role: data.user.role as Role,
-            profileComplete,
-          },
-          redirectUrl: data.redirectUrl,
-          ...(currentPath ? { currentPath } : {}),
-          isAuthenticated: true,
-        });
-        
-        // Redirect to determined path
-        router.push(redirect.path);
+        router.push(getRedirectPath(data.redirectUrl));
       },
     }
   );
@@ -443,7 +422,7 @@ export function useAuth() {
           return;
         }
 
-        const initialProfileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
+        const initialProfileComplete = resolveProfileCompleteFromBackend(data.user as unknown as Record<string, unknown>);
         const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
         // Create session data with proper defaults
           const sessionData: Session = {
@@ -469,18 +448,7 @@ export function useAuth() {
           resetQueryCacheForAuthTransition(sessionData);
           void prefetchAuthenticatedWorkspace(clinicId, sessionData.session_id || sessionData.user.id || 'guest');
 
-        // Handle redirect based on profile completion
-        const refreshedSession = queryClient.getQueryData<Session | null>(['session']);
-        const finalProfileComplete =
-          resolveProfileComplete(refreshedSession?.user as unknown as Record<string, unknown>) ||
-          initialProfileComplete;
-
-        if (!finalProfileComplete) {
-          router.push(ROUTES.PROFILE_COMPLETION);
-        } else {
-          const redirectPath = getRedirectPath(data.user, data.redirectUrl);
-          router.push(redirectPath);
-        }
+        router.push(getRedirectPath(data.redirectUrl));
       },
       onError: (error) => {
         if (process.env.NODE_ENV === 'development') {
@@ -527,18 +495,8 @@ export function useAuth() {
         resetAllStores();
         clearSession();
 
-        // ✅ Use centralized redirect utility
-        const currentPath = typeof window !== 'undefined' ? window.location.pathname : undefined;
-        const redirectContext: Parameters<typeof resolveRedirect>[0] = {
-          isAuthenticated: false,
-        };
-        if (currentPath) {
-          redirectContext.currentPath = currentPath;
-        }
-        const redirect = resolveRedirect(redirectContext);
-
         // ✅ Use router.replace instead of push to prevent history issues
-        router.replace(redirect.path);
+        router.replace(ROUTES.LOGIN);
         showSuccessToast('Logged out successfully', {
           id: TOAST_IDS.AUTH.LOGOUT,
         });
@@ -554,18 +512,8 @@ export function useAuth() {
         resetAllStores();
         clearSession();
 
-        // ✅ Use centralized redirect utility
-        const currentPath = typeof window !== 'undefined' ? window.location.pathname : undefined;
-        const redirectContext: Parameters<typeof resolveRedirect>[0] = {
-          isAuthenticated: false,
-        };
-        if (currentPath) {
-          redirectContext.currentPath = currentPath;
-        }
-        const redirect = resolveRedirect(redirectContext);
-
         // ✅ Use router.replace instead of push to prevent history issues
-        router.replace(redirect.path);
+        router.replace(ROUTES.LOGIN);
         showErrorToast('Logged out locally, but server logout failed', {
           id: TOAST_IDS.AUTH.LOGOUT,
         });
@@ -590,7 +538,7 @@ export function useAuth() {
       showLoading: false,
       onSuccess: (data) => {
         // Convert AuthResponse to Session
-        const profileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
+        const profileComplete = resolveProfileCompleteFromBackend(data.user as unknown as Record<string, unknown>);
         const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
         // Determine login method from backend metadata, with a safe legacy fallback.
         const userRecord = data.user as unknown as Record<string, unknown>;
@@ -629,8 +577,7 @@ export function useAuth() {
         resetQueryCacheForAuthTransition(sessionData);
         void prefetchAuthenticatedWorkspace(clinicId, sessionData.session_id || sessionData.user.id || 'guest');
 
-        // ✅ Redirect logic moved to page component to avoid race conditions
-        // The page will handle navigation after receiving the result
+        // Redirect is handled by the page using the backend result.
       },
       onError: (error) => {
         if (process.env.NODE_ENV === 'development') {
@@ -713,7 +660,7 @@ export function useAuth() {
       showToast: false,
       showLoading: false,
         onSuccess: (data) => {
-          const profileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
+          const profileComplete = resolveProfileCompleteFromBackend(data.user as unknown as Record<string, unknown>);
           const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
           const accessToken =
             (data as unknown as { access_token?: string; accessToken?: string }).access_token ||
@@ -736,8 +683,7 @@ export function useAuth() {
 
         resetQueryCacheForAuthTransition(sessionData);
         void prefetchAuthenticatedWorkspace(clinicId, sessionData.session_id || sessionData.user.id || 'guest');
-        const redirectPath = getRedirectPath(data.user, data.redirectUrl);
-        router.push(redirectPath);
+        router.push(getRedirectPath(data.redirectUrl));
       },
     }
   );
@@ -770,7 +716,7 @@ export function useAuth() {
       loadingMessage: 'Verifying magic link...',
       successMessage: 'Logged in successfully',
         onSuccess: (data) => {
-          const profileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
+          const profileComplete = resolveProfileCompleteFromBackend(data.user as unknown as Record<string, unknown>);
           const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
           const accessToken =
             (data as unknown as { access_token?: string; accessToken?: string }).access_token ||
@@ -793,8 +739,7 @@ export function useAuth() {
 
           resetQueryCacheForAuthTransition(sessionData);
           void prefetchAuthenticatedWorkspace(clinicId, sessionData.session_id || sessionData.user.id || 'guest');
-        const redirectPath = getRedirectPath(data.user, data.redirectUrl);
-        router.push(redirectPath);
+        router.push(getRedirectPath(data.redirectUrl));
         showSuccessToast('Logged in successfully', {
           id: TOAST_IDS.AUTH.LOGIN,
         });

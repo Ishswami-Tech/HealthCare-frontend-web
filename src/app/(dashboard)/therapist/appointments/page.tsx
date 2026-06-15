@@ -121,7 +121,7 @@ export default function TherapistAppointments() {
   };
 
   return (
-    <div className="p-6 gap-y-6">
+    <div className="flex min-h-screen flex-col gap-6 p-4 sm:p-6">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-semibold">Appointments</h1>
@@ -133,7 +133,7 @@ export default function TherapistAppointments() {
       {/* Search and Filter */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-3 size-4 text-gray-400" />
               <Input
@@ -143,28 +143,32 @@ export default function TherapistAppointments() {
                 className="pl-10"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2 sm:flex-nowrap">
               <Button
                 variant={filterStatus === "all" ? "default" : "outline"}
                 onClick={() => setFilterStatus("all")}
+                className="flex-1 sm:flex-none"
               >
                 All
               </Button>
               <Button
                 variant={filterStatus === "SCHEDULED" ? "default" : "outline"}
                 onClick={() => setFilterStatus("SCHEDULED")}
+                className="flex-1 sm:flex-none"
               >
                 Scheduled
               </Button>
               <Button
                 variant={filterStatus === "CONFIRMED" ? "default" : "outline"}
                 onClick={() => setFilterStatus("CONFIRMED")}
+                className="flex-1 sm:flex-none"
               >
                 Confirmed
               </Button>
               <Button
                 variant={filterStatus === "COMPLETED" ? "default" : "outline"}
                 onClick={() => setFilterStatus("COMPLETED")}
+                className="flex-1 sm:flex-none"
               >
                 Completed
               </Button>
@@ -272,16 +276,16 @@ export default function TherapistAppointments() {
                   appointment as unknown as Record<string, unknown>
                 );
                 return (
-                  <div
+                <div
                   key={appointment.id}
-                  className="p-4 border rounded-lg hover:bg-gray-50"
+                  className="rounded-lg border p-4 transition-colors hover:bg-gray-50"
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-center gap-4 flex-1">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="flex min-w-0 items-start gap-4 flex-1">
                       <div className="size-10 bg-purple-100 rounded-full flex items-center justify-center">
                         <MessageCircle className="size-5 text-purple-600" />
                       </div>
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <h4 className="font-semibold">{patientName}</h4>
                         <Badge variant="outline" className="text-xs">
                           {clientId}
@@ -300,24 +304,25 @@ export default function TherapistAppointments() {
                           </span>
                         </div>
                       </div>
-                      {appointment.notes && (
-                        <p className="text-xs text-gray-500 mt-1 italic">
-                          Notes: {appointment.notes}
-                        </p>
-                      )}
+                        {appointment.notes && (
+                          <p className="mt-1 text-xs italic text-gray-500">
+                            Notes: {appointment.notes}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-right">
+                    <div className="flex flex-col gap-2 sm:items-end">
                     <Badge
                       className={`${getStatusColor(status)} flex items-center gap-1`}
                     >
                       {getStatusIcon(status)}
                       {status.replace("_", " ").toLowerCase()}
                     </Badge>
-                    <div className="flex gap-2 mt-2">
+                    <div className="flex flex-col gap-2 sm:flex-row">
                       {status === "SCHEDULED" && (
                         <Button
                           size="sm"
+                          className="w-full sm:w-auto"
                           onClick={() =>
                             updateAppointmentMutation.mutate({
                               appointmentId: appointment.id,
@@ -333,6 +338,7 @@ export default function TherapistAppointments() {
                         <Button
                           size="sm"
                           variant="default"
+                          className="w-full sm:w-auto"
                           onClick={() =>
                             updateAppointmentMutation.mutate({
                               appointmentId: appointment.id,
@@ -347,6 +353,7 @@ export default function TherapistAppointments() {
                       <Button
                         size="sm"
                         variant="outline"
+                        className="w-full sm:w-auto"
                         onClick={() =>
                           deleteAppointmentMutation.mutate(appointment.id)
                         }

@@ -1756,7 +1756,7 @@ function BookAppointmentStep4({
                     {period.slots.length} slots
                   </span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                   {period.slots.map((slot) => {
                     const isSelected = selectedSlot === slot;
 
@@ -1897,7 +1897,7 @@ function BookAppointmentStep4({
                   {period.slots.length} slots
                 </span>
               </div>
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                 {period.slots.map((slot) => (
                   <button
                     key={slot}

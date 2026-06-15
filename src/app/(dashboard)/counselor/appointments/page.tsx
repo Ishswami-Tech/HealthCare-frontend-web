@@ -88,7 +88,7 @@ export default function CounselorAppointments() {
   }
 
   return (
-    <div className="p-6 gap-y-6">
+    <div className="flex min-h-screen flex-col gap-6 p-4 sm:p-6">
       <div>
         <h1 className="text-3xl font-semibold">Appointments</h1>
         <p className="text-gray-600">Manage counseling sessions and appointments</p>
@@ -96,7 +96,7 @@ export default function CounselorAppointments() {
 
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-3 size-4 text-gray-400" />
               <Input
@@ -106,22 +106,25 @@ export default function CounselorAppointments() {
                 className="pl-10"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2 sm:flex-nowrap">
               <Button
                 variant={filterStatus === "all" ? "default" : "outline"}
                 onClick={() => setFilterStatus("all")}
+                className="flex-1 sm:flex-none"
               >
                 All
               </Button>
               <Button
                 variant={filterStatus === "SCHEDULED" ? "default" : "outline"}
                 onClick={() => setFilterStatus("SCHEDULED")}
+                className="flex-1 sm:flex-none"
               >
                 Scheduled
               </Button>
               <Button
                 variant={filterStatus === "COMPLETED" ? "default" : "outline"}
                 onClick={() => setFilterStatus("COMPLETED")}
+                className="flex-1 sm:flex-none"
               >
                 Completed
               </Button>
@@ -151,14 +154,14 @@ export default function CounselorAppointments() {
               {filteredAppointments.map((appointment: any) => (
                 <div
                   key={appointment.id}
-                  className="p-4 border rounded-lg hover:bg-gray-50"
+                  className="rounded-lg border p-4 transition-colors hover:bg-gray-50"
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-center gap-4 flex-1">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="flex min-w-0 items-start gap-4 flex-1">
                       <div className="size-10 bg-purple-100 rounded-full flex items-center justify-center">
                         <MessageCircle className="size-5 text-purple-600" />
                       </div>
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <h4 className="font-semibold">{appointment.clientName}</h4>
                           <Badge variant="outline" className="text-xs">
@@ -179,21 +182,22 @@ export default function CounselorAppointments() {
                           </span>
                         </div>
                         {appointment.notes && (
-                          <p className="text-xs text-gray-500 mt-1 italic">
+                          <p className="mt-1 text-xs italic text-gray-500">
                             {appointment.notes}
                           </p>
                         )}
                       </div>
                     </div>
-                    <div className="text-right">
+                    <div className="flex flex-col gap-2 sm:items-end">
                       <Badge className={getStatusColor(appointment.status)}>
                         {appointment.status.toLowerCase()}
                       </Badge>
-                      <div className="mt-2 flex gap-2">
+                      <div className="flex flex-col gap-2 sm:flex-row">
                         {appointment.status === "SCHEDULED" && (
                           <Button
                             variant="outline"
                             size="sm"
+                            className="w-full sm:w-auto"
                             onClick={() => handleStatusChange(appointment.id, "IN_PROGRESS")}
                             disabled={updateMutation.isPending}
                           >
@@ -204,6 +208,7 @@ export default function CounselorAppointments() {
                           <Button
                             variant="outline"
                             size="sm"
+                            className="w-full sm:w-auto"
                             onClick={() => handleStatusChange(appointment.id, "COMPLETED")}
                             disabled={updateMutation.isPending}
                           >
@@ -213,6 +218,7 @@ export default function CounselorAppointments() {
                         <Button
                           variant="outline"
                           size="sm"
+                          className="w-full sm:w-auto"
                           onClick={() => handleDelete(appointment.id)}
                           disabled={deleteMutation.isPending}
                         >

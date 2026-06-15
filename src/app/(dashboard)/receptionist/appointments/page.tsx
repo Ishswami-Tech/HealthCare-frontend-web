@@ -746,9 +746,9 @@ export default function ReceptionistAppointmentsPage() {
               </div>
 
               {/* Row 2: Search + filters in one scrollable row */}
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                 {/* Search */}
-                <div className="relative w-52 shrink-0">
+                <div className="relative w-full sm:w-52 sm:shrink-0">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
                   <Input
                     placeholder="Search patient, doctor..."
@@ -760,7 +760,7 @@ export default function ReceptionistAppointmentsPage() {
 
                 {/* Status */}
                 <Select value={statusFilter} onValueChange={(value) => dispatch({ type: "setStatusFilter", value })}>
-                  <SelectTrigger className="h-9 w-[130px] shrink-0 border-border bg-background text-sm">
+                  <SelectTrigger className="h-9 w-full border-border bg-background text-sm sm:w-[130px] sm:shrink-0">
                     <SelectValue placeholder="All Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -776,7 +776,7 @@ export default function ReceptionistAppointmentsPage() {
 
                 {/* Sort */}
                 <Select value={sortOrder} onValueChange={(value) => dispatch({ type: "setSortOrder", value })}>
-                  <SelectTrigger className="h-9 w-[130px] shrink-0 border-border bg-background text-sm">
+                  <SelectTrigger className="h-9 w-full border-border bg-background text-sm sm:w-[130px] sm:shrink-0">
                     <SelectValue placeholder="Sort" />
                   </SelectTrigger>
                   <SelectContent>
@@ -789,7 +789,7 @@ export default function ReceptionistAppointmentsPage() {
 
                 {/* Queue */}
                 <Select value={queueFilter} onValueChange={(value) => dispatch({ type: "setQueueFilter", value })}>
-                  <SelectTrigger className="h-9 w-[120px] shrink-0 border-border bg-background text-sm">
+                  <SelectTrigger className="h-9 w-full border-border bg-background text-sm sm:w-[120px] sm:shrink-0">
                     <SelectValue placeholder="All Queues" />
                   </SelectTrigger>
                   <SelectContent>
@@ -806,7 +806,7 @@ export default function ReceptionistAppointmentsPage() {
                     value={selectedLocationId || "all"}
                     onValueChange={(val) => dispatch({ type: "setSelectedLocationId", value: val === "all" ? null : val })}
                   >
-                    <SelectTrigger className="h-9 w-[130px] shrink-0 border-border bg-background text-sm">
+                    <SelectTrigger className="h-9 w-full border-border bg-background text-sm sm:w-[130px] sm:shrink-0">
                       <SelectValue placeholder="All Locations" />
                     </SelectTrigger>
                     <SelectContent>
@@ -823,7 +823,7 @@ export default function ReceptionistAppointmentsPage() {
                 {/* Date picker */}
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="h-9 text-sm px-3 shrink-0 border-border bg-background gap-1.5 font-normal">
+                    <Button variant="outline" className="h-9 w-full justify-between text-sm px-3 border-border bg-background gap-1.5 font-normal sm:w-auto sm:shrink-0">
                       <Calendar className="size-3.5 text-emerald-500" />
                       {selectedCalendarDate ? format(selectedCalendarDate, "dd MMM yyyy") : "All dates"}
                     </Button>
@@ -860,6 +860,7 @@ export default function ReceptionistAppointmentsPage() {
                 data={filteredAppointments} 
                 pageSize={10}
                 compact
+                scrollable
               />
             </CardContent>
           </Card>
@@ -899,6 +900,7 @@ export default function ReceptionistAppointmentsPage() {
                 pageSize={9}
                 emptyMessage="No active doctor queues at the moment"
                 compact
+                scrollable
               />
             )}
           </CardContent>

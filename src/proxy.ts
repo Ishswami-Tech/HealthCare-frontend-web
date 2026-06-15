@@ -18,12 +18,10 @@ import { shouldRedirectToProfileCompletion } from '@/lib/config/profile';
 import {
   getDashboardByRole,
   ROUTES,
-  isPublicRoute,
-  isAuthOnlyRoute,
   isAuthPath, // Imported for middleware parity
   shouldSkipProxy as shouldSkipProxyRoute,
-  getProtectedRouteRoles,
   isProtectedRoute,
+  getRouteGuardPolicy,
 } from '@/lib/config/routes';
 import { DEFAULT_LANGUAGE, LANGUAGE_COOKIE_NAME } from '@/lib/i18n/config';
 import { buildConnectSrcSources, buildOriginConnectSrc, normalizeOrigin } from './lib/config/csp';
@@ -176,7 +174,8 @@ export default async function proxy(request: NextRequest) {
   // =========================================================================
   // STEP 3: Allow public routes without authentication
   // =========================================================================
-  const isPublic = isPublicRoute(pathname);
+  const routePolicy = getRouteGuardPolicy(pathname);
+  const isPublic = routePolicy.kind === 'public';
   if (isPublic) {
     return response;
   }
@@ -257,7 +256,7 @@ export default async function proxy(request: NextRequest) {
   // =========================================================================
   // STEP 7: Check auth-only routes (requires auth but not profile completion)
   // =========================================================================
-  if (isAuthOnlyRoute(pathname)) {
+  if (routePolicy.kind === 'auth-only') {
     return response;
   }
 
@@ -285,13 +284,14 @@ export default async function proxy(request: NextRequest) {
     }
   }
   
-  const shouldRedirectToProfile = shouldRedirectToProfileCompletion(
-    !!hasValidToken,
-    authoritativeProfileComplete,
-    pathname
-  );
-
-  if (shouldRedirectToProfile) {
+  if (
+    routePolicy.kind === 'profile-gated' &&
+    shouldRedirectToProfileCompletion(
+      !!hasValidToken,
+      authoritativeProfileComplete,
+      pathname
+    )
+  ) {
     const profileCompletionUrl = new URL(ROUTES.PROFILE_COMPLETION, request.url);
     profileCompletionUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(profileCompletionUrl);
@@ -300,7 +300,7 @@ export default async function proxy(request: NextRequest) {
   // =========================================================================
   // STEP 8: Role-based access control (RBAC)
   // =========================================================================
-  const allowedRoles = getProtectedRouteRoles(pathname);
+  const allowedRoles = routePolicy.roles || [];
 
   if (allowedRoles && allowedRoles.length > 0 && userRole) {
     if (!allowedRoles.includes(userRole)) {

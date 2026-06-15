@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
-import { resolveRedirect } from "@/lib/utils/redirect";
+import { ROUTES, getDashboardByRole } from "@/lib/config/routes";
 import { PageLoading } from "@/components/ui/loading";
 
 export function AuthRedirect() {
@@ -12,16 +12,12 @@ export function AuthRedirect() {
 
   useEffect(() => {
     if (!isPending && isAuthenticated && session?.user) {
-      const redirect = resolveRedirect({
-        isAuthenticated: true,
-        user: {
-          role: session.user.role,
-          ...(typeof session.user.profileComplete === "boolean"
-            ? { profileComplete: session.user.profileComplete }
-            : {}),
-        },
-      });
-      replace(redirect.path);
+      const nextPath =
+        String(session.user.role || "").toUpperCase() === "PATIENT" &&
+        session.user.profileComplete === false
+          ? ROUTES.PROFILE_COMPLETION
+          : getDashboardByRole(session.user.role);
+      replace(nextPath);
     }
   }, [isPending, isAuthenticated, replace, session]);
 

@@ -48,12 +48,12 @@ export function DoctorAppointmentsSummary({
         title="My Appointments"
         description={`Today is ${todayLabel || "today"}. Review active visits and appointment history, including completed, cancelled, and no-show records.`}
         actionsSlot={
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-3">
             <BookAppointmentDialog
               {...(clinicId ? { clinicId } : {})}
               {...(userId ? { initialDoctorId: userId } : {})}
               trigger={
-                <Button className="rounded-xl border-0 bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm hover:from-orange-600 hover:to-amber-600 focus-visible:ring-2 focus-visible:ring-orange-500/30 animate-pulse">
+                <Button className="h-10 w-full rounded-xl border-0 bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm hover:from-orange-600 hover:to-amber-600 focus-visible:ring-2 focus-visible:ring-orange-500/30 animate-pulse sm:w-auto">
                   <Video className="mr-2 size-4" />
                   Book Video Appointment
                 </Button>
@@ -141,7 +141,7 @@ export function DoctorAppointmentsSummary({
                 <Button
                   key={filter.value}
                   variant={appointmentViewFilter === filter.value ? "default" : "outline"}
-                  className="h-10 rounded-xl px-4"
+                  className="h-10 flex-1 rounded-xl px-4 sm:flex-none"
                   onClick={() => setAppointmentViewFilter(filter.value)}
                 >
                   <span className="mr-2">{filter.label}</span>

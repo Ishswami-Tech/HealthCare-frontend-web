@@ -101,6 +101,8 @@ export interface VideoAppointment {
   id: string;
   appointmentId: string;
   roomName: string;
+  patientName?: string;
+  doctorName?: string;
   doctorId: string;
   patientId: string;
   treatmentType?: string;
