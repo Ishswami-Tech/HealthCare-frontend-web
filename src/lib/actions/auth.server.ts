@@ -678,11 +678,13 @@ export async function getServerSession(): Promise<Session | null> {
 
     let authoritativeProfileComplete = profileComplete;
     
-    try {
-      const payload = parseJwtPayload(accessToken);
-      const tokenProfileComplete = resolveProfileCompleteFromPayload(payload);
-      const payloadClinicId = normalizeClinicId(extractClinicIdFromPayload(payload));
-      const resolvedClinicId = payloadClinicId || normalizeClinicId(cookieClinicId);
+  try {
+    const payload = parseJwtPayload(accessToken);
+    const loginMethodCookie = cookieStore.get('login_method')?.value?.trim();
+    const isPhoneOtpSession = loginMethodCookie === 'phone_otp';
+    const tokenProfileComplete = resolveProfileCompleteFromPayload(payload);
+    const payloadClinicId = normalizeClinicId(extractClinicIdFromPayload(payload));
+    const resolvedClinicId = payloadClinicId || normalizeClinicId(cookieClinicId);
 
       if (payloadClinicId && payloadClinicId !== cookieClinicId) {
         cookieStore.set({
@@ -693,19 +695,19 @@ export async function getServerSession(): Promise<Session | null> {
       }
 
       const session: Session = {
-        user: {
-          id: '',
-          email: '',
-          role: userRole as Role,
-          ...extractNamePartsFromPayload(payload),
-          isVerified: true,
-          profileComplete: profileComplete,
-          clinicId: resolvedClinicId,
-          ...(extractClinicNameFromPayload(payload) ? { clinicName: extractClinicNameFromPayload(payload) } : {})
-        },
-        access_token: accessToken,
-        session_id: sessionId || '',
-        isAuthenticated: true
+      user: {
+        id: '',
+        role: userRole as Role,
+        ...extractNamePartsFromPayload(payload),
+        isVerified: true,
+        profileComplete: profileComplete,
+        clinicId: resolvedClinicId,
+        ...(extractClinicNameFromPayload(payload) ? { clinicName: extractClinicNameFromPayload(payload) } : {}),
+        ...(loginMethodCookie ? { loginMethod: loginMethodCookie as User['loginMethod'] } : {}),
+      },
+      access_token: accessToken,
+      session_id: sessionId || '',
+      isAuthenticated: true
       };
 
       try {
@@ -715,8 +717,15 @@ export async function getServerSession(): Promise<Session | null> {
         const tokenPayload = payload;
         
         session.user.id = String(tokenPayload['sub'] || '');
-        session.user.email = String(tokenPayload['email'] || '');
+        if (isPhoneOtpSession) {
+          delete session.user.email;
+        } else {
+          session.user.email = String(tokenPayload['email'] || '');
+        }
         session.user.role = (tokenPayload['role'] as Role) || (userRole as Role);
+        if (!session.user.loginMethod && typeof tokenPayload['loginMethod'] === 'string') {
+          session.user.loginMethod = tokenPayload['loginMethod'] as User['loginMethod'];
+        }
         const tokenNameParts = extractNamePartsFromPayload(tokenPayload);
         session.user.firstName = session.user.firstName || tokenNameParts.firstName || firstNameCookie;
         session.user.lastName = session.user.lastName || tokenNameParts.lastName || lastNameCookie;
@@ -726,7 +735,7 @@ export async function getServerSession(): Promise<Session | null> {
             payloadClinicId || cookieClinicId;
         }
 
-        if (session.user.id && session.user.email && session.user.role) {
+        if (session.user.id && session.user.role && (isPhoneOtpSession || session.user.email)) {
           if (tokenProfileComplete === true) {
             authoritativeProfileComplete = true;
             cookieStore.set({
@@ -807,7 +816,7 @@ export async function getServerSession(): Promise<Session | null> {
       return {
         user: {
           id: userData.id,
-          email: userData.email,
+          ...(isPhoneOtpSession ? {} : { email: userData.email }),
           role: userData.role || userRole as Role,
           firstName: userData.firstName || userData.first_name || firstNameCookie || '',
           lastName: userData.lastName || userData.last_name || lastNameCookie || '',
@@ -818,7 +827,8 @@ export async function getServerSession(): Promise<Session | null> {
           address: userData.address || '',
           isVerified: userData.isVerified || true,
           profileComplete: finalProfileComplete,
-          clinicId: userData.clinicId || userData.primaryClinicId
+          clinicId: userData.clinicId || userData.primaryClinicId,
+          ...(loginMethodCookie ? { loginMethod: loginMethodCookie as User['loginMethod'] } : {}),
         },
         access_token: accessToken,
         session_id: sessionId || '',
@@ -1725,6 +1735,7 @@ async function setAuthCookies(data: {
     firstName?: string;
     lastName?: string;
     name?: string;
+    loginMethod?: string;
   };
 }) {
   const cookieStore = await cookies();
@@ -1761,6 +1772,14 @@ async function setAuthCookies(data: {
     cookieStore.set({
       name: 'user_role',
       value: data.user.role,
+      ...cookieOptions(),
+    });
+  }
+
+  if (typeof data.user?.loginMethod === 'string' && data.user.loginMethod.trim()) {
+    cookieStore.set({
+      name: 'login_method',
+      value: data.user.loginMethod.trim(),
       ...cookieOptions(),
     });
   }

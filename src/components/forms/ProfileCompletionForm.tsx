@@ -1516,7 +1516,7 @@ function ProfileCompletionFormContent({
 
                 <div className="space-y-4">
                   {/* Row 1: Name & Relation */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <FormField
                       control={form.control}
                       name="emergencyContactName"
@@ -1563,6 +1563,7 @@ function ProfileCompletionFormContent({
                           <Phone className="size-3" />
                           Phone
                         </FormLabel>
+                      <div className="w-full min-w-0">
                         <PhoneInput
                           placeholder="Emergency contact phone"
                           value={field.value || ""}
@@ -1570,8 +1571,9 @@ function ProfileCompletionFormContent({
                           error={!!form.formState.errors.emergencyContactPhone}
                           defaultCountry="IN"
                           international
-                          className="h-10 sm:h-9 text-sm"
+                          className="h-10 w-full min-w-0 sm:h-9 text-sm"
                         />
+                      </div>
                         <FormMessage />
                       </FormItem>
                     )}

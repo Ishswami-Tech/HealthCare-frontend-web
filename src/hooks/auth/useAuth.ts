@@ -379,6 +379,10 @@ export function useAuth() {
         lastName: result.user.lastName || '',
       };
 
+      if (user.loginMethod === 'phone_otp') {
+        delete user.email;
+      }
+
       return {
         ...result,
         user,
@@ -400,9 +404,11 @@ export function useAuth() {
         const profileComplete = resolveProfileCompleteFromBackend(data.user as unknown as Record<string, unknown>);
         const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
         const { ...restUser } = data.user;
-          const sessionData: Session = {
+        const sessionData: Session = {
           user: {
-            ...restUser,
+            ...(restUser.loginMethod === 'phone_otp'
+              ? (({ email: _email, ...sanitizedUser }) => sanitizedUser)(restUser)
+              : restUser),
             ...(clinicId ? { clinicId } : {}),
             profileComplete,
           } as User,
@@ -452,10 +458,12 @@ export function useAuth() {
         const initialProfileComplete = resolveProfileCompleteFromBackend(data.user as unknown as Record<string, unknown>);
         const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
         // Create session data with proper defaults
-          const sessionData: Session = {
+        const sessionData: Session = {
           user: {
             id: data.user.id,
-            email: data.user.email ?? undefined,
+            ...(data.user.loginMethod === 'phone_otp'
+              ? {}
+              : { email: data.user.email ?? undefined }),
             role: data.user.role,
             name: data.user.name || [data.user.firstName, data.user.lastName].filter(Boolean).join(' ').trim(),
             firstName: data.user.firstName || data.user.name?.split(/\s+/)[0] || '',
@@ -632,7 +640,9 @@ export function useAuth() {
 
         const sessionData: Session = {
           user: {
-            ...data.user,
+            ...(data.user.loginMethod === 'phone_otp'
+              ? (({ email: _email, ...sanitizedUser }) => sanitizedUser)(data.user)
+              : data.user),
             ...(clinicId ? { clinicId } : {}),
             profileComplete,
             loginMethod: loginMethod as User['loginMethod'],
