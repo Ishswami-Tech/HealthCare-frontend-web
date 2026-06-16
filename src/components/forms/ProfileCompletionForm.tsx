@@ -409,12 +409,19 @@ function ProfileCompletionFormContent({
   // Email OTP login: explicit email_otp only
   const isEmailOtpLogin = loginMethod === "email_otp";
   // Phone OTP login: explicit phone_otp, or legacy otp with verified phone
+  const isLikelyPhoneBasedSession =
+    Boolean(sessionUser?.phone) &&
+    !sessionUser?.email &&
+    sessionUser?.role === Role.PATIENT;
   const isPhoneOtpLogin =
     loginMethod === "phone_otp" ||
     (loginMethod === "otp" && !!sessionUser?.phoneVerified) ||
-    (loginMethod === undefined && !!sessionUser?.phoneVerified);
+    (loginMethod === undefined && !!sessionUser?.phoneVerified) ||
+    (loginMethod === undefined && isLikelyPhoneBasedSession);
   const initialPhoneVerified =
-    isPhoneOtpLogin || Boolean(sessionUser?.phoneVerified);
+    isPhoneOtpLogin ||
+    Boolean(sessionUser?.phoneVerified) ||
+    isLikelyPhoneBasedSession;
   const initialEmailVerified =
     isEmailOtpLogin || isGoogleLogin || Boolean(sessionUser?.emailVerified);
 
@@ -511,13 +518,18 @@ function ProfileCompletionFormContent({
     return `+${cleaned}`;
   };
 
+  const initialPhoneValue =
+    isPhoneOtpLogin || initialPhoneVerified
+      ? formatPhoneNumber(sessionUser?.phone)
+      : "";
+
   const form = useForm<ProfileCompletionFormData>({
     resolver: zodResolver(profileCompletionSchema),
     defaultValues: {
       firstName: autoFilledFirstName,
       lastName: autoFilledLastName,
       email: autoFilledEmail,
-      phone: isPhoneOtpLogin ? formatPhoneNumber(sessionUser?.phone) : "",
+      phone: initialPhoneValue,
       dateOfBirth: "",
       gender: "male",
       address: "",
@@ -599,7 +611,7 @@ function ProfileCompletionFormContent({
       firstName: finalFirstName,
       lastName: finalLastName,
       email: isPhoneOtpLogin ? "" : sessionUser.email || autoFilledEmail,
-      phone: isPhoneOtpLogin ? formatPhoneNumber(sessionUser?.phone) : "",
+      phone: initialPhoneValue,
       dateOfBirth: "",
       gender: "male" as const,
       address: "",
