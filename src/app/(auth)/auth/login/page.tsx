@@ -219,7 +219,6 @@ function LoginPageContent() {
         identifier,
         clinicId: defaultClinicId,
       });
-      setIsSendingOtp(false);
       if (!result.success) {
         // Display the backend error message (e.g., rate limit, validation errors)
         setAuthError(result.message || "Failed to request OTP");
@@ -228,11 +227,11 @@ function LoginPageContent() {
       // Request succeeded - show OTP input
       setLoginFlow((current) => ({ ...current, showOTPInput: true }));
     } catch (error) {
-      setIsSendingOtp(false);
       setAuthError(
         error instanceof Error ? error.message : "Failed to request OTP",
       );
     } finally {
+      setIsSendingOtp(false);
       requestOtpLockRef.current = false;
     }
   };

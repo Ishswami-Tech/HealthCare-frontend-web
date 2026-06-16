@@ -469,6 +469,8 @@ export function useAuth() {
             firstName: data.user.firstName || data.user.name?.split(/\s+/)[0] || '',
             lastName: data.user.lastName || data.user.name?.split(/\s+/).slice(1).join(' ') || '',
             isVerified: true,
+            emailVerified: true,
+            loginMethod: 'google_oauth',
             googleId: data.user.googleId || '',
             ...(clinicId ? { clinicId } : {}),
             ...(data.user.clinicName ? { clinicName: data.user.clinicName } : {}),
@@ -681,10 +683,17 @@ export function useAuth() {
 
       requestOtpInFlightRef.current = true;
       try {
-      return requestOTPAction({
-        ...data,
-        identifier: normalizeOtpIdentifier(data.identifier),
-      }) as Promise<{ success: boolean; message: string }>;
+        return await Promise.race([
+          requestOTPAction({
+            ...data,
+            identifier: normalizeOtpIdentifier(data.identifier),
+          }) as Promise<{ success: boolean; message: string }>,
+          new Promise<{ success: boolean; message: string }>((_, reject) => {
+            setTimeout(() => {
+              reject(new Error('OTP request timed out'));
+            }, 10000);
+          }),
+        ]);
       } finally {
         requestOtpInFlightRef.current = false;
       }

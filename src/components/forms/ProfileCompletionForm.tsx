@@ -405,9 +405,12 @@ function ProfileCompletionFormContent({
   );
   // Login method flags (must be defined before useState hooks that use them)
   const loginMethod = sessionUser?.loginMethod;
-  const isGoogleLogin = loginMethod === "google_oauth";
+  const isGoogleLogin =
+    loginMethod === "google_oauth" || Boolean(sessionUser?.googleId);
   // Email OTP login: explicit email_otp only
-  const isEmailOtpLogin = loginMethod === "email_otp";
+  const isEmailOtpLogin =
+    loginMethod === "email_otp" ||
+    (!isGoogleLogin && Boolean(sessionUser?.emailVerified) && Boolean(sessionUser?.email));
   // Phone OTP login: explicit phone_otp, or legacy otp with verified phone
   const isLikelyPhoneBasedSession =
     Boolean(sessionUser?.phone) &&
@@ -440,7 +443,7 @@ function ProfileCompletionFormContent({
     isPhoneVerified: initialPhoneVerified,
     isEmailVerified: initialEmailVerified,
   });
-  const hasInitializedRef = useRef(false);
+  const lastInitializedSessionKeyRef = useRef<string>("");
 
   const setIsSubmitting = (value: boolean) =>
     dispatch({ type: "setIsSubmitting", value });
@@ -498,6 +501,35 @@ function ProfileCompletionFormContent({
   const autoFilledLastName = getAutoLastName();
   const autoFilledEmail = isPhoneOtpLogin ? "" : sessionUser?.email || "";
   const showEmailField = true;
+  const sessionIdentityKey = useMemo(
+    () =>
+      [
+        sessionUser?.id || "",
+        loginMethod || "",
+        sessionUser?.email || "",
+        sessionUser?.phone || "",
+        sessionUser?.googleId || "",
+        sessionUser?.firstName || "",
+        sessionUser?.lastName || "",
+        sessionUser?.name || "",
+        String(sessionUser?.profileComplete ?? ""),
+        String(sessionUser?.emailVerified ?? ""),
+        String(sessionUser?.phoneVerified ?? ""),
+      ].join("|"),
+    [
+      sessionUser?.id,
+      loginMethod,
+      sessionUser?.email,
+      sessionUser?.phone,
+      sessionUser?.googleId,
+      sessionUser?.firstName,
+      sessionUser?.lastName,
+      sessionUser?.name,
+      sessionUser?.profileComplete,
+      sessionUser?.emailVerified,
+      sessionUser?.phoneVerified,
+    ],
+  );
 
   const redirectUrl = getSearchParam("redirect") || "/";
   const profileCompletionSchema = useMemo(
@@ -601,7 +633,8 @@ function ProfileCompletionFormContent({
   ]);
 
   useEffect(() => {
-    if (!sessionUser || hasInitializedRef.current) return;
+    if (!sessionUser) return;
+    if (lastInitializedSessionKeyRef.current === sessionIdentityKey) return;
     const finalFirstName = isGoogleLogin
       ? autoFilledFirstName || resolveNameParts(sessionUser).firstName
       : "";
@@ -624,7 +657,7 @@ function ProfileCompletionFormContent({
       clinicName: "",
       clinicAddress: "",
     });
-    hasInitializedRef.current = true;
+    lastInitializedSessionKeyRef.current = sessionIdentityKey;
   }, [
     sessionUser,
     form,
@@ -633,6 +666,7 @@ function ProfileCompletionFormContent({
     autoFilledFirstName,
     autoFilledLastName,
     autoFilledEmail,
+    sessionIdentityKey,
   ]);
 
   const updateProfileMutation = useUpdateUserProfile();
@@ -1113,7 +1147,7 @@ function ProfileCompletionFormContent({
     }
   }, [sessionUser, userRole, push, redirectUrl]);
 
-  if (!sessionUser || !hasInitializedRef.current || !isPatient) {
+  if (!sessionUser || lastInitializedSessionKeyRef.current !== sessionIdentityKey || !isPatient) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="flex flex-col items-center gap-3">

@@ -726,6 +726,9 @@ export async function getServerSession(): Promise<Session | null> {
         if (!session.user.loginMethod && typeof tokenPayload['loginMethod'] === 'string') {
           session.user.loginMethod = tokenPayload['loginMethod'] as User['loginMethod'];
         }
+        if (session.user.loginMethod === 'google_oauth' || session.user.loginMethod === 'email_otp') {
+          session.user.emailVerified = true;
+        }
         const tokenNameParts = extractNamePartsFromPayload(tokenPayload);
         session.user.firstName = session.user.firstName || tokenNameParts.firstName || firstNameCookie;
         session.user.lastName = session.user.lastName || tokenNameParts.lastName || lastNameCookie;
@@ -826,6 +829,10 @@ export async function getServerSession(): Promise<Session | null> {
           gender: userData.gender || '',
           address: userData.address || '',
           isVerified: userData.isVerified || true,
+          emailVerified:
+            loginMethodCookie === 'google_oauth' || loginMethodCookie === 'email_otp'
+              ? true
+              : userData.emailVerified || false,
           profileComplete: finalProfileComplete,
           clinicId: userData.clinicId || userData.primaryClinicId,
           ...(loginMethodCookie ? { loginMethod: loginMethodCookie as User['loginMethod'] } : {}),
@@ -2071,6 +2078,8 @@ export async function googleLogin(
     result.user = {
       ...result.user,
       profileComplete,
+      loginMethod: 'google_oauth',
+      emailVerified: true,
     };
 
     await setAuthCookies(result);
@@ -2087,7 +2096,9 @@ export async function googleLogin(
         googleId: result.user.googleId,
         clinicId: result.user.clinicId,
         clinicName: result.user.clinicName,
-        profileComplete: resolveProfileComplete(result.user as Record<string, unknown>)
+        profileComplete: resolveProfileComplete(result.user as Record<string, unknown>),
+        loginMethod: 'google_oauth',
+        emailVerified: true,
       },
       token: result.access_token,
       redirectUrl: getAuthRedirectUrl(

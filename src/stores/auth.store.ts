@@ -25,6 +25,11 @@ function isSameUser(a: User | null | undefined, b: User | null | undefined): boo
     a.lastName === b.lastName &&
     a.phone === b.phone &&
     a.isVerified === b.isVerified &&
+    a.emailVerified === b.emailVerified &&
+    a.phoneVerified === b.phoneVerified &&
+    a.phoneVerifiedAt === b.phoneVerifiedAt &&
+    a.loginMethod === b.loginMethod &&
+    a.googleId === b.googleId &&
     a.profileComplete === b.profileComplete &&
     a.clinicId === b.clinicId &&
     a.clinicName === b.clinicName
