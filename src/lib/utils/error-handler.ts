@@ -37,16 +37,26 @@ function extractNestedMessage(value: unknown): string {
   return '';
 }
 
-function extractBackendErrorCode(error: ApiErrorResponse): string | undefined {
-  if (typeof error.errorCode === 'string' && error.errorCode.trim()) {
-    return error.errorCode.trim();
+function extractBackendErrorCode(error: ApiErrorResponse | Error | unknown): string | undefined {
+  if (!error || typeof error !== 'object') {
+    return undefined;
   }
 
-  if (typeof error.code === 'string' && error.code.trim()) {
-    return error.code.trim();
+  const payload = error as Record<string, unknown>;
+
+  if (typeof payload.errorCode === 'string' && payload.errorCode.trim()) {
+    return payload.errorCode.trim();
   }
 
-  const nestedError = error.error;
+  if (typeof payload.code === 'string' && payload.code.trim()) {
+    return payload.code.trim();
+  }
+
+  if (typeof payload.backendCode === 'string' && payload.backendCode.trim()) {
+    return payload.backendCode.trim();
+  }
+
+  const nestedError = payload.error;
   if (nestedError && typeof nestedError === 'object') {
     const payload = nestedError as Record<string, unknown>;
     if (typeof payload.code === 'string' && payload.code.trim()) {
@@ -87,6 +97,10 @@ function getMessageForErrorCode(errorCode?: string): string {
       return 'Your account is temporarily locked. Please try again later.';
     case 'AUTH_ACCOUNT_DISABLED':
       return 'Your account is disabled. Please contact support.';
+    case 'AUTH_OTP_INVALID':
+      return 'Invalid verification code. Please check and try again.';
+    case 'AUTH_OTP_EXPIRED':
+      return 'Verification code has expired. Please request a new one.';
     case 'AUTH_INSUFFICIENT_PERMISSIONS':
       return ERROR_MESSAGES.FORBIDDEN;
     case 'CLINIC_ACCESS_DENIED':

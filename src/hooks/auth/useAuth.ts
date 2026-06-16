@@ -47,13 +47,18 @@ import type {
   Session,
 } from '@/types/auth.types';
 import { Role } from '@/types/auth.types';
-import { ROUTES } from '@/lib/config/routes';
+import { ROUTES, getDashboardByRole } from '@/lib/config/routes';
 import { 
   clearTokens 
 } from '@/lib/utils/token-manager';
 import { clinicApiClient } from '@/lib/api/client';
 import { clearInflightRequests } from '@/hooks/core/requestDeduper';
 import { normalizeClinicId } from '@/lib/utils/clinic-id';
+import {
+  clearOtpVerificationLock,
+  isOtpVerificationLocked,
+  markOtpVerificationLocked,
+} from '@/lib/utils/otp-verification-lock';
 
 // Constants
 const TOKEN_REFRESH_THRESHOLD = 60 * 60 * 1000; // 60 minutes - refresh tokens that expire within 1 hour
@@ -550,11 +555,32 @@ export function useAuth() {
         throw new Error('OTP verification is already in progress');
       }
 
+      const normalizedIdentifier = normalizeOtpIdentifier(data.identifier);
+      if (isOtpVerificationLocked(normalizedIdentifier, data.clinicId)) {
+        const currentSession = queryClient.getQueryData<Session | null>(['session']);
+        if (currentSession?.user) {
+          const profileComplete = resolveProfileCompleteFromBackend(
+            currentSession.user as unknown as Record<string, unknown>
+          );
+          const redirectUrl =
+            currentSession.user.role && String(currentSession.user.role).toUpperCase() === String(Role.PATIENT) && !profileComplete
+              ? ROUTES.PROFILE_COMPLETION
+              : getDashboardByRole(currentSession.user.role);
+
+          return {
+            user: currentSession.user,
+            access_token: currentSession.access_token,
+            session_id: currentSession.session_id,
+            redirectUrl,
+          } as AuthResponse;
+        }
+      }
+
       verifyOtpInFlightRef.current = true;
       try {
       const result = await verifyOTPAction({
         ...data,
-        identifier: normalizeOtpIdentifier(data.identifier),
+        identifier: normalizedIdentifier,
       });
       if ('error' in result && result.error) {
         throw new Error(result.error);
@@ -576,6 +602,15 @@ export function useAuth() {
         const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
         // Determine login method from backend metadata, with a safe legacy fallback.
         const userRecord = data.user as unknown as Record<string, unknown>;
+        const verificationIdentifier =
+          typeof userRecord.phone === 'string' && userRecord.phone.trim()
+            ? userRecord.phone
+            : typeof userRecord.email === 'string' && userRecord.email.trim()
+              ? userRecord.email
+              : '';
+        if (verificationIdentifier) {
+          markOtpVerificationLocked(verificationIdentifier, clinicId);
+        }
         const loginMethod = (() => {
           const method = typeof userRecord.loginMethod === 'string' ? userRecord.loginMethod : '';
           if (method && method !== 'otp') {
@@ -651,7 +686,8 @@ export function useAuth() {
       showToast: false,
       showLoading: false,
       invalidateQueries: [['session']],
-      onSuccess: (data) => {
+      onSuccess: (_data, variables) => {
+        clearOtpVerificationLock(variables.identifier, variables.clinicId);
         if (process.env.NODE_ENV === 'development') {
           logger.info('OTP sent', { component: 'useAuth' });
         }

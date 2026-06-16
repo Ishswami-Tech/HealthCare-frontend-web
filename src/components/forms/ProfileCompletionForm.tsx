@@ -53,6 +53,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { format } from "date-fns";
+import { APP_CONFIG } from "@/lib/config/config";
 import {
   showSuccessToast,
   showErrorToast,
@@ -174,6 +175,7 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
   const [isVerifying, setIsVerifying] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const resolvedClinicId = session?.user?.clinicId || APP_CONFIG.CLINIC.ID;
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -191,7 +193,10 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
     if (countdown > 0) return;
     setErrorMessage(null);
     try {
-      await clinicApiClient.requestOTP({ identifier: phone });
+      await clinicApiClient.requestOTP({
+        identifier: phone,
+        clinicId: resolvedClinicId,
+      });
       showSuccessToast("OTP resent to your phone.", {
         id: TOAST_IDS.PROFILE.OTP,
       });
@@ -646,7 +651,7 @@ function ProfileCompletionFormContent({
       setIsSendingOtp(true);
       await clinicApiClient.requestOTP({
         identifier: phone,
-        ...(sessionUser?.clinicId ? { clinicId: sessionUser.clinicId } : {}),
+        clinicId: sessionUser?.clinicId || APP_CONFIG.CLINIC.ID,
       });
       setPendingPhone(phone);
       setShowOtpModal(true);

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/form";
 import { ROUTES } from "@/lib/config/routes";
 import { OtpCodeInput } from "@/components/auth/otp-code-input";
+import { APP_CONFIG } from "@/lib/config/config";
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -77,12 +78,10 @@ function VerifyOTPPageContent() {
   const { push } = useRouterAlias();
   const searchParams = useSearchParams();
   const getSearchParam = useMemo(() => searchParams.get.bind(searchParams), [searchParams]);
-  // Read clinicId from query param first, then fall back to cookie
+  const defaultClinicId = APP_CONFIG.CLINIC.ID;
+  // Read clinicId from query param first, then fall back to config
   const queryClinicId = getSearchParam("clinicId");
-  const cookieClinicId = typeof document !== 'undefined'
-    ? document.cookie.match(/clinic_id=([^;]+)/)?.[1]
-    : undefined;
-  const clinicId = queryClinicId || cookieClinicId;
+  const clinicId = queryClinicId || defaultClinicId;
   const { verifyOTP, requestOTP, isVerifyingOTP, isRequestingOTP } = useAuth();
   const [
     {
@@ -96,6 +95,8 @@ function VerifyOTPPageContent() {
   ] = useReducer(verifyOTPReducer, initialVerifyOTPState);
   const isPhoneFlow = email.length > 0 && !email.includes("@");
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
+  const lastAutoSubmittedOtpRef = useRef<string>("");
+  const otpSubmitLockRef = useRef(false);
 
   const setEmail = (value: string) => dispatch({ type: "setEmail", value });
   const setSuccessPhase = (value: VerifyOTPState["successPhase"]) =>
@@ -127,7 +128,7 @@ function VerifyOTPPageContent() {
     async (data: OTPFormData) => {
       const result = await verifyOTP({
         ...data,
-        clinicId: clinicId,
+        clinicId,
       });
       if (!result) {
         return;
@@ -151,12 +152,55 @@ function VerifyOTPPageContent() {
   );
   const otpValue = form.watch("otp");
 
+  const submitOtpOnce = useCallback(
+    async (event?: React.FormEvent) => {
+      event?.preventDefault();
+
+      if (successPhase !== "none" || isVerifyingOTP || otpSubmitLockRef.current) {
+        return;
+      }
+
+      const normalizedOtp = (otpValue || "").trim();
+      if (normalizedOtp.length !== 6) {
+        return;
+      }
+
+      if (lastAutoSubmittedOtpRef.current === normalizedOtp) {
+        return;
+      }
+
+      lastAutoSubmittedOtpRef.current = normalizedOtp;
+      otpSubmitLockRef.current = true;
+      try {
+        await form.onFormSubmit();
+      } finally {
+        otpSubmitLockRef.current = false;
+      }
+    },
+    [form, isVerifyingOTP, otpValue, successPhase],
+  );
+
+  useEffect(() => {
+    if (successPhase !== "none" || isVerifyingOTP) {
+      return;
+    }
+
+    if (otpValue.length !== 6) {
+      if (lastAutoSubmittedOtpRef.current !== otpValue) {
+        lastAutoSubmittedOtpRef.current = "";
+      }
+      return;
+    }
+
+    void submitOtpOnce();
+  }, [isVerifyingOTP, otpValue, successPhase, submitOtpOnce]);
+
   const handleResendOTP = async () => {
     if (countdown > 0) return; // Don't allow during cooldown
 
     const result = await requestOTP({
       identifier: email,
-      clinicId: clinicId,
+      clinicId,
     });
     if (!result.success) {
       setFormError(result.message || "Failed to resend OTP. Please try again.");
@@ -256,7 +300,7 @@ function VerifyOTPPageContent() {
           </div>
         )}
         <Form {...form}>
-          <form onSubmit={form.onFormSubmit} className="flex flex-col gap-y-6">
+          <form onSubmit={submitOtpOnce} className="flex flex-col gap-y-6">
             <FormField
               control={form.control}
               name="otp"

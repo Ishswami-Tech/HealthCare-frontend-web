@@ -4,6 +4,17 @@ import { useForm, DefaultValues, UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
+const recentSubmissionKeys = new Map<string, number>();
+const SUBMISSION_DEDUP_WINDOW_MS = 2500;
+
+function purgeExpiredSubmissionKeys(now: number): void {
+  for (const [key, timestamp] of recentSubmissionKeys.entries()) {
+    if (now - timestamp > SUBMISSION_DEDUP_WINDOW_MS) {
+      recentSubmissionKeys.delete(key);
+    }
+  }
+}
+
 const useZodForm = <T extends z.ZodType<any, any, any>>(
   schema: T,
   mutation: UseMutateFunction<unknown, unknown, z.infer<T>>,
@@ -23,7 +34,16 @@ const useZodForm = <T extends z.ZodType<any, any, any>>(
       return;
     }
 
+    const now = Date.now();
+    purgeExpiredSubmissionKeys(now);
+    const submissionKey = JSON.stringify(values);
+    const lastSubmissionAt = recentSubmissionKeys.get(submissionKey);
+    if (lastSubmissionAt && now - lastSubmissionAt < SUBMISSION_DEDUP_WINDOW_MS) {
+      return;
+    }
+
     isSubmittingRef.current = true;
+    recentSubmissionKeys.set(submissionKey, now);
     try {
       await Promise.resolve(mutation(values as z.infer<T>));
     } catch (error) {

@@ -13,13 +13,13 @@ import {
 } from '@/types/auth.types';
 
 import { redirect } from 'next/navigation';
-import { getDashboardByRole, ROUTES, isAuthPath } from '@/lib/config/routes';
+import { getDashboardByRole, ROUTES } from '@/lib/config/routes';
 import { calculateProfileCompletion } from '@/lib/config/profile';
 import { cookies, headers as getHeaders } from 'next/headers';
 import { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
 import { createHash } from 'crypto';
 import { logger } from '@/lib/utils/logger';
-import { isApiError } from '@/lib/utils/error-handler';
+import { isApiError, sanitizeErrorMessage } from '@/lib/utils/error-handler';
 import { fetchWithAbort } from '@/lib/utils/fetch-with-abort';
 import { revalidatePath } from 'next/cache';
 import { clinicApiClient } from '@/lib/api/client';
@@ -540,11 +540,17 @@ interface GoogleLoginResponse {
 }
 
 function getAuthRedirectUrl(existingRedirectUrl?: string): string {
-  if (!existingRedirectUrl || !isAuthPath(existingRedirectUrl)) {
+  const redirectUrl = typeof existingRedirectUrl === 'string' ? existingRedirectUrl.trim() : '';
+
+  if (!redirectUrl) {
     throw new Error('Backend redirectUrl missing or invalid');
   }
 
-  return existingRedirectUrl;
+  if (redirectUrl.startsWith('http://') || redirectUrl.startsWith('https://')) {
+    throw new Error('Backend redirectUrl missing or invalid');
+  }
+
+  return redirectUrl;
 }
 
 export async function getServerSession(): Promise<Session | null> {
@@ -1390,7 +1396,10 @@ export async function requestOTP(data: OtpRequestFormData): Promise<{ success: b
     logger.error('OTP request error', error instanceof Error ? error : new Error(String(error)));
     // Return error as structured response instead of throwing
     // This ensures Next.js production builds don't mask the error message
-    const errorMessage = extractErrorMessage(error) || 'Failed to request OTP. Please try again.';
+    const errorMessage =
+      sanitizeErrorMessage(error) ||
+      extractErrorMessage(error) ||
+      'Failed to request OTP. Please try again.';
     return { success: false, message: errorMessage };
   }
 }
@@ -1472,7 +1481,9 @@ export async function verifyOTP(data: OtpVerifyFormData): Promise<AuthResponse |
     } as AuthResponse;
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : 'Failed to verify OTP';
+      sanitizeErrorMessage(error) ||
+      (error instanceof Error ? error.message : '') ||
+      'Failed to verify OTP';
     return { error: message };
   }
 }

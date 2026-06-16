@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -76,6 +77,52 @@ export function LoginAuthCard({
     isRequestingOTP,
     isVerifyingOTP,
   } = uiState;
+  const lastAutoSubmittedOtpRef = useRef<string>("");
+  const otpSubmitLockRef = useRef(false);
+  const otpValue = typeof otpForm.watch === "function" ? (otpForm.watch("otp") as string) : "";
+
+  const submitOtpOnce = useCallback(
+    async (event?: React.FormEvent) => {
+      event?.preventDefault();
+
+      if (!showOTPInput || isFormDisabled || isVerifyingOTP || otpSubmitLockRef.current) {
+        return;
+      }
+
+      const normalizedOtp = (otpValue || "").trim();
+      if (normalizedOtp.length !== 6) {
+        return;
+      }
+
+      if (lastAutoSubmittedOtpRef.current === normalizedOtp) {
+        return;
+      }
+
+      lastAutoSubmittedOtpRef.current = normalizedOtp;
+      otpSubmitLockRef.current = true;
+      try {
+        await otpForm.onFormSubmit();
+      } finally {
+        otpSubmitLockRef.current = false;
+      }
+    },
+    [isFormDisabled, isVerifyingOTP, otpForm, otpValue, showOTPInput],
+  );
+
+  useEffect(() => {
+    if (!showOTPInput || isFormDisabled || isVerifyingOTP) {
+      return;
+    }
+
+    if (otpValue.length !== 6) {
+      if (lastAutoSubmittedOtpRef.current !== otpValue) {
+        lastAutoSubmittedOtpRef.current = "";
+      }
+      return;
+    }
+
+    void submitOtpOnce();
+  }, [isFormDisabled, isVerifyingOTP, otpValue, showOTPInput, submitOtpOnce]);
 
   return (
     <div className="relative mx-auto w-full max-w-[380px]">
@@ -135,7 +182,7 @@ export function LoginAuthCard({
           )}
 
           <Form {...otpForm}>
-            <form onSubmit={otpForm.onFormSubmit} className="mt-2 space-y-3">
+            <form onSubmit={submitOtpOnce} className="mt-2 space-y-3">
               {!showOTPInput && (
                 <div className="flex gap-2 rounded-lg border border-gray-200 bg-gray-50 p-1.5 dark:border-slate-800 dark:bg-slate-800/50">
                   <button
