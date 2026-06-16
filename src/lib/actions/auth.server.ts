@@ -98,11 +98,23 @@ function normalizeAuthUserPayload(
     extractClinicNameFromPayload(parseJwtPayload(token || '')) ||
     undefined;
 
-  return {
+  const normalizedUser: Record<string, unknown> = {
     ...(user || {}),
     ...(clinicId ? { clinicId } : {}),
     ...(clinicName ? { clinicName } : {}),
   };
+
+  const loginMethod =
+    typeof normalizedUser['loginMethod'] === 'string'
+      ? normalizedUser['loginMethod']
+      : '';
+
+  if (loginMethod === 'phone_otp') {
+    const { email: _email, ...rest } = normalizedUser;
+    return rest;
+  }
+
+  return normalizedUser;
 }
 
 if (APP_CONFIG.IS_DEVELOPMENT || APP_CONFIG.FEATURES.DEBUG) {

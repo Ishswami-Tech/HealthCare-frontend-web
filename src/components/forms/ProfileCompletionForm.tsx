@@ -497,6 +497,7 @@ function ProfileCompletionFormContent({
   const autoFilledFirstName = getAutoFirstName();
   const autoFilledLastName = getAutoLastName();
   const autoFilledEmail = isPhoneOtpLogin ? "" : sessionUser?.email || "";
+  const showEmailField = true;
 
   const redirectUrl = getSearchParam("redirect") || "/";
   const profileCompletionSchema = useMemo(
@@ -894,11 +895,10 @@ function ProfileCompletionFormContent({
         resolvedPhone = formatPhoneNumber(data.phone);
       }
 
-      // For email OTP and Google login, email is already verified and included from session
-      // For phone OTP login, DO NOT include email at all (security - email not verified for phone-only users)
-      // For other methods, include email from form if provided
+      // For email OTP and Google login, email is already verified and included from session.
+      // For phone OTP login, email is optional and may be entered during profile completion.
       const resolvedEmail = isPhoneOtpLogin
-        ? undefined // Phone OTP users cannot update email through profile form
+        ? data.email?.trim() || undefined
         : isEmailOtpLogin || isGoogleLogin
           ? sessionUser?.email
           : data.email?.trim() || undefined;
@@ -1210,61 +1210,72 @@ function ProfileCompletionFormContent({
                   />
                 </div>
 
-                {/* Email (auto-filled for Google, auto-verified for Email OTP) */}
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
-                        Email
-                        {isGoogleLogin && (
-                          <ShieldCheck
-                            className="size-3 text-emerald-500"
-                            aria-label="Auto-filled from Google"
-                          />
-                        )}
-                        {/* Use reducer state for email verification to persist after verification */}
-                        {isEmailVerified && (
-                          <ShieldCheck
-                            className="size-3 text-emerald-500"
-                            aria-label="Verified"
-                          />
-                        )}
-                      </FormLabel>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <div className="flex-1">
-                          <Input
-                            type="email"
-                            placeholder="Email"
-                            disabled={isGoogleLogin || isEmailOtpLogin}
-                            className="h-10 sm:h-9 text-sm"
-                            aria-invalid={!!form.formState.errors.email}
-                            {...field}
-                          />
-                        </div>
-                        {/* Use reducer state for email verification to persist after verification */}
-                        {isEmailVerified && (
-                          <div className="inline-flex h-10 items-center justify-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 text-xs font-medium text-emerald-700 sm:h-9 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
-                            <ShieldCheck className="size-3" />
-                            <span>Verified</span>
+                {showEmailField && (
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
+                          Email
+                          {isPhoneOtpLogin && (
+                            <span className="text-muted-foreground">
+                              (optional)
+                            </span>
+                          )}
+                          {isGoogleLogin && (
+                            <ShieldCheck
+                              className="size-3 text-emerald-500"
+                              aria-label="Auto-filled from Google"
+                            />
+                          )}
+                          {/* Use reducer state for email verification to persist after verification */}
+                          {isEmailVerified && (
+                            <ShieldCheck
+                              className="size-3 text-emerald-500"
+                              aria-label="Verified"
+                            />
+                          )}
+                        </FormLabel>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <div className="flex-1">
+                            <Input
+                              type="email"
+                              placeholder="Email"
+                              disabled={isGoogleLogin || isEmailOtpLogin}
+                              className="h-10 sm:h-9 text-sm"
+                              aria-invalid={!!form.formState.errors.email}
+                              {...field}
+                            />
                           </div>
-                        )}
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                          {/* Use reducer state for email verification to persist after verification */}
+                          {isEmailVerified && (
+                            <div className="inline-flex h-10 items-center justify-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 text-xs font-medium text-emerald-700 sm:h-9 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                              <ShieldCheck className="size-3" />
+                              <span>Verified</span>
+                            </div>
+                          )}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 {/* Phone */}
                 <FormField
                   control={form.control}
                   name="phone"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
-                        <Phone className="size-3" />
-                        Phone
+                      <FormItem>
+                        <FormLabel className="text-xs sm:text-sm flex items-center gap-1">
+                          <Phone className="size-3" />
+                          Phone
+                          {(isGoogleLogin || isEmailOtpLogin) && (
+                            <span className="text-muted-foreground">
+                              (verify required)
+                            </span>
+                          )}
                         {/* Phone is required only for email OTP and Google login (not verified at login) */}
                         {(isGoogleLogin || isEmailOtpLogin) && (
                           <span className="text-destructive">*</span>
