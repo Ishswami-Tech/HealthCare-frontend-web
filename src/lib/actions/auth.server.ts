@@ -694,12 +694,18 @@ export async function getServerSession(): Promise<Session | null> {
         });
       }
 
-      const session: Session = {
+       const session: Session = {
       user: {
         id: '',
         role: userRole as Role,
         ...extractNamePartsFromPayload(payload),
         isVerified: true,
+        phone:
+          typeof payload?.phone === 'string'
+            ? payload.phone
+            : typeof payload?.mobile === 'string'
+              ? payload.mobile
+              : '',
         profileComplete: profileComplete,
         clinicId: resolvedClinicId,
         ...(extractClinicNameFromPayload(payload) ? { clinicName: extractClinicNameFromPayload(payload) } : {}),
@@ -722,6 +728,12 @@ export async function getServerSession(): Promise<Session | null> {
         } else {
           session.user.email = String(tokenPayload['email'] || '');
         }
+        session.user.phone =
+          typeof tokenPayload['phone'] === 'string'
+            ? tokenPayload['phone']
+            : typeof tokenPayload['mobile'] === 'string'
+              ? tokenPayload['mobile']
+              : session.user.phone || '';
         session.user.role = (tokenPayload['role'] as Role) || (userRole as Role);
         if (!session.user.loginMethod && typeof tokenPayload['loginMethod'] === 'string') {
           session.user.loginMethod = tokenPayload['loginMethod'] as User['loginMethod'];
