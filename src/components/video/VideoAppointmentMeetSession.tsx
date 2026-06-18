@@ -477,19 +477,21 @@ export function VideoAppointmentMeetSession({
     .trim()
     .toUpperCase();
   const exitRoute = getVideoSessionExitRoute(viewerRoleNormalized);
+  const viewerRoleLabel = formatViewerRoleLabel(viewerRole);
   const meetingWithLabel =
-    viewerRoleNormalized === "PATIENT"
-      ? `${appointmentDoctorLabel} (doctor)`
-      : viewerRoleNormalized === "DOCTOR" ||
-          viewerRoleNormalized === "ASSISTANT_DOCTOR"
-        ? `${appointmentPatientLabel} (patient)`
-        : appointmentDoctorLabel !== "Doctor TBD" && appointmentPatientLabel !== "Patient TBD"
-          ? `${appointmentDoctorLabel} (doctor) • ${appointmentPatientLabel} (patient)`
+    appointmentDoctorLabel !== "Doctor TBD" &&
+    appointmentPatientLabel !== "Patient TBD"
+      ? `${appointmentDoctorLabel} (doctor) • ${appointmentPatientLabel} (patient)`
+      : viewerRoleNormalized === "PATIENT"
+        ? `${appointmentDoctorLabel} (doctor)`
+        : viewerRoleNormalized === "DOCTOR" ||
+            viewerRoleNormalized === "ASSISTANT_DOCTOR"
+          ? `${appointmentPatientLabel} (patient)`
           : appointmentDoctorLabel !== "Doctor TBD"
             ? `${appointmentDoctorLabel} (doctor)`
             : appointmentPatientLabel !== "Patient TBD"
               ? `${appointmentPatientLabel} (patient)`
-              : "Video appointment";
+              : `${viewerRoleLabel} appointment`;
   const blockedReason = videoSessionDecision.blockedReason || "";
   const [countdownTime, setCountdownTime] = React.useState<string | null>(null);
 
