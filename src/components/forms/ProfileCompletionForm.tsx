@@ -14,7 +14,7 @@ import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useQueryClient } from "@/hooks/core";
-import { useSetProfileComplete, useUpdateUserProfile } from "@/hooks/query";
+import { useUpdateUserProfile } from "@/hooks/query";
 import { getProfileCompletionRedirectUrl } from "@/lib/config/profile";
 import { getDashboardByRole, ROUTES } from "@/lib/config/routes";
 import { Button } from "@/components/ui/button";
@@ -392,7 +392,7 @@ function ProfileCompletionFormContent({
   const router = useRouter();
   const { push } = router;
   const searchParams = useSearchParams();
-  const { session } = useAuth();
+  const { session, refreshSession } = useAuth();
   const sessionUser = session?.user;
   const queryClient = useQueryClient();
   const setProfileCompletion = useAuthStore(
@@ -670,9 +670,7 @@ function ProfileCompletionFormContent({
   ]);
 
   const updateProfileMutation = useUpdateUserProfile();
-  const setProfileCompleteMutation = useSetProfileComplete();
-  const updatingProfile =
-    updateProfileMutation.isPending || setProfileCompleteMutation.isPending;
+  const updatingProfile = updateProfileMutation.isPending;
 
   const sendPhoneOtp = async () => {
     try {
@@ -806,11 +804,11 @@ function ProfileCompletionFormContent({
     // data in `data`) and refreshes the auth cookies / JWT when complete.
     const isProfileCompleteFromBackend =
       response?.profileComplete === true ||
-      response?.isProfileComplete === true;
+      response?.isProfileComplete === true ||
+      response?.success === true;
 
     if (isProfileCompleteFromBackend) {
       // Backend confirmed profile is complete - update frontend state
-      await setProfileCompleteMutation.mutateAsync(true);
       setProfileCompletion(true, false);
     }
 
@@ -857,6 +855,7 @@ function ProfileCompletionFormContent({
     if (isProfileCompleteFromBackend) {
       // Backend confirmed completion - redirect to the right destination.
       try {
+        await refreshSession(true);
         if (onComplete) {
           onComplete();
         } else {
@@ -872,11 +871,7 @@ function ProfileCompletionFormContent({
             userRole,
             safeRedirectUrl,
           );
-          // Refresh server components so they pick up the new auth cookies
-          // (the backend regenerates the JWT on profile completion) and then
-          // navigate to the destination.
-          router.refresh();
-          push(finalRedirect);
+          window.location.replace(finalRedirect);
         }
       } catch (_redirectError) {
         form.setError("root", {
