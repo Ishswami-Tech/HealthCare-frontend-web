@@ -109,11 +109,6 @@ function normalizeAuthUserPayload(
       ? normalizedUser['loginMethod']
       : '';
 
-  if (loginMethod === 'phone_otp') {
-    const { email: _email, ...rest } = normalizedUser;
-    return rest;
-  }
-
   return normalizedUser;
 }
 
@@ -724,11 +719,7 @@ export async function getServerSession(): Promise<Session | null> {
         const tokenPayload = payload;
         
         session.user.id = String(tokenPayload['sub'] || '');
-        if (isPhoneOtpSession) {
-          delete session.user.email;
-        } else {
-          session.user.email = String(tokenPayload['email'] || '');
-        }
+        session.user.email = String(tokenPayload['email'] || '');
         session.user.phone =
           typeof tokenPayload['phone'] === 'string'
             ? tokenPayload['phone']
@@ -832,7 +823,7 @@ export async function getServerSession(): Promise<Session | null> {
       return {
         user: {
           id: userData.id,
-          ...(isPhoneOtpSession ? {} : { email: userData.email }),
+          ...(userData.email ? { email: userData.email } : {}),
           role: userData.role || userRole as Role,
           firstName: userData.firstName || userData.first_name || firstNameCookie || '',
           lastName: userData.lastName || userData.last_name || lastNameCookie || '',

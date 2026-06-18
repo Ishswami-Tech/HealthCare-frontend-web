@@ -379,10 +379,6 @@ export function useAuth() {
         lastName: result.user.lastName || '',
       };
 
-      if (user.loginMethod === 'phone_otp') {
-        delete user.email;
-      }
-
       return {
         ...result,
         user,
@@ -406,9 +402,7 @@ export function useAuth() {
         const { ...restUser } = data.user;
         const sessionData: Session = {
           user: {
-            ...(restUser.loginMethod === 'phone_otp'
-              ? (({ email: _email, ...sanitizedUser }) => sanitizedUser)(restUser)
-              : restUser),
+            ...restUser,
             ...(clinicId ? { clinicId } : {}),
             profileComplete,
           } as User,
@@ -646,9 +640,7 @@ export function useAuth() {
 
         const sessionData: Session = {
           user: {
-            ...(data.user.loginMethod === 'phone_otp'
-              ? (({ email: _email, ...sanitizedUser }) => sanitizedUser)(data.user)
-              : data.user),
+            ...data.user,
             phone: userRecord.phone || fallbackPhone,
             ...(clinicId ? { clinicId } : {}),
             profileComplete,

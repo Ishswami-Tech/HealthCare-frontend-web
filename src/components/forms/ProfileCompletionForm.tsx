@@ -930,17 +930,19 @@ function ProfileCompletionFormContent({
       }
 
       // For email OTP and Google login, email is already verified and included from session.
-      // For phone OTP login, email is optional and may be entered during profile completion.
-      const resolvedEmail = isPhoneOtpLogin
-        ? data.email?.trim() || undefined
-        : isEmailOtpLogin || isGoogleLogin
-          ? sessionUser?.email
-          : data.email?.trim() || undefined;
+      // For phone OTP login, email is optional and may be entered by the user.
+      const resolvedEmail =
+        isPhoneOtpLogin
+          ? data.email?.trim() || undefined
+          : isEmailOtpLogin || isGoogleLogin
+            ? sessionUser?.email
+            : data.email?.trim() || undefined;
 
       const baseProfileData: Record<string, unknown> = {
         firstName: data.firstName,
         lastName: data.lastName,
-        // Include email if available (verified or filled) - NOT for phone OTP login
+        // Include email if provided by the user or already verified.
+        // Phone OTP users can still enter an optional email here.
         ...(resolvedEmail ? { email: resolvedEmail } : {}),
         // Include phone if available and verified
         ...(resolvedPhone ? { phone: resolvedPhone } : {}),
