@@ -45,7 +45,6 @@ function LoginPageContent() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const requestOtpLockRef = useRef(false);
-  const requestOtpTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const identifierCacheRef = useRef({ email: "", phone: "" });
 
   const { showOTPInput, otpMethod } = loginFlow;
@@ -214,14 +213,6 @@ function LoginPageContent() {
     if (requestOtpLockRef.current || isSendingOtp) return;
     requestOtpLockRef.current = true;
     setIsSendingOtp(true);
-    if (requestOtpTimeoutRef.current) {
-      clearTimeout(requestOtpTimeoutRef.current);
-    }
-    requestOtpTimeoutRef.current = setTimeout(() => {
-      requestOtpLockRef.current = false;
-      setIsSendingOtp(false);
-      setAuthError("OTP request timed out. Please try again.");
-    }, 15000);
     try {
       setAuthError(null);
       const result = await requestOTP({
@@ -240,10 +231,6 @@ function LoginPageContent() {
         error instanceof Error ? error.message : "Failed to request OTP",
       );
     } finally {
-      if (requestOtpTimeoutRef.current) {
-        clearTimeout(requestOtpTimeoutRef.current);
-        requestOtpTimeoutRef.current = null;
-      }
       setIsSendingOtp(false);
       requestOtpLockRef.current = false;
     }

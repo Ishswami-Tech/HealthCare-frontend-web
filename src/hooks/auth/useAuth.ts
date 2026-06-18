@@ -680,17 +680,10 @@ export function useAuth() {
 
       requestOtpInFlightRef.current = true;
       try {
-        return await Promise.race([
-          requestOTPAction({
-            ...data,
-            identifier: normalizeOtpIdentifier(data.identifier),
-          }) as Promise<{ success: boolean; message: string }>,
-          new Promise<{ success: boolean; message: string }>((_, reject) => {
-            setTimeout(() => {
-              reject(new Error('OTP request timed out'));
-            }, 10000);
-          }),
-        ]);
+        return requestOTPAction({
+          ...data,
+          identifier: normalizeOtpIdentifier(data.identifier),
+        });
       } finally {
         requestOtpInFlightRef.current = false;
       }
