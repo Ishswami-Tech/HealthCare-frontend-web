@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { sidebarLinksByRole, SidebarLink } from "@/lib/config/sidebarLinks";
 import { useLayoutStore } from "@/stores/layout.store";
 import { PatientQrGateHost } from "@/components/patient/PatientQrGateHost";
+import { useUserProfile } from "@/hooks/query/useUsers";
 const DashboardShellContext = createContext<boolean>(false);
 
 const DASHBOARD_ROUTE_TITLES: Record<string, string> = {
@@ -109,10 +110,22 @@ export function DashboardLayout({
   const { session, isPending } = useAuth();
   const { back, push, replace } = useRouter();
   const { user } = session || {};
+  const { data: currentUserProfile } = useUserProfile();
   // RBAC hooks
   const rbac = useRBAC();
   const { getDefaultRoute } = useRoleBasedNavigation();
   const appointmentPermissions = useAppointmentPermissions();
+
+  const authoritativeProfileComplete = useMemo(() => {
+    const profile = currentUserProfile as Record<string, unknown> | undefined;
+    if (!profile) return undefined;
+    if (typeof profile.profileComplete === "boolean") return profile.profileComplete;
+    if (typeof profile.isProfileComplete === "boolean") return profile.isProfileComplete;
+    if (typeof profile.requiresProfileCompletion === "boolean") {
+      return !profile.requiresProfileCompletion;
+    }
+    return undefined;
+  }, [currentUserProfile]);
 
   // Memoize allowed roles array
   const allowedRoles = useMemo(
@@ -172,11 +185,12 @@ export function DashboardLayout({
     if (isPending) return null;
     if (!user) return ROUTES.LOGIN;
     if (!hasAccess) return getDefaultRoute();
-    if (normalizedUserRole === Role.PATIENT && user?.profileComplete === false) {
+    const profileComplete = authoritativeProfileComplete ?? user?.profileComplete;
+    if (normalizedUserRole === Role.PATIENT && profileComplete === false) {
       return ROUTES.PROFILE_COMPLETION;
     }
     return null;
-  }, [isPending, user, hasAccess, getDefaultRoute]);
+  }, [isPending, user, hasAccess, getDefaultRoute, authoritativeProfileComplete, normalizedUserRole]);
 
   // ─── Fetch User Profile (React Query) ──────────────────────────────────────
   // ─── Sync Store Data (Zustand) ─────────────────────────────────────────────
@@ -242,7 +256,8 @@ export function DashboardLayout({
   }
 
   // Profile completeness check
-  if (normalizedUserRole === Role.PATIENT && user?.profileComplete === false) {
+  const profileComplete = authoritativeProfileComplete ?? user?.profileComplete;
+  if (normalizedUserRole === Role.PATIENT && profileComplete === false) {
     return (
       <div className={cn(
         "flex items-center justify-center bg-background",

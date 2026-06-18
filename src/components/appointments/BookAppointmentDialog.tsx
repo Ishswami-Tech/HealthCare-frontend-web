@@ -477,7 +477,7 @@ function BookAppointmentStep1({
       ) : isPatientClinicStillResolving ? (
         <div className="text-center py-6 border border-dashed rounded-xl text-muted-foreground text-sm">
           <Loader2 className="size-7 mx-auto mb-2 opacity-60 animate-spin" />
-          Resolving your clinicâ€¦
+          Resolving your clinic
         </div>
       ) : profileCompletionBlocked ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
@@ -517,7 +517,7 @@ function BookAppointmentStep1({
           !allLocationsFetched ? (
             <div className="text-center py-6 border border-dashed rounded-xl text-muted-foreground text-sm">
               <Building className="size-7 mx-auto mb-2 opacity-30" />
-              Loading locationsâ€¦
+              Loading locations
             </div>
           ) : locations.length === 0 ? (
             <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
@@ -1246,7 +1246,7 @@ function BookAppointmentStep2Service({
                     {quickRegisterPatientMutation.isPending ? (
                       <>
                         <Loader2 className="size-4 animate-spin" />
-                        Creatingâ€¦
+                        Creating
                       </>
                     ) : (
                       <>
@@ -1710,7 +1710,7 @@ function BookAppointmentStep4({
         ) : showAvailabilityLoader ? (
           <div className="flex items-center gap-2 py-6 text-muted-foreground text-sm justify-center">
             <Loader2 className="size-5 animate-spin" /> Checking video
-            availabilityâ€¦
+            availability
           </div>
         ) : effectiveSlots.length === 0 ? (
           <div className="flex flex-col items-center py-10 text-muted-foreground text-center border border-dashed rounded-xl">
@@ -1856,7 +1856,7 @@ function BookAppointmentStep4({
         </div>
       ) : showAvailabilityLoader ? (
         <div className="flex items-center gap-2 py-6 text-muted-foreground text-sm justify-center">
-          <Loader2 className="size-5 animate-spin" /> Checking availabilityâ€¦
+          <Loader2 className="size-5 animate-spin" /> Checking availability
         </div>
       ) : effectiveSlots.length === 0 ? (
         <div className="flex flex-col items-center py-10 text-muted-foreground text-center border border-dashed rounded-xl">
@@ -3161,10 +3161,20 @@ export function BookAppointmentDialog({
     shouldLoadPatients ? { enabled: true } : undefined,
   );
   const { data: currentPatientProfile } = useUserProfile();
+  const authoritativeProfileComplete = useMemo(() => {
+    const profile = currentPatientProfile as Record<string, unknown> | undefined;
+    if (!profile) return undefined;
+    if (typeof profile.profileComplete === "boolean") return profile.profileComplete;
+    if (typeof profile.isProfileComplete === "boolean") return profile.isProfileComplete;
+    if (typeof profile.requiresProfileCompletion === "boolean") {
+      return !profile.requiresProfileCompletion;
+    }
+    return undefined;
+  }, [currentPatientProfile]);
   const profileCompletionBlocked = useMemo(
     () =>
       (String(session?.user?.role || '').toUpperCase() === String(Role.PATIENT) &&
-        session?.user?.profileComplete === false) ||
+        (authoritativeProfileComplete ?? session?.user?.profileComplete) === false) ||
       isProfileCompletionError(activeLocationsError) ||
       isProfileCompletionError(allLocationsError) ||
       isProfileCompletionError(doctorsError),
@@ -3172,6 +3182,7 @@ export function BookAppointmentDialog({
       activeLocationsError,
       allLocationsError,
       doctorsError,
+      authoritativeProfileComplete,
       session?.user?.profileComplete,
     ],
   );

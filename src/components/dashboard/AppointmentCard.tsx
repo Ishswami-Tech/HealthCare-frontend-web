@@ -26,6 +26,8 @@ import {
   getAppointmentStatusDisplayName,
   isVideoAppointmentJoinable,
   getReceptionistAppointmentTimeLabel,
+  getAppointmentDoctorName,
+  getAppointmentPatientName,
 } from "@/lib/utils/appointmentUtils";
 import { getAvatarTone } from "@/lib/utils/avatar-colors";
 
@@ -72,6 +74,14 @@ function AppointmentCardComponent({
   const normalizedStatus = viewState.normalizedStatus;
   const statusLabel = getAppointmentStatusDisplayName(normalizedStatus);
   const displayTime = getReceptionistAppointmentTimeLabel(appointment as Record<string, unknown>);
+  const resolvedDoctorName =
+    appointment.doctor?.name ||
+    (appointment as any).doctorName ||
+    getAppointmentDoctorName(appointment);
+  const resolvedPatientName =
+    appointment.patient?.name ||
+    (appointment as any).patientName ||
+    getAppointmentPatientName(appointment);
   const canShowJoin =
     Boolean(onJoin) &&
     (normalizedType === "VIDEO" || normalizedType === "VIDEO_CALL") &&
@@ -138,35 +148,35 @@ function AppointmentCardComponent({
 
       <CardContent className="flex flex-col gap-y-4">
         {/* Doctor/Patient Info */}
-        {showDoctor && appointment.doctor && (
+        {showDoctor && resolvedDoctorName && (
           <div className="flex items-center gap-3">
             <Avatar className="size-10">
-              <AvatarImage src={appointment.doctor.avatar} />
-              <AvatarFallback className={`${getAvatarTone(appointment.doctor.name).backgroundClass} ${getAvatarTone(appointment.doctor.name).textClass}`}>
+              <AvatarImage src={appointment.doctor?.avatar} />
+              <AvatarFallback className={`${getAvatarTone(resolvedDoctorName).backgroundClass} ${getAvatarTone(resolvedDoctorName).textClass}`}>
                 <User className="size-5" />
               </AvatarFallback>
             </Avatar>
             <div>
-              <p className="font-medium">{appointment.doctor.name}</p>
-              {appointment.doctor.specialty && (
+              <p className="font-medium">{resolvedDoctorName}</p>
+              {(appointment.doctor?.specialty || (appointment as any).doctorSpecialty) && (
                 <p className="text-sm text-muted-foreground">
-                  {appointment.doctor.specialty}
+                  {appointment.doctor?.specialty || (appointment as any).doctorSpecialty}
                 </p>
               )}
             </div>
           </div>
         )}
 
-        {showPatient && appointment.patient && (
+        {showPatient && resolvedPatientName && (
           <div className="flex items-center gap-3">
             <Avatar className="size-10">
-              <AvatarImage src={appointment.patient.avatar} />
-              <AvatarFallback className={`${getAvatarTone(appointment.patient.name).backgroundClass} ${getAvatarTone(appointment.patient.name).textClass}`}>
+              <AvatarImage src={appointment.patient?.avatar} />
+              <AvatarFallback className={`${getAvatarTone(resolvedPatientName).backgroundClass} ${getAvatarTone(resolvedPatientName).textClass}`}>
                 <User className="size-5" />
               </AvatarFallback>
             </Avatar>
             <div>
-              <p className="font-medium">{appointment.patient.name}</p>
+              <p className="font-medium">{resolvedPatientName}</p>
               <p className="text-sm text-muted-foreground">
                 {t("patients.patient")}
               </p>

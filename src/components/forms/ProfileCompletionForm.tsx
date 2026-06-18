@@ -392,7 +392,7 @@ function ProfileCompletionFormContent({
   const router = useRouter();
   const { push } = router;
   const searchParams = useSearchParams();
-  const { session, refreshSession } = useAuth();
+  const { session } = useAuth();
   const sessionUser = session?.user;
   const queryClient = useQueryClient();
   const setProfileCompletion = useAuthStore(
@@ -855,7 +855,6 @@ function ProfileCompletionFormContent({
     if (isProfileCompleteFromBackend) {
       // Backend confirmed completion - redirect to the right destination.
       try {
-        await refreshSession(true);
         if (onComplete) {
           onComplete();
         } else {

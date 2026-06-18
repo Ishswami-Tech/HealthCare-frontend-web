@@ -405,8 +405,18 @@ const AppointmentCard = ({
   const patientName = getAppointmentPatientName(appointment);
   const doctorName = getAppointmentDoctorName(appointment);
   const counterpartyName = getAppointmentCounterpartyName(appointment, role);
-  const isPatientViewer = String(role || "").trim().toUpperCase() === "PATIENT";
-  const primaryLabel = counterpartyName;
+  const viewerRoleNormalized = String(role || "").trim().toUpperCase();
+  const isPatientViewer = viewerRoleNormalized === "PATIENT";
+  const isDoctorViewer =
+    viewerRoleNormalized === "DOCTOR" ||
+    viewerRoleNormalized === "ASSISTANT_DOCTOR" ||
+    viewerRoleNormalized === "THERAPIST" ||
+    viewerRoleNormalized === "COUNSELOR";
+  const primaryLabel = isPatientViewer
+    ? doctorName
+    : isDoctorViewer
+      ? (patientName || doctorName)
+      : (patientName || doctorName || counterpartyName);
   const primaryRoleLabel = isPatientViewer ? "Doctor" : "Patient";
   const secondaryLabel = isPatientViewer ? patientName : doctorName;
   const secondaryRoleLabel = isPatientViewer ? "Patient" : "Doctor";
@@ -450,10 +460,14 @@ const AppointmentCard = ({
               {primaryLabel.charAt(0)}
             </div>
             <div className="min-w-0">
-              <p className="font-semibold text-sm text-foreground leading-tight mb-0.5 truncate">{primaryLabel}</p>
+              <p className="font-semibold text-sm text-foreground leading-tight mb-0.5 truncate">
+                {primaryLabel || "Participant"}
+              </p>
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span className="text-[11px] text-muted-foreground truncate">
-                  {secondaryLabel ? `${secondaryRoleLabel}: ${secondaryLabel}` : `${primaryRoleLabel} details pending`}
+                  {secondaryLabel
+                    ? `${secondaryRoleLabel}: ${secondaryLabel}`
+                    : `${primaryRoleLabel} details pending`}
                 </span>
                 <Badge
                   variant="outline"

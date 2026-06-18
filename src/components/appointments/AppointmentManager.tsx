@@ -47,6 +47,7 @@ import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 import {
   formatDateInIST,
   formatISODateInIST,
+  getAppointmentCounterpartyName,
   getAppointmentPaymentDisplayState,
   getAppointmentStatusBadgeLabel,
   getAppointmentDateTimeValue,
@@ -58,6 +59,8 @@ import {
   isTerminalAppointment,
   isTerminalAppointmentStatus,
   normalizeAppointmentStatus,
+  getAppointmentDoctorName,
+  getAppointmentPatientName,
   normalizePatientAppointment,
   getReceptionistAppointmentTimeLabel,
 } from "@/lib/utils/appointmentUtils";
@@ -174,6 +177,7 @@ interface AppointmentCardProps {
   onExpand: (id: string | null) => void;
   onSelect: (apt: AppointmentWithRelations | null) => void;
   onReschedule: (apt: AppointmentWithRelations) => void;
+  viewerRole?: string;
 }
 
 type AppointmentManagerState = {
@@ -269,6 +273,7 @@ function AppointmentCard({
   onExpand,
   onSelect,
   onReschedule,
+  viewerRole,
 }: AppointmentCardProps) {
   const viewState = getAppointmentViewState(apt);
   const effectiveStatus = viewState.normalizedStatus;
@@ -277,7 +282,17 @@ function AppointmentCard({
   const isExpanded = expandedCard === apt.id;
   const appointmentDateTime = getAppointmentDateTimeValue(apt);
   const normalizedAppointment = normalizePatientAppointment(apt);
-  const doctorName = (apt as any).doctorLabel || normalizedAppointment.doctorName;
+  const doctorName =
+    (apt as any).doctorLabel ||
+    getAppointmentDoctorName(apt) ||
+    normalizedAppointment.doctorName;
+  const patientName =
+    (apt as any).patientLabel ||
+    getAppointmentPatientName(apt);
+  const counterpartyName =
+    getAppointmentCounterpartyName(apt, viewerRole) ||
+    patientName ||
+    doctorName;
   const locationName = (apt as any).locationLabel || normalizedAppointment.locationName;
   const appointmentTypeLabel =
     apt.type === "VIDEO_CALL"
@@ -327,7 +342,12 @@ function AppointmentCard({
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold leading-tight">{doctorName}</p>
-              <p className="truncate text-xs leading-tight opacity-60">{locationName || "—"}</p>
+              <div className="mt-0.5 flex flex-col gap-0.5 text-xs leading-tight opacity-60">
+                <p className="truncate">
+                  {patientName ? `Patient: ${patientName}` : `Counterparty: ${counterpartyName || "Details pending"}`}
+                </p>
+                <p className="truncate">{locationName || "—"}</p>
+              </div>
             </div>
           </div>
 
@@ -1140,6 +1160,7 @@ export default function AppointmentManager({
                   });
                   setIsRescheduleDialogOpen(true);
                 }}
+                viewerRole={user?.role}
               />
             ))}
           {filteredAppointments.length > ITEMS_PER_PAGE && (

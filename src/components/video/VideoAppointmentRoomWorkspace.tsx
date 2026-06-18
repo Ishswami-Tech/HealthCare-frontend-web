@@ -110,6 +110,37 @@ function safeText(value: unknown, fallback = "-") {
   return text ? text : fallback;
 }
 
+function formatViewerRoleLabel(role?: string | null): string {
+  switch (
+    String(role || "")
+      .trim()
+      .toUpperCase()
+  ) {
+    case "PATIENT":
+      return "Patient";
+    case "DOCTOR":
+      return "Doctor";
+    case "ASSISTANT_DOCTOR":
+      return "Assistant Doctor";
+    case "THERAPIST":
+      return "Therapist";
+    case "COUNSELOR":
+      return "Counselor";
+    case "RECEPTIONIST":
+      return "Receptionist";
+    case "NURSE":
+      return "Nurse";
+    case "CLINIC_ADMIN":
+      return "Clinic Admin";
+    case "CLINIC_LOCATION_HEAD":
+      return "Location Head";
+    case "SUPER_ADMIN":
+      return "Super Admin";
+    default:
+      return "Participant";
+  }
+}
+
 async function loadRoomData(appointmentId: string): Promise<RoomData> {
   const [notes, transcript, participants] = await Promise.all([
     getMedicalNotes(appointmentId).catch(() => ({ notes: [] as Array<Record<string, unknown>> })),
@@ -163,8 +194,14 @@ export function VideoAppointmentRoomWorkspace({
   const appointmentDuration = getDisplayAppointmentDuration(appointment);
   const serviceLabel = getAppointmentServiceLabel(appointment, appointmentServices as any[]);
   const serviceFee = getVideoAppointmentFee(appointment, appointmentServices as any[]);
-  const appointmentTitle = safeText(counterpartyName || doctorName || appointment.roomName, "Video appointment");
-  const viewerAccessLabel = safeText(viewerRole, "participant");
+  const appointmentTitle = safeText(
+    doctorName && patientName
+      ? `${doctorName} • ${patientName}`
+      : counterpartyName || doctorName || appointment.roomName,
+    "Video appointment"
+  );
+  const viewerRoleLabel = formatViewerRoleLabel(viewerRole);
+  const viewerAccessLabel = viewerRoleLabel;
   const inviteLink = React.useMemo(() => {
     if (typeof window === "undefined") {
       return "";
@@ -278,7 +315,12 @@ export function VideoAppointmentRoomWorkspace({
   }, [activePanel]);
 
   const presenterLabel = safeText(doctorName || appointment.roomName, "Class meeting");
-  const presenterLabelResolved = safeText(counterpartyName || presenterLabel, "Class meeting");
+  const presenterLabelResolved = safeText(
+    doctorName && patientName
+      ? `${doctorName} • ${patientName}`
+      : counterpartyName || presenterLabel,
+    "Class meeting"
+  );
 
 
   return (
@@ -356,7 +398,7 @@ export function VideoAppointmentRoomWorkspace({
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-[#202124]">{presenterLabelResolved} is presenting</p>
                   <p className="truncate text-xs text-[#5f6368]">
-                    {safeText(counterpartyName, "Participant")} - {safeText(viewerRole, "participant")} access
+                    {safeText(counterpartyName, "Participant")} - {viewerRoleLabel} access
                   </p>
                 </div>
               </div>

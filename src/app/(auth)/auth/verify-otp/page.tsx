@@ -257,7 +257,7 @@ function VerifyOTPPageContent() {
           </div>
           <div className="flex flex-col gap-y-1 text-center">
             <p className="font-semibold text-gray-900 dark:text-gray-100">Successfully signed in!</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Redirectingâ€¦</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Redirecting</p>
           </div>
         </CardContent>
       </Card>
@@ -295,7 +295,7 @@ function VerifyOTPPageContent() {
             <CheckCircle2 className="size-5 text-green-600 dark:text-green-400 shrink-0" />
             <div>
               <p className="text-sm font-semibold text-green-800 dark:text-green-300">OTP verified!</p>
-              <p className="text-xs text-green-600 dark:text-green-400">Redirecting to the next stepâ€¦</p>
+              <p className="text-xs text-green-600 dark:text-green-400">Redirecting to the next step</p>
             </div>
           </div>
         )}

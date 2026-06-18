@@ -184,6 +184,37 @@ function resolveVideoProvider(
   return "cloudflare";
 }
 
+function formatViewerRoleLabel(role?: string | null): string {
+  switch (
+    String(role || "")
+      .trim()
+      .toUpperCase()
+  ) {
+    case "PATIENT":
+      return "Patient";
+    case "DOCTOR":
+      return "Doctor";
+    case "ASSISTANT_DOCTOR":
+      return "Assistant Doctor";
+    case "THERAPIST":
+      return "Therapist";
+    case "COUNSELOR":
+      return "Counselor";
+    case "RECEPTIONIST":
+      return "Receptionist";
+    case "NURSE":
+      return "Nurse";
+    case "CLINIC_ADMIN":
+      return "Clinic Admin";
+    case "CLINIC_LOCATION_HEAD":
+      return "Location Head";
+    case "SUPER_ADMIN":
+      return "Super Admin";
+    default:
+      return "Participant";
+  }
+}
+
 function formatProviderLabel(provider: VideoRoomAccess["provider"]) {
   switch (provider) {
     case "cloudflare":
@@ -452,16 +483,13 @@ export function VideoAppointmentMeetSession({
       : viewerRoleNormalized === "DOCTOR" ||
           viewerRoleNormalized === "ASSISTANT_DOCTOR"
         ? `${appointmentPatientLabel} (patient)`
-        : appointmentDoctorLabel !== "Doctor TBD"
-          ? `${appointmentDoctorLabel} (doctor)`
-          : appointmentPatientLabel !== "Patient TBD"
-            ? `${appointmentPatientLabel} (patient)`
-            : viewerRoleNormalized === "PATIENT"
-              ? "Doctor"
-              : viewerRoleNormalized === "DOCTOR" ||
-                  viewerRoleNormalized === "ASSISTANT_DOCTOR"
-                ? "Patient"
-                : "Video appointment";
+        : appointmentDoctorLabel !== "Doctor TBD" && appointmentPatientLabel !== "Patient TBD"
+          ? `${appointmentDoctorLabel} (doctor) • ${appointmentPatientLabel} (patient)`
+          : appointmentDoctorLabel !== "Doctor TBD"
+            ? `${appointmentDoctorLabel} (doctor)`
+            : appointmentPatientLabel !== "Patient TBD"
+              ? `${appointmentPatientLabel} (patient)`
+              : "Video appointment";
   const blockedReason = videoSessionDecision.blockedReason || "";
   const [countdownTime, setCountdownTime] = React.useState<string | null>(null);
 

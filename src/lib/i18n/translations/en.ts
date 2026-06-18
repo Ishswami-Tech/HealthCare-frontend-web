@@ -122,7 +122,7 @@ export const en: TranslationKeys = {
     transformHealth: 'Transform Your Health with',
     ancientWisdom: 'Ancient Wisdom',
     peopleViewingText: 'people viewing',
-    bookingsIncreasedText: 'ðŸ“ˆ Bookings Increased',
+    bookingsIncreasedText: ' Bookings Increased',
     watchJourneysText: 'Watch Journeys',
     virtualTourText: 'Virtual Tour',
     healthAssessmentText: 'Health Assessment',
@@ -160,7 +160,7 @@ export const en: TranslationKeys = {
       description: 'Discover the ancient art of Ayurveda and its modern application.',
       watchJourneys: 'Watch Journeys',
       virtualTour: 'ðŸ¥ Virtual Tour',
-      healthAssessment: 'ðŸ“‹ Health Assessment',
+      healthAssessment: '‹ Health Assessment',
       todayOnly: 'Today Only',
       ayurvedicWisdom: 'ðŸ•‰ï¸',
       wisdomDescription: 'Ayurvedic Wisdom'
