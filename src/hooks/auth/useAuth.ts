@@ -606,7 +606,7 @@ export function useAuth() {
       successMessage: 'OTP verified successfully! Welcome back!',
       showToast: false,
       showLoading: false,
-      onSuccess: (data) => {
+      onSuccess: (data, variables) => {
         // Convert AuthResponse to Session
         const profileComplete = resolveProfileCompleteFromBackend(data.user as unknown as Record<string, unknown>);
         const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
@@ -639,12 +639,17 @@ export function useAuth() {
         })();
         // Phone verified is true for OTP login since they just verified via OTP
         const phoneVerified = userRecord.phoneVerified as boolean ?? true;
+        const fallbackPhone =
+          typeof variables?.identifier === 'string' && variables.identifier.trim()
+            ? normalizeOtpIdentifier(variables.identifier)
+            : '';
 
         const sessionData: Session = {
           user: {
             ...(data.user.loginMethod === 'phone_otp'
               ? (({ email: _email, ...sanitizedUser }) => sanitizedUser)(data.user)
               : data.user),
+            phone: userRecord.phone || fallbackPhone,
             ...(clinicId ? { clinicId } : {}),
             profileComplete,
             loginMethod: loginMethod as User['loginMethod'],

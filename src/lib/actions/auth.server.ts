@@ -576,6 +576,7 @@ export async function getServerSession(): Promise<Session | null> {
     const firstNameCookie = cookieStore.get('first_name')?.value?.trim() || '';
     const lastNameCookie = cookieStore.get('last_name')?.value?.trim() || '';
     const nameCookie = cookieStore.get('user_name')?.value?.trim() || '';
+    const verifiedPhoneCookie = cookieStore.get('verified_phone')?.value?.trim() || '';
     const profileComplete = profileCompleteCookie === 'true';
     const cookieClinicId = normalizeClinicId(cookieStore.get('clinic_id')?.value);
 
@@ -705,7 +706,7 @@ export async function getServerSession(): Promise<Session | null> {
             ? payload.phone
             : typeof payload?.mobile === 'string'
               ? payload.mobile
-              : '',
+              : verifiedPhoneCookie,
         profileComplete: profileComplete,
         clinicId: resolvedClinicId,
         ...(extractClinicNameFromPayload(payload) ? { clinicName: extractClinicNameFromPayload(payload) } : {}),
@@ -733,7 +734,7 @@ export async function getServerSession(): Promise<Session | null> {
             ? tokenPayload['phone']
             : typeof tokenPayload['mobile'] === 'string'
               ? tokenPayload['mobile']
-              : session.user.phone || '';
+              : session.user.phone || verifiedPhoneCookie || '';
         session.user.role = (tokenPayload['role'] as Role) || (userRole as Role);
         if (!session.user.loginMethod && typeof tokenPayload['loginMethod'] === 'string') {
           session.user.loginMethod = tokenPayload['loginMethod'] as User['loginMethod'];
@@ -948,6 +949,7 @@ export async function setSession(data: {
     const currentSessionId = cookieStore.get('session_id')?.value;
     const currentUserRole = cookieStore.get('user_role')?.value as Role;
     const currentProfileComplete = cookieStore.get('profile_complete')?.value === 'true';
+    const verifiedPhoneCookie = cookieStore.get('verified_phone')?.value?.trim() || '';
     const newSessionId = sessionIdValue || currentSessionId;
 
     // Recover user claims from JWT when refresh response does not include user payload.
@@ -1029,13 +1031,13 @@ export async function setSession(data: {
          user: {
            id: tokenUserId || '',
            email: tokenUserEmail || '',
-           role: resolvedUserRole,
-           firstName: '',
-           lastName: '',
-           phone: '',
-           dateOfBirth: null,
-           gender: '',
-           address: '',
+          role: resolvedUserRole,
+          firstName: '',
+          lastName: '',
+          phone: verifiedPhoneCookie,
+          dateOfBirth: null,
+          gender: '',
+          address: '',
            isVerified: true,
            profileComplete: currentProfileComplete,
            clinicId: tokenClinicId
@@ -1050,6 +1052,7 @@ export async function setSession(data: {
 
   // Always prefer JWT-derived clinic ID over user payload or cookie value
   const jwtClinicId = extractClinicIdFromTokenValue(accessTokenValue);
+  const verifiedPhoneCookie = cookieStore.get('verified_phone')?.value?.trim() || '';
   const resolvedClinicId = normalizeClinicId(jwtClinicId || data.user?.clinicId || (data.user as any).primaryClinicId);
 
   const session: Session = {
@@ -1062,7 +1065,7 @@ export async function setSession(data: {
       firstName: data.user.firstName || '',
       lastName: data.user.lastName || '',
       ...(data.user.firstName || data.user.lastName ? { name: `${data.user.firstName || ''} ${data.user.lastName || ''}`.trim() } : {}),
-      phone: data.user.phone || '',
+      phone: data.user.phone || verifiedPhoneCookie || '',
       dateOfBirth: data.user.dateOfBirth || null,
       gender: data.user.gender || '',
       address: data.user.address || '',
@@ -1754,6 +1757,7 @@ async function setAuthCookies(data: {
     firstName?: string;
     lastName?: string;
     name?: string;
+    phone?: string;
     loginMethod?: string;
   };
 }) {
@@ -1799,6 +1803,15 @@ async function setAuthCookies(data: {
     cookieStore.set({
       name: 'login_method',
       value: data.user.loginMethod.trim(),
+      ...cookieOptions(),
+    });
+  }
+
+  const verifiedPhone = typeof data.user?.phone === 'string' ? data.user.phone.trim() : '';
+  if (verifiedPhone) {
+    cookieStore.set({
+      name: 'verified_phone',
+      value: verifiedPhone,
       ...cookieOptions(),
     });
   }
