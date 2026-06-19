@@ -36,6 +36,7 @@ function resolveDisplayNameAndInitials(user: {
   lastName?: string | null | undefined;
   name?: string | null | undefined;
   email?: string | null | undefined;
+  role?: string | null | undefined;
 }) {
   const firstName = String(user.firstName || "").trim();
   const lastName = String(user.lastName || "").trim();
@@ -75,8 +76,8 @@ function resolveDisplayNameAndInitials(user: {
   // No valid name or email found
   // Show a friendly prompt so the user knows they need to complete their profile.
   return {
-    displayName: "New Patient",
-    initials: "NP",
+    displayName: String(user.role || "").toUpperCase().replace(/\s+/g, "_") === "PATIENT" ? "Patient" : "User",
+    initials: String(user.role || "").toUpperCase().replace(/\s+/g, "_") === "PATIENT" ? "P" : "U",
   };
 }
 
@@ -196,7 +197,11 @@ export function DashboardLayout({
   // ─── Sync Store Data (Zustand) ─────────────────────────────────────────────
   const userDisplayData = useMemo(() => {
     if (!user) return null;
-    const { displayName, initials } = resolveDisplayNameAndInitials(user);
+    const mergedUser = {
+      ...(user as unknown as Record<string, unknown>),
+      ...(currentUserProfile as unknown as Record<string, unknown> | undefined),
+    };
+    const { displayName, initials } = resolveDisplayNameAndInitials(mergedUser);
 
     const avatar = user.profilePicture || "";
 

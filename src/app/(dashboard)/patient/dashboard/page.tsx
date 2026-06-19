@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { useAuth } from "@/hooks/auth/useAuth";
+import { useUserProfile } from "@/hooks/query/useUsers";
 import { useMyAppointments } from "@/hooks/query/useAppointments";
 import {
   usePatientMedicalRecords,
@@ -66,6 +67,7 @@ export default function PatientDashboard() {
   const user = session?.user;
   const { t } = useTranslation();
   const openQrGate = usePatientUiStore((state) => state.openQrGate);
+  const { data: userProfile } = useUserProfile();
 
   // Enable real-time WebSocket sync
   useWebSocketQuerySync();
@@ -120,9 +122,8 @@ export default function PatientDashboard() {
       return fallbackName;
     }
 
-    // No name set yet. Show a friendly prompt to complete the profile
-    // instead of a generic "Patient" placeholder.
-    return "New Patient";
+    // No name set yet. Use a neutral label instead of the previous "New Patient" fallback.
+    return "Patient";
   };
 
   // Transform real data
@@ -319,13 +320,18 @@ export default function PatientDashboard() {
       } catch { return null; }
     };
 
+    const mergedUser = {
+      ...(user as unknown as Record<string, unknown>),
+      ...(userProfile as unknown as Record<string, unknown> | undefined),
+    };
+
     return {
       personalInfo: {
-        name: resolvePatientDisplayName(user),
-        age: calculateAge((user as any)?.dateOfBirth),
-        gender: (user as any)?.gender || "Unknown",
-        phone: (user as any)?.phone || (user as any)?.phoneNumber || "",
-        email: user?.email || "",
+        name: resolvePatientDisplayName(mergedUser as any),
+        age: calculateAge((mergedUser as any)?.dateOfBirth),
+        gender: (mergedUser as any)?.gender || "Unknown",
+        phone: (mergedUser as any)?.phone || (mergedUser as any)?.phoneNumber || "",
+        email: (mergedUser as any)?.email || "",
       },
       healthOverview: {
         primaryDosha: (comprehensiveData as any)?.doshaBalance?.dominant || "Unknown",
@@ -412,6 +418,7 @@ export default function PatientDashboard() {
     invoicesData,
     paymentsData,
     user,
+    userProfile,
   ]);
 
   const getStatusColor = (status: string) => {
