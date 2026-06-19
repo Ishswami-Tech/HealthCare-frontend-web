@@ -14,7 +14,7 @@ import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useQueryClient } from "@/hooks/core";
-import { useUpdateUserProfile } from "@/hooks/query";
+import { useSetProfileComplete, useUpdateUserProfile } from "@/hooks/query";
 import { getProfileCompletionRedirectUrl } from "@/lib/config/profile";
 import { getDashboardByRole, ROUTES } from "@/lib/config/routes";
 import { Button } from "@/components/ui/button";
@@ -670,6 +670,7 @@ function ProfileCompletionFormContent({
   ]);
 
   const updateProfileMutation = useUpdateUserProfile();
+  const setProfileCompleteMutation = useSetProfileComplete();
   const updatingProfile = updateProfileMutation.isPending;
 
   const sendPhoneOtp = async () => {
@@ -810,6 +811,7 @@ function ProfileCompletionFormContent({
     if (isProfileCompleteFromBackend) {
       // Backend confirmed profile is complete - update frontend state
       setProfileCompletion(true, false);
+      await setProfileCompleteMutation.mutateAsync(true);
     }
 
     // Update the full session with user data from response (including clinicId).
