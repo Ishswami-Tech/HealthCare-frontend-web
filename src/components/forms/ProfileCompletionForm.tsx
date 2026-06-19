@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, {
   Suspense,
@@ -1374,7 +1374,9 @@ function ProfileCompletionFormContent({
                   )}
                 />
 
-                {/* Date of Birth / Gender */}
+                {false && (
+                  <>
+                    {/* Date of Birth / Gender */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField
                     control={form.control}
@@ -1536,10 +1538,13 @@ function ProfileCompletionFormContent({
                     </FormItem>
                   )}
                 />
+                  </>
+                )}
               </section>
 
               {/* â”€â”€ Emergency Contact â”€â”€ */}
-              <section className="rounded-lg border p-4 space-y-4">
+              {false && (
+                <section className="rounded-lg border p-4 space-y-4">
                 <h3 className="text-sm font-medium text-foreground">
                   Emergency Contact
                 </h3>
@@ -1609,10 +1614,11 @@ function ProfileCompletionFormContent({
                     )}
                   />
                 </div>
-              </section>
+                </section>
+              )}
 
               {/* â”€â”€ Professional Information (doctors only) â”€â”€ */}
-              {isDoctor && (
+              {false && (
                 <section className="space-y-4">
                   <h3 className="text-sm font-medium text-foreground">
                     Professional Info
@@ -1651,7 +1657,7 @@ function ProfileCompletionFormContent({
                           <FormMessage />
                         </FormItem>
                       )}
-                    />
+                  />
                   </div>
                 </section>
               )}
