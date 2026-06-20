@@ -811,7 +811,11 @@ function ProfileCompletionFormContent({
     if (isProfileCompleteFromBackend) {
       // Backend confirmed profile is complete - update frontend state
       setProfileCompletion(true, false);
-      await setProfileCompleteMutation.mutateAsync(true);
+      void setProfileCompleteMutation.mutateAsync(true).catch((error) => {
+        logger.warn("Unable to sync profile-complete cookie", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
     }
 
     // Update the full session with user data from response (including clinicId).

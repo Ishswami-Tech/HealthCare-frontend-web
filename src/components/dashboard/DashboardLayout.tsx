@@ -212,7 +212,7 @@ export function DashboardLayout({
       avatar,
       email: user.email || "",
     };
-  }, [user, normalizedUserRole]);
+  }, [user, currentUserProfile, normalizedUserRole]);
 
   useEffect(() => {
     setDashboardMeta({
