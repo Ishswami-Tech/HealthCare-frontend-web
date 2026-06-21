@@ -103,18 +103,29 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
                   ? !responseUser.requiresProfileCompletion
                   : undefined;
 
-    // A successful profile-update request means completion has been satisfied.
-    // Keep the cookie authoritative even when the backend omits an explicit flag.
-    cookieStore.set({
-      name: 'profile_complete',
-      value: 'true',
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
-    logger.info('[updateUserProfile] Profile completion cookie set to true after successful update');
+    if (isProfileComplete === true) {
+      cookieStore.set({
+        name: 'profile_complete',
+        value: 'true',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
+      logger.info('[updateUserProfile] Profile completion cookie set to true after backend confirmation');
+    } else if (isProfileComplete === false) {
+      cookieStore.set({
+        name: 'profile_complete',
+        value: 'false',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
+      logger.info('[updateUserProfile] Profile completion cookie set to false after backend confirmation');
+    }
 
     return { success: true, data, ...(isProfileComplete !== undefined ? { profileComplete: isProfileComplete } : {}) };
   } catch (error) {

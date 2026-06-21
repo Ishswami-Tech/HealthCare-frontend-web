@@ -805,8 +805,7 @@ function ProfileCompletionFormContent({
     // data in `data`) and refreshes the auth cookies / JWT when complete.
     const isProfileCompleteFromBackend =
       response?.profileComplete === true ||
-      response?.isProfileComplete === true ||
-      response?.success === true;
+      response?.isProfileComplete === true;
 
     if (isProfileCompleteFromBackend) {
       // Backend confirmed profile is complete - update frontend state
