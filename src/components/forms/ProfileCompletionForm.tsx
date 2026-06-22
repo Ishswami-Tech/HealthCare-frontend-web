@@ -852,13 +852,23 @@ function ProfileCompletionFormContent({
 
       // Check if we have all required data locally - if so, proceed anyway
       // since the DB is likely correct even if the response flag is stale
-      const hasRequiredFields = profileData?.firstName && profileData?.lastName;
+      // Use trim+length to require non-empty firstName AND lastName, but
+      // accept any truthy value (mirrors backend isProfileFieldPresent check).
+      const firstNameValid =
+        typeof profileData?.firstName === 'string' &&
+        (profileData.firstName as string).trim().length > 0;
+      const lastNameValid =
+        typeof profileData?.lastName === 'string' &&
+        (profileData.lastName as string).trim().length > 0;
+      const hasRequiredFields = firstNameValid && lastNameValid;
       const hasPhoneVerification = isPhoneVerified || isPhoneOtpLogin;
 
       logger.warn('[ProfileCompletionForm] Backend did not confirm profile completion:', {
         responseProfileComplete: response?.profileComplete,
         hasRequiredFields,
         hasPhoneVerification,
+        firstNameValid,
+        lastNameValid,
         profileDataKeys: profileData && typeof profileData === 'object' ? Object.keys(profileData) : undefined,
       });
 
@@ -927,6 +937,32 @@ function ProfileCompletionFormContent({
     isSubmittingRef.current = true;
     setIsSubmitting(true);
     try {
+      // Defense-in-depth: explicitly require non-empty firstName AND lastName
+      // before hitting the backend. Zod schema validation should catch this
+      // too, but this guards against silent form-state drift (e.g. stale
+      // auto-fill values that bypassed schema validation).
+      const firstNameValid =
+        typeof data.firstName === 'string' && data.firstName.trim().length > 0;
+      const lastNameValid =
+        typeof data.lastName === 'string' && data.lastName.trim().length > 0;
+      if (!firstNameValid || !lastNameValid) {
+        if (!firstNameValid) {
+          form.setError('firstName', {
+            type: 'required',
+            message: 'First name is required',
+          });
+        }
+        if (!lastNameValid) {
+          form.setError('lastName', {
+            type: 'required',
+            message: 'Last name is required',
+          });
+        }
+        isSubmittingRef.current = false;
+        setIsSubmitting(false);
+        return;
+      }
+
       // Validation: For email OTP and Google login, phone must be verified
       // Check if user entered a phone but hasn't verified it yet
       const hasEnteredPhone = data.phone?.trim() && !isPhoneOtpLogin;

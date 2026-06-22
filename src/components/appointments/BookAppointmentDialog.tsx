@@ -341,38 +341,29 @@ interface BookAppointmentStepBarProps {
   activeSteps: readonly WizardStepId[];
   step: number;
   goToStep: (nextStepId: WizardStepId) => void;
-  progressValue: number;
 }
 
 function BookAppointmentStepBar({
   activeSteps,
   step,
   goToStep,
-  progressValue,
 }: BookAppointmentStepBarProps) {
   return (
-    <div className="px-1">
-      <div className="mb-2 h-1 w-full overflow-hidden rounded-full bg-muted/60">
-        <div
-          className="h-full rounded-full bg-primary transition-all duration-300"
-          style={{ width: `${progressValue}%` }}
-        />
-      </div>
-      <div className="flex items-center justify-between gap-2">
+    <div className="w-full min-w-0 px-0.5 sm:px-1">
+      <div className="flex w-full min-w-0 items-start">
         {activeSteps.map((stepId, i) => {
           const s = i + 1;
           const done = step > s;
           const active = step === s;
           return (
-            <button
-              key={stepId}
-              type="button"
-              onClick={() => goToStep(stepId)}
-              className="flex items-center gap-1"
-            >
-              <div className="flex flex-col items-center gap-0.5">
+            <div key={stepId} className="flex min-w-0 flex-1 items-center">
+              <button
+                type="button"
+                onClick={() => goToStep(stepId)}
+                className="flex min-w-0 flex-1 flex-col items-center my-1 gap-0.5 text-center sm:gap-1"
+              >
                 <div
-                  className={`size-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                  className={`size-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all sm:size-7 sm:text-xs ${
                     done
                       ? "bg-primary text-primary-foreground"
                       : active
@@ -383,7 +374,7 @@ function BookAppointmentStepBar({
                   {done ? <Check className="size-3.5" /> : s}
                 </div>
                 <span
-                  className={`text-[9px] font-semibold uppercase tracking-wider hidden sm:block ${
+                  className={`hidden min-w-0 w-full truncate text-[9px] font-semibold uppercase tracking-wider sm:block sm:text-[10px] ${
                     active
                       ? "text-primary"
                       : done
@@ -393,13 +384,18 @@ function BookAppointmentStepBar({
                 >
                   {STEP_LABELS[stepId]}
                 </span>
-              </div>
+              </button>
               {i < activeSteps.length - 1 && (
-                <div
-                  className={`h-0.5 w-4 sm:w-8 rounded-full mx-1 ${done ? "bg-primary" : "bg-muted"}`}
-                />
+                <div className="mx-2 mt-3 h-0.5 flex-1 rounded-full bg-muted/70">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all duration-300"
+                    style={{
+                      width: `${step > i + 1 ? 100 : step === i + 1 ? 35 : 0}%`,
+                    }}
+                  />
+                </div>
               )}
-            </button>
+            </div>
           );
         })}
       </div>
@@ -1982,12 +1978,12 @@ function BookAppointmentStep5({
   setUrgency,
 }: BookAppointmentStep5Props) {
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3 sm:gap-4">
       <p className="text-sm text-muted-foreground">
         Review your appointment before confirming
       </p>
 
-      <div className="rounded-2xl border bg-muted/30 divide-y">
+      <div className="rounded-2xl border bg-muted/30 divide-y overflow-hidden">
         {[
           ...(userRole === "RECEPTIONIST"
             ? [
@@ -2018,13 +2014,15 @@ function BookAppointmentStep5({
         ].map(({ label, value, sub }) => (
           <div
             key={label}
-            className="flex items-center justify-between px-4 py-3 gap-4"
+            className="flex flex-col gap-1 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-4 sm:py-3"
           >
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider w-16 shrink-0">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:w-16 shrink-0">
               {label}
             </span>
-            <div className="flex-1 text-right">
-              <p className="text-sm font-semibold">{value}</p>
+            <div className="flex-1 text-left sm:text-right">
+              <p className="text-sm font-semibold break-words">
+                {value}
+              </p>
               {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
             </div>
           </div>
@@ -2165,14 +2163,14 @@ function BookAppointmentStep5({
             className="text-sm resize-none h-20"
           />
         </div>
-        <div>
+        <div className="">
           <label
             htmlFor="book-appointment-urgency"
             className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block"
           >
             Urgency
           </label>
-          <Select value={urgency} onValueChange={setUrgency}>
+          <div className="mb-4">       <Select value={urgency} onValueChange={setUrgency} >
             <SelectTrigger id="book-appointment-urgency" className="h-9">
               <SelectValue />
             </SelectTrigger>
@@ -2181,7 +2179,8 @@ function BookAppointmentStep5({
               <SelectItem value="Normal"> Normal - Regular visit</SelectItem>
               <SelectItem value="High"> High - Urgent care needed</SelectItem>
             </SelectContent>
-          </Select>
+          </Select></div>
+   
         </div>
       </div>
     </div>
@@ -3779,11 +3778,6 @@ export function BookAppointmentDialog({
   const currentStepIndex = currentStep - 1;
   const currentStepId = activeSteps[currentStepIndex] ?? "success";
   const isSuccessStep = currentStepId === "success";
-  const visibleStepCount = activeSteps.length || 1;
-  const progressValue =
-    visibleStepCount <= 1
-      ? 100
-      : (currentStepIndex / (visibleStepCount - 1)) * 100;
   const goToStep = useCallback(
     (nextStepId: WizardStepId) => {
       const nextIndex = activeSteps.indexOf(nextStepId);
@@ -5002,7 +4996,7 @@ export function BookAppointmentDialog({
       )}
 
       <DialogContent
-        className="
+      className="
         top-0 left-0 h-[100dvh] w-[100vw] max-w-none translate-x-0 translate-y-0
         flex flex-col gap-0 overflow-hidden rounded-none border-0 p-0
         md:top-1/2 md:left-1/2 md:h-[90dvh] md:w-[min(78vw,48rem)] md:max-w-2xl
@@ -5011,16 +5005,19 @@ export function BookAppointmentDialog({
       "
       >
         {/* Header */}
-        <div className="px-4 sm:px-5 pt-4 pb-3 border-b shrink-0">
+        <div className="px-3 sm:px-5 pt-3 sm:pt-4 pb-2 sm:pb-3 border-b shrink-0">
           <DialogHeader className="text-left w-full min-w-0">
-            <DialogTitle className="text-base sm:text-lg font-bold truncate">
-              {stepTitle}
-            </DialogTitle>
-            {consultationMode === "VIDEO" && (
-              <p className="mt-1 inline-flex w-fit items-center rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-                Video booking flow
-              </p>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <DialogTitle className="min-w-0 truncate text-base font-bold sm:text-lg">
+                {stepTitle}
+              </DialogTitle>
+              {consultationMode === "VIDEO" && (
+                <span className="inline-flex w-fit items-center rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                  Video booking flow
+                </span>
+              )}
+            </div>
+
             <DialogDescription className="sr-only">
               Book an in-person or video appointment by selecting location,
               service, doctor, date, and time.
@@ -5029,19 +5026,18 @@ export function BookAppointmentDialog({
 
           {/* Step bar‚ hide on success screen */}
           {!isSuccessStep && (
-            <div className="mt-3 overflow-x-auto">
+            <div className="mt-2 overflow-x-auto pb-1 sm:mt-3">
               <BookAppointmentStepBar
                 activeSteps={activeSteps}
                 step={step}
                 goToStep={goToStep}
-                progressValue={progressValue}
               />
             </div>
           )}
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-4">
+        <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-3 sm:py-4">
           <LazyMotion features={domAnimation}>
             <AnimatePresence mode="wait" initial={false}>
               <m.div
@@ -5063,7 +5059,7 @@ export function BookAppointmentDialog({
 
         {/* Footer‚ hide on success screen */}
         {!isSuccessStep && (
-          <div className="px-4 sm:px-6 py-4 border-t bg-background flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:gap-4 shrink-0">
+          <div className="px-3 sm:px-6 py-3 sm:py-4 border-t bg-background flex flex-col-reverse gap-2.5 sm:flex-row sm:items-center sm:gap-4 shrink-0">
             <Button
               variant="outline"
               onClick={step > 1 ? goBack : () => handleOpenChange(false)}
