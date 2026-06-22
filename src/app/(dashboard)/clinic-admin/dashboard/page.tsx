@@ -620,7 +620,7 @@ export default function ClinicAdminDashboard() {
           },
           { 
             label: "Clinic Revenue", 
-            value: `INR ${(stats?.revenue || 0).toLocaleString()}`, 
+            value: `₹${(stats?.revenue || 0).toLocaleString()}`,
             sub: "Gross billing", 
             icon: IndianRupee, 
             color: "text-purple-600", 
@@ -1148,7 +1148,7 @@ export default function ClinicAdminDashboard() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right text-sm font-medium text-muted-foreground">
-                            {item.pendingAmount > 0 ? `INR ${item.pendingAmount.toFixed(2)}` : "â€”"}
+                            {item.pendingAmount > 0 ? `₹${item.pendingAmount.toFixed(2)}` : "â€”"}
                           </TableCell>
                         </TableRow>
                       ))}

@@ -2036,7 +2036,7 @@ function BookAppointmentStep5({
               Video visit fee
             </p>
             <p className="text-lg font-bold text-foreground">
-              INR {videoPaymentAmount.toFixed(0)}
+              ₹{videoPaymentAmount.toFixed(0)}
             </p>
           </div>
           <p className="text-xs text-emerald-700 dark:text-emerald-300">
@@ -2895,8 +2895,21 @@ export function BookAppointmentDialog({
     const record = appointment as Record<string, unknown>;
     return String(record.appointmentId || record.id || "");
   }, []);
+
+  // Track in-flight video payment launches per appointmentId. Prevents duplicate
+  // createPaymentIntent calls when the user retries or the button is double-clicked.
+  const videoPaymentInFlightRef = useRef<Map<string, Promise<void>>>(new Map());
+
   const launchVideoPayment = useCallback(
     async (appointmentId: string) => {
+      // Dedupe: if a payment launch is already in flight for this appointmentId,
+      // return the same promise instead of triggering a new createPaymentIntent call.
+      const existing = videoPaymentInFlightRef.current.get(appointmentId);
+      if (existing) {
+        return existing;
+      }
+
+      const run = (async () => {
       const paymentResponse = await createPaymentIntent({
         appointmentId,
         appointmentType: "VIDEO_CALL",
@@ -3085,6 +3098,16 @@ export function BookAppointmentDialog({
       setStep(STEP_ORDER.length);
       onBooked?.();
       showSuccessToast("Payment verified.", { id: TOAST_IDS.PAYMENT.SUCCESS });
+      })();
+
+      videoPaymentInFlightRef.current.set(appointmentId, run);
+      try {
+        await run;
+      } finally {
+        if (videoPaymentInFlightRef.current.get(appointmentId) === run) {
+          videoPaymentInFlightRef.current.delete(appointmentId);
+        }
+      }
     },
     [
       activeClinicId,
@@ -4489,7 +4512,7 @@ export function BookAppointmentDialog({
             coverage?.message ||
             coverage?.reason ||
             (requiresPayment
-              ? `Subscription coverage unavailable. Additional payment required: INR ${coverage?.paymentAmount || 0}`
+              ? `Subscription coverage unavailable. Additional payment required: ₹${coverage?.paymentAmount || 0}`
               : "Subscription quota exhausted or inactive.");
           redirectToSubscriptionResolution(
             reason,
@@ -5098,7 +5121,7 @@ export function BookAppointmentDialog({
                   ? "Payment in progress"
                   : consultationMode === "VIDEO"
                     ? shouldCollectVideoPayment
-                      ? `Create appointment and pay INR ${videoPaymentAmount.toFixed(0)}`
+                      ? `Create appointment and pay ₹${videoPaymentAmount.toFixed(0)}`
                       : "Book Video Appointment"
                     : needsSubscriptionPlan
                       ? "Choose plan to continue"

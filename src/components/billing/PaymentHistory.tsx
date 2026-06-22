@@ -108,7 +108,7 @@ export function PaymentHistory({ payments, onRefetch, compact = false }: Payment
         accessorKey: "amount",
         header: "Amount",
         cell: ({ row }) => (
-          <span className="font-bold text-foreground">INR {(row.original.amount || 0).toLocaleString("en-IN")}</span>
+          <span className="font-bold text-foreground">₹{(row.original.amount || 0).toLocaleString("en-IN")}</span>
         ),
       },
       {
@@ -136,7 +136,7 @@ export function PaymentHistory({ payments, onRefetch, compact = false }: Payment
           />
           <StatCard
             label="TOTAL PAID (COMPLETED)"
-            value={`INR ${totalCompleted.toLocaleString("en-IN")}`}
+            value={`₹${totalCompleted.toLocaleString("en-IN")}`}
             icon={<CreditCard className="size-4 text-emerald-600 dark:text-emerald-300" />}
             color="border-emerald-200/70 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30"
           />

@@ -173,15 +173,22 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
 
         // Retry up to 2 times with small delay to handle backend cache invalidation
         let verifyStatus = false;
-        for (let attempt = 1; attempt <= 2; attempt++) {
+        for (let attempt = 1; attempt <= 4; attempt++) {
           if (attempt > 1) {
             // Wait 500ms before retry to let backend cache invalidate
             await new Promise(resolve => setTimeout(resolve, 500));
             logger.info(`[updateUserProfile] Retry attempt ${attempt} for profile completion verification`);
           }
 
+          // Prefer GET_BY_ID (uses the controller's cache-bypassing fresh read
+          // findUserByIdSafeFresh). Fall back to USERS.PROFILE only if we
+          // can't resolve userId.
+          const verifyEndpoint = userId
+            ? API_ENDPOINTS.USERS.GET_BY_ID(userId)
+            : API_ENDPOINTS.USERS.PROFILE;
+
           const { data: verifyData } = await authenticatedApi<Record<string, unknown>>(
-            API_ENDPOINTS.USERS.PROFILE,
+            verifyEndpoint,
             {
               method: 'GET',
               // Add cache-busting header to bypass client-side dedup cache

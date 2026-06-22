@@ -476,7 +476,7 @@ export function RoleBasedBillingDashboard({
         accessorKey: "amount",
         header: "Amount",
         cell: ({ row }) => (
-          <span className="font-semibold">INR {(row.original.amount ?? 0).toLocaleString("en-IN")}</span>
+          <span className="font-semibold">₹{(row.original.amount ?? 0).toLocaleString("en-IN")}</span>
         ),
       },
       {
@@ -758,8 +758,8 @@ export function RoleBasedBillingDashboard({
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-y-2">
-                <p className="text-sm">Total Paid Revenue: INR {(paidAmount ?? 0).toLocaleString("en-IN")}</p>
-                <p className="text-sm">Total Pending: INR {(pendingAmount ?? 0).toLocaleString("en-IN")}</p>
+                <p className="text-sm">Total Paid Revenue: ₹{(paidAmount ?? 0).toLocaleString("en-IN")}</p>
+                <p className="text-sm">Total Pending: ₹{(pendingAmount ?? 0).toLocaleString("en-IN")}</p>
                 {isPatient && <p className="text-sm">Active Subscriptions: {patientAnalytics.activeSubscriptions}</p>}
               </CardContent>
             </Card>
@@ -1114,7 +1114,7 @@ export function RoleBasedBillingDashboard({
                     Amount
                   </p>
                   <p className="mt-2 font-semibold text-foreground">
-                    INR {(selectedInvoice.amount ?? 0).toLocaleString("en-IN")}
+                    ₹{(selectedInvoice.amount ?? 0).toLocaleString("en-IN")}
                   </p>
                 </div>
                 <div className="rounded-xl border bg-card p-4">
@@ -1147,11 +1147,11 @@ export function RoleBasedBillingDashboard({
                         <div>
                           <p className="font-medium text-foreground">{item.description}</p>
                           <p className="text-sm text-muted-foreground">
-                            Qty {item.quantity} x INR {item.unitPrice.toLocaleString("en-IN")}
+                            Qty {item.quantity} x ₹{item.unitPrice.toLocaleString("en-IN")}
                           </p>
                         </div>
                         <p className="font-semibold text-foreground">
-                          INR {item.total.toLocaleString("en-IN")}
+                          ₹{item.total.toLocaleString("en-IN")}
                         </p>
                       </div>
                     ))
@@ -1217,7 +1217,7 @@ export function RoleBasedBillingDashboard({
               }}
             />
             <Input
-              placeholder="Price in INR"
+              placeholder="Price in ₹"
               type="number"
               min={1}
               value={newPlanPrice}
@@ -1279,7 +1279,7 @@ export function RoleBasedBillingDashboard({
               <div className="flex flex-col gap-y-2 rounded-lg bg-muted p-4">
                 <div className="flex justify-between items-center wrap-break-word">
                   <span className="font-semibold text-lg">{planToConfirm?.name}</span>
-                  <span className="font-bold text-lg whitespace-nowrap ml-2">INR {(planToConfirm?.price ?? 0).toLocaleString("en-IN")}</span>
+                  <span className="font-bold text-lg whitespace-nowrap ml-2">₹{(planToConfirm?.price ?? 0).toLocaleString("en-IN")}</span>
                 </div>
                 <p className="text-sm text-muted-foreground">{planToConfirm?.description}</p>
               </div>
@@ -1328,7 +1328,7 @@ export function RoleBasedBillingDashboard({
                   }
                 }}
               >
-                Pay INR {(pendingSubscriptionPayment?.amount ?? 0).toLocaleString("en-IN")}
+                Pay ₹{(pendingSubscriptionPayment?.amount ?? 0).toLocaleString("en-IN")}
               </PaymentButton>
             </div>
           )}

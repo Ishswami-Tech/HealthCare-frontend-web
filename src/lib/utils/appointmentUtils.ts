@@ -622,6 +622,57 @@ export function getAppointmentPaymentDisplayState(appointment: any): Appointment
   };
 }
 
+/**
+ * Extract a numeric payment amount (in INR / base currency units) from an appointment.
+ * Walks nested billing/invoice/payment objects to find a positive fee.
+ * Returns 0 when no fee can be determined.
+ */
+export function getAppointmentPaymentAmount(appointment: any): number {
+  if (!appointment || typeof appointment !== 'object') return 0;
+
+  const candidates: unknown[] = [
+    appointment?.videoConsultationFee,
+    appointment?.consultationFee,
+    appointment?.amount,
+    appointment?.price,
+    appointment?.fee,
+    appointment?.billing?.amount,
+    appointment?.billing?.totalAmount,
+    appointment?.billing?.total,
+    appointment?.billing?.price,
+    appointment?.billing?.fee,
+    appointment?.billing?.videoConsultationFee,
+    appointment?.billing?.consultationFee,
+    appointment?.invoice?.amount,
+    appointment?.invoice?.totalAmount,
+    appointment?.invoice?.total,
+    appointment?.invoice?.price,
+    appointment?.invoice?.fee,
+    appointment?.invoice?.videoConsultationFee,
+    appointment?.invoice?.consultationFee,
+    appointment?.service?.videoConsultationFee,
+    appointment?.service?.consultationFee,
+    appointment?.service?.amount,
+    appointment?.service?.price,
+    appointment?.service?.fee,
+    appointment?.appointmentService?.videoConsultationFee,
+    appointment?.appointmentService?.consultationFee,
+    appointment?.appointmentService?.amount,
+    appointment?.appointmentService?.price,
+    appointment?.appointmentService?.fee,
+    appointment?.payment?.amount,
+  ];
+
+  for (const value of candidates) {
+    const amount = Number(value);
+    if (Number.isFinite(amount) && amount > 0) {
+      return amount;
+    }
+  }
+
+  return 0;
+}
+
 export function getAppointmentDoctorName(appointment: any): string {
   const candidates = getDoctorNameCandidates(appointment);
   const doctorName = candidates.find((value) => value && !isGenericAppointmentName(value, "doctor"));
@@ -907,6 +958,124 @@ export function shouldShowAppointmentOnReceptionistDashboard(appointment: any): 
 
 export function shouldShowAppointmentOnReceptionDashboard(appointment: any): boolean {
   return shouldShowAppointmentOnReceptionistDashboard(appointment);
+}
+
+/**
+ * Convert a name to Title Case for consistent display.
+ * Handles null/empty/undefined gracefully.
+ * Example: "dr.chandrakumar deshmukh" -> "Dr.Chandrakumar Deshmukh"
+ */
+export function toTitleCase(value: string | undefined | null): string {
+  if (!value || typeof value !== 'string') return '';
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
+/**
+ * Determine if an appointment's time slot has already passed (with grace).
+ * Used to prevent retrying payment for an appointment whose window is gone.
+ *
+ * - Returns true when the appointment's start time + duration is in the past
+ *   beyond a 5-minute grace window.
+ * - Returns false if we cannot resolve a time (so we don't over-restrict).
+ * - For appointments that are still CONFIRMED/SCHEDULED and ongoing, returns false.
+ */
+export function isAppointmentTimeSlotExpired(
+  appointment: any,
+  graceMinutes: number = 5,
+): boolean {
+  if (!appointment || typeof appointment !== 'object') {
+    return false;
+  }
+
+  const startTime = getAppointmentDateTimeValue(appointment);
+  if (!startTime) {
+    return false;
+  }
+
+  // Prefer explicit endTime if present on the appointment, otherwise
+  // estimate end = start + 30 minutes (typical video consultation length).
+  const rawEnd = (appointment as { endTime?: string | Date | null }).endTime;
+  let endTime: Date | null = null;
+  if (rawEnd) {
+    const parsed = new Date(rawEnd);
+    if (!Number.isNaN(parsed.getTime())) {
+      endTime = parsed;
+    }
+  }
+  if (!endTime) {
+    endTime = new Date(startTime.getTime() + 30 * 60 * 1000);
+  }
+
+  const now = Date.now();
+  const graceMs = graceMinutes * 60 * 1000;
+  return now > endTime.getTime() + graceMs;
+}
+
+/**
+ * Determine if a cancelled appointment was cancelled due to payment failure
+ * (rather than a user-initiated cancellation or a doctor-side no-show).
+ *
+ * Heuristics:
+ *  - cancelledBy is "system" (auto-cancellation)
+ *  - cancellationReason mentions payment/slot expiry
+ *  - payment status is PENDING/FAILED/OVERDUE (no COMPLETED payment)
+ *  - appointment is video (where payment is most relevant)
+ */
+export function wasCancelledDueToPaymentFailure(appointment: any): boolean {
+  if (!appointment || typeof appointment !== 'object') {
+    return false;
+  }
+  const rawStatus = normalizeAppointmentStatus(appointment?.status);
+  if (rawStatus !== 'CANCELLED') {
+    return false;
+  }
+  const cancelledBy = String(appointment?.cancelledBy || '').toLowerCase();
+  const reason = String(appointment?.cancellationReason || '').toLowerCase();
+  const type = String(appointment?.type || appointment?.appointmentType || '').toUpperCase();
+  const isVideo = type === 'VIDEO_CALL';
+
+  // If a user explicitly cancelled (not system), it's not a payment failure.
+  if (cancelledBy && cancelledBy !== 'system' && cancelledBy !== 'auto') {
+    return false;
+  }
+
+  // If the cancellation reason explicitly mentions a non-payment cause, skip.
+  if (reason && !/payment|slot|expired|timeout|3 hour|grace/i.test(reason)) {
+    // Reason is set but doesn't look payment-related — could be a doctor
+    // reschedule, patient no-show, or operational cancellation. Be safe and
+    // only treat as payment-failure when the reason mentions payment context.
+    if (cancelledBy !== 'system' && cancelledBy !== 'auto') {
+      return false;
+    }
+  }
+
+  // No payment completed.
+  if (isVideoAppointmentPaymentCompleted(appointment)) {
+    return false;
+  }
+
+  // For video appointments, system cancellation with no completed payment
+  // is treated as payment failure (the user can retry booking/payment).
+  if (isVideo) {
+    return true;
+  }
+
+  // For in-person appointments, treat as payment failure only if there's
+  // an explicit FAILED/PENDING payment record OR the reason mentions payment.
+  if (reason && /payment|paid|unpaid/i.test(reason)) {
+    return true;
+  }
+
+  const paymentStatus = String(getAppointmentPaymentStatus(appointment) || '').toUpperCase();
+  if (paymentStatus === 'FAILED' || paymentStatus === 'PENDING' || paymentStatus === 'OVERDUE') {
+    return true;
+  }
+
+  return false;
 }
 
 export function getVideoSessionDecision(appointment: any): VideoSessionDecision {

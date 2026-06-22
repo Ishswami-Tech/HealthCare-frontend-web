@@ -767,11 +767,22 @@ function ProfileCompletionFormContent({
     // If the PATCH was successful, the backend processed the profile update.
     // We trust the response's profileComplete flag as the primary source,
     // but also do a fallback verification via getUserProfile if unclear.
-    const isProfileCompleteFromBackend = response?.profileComplete === true;
+    // The backend nests completion flags under `user` (ProfileCompletionDto
+    // returns { success, message, user: { profileComplete, isProfileComplete } }).
+    // Reading from BOTH response-level (legacy / forward-compatible) and
+    // user-level (current backend shape) avoids false fallbacks when the
+    // server is the source of truth.
+    const userLevelFlag = (response as { user?: { profileComplete?: boolean; isProfileComplete?: boolean } } | undefined)?.user;
+    const isProfileCompleteFromBackend =
+      response?.profileComplete === true ||
+      userLevelFlag?.profileComplete === true ||
+      userLevelFlag?.isProfileComplete === true;
 
     logger.info('[ProfileCompletionForm] updateProfile result:', {
       success: response?.success,
-      profileComplete: response?.profileComplete,
+      responseProfileComplete: response?.profileComplete,
+      userProfileComplete: userLevelFlag?.profileComplete,
+      userIsProfileComplete: userLevelFlag?.isProfileComplete,
       isProfileCompleteFromBackend,
       responseKeys: result && typeof result === 'object' ? Object.keys(result as Record<string, unknown>) : undefined,
     });

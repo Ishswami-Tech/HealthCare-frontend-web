@@ -451,7 +451,7 @@ export function PaymentButton({
           Processing…
         </>
       ) : (
-        children || `Pay INR ${amount.toLocaleString("en-IN")}`
+        children || `Pay ₹${amount.toLocaleString("en-IN")}`
       )}
     </Button>
   );

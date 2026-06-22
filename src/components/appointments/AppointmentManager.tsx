@@ -63,6 +63,10 @@ import {
   getAppointmentPatientName,
   normalizePatientAppointment,
   getReceptionistAppointmentTimeLabel,
+  getAppointmentPaymentAmount,
+  wasCancelledDueToPaymentFailure,
+  isAppointmentTimeSlotExpired,
+  toTitleCase,
 } from "@/lib/utils/appointmentUtils";
 import {
   Calendar,
@@ -79,6 +83,7 @@ import {
   CalendarPlus,
   Timer,
   CreditCard,
+  X,
 } from "lucide-react";
 import { PaymentButton } from "@/components/payments/PaymentButton";
 import { Role } from "@/types/auth.types";
@@ -86,12 +91,12 @@ import { Role } from "@/types/auth.types";
 type StatusFilter = "ALL" | "SCHEDULED" | "CONFIRMED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string; bg: string }> = {
-  SCHEDULED:   { label: "Scheduled",   color: "text-blue-700 dark:text-blue-300",   dot: "bg-blue-500",   bg: "bg-blue-50 dark:bg-blue-950/30 border-blue-100 dark:border-blue-900" },
-  CONFIRMED:   { label: "Confirmed",   color: "text-green-700 dark:text-green-300", dot: "bg-green-500", bg: "bg-green-50 dark:bg-green-950/30 border-green-100 dark:border-green-900" },
-  IN_PROGRESS: { label: "In Progress", color: "text-purple-700 dark:text-purple-300",dot: "bg-purple-500",bg: "bg-purple-50 dark:bg-purple-950/30 border-purple-100 dark:border-purple-900" },
-  COMPLETED:   { label: "Completed",   color: "text-slate-600 dark:text-slate-400", dot: "bg-slate-400", bg: "bg-slate-50 dark:bg-slate-800/30 border-slate-200 dark:border-slate-700" },
-  CANCELLED:   { label: "Cancelled",   color: "text-red-700 dark:text-red-300",     dot: "bg-red-500",   bg: "bg-red-50 dark:bg-red-950/30 border-red-100 dark:border-red-900" },
-  NO_SHOW:     { label: "No Show",     color: "text-orange-700 dark:text-orange-300",dot: "bg-orange-400",bg: "bg-orange-50 dark:bg-orange-950/30 border-orange-100 dark:border-orange-900" },
+  SCHEDULED:   { label: "Scheduled",   color: "text-blue-700 dark:text-blue-300",   dot: "bg-blue-500",   bg: "bg-blue-50 dark:bg-blue-950/30 border-blue-300 dark:border-blue-800" },
+  CONFIRMED:   { label: "Confirmed",   color: "text-green-700 dark:text-green-300", dot: "bg-green-500", bg: "bg-green-50 dark:bg-green-950/30 border-green-300 dark:border-green-800" },
+  IN_PROGRESS: { label: "In Progress", color: "text-purple-700 dark:text-purple-300",dot: "bg-purple-500",bg: "bg-purple-50 dark:bg-purple-950/30 border-purple-300 dark:border-purple-800" },
+  COMPLETED:   { label: "Completed",   color: "text-slate-700 dark:text-slate-300", dot: "bg-slate-500", bg: "bg-slate-50 dark:bg-slate-800/30 border-slate-300 dark:border-slate-600" },
+  CANCELLED:   { label: "Cancelled",   color: "text-red-700 dark:text-red-300",       dot: "bg-red-500",    bg: "bg-red-50 dark:bg-red-950/40 border-red-300 dark:border-red-700" },
+  NO_SHOW:     { label: "No Show",     color: "text-orange-700 dark:text-orange-300",dot: "bg-orange-400",bg: "bg-orange-50 dark:bg-orange-950/30 border-orange-300 dark:border-orange-800" },
 };
 
 function getPaginationWindow(currentPage: number, totalPages: number): Array<number | "ellipsis"> {
@@ -177,6 +182,7 @@ interface AppointmentCardProps {
   onExpand: (id: string | null) => void;
   onSelect: (apt: AppointmentWithRelations | null) => void;
   onReschedule: (apt: AppointmentWithRelations) => void;
+  onBookNew: (apt: AppointmentWithRelations | any) => void;
   viewerRole?: string;
 }
 
@@ -273,6 +279,7 @@ function AppointmentCard({
   onExpand,
   onSelect,
   onReschedule,
+  onBookNew,
   viewerRole,
 }: AppointmentCardProps) {
   const viewState = getAppointmentViewState(apt);
@@ -313,7 +320,7 @@ function AppointmentCard({
   return (
     <div className={`w-full overflow-visible rounded-2xl border transition-all duration-200 hover:shadow-md ${
       isCancelled
-        ? "bg-red-50 border-red-200 dark:bg-red-950/25 dark:border-red-900/50 hover:border-red-300"
+        ? "bg-red-50/60 border-red-200/80 dark:bg-red-950/15 dark:border-red-900/50"
         : isConfirmed
           ? "bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900/60 hover:border-emerald-300"
         : `bg-card border-border hover:border-emerald-200 ${isExpanded ? "shadow-md border-emerald-300" : ""}`
@@ -334,43 +341,61 @@ function AppointmentCard({
           }
         }}
       >
-        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-center gap-3 min-w-0">
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
             {/* Avatar */}
             <div className="flex size-9 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-100 text-sm font-bold text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/40 dark:text-emerald-300 sm:h-10 sm:w-10">
-              {doctorName.charAt(0)}
+              {toTitleCase(doctorName).charAt(0)}
             </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold leading-tight">{doctorName}</p>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold leading-tight">{toTitleCase(doctorName)}</p>
               <div className="mt-0.5 flex flex-col gap-0.5 text-xs leading-tight opacity-60">
-                <p className="truncate">
-                  {patientName ? `Patient: ${patientName}` : `Counterparty: ${counterpartyName || "Details pending"}`}
-                </p>
-                <p className="truncate">{locationName || "—"}</p>
+                {patientName && (
+                  <p className="truncate">Patient: {toTitleCase(patientName)}</p>
+                )}
+                {!patientName && counterpartyName && counterpartyName !== doctorName && (
+                  <p className="truncate">Counterparty: {toTitleCase(counterpartyName)}</p>
+                )}
+                {!isVideoAppointment && locationName && locationName !== doctorName && (
+                  <p className="truncate">Location: {toTitleCase(locationName)}</p>
+                )}
               </div>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 shrink-0 self-start sm:self-auto">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-1 text-[11px] font-semibold shadow-sm">
-              {apt.type === "VIDEO_CALL" ? <Video className="size-3.5" /> : <Stethoscope className="size-3.5" />}
-              {apt.type === "VIDEO_CALL"
-                ? "Video"
-                : apt.type === "IN_PERSON"
-                  ? "In-Person"
-                  : apt.type.replace(/_/g, " ")}
-            </span>
+          <div className="flex flex-wrap items-center gap-1.5 shrink-0 self-start sm:self-auto">
             {/* Status badge */}
-            <span className={`inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-1 text-[11px] font-semibold shadow-sm ${cfg.color}`}>
+            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold shadow-sm ${cfg.bg} ${cfg.color} ${cfg.dot ? "" : "border-border"}`}>
               <span className={`size-1.5 rounded-full ${cfg.dot}`} />
-              {statusLabel}
+              {toTitleCase(statusLabel)}
             </span>
+            {/* Appointment type chip — replaces the duplicate "Video" badge.
+                Video calls get a subtle blue/cyan tint, in-person gets a
+                soft slate tint. Strong border keeps it readable. */}
+            {apt.type === "VIDEO_CALL" ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-300 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold capitalize text-sky-800 shadow-sm dark:border-sky-700 dark:bg-sky-950/30 dark:text-sky-200">
+                <Video className="size-3.5" />
+                {appointmentTypeLabel}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold capitalize text-slate-700 shadow-sm dark:border-slate-600 dark:bg-slate-800/40 dark:text-slate-200">
+                <Stethoscope className="size-3.5" />
+                {appointmentTypeLabel}
+              </span>
+            )}
+            {/* Payment pending badge for video appointments awaiting payment */}
+            {isVideoAppointment && !viewState.paymentCompleted && !isCancelled && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700 shadow-sm dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
+                <CreditCard className="size-3.5" />
+                Payment Pending
+              </span>
+            )}
             <ChevronDown className={`size-4 opacity-40 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
           </div>
         </div>
 
         {/* Date/time row */}
-        <div className="mt-2.5 flex flex-wrap items-center gap-2.5 text-[11px] opacity-70">
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] opacity-70">
           <span className="flex items-center gap-1.5">
             <Calendar className="size-3.5" />
             {formatAppointmentManagerDate(normalizedDate)}
@@ -386,92 +411,131 @@ function AppointmentCard({
             </span>
           )}
         </div>
-
-        {/* Appointment type and location */}
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium">
-            {appointmentTypeLabel}
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium">
-            <span className="size-1.5 rounded-full bg-emerald-500" />
-            {locationName || "Location pending"}
-          </span>
-        </div>
       </button>
 
       {/* Expanded details */}
       {isExpanded && (
         <div className="border-t border-border/60 bg-muted/30 p-3 sm:p-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-2">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Status</p>
-                <p className="text-sm font-medium">{statusLabel}</p>
-              </div>
-              {!isVideoAppointment && (
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Check-in Route</p>
-                  <p className="text-sm font-medium">{checkInRoute}</p>
+          {isTerminalAppointmentStatus(effectiveStatus) ? (
+            effectiveStatus === "CANCELLED" && wasCancelledDueToPaymentFailure(apt) ? (
+              isAppointmentTimeSlotExpired(apt) ? (
+                // Expired slot: do NOT show retry payment; the backend will
+                // refuse the charge anyway. Offer "Book New" only.
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/30 dark:text-amber-200">
+                    <p className="font-semibold">Appointment Expired</p>
+                    <p className="mt-0.5">
+                      This {isVideoAppointment ? "video " : ""}appointment was cancelled because payment was not completed in time, and the time slot has already passed.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-10 w-full justify-center sm:w-auto sm:px-5"
+                    onClick={() => onBookNew(apt)}
+                    disabled={cancellingAppointment}
+                  >
+                    <RefreshCw className="mr-2 size-4" />
+                    Book New Appointment
+                  </Button>
                 </div>
-              )}
-            </div>
-            <div className="space-y-2">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Time Slot</p>
-                <p className="text-sm font-medium">{rawTimeValue || "Not set"}</p>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Actions</p>
-                {isTerminalAppointmentStatus(effectiveStatus) ? (
-                  <p className="mt-2 text-sm italic text-muted-foreground">
-                    {effectiveStatus === "CANCELLED"
-                      ? "This appointment was cancelled. Book a new appointment to continue."
-                      : effectiveStatus === "COMPLETED"
-                        ? "This appointment has been completed."
-                        : effectiveStatus === "NO_SHOW"
-                          ? "Marked as no-show. Book a new appointment if you still need care."
-                          : "No further actions available for this appointment."}
-                  </p>
-                ) : isVideoAppointment ? (
-                  <div className="mt-2 flex flex-col gap-2">
+              ) : (
+                <div className="space-y-3">
+                  <div className="rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/30 dark:text-amber-200">
+                    <p className="font-semibold">Payment Not Completed</p>
+                    <p className="mt-0.5">
+                      {isVideoAppointment
+                        ? "This video appointment was cancelled because payment was not completed within the 3-hour window. You can still retry payment below before the slot begins."
+                        : "This appointment was cancelled because payment was not completed. You can retry payment for the same appointment below."}
+                    </p>
+                  </div>
+                  {isVideoAppointment ? (
+                    <PaymentButton
+                      appointmentId={getEffectiveAppointmentId(apt)}
+                      amount={getAppointmentPaymentAmount(apt)}
+                      appointmentType="VIDEO_CALL"
+                      description={`Video consultation with ${doctorName || "doctor"}`}
+                      className="h-10 w-full justify-center"
+                    >
+                      <RefreshCw className="mr-2 size-4" />
+                      Retry Payment
+                    </PaymentButton>
+                  ) : (
                     <Button
                       type="button"
                       size="sm"
-                      className="h-10 w-full justify-center border-0 bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md transition-all hover:from-orange-600 hover:to-amber-600 hover:shadow-lg"
-                      onClick={() => handleJoinVideo(apt)}
+                      className="h-10 w-full justify-center"
+                      onClick={() => onBookNew(apt)}
+                      disabled={cancellingAppointment}
                     >
-                      <Video className="mr-2 size-4" />
-                      Join Video
+                      <RefreshCw className="mr-2 size-4" />
+                      Book New Appointment
                     </Button>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => onReschedule(apt)}
-                        disabled={cancellingAppointment}
-                        className="flex-1 sm:flex-none"
-                      >
-                        Reschedule
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => onCancelAppointment(apt.id)}
-                        disabled={cancellingAppointment}
-                        className="flex-1 sm:flex-none"
-                      >
-                        Cancel
-                      </Button>
-                    </div>
+                  )}
+                </div>
+              )
+            ) : (
+              <p className="text-sm italic text-muted-foreground">
+                {effectiveStatus === "CANCELLED"
+                  ? "This appointment was cancelled. Book a new appointment to continue."
+                  : effectiveStatus === "COMPLETED"
+                    ? "This appointment has been completed."
+                    : effectiveStatus === "NO_SHOW"
+                      ? "Marked as no-show. Book a new appointment if you still need care."
+                      : "No further actions available for this appointment."}
+              </p>
+            )
+          ) : (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              {/* Details column (left) */}
+              <div className="space-y-2 min-w-0 flex-1">
+                {!isVideoAppointment && (
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Check-in Route</p>
+                    <p className="text-sm font-medium">{checkInRoute}</p>
                   </div>
+                )}
+              </div>
+              {/* Action buttons column (right) */}
+              <div className="flex flex-col gap-2 sm:min-w-[200px] sm:max-w-[240px] sm:items-stretch">
+                {isVideoAppointment ? (
+                  <>
+                    {!viewState.paymentCompleted ? (
+                      <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-2.5 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-200">
+                        <p className="font-semibold">Payment Pending</p>
+                        <p className="mt-0.5">Complete the payment to unlock the video call.</p>
+                      </div>
+                    ) : null}
+                    {viewState.paymentCompleted ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-10 w-full justify-center border-0 bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md transition-all hover:from-orange-600 hover:to-amber-600 hover:shadow-lg"
+                        onClick={() => handleJoinVideo(apt)}
+                      >
+                        <Video className="mr-2 size-4" />
+                        Join Video
+                      </Button>
+                    ) : (
+                      <PaymentButton
+                        appointmentId={getEffectiveAppointmentId(apt)}
+                        amount={getAppointmentPaymentAmount(apt)}
+                        appointmentType="VIDEO_CALL"
+                        description={`Video consultation with ${doctorName || "doctor"}`}
+                        className="h-10 w-full justify-center"
+                      >
+                        <CreditCard className="mr-2 size-4" />
+                        Complete Payment
+                      </PaymentButton>
+                    )}
+                  </>
                 ) : (
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <>
                     <Button
                       type="button"
                       size="sm"
                       variant="outline"
+                      className="h-10 w-full justify-center"
                       onClick={() => onReschedule(apt)}
                       disabled={cancellingAppointment}
                     >
@@ -480,17 +544,18 @@ function AppointmentCard({
                     <Button
                       type="button"
                       size="sm"
-                      variant="outline"
+                      className="h-10 w-full justify-center border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-950/50"
                       onClick={() => onCancelAppointment(apt.id)}
                       disabled={cancellingAppointment}
                     >
-                      Cancel
+                      <X className="mr-2 size-4" />
+                      Cancel Appointment
                     </Button>
-                  </div>
+                  </>
                 )}
               </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>
@@ -551,6 +616,14 @@ export default function AppointmentManager({
   const { isConnected, isRealTimeEnabled } = useWebSocketStatus();
 
   const selectedAppointmentRef = useRef<AppointmentWithRelations | null>(null);
+  // Book-appointment dialog state (separate from reschedule dialog so cancelled
+  // appointments route users to the main booking flow with all the slots
+  // and doctor information pre-configured).
+  const [isBookDialogOpen, setIsBookDialogOpen] = useState(false);
+  const [bookPrefill, setBookPrefill] = useState<{
+    doctorId?: string;
+    consultationMode?: "IN_PERSON" | "VIDEO";
+  } | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: "", end: "" });
   const [
@@ -637,7 +710,64 @@ export default function AppointmentManager({
     else if (Array.isArray((rawData as any)?.data?.appointments)) list = (rawData as any).data.appointments;
     else if (Array.isArray((rawData as any)?.appointments)) list = (rawData as any).appointments;
     else if (Array.isArray((rawData as any)?.data)) list = (rawData as any).data;
-    return list;
+
+    if (list.length === 0) return list;
+
+    // Deduplicate appointments that share the same doctor/patient/date/time/location.
+    // This guards against double-bookings created by payment retries
+    // or webhook replays returning the same logical slot multiple times.
+    const seen = new Map<string, AppointmentWithRelations>();
+    for (const apt of list) {
+      const record = apt as any;
+
+      // Build a composite key that includes all identifying attributes.
+      // This handles cases where IDs differ but the logical appointment is the same.
+      const doctor =
+        record?.doctor?.fullName ||
+        record?.doctor?.name ||
+        record?.doctorLabel ||
+        record?.doctorName ||
+        "doctor";
+      const patient =
+        record?.patient?.fullName ||
+        record?.patient?.name ||
+        record?.patientLabel ||
+        record?.patientName ||
+        "patient";
+      const date =
+        record?.date ||
+        record?.scheduledDate ||
+        record?.appointmentDate ||
+        "";
+      const time =
+        record?.time ||
+        record?.startTime ||
+        record?.scheduledStartTime ||
+        record?.slot ||
+        "";
+      const location =
+        record?.location?.name ||
+        record?.locationLabel ||
+        record?.locationName ||
+        "location";
+
+      const key = `${doctor}|${patient}|${date}|${time}|${location}`;
+
+      // Keep the first occurrence of this logical appointment.
+      // If IDs differ but the composite key matches, treat as duplicates.
+      if (!seen.has(key)) {
+        seen.set(key, apt);
+      }
+    }
+
+    const deduped = Array.from(seen.values());
+
+    // Optional: Log for debugging in browser console
+    if (typeof window !== 'undefined' && list.length !== deduped.length) {
+      console.log(`[AppointmentManager] Deduped ${list.length} appointments to ${deduped.length}`);
+    }
+
+    return deduped;
   }, [rawData]);
 
   const allAppointments = fetchedAppointments;
@@ -793,6 +923,18 @@ export default function AppointmentManager({
       onError: (error: Error) => showErrorToast(sanitizeErrorMessage(error) || "Failed to cancel", { id: TOAST_IDS.APPOINTMENT.DELETE }),
     });
   }, [cancelAppointment]);
+
+  // Opens the main booking dialog (not the reschedule dialog) with
+  // the cancelled appointment's doctor and mode pre-selected.
+  const handleOpenBookDialogFromCancelled = useCallback((apt: AppointmentWithRelations | any) => {
+    const doctorId =
+      (apt as any).doctorId ||
+      (apt as any).appointmentDoctorId ||
+      undefined;
+    const mode = apt.type === "VIDEO_CALL" ? "VIDEO" : "IN_PERSON";
+    setBookPrefill({ doctorId, consultationMode: mode });
+    setIsBookDialogOpen(true);
+  }, []);
 
   const handleRescheduleSubmit = () => {
     const selectedAppointment = selectedAppointmentRef.current;
@@ -1160,6 +1302,7 @@ export default function AppointmentManager({
                   });
                   setIsRescheduleDialogOpen(true);
                 }}
+                onBookNew={handleOpenBookDialogFromCancelled}
                 viewerRole={user?.role}
               />
             ))}
@@ -1321,6 +1464,25 @@ export default function AppointmentManager({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Main booking dialog (controlled) — opened when the user clicks
+          "Book New Appointment" on a cancelled appointment so they get the
+          full booking flow with all time slots and the doctor pre-filled. */}
+      <BookAppointmentDialog
+        hideTrigger
+        open={isBookDialogOpen}
+        onOpenChange={setIsBookDialogOpen}
+        {...(bookPrefill?.doctorId ? { initialDoctorId: bookPrefill.doctorId } : {})}
+        {...(bookPrefill?.consultationMode
+          ? { initialConsultationMode: bookPrefill.consultationMode }
+          : {})}
+        {...(propClinicId ? { clinicId: propClinicId } : {})}
+        {...(propPatientId ? { initialPatientId: propPatientId } : {})}
+        onBooked={() => {
+          setIsBookDialogOpen(false);
+          setBookPrefill(null);
+        }}
+      />
       </CardContent>
     </Card>
   );
