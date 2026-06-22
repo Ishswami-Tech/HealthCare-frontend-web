@@ -160,26 +160,67 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
 
     if (finalProfileComplete === false) {
       // Verify directly via getUserProfile - this is the authoritative check
+      // IMPORTANT: Clear the API client's request cache and retry to handle backend cache invalidation
+      // The backend's @PatientCache (30s TTL) may return stale data immediately after PATCH
       try {
-        logger.info('[updateUserProfile] Completion status unclear, verifying via getUserProfile');
-        const { data: verifyData } = await authenticatedApi<Record<string, unknown>>(
-          API_ENDPOINTS.USERS.PROFILE,
-          { method: 'GET' }
-        );
+        // Clear the API client's request cache to bypass the 2s deduplication window
+        const { clinicApiClient } = await import('../api/client');
+        if ('clearRequestCache' in clinicApiClient) {
+          (clinicApiClient as any).clearRequestCache();
+        }
 
-        const verifyPayload = verifyData?.data && typeof verifyData.data === 'object'
-          ? verifyData.data as Record<string, unknown>
-          : verifyData;
+        logger.info('[updateUserProfile] Completion status unclear, verifying via getUserProfile with retry');
 
-        const verifyStatus =
-          verifyPayload?.profileComplete === true ||
-          verifyPayload?.isProfileComplete === true ||
-          (typeof verifyPayload?.requiresProfileCompletion === 'boolean' &&
-            !verifyPayload.requiresProfileCompletion);
+        // Retry up to 2 times with small delay to handle backend cache invalidation
+        let verifyStatus = false;
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          if (attempt > 1) {
+            // Wait 500ms before retry to let backend cache invalidate
+            await new Promise(resolve => setTimeout(resolve, 500));
+            logger.info(`[updateUserProfile] Retry attempt ${attempt} for profile completion verification`);
+          }
+
+          const { data: verifyData } = await authenticatedApi<Record<string, unknown>>(
+            API_ENDPOINTS.USERS.PROFILE,
+            {
+              method: 'GET',
+              // Add cache-busting header to bypass client-side dedup cache
+              headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'X-Cache-Bust': `${Date.now()}-${attempt}`,
+              },
+            }
+          );
+
+          const verifyPayload = verifyData?.data && typeof verifyData.data === 'object'
+            ? verifyData.data as Record<string, unknown>
+            : verifyData;
+
+          verifyStatus =
+            verifyPayload?.profileComplete === true ||
+            verifyPayload?.isProfileComplete === true ||
+            (typeof verifyPayload?.requiresProfileCompletion === 'boolean' &&
+              !verifyPayload.requiresProfileCompletion);
+
+          logger.info('[updateUserProfile] getUserProfile verification result:', {
+            attempt,
+            verifyStatus,
+            verifyPayloadKeys: verifyPayload && typeof verifyPayload === 'object' ? Object.keys(verifyPayload).slice(0, 20) : undefined,
+            verifyPayloadProfileComplete: verifyPayload?.profileComplete,
+            verifyPayloadIsProfileComplete: verifyPayload?.isProfileComplete,
+          });
+
+          if (verifyStatus === true) {
+            break; // Got a positive verification, no need to retry
+          }
+        }
 
         if (verifyStatus === true) {
           logger.info('[updateUserProfile] Profile completion verified via getUserProfile');
           finalProfileComplete = true;
+        } else {
+          logger.warn('[updateUserProfile] getUserProfile verification returned incomplete after retries');
         }
       } catch (verifyError) {
         logger.warn('[updateUserProfile] Could not verify profile completion', {
