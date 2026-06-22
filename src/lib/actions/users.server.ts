@@ -125,9 +125,23 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
         maxAge: 60 * 60 * 24 * 7, // 7 days
       });
       logger.info('[updateUserProfile] Profile completion cookie set to false after backend confirmation');
+    } else {
+      logger.warn('[updateUserProfile] Profile completion status unknown - no flag set in response', {
+        responseDataKeys: data && typeof data === 'object' ? Object.keys(data as Record<string, unknown>).slice(0, 30) : undefined,
+        responseDataProfileComplete: (data as Record<string, unknown>)?.profileComplete,
+        responseDataIsProfileComplete: (data as Record<string, unknown>)?.isProfileComplete,
+        responseDataRequiresProfileCompletion: (data as Record<string, unknown>)?.requiresProfileCompletion,
+      });
     }
 
-    return { success: true, data, ...(isProfileComplete !== undefined ? { profileComplete: isProfileComplete } : {}) };
+    const result = { success: true as const, data, ...(isProfileComplete !== undefined ? { profileComplete: isProfileComplete } : {}) };
+    logger.info('[updateUserProfile] returning result', {
+      success: result.success,
+      profileComplete: result.profileComplete,
+      hasData: result.data !== undefined,
+      dataKeys: result.data && typeof result.data === 'object' ? Object.keys(result.data as Record<string, unknown>).slice(0, 30) : undefined,
+    });
+    return result;
   } catch (error) {
     const errorMessage = sanitizeErrorMessage(error);
     logger.error('[updateUserProfile] Failed', {

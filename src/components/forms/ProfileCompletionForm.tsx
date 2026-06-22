@@ -751,11 +751,23 @@ function ProfileCompletionFormContent({
       data?: any;
       profileComplete?: boolean;
       isProfileComplete?: boolean;
+      requiresProfileCompletion?: boolean;
       validationErrors?: Array<{
         field: string;
         constraints: Record<string, string>;
       }>;
     };
+
+    // Diagnostic logging for profile completion flow
+    console.log('[ProfileCompletionForm] updateProfile raw result:', result);
+    logger.info('[ProfileCompletionForm] updateProfile result:', {
+      resultKeys: result && typeof result === 'object' ? Object.keys(result as Record<string, unknown>) : undefined,
+      success: response?.success,
+      profileComplete: response?.profileComplete,
+      isProfileComplete: response?.isProfileComplete,
+      requiresProfileCompletion: response?.requiresProfileCompletion,
+      dataKeys: response?.data ? Object.keys(response.data as Record<string, unknown>).slice(0, 20) : undefined,
+    });
 
     // Backend validation is the source of truth
     // Only proceed if backend confirms success
@@ -803,9 +815,31 @@ function ProfileCompletionFormContent({
     // Backend is the single source of truth for profile completion.
     // It returns a top-level `profileComplete` flag (in addition to the user
     // data in `data`) and refreshes the auth cookies / JWT when complete.
+    // Also check the nested data payload in case the API wrapper placed user
+    // fields under .data (response.data may itself contain profileComplete).
+    const responseUserData =
+      response?.data && typeof response.data === "object"
+        ? (response.data as Record<string, unknown>)
+        : undefined;
     const isProfileCompleteFromBackend =
       response?.profileComplete === true ||
-      response?.isProfileComplete === true;
+      response?.isProfileComplete === true ||
+      (typeof response?.requiresProfileCompletion === "boolean" &&
+        !response.requiresProfileCompletion) ||
+      responseUserData?.profileComplete === true ||
+      responseUserData?.isProfileComplete === true ||
+      (typeof responseUserData?.requiresProfileCompletion === "boolean" &&
+        !responseUserData.requiresProfileCompletion);
+
+    // CRITICAL DEBUG LOG — this tells us the actual response structure
+    console.log('[ProfileCompletionForm] isProfileCompleteFromBackend:', isProfileCompleteFromBackend, {
+      responseProfileComplete: response?.profileComplete,
+      responseIsProfileComplete: response?.isProfileComplete,
+      responseRequiresProfileCompletion: response?.requiresProfileCompletion,
+      responseDataProfileComplete: responseUserData?.profileComplete,
+      responseDataIsProfileComplete: responseUserData?.isProfileComplete,
+      responseDataRequiresProfileCompletion: responseUserData?.requiresProfileCompletion,
+    });
 
     if (isProfileCompleteFromBackend) {
       // Backend confirmed profile is complete - update frontend state
