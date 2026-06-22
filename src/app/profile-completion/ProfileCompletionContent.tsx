@@ -7,7 +7,7 @@
 
 import { useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/auth/useAuth";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import ProfileCompletionForm from "@/components/forms/ProfileCompletionForm";
 import { getProfileCompletionRedirectUrl } from "@/lib/config/profile";
 import { Role } from "@/types/auth.types";
@@ -17,6 +17,8 @@ import { ROUTES } from "@/lib/config/routes";
 export default function ProfileCompletionContent() {
   const { session, isPending, refreshSession } = useAuth();
   const { push } = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get("redirect") || undefined;
   const hasRefreshedRef = useRef(false);
 
   useEffect(() => {
@@ -32,11 +34,18 @@ export default function ProfileCompletionContent() {
       }
       if (session.user.profileComplete === true) {
         const userRole = session.user.role as Role;
-        const dashboardPath = getProfileCompletionRedirectUrl(userRole);
+        // Use redirectUrl if valid and not an auth route
+        const safeRedirectUrl =
+          redirectUrl &&
+          redirectUrl !== "/" &&
+          !redirectUrl.startsWith("/auth/")
+            ? redirectUrl
+            : undefined;
+        const dashboardPath = getProfileCompletionRedirectUrl(userRole, safeRedirectUrl);
         window.location.replace(dashboardPath);
       }
     }
-  }, [session, isPending, push, refreshSession]);
+  }, [session, isPending, push, refreshSession, redirectUrl]);
 
   // Show loading while checking auth
   if (isPending) {

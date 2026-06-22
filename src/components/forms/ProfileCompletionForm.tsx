@@ -55,12 +55,6 @@ import {
 import { format } from "date-fns";
 import { APP_CONFIG } from "@/lib/config/config";
 import {
-  showSuccessToast,
-  showErrorToast,
-  showWarningToast,
-  TOAST_IDS,
-} from "@/hooks/utils/use-toast";
-import {
   Loader2,
   Phone,
   MapPin,
@@ -197,24 +191,14 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
         identifier: phone,
         clinicId: resolvedClinicId,
       });
-      showSuccessToast("OTP resent to your phone.", {
-        id: TOAST_IDS.PROFILE.OTP,
-      });
       setCountdown(30);
       setOtp("");
     } catch (error) {
       if (error instanceof Error && error.message.includes("expired")) {
-        showErrorToast("Session expired. Please log in again.", {
-          id: TOAST_IDS.AUTH.LOGIN,
-          duration: 5000,
-        });
         window.location.href = "/auth/login";
       } else {
-        showErrorToast(
-          error instanceof Error ? error.message : "Failed to resend OTP",
-          {
-            id: TOAST_IDS.PROFILE.OTP,
-          },
+        setErrorMessage(
+          error instanceof Error ? error.message : "Failed to resend OTP"
         );
       }
     }
@@ -239,18 +223,12 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
       const data = response.data as Record<string, unknown>;
       const result = (data.data || data) as Record<string, unknown>;
       if (result.phoneVerified !== false) {
-        showSuccessToast("Phone number verified!", {
-          id: TOAST_IDS.PROFILE.OTP,
-        });
         setOtp("");
         setErrorMessage(null);
         onVerified();
         onOpenChange(false);
       } else {
         setErrorMessage("Invalid OTP. Please try again.");
-        showErrorToast("Invalid OTP. Please try again.", {
-          id: TOAST_IDS.PROFILE.OTP,
-        });
       }
     } catch (error) {
       // Use structured error handling instead of string matching
@@ -260,17 +238,10 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
         // Handle specific error types with clear messages - order matters (most specific first)
         if (errorMsg.includes("auth_otp_invalid")) {
           setErrorMessage("Invalid OTP. Please check and try again.");
-          showErrorToast("Invalid OTP. Please check and try again.", {
-            id: TOAST_IDS.PROFILE.OTP,
-          });
         } else if (
           errorMsg.includes("expired") ||
           errorMsg.includes("session")
         ) {
-          showErrorToast("Session expired. Please log in again.", {
-            id: TOAST_IDS.AUTH.LOGIN,
-            duration: 5000,
-          });
           window.location.href = "/auth/login";
         } else if (
           errorMsg.includes("otp_not_found") ||
@@ -279,9 +250,6 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
           errorMsg.includes("invalid verification code")
         ) {
           setErrorMessage("Invalid or expired OTP. Please request a new one.");
-          showErrorToast("Invalid or expired OTP. Please request a new one.", {
-            id: TOAST_IDS.PROFILE.OTP,
-          });
         } else if (
           errorMsg.includes("locked") ||
           errorMsg.includes("too many attempts")
@@ -289,28 +257,18 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
           setErrorMessage(
             "Too many attempts. Please wait before trying again.",
           );
-          showErrorToast("Account locked. Please wait before trying again.", {
-            id: TOAST_IDS.PROFILE.OTP,
-          });
         } else if (
           errorMsg.includes("network") ||
           errorMsg.includes("fetch") ||
           errorMsg.includes("request")
         ) {
           setErrorMessage("Network error. Please check your connection.");
-          showErrorToast("Network error. Please check your connection.", {
-            id: TOAST_IDS.PROFILE.OTP,
-          });
         } else {
           // Show the actual error message for other errors
           setErrorMessage(error.message);
-          showErrorToast(error.message, { id: TOAST_IDS.PROFILE.OTP });
         }
       } else {
         setErrorMessage("Verification failed. Please try again.");
-        showErrorToast("Verification failed. Please try again.", {
-          id: TOAST_IDS.PROFILE.OTP,
-        });
       }
     } finally {
       setIsVerifying(false);
@@ -444,6 +402,7 @@ function ProfileCompletionFormContent({
     isEmailVerified: initialEmailVerified,
   });
   const lastInitializedSessionKeyRef = useRef<string>("");
+  const isSubmittingRef = useRef<boolean>(false);
 
   const setIsSubmitting = (value: boolean) =>
     dispatch({ type: "setIsSubmitting", value });
@@ -717,10 +676,6 @@ function ProfileCompletionFormContent({
         errorLower.includes("expired") ||
         errorLower.includes("unauthorized")
       ) {
-        showErrorToast("Session expired. Please log in again.", {
-          id: TOAST_IDS.AUTH.LOGIN,
-          duration: 5000,
-        });
         window.location.href = "/auth/login";
       } else if (errorLower.includes("rate limit")) {
         form.setError("phone", {
@@ -744,29 +699,22 @@ function ProfileCompletionFormContent({
 
   const updateProfile = async (profileData: Record<string, unknown>) => {
     const result = await updateProfileMutation.mutateAsync(profileData);
-    // The response has user data in 'data' field, not 'user' field
+    // Simple response structure: { success, profileComplete, error? }
     const response = result as {
       success?: boolean;
       error?: string;
-      data?: any;
       profileComplete?: boolean;
-      isProfileComplete?: boolean;
-      requiresProfileCompletion?: boolean;
       validationErrors?: Array<{
         field: string;
         constraints: Record<string, string>;
       }>;
     };
 
-    // Diagnostic logging for profile completion flow
-    console.log('[ProfileCompletionForm] updateProfile raw result:', result);
     logger.info('[ProfileCompletionForm] updateProfile result:', {
       resultKeys: result && typeof result === 'object' ? Object.keys(result as Record<string, unknown>) : undefined,
       success: response?.success,
       profileComplete: response?.profileComplete,
-      isProfileComplete: response?.isProfileComplete,
-      requiresProfileCompletion: response?.requiresProfileCompletion,
-      dataKeys: response?.data ? Object.keys(response.data as Record<string, unknown>).slice(0, 20) : undefined,
+      error: response?.error
     });
 
     // Backend validation is the source of truth
@@ -814,31 +762,12 @@ function ProfileCompletionFormContent({
 
     // Backend is the single source of truth for profile completion.
     // It returns a top-level `profileComplete` flag (in addition to the user
-    // data in `data`) and refreshes the auth cookies / JWT when complete.
-    // Also check the nested data payload in case the API wrapper placed user
-    // fields under .data (response.data may itself contain profileComplete).
-    const responseUserData =
-      response?.data && typeof response.data === "object"
-        ? (response.data as Record<string, unknown>)
-        : undefined;
-    const isProfileCompleteFromBackend =
-      response?.profileComplete === true ||
-      response?.isProfileComplete === true ||
-      (typeof response?.requiresProfileCompletion === "boolean" &&
-        !response.requiresProfileCompletion) ||
-      responseUserData?.profileComplete === true ||
-      responseUserData?.isProfileComplete === true ||
-      (typeof responseUserData?.requiresProfileCompletion === "boolean" &&
-        !responseUserData.requiresProfileCompletion);
+    // Simple check - the action returns { success, profileComplete }
+    const isProfileCompleteFromBackend = response?.profileComplete === true;
 
-    // CRITICAL DEBUG LOG — this tells us the actual response structure
-    console.log('[ProfileCompletionForm] isProfileCompleteFromBackend:', isProfileCompleteFromBackend, {
-      responseProfileComplete: response?.profileComplete,
-      responseIsProfileComplete: response?.isProfileComplete,
-      responseRequiresProfileCompletion: response?.requiresProfileCompletion,
-      responseDataProfileComplete: responseUserData?.profileComplete,
-      responseDataIsProfileComplete: responseUserData?.isProfileComplete,
-      responseDataRequiresProfileCompletion: responseUserData?.requiresProfileCompletion,
+    logger.info('[ProfileCompletionForm] isProfileCompleteFromBackend:', {
+      isProfileCompleteFromBackend,
+      responseProfileComplete: response?.profileComplete
     });
 
     if (isProfileCompleteFromBackend) {
@@ -849,52 +778,44 @@ function ProfileCompletionFormContent({
           error: error instanceof Error ? error.message : String(error),
         });
       });
-    }
 
-    // Update the full session with user data from response (including clinicId).
-    // Backend is the source of truth: the action returns the updated user
-    // object inside `data` and exposes the completion flag at the top level.
-    queryClient.setQueryData<Session | null>(["session"], (current) => {
-      const source = current || session;
-      if (!source?.user) return source;
+      // Update the full session with the submitted profile data + completion status.
+      // The action returns a simplified { success, profileComplete } response,
+      // so we merge the submitted `profileData` into the session to keep it in
+      // sync with what was just saved on the backend.
+      queryClient.setQueryData<Session | null>(["session"], (current) => {
+        const source = current || session;
+        if (!source?.user) return source;
 
-      const responseUserData = response?.data;
-      const backendProfileComplete = isProfileCompleteFromBackend;
-      const updatedUser =
-        responseUserData && typeof responseUserData === "object"
-          ? {
-              ...source.user,
-              ...(responseUserData as Record<string, unknown>),
-              profileComplete: backendProfileComplete,
-              isProfileComplete: backendProfileComplete,
-            }
-          : {
-              ...source.user,
-              profileComplete: backendProfileComplete,
-              isProfileComplete: backendProfileComplete,
-            };
+        const backendProfileComplete = isProfileCompleteFromBackend;
+        const updatedUser = {
+          ...source.user,
+          ...(profileData || {}),
+          profileComplete: backendProfileComplete,
+          isProfileComplete: backendProfileComplete,
+        };
 
-      return { ...source, user: updatedUser };
-    });
+        return { ...source, user: updatedUser };
+      });
 
-    // Invalidate all clinic-related queries to ensure fresh data loads immediately
-    // Use more permissive invalidation by using prefix matching instead of exact keys
-    const clinicQueryKeys = [
-      "myClinic",
-      "clinicLocations",
-      "clinicDoctors",
-      "doctors",
-      "activeLocations",
-      "current-clinic",
-    ];
-    clinicQueryKeys.forEach((key) => {
-      queryClient.invalidateQueries({ queryKey: [key] });
-    });
+      // Invalidate all clinic-related queries to ensure fresh data loads immediately
+      // Use more permissive invalidation by using prefix matching instead of exact keys
+      const clinicQueryKeys = [
+        "myClinic",
+        "clinicLocations",
+        "clinicDoctors",
+        "doctors",
+        "activeLocations",
+        "current-clinic",
+      ];
+      clinicQueryKeys.forEach((key) => {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      });
 
-    if (isProfileCompleteFromBackend) {
       // Backend confirmed completion - redirect to the right destination.
       try {
         if (onComplete) {
+          logger.info('[ProfileCompletionForm] Redirecting via onComplete callback');
           onComplete();
         } else {
           const userRole = sessionUser?.role as Role;
@@ -909,9 +830,18 @@ function ProfileCompletionFormContent({
             userRole,
             safeRedirectUrl,
           );
+          logger.info('[ProfileCompletionForm] Redirecting to:', {
+            finalRedirect,
+            userRole,
+            safeRedirectUrl,
+            redirectUrl
+          });
           window.location.replace(finalRedirect);
         }
       } catch (_redirectError) {
+        logger.error('[ProfileCompletionForm] Redirect error:', {
+          error: _redirectError instanceof Error ? _redirectError.message : String(_redirectError)
+        });
         form.setError("root", {
           type: "server",
           message:
@@ -932,6 +862,11 @@ function ProfileCompletionFormContent({
   };
 
   const onSubmit = async (data: ProfileCompletionFormData) => {
+    // Prevent duplicate submissions using ref (synchronous check)
+    if (isSubmittingRef.current || isSubmitting || updateProfileMutation.isPending) {
+      return;
+    }
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
     try {
       // Validation: For email OTP and Google login, phone must be verified
@@ -1136,22 +1071,15 @@ function ProfileCompletionFormContent({
           msg.includes("Invalid session") ||
           msg.includes("invalid session")
         ) {
-          showErrorToast(
-            "Your session appears to be invalid or expired. Please log in again.",
-            {
-              id: TOAST_IDS.AUTH.LOGIN,
-              duration: 5000,
-            },
-          );
           push(ROUTES.LOGIN);
         } else if (
           msg.includes("500") ||
           msg.includes("Server encountered an error")
         ) {
-          showErrorToast(
-            "The server encountered an error. Please try again in a few moments.",
-            { id: TOAST_IDS.GLOBAL.ERROR, duration: 5000 },
-          );
+          form.setError("root", {
+            type: "server",
+            message: "The server encountered an error. Please try again in a few moments.",
+          });
         } else {
           form.setError("root", {
             type: "server",
@@ -1165,6 +1093,7 @@ function ProfileCompletionFormContent({
         });
       }
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -1485,12 +1414,6 @@ function ProfileCompletionFormContent({
                                   )
                                     age--;
                                   if (age < 12) {
-                                    showWarningToast(
-                                      "You must be at least 12 years old",
-                                      {
-                                        id: TOAST_IDS.PROFILE.COMPLETE,
-                                      },
-                                    );
                                     form.setError("dateOfBirth", {
                                       type: "manual",
                                       message:

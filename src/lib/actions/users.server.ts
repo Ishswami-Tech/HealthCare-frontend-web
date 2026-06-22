@@ -79,6 +79,17 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
       body: JSON.stringify(profileData)
     });
 
+    // CRITICAL DIAGNOSTIC: Log raw backend data structure
+    logger.info('[updateUserProfile] Raw backend data structure:', {
+      dataType: typeof data,
+      dataIsNull: data === null,
+      dataIsObject: typeof data === 'object',
+      dataKeys: data && typeof data === 'object' ? Object.keys(data as Record<string, unknown>).slice(0, 30) : undefined,
+      dataProfileComplete: (data as Record<string, unknown>)?.profileComplete,
+      dataIsProfileComplete: (data as Record<string, unknown>)?.isProfileComplete,
+      dataRequiresProfileCompletion: (data as Record<string, unknown>)?.requiresProfileCompletion,
+    });
+
     const responseData = (typeof data === 'object' && data !== null) ? (data as Record<string, unknown>) : undefined;
     const responsePayload =
       responseData && typeof responseData.data === 'object' && responseData.data !== null
@@ -102,6 +113,14 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
                 : typeof responseUser?.requiresProfileCompletion === 'boolean'
                   ? !responseUser.requiresProfileCompletion
                   : undefined;
+
+    logger.info('[updateUserProfile] Extracted completion status:', {
+      isProfileComplete,
+      isProfileCompleteType: typeof isProfileComplete,
+      responsePayloadProfileComplete: responsePayload?.profileComplete,
+      responsePayloadIsProfileComplete: responsePayload?.isProfileComplete,
+      responsePayloadRequiresProfileCompletion: responsePayload?.requiresProfileCompletion,
+    });
 
     if (isProfileComplete === true) {
       cookieStore.set({
@@ -134,19 +153,62 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
       });
     }
 
-    const result = { success: true as const, data, ...(isProfileComplete !== undefined ? { profileComplete: isProfileComplete } : {}) };
+    // If we couldn't determine completion from the update response, verify directly
+    // This handles cases where the backend completes the profile but doesn't return
+    // the completion flag (e.g., when isProfileComplete wasn't extracted properly)
+    let finalProfileComplete = isProfileComplete === true;
+
+    if (finalProfileComplete === false) {
+      // Verify directly via getUserProfile - this is the authoritative check
+      try {
+        logger.info('[updateUserProfile] Completion status unclear, verifying via getUserProfile');
+        const { data: verifyData } = await authenticatedApi<Record<string, unknown>>(
+          API_ENDPOINTS.USERS.PROFILE,
+          { method: 'GET' }
+        );
+
+        const verifyPayload = verifyData?.data && typeof verifyData.data === 'object'
+          ? verifyData.data as Record<string, unknown>
+          : verifyData;
+
+        const verifyStatus =
+          verifyPayload?.profileComplete === true ||
+          verifyPayload?.isProfileComplete === true ||
+          (typeof verifyPayload?.requiresProfileCompletion === 'boolean' &&
+            !verifyPayload.requiresProfileCompletion);
+
+        if (verifyStatus === true) {
+          logger.info('[updateUserProfile] Profile completion verified via getUserProfile');
+          finalProfileComplete = true;
+        }
+      } catch (verifyError) {
+        logger.warn('[updateUserProfile] Could not verify profile completion', {
+          error: verifyError instanceof Error ? verifyError.message : String(verifyError)
+        });
+      }
+    }
+
+    // Simple return structure for maximum compatibility with server action serialization
+    const result = {
+      success: true,
+      profileComplete: finalProfileComplete
+    };
+
     logger.info('[updateUserProfile] returning result', {
       success: result.success,
       profileComplete: result.profileComplete,
-      hasData: result.data !== undefined,
-      dataKeys: result.data && typeof result.data === 'object' ? Object.keys(result.data as Record<string, unknown>).slice(0, 30) : undefined,
+      isProfileCompleteRaw: isProfileComplete,
+      finalProfileComplete
     });
+
     return result;
   } catch (error) {
     const errorMessage = sanitizeErrorMessage(error);
-    logger.error('[updateUserProfile] Failed', {
+    logger.error('[updateUserProfile] ===== ERROR CAUGHT =====', {
       error: errorMessage,
-      originalError: error instanceof Error ? error.message : String(error)
+      originalError: error instanceof Error ? error.message : String(error),
+      errorName: error instanceof Error ? error.name : 'Unknown',
+      errorStack: error instanceof Error ? error.stack?.substring(0, 500) : undefined,
     });
 
     // Extract validation errors from nested error structures (ApiError, details, errors, etc.)
