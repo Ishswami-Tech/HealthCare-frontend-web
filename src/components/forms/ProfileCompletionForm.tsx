@@ -745,6 +745,8 @@ function ProfileCompletionFormContent({
         if (hasFieldError) {
           // Field errors are displayed inline via FormMessage components
           // No toast needed - user will see errors next to each field
+          isSubmittingRef.current = false;
+          setIsSubmitting(false);
           return;
         }
       }
@@ -754,6 +756,8 @@ function ProfileCompletionFormContent({
         type: "server",
         message: response?.error || "Failed to complete profile",
       });
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
       return;
     }
 
@@ -771,7 +775,31 @@ function ProfileCompletionFormContent({
     });
 
     if (isProfileCompleteFromBackend) {
-      // Backend confirmed profile is complete - update frontend state
+      // Backend confirmed profile is complete - redirect FIRST before updating
+      // state to prevent the ProfileCompletionContent useEffect from racing
+      // and redirecting without the correct redirectUrl.
+      const userRole = sessionUser?.role as Role;
+      const safeRedirectUrl =
+        redirectUrl &&
+        redirectUrl !== "/" &&
+        !redirectUrl.startsWith("/auth/")
+          ? redirectUrl
+          : undefined;
+      const finalRedirect = getProfileCompletionRedirectUrl(
+        userRole,
+        safeRedirectUrl,
+      );
+      logger.info('[ProfileCompletionForm] Redirecting to:', {
+        finalRedirect,
+        userRole,
+        safeRedirectUrl,
+        redirectUrl
+      });
+      window.location.replace(finalRedirect);
+
+      // Update frontend state (after redirect - won't trigger a re-render
+      // that matters since the page is navigating away, but keeps state
+      // consistent for any middleware that reads it)
       setProfileCompletion(true, false);
       void setProfileCompleteMutation.mutateAsync(true).catch((error) => {
         logger.warn("Unable to sync profile-complete cookie", {
@@ -779,27 +807,22 @@ function ProfileCompletionFormContent({
         });
       });
 
-      // Update the full session with the submitted profile data + completion status.
-      // The action returns a simplified { success, profileComplete } response,
-      // so we merge the submitted `profileData` into the session to keep it in
-      // sync with what was just saved on the backend.
+      // Update session with submitted profile data
       queryClient.setQueryData<Session | null>(["session"], (current) => {
         const source = current || session;
         if (!source?.user) return source;
 
-        const backendProfileComplete = isProfileCompleteFromBackend;
         const updatedUser = {
           ...source.user,
           ...(profileData || {}),
-          profileComplete: backendProfileComplete,
-          isProfileComplete: backendProfileComplete,
+          profileComplete: true,
+          isProfileComplete: true,
         };
 
         return { ...source, user: updatedUser };
       });
 
-      // Invalidate all clinic-related queries to ensure fresh data loads immediately
-      // Use more permissive invalidation by using prefix matching instead of exact keys
+      // Invalidate clinic queries
       const clinicQueryKeys = [
         "myClinic",
         "clinicLocations",
@@ -811,43 +834,6 @@ function ProfileCompletionFormContent({
       clinicQueryKeys.forEach((key) => {
         queryClient.invalidateQueries({ queryKey: [key] });
       });
-
-      // Backend confirmed completion - redirect to the right destination.
-      try {
-        if (onComplete) {
-          logger.info('[ProfileCompletionForm] Redirecting via onComplete callback');
-          onComplete();
-        } else {
-          const userRole = sessionUser?.role as Role;
-          // Only use redirectUrl if it's not "/" and not an auth route
-          const safeRedirectUrl =
-            redirectUrl &&
-            redirectUrl !== "/" &&
-            !redirectUrl.startsWith("/auth/")
-              ? redirectUrl
-              : undefined;
-          const finalRedirect = getProfileCompletionRedirectUrl(
-            userRole,
-            safeRedirectUrl,
-          );
-          logger.info('[ProfileCompletionForm] Redirecting to:', {
-            finalRedirect,
-            userRole,
-            safeRedirectUrl,
-            redirectUrl
-          });
-          window.location.replace(finalRedirect);
-        }
-      } catch (_redirectError) {
-        logger.error('[ProfileCompletionForm] Redirect error:', {
-          error: _redirectError instanceof Error ? _redirectError.message : String(_redirectError)
-        });
-        form.setError("root", {
-          type: "server",
-          message:
-            "Profile was updated but there was an error redirecting. Please try navigating manually.",
-        });
-      }
     } else {
       // Backend reported success but did not confirm completion.
       // This usually means required fields (firstName, lastName, phone) are
@@ -882,6 +868,8 @@ function ProfileCompletionFormContent({
           message:
             "Please verify your phone number via OTP before completing the profile.",
         });
+        isSubmittingRef.current = false;
+        setIsSubmitting(false);
         return;
       }
 
@@ -946,6 +934,8 @@ function ProfileCompletionFormContent({
             message: "Last name is required",
           });
         }
+        isSubmittingRef.current = false;
+        setIsSubmitting(false);
         return;
       }
 
