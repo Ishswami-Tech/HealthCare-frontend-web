@@ -10,9 +10,11 @@ import type { Doctor } from './doctor.types';
 import type { Clinic, ClinicLocation } from './clinic.types';
 import type { Invoice } from './billing.types';
 
-export type AppointmentStatus = 
+export type AppointmentStatus =
+  | 'PENDING'         // Video appointment: created, payment window started, not yet paid
+  | 'PENDING_PAYMENT' // Alias used by some legacy payloads
   | 'SCHEDULED'
-  | 'CONFIRMED' 
+  | 'CONFIRMED'
   | 'IN_PROGRESS'
   | 'COMPLETED'
   | 'CANCELLED'
@@ -276,6 +278,10 @@ export interface ResourceBooking {
 
 export interface Appointment {
   id: string;
+  // Some realtime snapshots use `appointmentId` as an alias for `id`. Allow
+  // both so cast-through `(a as Appointment)` in realtime filter helpers
+  // doesn't fail type-check when a snapshot carries the alias.
+  appointmentId?: string;
   patientId: string;
   doctorId: string;
   primaryDoctorId?: string;
@@ -312,6 +318,10 @@ export interface Appointment {
   cancelledBy?: string;
   cancelledAt?: string;
   cancellationReason?: string;
+  // ─── Video payment window ─────────────────────────
+  // ISO-8601 timestamp after which the backend will auto-cancel
+  // a PENDING video appointment. Frontend renders a live countdown.
+  paymentExpiresAt?: string | null;
   metadata?: Record<string, any>;
 
   createdAt: string;

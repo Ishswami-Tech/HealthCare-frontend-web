@@ -5,6 +5,7 @@ import { nowIso } from '@/lib/utils/date-time';
 // This file provides hooks that integrate with the backend appointments system
 
 import { useCallback, useMemo } from 'react';
+import { keepPreviousData } from '@tanstack/react-query';
 import { useCurrentClinicId } from './useClinics';
 import { useAuthStore } from '@/stores/auth.store';
 import { useRBAC } from '../utils/useRBAC';
@@ -102,14 +103,37 @@ const DASHBOARD_QUERY_FAMILIES: string[][] = [
   ['clinic-payments'],
   ['clinic-ledger'],
 ];
-import type { 
-  CreateAppointmentData, 
+import type {
+  CreateAppointmentData,
   UpdateAppointmentData,
   AppointmentFilters,
   Appointment,
   AppointmentServiceDefinition,
   AssistantDoctorCoverageAssignment,
 } from '@/types/appointment.types';
+
+// Tracks whether the *current session* has ever observed a successful
+// appointments fetch. Once true, subsequent refetches (background poll,
+// window-focus) keep the previous payload via placeholderData instead of
+// returning undefined mid-refetch. Resets when the auth session changes
+// (logout, role switch) so the next login still sees a real loading state.
+const appointmentsLoadedState = { sessionKey: '', loaded: false };
+const markAppointmentsLoadedOnce = (sessionKey: string) => {
+  if (appointmentsLoadedState.sessionKey !== sessionKey) {
+    appointmentsLoadedState.sessionKey = sessionKey;
+    appointmentsLoadedState.loaded = false;
+  }
+  appointmentsLoadedState.loaded = true;
+};
+
+/**
+ * Returns true if any appointments query has returned data during the current
+ * session. Useful to gate skeleton states: while this is true, the appointments
+ * hook is doing a background refetch and `data` is preserved via
+ * `placeholderData: keepPreviousData` rather than going to `undefined`.
+ */
+export const hasAppointmentsLoadedForSession = (): boolean =>
+  appointmentsLoadedState.loaded;
 
 const extractAppointments = (payload: unknown): Appointment[] => {
   const dedupe = (items: Appointment[]) =>
@@ -253,13 +277,15 @@ export const useAppointments = (
 ) => {
   const clinicId = useCurrentClinicId();
   const { hasPermission } = useRBAC();
-  
+  const userId = useAuthStore((state) => state.session?.user?.id);
+  const userRole = useAuthStore((state) => state.session?.user?.role);
+
   // Memoize query key for performance
   const queryKey = useMemo(
     () => serializeAppointmentQueryKey(clinicId, clinicIdOrFilters),
     [clinicId, clinicIdOrFilters]
   );
-  
+
   // Memoize query function
   const queryFn = useCallback(async (): Promise<any> => {
     // ✅ Consolidated: Use filters parameter only (removed legacy clinicId parameter)
@@ -285,13 +311,15 @@ export const useAppointments = (
     }
 
     const appointments = response.appointments || [];
+    const sessionKey = String(userId || '') + '|' + String(userRole || '');
+    markAppointmentsLoadedOnce(sessionKey);
     return {
       success: true,
       appointments,
       data: appointments,
       meta: response.meta,
     } as any;
-  }, [clinicId, clinicIdOrFilters]);
+  }, [clinicId, clinicIdOrFilters, userId, userRole]);
   
   return useQueryData(
     queryKey,
@@ -313,6 +341,10 @@ export const useAppointments = (
         }
         return failureCount < 2; // Reduce retry attempts
       },
+      // Keep the previous list visible during background refetches and key
+      // transitions so screens don't flash empty/loading while polling or
+      // after filter changes. First-load still surfaces isPending=true.
+      placeholderData: keepPreviousData,
     }
   );
 };
@@ -684,6 +716,8 @@ export const useConfirmAppointment = () => {
 export const useUserUpcomingAppointments = () => {
   const { hasPermission } = useRBAC();
   const { isConnected } = useWebSocketStatus();
+  const userId = useAuthStore((state) => state.session?.user?.id);
+  const userRole = useAuthStore((state) => state.session?.user?.role);
 
   return useQueryData(
     ['userUpcomingAppointments'],
@@ -693,6 +727,8 @@ export const useUserUpcomingAppointments = () => {
       if (!result.success) {
         throw new Error(result.error);
       }
+      const sessionKey = String(userId || '') + '|' + String(userRole || '');
+      markAppointmentsLoadedOnce(sessionKey);
       return result.appointments;
     },
     {
@@ -701,6 +737,7 @@ export const useUserUpcomingAppointments = () => {
       refetchOnWindowFocus: false,
       refetchOnReconnect: true,
       refetchInterval: isConnected ? false : 30_000,
+      placeholderData: keepPreviousData,
     }
   );
 };
@@ -1365,6 +1402,8 @@ export const useMyAppointments = (filters?: {
       }
       const successfulResult = result as any;
       const appointments = extractAppointments(successfulResult.appointments ?? successfulResult.data);
+      const sessionKey = String(userId || '') + '|' + String(userRole || '');
+      markAppointmentsLoadedOnce(sessionKey);
       return {
         success: true,
         appointments,
@@ -1388,6 +1427,11 @@ export const useMyAppointments = (filters?: {
         }
         return failureCount < 3;
       },
+      // Keep previous patient-appointment list visible during background
+      // refetches/payment-callback invalidations; first load still surfaces
+      // isPending=true. Pairs with `appointmentsLoadedState` so consumers can
+      // distinguish 'never loaded this session' from 'refreshing'.
+      placeholderData: keepPreviousData,
     }
   );
 

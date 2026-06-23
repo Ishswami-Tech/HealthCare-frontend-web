@@ -16,6 +16,7 @@ export interface WebSocketState {
     reconnectionAttempts: number;
     messagesReceived: number;
     messagesSent: number;
+    lastDisconnectReason?: 'auth_expired' | 'io_server_disconnect' | 'transport_close' | 'client_disconnect' | 'unknown';
   };
   
   // Actions
@@ -53,6 +54,7 @@ export const useWebSocketStore = create<WebSocketState>()(
         reconnectionAttempts: 0,
         messagesReceived: 0,
         messagesSent: 0,
+        lastDisconnectReason: undefined,
       },
 
       connect: (url: string, options: ConnectionOptions & Record<string, unknown> = {}) => {
@@ -154,16 +156,23 @@ export const useWebSocketStore = create<WebSocketState>()(
 
           socket.on('disconnect', (reason) => {
             // WebSocket disconnected
-            set({
+            set((state) => ({
               isConnected: false,
               connectionStatus: reason === 'io client disconnect' ? 'disconnected' : 'reconnecting',
               lastActivity: new Date(),
-            });
+              connectionMetrics: {
+                ...state.connectionMetrics,
+                lastDisconnectReason:
+                  reason === 'io client disconnect' ? 'client_disconnect' :
+                  reason === 'io server disconnect' ? 'io_server_disconnect' :
+                  'transport_close',
+              },
+            }));
           });
 
           socket.on('connect_error', (error: Error & { type?: string; description?: string; context?: unknown }) => {
             const message = String(error?.message || '');
-            const isAuthError = /jwt expired|authentication required|no token or session/i.test(message);
+            const isAuthError = /jwt expired|token has expired|access token has expired|please refresh|authentication required|no token or session/i.test(message);
             if (isAuthError) {
               try {
                 socket.disconnect();
@@ -177,6 +186,10 @@ export const useWebSocketStore = create<WebSocketState>()(
                 isConnected: false,
                 connectionStatus: 'error',
                 error: message || 'Authentication failed',
+                connectionMetrics: {
+                  ...get().connectionMetrics,
+                  lastDisconnectReason: 'auth_expired',
+                },
               });
               return;
             }
@@ -202,6 +215,9 @@ export const useWebSocketStore = create<WebSocketState>()(
               connectionMetrics: {
                 ...state.connectionMetrics,
                 reconnectionAttempts: state.connectionMetrics.reconnectionAttempts + attemptNumber,
+                // Clear the stale disconnect reason so consumers don't keep
+                // showing "session expired" after the socket recovered.
+                lastDisconnectReason: undefined,
               },
             }));
           });

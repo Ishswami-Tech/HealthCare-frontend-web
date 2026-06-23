@@ -14,7 +14,6 @@ import {
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, LazyMotion, domAnimation, m } from "framer-motion";
-import { load } from "@cashfreepayments/cashfree-js";
 import type {
   AppointmentServiceDefinition,
   AppointmentType,
@@ -75,30 +74,20 @@ import {
 import { useWebSocketContext } from "@/app/providers/WebSocketProvider";
 import { useRBAC } from "@/hooks/utils/useRBAC";
 import { getAppointmentStatsQueryKey } from "@/lib/query/appointment-query-keys";
-import {
-  createPaymentIntent,
-  verifyPaymentCallback,
-} from "@/lib/actions/billing.server";
 import { getUserProfile, updateUserProfile } from "@/lib/actions/users.server";
 import {
   dismissToast,
   showErrorToast,
   showInfoToast,
   showSuccessToast,
-  TOAST_IDS,
 } from "@/hooks/utils/use-toast";
 import { Permission } from "@/types/rbac.types";
 import { APP_CONFIG } from "@/lib/config/config";
 import { ROUTES } from "@/lib/config/routes";
-import {
-  DEFAULT_PAYMENT_PROVIDER,
-  isPaymentProviderEnabled,
-} from "@/lib/payments/providers";
 import { theme } from "@/lib/utils/theme-utils";
 import { cn } from "@/lib/utils";
 import { formatISODateInIST } from "@/lib/utils/date-time";
 import { format } from "date-fns";
-import { getClinicId } from "@/lib/utils/token-manager";
 import { AppointmentStepWrapper } from "@/components/appointments/AppointmentStepWrapper";
 import { syncAppointmentInCache } from "@/lib/utils/appointment-cache";
 import {
@@ -2896,229 +2885,6 @@ export function BookAppointmentDialog({
     return String(record.appointmentId || record.id || "");
   }, []);
 
-  // Track in-flight video payment launches per appointmentId. Prevents duplicate
-  // createPaymentIntent calls when the user retries or the button is double-clicked.
-  const videoPaymentInFlightRef = useRef<Map<string, Promise<void>>>(new Map());
-
-  const launchVideoPayment = useCallback(
-    async (appointmentId: string) => {
-      // Dedupe: if a payment launch is already in flight for this appointmentId,
-      // return the same promise instead of triggering a new createPaymentIntent call.
-      const existing = videoPaymentInFlightRef.current.get(appointmentId);
-      if (existing) {
-        return existing;
-      }
-
-      const run = (async () => {
-      const paymentResponse = await createPaymentIntent({
-        appointmentId,
-        appointmentType: "VIDEO_CALL",
-      });
-
-      if (!paymentResponse.success || !paymentResponse.paymentIntent) {
-        throw new Error(
-          paymentResponse.error ||
-            paymentResponse.message ||
-            "Failed to create payment intent",
-        );
-      }
-
-      const paymentIntent = paymentResponse.paymentIntent as Record<
-        string,
-        unknown
-      >;
-      const metadata =
-        (paymentIntent?.metadata as Record<string, unknown>) || {};
-      const providerResponse =
-        (paymentIntent?.providerResponse as Record<string, unknown>) || {};
-      const providerResponseMeta =
-        (providerResponse?.order_meta as Record<string, unknown>) ||
-        (providerResponse?.orderMeta as Record<string, unknown>) ||
-        {};
-      const providerFromIntent =
-        typeof paymentIntent?.provider === "string"
-          ? paymentIntent.provider.toLowerCase()
-          : undefined;
-      const usedProvider =
-        providerFromIntent && isPaymentProviderEnabled(providerFromIntent)
-          ? providerFromIntent
-          : DEFAULT_PAYMENT_PROVIDER;
-
-      if (!isPaymentProviderEnabled(usedProvider)) {
-        throw new Error(`Payment provider '${usedProvider}' is not enabled`);
-      }
-
-      if (usedProvider !== "cashfree") {
-        throw new Error(
-          `Provider '${usedProvider}' is enabled but SDK handler is not implemented yet`,
-        );
-      }
-
-      const cashfreeMode =
-        process.env.NEXT_PUBLIC_CASHFREE_MODE === "production"
-          ? "production"
-          : process.env.NEXT_PUBLIC_CASHFREE_MODE === "sandbox"
-            ? "sandbox"
-            : process.env.NODE_ENV === "production"
-              ? "production"
-              : "sandbox";
-
-      const orderId =
-        (paymentIntent?.orderId as string) ||
-        (paymentIntent?.paymentId as string) ||
-        (paymentIntent?.id as string) ||
-        (providerResponse?.order_id as string) ||
-        (providerResponse?.orderId as string) ||
-        (metadata?.orderId as string) ||
-        (providerResponseMeta?.order_id as string);
-      const paymentSessionId =
-        (paymentIntent?.paymentSessionId as string) ||
-        (metadata?.paymentSessionId as string) ||
-        (providerResponse?.payment_session_id as string) ||
-        (providerResponse?.paymentSessionId as string);
-      const redirectUrl =
-        (paymentIntent?.redirectUrl as string) ||
-        (metadata?.redirectUrl as string) ||
-        (providerResponseMeta?.payment_link as string) ||
-        (providerResponse?.payment_link as string);
-      if (!orderId) {
-        throw new Error("Order ID not received from server");
-      }
-
-      const resolvedClinicId =
-        activeClinicId ||
-        (paymentIntent?.clinicId as string) ||
-        (metadata?.clinicId as string) ||
-        (await getClinicId()) ||
-        APP_CONFIG.CLINIC.ID;
-
-      if (!resolvedClinicId) {
-        throw new Error("Clinic context is required for payment verification");
-      }
-
-      const cashfree = await load({ mode: cashfreeMode });
-      if (!cashfree) {
-        if (redirectUrl) {
-          window.location.href = redirectUrl;
-          return;
-        }
-        throw new Error("Cashfree SDK is not available");
-      }
-
-      if (!paymentSessionId) {
-        if (redirectUrl) {
-          window.location.href = redirectUrl;
-          return;
-        }
-        throw new Error("Cashfree payment session is missing");
-      }
-
-      const result = await cashfree.checkout({
-        paymentSessionId,
-        orderId,
-        redirectTarget: "_self",
-      });
-
-      if (result?.error?.message) {
-        throw new Error(result.error.message);
-      }
-
-      const verifyResponse = await verifyPaymentCallback({
-        clinicId: resolvedClinicId,
-        paymentId: orderId,
-        orderId,
-        provider: usedProvider as typeof DEFAULT_PAYMENT_PROVIDER,
-      });
-
-      if (!verifyResponse.success) {
-        throw new Error(
-          verifyResponse.error ||
-            verifyResponse.message ||
-            "Payment verification failed",
-        );
-      }
-
-      const billingQueryKeys = [
-        ["invoices"],
-        ["clinic-invoices"],
-        ["payments"],
-        ["clinic-payments"],
-        ["subscriptions"],
-        ["clinic-subscriptions"],
-        ["active-subscription"],
-        ["clinic-ledger"],
-        ["billing-analytics"],
-      ] as const;
-
-      billingQueryKeys.forEach((queryKey) => {
-        queryClient.invalidateQueries({ queryKey, exact: false });
-      });
-      syncAppointmentInCache(
-        queryClient,
-        { id: appointmentId, status: "CONFIRMED" },
-        {
-          appointmentStatus: "CONFIRMED",
-          queryKeys: [
-            ["myAppointments"],
-            ["appointments"],
-            ["userUpcomingAppointments"],
-            ["appointment", appointmentId],
-            ["video-appointments"],
-            ["video-appointment", appointmentId],
-          ],
-        },
-      );
-      queryClient.invalidateQueries({
-        queryKey: ["myAppointments"],
-        exact: false,
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["appointments"],
-        exact: false,
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["appointment", appointmentId],
-        exact: false,
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["video-appointments"],
-        exact: false,
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["video-appointment", appointmentId],
-        exact: false,
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["userUpcomingAppointments"],
-        exact: false,
-      });
-
-      setRequiresVideoPayment(false);
-      setVideoPaymentCompleted(true);
-      setStep(STEP_ORDER.length);
-      onBooked?.();
-      showSuccessToast("Payment verified.", { id: TOAST_IDS.PAYMENT.SUCCESS });
-      })();
-
-      videoPaymentInFlightRef.current.set(appointmentId, run);
-      try {
-        await run;
-      } finally {
-        if (videoPaymentInFlightRef.current.get(appointmentId) === run) {
-          videoPaymentInFlightRef.current.delete(appointmentId);
-        }
-      }
-    },
-    [
-      activeClinicId,
-      onBooked,
-      queryClient,
-      setRequiresVideoPayment,
-      setVideoPaymentCompleted,
-      setStep,
-    ],
-  );
-
   //  Queries‚
   const {
     data: activeLocations = [],
@@ -4462,7 +4228,6 @@ export function BookAppointmentDialog({
           showInfoToast(
             "Appointment created. Complete payment in the confirm screen to finish booking.",
           );
-          await launchVideoPayment(createdAppointmentId);
           return;
         }
 
@@ -4748,7 +4513,6 @@ export function BookAppointmentDialog({
     setRequiresVideoPayment,
     setVideoPaymentCompleted,
     setAcceptedVideoPaymentPolicy,
-    launchVideoPayment,
     selectedDoctor?.name,
     setStep,
     activeSteps.length,

@@ -86,11 +86,13 @@ import {
   X,
 } from "lucide-react";
 import { PaymentButton } from "@/components/payments/PaymentButton";
+import { PaymentCountdown } from "@/components/appointments/PaymentCountdown";
 import { Role } from "@/types/auth.types";
 
 type StatusFilter = "ALL" | "SCHEDULED" | "CONFIRMED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string; bg: string }> = {
+  PENDING:     { label: "Payment Pending", color: "text-amber-800 dark:text-amber-200", dot: "bg-amber-500", bg: "bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700" },
   SCHEDULED:   { label: "Scheduled",   color: "text-blue-700 dark:text-blue-300",   dot: "bg-blue-500",   bg: "bg-blue-50 dark:bg-blue-950/30 border-blue-300 dark:border-blue-800" },
   CONFIRMED:   { label: "Confirmed",   color: "text-green-700 dark:text-green-300", dot: "bg-green-500", bg: "bg-green-50 dark:bg-green-950/30 border-green-300 dark:border-green-800" },
   IN_PROGRESS: { label: "In Progress", color: "text-purple-700 dark:text-purple-300",dot: "bg-purple-500",bg: "bg-purple-50 dark:bg-purple-950/30 border-purple-300 dark:border-purple-800" },
@@ -315,6 +317,22 @@ function AppointmentCard({
   const normalizedDate = appointmentDateTime?.toISOString() || apt.date;
   const displayDuration = getDisplayAppointmentDuration(apt);
 
+  // Auto-expand video appointments that are in PENDING (i.e. waiting on
+  // payment). The countdown timer is critical info the patient must see
+  // immediately — we don't want them to have to click into the card.
+  useEffect(() => {
+    if (
+      effectiveStatus === "PENDING" &&
+      isVideoAppointment &&
+      expandedCard !== apt.id &&
+      typeof onExpand === "function"
+    ) {
+      onExpand(apt.id);
+    }
+    // Intentionally only react to status / type changes — avoid loops when
+    // expandedCard changes due to user action.
+  }, [effectiveStatus, isVideoAppointment, expandedCard, apt.id, onExpand]);
+
   const isCancelled = effectiveStatus === "CANCELLED" || effectiveStatus === "NO_SHOW";
   const isConfirmed = effectiveStatus === "CONFIRMED";
   return (
@@ -416,7 +434,52 @@ function AppointmentCard({
       {/* Expanded details */}
       {isExpanded && (
         <div className="border-t border-border/60 bg-muted/30 p-3 sm:p-4">
-          {isTerminalAppointmentStatus(effectiveStatus) ? (
+          {effectiveStatus === "PENDING" && isVideoAppointment ? (
+            // PENDING = video appointment created but payment not yet completed.
+            // Show a live countdown with a "Complete Payment" CTA so the patient
+            // can act before the backend auto-cancels the slot.
+            <div className="space-y-3">
+              <PaymentCountdown
+                paymentExpiresAt={viewState.paymentExpiresAt}
+                paymentWindowMinutes={viewState.paymentWindowMinutes}
+                onExpire={() => {
+                  // Refresh list once the deadline hits so the UI reflects the
+                  // now-cancelled appointment without a manual reload.
+                  try {
+                    (window as Window & { __refreshAppointments?: () => void })
+                      .__refreshAppointments?.();
+                  } catch {
+                    /* noop */
+                  }
+                }}
+                showCompletePaymentCta
+                onCompletePayment={() => {
+                  // Defer to the existing payment button so the same flow is used.
+                  const paymentButton = document.querySelector<HTMLButtonElement>(
+                    `[data-appointment-pay="${getEffectiveAppointmentId(apt)}"]`
+                  );
+                  paymentButton?.click();
+                }}
+                ctaDisabled={cancellingAppointment}
+              />
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-slate-600 dark:text-slate-400">
+                  Your video appointment slot is reserved. Once payment is complete, it will be confirmed and the doctor will see it on their dashboard.
+                </p>
+                <PaymentButton
+                  appointmentId={getEffectiveAppointmentId(apt)}
+                  amount={getAppointmentPaymentAmount(apt)}
+                  appointmentType="VIDEO_CALL"
+                  description={`Video consultation with ${doctorName || "doctor"}`}
+                  className="h-10 w-full justify-center sm:w-auto sm:px-5"
+                  data-appointment-pay={getEffectiveAppointmentId(apt)}
+                >
+                  <CreditCard className="mr-2 size-4" />
+                  Pay & Confirm
+                </PaymentButton>
+              </div>
+            </div>
+          ) : isTerminalAppointmentStatus(effectiveStatus) ? (
             effectiveStatus === "CANCELLED" && wasCancelledDueToPaymentFailure(apt) ? (
               isAppointmentTimeSlotExpired(apt) ? (
                 // Expired slot: do NOT show retry payment; the backend will
@@ -796,6 +859,22 @@ export default function AppointmentManager({
 
     await refetch();
   }, [onRefreshAppointments, queryClient, refetch]);
+
+  // Expose a global hook so nested components (e.g. the live countdown
+  // in <PaymentCountdown>) can ask the manager to refresh the appointment
+  // list when the payment window expires. This avoids needing to thread
+  // callbacks through the entire tree.
+  useEffect(() => {
+    const w = window as Window & { __refreshAppointments?: () => void };
+    w.__refreshAppointments = () => {
+      void handleRefreshAppointments();
+    };
+    return () => {
+      if (w.__refreshAppointments) {
+        delete w.__refreshAppointments;
+      }
+    };
+  }, [handleRefreshAppointments]);
 
   const normalizedAppointments = useMemo(() => {
     return patientScopedAppointments

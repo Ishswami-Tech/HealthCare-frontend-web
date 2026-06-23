@@ -72,8 +72,12 @@ export function normalizeAppointmentStatus(value: unknown): string {
     .toUpperCase();
 
   switch (normalized) {
-    case 'PROPOSED':
+    // PENDING = video appointment created, payment window started, not yet paid.
+    // Keep this distinct from SCHEDULED so the UI can render a countdown
+    // and the auto-cancel scheduler can target the right rows.
     case 'PENDING':
+      return 'PENDING';
+    case 'PROPOSED':
     case 'AWAITING_PAYMENT':
     case 'PENDING_PAYMENT':
     case 'FOLLOW_UP_SCHEDULED':
@@ -814,6 +818,7 @@ export function getAppointmentStatusBadgeLabel(appointment: any): string {
 }
 
 export type AppointmentWorkflowState =
+  | 'pending_payment'
   | 'scheduled'
   | 'confirmed'
   | 'in_progress'
@@ -833,6 +838,17 @@ export type AppointmentViewState = {
   isVideo: boolean;
   isScheduledLike: boolean;
   displayStatusLabel: string;
+  /**
+   * ISO-8601 timestamp after which the backend will auto-cancel a
+   * PENDING video appointment. Frontend renders a live countdown against
+   * this value. `null` when no payment window is active.
+   */
+  paymentExpiresAt: string | null;
+  /**
+   * Snapshot of the configured payment window length (minutes) used to
+   * drive the ring / progress bar visual.
+   */
+  paymentWindowMinutes: number | null;
   showInDoctorWorkspace: boolean;
   showInPatientWorkspace: boolean;
   showInReceptionWorkspace: boolean;
@@ -908,22 +924,45 @@ export function getAppointmentViewState(appointment: any): AppointmentViewState 
       : false;
   const isVideo = type === 'VIDEO_CALL';
   const isScheduledLike = status === 'SCHEDULED' || status === 'CONFIRMED';
+  // ─── Payment-window metadata ────────────────────────────
+  // PENDING video appointments carry an ISO `paymentExpiresAt` timestamp.
+  // Fall back to a window-start derived from the metadata if the field
+  // is missing, so the countdown still works for older payloads.
+  const meta = (appointment?.metadata && typeof appointment.metadata === 'object'
+    ? appointment.metadata
+    : {}) as Record<string, unknown>;
+  const paymentWindowMinutes = typeof meta['paymentWindowMinutes'] === 'number'
+    ? (meta['paymentWindowMinutes'] as number)
+    : null;
+  const rawExpires = appointment?.paymentExpiresAt;
+  let paymentExpiresAt: string | null = null;
+  if (typeof rawExpires === 'string' && rawExpires) {
+    paymentExpiresAt = rawExpires;
+  } else if (typeof meta['paymentWindowStartedAt'] === 'string' && paymentWindowMinutes) {
+    const startedMs = Date.parse(meta['paymentWindowStartedAt'] as string);
+    if (Number.isFinite(startedMs)) {
+      paymentExpiresAt = new Date(startedMs + paymentWindowMinutes * 60_000).toISOString();
+    }
+  }
   const workflowState: AppointmentWorkflowState =
-    status === 'IN_PROGRESS'
-      ? 'in_progress'
-      : status === 'COMPLETED'
-        ? 'completed'
-        : status === 'CANCELLED' || status === 'NO_SHOW'
-          ? 'cancelled'
-          : paymentCompleted && status === 'SCHEDULED' && isVideo
-            ? 'awaiting_video_payment'
-            : status === 'CONFIRMED'
-              ? 'confirmed'
-              : 'scheduled';
+    status === 'PENDING'
+      ? 'pending_payment'
+      : status === 'IN_PROGRESS'
+        ? 'in_progress'
+        : status === 'COMPLETED'
+          ? 'completed'
+          : status === 'CANCELLED' || status === 'NO_SHOW'
+            ? 'cancelled'
+            : paymentCompleted && status === 'SCHEDULED' && isVideo
+              ? 'awaiting_video_payment'
+              : status === 'CONFIRMED'
+                ? 'confirmed'
+                : 'scheduled';
   const displayStatusLabel = getAppointmentStatusBadgeLabel(appointment);
   const isDashboardVisibleStatus =
     isActiveLike(status) ||
     status === 'AWAITING_PAYMENT' ||
+    status === 'PENDING' ||
     status === 'PENDING_PAYMENT';
 
   return {
@@ -937,10 +976,14 @@ export function getAppointmentViewState(appointment: any): AppointmentViewState 
     isVideo,
     isScheduledLike,
     displayStatusLabel,
+    paymentExpiresAt,
+    paymentWindowMinutes,
     showInDoctorWorkspace:
       !isCancelledLike(status) && isDashboardVisibleStatus,
-    showInPatientWorkspace: !isCancelledLike(status) && isActiveLike(status),
-    showInReceptionWorkspace: !isCancelledLike(status) && isDashboardVisibleStatus,
+    showInPatientWorkspace:
+      !isCancelledLike(status) && (isActiveLike(status) || status === 'PENDING'),
+    showInReceptionWorkspace:
+      !isCancelledLike(status) && isDashboardVisibleStatus,
   };
 }
 

@@ -321,6 +321,53 @@ function upsertRealtimeAppointmentCacheBatch(queryClient: QueryClient, appointme
   }
 }
 
+function removeAppointmentFromListCaches(
+  queryClient: QueryClient,
+  id: string,
+  ctx: { clinicId?: string; userId?: string } = {}
+): void {
+  if (!id) {
+    return;
+  }
+  // Each list cache has its own scope field at position [1] of the query key.
+  // React Query's setQueriesData({ queryKey, exact: false }) matches any
+  // cache whose key array STARTS WITH the provided key array. So we build a
+  // per-list prefix that uses whichever scope the actual cache uses:
+  //   useAppointments        -> ['appointments', clinicId, serializedFilters]
+  //   useMyAppointments      -> ['myAppointments', userId, userRole, filters]
+  //   useUserUpcoming        -> ['userUpcomingAppointments']               (bare)
+  //   useVideoAppointments   -> ['video-appointments', ...]                (variable)
+  //   useDoctorAppointments  -> ['doctorAppointments', doctorId, filters]   (doctorId)
+  //   useDoctorSchedule      -> ['doctorSchedule', clinicId, doctorId, date]
+  //   useDoctorPatients      -> ['doctorPatients', clinicId, filters]
+  // We can't safely construct a prefix for doctor-scoped caches without the
+  // doctorId; for those we fall back to the bare list key (acceptable inside
+  // a single auth session — no cross-tenant risk).
+  const listKeys: Array<readonly unknown[]> = [
+    ctx.clinicId ? ['appointments', ctx.clinicId] : ['appointments'],
+    ctx.userId ? ['myAppointments', ctx.userId] : ['myAppointments'],
+    ['userUpcomingAppointments'],
+    ctx.clinicId ? ['video-appointments', ctx.clinicId] : ['video-appointments'],
+    ['doctorAppointments'],
+    ['doctorSchedule'],
+    ctx.clinicId ? ['doctorPatients', ctx.clinicId] : ['doctorPatients'],
+  ];
+
+  for (const queryKey of listKeys) {
+    queryClient.setQueriesData({ queryKey, exact: false }, (current) =>
+      Array.isArray(current)
+        ? (current as Appointment[]).filter(
+            (a) => String((a as Appointment).appointmentId || (a as Appointment).id || '') !== id
+          )
+        : current
+    );
+  }
+
+  // Single-record caches — exact match.
+  queryClient.removeQueries({ queryKey: ['appointment', id], exact: true });
+  queryClient.removeQueries({ queryKey: ['video-appointment', id], exact: true });
+}
+
 function hasRealtimeAppointmentSnapshot(rawData: unknown): boolean {
   return extractRealtimeAppointmentSnapshots(rawData).length > 0;
 }
@@ -512,6 +559,71 @@ function upsertRealtimeBillingCaches(
   }
 }
 
+function removeRealtimeBillingCaches(
+  queryClient: QueryClient,
+  id: string,
+  entityType: 'invoice' | 'payment' | 'subscription' | 'plan',
+  ctx: { clinicId?: string; userId?: string } = {}
+): void {
+  if (!id) {
+    return;
+  }
+
+  // Each list cache uses clinicId at position [1] (or no scope). Build a
+  // per-list prefix that React Query's setQueriesData({ exact: false }) can
+  // match: the provided key must be a prefix of the actual stored key.
+  const listKeysByType: Record<typeof entityType, Array<readonly unknown[]>> = {
+    invoice: ctx.clinicId
+      ? [['invoices', ctx.clinicId], ['clinic-invoices', ctx.clinicId]]
+      : [['invoices'], ['clinic-invoices']],
+    payment: ctx.clinicId
+      ? [['payments', ctx.clinicId], ['clinic-payments', ctx.clinicId]]
+      : [['payments'], ['clinic-payments']],
+    subscription: ctx.clinicId
+      ? [['subscriptions', ctx.clinicId], ['clinic-subscriptions', ctx.clinicId]]
+      : [['subscriptions'], ['clinic-subscriptions']],
+    plan: [['billing-plans']],
+  };
+
+  const exactKeyByType: Record<typeof entityType, readonly unknown[]> = {
+    invoice: ['invoice', id],
+    payment: ['payment', id],
+    subscription: ['subscription', id],
+    plan: ['billing-plan', id],
+  };
+
+  const listKeys = listKeysByType[entityType];
+
+  for (const queryKey of listKeys) {
+    queryClient.setQueriesData({ queryKey, exact: false }, (current) =>
+      Array.isArray(current)
+        ? (current as Array<Record<string, unknown>>).filter(
+            (entry) => {
+              const entryId = String(entry?.id || entry?.invoiceId || entry?.paymentId || entry?.subscriptionId || entry?.planId || '');
+              return entryId !== id;
+            }
+          )
+        : current
+    );
+  }
+
+  queryClient.removeQueries({ queryKey: exactKeyByType[entityType], exact: true });
+
+  // For cancelled subscriptions, also evict any active-subscription cache
+  // that points at this id (otherwise the UI can keep showing the cancelled
+  // subscription as the active one).
+  if (entityType === 'subscription') {
+    queryClient.setQueriesData({ queryKey: ['active-subscription'], exact: false }, (current) => {
+      if (!current || typeof current !== 'object' || Array.isArray(current)) {
+        return current;
+      }
+      const record = current as Record<string, unknown>;
+      const currentId = String(record.id || record.subscriptionId || '');
+      return currentId === id ? null : current;
+    });
+  }
+}
+
 export interface UseWebSocketIntegrationOptions {
   tenantId?: string | undefined;
   userId?: string | undefined;
@@ -519,6 +631,19 @@ export interface UseWebSocketIntegrationOptions {
   autoConnect?: boolean;
   subscribeToQueues?: boolean;
   subscribeToAppointments?: boolean;
+}
+
+// Dev/test JWT pattern guard. Manual `localStorage.clear()` rewrites during
+// browser console debugging may leave placeholders that look like expired
+// tokens. We only check the token VALUE itself — never localStorage keys
+// (which can false-positive on production feature flags like
+// 'app:feature:stagingclinic_overrides'). This guard is intentionally narrow
+// so a dev pattern in some unrelated config can't suppress a real auth error.
+const DEV_TOKEN_PATTERN = /currentclinic|stagingclinic|release-/i;
+
+export function shouldBypassAuthRefresh(token: unknown): boolean {
+  if (typeof token !== 'string' || token.length === 0) return false;
+  return DEV_TOKEN_PATTERN.test(token);
 }
 
 export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions = {}) {
@@ -536,8 +661,15 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
     disconnect,
     subscribe,
     emit,
-    clearError
+    clearError,
+    connectionMetrics,
   } = useWebSocketStore();
+
+  // Expose the most recent disconnect reason so consumers can render messages
+  // like "Reconnecting because your session expired…" without traversing the
+  // store. Reading directly from connectionMetrics (not a ref) so updates
+  // trigger re-renders.
+  const lastDisconnectReason = connectionMetrics.lastDisconnectReason;
 
   const subscriptionsRef = useRef<(() => void)[]>([]);
   const hasSyncedOnConnectRef = useRef(false);
@@ -684,15 +816,9 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         }
       });
 
-      const unsubscribeAppointmentDeleted = subscribe('appointment.deleted', (rawData: unknown) => {
-        const data = rawData as { id?: string; appointmentId?: string };
-        const appointmentId = String(data.appointmentId || data.id || '');
-        logAppointmentNamespace('appointment.deleted', { appointmentId });
-        if (appointmentId) {
-          void queryClient.removeQueries({ queryKey: ['appointment', appointmentId], exact: true });
-        }
-        invalidateAppointmentQueries();
-      });
+      // Note: backend does not emit `appointment.deleted` — soft-cancel is the
+      // only removal path. List-eviction for cancellations lives in the shared
+      // lifecycle handler below (the `appointment.cancelled` branch).
 
       const unsubscribeAppointmentStatusChanged = subscribe('appointment.status_changed', (rawData: unknown) => {
         const data = rawData as { id: string; status: string; timestamp: string; appointment?: Appointment };
@@ -749,15 +875,26 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
             appointmentId,
             clinicId: data.clinicId,
           });
-          const snapshots = extractRealtimeAppointmentSnapshots(rawData);
-          if (snapshots.length > 0) {
-            upsertRealtimeAppointmentCacheBatch(queryClient, snapshots);
-          } else if (appointmentId) {
-            upsertRealtimeAppointmentCaches(queryClient, {
-              ...(appointment || data.appointment || data.payload || {}),
-              id: appointmentId,
-              appointmentId,
-            } as Appointment);
+
+          // For cancel events the row should disappear from list caches, not
+          // just be marked cancelled. Skip the upsert path entirely so we
+          // don't briefly insert-then-remove the same row.
+          if (event === 'appointment.cancelled' && appointmentId) {
+            removeAppointmentFromListCaches(queryClient, appointmentId, {
+              clinicId: data.clinicId,
+              userId: resolvedUserId,
+            });
+          } else {
+            const snapshots = extractRealtimeAppointmentSnapshots(rawData);
+            if (snapshots.length > 0) {
+              upsertRealtimeAppointmentCacheBatch(queryClient, snapshots);
+            } else if (appointmentId) {
+              upsertRealtimeAppointmentCaches(queryClient, {
+                ...(appointment || data.appointment || data.payload || {}),
+                id: appointmentId,
+                appointmentId,
+              } as Appointment);
+            }
           }
 
           if (!hasRealtimeAppointmentSnapshot(rawData)) {
@@ -869,6 +1006,19 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
               queryClient.invalidateQueries({ queryKey: ['subscriptions'], exact: false });
               queryClient.invalidateQueries({ queryKey: ['clinic-subscriptions'], exact: false });
               queryClient.invalidateQueries({ queryKey: ['active-subscription'], exact: false });
+            }
+            if (event === 'billing.subscription.cancelled') {
+              // Cancelled subscriptions should not linger in list caches even
+              // when the snapshot is missing. Try to derive the id from the
+              // snapshot, then from common id fields, and evict aggressively.
+              const cancelledId = getRealtimeBillingEntityId(subscription || rawData) ||
+                String((data as { subscriptionId?: string }).subscriptionId || '');
+              if (cancelledId) {
+                removeRealtimeBillingCaches(queryClient, cancelledId, 'subscription', {
+                  clinicId: data.clinicId,
+                  userId: resolvedUserId,
+                });
+              }
             }
             queryClient.invalidateQueries({ queryKey: ['billing-analytics'], exact: false });
           } else if (
@@ -991,7 +1141,6 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
       unsubscribeCallbacks.push(
         unsubscribeAppointmentCreated,
         unsubscribeAppointmentUpdated,
-        unsubscribeAppointmentDeleted,
         unsubscribeAppointmentStatusChanged,
         ...unsubscribeAppointmentLifecycleEvents,
         ...unsubscribePaymentLifecycleEvents,
@@ -1000,6 +1149,68 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         ...unsubscribeEhrLifecycleEvents
       );
     }
+
+    // Server emits 'token_expired' (e.g. { message, canReconnect: true }) when
+    // the access JWT expires mid-session. Refresh proactively so the socket
+    // reconnects without waiting for the first connect_error round-trip.
+    const unsubscribeTokenExpired = subscribe('token_expired', async (rawData: unknown) => {
+      const data = (rawData ?? {}) as { canReconnect?: boolean; message?: string };
+      if (data.canReconnect !== true) {
+        return;
+      }
+      if (authRefreshInFlightRef.current) {
+        return;
+      }
+      authRefreshInFlightRef.current = true;
+      try {
+        const refreshedSession = await refreshClientSessionForRealtime('appointment-live-ws');
+        if (!refreshedSession?.access_token) {
+          return;
+        }
+        connect(websocketUrl, {
+          tenantId,
+          userId: resolvedUserId,
+          token: refreshedSession.access_token,
+          withCredentials: true,
+          autoReconnect: true,
+          reconnectionAttempts: 5,
+          onConnect: registerRealtimeSubscriptions,
+          onAuthError: async () => {
+            // The refresh-token was also stale (or the new access token
+            // expired immediately). Fall back to the standard refresh path.
+            if (authRefreshInFlightRef.current) return;
+            authRefreshInFlightRef.current = true;
+            try {
+              if (shouldBypassAuthRefresh(refreshedSession.access_token)) {
+                return;
+              }
+              const failedRefreshSession = await refreshClientSessionForRealtime('appointment-live-ws');
+              if (!failedRefreshSession?.access_token) {
+                return;
+              }
+              connect(websocketUrl, {
+                tenantId,
+                userId: resolvedUserId,
+                token: failedRefreshSession.access_token,
+                withCredentials: true,
+                autoReconnect: true,
+                reconnectionAttempts: 5,
+                onConnect: registerRealtimeSubscriptions,
+              });
+            } finally {
+              authRefreshInFlightRef.current = false;
+            }
+          },
+        });
+        scheduleAuthRefresh(refreshedSession.access_token);
+      } catch {
+        // Refresh failed — fall through; subsequent connect_error will
+        // re-attempt via onAuthError.
+      } finally {
+        authRefreshInFlightRef.current = false;
+      }
+    });
+    unsubscribeCallbacks.push(unsubscribeTokenExpired);
 
     if (subscribeToQueues && clinicId) {
       const invalidateQueueQueries = (payload?: Record<string, unknown>) => {
@@ -1251,6 +1462,9 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
               if (authRefreshInFlightRef.current) return;
               authRefreshInFlightRef.current = true;
               try {
+                if (shouldBypassAuthRefresh(refreshedSession?.access_token)) {
+                  return;
+                }
                 const failedRefreshSession = await refreshClientSessionForRealtime('appointment-live-ws');
                 if (!failedRefreshSession?.access_token) {
                   return;
@@ -1318,6 +1532,9 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
             if (authRefreshInFlightRef.current) return;
             authRefreshInFlightRef.current = true;
             try {
+              if (shouldBypassAuthRefresh(accessToken)) {
+                return;
+              }
               const refreshedSession = await refreshClientSessionForRealtime('appointment-live-ws');
               if (!refreshedSession?.access_token) {
                 return;
@@ -1396,13 +1613,14 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
     isConnected,
     connectionStatus,
     error,
-    
+    lastDisconnectReason,
+
     // Actions
     reconnect,
     clearError,
     emit: emitEvent,
     subscribe: subscribeToEvent,
-    
+
     // Utilities
     isReady: isConnected && !error,
   };
