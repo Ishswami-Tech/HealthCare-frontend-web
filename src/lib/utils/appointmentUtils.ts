@@ -51,8 +51,8 @@ export interface NormalizedPatientAppointment {
 
 const IN_PERSON_DEFAULT_DURATION_MINUTES = 3;
 const VIDEO_DEFAULT_DURATION_MINUTES = 15;
-const VIDEO_JOIN_EARLY_WINDOW_MINUTES = 10;
-const VIDEO_JOIN_LATE_WINDOW_MINUTES = 180;
+const VIDEO_JOIN_EARLY_WINDOW_MINUTES = 20;
+const VIDEO_JOIN_LATE_WINDOW_MINUTES = 300;
 
 const COMPLETED_PAYMENT_STATUSES = new Set(['COMPLETED', 'SUCCESS', 'PAID', 'CAPTURED']);
 const PENDING_PAYMENT_STATUSES = new Set([
@@ -1193,7 +1193,7 @@ export function getVideoSessionDecision(appointment: any): VideoSessionDecision 
       action: 'blocked',
       label: status === 'IN_PROGRESS' ? 'Resume Video Call' : 'Join Session',
       blockedReason:
-        'Join opens 10 minutes before your visit and stays open for 3 hours after start.',
+        'Join opens 20 minutes before your visit and stays open for 5 hours after start.',
       shouldCallConsultationStart: false,
       canJoin: false,
     };
@@ -1226,7 +1226,7 @@ export function getVideoSessionDecision(appointment: any): VideoSessionDecision 
     action: 'blocked',
     label: getAppointmentStatusDisplayName(status),
     blockedReason:
-      'Join opens 10 minutes before your visit and stays open for 3 hours after start.',
+      'Join opens 20 minutes before your visit and stays open for 5 hours after start.',
     shouldCallConsultationStart: false,
     canJoin: false,
   };

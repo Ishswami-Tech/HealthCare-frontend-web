@@ -1419,6 +1419,30 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
 
   const authRefreshTimerRef = useRef<number | null>(null);
 
+  // Circuit breaker: prevent auth-error storms when the refresh flow itself
+  // is broken (e.g. the user is logged out but the page hasn't unmounted yet,
+  // or a refresh token is invalid). Without this, every re-render of the
+  // hook re-attempts `connect()` -> backend logs "Token expired" repeatedly.
+  const authFailureCountRef = useRef(0);
+  const authCircuitOpenRef = useRef(false);
+  const authCircuitResetTimerRef = useRef<number | null>(null);
+
+  const tripAuthCircuit = useCallback((reason: string) => {
+    if (authCircuitOpenRef.current) return;
+    authCircuitOpenRef.current = true;
+    logger.warn('Socket auth circuit breaker tripped - pausing reconnect attempts', {
+      component: 'appointment-live-ws',
+      reason,
+    });
+    if (authCircuitResetTimerRef.current === null) {
+      authCircuitResetTimerRef.current = window.setTimeout(() => {
+        authCircuitOpenRef.current = false;
+        authFailureCountRef.current = 0;
+        authCircuitResetTimerRef.current = null;
+      }, 60_000);
+    }
+  }, []);
+
   const clearAuthRefreshTimer = useCallback(() => {
     if (authRefreshTimerRef.current !== null) {
       window.clearTimeout(authRefreshTimerRef.current);
@@ -1529,17 +1553,26 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
           reconnectionAttempts: 5,
           onConnect: registerRealtimeSubscriptions,
           onAuthError: async () => {
+            if (authCircuitOpenRef.current) {
+              return;
+            }
             if (authRefreshInFlightRef.current) return;
             authRefreshInFlightRef.current = true;
             try {
               if (shouldBypassAuthRefresh(accessToken)) {
+                tripAuthCircuit('bypass');
                 return;
               }
               const refreshedSession = await refreshClientSessionForRealtime('appointment-live-ws');
               if (!refreshedSession?.access_token) {
+                authFailureCountRef.current += 1;
+                if (authFailureCountRef.current >= 2) {
+                  tripAuthCircuit('refresh-returned-no-token');
+                }
                 return;
               }
 
+              authFailureCountRef.current = 0;
               connect(websocketUrl, {
                 tenantId,
                 userId: resolvedUserId,
@@ -1550,10 +1583,15 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
                 onConnect: registerRealtimeSubscriptions,
               });
             } catch (refreshError) {
+              authFailureCountRef.current += 1;
               logger.warn('Socket auth refresh failed', {
                 component: 'appointment-live-ws',
                 error: refreshError instanceof Error ? refreshError.message : String(refreshError),
+                attempt: authFailureCountRef.current,
               });
+              if (authFailureCountRef.current >= 2) {
+                tripAuthCircuit('refresh-threw');
+              }
             } finally {
               authRefreshInFlightRef.current = false;
             }
@@ -1575,6 +1613,10 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
     return () => {
       // Cleanup subscriptions
       clearAuthRefreshTimer();
+      if (authCircuitResetTimerRef.current !== null) {
+        window.clearTimeout(authCircuitResetTimerRef.current);
+        authCircuitResetTimerRef.current = null;
+      }
       currentSubscriptions.forEach((unsubscribe) => unsubscribe());
     };
   }, [accessToken, autoConnect, tenantId, resolvedUserId, websocketUrl, connect, disconnect, clearError, scheduleAuthRefresh, clearAuthRefreshTimer, registerRealtimeSubscriptions]);

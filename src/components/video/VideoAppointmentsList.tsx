@@ -299,8 +299,8 @@ function computeStats(appointments: VideoAppointment[]): AppointmentStats {
 }
 
 function isWithinJoinWindow(appointment: VideoAppointment | any): boolean {
-  const VIDEO_ACTIVE_WINDOW_MS = 3 * 60 * 60 * 1000;
-  const EARLY_JOIN_WINDOW_MS = 5 * 60 * 1000;
+  const VIDEO_ACTIVE_WINDOW_MS = 5 * 60 * 60 * 1000;
+  const EARLY_JOIN_WINDOW_MS = 20 * 60 * 1000;
   const startRaw = appointment?.startTime || appointment?.appointmentDate;
   if (!startRaw) return false;
 
@@ -569,7 +569,7 @@ const AppointmentCard = ({
 
                 {videoSessionDecision.canJoin && (
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[12px] text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
-                    Join opens 10 minutes before your visit and stays open for 3 hours after start.
+                    Join opens 20 minutes before your visit and stays open for 5 hours after start.
                   </div>
                 )}
 
