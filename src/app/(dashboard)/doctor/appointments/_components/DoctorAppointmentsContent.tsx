@@ -25,6 +25,7 @@ interface Props {
   inProgressAppointmentsCount: number;
   completedAppointmentsCount: number;
   cancelledAppointmentsCount: number;
+  expiredAppointmentsCount: number;
   noShowAppointmentsCount: number;
   totalAppointmentsCount: number;
   selectedAppointment: TransformedAppointment | null;
@@ -65,6 +66,8 @@ function getStatusColor(status: string) {
       return "bg-rose-100 text-rose-800";
     case "NO_SHOW":
       return "bg-orange-100 text-orange-800";
+    case "EXPIRED":
+      return "bg-slate-100 text-slate-700";
     default:
       return "bg-gray-100 text-gray-800";
   }
@@ -83,6 +86,7 @@ function getStatusLabel(status: string) {
       COMPLETED: "Completed",
       CANCELLED: "Cancelled",
       NO_SHOW: "No Show",
+      EXPIRED: "Expired",
     }[status] || status
   );
 }
@@ -99,9 +103,10 @@ export function DoctorAppointmentsContent(props: Props) {
     filteredAppointments,
     activeAppointmentsCount,
     inProgressAppointmentsCount,
-    completedAppointmentsCount,
-    cancelledAppointmentsCount,
-    noShowAppointmentsCount,
+  completedAppointmentsCount,
+  cancelledAppointmentsCount,
+  expiredAppointmentsCount,
+  noShowAppointmentsCount,
     totalAppointmentsCount,
     selectedAppointment,
     selectedAppointmentIsClosed,
@@ -235,6 +240,7 @@ export function DoctorAppointmentsContent(props: Props) {
         inProgressAppointmentsCount={inProgressAppointmentsCount}
         completedAppointmentsCount={completedAppointmentsCount}
         cancelledAppointmentsCount={cancelledAppointmentsCount}
+        expiredAppointmentsCount={expiredAppointmentsCount}
         noShowAppointmentsCount={noShowAppointmentsCount}
         totalAppointmentsCount={totalAppointmentsCount}
         setSearchTerm={setSearchTerm}

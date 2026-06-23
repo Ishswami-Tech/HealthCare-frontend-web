@@ -76,6 +76,7 @@ import {
   CheckCircle,
   XCircle,
   RefreshCw,
+  Loader2,
   Search,
   ChevronDown,
   Activity,
@@ -99,6 +100,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string;
   COMPLETED:   { label: "Completed",   color: "text-slate-700 dark:text-slate-300", dot: "bg-slate-500", bg: "bg-slate-50 dark:bg-slate-800/30 border-slate-300 dark:border-slate-600" },
   CANCELLED:   { label: "Cancelled",   color: "text-red-700 dark:text-red-300",       dot: "bg-red-500",    bg: "bg-red-50 dark:bg-red-950/40 border-red-300 dark:border-red-700" },
   NO_SHOW:     { label: "No Show",     color: "text-orange-700 dark:text-orange-300",dot: "bg-orange-400",bg: "bg-orange-50 dark:bg-orange-950/30 border-orange-300 dark:border-orange-800" },
+  EXPIRED:     { label: "Expired",     color: "text-slate-600 dark:text-slate-300", dot: "bg-slate-400", bg: "bg-slate-50 dark:bg-slate-900/40 border-slate-300 dark:border-slate-700" },
 };
 
 function getPaginationWindow(currentPage: number, totalPages: number): Array<number | "ellipsis"> {
@@ -333,7 +335,7 @@ function AppointmentCard({
     // expandedCard changes due to user action.
   }, [effectiveStatus, isVideoAppointment, expandedCard, apt.id, onExpand]);
 
-  const isCancelled = effectiveStatus === "CANCELLED" || effectiveStatus === "NO_SHOW";
+  const isCancelled = effectiveStatus === "CANCELLED" || effectiveStatus === "NO_SHOW" || effectiveStatus === "EXPIRED";
   const isConfirmed = effectiveStatus === "CONFIRMED";
   return (
     <div className={`w-full overflow-visible rounded-2xl border transition-all duration-200 hover:shadow-md ${
@@ -538,13 +540,15 @@ function AppointmentCard({
                 </div>
               )
             ) : (
-              <p className="text-sm italic text-muted-foreground">
+                  <p className="text-sm italic text-muted-foreground">
                 {effectiveStatus === "CANCELLED"
                   ? "This appointment was cancelled. Book a new appointment to continue."
                   : effectiveStatus === "COMPLETED"
                     ? "This appointment has been completed."
                     : effectiveStatus === "NO_SHOW"
                       ? "Marked as no-show. Book a new appointment if you still need care."
+                      : effectiveStatus === "EXPIRED"
+                        ? "This appointment expired because nobody joined in time. Please book a new appointment."
                       : "No further actions available for this appointment."}
               </p>
             )
@@ -635,6 +639,13 @@ interface AppointmentManagerProps {
   autoOpenBookDialog?: boolean;
   appointmentsData?: unknown;
   isAppointmentsPending?: boolean;
+  /**
+   * Optional separate flag for background-refetch spinner control. Use this
+   * instead of OR-ing `isFetching` into `isAppointmentsPending`, because
+   * `placeholderData: keepPreviousData` keeps the list visible across
+   * refetches and we don't want to flash a skeleton on every focus/reconnect.
+   */
+  isAppointmentsFetching?: boolean;
   onRefreshAppointments?: () => Promise<unknown> | unknown;
 }
 
@@ -652,6 +663,7 @@ export default function AppointmentManager({
   autoOpenBookDialog = false,
   appointmentsData: externalAppointmentsData,
   isAppointmentsPending: externalAppointmentsPending,
+  isAppointmentsFetching: externalAppointmentsFetching,
   onRefreshAppointments,
 }: AppointmentManagerProps = {}) {
   const { session } = useAuth();
@@ -687,6 +699,7 @@ export default function AppointmentManager({
     doctorId?: string;
     consultationMode?: "IN_PERSON" | "VIDEO";
   } | null>(null);
+  const [isRefreshingAppointments, setIsRefreshingAppointments] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: "", end: "" });
   const [
@@ -754,8 +767,10 @@ export default function AppointmentManager({
   const { mutate: processCheckIn, isPending: processingCheckIn } = useProcessCheckIn();
 
   const appointmentsFetching =
+    externalAppointmentsFetching ??
     externalAppointmentsPending ??
     (isAdminView ? adminAppointments.isFetching : myPersonalAppointments.isFetching);
+  const isRefreshInProgress = appointmentsFetching || isRefreshingAppointments;
   const isAppointmentsLoading =
     externalAppointmentsPending ??
     (isAdminView ? adminAppointments.isPending : myPersonalAppointments.isPending);
@@ -843,22 +858,69 @@ export default function AppointmentManager({
     return allAppointments;
   }, [allAppointments, isAdminView]);
 
+  const waitForWebsocketAppointmentUpdate = useCallback(async (timeoutMs: number) => {
+    const cache = queryClient.getQueryCache();
+    return await new Promise<boolean>((resolve) => {
+      let settled = false;
+
+      const finish = (value: boolean) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(value);
+      };
+
+      const unsubscribe = cache.subscribe((event: any) => {
+        const queryKey = event?.query?.queryKey;
+        const firstKey = Array.isArray(queryKey) ? String(queryKey[0] || "") : "";
+        if (!["appointments", "appointment", "myAppointments", "userUpcomingAppointments", "appointmentStats"].includes(firstKey)) {
+          return;
+        }
+
+        if (event?.type === "updated") {
+          finish(true);
+        }
+      });
+
+      const timer = window.setTimeout(() => finish(false), timeoutMs);
+
+      const cleanup = () => {
+        window.clearTimeout(timer);
+        unsubscribe();
+      };
+    });
+  }, [queryClient]);
+
   const handleRefreshAppointments = useCallback(async () => {
-    if (onRefreshAppointments) {
-      void onRefreshAppointments();
+    if (isRefreshingAppointments) {
       return;
     }
 
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["appointments"], exact: false }),
-      queryClient.invalidateQueries({ queryKey: ["appointment"], exact: false }),
-      queryClient.invalidateQueries({ queryKey: ["myAppointments"], exact: false }),
-      queryClient.invalidateQueries({ queryKey: ["userUpcomingAppointments"], exact: false }),
-      queryClient.invalidateQueries({ queryKey: ["appointmentStats"], exact: false }),
-    ]);
+    setIsRefreshingAppointments(true);
+    try {
+      if (isConnected) {
+        const websocketUpdated = await waitForWebsocketAppointmentUpdate(900);
+        if (websocketUpdated) {
+          return;
+        }
+      }
 
-    await refetch();
-  }, [onRefreshAppointments, queryClient, refetch]);
+      if (onRefreshAppointments) {
+        await onRefreshAppointments();
+        return;
+      }
+
+      await refetch();
+    } finally {
+      setIsRefreshingAppointments(false);
+    }
+  }, [
+    isConnected,
+    isRefreshingAppointments,
+    onRefreshAppointments,
+    refetch,
+    waitForWebsocketAppointmentUpdate,
+  ]);
 
   // Expose a global hook so nested components (e.g. the live countdown
   // in <PaymentCountdown>) can ask the manager to refresh the appointment
@@ -1146,11 +1208,15 @@ export default function AppointmentManager({
               variant="outline"
               onClick={() => void handleRefreshAppointments()}
               className="h-9 w-full gap-2 rounded-xl border-sky-200 bg-sky-50 px-4 py-2 text-sm text-sky-700 transition-all shadow-sm hover:bg-sky-100 hover:text-sky-800 dark:border-sky-900/70 dark:bg-sky-950/25 dark:text-sky-300 dark:hover:bg-sky-950/45 sm:w-auto"
-              disabled={appointmentsFetching}
+              disabled={isRefreshInProgress}
               title="Refresh Appointments"
             >
               <span className="inline-flex size-5 items-center justify-center rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/60 dark:text-sky-200">
-                <RefreshCw className={`size-3.5 ${appointmentsFetching ? "animate-spin" : ""}`} />
+                {isRefreshInProgress ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="size-3.5" />
+                )}
               </span>
               <span className="font-medium">Refresh</span>
             </Button>
@@ -1159,6 +1225,12 @@ export default function AppointmentManager({
       </CardHeader>
 
       <CardContent className="flex flex-col gap-y-4 sm:gap-y-5">
+      {isRefreshingAppointments && (
+        <div className="flex items-center gap-2 rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-200">
+          <Loader2 className="size-4 animate-spin" />
+          <span>Refreshing appointments...</span>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4 lg:gap-4">

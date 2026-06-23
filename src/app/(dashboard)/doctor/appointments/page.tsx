@@ -31,6 +31,7 @@ const APPOINTMENT_STATUS = {
   COMPLETED: 'COMPLETED',
   CANCELLED: 'CANCELLED',
   NO_SHOW: 'NO_SHOW',
+  EXPIRED: 'EXPIRED',
 } as const;
 
 export type DoctorAppointmentViewFilter =
@@ -41,7 +42,8 @@ export type DoctorAppointmentViewFilter =
   | typeof APPOINTMENT_STATUS.CONFIRMED
   | typeof APPOINTMENT_STATUS.COMPLETED
   | typeof APPOINTMENT_STATUS.CANCELLED
-  | typeof APPOINTMENT_STATUS.NO_SHOW;
+  | typeof APPOINTMENT_STATUS.NO_SHOW
+  | typeof APPOINTMENT_STATUS.EXPIRED;
 
 function getDoctorAppointmentBucket(status: string): DoctorAppointmentViewFilter {
   switch (status) {
@@ -51,6 +53,8 @@ function getDoctorAppointmentBucket(status: string): DoctorAppointmentViewFilter
       return APPOINTMENT_STATUS.CANCELLED;
     case APPOINTMENT_STATUS.NO_SHOW:
       return APPOINTMENT_STATUS.NO_SHOW;
+    case APPOINTMENT_STATUS.EXPIRED:
+      return APPOINTMENT_STATUS.EXPIRED;
     case APPOINTMENT_STATUS.IN_PROGRESS:
       return APPOINTMENT_STATUS.IN_PROGRESS;
     case APPOINTMENT_STATUS.CONFIRMED:
@@ -392,6 +396,11 @@ export default function DoctorAppointments() {
     [appointments]
   );
 
+  const expiredAppointmentsCount = useMemo(
+    () => appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.EXPIRED).length,
+    [appointments]
+  );
+
   const noShowAppointmentsCount = useMemo(
     () => appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.NO_SHOW).length,
     [appointments]
@@ -399,7 +408,7 @@ export default function DoctorAppointments() {
 
   const totalAppointmentsCount = appointments.length;
   const selectedAppointmentIsClosed = selectedAppointment
-    ? ["COMPLETED", "CANCELLED", "NO_SHOW"].includes(String(selectedAppointment.status))
+    ? ["COMPLETED", "CANCELLED", "NO_SHOW", "EXPIRED"].includes(String(selectedAppointment.status))
     : false;
 
   const completeConsultation = useCallback(
@@ -547,11 +556,12 @@ export default function DoctorAppointments() {
       appointments={appointments}
       filteredAppointments={filteredAppointments}
       activeAppointmentsCount={activeAppointmentsCount}
-      inProgressAppointmentsCount={appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.IN_PROGRESS).length}
-      completedAppointmentsCount={completedAppointmentsCount}
-      cancelledAppointmentsCount={cancelledAppointmentsCount}
-      noShowAppointmentsCount={noShowAppointmentsCount}
-      totalAppointmentsCount={totalAppointmentsCount}
+        inProgressAppointmentsCount={appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.IN_PROGRESS).length}
+        completedAppointmentsCount={completedAppointmentsCount}
+        cancelledAppointmentsCount={cancelledAppointmentsCount}
+        expiredAppointmentsCount={expiredAppointmentsCount}
+        noShowAppointmentsCount={noShowAppointmentsCount}
+        totalAppointmentsCount={totalAppointmentsCount}
       selectedAppointment={selectedAppointment}
       selectedAppointmentIsClosed={selectedAppointmentIsClosed}
       diagnosis={diagnosis}

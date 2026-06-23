@@ -795,6 +795,7 @@ export function getAppointmentStatusDisplayName(status: string): string {
     COMPLETED: 'Completed',
     CANCELLED: 'Cancelled',
     NO_SHOW: 'No Show',
+    EXPIRED: 'Expired',
   };
   return statusNames[normalizedStatus] || normalizedStatus;
 }
@@ -866,7 +867,7 @@ export type VideoSessionDecision = {
 };
 
 function isCancelledLike(status: string): boolean {
-  return ['CANCELLED', 'NO_SHOW'].includes(status);
+  return ['CANCELLED', 'NO_SHOW', 'EXPIRED'].includes(status);
 }
 
 export function isTerminalAppointmentStatus(status: unknown): boolean {
@@ -913,6 +914,8 @@ export function getAppointmentViewState(appointment: any): AppointmentViewState 
         ? 'COMPLETED'
         : rawStatus === 'NO_SHOW'
           ? 'NO_SHOW'
+          : rawStatus === 'EXPIRED'
+            ? 'EXPIRED'
           : 'CANCELLED')
     : null;
   const status = terminalStatus || getAppointmentStatusWithPaymentFallback(appointment);
@@ -951,7 +954,7 @@ export function getAppointmentViewState(appointment: any): AppointmentViewState 
         ? 'in_progress'
         : status === 'COMPLETED'
           ? 'completed'
-          : status === 'CANCELLED' || status === 'NO_SHOW'
+          : status === 'CANCELLED' || status === 'NO_SHOW' || status === 'EXPIRED'
             ? 'cancelled'
             : paymentCompleted && status === 'SCHEDULED' && isVideo
               ? 'awaiting_video_payment'
@@ -1297,6 +1300,7 @@ export function getAppointmentStatusColor(status: string): string {
     COMPLETED: 'bg-green-500/10 text-green-700 border-green-500/20', // Distinct green for completed
     CANCELLED: 'bg-destructive/10 text-destructive border-destructive/20',
     NO_SHOW: 'bg-destructive/10 text-destructive border-destructive/20',
+    EXPIRED: 'bg-muted/80 text-muted-foreground border-border',
   };
   
   // Handle lowercase variants just in case

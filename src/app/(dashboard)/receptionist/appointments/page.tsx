@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { hasAppointmentsLoadedForSession } from "@/hooks/query/useAppointments";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -158,6 +159,7 @@ const STATUS_STYLES: Record<string, string> = {
   COMPLETED: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200",
   NO_SHOW: "bg-slate-100 text-slate-800 dark:bg-slate-900/50 dark:text-slate-300",
   CANCELLED: "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300",
+  EXPIRED: "bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300",
 };
 
 function normalizeAppointment(
@@ -264,6 +266,7 @@ export default function ReceptionistAppointmentsPage() {
   const {
     data: appointmentsData,
     isPending,
+    isFetching,
     refetch,
   } = useAppointments({
     ...(clinicId ? { clinicId } : {}),
@@ -273,6 +276,21 @@ export default function ReceptionistAppointmentsPage() {
   });
   const { data: locations = [] } = useActiveLocations(clinicId || "");
   const { data: doctorsData } = useDoctors(clinicId || "", { limit: 200 });
+
+  // First-load-only skeleton gate: only show the skeleton when this is the
+  // first fetch of the session AND we have no cached data. Background
+  // refetches (focus, reconnect, WebSocket-driven merge) keep the list
+  // visible thanks to `placeholderData: keepPreviousData` in useAppointments.
+  const hasCachedAppointments =
+    !!appointmentsData &&
+    ((Array.isArray((appointmentsData as any).appointments) &&
+      (appointmentsData as any).appointments.length > 0) ||
+      (Array.isArray((appointmentsData as any).data) &&
+        (appointmentsData as any).data.length > 0) ||
+      (Array.isArray(appointmentsData as any) &&
+        (appointmentsData as any).length > 0));
+  const showAppointmentsSkeleton =
+    isPending && !hasCachedAppointments && !hasAppointmentsLoadedForSession();
 
   const assignableDoctors = useMemo(() => {
     const normalize = (users: any[]) =>
@@ -721,7 +739,8 @@ export default function ReceptionistAppointmentsPage() {
         <AppointmentManager
           isAdminView={true}
           appointmentsData={appointmentsData}
-          isAppointmentsPending={isPending}
+          isAppointmentsPending={showAppointmentsSkeleton}
+          isAppointmentsFetching={isFetching}
           {...(clinicId ? { clinicId } : {})}
         />
       </div>
@@ -770,6 +789,7 @@ export default function ReceptionistAppointmentsPage() {
                     <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
                     <SelectItem value="COMPLETED">Completed</SelectItem>
                     <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                    <SelectItem value="EXPIRED">Expired</SelectItem>
                     <SelectItem value="NO_SHOW">No Show</SelectItem>
                   </SelectContent>
                 </Select>

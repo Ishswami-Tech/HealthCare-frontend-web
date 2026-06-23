@@ -89,18 +89,29 @@ export default function PatientDashboard() {
   const { data: comprehensiveData, isPending: isPendingComprehensive } = useComprehensiveHealthRecord(patientId);
   const { data: invoicesData = [] } = useInvoices(patientId);
   const { data: paymentsData = [] } = usePayments(patientId);
+
+  // First-load-only skeleton gate: keep the previous list visible during
+  // background refetches. The hook uses `placeholderData: keepPreviousData`
+  // so the previous payload is preserved; the gate only triggers when the
+  // cache is truly empty.
+  const hasCachedAppointments =
+    Array.isArray(appointmentsData?.appointments) &&
+    (appointmentsData.appointments as any[]).length > 0;
+  const showAppointmentsSkeleton = isPendingAppointments && !hasCachedAppointments;
+
   const hasInPersonAppointment = useMemo(() => {
     const appointments = Array.isArray(appointmentsData?.appointments) ? appointmentsData.appointments : [];
 
     return appointments.some((appointment: any) => {
       const status = normalizeAppointmentStatus(appointment?.status);
       const type = String(appointment?.type || appointment?.appointmentType || "").toUpperCase();
-      return (
-        type === "IN_PERSON" &&
-        status !== "CANCELLED" &&
-        status !== "COMPLETED" &&
-        status !== "NO_SHOW"
-      );
+        return (
+          type === "IN_PERSON" &&
+          status !== "CANCELLED" &&
+          status !== "COMPLETED" &&
+          status !== "NO_SHOW" &&
+          status !== "EXPIRED"
+        );
     });
   }, [appointmentsData]);
 
@@ -167,7 +178,7 @@ export default function PatientDashboard() {
       const viewState = getAppointmentViewState(apt);
       const normalizedStatus = viewState.normalizedStatus.toUpperCase();
       return (
-        !["CANCELLED", "COMPLETED", "NO_SHOW"].includes(normalizedStatus) &&
+        !["CANCELLED", "COMPLETED", "NO_SHOW", "EXPIRED"].includes(normalizedStatus) &&
         shouldShowAppointmentOnPatientDashboard(apt)
       );
     });
@@ -343,7 +354,7 @@ export default function PatientDashboard() {
         lastVisit:
           uniqueAppointments.reduce((latest: any, current: any) => {
             const normalizedStatus = getAppointmentViewState(current).normalizedStatus.toUpperCase();
-            if (["CANCELLED", "NO_SHOW"].includes(normalizedStatus)) {
+            if (["CANCELLED", "NO_SHOW", "EXPIRED"].includes(normalizedStatus)) {
               return latest;
             }
 
@@ -433,6 +444,7 @@ export default function PatientDashboard() {
         return theme.badges.gray;
       case "CANCELLED":
       case "NO_SHOW":
+      case "EXPIRED":
         return theme.badges.red;
       default:
         return theme.badges.gray;
@@ -504,7 +516,7 @@ export default function PatientDashboard() {
                     <Clock className="size-4" />
                     Healthcare Workspace
                   </div>
-                  {isPendingAppointments ? (
+                  {showAppointmentsSkeleton ? (
                     <div className="rounded-2xl border border-emerald-200/80 bg-white/80 p-3 shadow-sm backdrop-blur dark:border-emerald-900/40 dark:bg-card/80 sm:p-4">
                       <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700/80 dark:text-emerald-300/80">
                         <Loader2 className="size-4 animate-spin" />
@@ -662,7 +674,7 @@ export default function PatientDashboard() {
                     </div>
                     <PatientQueueCard
                       appointmentsData={appointmentsData}
-                      isAppointmentsPending={isPendingAppointments}
+                      isAppointmentsPending={showAppointmentsSkeleton}
                     />
                   </div>
                 </div>

@@ -122,7 +122,7 @@ export function useDoctorDashboardData() {
             return acc;
           }
 
-          if (["COMPLETED", "CANCELLED", "NO_SHOW"].includes(String(entry.status || "").toUpperCase())) {
+          if (["COMPLETED", "CANCELLED", "NO_SHOW", "EXPIRED"].includes(String(entry.status || "").toUpperCase())) {
             return acc;
           }
 
@@ -177,7 +177,7 @@ export function useDoctorDashboardData() {
         (appointment: AppointmentWithRelations) =>
           appointment.doctorId === doctorId &&
           appointment.type === "IN_PERSON" &&
-          !["COMPLETED", "CANCELLED", "NO_SHOW"].includes(String(appointment.status || "").toUpperCase()) &&
+          !["COMPLETED", "CANCELLED", "NO_SHOW", "EXPIRED"].includes(String(appointment.status || "").toUpperCase()) &&
           Boolean(appointment.checkedInAt)
       ) ||
       null

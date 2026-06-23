@@ -97,7 +97,7 @@ const QUEUE_STATUS = {
   COMPLETED: 'COMPLETED',
 } as const;
 
-const TERMINAL_QUEUE_STATUSES = new Set(['COMPLETED', 'CANCELLED', 'NO_SHOW']);
+const TERMINAL_QUEUE_STATUSES = new Set(['COMPLETED', 'CANCELLED', 'NO_SHOW', 'EXPIRED']);
 const CONSULTATION_QUEUE_FILTERS = [
   { value: "GENERAL_CONSULTATION", label: "General Consultation" },
   { value: "FOLLOW_UP", label: "Follow Up" },

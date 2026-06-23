@@ -1311,7 +1311,7 @@ export async function getUserUpcomingAppointments(filters?: { clinicId?: string 
     const appointments = Array.isArray(result.appointments)
       ? (result.appointments as Array<Record<string, unknown>>).filter(appointment => {
           const status = String(appointment.status || '').toUpperCase();
-          if (['CANCELLED', 'COMPLETED', 'NO_SHOW'].includes(status)) {
+          if (['CANCELLED', 'COMPLETED', 'NO_SHOW', 'EXPIRED'].includes(status)) {
             return false;
           }
 

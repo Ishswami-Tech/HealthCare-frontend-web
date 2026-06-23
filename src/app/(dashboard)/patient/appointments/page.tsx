@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
-import { useMyAppointments } from "@/hooks/query/useAppointments";
+import { useMyAppointments, hasAppointmentsLoadedForSession } from "@/hooks/query/useAppointments";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { PatientQueueCard } from "@/components/dashboard/PatientQueueCard";
 import AppointmentManager from "@/components/appointments/AppointmentManager";
@@ -83,6 +83,21 @@ function PatientAppointmentsContent() {
   } = useMyAppointments(
     resolvedClinicId ? { clinicId: resolvedClinicId } : undefined
   );
+
+  // Show a loading skeleton only on the very first fetch of the session.
+  // Once the cache has any appointments (initial load, dashboard prefetch, or
+  // sidebar hover-warm), `placeholderData: keepPreviousData` keeps the list
+  // visible across refetches, filter changes, and remounts. Background
+  // `isFetching` does NOT count as loading here — otherwise the list would
+  // flash a skeleton on every window focus or reconnect.
+  const hasCachedAppointments = useMemo(() => {
+    if (!appointmentsData) return false;
+    if (Array.isArray(appointmentsData)) return appointmentsData.length > 0;
+    const inner = (appointmentsData as { appointments?: unknown })?.appointments;
+    return Array.isArray(inner) && inner.length > 0;
+  }, [appointmentsData]);
+  const showAppointmentsSkeleton =
+    isPendingAppointments && !hasCachedAppointments && !hasAppointmentsLoadedForSession();
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const openQrGate = usePatientUiStore((state) => state.openQrGate);
   const hasInPersonAppointment = useMemo(() => {
@@ -99,7 +114,8 @@ function PatientAppointmentsContent() {
         type === "IN_PERSON" &&
         status !== "CANCELLED" &&
         status !== "COMPLETED" &&
-        status !== "NO_SHOW"
+        status !== "NO_SHOW" &&
+        status !== "EXPIRED"
       );
     });
   }, [appointmentsData]);
@@ -165,7 +181,7 @@ function PatientAppointmentsContent() {
         <div id="patient-queue-status" className="animate-in fade-in slide-in-from-top-4 duration-500">
           <PatientQueueCard
             appointmentsData={appointmentsData}
-            isAppointmentsPending={isPendingAppointments}
+            isAppointmentsPending={showAppointmentsSkeleton}
             onBookAppointment={() => setIsBookingDialogOpen(true)}
           />
         </div>
@@ -175,7 +191,8 @@ function PatientAppointmentsContent() {
             hideBookButton
             autoOpenBookDialog={shouldOpenBooking}
             appointmentsData={appointmentsData}
-            isAppointmentsPending={isPendingAppointments || isFetchingAppointments}
+            isAppointmentsPending={showAppointmentsSkeleton}
+            isAppointmentsFetching={isFetchingAppointments}
             onRefreshAppointments={async () => {
               await refetchAppointments();
             }}

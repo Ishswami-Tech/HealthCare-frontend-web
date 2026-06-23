@@ -20,6 +20,7 @@ interface DoctorAppointmentsSummaryProps {
   inProgressAppointmentsCount: number;
   completedAppointmentsCount: number;
   cancelledAppointmentsCount: number;
+  expiredAppointmentsCount: number;
   noShowAppointmentsCount: number;
   totalAppointmentsCount: number;
   setSearchTerm: (value: string) => void;
@@ -36,6 +37,7 @@ export function DoctorAppointmentsSummary({
   inProgressAppointmentsCount,
   completedAppointmentsCount,
   cancelledAppointmentsCount,
+  expiredAppointmentsCount,
   noShowAppointmentsCount,
   totalAppointmentsCount,
   setSearchTerm,
@@ -98,6 +100,14 @@ export function DoctorAppointmentsSummary({
           compact
         />
         <DashboardMetricCard
+          label="Expired"
+          value={expiredAppointmentsCount}
+          icon={<AlertCircle className="size-3.5 text-slate-600" />}
+          accentClassName="border-l-slate-400"
+          valueClassName="text-sm font-semibold text-slate-600 sm:text-base"
+          compact
+        />
+        <DashboardMetricCard
           label="No Show"
           value={noShowAppointmentsCount}
           icon={<AlertCircle className="size-3.5 text-orange-600" />}
@@ -131,13 +141,14 @@ export function DoctorAppointmentsSummary({
               />
             </div>
             <div className="flex flex-wrap gap-2">
-              {[
-                { value: "ALL" as const, label: "All", count: totalAppointmentsCount },
-                { value: "ACTIVE" as const, label: "Active", count: activeAppointmentsCount },
-                { value: "COMPLETED" as const, label: "Completed", count: completedAppointmentsCount },
-                { value: "CANCELLED" as const, label: "Cancelled", count: cancelledAppointmentsCount },
-                { value: "NO_SHOW" as const, label: "No Show", count: noShowAppointmentsCount },
-              ].map((filter) => (
+                {[
+                  { value: "ALL" as const, label: "All", count: totalAppointmentsCount },
+                  { value: "ACTIVE" as const, label: "Active", count: activeAppointmentsCount },
+                  { value: "COMPLETED" as const, label: "Completed", count: completedAppointmentsCount },
+                  { value: "CANCELLED" as const, label: "Cancelled", count: cancelledAppointmentsCount },
+                  { value: "EXPIRED" as const, label: "Expired", count: expiredAppointmentsCount },
+                  { value: "NO_SHOW" as const, label: "No Show", count: noShowAppointmentsCount },
+                ].map((filter) => (
                 <Button
                   key={filter.value}
                   variant={appointmentViewFilter === filter.value ? "default" : "outline"}

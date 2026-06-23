@@ -167,7 +167,8 @@ export default function PatientCheckInPage() {
         type === "IN_PERSON" &&
         status !== "CANCELLED" &&
         status !== "COMPLETED" &&
-        status !== "NO_SHOW"
+        status !== "NO_SHOW" &&
+        status !== "EXPIRED"
       );
     });
   }, [appointmentsData]);
@@ -551,5 +552,4 @@ export default function PatientCheckInPage() {
     </LazyMotion>
   );
 }
-
 

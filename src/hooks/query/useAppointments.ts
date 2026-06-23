@@ -4,7 +4,7 @@ import { nowIso } from '@/lib/utils/date-time';
 // ✅ Appointments Hooks - Backend Integration
 // This file provides hooks that integrate with the backend appointments system
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { keepPreviousData } from '@tanstack/react-query';
 import { useCurrentClinicId } from './useClinics';
 import { useAuthStore } from '@/stores/auth.store';
@@ -102,6 +102,45 @@ const DASHBOARD_QUERY_FAMILIES: string[][] = [
   ['payments'],
   ['clinic-payments'],
   ['clinic-ledger'],
+];
+
+/**
+ * Query-key families that any appointment mutation should invalidate so
+ * every dashboard surface (patient, doctor, admin, counselor, therapist,
+ * queue) reflects the new state. Keep this list in sync with the keys
+ * defined in `useAppointments`, `useMyAppointments`, `useCounselor`,
+ * `useTherapist`, and the realtime hook in `useRealTimeQueries.ts`.
+ */
+export const APPOINTMENT_QUERY_FAMILIES: string[][] = [
+  ['appointments'],
+  ['appointment'],
+  ['appointmentStats'],
+  ['myAppointments'],
+  ['userUpcomingAppointments'],
+  ['video-appointments'],
+  ['video-appointment'],
+  ['doctorAppointments'],
+  ['doctorSchedule'],
+  ['doctorAvailability'],
+  ['doctorPatients'],
+  ['doctors'],
+  ['doctor'],
+  ['counselorAppointments'],
+  ['counselorClients'],
+  ['counselorClient'],
+  ['therapistAppointments'],
+  ['therapistPatientAppointments'],
+  ['therapistClients'],
+  ['therapistClient'],
+  ['queue'],
+  ['queue-status'],
+  ['queue-metrics'],
+  ['queueHistory'],
+  ['queueConfig'],
+  ['queueNotifications'],
+  ['queueWaitTimes'],
+  ['queueCapacity'],
+  ['queueAlerts'],
 ];
 import type {
   CreateAppointmentData,
@@ -279,6 +318,12 @@ export const useAppointments = (
   const { hasPermission } = useRBAC();
   const userId = useAuthStore((state) => state.session?.user?.id);
   const userRole = useAuthStore((state) => state.session?.user?.role);
+  const { isConnected } = useWebSocketStatus();
+  // When the realtime socket is mid-token-refresh, the cached access token is
+  // stale and any refetch will 401. Suppress all background refetches for the
+  // duration of the refresh so we don't compound a reconnect storm with a
+  // REST refetch storm on top of it.
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
 
   // Memoize query key for performance
   const queryKey = useMemo(
@@ -331,10 +376,20 @@ export const useAppointments = (
         hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 30 * 1000,
       gcTime: 10 * 60 * 1000, // 10 minutes garbage collection
-      refetchOnWindowFocus: true,
-      refetchOnMount: 'always',
-      refetchOnReconnect: true,
-      refetchInterval: options?.enabled === false ? false : 30_000,
+      // WebSocket events own freshness when connected. Polling, window-focus
+      // refetches, and unconditional mount refetches all become fallbacks only
+      // so the list doesn't refetch in the background and trip the skeleton.
+      //
+      // When the realtime socket is mid-token-refresh, every queued REST
+      // refetch would 401 against the stale token, triggering the HTTP
+      // recovery path which adds another refetch on top. Short-circuit all
+      // background refetches during that window and let the next socket
+      // reconnect (or scheduled poll) reconcile after the new token lands.
+      refetchOnWindowFocus: !isConnected && !isAuthRefreshing,
+      refetchOnMount: !isConnected,
+      refetchOnReconnect: !isAuthRefreshing,
+      refetchInterval:
+        options?.enabled === false || isConnected || isAuthRefreshing ? false : 30_000,
       retry: (failureCount, error: Error) => {
         if (error.message.includes('Access denied')) {
           return false;
@@ -510,15 +565,15 @@ export const useCreateAppointment = (clinicId?: string) => {
             });
           }
         }
-        // Invalidate both appointments and myAppointments so all views refresh
-        void queryClient.invalidateQueries({ queryKey: ['appointments'], exact: false });
+        // Invalidate every appointment-surface query family so all
+        // dashboards (patient, doctor, admin, counselor, therapist, queue)
+        // refresh after a create. Keeps the system in sync without forcing
+        // each surface to listen to a different event channel.
+        for (const queryKey of APPOINTMENT_QUERY_FAMILIES) {
+          void queryClient.invalidateQueries({ queryKey, exact: false });
+        }
         void queryClient.invalidateQueries({ queryKey: getAppointmentQueryKey(clinicId), exact: false });
-        void queryClient.invalidateQueries({ queryKey: ['myAppointments'], exact: false });
-        void queryClient.invalidateQueries({ queryKey: ['userUpcomingAppointments'], exact: false });
         void queryClient.invalidateQueries({ queryKey: getAppointmentStatsQueryKey(), exact: false });
-        void queryClient.invalidateQueries({ queryKey: ['doctorAppointments'], exact: false });
-        void queryClient.invalidateQueries({ queryKey: ['doctorSchedule'], exact: false });
-        void queryClient.invalidateQueries({ queryKey: ['queue'], exact: false });
         if (appointment) {
           toast({
             title: 'Success',
@@ -716,6 +771,7 @@ export const useConfirmAppointment = () => {
 export const useUserUpcomingAppointments = () => {
   const { hasPermission } = useRBAC();
   const { isConnected } = useWebSocketStatus();
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
   const userId = useAuthStore((state) => state.session?.user?.id);
   const userRole = useAuthStore((state) => state.session?.user?.role);
 
@@ -735,8 +791,8 @@ export const useUserUpcomingAppointments = () => {
       enabled: hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 5 * 60 * 1000, // 5 minutes
       refetchOnWindowFocus: false,
-      refetchOnReconnect: true,
-      refetchInterval: isConnected ? false : 30_000,
+      refetchOnReconnect: !isAuthRefreshing,
+      refetchInterval: isConnected || isAuthRefreshing ? false : 30_000,
       placeholderData: keepPreviousData,
     }
   );
@@ -749,6 +805,7 @@ export const useCheckInLocations = () => {
   const { hasPermission } = useRBAC();
   const clinicId = useCurrentClinicId();
   const { isConnected } = useWebSocketStatus();
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
 
   return useQueryData(
     ['checkInLocations', clinicId],
@@ -763,8 +820,8 @@ export const useCheckInLocations = () => {
       enabled: !!clinicId && hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 5 * 60 * 1000,
       refetchOnWindowFocus: false,
-      refetchOnReconnect: true,
-      refetchInterval: isConnected ? false : 30_000,
+      refetchOnReconnect: !isAuthRefreshing,
+      refetchInterval: isConnected || isAuthRefreshing ? false : 30_000,
     }
   );
 };
@@ -776,6 +833,7 @@ export const useCheckInHistory = () => {
   const { hasPermission } = useRBAC();
   const clinicId = useCurrentClinicId();
   const { isConnected } = useWebSocketStatus();
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
 
   return useQueryData(
     ['checkInHistory', clinicId],
@@ -790,8 +848,8 @@ export const useCheckInHistory = () => {
       enabled: !!clinicId && hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 2 * 60 * 1000,
       refetchOnWindowFocus: false,
-      refetchOnReconnect: true,
-      refetchInterval: isConnected ? false : 30_000,
+      refetchOnReconnect: !isAuthRefreshing,
+      refetchInterval: isConnected || isAuthRefreshing ? false : 30_000,
     }
   );
 };
@@ -1023,12 +1081,16 @@ export const useCompleteAppointment = () => {
               ['video-appointments'],
               ['doctorAppointments'],
               ['doctorSchedule'],
+              ['counselorAppointments'],
+              ['therapistAppointments'],
             ],
           }
         );
-        void queryClient.invalidateQueries({ queryKey: ['appointments'], exact: false });
-        void queryClient.invalidateQueries({ queryKey: ['myAppointments'], exact: false });
-        void queryClient.invalidateQueries({ queryKey: ['video-appointments'], exact: false });
+        // Mirror the same invalidation strategy as the create path: every
+        // dashboard surface needs to see the COMPLETED transition.
+        for (const queryKey of APPOINTMENT_QUERY_FAMILIES) {
+          void queryClient.invalidateQueries({ queryKey, exact: false });
+        }
       },
     }
   );
@@ -1168,7 +1230,7 @@ export const useReassignAppointmentDoctor = () => {
  */
 export const useQueue = (queueType: string) => {
   const { hasPermission } = useRBAC();
-  
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
   // Memoize query key
   const queryKey = useMemo(
     () => getQueueListQueryKey(undefined, { treatmentType: queueType }),
@@ -1193,6 +1255,9 @@ export const useQueue = (queueType: string) => {
       staleTime: 15 * 1000, // 15 seconds for real-time feel
     gcTime: 2 * 60 * 1000, // 2 minutes GC for queue data
     refetchInterval: (query) => {
+      // Skip polling entirely while the realtime socket is mid-token-refresh
+      // so we don't pile refetches on top of the reconnect storm.
+      if (isAuthRefreshing) return false;
       // Smart polling: faster when queue is active, slower when empty
       const data = query.state.data as any[] | undefined;
       const queueLength = data?.length || 0;
@@ -1275,7 +1340,8 @@ export const useCallNextPatient = () => {
  */
 export const useQueueStats = (locationId?: string) => {
   const { hasPermission } = useRBAC();
-  
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
+
   return useQueryData(
     getQueueStatsQueryKey(locationId),
     async () => {
@@ -1286,7 +1352,7 @@ export const useQueueStats = (locationId?: string) => {
     {
       enabled: !!locationId && hasPermission(Permission.VIEW_QUEUE),
       staleTime: 30 * 1000, // 30 seconds
-      refetchInterval: 60 * 1000, // 1 minute
+      refetchInterval: isAuthRefreshing ? false : 60 * 1000, // 1 minute
       retry: (failureCount, error: Error) => {
         if (error.message.includes('Access denied')) {
           return false;
@@ -1379,9 +1445,10 @@ export const useMyAppointments = (filters?: {
   const { hasPermission } = useRBAC();
   const { session } = useAuth();
   const { isConnected } = useWebSocketStatus();
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
   const userId = session?.user?.id;
   const userRole = session?.user?.role;
-  
+
   const query = useQueryData(
     ['myAppointments', userId, userRole, filters],
     async (): Promise<any> => {
@@ -1419,8 +1486,8 @@ export const useMyAppointments = (filters?: {
       gcTime: 10 * 60 * 1000,
       refetchOnMount: true, // Refetch when invalidated so payment callback navigation refreshes the list
       refetchOnWindowFocus: false,
-      refetchOnReconnect: true,
-      refetchInterval: isConnected ? false : 30_000,
+      refetchOnReconnect: !isAuthRefreshing,
+      refetchInterval: isConnected || isAuthRefreshing ? false : 30_000,
       retry: (failureCount, error: Error) => {
         if (error.message.includes('Access denied')) {
           return false;
@@ -1511,7 +1578,8 @@ export const useTestAppointmentContext = () => {
 export const useAppointmentsWithErrorHandling = (filters?: AppointmentFilters) => {
   const clinicId = useCurrentClinicId();
   const { hasPermission } = useRBAC();
-  
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
+
   // Memoize query configuration
   const queryConfig = useMemo(() => {
     const queryKey = ['appointments-enhanced', clinicId, filters];
@@ -1552,10 +1620,10 @@ export const useAppointmentsWithErrorHandling = (filters?: AppointmentFilters) =
       enabled: !!clinicId && hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 30 * 1000,
       gcTime: 5 * 60 * 1000, // 5 minutes GC time
-      refetchOnWindowFocus: true,
-      refetchOnReconnect: true,
+      refetchOnWindowFocus: !isAuthRefreshing,
+      refetchOnReconnect: !isAuthRefreshing,
       refetchOnMount: 'always',
-      refetchInterval: 30_000,
+      refetchInterval: isAuthRefreshing ? false : 30_000,
       retry: (failureCount: number, error: Error) => {
         // Don't retry on permission errors
         if (error.message.includes('permission') || error.message.includes('Access denied')) {
@@ -1569,7 +1637,7 @@ export const useAppointmentsWithErrorHandling = (filters?: AppointmentFilters) =
       },
       retryDelay: (attemptIndex: number) => Math.min(1000 * 2 ** attemptIndex, 10000), // Exponential backoff
     };
-  }, [clinicId, filters, hasPermission]);
+  }, [clinicId, filters, hasPermission, isAuthRefreshing]);
   
   return useQueryData(
     queryConfig.queryKey,
@@ -1597,7 +1665,7 @@ export const useBulkAppointmentOperations = () => {
   // Memoize bulk update function - uses server action for batch processing with failedIds
   const bulkUpdateFn = useCallback(async (data: { 
     appointmentIds: string[]; 
-    status: 'SCHEDULED' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' 
+    status: 'SCHEDULED' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' | 'EXPIRED'
   }) => {
     if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
       throw new Error('Insufficient permissions for bulk operations');
@@ -1692,7 +1760,8 @@ export const useAppointmentStats = () => {
   const { hasPermission } = useRBAC();
   const clinicId = useCurrentClinicId();
   const { isConnected } = useWebSocketStatus();
-  
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
+
   return useQueryData(
     getAppointmentStatsQueryKey(clinicId),
     async () => {
@@ -1704,19 +1773,19 @@ export const useAppointmentStats = () => {
       if (!response.success) {
         throw new Error(response.error || 'Failed to fetch appointments');
       }
-      
+
       const appointments = response.appointments || [];
       const today = new Date().toDateString();
-      
+
       return {
         totalAppointments: appointments.length,
-        todayAppointments: appointments.filter((apt: any) => 
+        todayAppointments: appointments.filter((apt: any) =>
           new Date(apt.date).toDateString() === today
         ).length,
-        completedAppointments: appointments.filter((apt: any) => 
+        completedAppointments: appointments.filter((apt: any) =>
           apt.status === 'COMPLETED'
         ).length,
-        cancelledAppointments: appointments.filter((apt: any) => 
+        cancelledAppointments: appointments.filter((apt: any) =>
           apt.status === 'CANCELLED'
         ).length,
       };
@@ -1725,8 +1794,8 @@ export const useAppointmentStats = () => {
       enabled: !!clinicId && hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 5 * 60 * 1000, // 5 minutes
       refetchOnWindowFocus: false,
-      refetchOnReconnect: true,
-      refetchInterval: isConnected ? false : 15_000,
+      refetchOnReconnect: !isAuthRefreshing,
+      refetchInterval: isConnected || isAuthRefreshing ? false : 15_000,
     }
   );
 };
@@ -1773,7 +1842,8 @@ import type { QueueItem } from '@/types/queue.types';
  */
 export const usePatientQueuePosition = (patientId: string, queueType: string) => {
   const { hasPermission } = useRBAC();
-  
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
+
   return useQueryData(
     ['patientQueuePosition', patientId, queueType],
     async () => {
@@ -1782,10 +1852,10 @@ export const usePatientQueuePosition = (patientId: string, queueType: string) =>
       if (!result) {
         throw new Error('Failed to fetch queue');
       }
-      
+
       const queue = (Array.isArray(result?.queue) ? result.queue : result || []) as QueueItem[];
       const position = queue.findIndex((entry) => entry.patientId === patientId);
-      
+
       return {
         position: position >= 0 ? position + 1 : null,
         estimatedWaitTime: position >= 0 ? queue[position]?.estimatedWaitTime : null,
@@ -1794,7 +1864,7 @@ export const usePatientQueuePosition = (patientId: string, queueType: string) =>
     },
     {
       enabled: !!patientId && !!queueType && hasPermission(Permission.VIEW_QUEUE),
-      refetchInterval: 30 * 1000, 
+      refetchInterval: isAuthRefreshing ? false : 30 * 1000,
     }
   );
 };
@@ -1804,7 +1874,8 @@ export const usePatientQueuePosition = (patientId: string, queueType: string) =>
  */
 export const useDoctorQueue = (doctorId: string) => {
   const { hasPermission } = useRBAC();
-  
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
+
   return useQueryData(
     getQueueListQueryKey(undefined, { doctorId }),
     async () => {
@@ -1813,15 +1884,15 @@ export const useDoctorQueue = (doctorId: string) => {
       if (!result) {
         throw new Error('Failed to fetch queue');
       }
-      
+
       const queue = (Array.isArray(result?.queue) ? result.queue : result || []) as QueueItem[];
       return queue.filter((entry) => {
-        return entry.appointmentId; 
+        return entry.appointmentId;
       });
     },
     {
       enabled: !!doctorId && hasPermission(Permission.VIEW_QUEUE),
-      refetchInterval: 30 * 1000, 
+      refetchInterval: isAuthRefreshing ? false : 30 * 1000,
     }
   );
 };
@@ -2039,4 +2110,254 @@ export const useScanLocationQrAndCheckIn = () => {
     }
   );
 };
+
+// ============================================================================
+// PREFETCH HELPERS
+// ============================================================================
+
+/**
+ * Build the same queryKey used by `useMyAppointments` so a prefetched entry
+ * is read from cache when the page mounts. Filters are sorted/serialized the
+ * same way to keep keys stable across renders.
+ */
+function buildMyAppointmentsQueryKey(
+  userId: string | undefined,
+  userRole: string | undefined,
+  filters: { clinicId?: string; status?: string; date?: string; startDate?: string; endDate?: string; page?: number; limit?: number } | undefined
+) {
+  // Match the order/identity used in useMyAppointments: ['myAppointments', userId, userRole, filters]
+  return ['myAppointments', userId, userRole, filters] as const;
+}
+
+/**
+ * Prefetch the canonical "my appointments" list into the React Query cache so
+ * the patient appointments page can mount without a skeleton. Reads the same
+ * server action (`getMyAppointments`) and stores under the same key shape as
+ * `useMyAppointments`, so the page's existing `placeholderData: keepPreviousData`
+ * option treats the prefetched entry as "previous data" on first mount and
+ * avoids the loading-state flash.
+ *
+ * Designed to be called from the auth bootstrap and from sidebar hover-warm.
+ * Safe to call repeatedly — if the data is already fresh, no network call is
+ * made.
+ */
+export async function prefetchMyAppointments(
+  queryClient: ReturnType<typeof useQueryClient>,
+  options: {
+    userId?: string;
+    userRole?: string;
+    clinicId?: string;
+    hasPermission: (perm: Permission) => boolean;
+    filters?: { clinicId?: string; status?: string; date?: string; startDate?: string; endDate?: string; page?: number; limit?: number };
+  }
+) {
+  const { userId, userRole, clinicId, hasPermission, filters } = options;
+
+  if (!userId || !hasPermission(Permission.VIEW_APPOINTMENTS)) {
+    return;
+  }
+
+  // Resolve the same key shape as the hook so reads hit the prefetched entry.
+  const resolvedFilters = filters ?? (clinicId ? { clinicId } : undefined);
+  const queryKey = buildMyAppointmentsQueryKey(userId, userRole, resolvedFilters);
+
+  try {
+    await queryClient.prefetchQuery({
+      queryKey: queryKey as unknown as readonly unknown[],
+      queryFn: async () => {
+        const resolvedClinicId =
+          filters?.clinicId ||
+          (await getClinicId()) ||
+          undefined;
+        const result = await getMyAppointments({
+          ...(filters || {}),
+          ...(resolvedClinicId ? { clinicId: resolvedClinicId } : {}),
+        });
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to fetch appointments');
+        }
+        const successfulResult = result as any;
+        const appointments = extractAppointments(
+          successfulResult.appointments ?? successfulResult.data
+        );
+        return {
+          success: true,
+          appointments,
+          data: { appointments },
+          meta: successfulResult.meta,
+        } as any;
+      },
+      // Long staleTime so the cache survives a user navigating into and back
+      // out of the appointments page; the page's own refetchInterval (or
+      // invalidation) is the source of truth for refresh cadence.
+      staleTime: 10 * 60 * 1000,
+    });
+  } catch (error) {
+    // Prefetch is best-effort — never block auth bootstrap on a network blip.
+    if (process.env.NODE_ENV !== 'production') {
+      logger.warn?.('[prefetchMyAppointments] prefetch failed', { error });
+    }
+  }
+}
+
+/**
+ * Component-level hook that warms the patient-appointments cache whenever
+ * the session is available. Mount once near the top of the authenticated
+ * tree (next to the auth bootstrap) so the very first navigation into the
+ * appointments page reads from cache.
+ */
+export function usePrefetchMyAppointments(filters?: { clinicId?: string }) {
+  const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.session?.user?.id);
+  const userRole = useAuthStore((state) => state.session?.user?.role);
+  const { hasPermission } = useRBAC();
+
+  // Stabilize the filter object so we don't refire on every render.
+  const stableFilters = useMemo(
+    () => (filters ? { ...filters } : undefined),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [filters?.clinicId]
+  );
+
+  useEffect(() => {
+    if (!userId) return;
+    void prefetchMyAppointments(queryClient, {
+      userId,
+      userRole,
+      hasPermission,
+      filters: stableFilters,
+    });
+  }, [queryClient, userId, userRole, hasPermission, stableFilters]);
+}
+
+/**
+ * Best-effort prefetch for the doctor/admin/clinic appointments list.
+ * Mirrors the query key produced by `useAppointments` so the very first
+ * render of the doctor dashboard or receptionist queue reads from cache.
+ */
+export async function prefetchAppointments(
+  queryClient: ReturnType<typeof useQueryClient>,
+  options: {
+    clinicId?: string;
+    doctorId?: string;
+    filters?: { clinicId?: string; doctorId?: string; startDate?: string; endDate?: string; limit?: number };
+  }
+) {
+  const resolvedFilters = options.filters ?? {};
+  const queryKey = serializeAppointmentQueryKey(options.clinicId, resolvedFilters);
+
+  try {
+    await queryClient.prefetchQuery({
+      queryKey: queryKey as unknown as readonly unknown[],
+      queryFn: async () => {
+        const response = await getAppointments(resolvedFilters as any);
+        if (!response.success) {
+          throw new Error(response.error || 'Failed to fetch appointments');
+        }
+        const appointments = response.appointments || [];
+        return {
+          success: true,
+          appointments,
+          data: appointments,
+          meta: response.meta,
+        } as any;
+      },
+      staleTime: 10 * 60 * 1000,
+    });
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      logger.warn?.('[prefetchAppointments] prefetch failed', { error });
+    }
+  }
+}
+
+/**
+ * Role-aware dashboard prefetch: warms the cache for the appointments list
+ * appropriate to the viewer's role (patient, doctor, counselor, therapist,
+ * admin/reception) so the first navigation to the corresponding dashboard
+ * has no loading skeleton. No-ops for guests and for users without the
+ * permission to view appointments.
+ */
+export function usePrefetchAppointmentsForRole() {
+  const queryClient = useQueryClient();
+  const session = useAuthStore((state) => state.session);
+  const userId = session?.user?.id;
+  const userRole = session?.user?.role;
+  const clinicId = useCurrentClinicId();
+  const { hasPermission } = useRBAC();
+
+  useEffect(() => {
+    if (!userId || !hasPermission(Permission.VIEW_APPOINTMENTS)) {
+      return;
+    }
+
+    const role = String(userRole || '').toUpperCase();
+
+    // Patient: warm `myAppointments` (uses the same key as `useMyAppointments`).
+    if (role === 'PATIENT') {
+      void prefetchMyAppointments(queryClient, {
+        userId,
+        userRole,
+        hasPermission,
+        filters: clinicId ? { clinicId } : undefined,
+      });
+      return;
+    }
+
+    // Counselor / therapist: warm the scoped appointment query key. The hook
+    // uses `['counselorAppointments', counselorId, filters]` /
+    // `['therapistAppointments', therapistId, filters]` so we mirror that
+    // shape here.
+    if (role === 'COUNSELOR') {
+      void queryClient
+        .prefetchQuery({
+          queryKey: ['counselorAppointments', userId, undefined] as unknown as readonly unknown[],
+          queryFn: async () => {
+            const result = await (await import('@/lib/actions/counselor.server')).getCounselorAppointments(
+              userId,
+              undefined
+            );
+            return result as any;
+          },
+          staleTime: 10 * 60 * 1000,
+        })
+        .catch((error) => {
+          if (process.env.NODE_ENV !== 'production') {
+            logger.warn?.('[usePrefetchAppointmentsForRole] counselor prefetch failed', { error });
+          }
+        });
+      return;
+    }
+
+    if (role === 'THERAPIST') {
+      void queryClient
+        .prefetchQuery({
+          queryKey: ['therapistAppointments', userId, undefined] as unknown as readonly unknown[],
+          queryFn: async () => {
+            const result = await (await import('@/lib/actions/therapist.server')).getAppointments(
+              userId,
+              undefined
+            );
+            return result as any;
+          },
+          staleTime: 10 * 60 * 1000,
+        })
+        .catch((error) => {
+          if (process.env.NODE_ENV !== 'production') {
+            logger.warn?.('[usePrefetchAppointmentsForRole] therapist prefetch failed', { error });
+          }
+        });
+      return;
+    }
+
+    // Doctor / admin / reception / pharmacist / front-desk: warm the
+    // admin-side appointments list keyed by clinic.
+    if (clinicId) {
+      void prefetchAppointments(queryClient, {
+        clinicId,
+        doctorId: role === 'DOCTOR' || role === 'ASSISTANT_DOCTOR' ? userId : undefined,
+      });
+    }
+  }, [queryClient, userId, userRole, clinicId, hasPermission]);
+}
 

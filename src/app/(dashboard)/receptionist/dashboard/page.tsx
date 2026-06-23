@@ -70,6 +70,7 @@ const STATUS_STYLES: Record<string, string> = {
   COMPLETED: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200",
   NO_SHOW: "bg-slate-100 text-slate-800 dark:bg-slate-900/50 dark:text-slate-300",
   CANCELLED: "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300",
+  EXPIRED: "bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300",
 };
 
 function hasReceptionQueueTaxonomy(entry: Pick<CanonicalQueueEntry, "displayLabel" | "serviceBucket" | "treatmentType" | "serviceType">): boolean {
@@ -298,7 +299,7 @@ export default function ReceptionistDashboard() {
             return acc;
           }
 
-          if (["COMPLETED", "CANCELLED", "NO_SHOW"].includes(String(entry.status || "").toUpperCase())) {
+          if (["COMPLETED", "CANCELLED", "NO_SHOW", "EXPIRED"].includes(String(entry.status || "").toUpperCase())) {
             return acc;
           }
 

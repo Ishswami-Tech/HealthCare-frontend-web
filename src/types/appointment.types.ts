@@ -18,7 +18,8 @@ export type AppointmentStatus =
   | 'IN_PROGRESS'
   | 'COMPLETED'
   | 'CANCELLED'
-  | 'NO_SHOW';
+  | 'NO_SHOW'
+  | 'EXPIRED';
 
 export type AppointmentPriority = 
   | 'LOW'

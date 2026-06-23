@@ -136,7 +136,7 @@ export default function ClinicAdminDashboard() {
   const queueItems = useMemo(
     () =>
       extractQueueEntries(liveQueueData)
-        .filter((item: any) => !["COMPLETED", "CANCELLED", "NO_SHOW"].includes(String(item.status || "").toUpperCase()))
+        .filter((item: any) => !["COMPLETED", "CANCELLED", "NO_SHOW", "EXPIRED"].includes(String(item.status || "").toUpperCase()))
         .toSorted((a: any, b: any) => a.position - b.position),
     [liveQueueData]
   );
@@ -283,7 +283,7 @@ export default function ClinicAdminDashboard() {
       todayAppointments.filter(
         (appointment: any) =>
           !appointment.checkedInAt &&
-          !["COMPLETED", "CANCELLED", "NO_SHOW"].includes(appointment.status)
+          !["COMPLETED", "CANCELLED", "NO_SHOW", "EXPIRED"].includes(appointment.status)
       ),
     [todayAppointments]
   );
@@ -312,7 +312,7 @@ export default function ClinicAdminDashboard() {
           pending: locationAppointments.filter(
             (appointment: any) =>
               !appointment.checkedInAt &&
-              !["COMPLETED", "CANCELLED", "NO_SHOW"].includes(appointment.status)
+              !["COMPLETED", "CANCELLED", "NO_SHOW", "EXPIRED"].includes(appointment.status)
           ).length,
           queueCount: queueByLocation[locationId] || 0,
         };
