@@ -235,6 +235,7 @@ export function VideoAppointmentMeetSession({
 }: VideoAppointmentMeetSessionProps) {
   const { replace } = useRouter();
   const { session } = useAuth();
+  const effectiveViewerRole = session?.user?.role || viewerRole || "";
   const resolvedAppointmentId = appointmentId.trim();
   const {
     data: appointmentQuery,
@@ -473,11 +474,11 @@ export function VideoAppointmentMeetSession({
       : "Waiting for the backend to generate a meeting link";
   const appointmentDoctorLabel = appointmentDoctorName || "Doctor assigned";
   const appointmentPatientLabel = appointmentPatientName || "Patient TBD";
-  const viewerRoleNormalized = String(viewerRole || "")
+  const viewerRoleNormalized = String(effectiveViewerRole || "")
     .trim()
     .toUpperCase();
   const exitRoute = getVideoSessionExitRoute(viewerRoleNormalized);
-  const viewerRoleLabel = formatViewerRoleLabel(viewerRole);
+  const viewerRoleLabel = formatViewerRoleLabel(effectiveViewerRole);
   const meetingWithLabel =
     appointmentDoctorLabel !== "Doctor TBD" &&
     appointmentPatientLabel !== "Patient TBD"
@@ -805,9 +806,7 @@ export function VideoAppointmentMeetSession({
       const tokenResult = await generateVideoToken({
         appointmentId: resolvedAppointmentId,
         userId: currentUserId,
-        userRole: resolveVideoTokenRole(
-          viewerRole || session?.user?.role || null,
-        ),
+        userRole: resolveVideoTokenRole(effectiveViewerRole),
         userInfo: {
           displayName:
             [session?.user?.firstName, session?.user?.lastName]
@@ -961,7 +960,7 @@ export function VideoAppointmentMeetSession({
     return (
       <VideoAppointmentRoomWorkspace
         appointment={appointmentDetailsSource || appointment}
-        viewerRole={viewerRole}
+        viewerRole={effectiveViewerRole}
         access={joinedAccess}
         onLeave={handleLeaveRoom}
       />
