@@ -20,6 +20,7 @@ import {
   useUpdateCounselorAppointment,
   useDeleteCounselorAppointment,
 } from "@/hooks/query/useCounselor";
+import { hasAppointmentsLoadedForSession } from "@/hooks/query/useAppointments";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { getReceptionistAppointmentTimeLabel } from "@/lib/utils/appointmentUtils";
 import { formatDateInIST } from "@/lib/utils/date-time";
@@ -34,6 +35,16 @@ export default function CounselorAppointments() {
   const counselorId = user?.id;
 
   const { data: appointmentsData, isPending } = useCounselorAppointments(counselorId);
+
+  // Session-level gate: don't flash skeleton on background refetches, even
+  // when the React Query cache has been evicted within the same session.
+  const hasCachedData = Array.isArray((appointmentsData as any)?.appointments)
+    ? (appointmentsData as any).appointments.length > 0
+    : Array.isArray(appointmentsData)
+      ? (appointmentsData as any[]).length > 0
+      : false;
+  const showInitialSkeleton =
+    isPending && !hasCachedData && !hasAppointmentsLoadedForSession();
   const updateMutation = useUpdateCounselorAppointment();
   const deleteMutation = useDeleteCounselorAppointment();
 
@@ -79,7 +90,7 @@ export default function CounselorAppointments() {
     }
   };
 
-  if (isPending) {
+  if (showInitialSkeleton) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="size-8 animate-spin" />

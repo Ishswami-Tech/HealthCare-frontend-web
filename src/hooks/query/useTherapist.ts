@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { keepPreviousData } from '@tanstack/react-query';
 import { useQueryData } from '../core/useQueryData';
 import { useMutationOperation } from '../core/useMutationOperation';
 import { TOAST_IDS } from '../utils/use-toast';
@@ -39,6 +40,10 @@ export const useTherapistAppointments = (therapistId?: string, filters?: {
     },
     {
       enabled: !!therapistId,
+      // Keep previous list visible during background refetches so the
+      // therapist dashboard doesn't flash empty/loading on focus, reconnect,
+      // or filter changes. First load still surfaces isPending=true.
+      placeholderData: keepPreviousData,
     }
   );
 };
@@ -97,6 +102,11 @@ export const useTherapistClients = (therapistId?: string, filters?: {
     },
     {
       enabled: true,
+      // Keep previous client list visible during background refetches. The
+      // patient store mirrors this data and serves as a secondary cache if the
+      // React Query cache is evicted, but keepPreviousData closes the gap
+      // during the brief window between refetch start and store writeback.
+      placeholderData: keepPreviousData,
     }
   );
 
@@ -111,7 +121,11 @@ export const useTherapistClients = (therapistId?: string, filters?: {
           : [];
 
     setCollection('therapist', normalizedClients);
-  }, [query.data, setCollection]);
+    // Include the serialized filters in the deps so a filter change re-fires
+    // the writeback. Without this, placeholderData could keep the store at
+    // an old filter's snapshot during a refetch and overwrite when the new
+    // data lands out-of-order.
+  }, [query.data, setCollection, filters?.search, filters?.status, filters?.condition, filters?.limit, filters?.offset]);
 
   return query;
 };

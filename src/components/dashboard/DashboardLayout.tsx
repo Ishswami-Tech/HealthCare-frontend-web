@@ -24,6 +24,10 @@ import { sidebarLinksByRole, SidebarLink } from "@/lib/config/sidebarLinks";
 import { useLayoutStore } from "@/stores/layout.store";
 import { PatientQrGateHost } from "@/components/patient/PatientQrGateHost";
 import { useUserProfile } from "@/hooks/query/useUsers";
+import {
+  usePrefetchAppointmentsForRole,
+  usePrefetchMyAppointments,
+} from "@/hooks/query/useAppointments";
 const DashboardShellContext = createContext<boolean>(false);
 
 const DASHBOARD_ROUTE_TITLES: Record<string, string> = {
@@ -213,6 +217,19 @@ export function DashboardLayout({
       email: user.email || "",
     };
   }, [user, currentUserProfile, normalizedUserRole]);
+
+  // ─── Prefetch patient appointments ────────────────────────────────────────
+  // Warms the React Query cache for the appointments list as soon as the
+  // dashboard mounts so the first navigation to /patient/appointments has no
+  // loading skeleton. No-op for users without VIEW_APPOINTMENTS or for guest
+  // sessions.
+  usePrefetchMyAppointments();
+
+  // ─── Role-aware prefetch for every dashboard scope ───────────────────────
+  // Mirrors the key shape produced by `useAppointments` (admin/reception),
+  // `useCounselorAppointments`, and `useTherapistAppointments` so the first
+  // render of those dashboards also reads from cache.
+  usePrefetchAppointmentsForRole();
 
   useEffect(() => {
     setDashboardMeta({

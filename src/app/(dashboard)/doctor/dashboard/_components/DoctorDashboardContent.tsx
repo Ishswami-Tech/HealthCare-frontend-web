@@ -15,7 +15,11 @@ import { Video, Users } from "lucide-react";
 export default function DoctorDashboardContent() {
   const data = useDoctorDashboardData();
 
-  if (data.isAppointmentsPending && data.appointmentsArray.length === 0) {
+  if (
+    data.isAppointmentsPending &&
+    data.appointmentsArray.length === 0 &&
+    !data.hasAppointmentsLoadedForSession
+  ) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="flex flex-col items-center gap-4">

@@ -11,8 +11,7 @@ import {
   getQueueStatusQueryKey,
   normalizeQueueStatusSnapshot,
 } from '@/lib/queue/queue-cache';
-import { getAppointmentStatsQueryKey } from '@/lib/query/appointment-query-keys';
-import { getJwtRefreshDelayMs, refreshClientSessionForRealtime } from '@/lib/utils/auth-recovery';
+import { getJwtRefreshDelayMs, refreshClientSessionForRealtime, refreshClientSessionOnce } from '@/lib/utils/auth-recovery';
 // ✅ Consolidated: Import types from @/types (single source of truth)
 import type { Appointment } from '@/types/appointment.types';
 import type { BillingPlan, Invoice, Payment, Subscription } from '@/types/billing.types';
@@ -20,29 +19,31 @@ import { useNotificationStore, Notification } from '@/stores/notifications.store
 import { showInfoToast, showWarningToast, TOAST_IDS } from '@/hooks/utils/use-toast';
 import { logger } from '@/lib/utils/logger';
 
+// Single source of truth for every appointment-surface query key prefix.
+// Defined in `useAppointments.ts` so mutations, the realtime hook, and the
+// prefetch helper all share the same list. Re-exported here to keep call
+// sites within this file readable.
+import { APPOINTMENT_QUERY_FAMILIES } from '@/hooks/query/useAppointments';
+
 export function invalidateAppointmentQueryFamilies(queryClient: QueryClient) {
-  void queryClient.invalidateQueries({ queryKey: ['appointments'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['myAppointments'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['userUpcomingAppointments'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['appointment'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['video-appointments'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['video-appointment'], exact: false });
-  void queryClient.invalidateQueries({
-    queryKey: getAppointmentStatsQueryKey(),
-    exact: false,
-  });
+  // Fan-out invalidation: every appointment-surface query refetches on the
+  // next mount. With `placeholderData: keepPreviousData` on the consuming
+  // hooks, the previous data remains visible during the refetch so the
+  // skeleton doesn't flash. `refetchType: 'none'` is intentionally NOT
+  // used here — the realtime event is a state-change signal, not a
+  // hint to silently invalidate.
+  for (const queryKey of APPOINTMENT_QUERY_FAMILIES) {
+    void queryClient.invalidateQueries({ queryKey, exact: false });
+  }
+  // Non-appointment keys that still benefit from a refetch when the
+  // underlying clinic data changes (e.g. doctor list reflowing as a
+  // consequence of a status change).
   void queryClient.invalidateQueries({ queryKey: ['clinics'], exact: false });
   void queryClient.invalidateQueries({ queryKey: ['clinic'], exact: false });
   void queryClient.invalidateQueries({ queryKey: ['myClinic'], exact: false });
   void queryClient.invalidateQueries({ queryKey: ['clinicLocations'], exact: false });
   void queryClient.invalidateQueries({ queryKey: ['clinicLocation'], exact: false });
   void queryClient.invalidateQueries({ queryKey: ['clinicDoctors'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['doctors'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['doctor'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['doctorSchedule'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['doctorAvailability'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['doctorAppointments'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['doctorPatients'], exact: false });
 }
 
 export function invalidateDashboardQueryFamilies(queryClient: QueryClient) {
@@ -1163,7 +1164,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
       }
       authRefreshInFlightRef.current = true;
       try {
-        const refreshedSession = await refreshClientSessionForRealtime('appointment-live-ws');
+        const refreshedSession = await refreshClientSessionOnce('appointment-live-ws');
         if (!refreshedSession?.access_token) {
           return;
         }
@@ -1184,7 +1185,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
               if (shouldBypassAuthRefresh(refreshedSession.access_token)) {
                 return;
               }
-              const failedRefreshSession = await refreshClientSessionForRealtime('appointment-live-ws');
+              const failedRefreshSession = await refreshClientSessionOnce('appointment-live-ws');
               if (!failedRefreshSession?.access_token) {
                 return;
               }
@@ -1403,6 +1404,18 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
     }
 
     subscriptionsRef.current = unsubscribeCallbacks;
+
+    // Post-auth-refresh reconciliation: when the socket reconnects after a
+    // proactive or reactive token refresh, we have a new token but stale
+    // appointment caches (the prior refetches were skipped via
+    // `isAuthRefreshing`). Do exactly one refetch — coalesced into a single
+    // fan-out — so the UI is fresh without piling on extra polling/mount
+    // refetches. The realtime event handlers will keep it fresh afterwards.
+    if (postAuthRefreshRef.current) {
+      postAuthRefreshRef.current = false;
+      authFailureCountRef.current = 0;
+      invalidateAppointmentQueryFamilies(queryClient);
+    }
   }, [
     clinicId,
     emit,
@@ -1426,6 +1439,11 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
   const authFailureCountRef = useRef(0);
   const authCircuitOpenRef = useRef(false);
   const authCircuitResetTimerRef = useRef<number | null>(null);
+  // Set when a `connect()` call follows a successful auth refresh. Cleared
+  // after the post-refresh `onConnect` runs a single coalesced refetch of the
+  // appointment caches so the UI reconciles without piling on background
+  // refetches.
+  const postAuthRefreshRef = useRef(false);
 
   const tripAuthCircuit = useCallback((reason: string) => {
     if (authCircuitOpenRef.current) return;
@@ -1469,11 +1487,12 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
 
         authRefreshInFlightRef.current = true;
         try {
-          const refreshedSession = await refreshClientSessionForRealtime('appointment-live-ws');
+          const refreshedSession = await refreshClientSessionOnce('appointment-live-ws');
           if (!refreshedSession?.access_token) {
             return;
           }
 
+          postAuthRefreshRef.current = true;
           connect(websocketUrl, {
             tenantId,
             userId: resolvedUserId,
@@ -1489,11 +1508,12 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
                 if (shouldBypassAuthRefresh(refreshedSession?.access_token)) {
                   return;
                 }
-                const failedRefreshSession = await refreshClientSessionForRealtime('appointment-live-ws');
+                const failedRefreshSession = await refreshClientSessionOnce('appointment-live-ws');
                 if (!failedRefreshSession?.access_token) {
                   return;
                 }
 
+              postAuthRefreshRef.current = true;
               connect(websocketUrl, {
                 tenantId,
                 userId: resolvedUserId,
@@ -1563,7 +1583,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
                 tripAuthCircuit('bypass');
                 return;
               }
-              const refreshedSession = await refreshClientSessionForRealtime('appointment-live-ws');
+              const refreshedSession = await refreshClientSessionOnce('appointment-live-ws');
               if (!refreshedSession?.access_token) {
                 authFailureCountRef.current += 1;
                 if (authFailureCountRef.current >= 2) {
@@ -1573,6 +1593,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
               }
 
               authFailureCountRef.current = 0;
+              postAuthRefreshRef.current = true;
               connect(websocketUrl, {
                 tenantId,
                 userId: resolvedUserId,

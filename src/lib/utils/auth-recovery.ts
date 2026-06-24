@@ -154,6 +154,25 @@ export async function refreshClientSessionForRealtime(
   }
 }
 
+// ─── Cross-caller refresh dedupe ────────────────────────────────────────────
+// The proactive scheduler, the WebSocket onAuthError handler, and the HTTP
+// 401 interceptor can all race to refresh at the same time. We dedupe them
+// here so a single refresh round-trip happens per cycle, regardless of which
+// trigger fires first.
+let inFlightRefreshPromise: Promise<Session | null> | null = null;
+
+export function refreshClientSessionOnce(
+  context: string
+): Promise<Session | null> {
+  if (inFlightRefreshPromise) {
+    return inFlightRefreshPromise;
+  }
+  inFlightRefreshPromise = refreshClientSessionForRealtime(context).finally(() => {
+    inFlightRefreshPromise = null;
+  });
+  return inFlightRefreshPromise;
+}
+
 export function triggerClientAuthRecovery(): void {
   if (typeof window === "undefined") {
     return;

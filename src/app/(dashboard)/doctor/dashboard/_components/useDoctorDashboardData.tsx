@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useCurrentClinicId } from "@/hooks/query/useClinics";
-import { useAppointments, useCompleteAppointment, useStartAppointment } from "@/hooks/query/useAppointments";
+import { useAppointments, useCompleteAppointment, useStartAppointment, hasAppointmentsLoadedForSession } from "@/hooks/query/useAppointments";
 import { useQueue } from "@/hooks/query/useQueue";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { useCurrentTimestamp } from "@/hooks/utils/useClientDate";
@@ -395,5 +395,6 @@ export function useDoctorDashboardData() {
       }),
     meta: DOCTOR_DASHBOARD_META,
     userId: user?.id || "",
+    hasAppointmentsLoadedForSession: hasAppointmentsLoadedForSession(),
   };
 }

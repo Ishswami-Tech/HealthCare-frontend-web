@@ -322,6 +322,32 @@ export const useAuthStore = create<AuthState>()(
 
 export const useAuthUser = () => useAuthStore((state) => state.user);
 export const useAuthSession = () => useAuthStore((state) => state.session);
+
+// ─── Cross-store wiring ────────────────────────────────────────────────────
+// Reset the "appointments have loaded for this session" flag whenever the
+// auth session changes. This prevents a stale `loaded=true` from leaking
+// across users on the same workstation (e.g. logout + new login, or role
+// elevation) and causing the next user to see an empty page with a
+// suppressed skeleton.
+//
+// We use a dynamic import inside the subscriber so this file does not
+// import from `useAppointments` at module-load time (that file already
+// imports the auth store, which would create a circular import).
+if (typeof window !== 'undefined') {
+  let lastObservedSessionId: string | null = null;
+  useAuthStore.subscribe((state) => {
+    const nextSessionId = state.session?.session_id ?? null;
+    if (nextSessionId === lastObservedSessionId) return;
+    lastObservedSessionId = nextSessionId;
+    // Lazy-load to avoid circular import.
+    void import('@/hooks/query/useAppointments').then((mod) => {
+      mod.resetAppointmentsLoadedForSession();
+    }).catch(() => {
+      // The appointments module isn't always available during early
+      // hydration; silently no-op.
+    });
+  });
+}
 export const useIsAuthenticated = () => useAuthStore((state) => state.isAuthenticated);
 export const useProfileComplete = () => useAuthStore((state) => state.isProfileComplete);
 export const useRequiresProfileCompletion = () =>

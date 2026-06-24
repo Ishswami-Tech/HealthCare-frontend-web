@@ -19,7 +19,7 @@ import { fetchWithAbort, TimeoutError } from '@/lib/utils/fetch-with-abort';
 import { getAccessToken, getSessionId, getClinicId } from '@/lib/utils/token-manager';
 import { normalizeClinicId } from '@/lib/utils/clinic-id';
 import { useAuthStore } from '@/stores/auth.store';
-import { triggerClientAuthRecovery } from '@/lib/utils/auth-recovery';
+import { triggerClientAuthRecovery, refreshClientSessionOnce } from '@/lib/utils/auth-recovery';
 import { dedupeRequest } from '@/hooks/core/requestDeduper';
 import type { Session } from '@/types/auth.types';
 
@@ -651,20 +651,15 @@ export class ApiClient {
       try {
         // Refresh through the same auth contract used by the app:
         // - client: backend refresh endpoint via the shared API client, which can read httpOnly cookies
+        //   (routed through refreshClientSessionOnce so the WebSocket scheduler
+        //   and the HTTP interceptor share a single in-flight refresh)
         // - server: direct backend refresh using the request cookies
         const tokens = isClient
           ? await (async () => {
-              const response = await this.publicRequest<Session>(API_ENDPOINTS.AUTH.REFRESH, {
-                method: 'POST',
-                credentials: this.withCredentials ? 'include' : 'omit',
-              });
-
-              const refreshedSession = (response.data as Record<string, any>)?.data || response.data;
-
+              const refreshedSession = await refreshClientSessionOnce('api-client-401');
               if (!refreshedSession) {
                 throw new Error('Token refresh failed');
               }
-
               return refreshedSession;
             })()
           : await (async () => {
@@ -724,7 +719,7 @@ export class ApiClient {
     const refreshToken = data.refresh_token || data.refreshToken;
     const sessionId = data.session_id || data.sessionId;
     const user = data.user;
-    
+
     if (typeof window === 'undefined') {
        // Server-side: Update cookies
        const { cookies } = await import('next/headers');
@@ -750,6 +745,11 @@ export class ApiClient {
 
     } else {
       const currentSession = useAuthStore.getState().session;
+      // Always preserve the existing user when the refresh response omits it.
+      // Without this, the Zustand session.access_token never updates after a
+      // 401 retry, so every subsequent request sends the expired token and
+      // triggers another 401 -> refresh -> still-expired loop, which is what
+      // causes the 35+ appointment fetches logged in the browser network tab.
       const nextUser = (user || currentSession?.user) as Session['user'] | undefined;
 
       if (accessToken && nextUser) {

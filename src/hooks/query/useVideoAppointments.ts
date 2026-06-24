@@ -7,6 +7,7 @@ import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import { useRBAC } from '../utils/useRBAC';
 import { useVideoAppointmentWebSocket } from '../realtime/useVideoAppointmentSocketIO';
 import { useAuth } from '../auth/useAuth';
+import { useAuthStore } from '@/stores/auth.store';
 import { Permission } from '@/types/rbac.types';
 import { Role } from '@/types/auth.types';
 import {
@@ -281,6 +282,7 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
 export function useVideoAppointment(id: string) {
   const { hasPermission } = useRBAC();
   const queryClient = useQueryClient();
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
   const resolvedAppointmentId = normalizeVideoSessionAppointmentId(id);
   const {
     subscribeToVideoAppointments,
@@ -313,9 +315,9 @@ export function useVideoAppointment(id: string) {
       enabled: !!resolvedAppointmentId && hasPermission(Permission.VIEW_VIDEO_APPOINTMENTS),
       staleTime: 0,
       gcTime: 5 * 60 * 1000, // 5 minutes
-      refetchInterval: 30_000,
+      refetchInterval: isAuthRefreshing ? false : 30_000,
       refetchOnMount: 'always',
-      refetchOnWindowFocus: true,
+      refetchOnWindowFocus: !isAuthRefreshing,
       retry: false,
     }
   );

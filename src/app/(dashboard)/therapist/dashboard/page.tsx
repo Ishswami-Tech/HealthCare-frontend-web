@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useTherapistAppointments, useTherapistClients } from "@/hooks/query/useTherapist";
+import { hasAppointmentsLoadedForSession } from "@/hooks/query/useAppointments";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -47,6 +48,24 @@ export default function TherapistDashboard() {
     () => appointmentsData?.appointments || [],
     [appointmentsData]
   );
+
+  // First-load-only skeleton gate: only show the spinner when the cache is
+  // truly empty. Background refetches (focus, reconnect, WebSocket-driven
+  // merge) keep the previous list visible because the hook now uses
+  // `placeholderData: keepPreviousData`.
+  const hasCachedAppointments = appointmentsArray.length > 0;
+  const showAppointmentsSkeleton =
+    isPendingAppointments &&
+    !hasCachedAppointments &&
+    !hasAppointmentsLoadedForSession();
+
+  // `clientsArray` is sourced from the patient store (populated by
+  // `useTherapistClients` via `setCollection('therapist', ...)`). The store
+  // keeps the previous value during background refetches, so checking it
+  // gives a stable "has cached data" signal even when `isPendingClients`
+  // flips during a refetch.
+  const hasCachedClients = clientsArray.length > 0;
+  const showClientsSkeleton = isPendingClients && !hasCachedClients;
   const stats = useMemo(() => {
     const today = formatISODateInIST(new Date());
     const todayAppointments = appointmentsArray.filter(
@@ -207,7 +226,7 @@ export default function TherapistDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {isPendingAppointments ? (
+            {showAppointmentsSkeleton ? (
               <div className="flex items-center justify-center min-h-[200px]">
                 <Loader2 className="size-8 animate-spin text-blue-600" />
               </div>
@@ -271,7 +290,7 @@ export default function TherapistDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {isPendingClients ? (
+            {showClientsSkeleton ? (
               <div className="flex items-center justify-center min-h-[200px]">
                 <Loader2 className="size-8 animate-spin text-blue-600" />
               </div>

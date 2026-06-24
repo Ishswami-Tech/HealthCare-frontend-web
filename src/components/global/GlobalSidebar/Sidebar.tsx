@@ -7,7 +7,7 @@
  * Uses: SidebarProvider, Sidebar, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton
  */
 
-import React, { useState, useCallback, useMemo, memo } from "react";
+import React, { useState, useCallback, useMemo, memo, useRef } from "react";
 import {
   Sidebar as SidebarComponent,
   SidebarContent,
@@ -27,6 +27,8 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { useRBAC } from "@/hooks/utils/useRBAC";
 import { Permission } from "@/types/rbac.types";
+import { useQueryClient } from "@tanstack/react-query";
+import { prefetchMyAppointments } from "@/hooks/query/useAppointments";
 import {
   Dialog,
   DialogContent,
@@ -57,6 +59,16 @@ function splitHref(href: string): { pathname: string; searchParams: URLSearchPar
     pathname: path || "/",
     searchParams: new URLSearchParams(search),
   };
+}
+
+/**
+ * True if the link points at the (role-scoped) appointments list page.
+ * Used to gate the hover-warm prefetch so we only warm the cache for the
+ * page the user is actually about to visit.
+ */
+function isAppointmentsHref(href: string): boolean {
+  if (!href || href.startsWith("#")) return false;
+  return /\/appointments(\/|\?|$)/.test(href);
 }
 
 function normalizeSidebarPath(pathname: string): string {
@@ -160,6 +172,31 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
   const [avatarError, setAvatarError] = useState(false);
 
   const { hasPermission } = useRBAC();
+  const { session } = useAuth();
+  const queryClient = useQueryClient();
+  // Track which links have already been warmed so we only fire once per mount.
+  const prefetchedHrefs = useRef<Set<string>>(new Set());
+
+  /**
+   * Hover-warm: when the user hovers an `/.../appointments` link in the
+   * sidebar, kick off a background prefetch into the React Query cache.
+   * The dashboard's bootstrap prefetch covers first paint, but this catches
+   * users who land on a non-appointments page first and then hover the link
+   * before navigating.
+   */
+  const handleAppointmentsHover = useCallback(
+    (href: string) => {
+      if (!session?.user?.id) return;
+      if (prefetchedHrefs.current.has(href)) return;
+      prefetchedHrefs.current.add(href);
+      void prefetchMyAppointments(queryClient, {
+        userId: session.user.id,
+        userRole: session.user.role,
+        hasPermission,
+      });
+    },
+    [queryClient, session?.user?.id, session?.user?.role, hasPermission]
+  );
 
   const translatedLinks = useMemo(
     () => translateSidebarLinks(links, t),
@@ -262,6 +299,16 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                     <Link
                       href={link.href}
                       prefetch={false}
+                      onMouseEnter={
+                        isAppointmentsHref(link.href)
+                          ? () => handleAppointmentsHover(link.href)
+                          : undefined
+                      }
+                      onFocus={
+                        isAppointmentsHref(link.href)
+                          ? () => handleAppointmentsHover(link.href)
+                          : undefined
+                      }
                     className={cn("relative flex h-full items-center gap-2 w-full", !open && "justify-center")}
                     >
                       {isActive && (

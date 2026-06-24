@@ -3,6 +3,7 @@ import { nowIso } from '@/lib/utils/date-time';
 
 import { useEffect, useRef, useCallback } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
+import { keepPreviousData } from '@tanstack/react-query';
 import { useQueryData, useOptimisticMutation, useQueryClient } from '@/hooks/core';
 import {
   invalidateAppointmentQueryFamilies,
@@ -10,7 +11,7 @@ import {
   invalidateDashboardQueryFamilies,
 } from './useWebSocketIntegration';
 import { useWebSocketContext, useWebSocketStatus } from '@/app/providers/WebSocketProvider';
-import { useAppStore } from '@/stores';
+import { useAppStore, useAuthStore } from '@/stores';
 import { useAuth } from '@/hooks/auth/useAuth';
 import {
   createAppointment as createAppointmentAction,
@@ -53,6 +54,13 @@ const CRITICAL_REALTIME_QUERY_PREFIXES: readonly ReadonlyArray<string>[] = [
   ['doctorPatients'],
   ['doctors'],
   ['doctor'],
+  ['counselorAppointments'],
+  ['counselorClients'],
+  ['counselorClient'],
+  ['therapistAppointments'],
+  ['therapistPatientAppointments'],
+  ['therapistClients'],
+  ['therapistClient'],
   ['queue'],
   ['queue-status'],
   ['queue-metrics'],
@@ -163,6 +171,10 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
       refetchOnWindowFocus: false,
       refetchOnReconnect: true,
       refetchInterval: isConnected ? false : 30_000,
+      // Keep the last-good list visible during a 401/refresh cycle or any
+      // other refetch failure. Without this the dashboard flashes a skeleton
+      // for ~30s while the socket reconnects and the next refetch lands.
+      placeholderData: keepPreviousData,
     }
   );
 
@@ -198,6 +210,7 @@ export function useRealTimeAppointmentStats() {
       refetchInterval: isConnected ? false : 10 * 60 * 1000, // 10 minutes if not real-time (increased for 10M users)
       refetchOnWindowFocus: false,
       refetchOnReconnect: true,
+      placeholderData: keepPreviousData,
     }
   );
 
@@ -213,6 +226,7 @@ export function useRealTimeQueueStatus(queueName?: string, locationId?: string) 
   const { session } = useAuth();
   const { isConnected } = useWebSocketStatus();
   const { subscribe } = useWebSocketContext();
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
   const sessionUser = session?.user as { clinicId?: string; clinic?: { id?: string } } | undefined;
   const resolvedClinicId = resolveRealtimeClinicId(currentClinic, sessionUser);
   const queryKey = getQueueStatusQueryKey(resolvedClinicId, locationId, queueName);
@@ -235,8 +249,9 @@ export function useRealTimeQueueStatus(queueName?: string, locationId?: string) 
       gcTime: 5 * 60 * 1000, // 5 minutes
       // Keep queue status fresh even when the websocket is connected because
       // the backend socket layer does not emit the same location-level stats
-      // shape that this hook reads from the API.
-      refetchInterval: 15 * 1000,
+      // shape that this hook reads from the API. Pause during auth refresh so
+      // we don't pile 401s on top of the reconnect.
+      refetchInterval: isAuthRefreshing ? false : 15 * 1000,
       refetchOnWindowFocus: false,
     }
   );

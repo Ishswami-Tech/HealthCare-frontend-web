@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { keepPreviousData } from '@tanstack/react-query';
 import { useQueryData } from '../core/useQueryData';
 import { useMutationOperation } from '../core/useMutationOperation';
 import { TOAST_IDS } from '../utils/use-toast';
@@ -35,6 +36,10 @@ export const useCounselorAppointments = (counselorId?: string, filters?: {
     },
     {
       enabled: !!counselorId,
+      // Keep previous list visible during background refetches so the
+      // counselor dashboard doesn't flash empty/loading on focus, reconnect,
+      // or filter changes. First load still surfaces isPending=true.
+      placeholderData: keepPreviousData,
     }
   );
 };
@@ -69,6 +74,10 @@ export const useCounselorClients = (counselorId?: string, filters?: {
     },
     {
       enabled: true,
+      // Keep the previous client list visible during background refetches so
+      // the counselor dashboard doesn't blank the client panel on focus,
+      // reconnect, or filter changes. First load still surfaces isPending=true.
+      placeholderData: keepPreviousData,
     }
   );
 
@@ -83,7 +92,20 @@ export const useCounselorClients = (counselorId?: string, filters?: {
           : [];
 
     setCollection('counselor', normalizedClients);
-  }, [query.data, setCollection]);
+    // Include the serialized filters in the deps so a filter change re-fires
+    // the writeback. Without this, placeholderData could keep the store at
+    // an old filter's snapshot during a refetch and overwrite when the new
+    // data lands out-of-order.
+  }, [
+    query.data,
+    setCollection,
+    filters?.search,
+    filters?.status,
+    filters?.condition,
+    filters?.limit,
+    filters?.offset,
+    filters?.clientId,
+  ]);
 
   return query;
 };

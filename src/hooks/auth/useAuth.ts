@@ -171,10 +171,23 @@ export function useAuth() {
     (state) => state.syncAuthStateFromSession
   );
 
+  // Targeted cache reset for an auth transition. We must NOT call
+  // `queryClient.clear()` here — that wipes every cache entry, including
+  // any `placeholderData: keepPreviousData` snapshots that consumers rely on
+  // to avoid the skeleton flash. The previously-cached entries for a
+  // different user/role/session-id will simply not match any new key (the
+  // session-id-aware key in `usePrefetchAppointmentsForRole` and elsewhere
+  // changes after login), so they age out via `gcTime` naturally.
   const resetQueryCacheForAuthTransition = useCallback(
     (nextSession?: Session | null) => {
+      // Cancel in-flight queries so we don't get a 401-stale response landing
+      // on top of the new session's first fetch.
       void queryClient.cancelQueries();
-      queryClient.clear();
+      // Drop only the explicit `['session']` key (auth meta) and let
+      // TanStack Query rehydrate everything else on its own. The new
+      // session's queries will fetch fresh; the old session's queries
+      // age out via gcTime.
+      queryClient.removeQueries({ queryKey: ['session'] });
       clinicApiClient.clearRequestCache();
       clearInflightRequests('api-client');
       clearInflightRequests('query');
@@ -186,6 +199,18 @@ export function useAuth() {
     },
     [queryClient, setSession]
   );
+
+  // Full cache wipe — used on logout/terminate where the user should
+  // see no remnants of the prior session. Does NOT touch
+  // placeholderData-friendly caches because there's no UI left to
+  // flicker.
+  const wipeQueryCacheOnLogout = useCallback(() => {
+    void queryClient.cancelQueries();
+    queryClient.clear();
+    clinicApiClient.clearRequestCache();
+    clearInflightRequests('api-client');
+    clearInflightRequests('query');
+  }, [queryClient]);
 
   const prefetchAuthenticatedWorkspace = useCallback(
       async (clinicId?: string, authScope: string = 'guest') => {
@@ -522,7 +547,7 @@ export function useAuth() {
       showToast: false, // Handle manually for custom messages
       onSuccess: () => {
         // Clear query cache and Zustand stores (prevent cross-role state leakage)
-        resetQueryCacheForAuthTransition();
+        wipeQueryCacheOnLogout();
         resetAllStores();
         clearSession();
 
@@ -539,7 +564,7 @@ export function useAuth() {
 
         // ✅ CRITICAL FIX: Immediately invalidate session query to prevent dashboard render
         // Clear client state even if server logout fails (prevent cross-role state leakage)
-        resetQueryCacheForAuthTransition();
+        wipeQueryCacheOnLogout();
         resetAllStores();
         clearSession();
 
@@ -867,7 +892,7 @@ export function useAuth() {
       loadingMessage: 'Terminating all sessions...',
       successMessage: 'All sessions terminated successfully',
       onSuccess: () => {
-        resetQueryCacheForAuthTransition();
+        wipeQueryCacheOnLogout();
         router.push(ROUTES.LOGIN);
         showSuccessToast('All sessions terminated successfully', {
           id: TOAST_IDS.SESSION.TERMINATE_ALL,

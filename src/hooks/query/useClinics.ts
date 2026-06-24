@@ -1,3 +1,4 @@
+import { keepPreviousData } from '@tanstack/react-query';
 import { useQueryData } from '../core/useQueryData';
 import { useMutationOperation } from '../core/useMutationOperation';
 import { useAuth } from '@/hooks/auth/useAuth';
@@ -552,6 +553,7 @@ export const useAssociateUserWithClinic = () => {
  */
 export const useClinicStats = (clinicId: string) => {
   const { isConnected } = useWebSocketStatus();
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
   return useQueryData<ClinicStats>(
     ['clinicStats', clinicId],
     async () => {
@@ -563,7 +565,8 @@ export const useClinicStats = (clinicId: string) => {
     },
     {
       enabled: !!clinicId,
-      refetchInterval: isConnected ? false : 300_000,
+      refetchInterval: isAuthRefreshing || isConnected ? false : 300_000,
+      placeholderData: keepPreviousData,
     }
   );
 };
@@ -790,6 +793,7 @@ export const useCurrentClinic = () => {
   const clinicId = useCurrentClinicId();
   const { isConnected } = useWebSocketStatus();
   const authScope = useClinicQueryScope();
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
   
   return useQueryData(
     ['current-clinic', clinicId, authScope],
@@ -806,13 +810,18 @@ export const useCurrentClinic = () => {
     {
       enabled: !!clinicId,
       staleTime: 5 * 60 * 1000, // 5 minutes
-      refetchInterval: isConnected ? false : 300_000,
+      refetchInterval: isAuthRefreshing || isConnected ? false : 300_000,
+      // Keep previous clinic context visible during background refetches so
+      // the admin dashboard doesn't flash the "Waking up the clinic dashboard"
+      // skeleton on every focus / reconnect / scope change.
+      placeholderData: keepPreviousData,
     }
   );
 };
 
 // ✅ Health Check Hooks
 export const useHealthStatus = () => {
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
   return useQueryData(
     ['health-status'],
     async () => {
@@ -824,7 +833,7 @@ export const useHealthStatus = () => {
     },
     {
       staleTime: 30 * 1000, // 30 seconds
-      refetchInterval: 60 * 1000, // 1 minute
+      refetchInterval: isAuthRefreshing ? false : 60 * 1000, // 1 minute
       retry: (failureCount) => {
         return failureCount < 3;
       },
@@ -833,6 +842,7 @@ export const useHealthStatus = () => {
 };
 
 export const useHealthReady = () => {
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
   return useQueryData(
     ['health-ready'],
     async () => {
@@ -844,7 +854,7 @@ export const useHealthReady = () => {
     },
     {
       staleTime: 30 * 1000, // 30 seconds
-      refetchInterval: 60 * 1000, // 1 minute
+      refetchInterval: isAuthRefreshing ? false : 60 * 1000, // 1 minute
       retry: (failureCount) => {
         return failureCount < 3;
       },
@@ -853,6 +863,7 @@ export const useHealthReady = () => {
 };
 
 export const useHealthLive = () => {
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
   return useQueryData(
     ['health-live'],
     async () => {
@@ -864,7 +875,7 @@ export const useHealthLive = () => {
     },
     {
       staleTime: 30 * 1000, // 30 seconds
-      refetchInterval: 60 * 1000, // 1 minute
+      refetchInterval: isAuthRefreshing ? false : 60 * 1000, // 1 minute
       retry: (failureCount) => {
         return failureCount < 3;
       },

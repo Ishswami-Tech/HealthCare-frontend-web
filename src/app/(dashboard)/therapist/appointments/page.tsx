@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useTherapistAppointments, useCreateTherapistAppointment, useUpdateTherapistAppointment, useDeleteTherapistAppointment } from "@/hooks/query/useTherapist";
+import { hasAppointmentsLoadedForSession } from "@/hooks/query/useAppointments";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
   formatDateInIST,
@@ -38,6 +39,16 @@ export default function TherapistAppointments() {
   const { data: appointmentsData, isPending: isPending } = useTherapistAppointments(therapistId, {
     status: filterStatus !== "all" ? filterStatus : undefined,
   });
+
+  // Session-level gate: don't flash skeleton on background refetches, even
+  // when the React Query cache has been evicted within the same session.
+  const therapistAppointmentsList = Array.isArray((appointmentsData as any)?.appointments)
+    ? (appointmentsData as any).appointments
+    : Array.isArray(appointmentsData)
+      ? (appointmentsData as any[])
+      : [];
+  const hasCachedData = therapistAppointmentsList.length > 0;
+  const showInitialSkeleton = isPending && !hasCachedData && !hasAppointmentsLoadedForSession();
 
   // Enable real-time WebSocket sync
   useWebSocketQuerySync();
@@ -252,7 +263,7 @@ export default function TherapistAppointments() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {isPending ? (
+          {showInitialSkeleton ? (
             <div className="flex items-center justify-center min-h-[200px]">
               <Loader2 className="size-8 animate-spin text-blue-600" />
             </div>

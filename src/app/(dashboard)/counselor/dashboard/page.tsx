@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useCounselorAppointments } from "@/hooks/query/useCounselor";
+import { hasAppointmentsLoadedForSession } from "@/hooks/query/useAppointments";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { formatISODateInIST } from "@/lib/utils/date-time";
@@ -45,6 +46,21 @@ export default function CounselorDashboard() {
 
   const todayAppointments = useMemo(() => todayAppointmentsData?.appointments || [], [todayAppointmentsData]);
   const allAppointments = useMemo(() => allAppointmentsData?.appointments || [], [allAppointmentsData]);
+
+  // First-load-only skeleton gate: keep the previous list visible during
+  // background refetches (focus, reconnect, WebSocket-driven merges) by
+  // requiring a truly empty cache in addition to isPending. With
+  // `placeholderData: keepPreviousData` set on the hook, the previous data
+  // stays in `data`, so this gate correctly distinguishes "never loaded" from
+  // "refreshing".
+  const hasCachedToday = todayAppointments.length > 0;
+  const hasCachedHistory = allAppointments.length > 0;
+  // Session-level gate: don't flash skeleton during refetches within the
+  // same session, even if the React Query cache is briefly empty.
+  const sessionLoaded = hasAppointmentsLoadedForSession();
+  const showTodaySkeleton = isAppointmentsPending && !hasCachedToday && !sessionLoaded;
+  const showHistorySkeleton = isAllAppointmentsPending && !hasCachedHistory && !sessionLoaded;
+  const showInitialLoading = showTodaySkeleton || showHistorySkeleton;
 
   const stats = useMemo(() => {
     let completedToday = 0;
@@ -83,7 +99,7 @@ export default function CounselorDashboard() {
     }
   };
 
-  if (isAppointmentsPending || isAllAppointmentsPending) {
+  if (showInitialLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="size-8 animate-spin" />

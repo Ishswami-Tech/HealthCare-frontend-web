@@ -26,7 +26,13 @@ import { syncAppointmentInCache } from '@/lib/utils/appointment-cache';
 const useAppointmentQueryScope = () => {
   const sessionId = useAuthStore((state) => state.session?.session_id?.trim() || '');
   const userId = useAuthStore((state) => state.session?.user?.id?.trim() || '');
-  return sessionId || userId || 'guest';
+  // Memoize on the raw identity so any unrelated Zustand mutation
+  // (e.g. `setRefreshing`) doesn't return a fresh string and force every
+  // queryKey that uses this scope to churn.
+  return useMemo(
+    () => sessionId || userId || 'guest',
+    [sessionId, userId]
+  );
 };
 import {
     getAppointments,
@@ -132,6 +138,11 @@ export const APPOINTMENT_QUERY_FAMILIES: string[][] = [
   ['therapistPatientAppointments'],
   ['therapistClients'],
   ['therapistClient'],
+  // Alias used by `useAppointmentsWithErrorHandling` — same data as
+  // `['appointments']` but isolated under its own prefix. Mutations must
+  // invalidate both, otherwise the receptionist page (which uses the
+  // "enhanced" hook) keeps showing stale data after a status change.
+  ['appointments-enhanced'],
   ['queue'],
   ['queue-status'],
   ['queue-metrics'],
@@ -154,12 +165,22 @@ import type {
 // Tracks whether the *current session* has ever observed a successful
 // appointments fetch. Once true, subsequent refetches (background poll,
 // window-focus) keep the previous payload via placeholderData instead of
-// returning undefined mid-refetch. Resets when the auth session changes
-// (logout, role switch) so the next login still sees a real loading state.
+// returning undefined mid-refetch. The flag is keyed on the backend-issued
+// `session_id` (not userId+role) so the next login on the same workstation
+// — including a different user taking over the same browser — always starts
+// with a clean skeleton. Two concurrent user switches cannot race past
+// `markAppointmentsLoadedOnce` because every write is guarded by a key check.
 const appointmentsLoadedState = { sessionKey: '', loaded: false };
 const markAppointmentsLoadedOnce = (sessionKey: string) => {
-  if (appointmentsLoadedState.sessionKey !== sessionKey) {
-    appointmentsLoadedState.sessionKey = sessionKey;
+  // Defensive: never accept an empty/invalid key — fall back to the existing
+  // session so we don't accidentally clear the flag on a transient empty
+  // value (e.g. a query fired before the session is fully populated).
+  const key = sessionKey && sessionKey.trim() ? sessionKey : appointmentsLoadedState.sessionKey;
+  if (!key) {
+    return;
+  }
+  if (appointmentsLoadedState.sessionKey !== key) {
+    appointmentsLoadedState.sessionKey = key;
     appointmentsLoadedState.loaded = false;
   }
   appointmentsLoadedState.loaded = true;
@@ -173,6 +194,17 @@ const markAppointmentsLoadedOnce = (sessionKey: string) => {
  */
 export const hasAppointmentsLoadedForSession = (): boolean =>
   appointmentsLoadedState.loaded;
+
+/**
+ * Reset the session-level "appointments have loaded" flag. Call this on
+ * logout or when the auth session changes so the next user on the same
+ * workstation sees a real loading state instead of an empty list with a
+ * suppressed skeleton. Exposed so auth-store subscribers can drive it.
+ */
+export const resetAppointmentsLoadedForSession = (): void => {
+  appointmentsLoadedState.sessionKey = '';
+  appointmentsLoadedState.loaded = false;
+};
 
 const extractAppointments = (payload: unknown): Appointment[] => {
   const dedupe = (items: Appointment[]) =>
@@ -356,7 +388,11 @@ export const useAppointments = (
     }
 
     const appointments = response.appointments || [];
-    const sessionKey = String(userId || '') + '|' + String(userRole || '');
+    // Use the backend-issued `session_id` (when available) so the
+    // session-level "loaded" flag is scoped to the actual session, not just
+    // a user+role tuple. Falls back to userId+role if session_id is missing
+    // so the flag is never written under an empty key.
+    const sessionKey = useAuthStore.getState().session?.session_id || String(userId || '') + '|' + String(userRole || '');
     markAppointmentsLoadedOnce(sessionKey);
     return {
       success: true,
@@ -569,10 +605,17 @@ export const useCreateAppointment = (clinicId?: string) => {
         // dashboards (patient, doctor, admin, counselor, therapist, queue)
         // refresh after a create. Keeps the system in sync without forcing
         // each surface to listen to a different event channel.
+        //
+        // NOTE: `useOptimisticMutation` already invalidates the
+        // `serializeAppointmentQueryKey(clinicId)` family (which is a
+        // prefix-matched subset of `['appointments']` with exact:false), and
+        // `getAppointmentQueryKey(clinicId)` returns the same key. So we
+        // skip both `['appointments']` and the redundant stats-key call to
+        // avoid issuing 3 refetch waves for the same cache entry.
         for (const queryKey of APPOINTMENT_QUERY_FAMILIES) {
+          if (queryKey[0] === 'appointments') continue;
           void queryClient.invalidateQueries({ queryKey, exact: false });
         }
-        void queryClient.invalidateQueries({ queryKey: getAppointmentQueryKey(clinicId), exact: false });
         void queryClient.invalidateQueries({ queryKey: getAppointmentStatsQueryKey(), exact: false });
         if (appointment) {
           toast({
@@ -639,44 +682,23 @@ export const useUpdateAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Updating appointment...',
       successMessage: 'Appointment updated successfully',
-      invalidateQueries: [
-        ['appointments'],
-        ['appointment'],
-        ['myAppointments'],
-        ['userUpcomingAppointments'],
-        ['doctorAppointments'],
-        ['doctorSchedule'],
-        ['video-appointments'],
-        ['appointmentStats'],
-        ['queue'],
-        ['queue-status'],
-        ...DASHBOARD_QUERY_FAMILIES,
-      ],
+      // Single source of truth for post-update invalidation: every
+      // appointment-surface query family will refetch (counselor, therapist,
+      // doctor, patient, video, queue, stats). The pre-existing
+      // setQueriesData writes for some of these keys were effectively
+      // overwritten by the subsequent refetch, so we drop them to avoid
+      // both double-work and stale-data windows.
+      invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
       onSuccess: (updatedAppointment) => {
         const appointmentId = String((updatedAppointment as any)?.appointmentId || (updatedAppointment as any)?.id || '');
         if (!appointmentId) {
           return;
         }
 
+        // Pin the single-appointment detail cache so navigating to
+        // `/patient/appointments/[id]` shows the fresh payload immediately,
+        // even before its refetch lands.
         void queryClient.setQueryData(['appointment', appointmentId], updatedAppointment);
-        void queryClient.setQueriesData({ queryKey: ['appointments'], exact: false }, (current) =>
-          upsertAppointmentInPayload(current, updatedAppointment as Appointment)
-        );
-        void queryClient.setQueriesData({ queryKey: ['myAppointments'], exact: false }, (current) =>
-          upsertAppointmentInPayload(current, updatedAppointment as Appointment)
-        );
-        void queryClient.setQueriesData({ queryKey: ['userUpcomingAppointments'], exact: false }, (current) =>
-          upsertAppointmentInPayload(current, updatedAppointment as Appointment)
-        );
-        void queryClient.setQueriesData({ queryKey: ['doctorAppointments'], exact: false }, (current) =>
-          upsertAppointmentInPayload(current, updatedAppointment as Appointment)
-        );
-        void queryClient.setQueriesData({ queryKey: ['doctorSchedule'], exact: false }, (current) =>
-          upsertAppointmentInPayload(current, updatedAppointment as Appointment)
-        );
-        void queryClient.setQueriesData({ queryKey: ['video-appointments'], exact: false }, (current) =>
-          upsertAppointmentInPayload(current, updatedAppointment as Appointment)
-        );
       },
     }
   );
@@ -706,19 +728,10 @@ export const useCancelAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.CANCEL,
       loadingMessage: 'Cancelling appointment...',
       successMessage: 'Appointment cancelled successfully',
-      invalidateQueries: [
-        ['appointments'],
-        ['appointment'],
-        ['myAppointments'],
-        ['userUpcomingAppointments'],
-        ['doctorAppointments'],
-        ['doctorSchedule'],
-        ['video-appointments'],
-        ['appointmentStats'],
-        ['queue'],
-        ['queue-status'],
-        ...DASHBOARD_QUERY_FAMILIES,
-      ],
+      // Single source of truth for post-cancel invalidation across every
+      // appointment-surface query family. Avoids double-invalidation and
+      // ensures counselor/therapist dashboards see the cancellation.
+      invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
       onError: (error: Error) => {
         logger.error('Failed to cancel appointment', error, { component: 'useAppointments' });
       },
@@ -748,19 +761,7 @@ export const useConfirmAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Confirming appointment...',
       successMessage: 'Appointment confirmed successfully',
-      invalidateQueries: [
-        ['appointments'],
-        ['appointment'],
-        ['myAppointments'],
-        ['userUpcomingAppointments'],
-        ['doctorAppointments'],
-        ['doctorSchedule'],
-        ['video-appointments'],
-        ['appointmentStats'],
-        ['queue'],
-        ['queue-status'],
-        ...DASHBOARD_QUERY_FAMILIES,
-      ],
+      invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
     }
   );
 };
@@ -783,7 +784,7 @@ export const useUserUpcomingAppointments = () => {
       if (!result.success) {
         throw new Error(result.error);
       }
-      const sessionKey = String(userId || '') + '|' + String(userRole || '');
+      const sessionKey = useAuthStore.getState().session?.session_id || String(userId || '') + '|' + String(userRole || '');
       markAppointmentsLoadedOnce(sessionKey);
       return result.appointments;
     },
@@ -893,19 +894,7 @@ export const useCheckInAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Checking in patient...',
       successMessage: 'Patient check-in confirmed successfully',
-      invalidateQueries: [
-        ['appointments'],
-        ['appointment'],
-        ['myAppointments'],
-        ['userUpcomingAppointments'],
-        ['doctorAppointments'],
-        ['doctorSchedule'],
-        ['video-appointments'],
-        ['appointmentStats'],
-        ['queue'],
-        ['queue-status'],
-        ...DASHBOARD_QUERY_FAMILIES,
-      ],
+      invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
     }
   );
 };
@@ -974,19 +963,11 @@ const useStartConsultationMutation = (
  * Hook for starting an appointment
  */
 export const useStartAppointment = () =>
-  useStartConsultationMutation('Starting appointment...', 'Appointment started successfully', [
-    ['appointments'],
-    ['appointment'],
-    ['myAppointments'],
-    ['userUpcomingAppointments'],
-    ['doctorAppointments'],
-    ['doctorSchedule'],
-    ['video-appointments'],
-    ['appointmentStats'],
-    ['queue'],
-    ['queue-status'],
-    ...DASHBOARD_QUERY_FAMILIES,
-  ]);
+  useStartConsultationMutation(
+    'Starting appointment...',
+    'Appointment started successfully',
+    APPOINTMENT_QUERY_FAMILIES
+  );
 
 /**
  * Hook for completing an appointment
@@ -1042,24 +1023,19 @@ export const useCompleteAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.COMPLETE,
       loadingMessage: 'Completing appointment...',
       successMessage: 'Appointment completed successfully',
+      // NOTE: do NOT also list the appointment query families here — the
+      // `onSuccess` forEach below is the single source of truth for
+      // post-mutation invalidation so we don't issue two refetch waves for
+      // the same keys (which would briefly flash the skeleton).
       invalidateQueries: [
-        ['appointments'],
-        ['appointment'],
-        ['myAppointments'],
-        ['userUpcomingAppointments'],
-        ['doctorAppointments'],
-        ['doctorSchedule'],
-        ['video-appointments'],
+        // Domain surfaces that aren't covered by APPOINTMENT_QUERY_FAMILIES
+        // but still need a refresh after a COMPLETED transition:
         ['prescriptions'],
         ['patient-prescriptions'],
         ['medical-records'],
-        ['appointmentStats'],
-        ['queue'],
-        ['queue-status'],
         ['billing-analytics'],
         ['payments'],
         ['invoices'],
-        ...DASHBOARD_QUERY_FAMILIES,
       ],
       onSuccess: (_data, variables) => {
         const completedAt = new Date().toISOString();
@@ -1133,19 +1109,7 @@ export const useForceCheckInAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Checking in patient...',
       successMessage: 'Patient check-in confirmed successfully',
-      invalidateQueries: [
-        ['appointments'],
-        ['appointment'],
-        ['myAppointments'],
-        ['userUpcomingAppointments'],
-        ['doctorAppointments'],
-        ['doctorSchedule'],
-        ['video-appointments'],
-        ['appointmentStats'],
-        ['queue'],
-        ['queue-status'],
-        ...DASHBOARD_QUERY_FAMILIES,
-      ],
+      invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
     }
   );
 };
@@ -1173,19 +1137,7 @@ export const useMarkAppointmentNoShow = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: "Marking appointment as no-show...",
       successMessage: "Appointment marked as no-show",
-      invalidateQueries: [
-        ["appointments"],
-        ["appointment"],
-        ["myAppointments"],
-        ["userUpcomingAppointments"],
-        ["doctorAppointments"],
-        ["doctorSchedule"],
-        ["video-appointments"],
-        ["appointmentStats"],
-        ["queue"],
-        ["queue-status"],
-        ...DASHBOARD_QUERY_FAMILIES,
-      ],
+      invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
     }
   );
 };
@@ -1219,7 +1171,7 @@ export const useReassignAppointmentDoctor = () => {
       toastId: TOAST_IDS.APPOINTMENT.REASSIGN,
       loadingMessage: "Reassigning appointment...",
       successMessage: "Appointment reassigned successfully",
-      invalidateQueries: [["appointments"], ["appointment"], ["myAppointments"], ...DASHBOARD_QUERY_FAMILIES],
+      invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
       showLoading: false,
     }
   );
@@ -1267,6 +1219,11 @@ export const useQueue = (queueType: string) => {
     },
     refetchIntervalInBackground: false, // Don't poll in background
     refetchOnWindowFocus: false,
+    // Keep previous queue visible during background refetches so the
+    // queue panel doesn't flash an empty list every poll cycle. The hook
+    // owns freshness via `refetchInterval` (15-60s) and WebSocket events;
+    // placeholderData prevents the intermediate skeleton/empty flash.
+    placeholderData: keepPreviousData,
     retry: (failureCount, error) => {
       if (error.message.includes('Access denied')) {
         return false;
@@ -1353,6 +1310,9 @@ export const useQueueStats = (locationId?: string) => {
       enabled: !!locationId && hasPermission(Permission.VIEW_QUEUE),
       staleTime: 30 * 1000, // 30 seconds
       refetchInterval: isAuthRefreshing ? false : 60 * 1000, // 1 minute
+      // Keep previous stats visible during the 1-minute poll cycle so the
+      // dashboard header card doesn't flicker on every tick.
+      placeholderData: keepPreviousData,
       retry: (failureCount, error: Error) => {
         if (error.message.includes('Access denied')) {
           return false;
@@ -1469,7 +1429,7 @@ export const useMyAppointments = (filters?: {
       }
       const successfulResult = result as any;
       const appointments = extractAppointments(successfulResult.appointments ?? successfulResult.data);
-      const sessionKey = String(userId || '') + '|' + String(userRole || '');
+      const sessionKey = useAuthStore.getState().session?.session_id || String(userId || '') + '|' + String(userRole || '');
       markAppointmentsLoadedOnce(sessionKey);
       return {
         success: true,
@@ -1543,6 +1503,10 @@ export const useDoctorAvailability = (
         }
         return failureCount < 2; // Fewer retries for faster feedback
       },
+      // Keep the previous slot list visible while a new date/doctor is
+      // loading — without this, the slot-picker dialog flashes an empty
+      // grid whenever the user changes filters.
+      placeholderData: keepPreviousData,
     }
   );
 };
@@ -1648,6 +1612,13 @@ export const useAppointmentsWithErrorHandling = (filters?: AppointmentFilters) =
       gcTime: queryConfig.gcTime,
       refetchOnWindowFocus: queryConfig.refetchOnWindowFocus,
       refetchOnReconnect: queryConfig.refetchOnReconnect,
+      refetchOnMount: queryConfig.refetchOnMount as 'always',
+      refetchInterval: queryConfig.refetchInterval as number | false,
+      // Keep previous list visible during background refetches so this hook
+      // (which uses refetchOnMount:'always') doesn't blank the UI on every
+      // mount. Without this the hook returns `data: undefined` mid-refetch,
+      // re-introducing the very skeleton flash we set out to eliminate.
+      placeholderData: keepPreviousData,
       retry: queryConfig.retry,
       retryDelay: queryConfig.retryDelay,
     }
@@ -1732,7 +1703,14 @@ export const useBulkAppointmentOperations = () => {
       toastId: TOAST_IDS.APPOINTMENT.BULK_UPDATE,
       loadingMessage: 'Updating appointments...',
       successMessage: 'Appointments updated successfully',
-      invalidateQueries: [['appointments'], ['myAppointments'], ...DASHBOARD_QUERY_FAMILIES],
+      // NOTE: do NOT include `['appointments']` here — the `onSuccess`
+      // callback below handles the targeted invalidation of the bulk key
+      // with a more conservative `refetchType: 'inactive'` so we don't
+      // issue two refetch waves for the same query family.
+      invalidateQueries: [
+        ['myAppointments'],
+        ...DASHBOARD_QUERY_FAMILIES,
+      ],
       onSuccess: (data, _variables) => {
         onSuccess(data);
       },
@@ -1796,6 +1774,10 @@ export const useAppointmentStats = () => {
       refetchOnWindowFocus: false,
       refetchOnReconnect: !isAuthRefreshing,
       refetchInterval: isConnected || isAuthRefreshing ? false : 15_000,
+      // Keep previous stats visible during 15s polling so the dashboard
+      // header doesn't flicker on every tick or during a transient 401
+      // refetch storm while the auth token is mid-refresh.
+      placeholderData: keepPreviousData,
     }
   );
 };
@@ -1826,7 +1808,7 @@ export const useProcessCheckIn = () => {
       toastId: TOAST_IDS.APPOINTMENT.CHECK_IN,
       loadingMessage: 'Confirming patient arrival...',
       successMessage: 'Patient confirmed and added to queue successfully',
-      invalidateQueries: [['appointments'], ['appointment'], ['queue'], ['myAppointments'], ...DASHBOARD_QUERY_FAMILIES],
+      invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
     }
   );
 };
@@ -1901,10 +1883,11 @@ export const useDoctorQueue = (doctorId: string) => {
  * Hook for starting consultation
  */
 export const useStartConsultation = () =>
-  useStartConsultationMutation('Starting consultation...', 'Consultation started successfully', [
-    ['appointments'],
-    ['myAppointments'],
-  ]);
+  useStartConsultationMutation(
+    'Starting consultation...',
+    'Consultation started successfully',
+    APPOINTMENT_QUERY_FAMILIES
+  );
 
 /**
  * Hook to check if appointment can be cancelled
@@ -2016,7 +1999,7 @@ export const useRescheduleAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Rescheduling appointment...',
       successMessage: 'Appointment rescheduled successfully',
-      invalidateQueries: [['appointments'], ['appointment'], ['myAppointments'], ...DASHBOARD_QUERY_FAMILIES],
+      invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
     }
   );
 };
@@ -2043,7 +2026,7 @@ export const useRejectVideoProposal = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Rejecting proposal...',
       successMessage: 'Proposal rejected successfully',
-      invalidateQueries: [['appointments'], ['appointment'], ['myAppointments'], ...DASHBOARD_QUERY_FAMILIES],
+      invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
     }
   );
 };
@@ -2105,7 +2088,7 @@ export const useScanLocationQrAndCheckIn = () => {
       toastId: TOAST_IDS.APPOINTMENT.CHECK_IN,
       loadingMessage: 'Checking you in...',
       successMessage: 'Check-in successful',
-      invalidateQueries: [['appointments'], ['queue'], ['myAppointments'], ...DASHBOARD_QUERY_FAMILIES],
+      invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
       showToast: false,
     }
   );

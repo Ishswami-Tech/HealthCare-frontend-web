@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useUserProfile } from "@/hooks/query/useUsers";
-import { useMyAppointments } from "@/hooks/query/useAppointments";
+import { useMyAppointments, hasAppointmentsLoadedForSession } from "@/hooks/query/useAppointments";
 import {
   usePatientMedicalRecords,
   usePatientVitalSigns,
@@ -97,7 +97,10 @@ export default function PatientDashboard() {
   const hasCachedAppointments =
     Array.isArray(appointmentsData?.appointments) &&
     (appointmentsData.appointments as any[]).length > 0;
-  const showAppointmentsSkeleton = isPendingAppointments && !hasCachedAppointments;
+  const showAppointmentsSkeleton =
+    isPendingAppointments &&
+    !hasCachedAppointments &&
+    !hasAppointmentsLoadedForSession();
 
   const hasInPersonAppointment = useMemo(() => {
     const appointments = Array.isArray(appointmentsData?.appointments) ? appointmentsData.appointments : [];

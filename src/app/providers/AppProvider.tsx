@@ -19,8 +19,21 @@ import { WebSocketProvider } from "@/app/providers/WebSocketProvider";
 import { StoreProvider } from "@/stores";
 import { PushNotificationProvider } from "@/app/providers/PushNotificationProvider";
 import { HealthStatusProvider } from "@/app/providers/HealthStatusProvider";
+import { useAuthRefreshScheduler } from "@/hooks/auth/useAuthRefreshScheduler";
 import { ERROR_MESSAGES } from "@/lib/config/config";
 import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
+
+/**
+ * AuthRefreshSchedulerHost
+ *
+ * Mounts the proactive JWT refresh scheduler once at the very top of the
+ * provider tree so it runs even before any dashboard mounts. Because the
+ * scheduler reads from `useAuthStore`, it must be a child of `StoreProvider`.
+ */
+function AuthRefreshSchedulerHost(): null {
+  useAuthRefreshScheduler();
+  return null;
+}
 
 function ErrorFallback({
   error,
@@ -85,6 +98,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         >
           <LanguageProvider>
             <StoreProvider>
+              <AuthRefreshSchedulerHost />
               <QueryProvider>
                 <WebSocketProvider
                   autoConnect={true}
