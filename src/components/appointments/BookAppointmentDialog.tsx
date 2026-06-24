@@ -2903,6 +2903,12 @@ export function BookAppointmentDialog({
     error: allLocationsError,
   } = useClinicLocations(activeClinicId, {
     includeInactive: true,
+    // Gate the "all locations" fetch behind the same dialog-open + non-video
+    // condition as `useActiveLocations` above. Without this, the dialog
+    // (which is mounted in the appointments page header even when closed)
+    // refires a server-action POST on every parent re-render, producing a
+    // revalidation storm of `/patient/appointments` POSTs.
+    enabled: shouldLoadLocations,
   });
   const { data: appointmentServices = [], isPending: servicesLoading } =
     useAppointmentServices(shouldLoadServices);
@@ -2948,7 +2954,16 @@ export function BookAppointmentDialog({
     { limit: 200, isActive: true },
     shouldLoadPatients ? { enabled: true } : undefined,
   );
-  const { data: currentPatientProfile } = useUserProfile();
+  // Only fetch the user profile when the dialog is open. The dialog
+  // component is mounted by the appointments page header even when
+  // closed, so unconditionally calling `useUserProfile()` here would
+  // re-fire a server-action POST every time the parent re-renders.
+  // Reading from the cache is fine because the dialog uses the profile
+  // only for an authoritative `profileComplete` check on the patient
+  // record — the same key is already warmed by `DashboardLayout`.
+  const { data: currentPatientProfile } = useUserProfile(
+    dialogOpen ? undefined : { enabled: false }
+  );
   const authoritativeProfileComplete = useMemo(() => {
     const profile = currentPatientProfile as Record<string, unknown> | undefined;
     if (!profile) return undefined;

@@ -31,12 +31,22 @@ import {
 /**
  * Hook to get user profile
  */
-export const useUserProfile = () => {
+export const useUserProfile = (
+  options?: { enabled?: boolean }
+) => {
   const { isConnected } = useWebSocketStatus();
   return useQueryData(['userProfile'], async () => {
     return await getUserProfile();
   }, {
+    // Use a long staleTime so multiple mount sites
+    // (`DashboardLayout`, `BookAppointmentDialog`, profile pages) don't
+    // trigger a server-action POST on every remount. Profile data only
+    // changes on explicit profile updates, so 5 minutes is more than
+    // enough freshness for the header avatar / RBAC fallback.
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     refetchInterval: isConnected ? false : 300_000,
+    enabled: options?.enabled ?? true,
   });
 };
 
