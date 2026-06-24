@@ -75,8 +75,17 @@ export default function PatientDashboard() {
   const clinicId = session?.user?.clinicId || "";
   const patientId = user?.id || "";
 
-  // Fetch real data using hooks with loading and error states
-  const { data: appointmentsData, isPending: isPendingAppointments } = useMyAppointments();
+  // Fetch real data using hooks with loading and error states.
+  //
+  // Passing `{ clinicId }` explicitly aligns the query key with the layout-level
+  // prefetch (`usePrefetchMyAppointments` / `usePrefetchAppointmentsForRole`) so
+  // the prefetched entry is reused on first mount instead of triggering a fresh
+  // server-action fetch. It also matches the appointments-page key, so the
+  // cache entry is shared between both pages. Without this, the dashboard and
+  // appointments page store the same data under different keys and the
+  // dashboard sees an empty list on first paint.
+  const appointmentsFilters = clinicId ? { clinicId } : undefined;
+  const { data: appointmentsData, isPending: isPendingAppointments } = useMyAppointments(appointmentsFilters);
   const { data: medicalRecordsData } = usePatientMedicalRecords(
     clinicId || "",
     patientId

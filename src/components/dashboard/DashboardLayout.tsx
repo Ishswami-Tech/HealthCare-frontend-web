@@ -24,10 +24,7 @@ import { sidebarLinksByRole, SidebarLink } from "@/lib/config/sidebarLinks";
 import { useLayoutStore } from "@/stores/layout.store";
 import { PatientQrGateHost } from "@/components/patient/PatientQrGateHost";
 import { useUserProfile } from "@/hooks/query/useUsers";
-import {
-  usePrefetchAppointmentsForRole,
-  usePrefetchMyAppointments,
-} from "@/hooks/query/useAppointments";
+import { usePrefetchAppointmentsForRole } from "@/hooks/query/useAppointments";
 const DashboardShellContext = createContext<boolean>(false);
 
 const DASHBOARD_ROUTE_TITLES: Record<string, string> = {
@@ -218,17 +215,17 @@ export function DashboardLayout({
     };
   }, [user, currentUserProfile, normalizedUserRole]);
 
-  // ─── Prefetch patient appointments ────────────────────────────────────────
-  // Warms the React Query cache for the appointments list as soon as the
-  // dashboard mounts so the first navigation to /patient/appointments has no
-  // loading skeleton. No-op for users without VIEW_APPOINTMENTS or for guest
-  // sessions.
-  usePrefetchMyAppointments();
-
   // ─── Role-aware prefetch for every dashboard scope ───────────────────────
-  // Mirrors the key shape produced by `useAppointments` (admin/reception),
-  // `useCounselorAppointments`, and `useTherapistAppointments` so the first
-  // render of those dashboards also reads from cache.
+  // Warms the React Query cache for the appointments list as soon as the
+  // dashboard mounts. The patient branch of this hook prefetches under the
+  // `['myAppointments', userId, userRole, { clinicId }]` key, which matches
+  // what the patient dashboard and appointments page use, so the first paint
+  // reads from cache.
+  //
+  // Previously this layout also called `usePrefetchMyAppointments()` (no
+  // clinicId), which used the no-filter key and produced a duplicate fetch
+  // with a different cache slot. The role-aware hook covers the patient case
+  // now, so the redundant call has been removed.
   usePrefetchAppointmentsForRole();
 
   useEffect(() => {
