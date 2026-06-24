@@ -323,6 +323,15 @@ export interface Appointment {
   // ISO-8601 timestamp after which the backend will auto-cancel
   // a PENDING video appointment. Frontend renders a live countdown.
   paymentExpiresAt?: string | null;
+  // ─── Confirmation expiry window ──────────────────────
+  // ISO-8601 timestamp at which the backend scheduler will mark a
+  // CONFIRMED appointment as EXPIRED if the visit hasn't been
+  // completed. Stamped at CONFIRMED time by the Prisma `$allOperations`
+  // extension (`stampConfirmationExpiryIfNeeded`).
+  confirmationExpiresAt?: string | null;
+  // Window length in minutes — mirrors backend VIDEO_ACTIVE_WINDOW_MINUTES.
+  // Frontend uses it to render the badge label.
+  confirmationWindowMinutes?: number | null;
   metadata?: Record<string, any>;
 
   createdAt: string;

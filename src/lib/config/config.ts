@@ -546,6 +546,10 @@ export const API_ENDPOINTS = {
     UPDATE: (patientId: string) => `/patients/${patientId}`,
     DELETE: (patientId: string) => `/patients/${patientId}`,
     APPOINTMENTS: (patientId: string) => `/patients/${patientId}/appointments`,
+    /** Composed single-round-trip summary for the patient dashboard.
+     *  Replaces 5+ separate calls (appointments, vitals, prescriptions,
+     *  comprehensive EHR, invoices, payments) on `/patient/dashboard`. */
+    DASHBOARD_SUMMARY: '/patients/me/dashboard-summary',
     MEDICAL_HISTORY: {
       GET: (clinicId: string, patientId: string) => `/clinics/${clinicId}/patients/${patientId}/medical-history`,
       CREATE: (clinicId: string, patientId: string) => `/clinics/${clinicId}/patients/${patientId}/medical-history`,

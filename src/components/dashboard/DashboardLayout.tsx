@@ -25,6 +25,7 @@ import { useLayoutStore } from "@/stores/layout.store";
 import { PatientQrGateHost } from "@/components/patient/PatientQrGateHost";
 import { useUserProfile } from "@/hooks/query/useUsers";
 import { usePrefetchAppointmentsForRole } from "@/hooks/query/useAppointments";
+import { usePrefetchPatientDashboardSummary } from "@/hooks/query/usePatientDashboardSummary";
 const DashboardShellContext = createContext<boolean>(false);
 
 const DASHBOARD_ROUTE_TITLES: Record<string, string> = {
@@ -227,6 +228,11 @@ export function DashboardLayout({
   // with a different cache slot. The role-aware hook covers the patient case
   // now, so the redundant call has been removed.
   usePrefetchAppointmentsForRole();
+
+  // Prefetch the composed dashboard summary so the first paint of
+  // /patient/dashboard reads from cache. Patient-only; the hook itself
+  // early-returns when no user id / clinic id is resolved.
+  usePrefetchPatientDashboardSummary();
 
   useEffect(() => {
     setDashboardMeta({

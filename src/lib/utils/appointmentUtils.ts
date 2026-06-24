@@ -850,6 +850,18 @@ export type AppointmentViewState = {
    * drive the ring / progress bar visual.
    */
   paymentWindowMinutes: number | null;
+  /**
+   * ISO-8601 timestamp at which the backend scheduler will mark a
+   * CONFIRMED appointment as EXPIRED if the visit hasn't been completed.
+   * Stamped at CONFIRMED time by the Prisma `$allOperations` extension
+   * (`stampConfirmationExpiryIfNeeded`).
+   */
+  confirmationExpiresAt: string | null;
+  /**
+   * Window length (minutes) — mirrors backend VIDEO_ACTIVE_WINDOW_MINUTES.
+   * Defaults to 300 when the backend doesn't surface the value.
+   */
+  confirmationWindowMinutes: number | null;
   showInDoctorWorkspace: boolean;
   showInPatientWorkspace: boolean;
   showInReceptionWorkspace: boolean;
@@ -981,6 +993,14 @@ export function getAppointmentViewState(appointment: any): AppointmentViewState 
     displayStatusLabel,
     paymentExpiresAt,
     paymentWindowMinutes,
+    confirmationExpiresAt:
+      typeof appointment?.confirmationExpiresAt === 'string'
+        ? (appointment.confirmationExpiresAt as string)
+        : null,
+    confirmationWindowMinutes:
+      typeof appointment?.confirmationWindowMinutes === 'number'
+        ? (appointment.confirmationWindowMinutes as number)
+        : null,
     showInDoctorWorkspace:
       !isCancelledLike(status) && isDashboardVisibleStatus,
     showInPatientWorkspace:

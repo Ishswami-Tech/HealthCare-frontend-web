@@ -61,6 +61,10 @@ const CRITICAL_REALTIME_QUERY_PREFIXES: readonly ReadonlyArray<string>[] = [
   ['therapistPatientAppointments'],
   ['therapistClients'],
   ['therapistClient'],
+  // Patient dashboard summary — single-round-trip composition endpoint.
+  // Invalidating this key on lifecycle events (appointments, billing,
+  // prescriptions) busts the cache so the next visit fetches fresh data.
+  ['patientDashboardSummary'],
   ['queue'],
   ['queue-status'],
   ['queue-metrics'],

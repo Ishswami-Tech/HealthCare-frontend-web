@@ -10,14 +10,9 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { useUserProfile } from "@/hooks/query/useUsers";
 import { useMyAppointments, hasAppointmentsLoadedForSession } from "@/hooks/query/useAppointments";
 import {
-  usePatientMedicalRecords,
-  usePatientVitalSigns,
-} from "@/hooks/query/usePatients";
-import {
-  usePatientPrescriptions,
-  useComprehensiveHealthRecord,
-} from "@/hooks/query/useMedicalRecords";
-import { useInvoices, usePayments } from "@/hooks/query/useBilling";
+  usePatientDashboardSummary,
+  hasDashboardSummaryLoadedForSession,
+} from "@/hooks/query/usePatientDashboardSummary";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { useTranslation } from "@/lib/i18n/context";
 import { theme } from "@/lib/utils/theme-utils";
@@ -55,6 +50,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { PatientQueueCard } from "@/components/dashboard/PatientQueueCard";
+import { AppointmentExpiryCountdown } from "@/components/appointments/AppointmentExpiryCountdown";
 import {
   DashboardPageHeader as PatientPageHeader,
   DashboardPageShell as PatientPageShell,
@@ -86,18 +82,21 @@ export default function PatientDashboard() {
   // dashboard sees an empty list on first paint.
   const appointmentsFilters = clinicId ? { clinicId } : undefined;
   const { data: appointmentsData, isPending: isPendingAppointments } = useMyAppointments(appointmentsFilters);
-  const { data: medicalRecordsData } = usePatientMedicalRecords(
-    clinicId || "",
-    patientId
-  );
-  const { data: vitalSignsData, isPending: isPendingVitals } = usePatientVitalSigns(patientId);
-  const { data: prescriptionsData, isPending: isPendingPrescriptions } = usePatientPrescriptions(
-    patientId,
-    "active"
-  );
-  const { data: comprehensiveData, isPending: isPendingComprehensive } = useComprehensiveHealthRecord(patientId);
-  const { data: invoicesData = [] } = useInvoices(patientId);
-  const { data: paymentsData = [] } = usePayments(patientId);
+
+  // Composed single-round-trip summary. Replaces the previous fan-out of
+  // 5+ separate hooks (vitals, prescriptions, comprehensive EHR, invoices,
+  // payments, medical records). Each sub-field below is derived from the
+  // summary payload so the rest of the page (transform, view) doesn't
+  // need to change shape.
+  const { data: summary, isPending: isPendingSummary } =
+    usePatientDashboardSummary({ enabled: !!patientId });
+
+  const medicalRecordsData = (summary?.comprehensive as { medicalHistory?: unknown[] } | undefined)?.medicalHistory;
+  const vitalSignsData = (summary?.comprehensive as { vitals?: unknown[] } | undefined)?.vitals;
+  const comprehensiveData = summary?.comprehensive;
+  const prescriptionsData = Array.isArray(summary?.prescriptions) ? summary!.prescriptions : [];
+  const invoicesData = Array.isArray(summary?.invoices) ? summary!.invoices : [];
+  const paymentsData = Array.isArray(summary?.payments) ? summary!.payments : [];
 
   // First-load-only skeleton gate: keep the previous list visible during
   // background refetches. The hook uses `placeholderData: keepPreviousData`
@@ -110,6 +109,19 @@ export default function PatientDashboard() {
     isPendingAppointments &&
     !hasCachedAppointments &&
     !hasAppointmentsLoadedForSession();
+
+  // Same gate for the dashboard summary — if it's the first load this
+  // session and the cache is empty, show a skeleton; otherwise keep the
+  // previous summary visible during background refetches.
+  const hasCachedSummary = !!summary && (
+    (Array.isArray(summary.appointments) && summary.appointments.length > 0) ||
+    (Array.isArray(summary.prescriptions) && summary.prescriptions.length > 0) ||
+    (Array.isArray(summary.invoices) && summary.invoices.length > 0)
+  );
+  const showSummarySkeleton =
+    isPendingSummary &&
+    !hasCachedSummary &&
+    !hasDashboardSummaryLoadedForSession();
 
   const hasInPersonAppointment = useMemo(() => {
     const appointments = Array.isArray(appointmentsData?.appointments) ? appointmentsData.appointments : [];
@@ -287,6 +299,49 @@ export default function PatientDashboard() {
           isOnline: normalized.isOnline,
         };
       });
+
+    // ─── Recent (past) appointments ────────────────────────────────────
+    // Patients want to see what happened to their scheduled sessions,
+    // including CANCELLED / NO_SHOW / EXPIRED / COMPLETED rows the
+    // backend scheduler has classified. Trust the backend's status
+    // outright — we don't infer EXPIRED locally, since the scheduler
+    // runs every minute and stamps the row before we need to react.
+    const recentAppointments = uniqueAppointments
+      .filter((apt: any) => {
+        const viewState = getAppointmentViewState(apt);
+        const status = viewState.normalizedStatus.toUpperCase();
+        return (
+          status === "CANCELLED" ||
+          status === "NO_SHOW" ||
+          status === "EXPIRED" ||
+          status === "COMPLETED"
+        );
+      })
+      .sort((a: any, b: any) => {
+        const first = normalizePatientAppointment(a).dateTime?.getTime() || 0;
+        const second = normalizePatientAppointment(b).dateTime?.getTime() || 0;
+        return second - first;
+      })
+      .slice(0, 10)
+      .map((apt: any) => {
+        const normalized = normalizePatientAppointment(apt);
+        const viewState = getAppointmentViewState(apt);
+        const status = viewState.normalizedStatus.toUpperCase();
+        const dateLabel = getReceptionistAppointmentDateLabel(apt as Record<string, unknown>);
+        const timeLabel = getReceptionistAppointmentTimeLabel(apt as Record<string, unknown>);
+        return {
+          id: apt.id,
+          doctor: normalized.doctorName,
+          type: normalized.type,
+          date: dateLabel,
+          time: timeLabel,
+          location: normalized.locationName,
+          status,
+          statusLabel: viewState.displayStatusLabel,
+          isOnline: normalized.isOnline,
+        };
+      });
+
     const nextTimelineAppointment = currentInProgressAppointments[0] || futureAppointments[0] || null;
 
     const latestVitals = Array.isArray(vitalSignsData)
@@ -388,6 +443,7 @@ export default function PatientDashboard() {
         }
         return accumulator;
       }, []),
+      recentAppointments,
       recentActivity: [] as Array<{ type: string; message: string; time: string }>,
       currentTreatments: [] as Array<{ name: string; type: string; doctor: string; progress: number; nextSession: string }>,
       medications: latestPrescriptions.slice(0, 5).reduce(
@@ -404,7 +460,7 @@ export default function PatientDashboard() {
       billingSummary: {
         openInvoices: openInvoices.length,
         outstandingAmount,
-        recentPaymentStatus: latestPayment ? String(latestPayment.status || "PENDING").toUpperCase() : "NONE",
+        recentPaymentStatus: latestPayment ? String((latestPayment as { status?: string }).status || "PENDING").toUpperCase() : "NONE",
       },
       vitalStats: {
         bloodPressure: latestVitals.bloodPressure || "N/A",
@@ -464,7 +520,20 @@ export default function PatientDashboard() {
   };
 
   return (
-        <PatientPageShell className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+    <PatientPageShell className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+      {/* First-load-only skeleton: while the summary is fetching for the
+          very first time in this session, render the page shell with a
+          spinner so the layout doesn't flash empty cards. After the first
+          successful fetch, `showSummarySkeleton` becomes false and
+          `placeholderData: keepPreviousData` keeps the prior summary
+          visible during background refetches. */}
+      {showSummarySkeleton ? (
+        <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
+          <Loader2 className="size-5 animate-spin" />
+          <span>Loading your dashboard…</span>
+        </div>
+      ) : (
+        <>
           {/* Profile completion banner — only for patients the backend still marks incomplete */}
           {session?.user?.profileComplete === false && (
             <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
@@ -605,6 +674,12 @@ export default function PatientDashboard() {
                                       <Badge className={`h-6 rounded-full px-2.5 text-[10px] font-semibold uppercase tracking-wider ${getStatusColor(appointment.status)}`}>
                                         {appointment.statusLabel || getAppointmentStatusDisplayName(appointment.status)}
                                       </Badge>
+                                      <AppointmentExpiryCountdown
+                                        expiresAt={appointment.confirmationExpiresAt}
+                                        windowMinutes={appointment.confirmationWindowMinutes}
+                                        status={appointment.status}
+                                        variant="compact"
+                                      />
                                     </div>
                                     <h4 className="mt-1 truncate text-sm font-semibold text-foreground">
                                       {appointment.doctor}
@@ -689,6 +764,92 @@ export default function PatientDashboard() {
                       isAppointmentsPending={showAppointmentsSkeleton}
                     />
                   </div>
+
+                  {/* Recent appointments — backend-driven statuses */}
+                  {patientData.recentAppointments.length > 0 ? (
+                    <div className="mt-3 rounded-2xl border border-slate-200/70 bg-white/70 p-3 shadow-sm dark:border-slate-800/60 dark:bg-card/70 sm:p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-600 dark:text-slate-400">
+                            Recent appointments
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Cancelled, expired, no-show, and completed sessions — statuses from the backend
+                          </p>
+                        </div>
+                        <Badge className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-700 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
+                          {patientData.recentAppointments.length} past
+                        </Badge>
+                      </div>
+
+                      <div className="mt-3 flex max-h-72 flex-col gap-y-2 overflow-y-auto pr-1 sm:gap-y-3">
+                        {patientData.recentAppointments.map((appointment: any) => (
+                          <div
+                            key={appointment.id}
+                            className="flex flex-col gap-2.5 rounded-2xl border border-slate-100 bg-background/80 p-2.5 shadow-sm transition-colors hover:border-slate-200 dark:border-slate-800/60 dark:bg-card/80 sm:p-3"
+                          >
+                            <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+                              <div className="flex min-w-0 items-start gap-3">
+                                <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 dark:bg-slate-800/60 dark:text-slate-300 sm:h-11 sm:w-11">
+                                  {appointment.isOnline ? (
+                                    <Video className="size-5" />
+                                  ) : (
+                                    <Stethoscope className="size-5" />
+                                  )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-600/80 dark:text-slate-400/80">
+                                      {appointment.isOnline ? "Video consultation" : "In-person visit"}
+                                    </p>
+                                    <Badge className={`h-6 rounded-full px-2.5 text-[10px] font-semibold uppercase tracking-wider ${getStatusColor(appointment.status)}`}>
+                                      {appointment.statusLabel || getAppointmentStatusDisplayName(appointment.status)}
+                                    </Badge>
+                                    <AppointmentExpiryCountdown
+                                      expiresAt={appointment.confirmationExpiresAt}
+                                      windowMinutes={appointment.confirmationWindowMinutes}
+                                      status={appointment.status}
+                                      variant="compact"
+                                    />
+                                  </div>
+                                  <h4 className="mt-1 truncate text-sm font-semibold text-foreground">
+                                    {appointment.doctor}
+                                  </h4>
+                                  <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                                    {appointment.type}
+                                    {appointment.isOnline
+                                      ? " · Online"
+                                      : appointment.location
+                                        ? ` · ${appointment.location}`
+                                        : ""}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 shadow-sm dark:border-slate-800 dark:bg-slate-950/30 sm:grid-cols-2 md:min-w-[10.5rem]">
+                                <div className="min-w-0">
+                                  <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                    Date
+                                  </div>
+                                  <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                    {appointment.date || "Date TBD"}
+                                  </div>
+                                </div>
+                                <div className="min-w-0 text-right">
+                                  <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                    Time
+                                  </div>
+                                  <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                    {appointment.time || "Time TBD"}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
@@ -918,7 +1079,9 @@ export default function PatientDashboard() {
             </Card>
           </div>
 
-        </PatientPageShell>
+        </>
+      )}
+    </PatientPageShell>
   );
 }
 
