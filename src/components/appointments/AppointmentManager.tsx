@@ -100,7 +100,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string;
   COMPLETED:   { label: "Completed",   color: "text-slate-700 dark:text-slate-300", dot: "bg-slate-500", bg: "bg-slate-50 dark:bg-slate-800/30 border-slate-300 dark:border-slate-600" },
   CANCELLED:   { label: "Cancelled",   color: "text-red-700 dark:text-red-300",       dot: "bg-red-500",    bg: "bg-red-50 dark:bg-red-950/40 border-red-300 dark:border-red-700" },
   NO_SHOW:     { label: "No Show",     color: "text-orange-700 dark:text-orange-300",dot: "bg-orange-400",bg: "bg-orange-50 dark:bg-orange-950/30 border-orange-300 dark:border-orange-800" },
-  EXPIRED:     { label: "Expired",     color: "text-slate-600 dark:text-slate-300", dot: "bg-slate-400", bg: "bg-slate-50 dark:bg-slate-900/40 border-slate-300 dark:border-slate-700" },
+  EXPIRED:     { label: "Expired",     color: "text-amber-800 dark:text-amber-200", dot: "bg-amber-500", bg: "bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700" },
 };
 
 function getPaginationWindow(currentPage: number, totalPages: number): Array<number | "ellipsis"> {
@@ -490,7 +490,7 @@ function AppointmentCard({
                   <div className="rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/30 dark:text-amber-200">
                     <p className="font-semibold">Appointment Expired</p>
                     <p className="mt-0.5">
-                      This {isVideoAppointment ? "video " : ""}appointment was cancelled because payment was not completed in time, and the time slot has already passed.
+                      This {isVideoAppointment ? "video " : ""}appointment expired because payment was not completed in time, and the time slot has already passed.
                     </p>
                   </div>
                   <Button

@@ -67,7 +67,7 @@ function getStatusColor(status: string) {
     case "NO_SHOW":
       return "bg-orange-100 text-orange-800";
     case "EXPIRED":
-      return "bg-slate-100 text-slate-700";
+      return "bg-amber-100 text-amber-800";
     default:
       return "bg-gray-100 text-gray-800";
   }

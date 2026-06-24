@@ -511,9 +511,11 @@ export default function PatientDashboard() {
       case "COMPLETED":
         return theme.badges.gray;
       case "CANCELLED":
-      case "NO_SHOW":
-      case "EXPIRED":
         return theme.badges.red;
+      case "NO_SHOW":
+        return theme.badges.orange;
+      case "EXPIRED":
+        return theme.badges.amber;
       default:
         return theme.badges.gray;
     }
