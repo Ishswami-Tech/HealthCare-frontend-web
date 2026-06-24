@@ -61,19 +61,8 @@ export function AppointmentExpiryCountdown({
     return ms;
   }, [expiresAt]);
 
-  useEffect(() => {
-    if (!expiry || !isEligible) return;
-    const tickInterval = setInterval(() => {
-      setNow(Date.now());
-    }, 30_000);
-    return () => clearInterval(tickInterval);
-  }, [expiry, isEligible]);
-
-  if (!isEligible || !expiry) return null;
-
-  const diffMs = expiry - now;
-  const isExpired = diffMs <= 0;
-
+  // Hooks must run unconditionally on every render — compute the
+  // derived values BEFORE any early return, then bail out below.
   const formattedTime = useMemo(() => {
     if (!expiry) return null;
     return new Date(expiry).toLocaleTimeString("en-IN", {
@@ -84,8 +73,11 @@ export function AppointmentExpiryCountdown({
     });
   }, [expiry]);
 
+  const diffMs = expiry ? expiry - now : 0;
+  const isExpired = expiry != null && diffMs <= 0;
+
   const remainingLabel = useMemo(() => {
-    if (isExpired) return null;
+    if (!expiry || isExpired) return null;
     const totalMinutes = Math.floor(diffMs / 60_000);
     const days = Math.floor(totalMinutes / (60 * 24));
     const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
@@ -97,7 +89,17 @@ export function AppointmentExpiryCountdown({
       return `${hours}h ${minutes}m`;
     }
     return `${minutes}m`;
-  }, [diffMs, isExpired]);
+  }, [diffMs, isExpired, expiry]);
+
+  useEffect(() => {
+    if (!expiry || !isEligible) return;
+    const tickInterval = setInterval(() => {
+      setNow(Date.now());
+    }, 30_000);
+    return () => clearInterval(tickInterval);
+  }, [expiry, isEligible]);
+
+  if (!isEligible || !expiry) return null;
 
   const isUrgent = !isExpired && diffMs <= 60 * 60_000; // <1h left
   const isWarning = !isExpired && !isUrgent && diffMs <= 3 * 60 * 60_000; // <3h left
