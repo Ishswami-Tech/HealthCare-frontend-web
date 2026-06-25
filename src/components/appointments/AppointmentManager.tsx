@@ -757,8 +757,8 @@ export default function AppointmentManager({
     return Object.keys(filters).length > 0 ? filters : undefined;
   }, [isAdminView, dateFilter.start, dateFilter.end, propClinicId]);
 
-  const adminAppointments = useAppointments(adminFilters);
-  const myPersonalAppointments = useMyAppointments(personalFilters);
+  const adminAppointments = useAppointments(adminFilters, { enabled: isAdminView });
+  const myPersonalAppointments = useMyAppointments(personalFilters, { enabled: !isAdminView });
   const queryClient = useQueryClient();
 
   const { mutate: cancelAppointment, isPending: cancellingAppointment } = useCancelAppointment();
