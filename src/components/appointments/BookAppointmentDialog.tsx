@@ -2892,10 +2892,12 @@ export function BookAppointmentDialog({
     isFetching: locationsFetching,
     isFetched: activeLocationsFetched,
     error: activeLocationsError,
-  } = useActiveLocations(
-    activeClinicId,
-    shouldLoadLocations ? { enabled: true } : undefined,
-  );
+  } = useActiveLocations(activeClinicId, {
+    // Explicitly gate on dialog-open. Passing `undefined` when closed
+    // would default to `enabled: true`, which is what triggered the
+    // revalidation storm on the appointments page.
+    enabled: shouldLoadLocations,
+  });
   const {
     data: allLocations = [],
     isPending: allLocationsLoading,
@@ -2944,7 +2946,7 @@ export function BookAppointmentDialog({
       : {
           locationId: resolvedLocationId,
         },
-    shouldLoadDoctors ? { enabled: true } : undefined,
+    { enabled: shouldLoadDoctors },
   );
   // Only RECEPTIONIST needs the full patient list to select a patient.
   // Patients book for themselves‚ calling this admin endpoint as a PATIENT
@@ -2952,7 +2954,7 @@ export function BookAppointmentDialog({
   const { data: patientsData = [] } = usePatients(
     isPrivilegedScheduler ? activeClinicId : "",
     { limit: 200, isActive: true },
-    shouldLoadPatients ? { enabled: true } : undefined,
+    { enabled: shouldLoadPatients },
   );
   // Only fetch the user profile when the dialog is open. The dialog
   // component is mounted by the appointments page header even when
@@ -3423,7 +3425,7 @@ export function BookAppointmentDialog({
     consultationMode === "VIDEO" ? undefined : resolvedLocationId,
     consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON",
     {
-      ...(shouldLoadAvailability ? { enabled: true } : {}),
+      enabled: shouldLoadAvailability,
       ...(availabilityRefetchIntervalMs
         ? { refetchIntervalMs: availabilityRefetchIntervalMs }
         : {}),
