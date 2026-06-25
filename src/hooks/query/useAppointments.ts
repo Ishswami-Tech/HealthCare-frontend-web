@@ -35,8 +35,6 @@ const useAppointmentQueryScope = () => {
   );
 };
 import {
-    getAppointments,
-    getMyAppointments,
     getAppointmentById,
     getAppointmentServiceCatalog,
     getCheckInLocations,
@@ -367,7 +365,7 @@ export const useAppointments = (
   const queryFn = useCallback(async (): Promise<any> => {
     // ✅ Consolidated: Use filters parameter only (removed legacy clinicId parameter)
     let filters: AppointmentFilters & { omitClinicId?: boolean } = {};
-    
+
     if (typeof clinicIdOrFilters === 'string') {
       filters = { clinicId: clinicIdOrFilters };
     } else {
@@ -382,12 +380,54 @@ export const useAppointments = (
       throw new Error('No clinic ID available and omitClinicId not set');
     }
 
-    const response = await getAppointments(filters);
+    // ✅ REST path (avoids RSC POST storm from invoking a server action on every
+    // refetch/poll/reconnect). The backend contract is the same; we just
+    // unwrap the `ApiResponse` envelope here instead of in a server action.
+    // Coerce `status` (which can be a string or array) into the comma-
+    // separated string the backend `GET /appointments` query parser expects,
+    // matching the previous server-action behavior.
+    const statusParam: string | undefined = (() => {
+      const s = filters.status;
+      if (s == null) return undefined;
+      if (Array.isArray(s)) return s.length > 0 ? s.join(',') : undefined;
+      return String(s);
+    })();
+
+    const response = await clinicApiClient.getAppointments({
+      ...(filters.clinicId ? { clinicId: filters.clinicId } : {}),
+      ...(statusParam ? { status: statusParam } : {}),
+      ...(filters.date ? { date: filters.date } : {}),
+      ...(filters.startDate ? { startDate: filters.startDate } : {}),
+      ...(filters.endDate ? { endDate: filters.endDate } : {}),
+      ...(filters.page ? { page: filters.page } : {}),
+      ...(filters.limit ? { limit: filters.limit } : {}),
+    });
+
     if (!response.success) {
-      throw new Error(response.error || 'Failed to fetch appointments');
+      throw new Error(response.error || response.message || 'Failed to fetch appointments');
     }
 
-    const appointments = response.appointments || [];
+    // Unwrap the various envelopes the backend can return: raw array,
+    // { appointments: [] }, { data: { appointments: [] } }, or { data: [] }.
+    const payload: any = (response as any).data;
+    const rawAppointments: unknown[] = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.appointments)
+        ? payload.appointments
+        : Array.isArray(payload?.data)
+          ? payload.data
+          : Array.isArray(payload?.data?.appointments)
+            ? payload.data.appointments
+            : [];
+    const appointments = rawAppointments as any[];
+    const meta = payload?.pagination || (response as any).meta;
+    // Note: server-action `getAppointments` previously ran a timezone
+    // normalization step here. We skip it on the client path because the
+    // UI already formats dates via `formatISODateInIST` at render time, and
+    // `primaryDoctorId`/`assignedDoctorId` are only consumed by the
+    // optimistic-update path which fetches the latest server-normalized
+    // record via the appointment-mutation response.
+
     // Use the backend-issued `session_id` (when available) so the
     // session-level "loaded" flag is scoped to the actual session, not just
     // a user+role tuple. Falls back to userId+role if session_id is missing
@@ -398,7 +438,7 @@ export const useAppointments = (
       success: true,
       appointments,
       data: appointments,
-      meta: response.meta,
+      meta,
     } as any;
   }, [clinicId, clinicIdOrFilters, userId, userRole]);
   
@@ -1412,20 +1452,21 @@ export const useMyAppointments = (filters?: {
   const query = useQueryData(
     ['myAppointments', userId, userRole, filters],
     async (): Promise<any> => {
-      // Use server action path so appointmentDate -> date/time normalization
-      // stays consistent with the rest of appointment surfaces.
-      const resolvedClinicId =
-        filters?.clinicId ||
-        (await getClinicId()) ||
-        (session?.user as { clinicId?: string; primaryClinicId?: string } | undefined)?.clinicId ||
-        (session?.user as { clinicId?: string; primaryClinicId?: string } | undefined)?.primaryClinicId ||
-        undefined;
-      const result = await getMyAppointments({
-        ...(filters || {}),
-        ...(resolvedClinicId ? { clinicId: resolvedClinicId } : {}),
+      // ✅ REST path — avoids the server-action POST storm this hook used to
+      // trigger on every poll/refetch/reconnect. The backend
+      // `/appointments/my-appointments` endpoint scopes results to the
+      // authenticated session via the access token; we no longer need to
+      // resolve clinicId client-side for the patient view.
+      const result = await clinicApiClient.getMyAppointments({
+        ...(filters?.status ? { status: Array.isArray(filters.status) ? filters.status.join(',') : filters.status } : {}),
+        ...(filters?.date ? { date: filters.date } : {}),
+        ...(filters?.startDate ? { startDate: filters.startDate } : {}),
+        ...(filters?.endDate ? { endDate: filters.endDate } : {}),
+        ...(filters?.page ? { page: filters.page } : {}),
+        ...(filters?.limit ? { limit: filters.limit } : {}),
       });
       if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch appointments');
+        throw new Error(result.error || result.message || 'Failed to fetch appointments');
       }
       const successfulResult = result as any;
       const appointments = extractAppointments(successfulResult.appointments ?? successfulResult.data);
@@ -1553,13 +1594,27 @@ export const useAppointmentsWithErrorHandling = (filters?: AppointmentFilters) =
         throw new Error('No clinic ID available');
       }
       
-      const response = await getAppointments({ ...filters, clinicId });
+      // ✅ REST path — the previous server-action call was a major contributor
+      // to the revalidation storm (every refetch fired an RSC POST that
+      // re-rendered the route subtree). The backend scope handles
+      // clinic-scoped filtering server-side from the access token; we no
+      // longer need to resolve clinicId client-side for this read.
+      const response = await clinicApiClient.getAppointments({
+        ...(filters?.status ? { status: Array.isArray(filters.status) ? filters.status.join(',') : filters.status } : {}),
+        ...(filters?.doctorId ? { doctorId: filters.doctorId } : {}),
+        ...(filters?.date ? { date: filters.date } : {}),
+        ...(filters?.startDate ? { startDate: filters.startDate } : {}),
+        ...(filters?.endDate ? { endDate: filters.endDate } : {}),
+        ...(filters?.locationId ? { locationId: filters.locationId } : {}),
+        ...(filters?.page ? { page: filters.page } : {}),
+        ...(filters?.limit ? { limit: filters.limit } : {}),
+      });
       if (!response.success) {
         // ✅ Use centralized error handler
         const { ERROR_MESSAGES: MSGS } = await import('@/lib/config/config');
-        
+
         // Handle specific error cases with better UX
-        const errorMessage = response.error || MSGS.UNKNOWN_ERROR;
+        const errorMessage = response.error || response.message || MSGS.UNKNOWN_ERROR;
         if (errorMessage.includes('Access denied') || errorMessage.includes('permission')) {
           throw new Error(MSGS.FORBIDDEN);
         }
@@ -1569,13 +1624,14 @@ export const useAppointmentsWithErrorHandling = (filters?: AppointmentFilters) =
         if (errorMessage.includes('timeout')) {
           throw new Error(MSGS.TIMEOUT_ERROR);
         }
-        
+
         // Sanitize and use centralized error messages
         const { sanitizeErrorMessage } = await import('@/lib/utils/error-handler');
         throw new Error(sanitizeErrorMessage(errorMessage));
       }
-      const appointments = response.appointments || [];
-      return { success: true, appointments, data: appointments, meta: response.meta } as any;
+      const result = response as any;
+      const appointments = extractAppointments(result.appointments ?? result.data);
+      return { success: true, appointments, data: appointments, meta: result.meta } as any;
     };
     
     return {
@@ -1746,13 +1802,17 @@ export const useAppointmentStats = () => {
       if (!clinicId) {
         throw new Error('No clinic ID available');
       }
-      // ✅ Consolidated: Use filters parameter only (removed legacy clinicId parameter)
-      const response = await getAppointments({ clinicId });
+      // ✅ REST path — the previous server-action call was a major contributor
+      // to the revalidation storm (every refetch fired an RSC POST that
+      // re-rendered the route subtree). The backend scope handles
+      // clinic-scoped filtering server-side from the access token.
+      const response = await clinicApiClient.getAppointments();
       if (!response.success) {
-        throw new Error(response.error || 'Failed to fetch appointments');
+        throw new Error(response.error || response.message || 'Failed to fetch appointments');
       }
 
-      const appointments = response.appointments || [];
+      const result = response as any;
+      const appointments = extractAppointments(result.appointments ?? result.data);
       const today = new Date().toDateString();
 
       return {
@@ -2148,18 +2208,19 @@ export async function prefetchMyAppointments(
     await queryClient.prefetchQuery({
       queryKey: queryKey as unknown as readonly unknown[],
       queryFn: async () => {
-        const resolvedClinicId =
-          filters?.clinicId ||
-          (await getClinicId()) ||
-          undefined;
-        const result = await getMyAppointments({
-          ...(filters || {}),
-          ...(resolvedClinicId ? { clinicId: resolvedClinicId } : {}),
+        // ✅ REST path — same rationale as the live hooks above.
+        const response = await clinicApiClient.getMyAppointments({
+          ...(filters?.status ? { status: Array.isArray(filters.status) ? filters.status.join(',') : filters.status } : {}),
+          ...(filters?.date ? { date: filters.date } : {}),
+          ...(filters?.startDate ? { startDate: filters.startDate } : {}),
+          ...(filters?.endDate ? { endDate: filters.endDate } : {}),
+          ...(filters?.page ? { page: filters.page } : {}),
+          ...(filters?.limit ? { limit: filters.limit } : {}),
         });
-        if (!result.success) {
-          throw new Error(result.error || 'Failed to fetch appointments');
+        if (!response.success) {
+          throw new Error(response.error || response.message || 'Failed to fetch appointments');
         }
-        const successfulResult = result as any;
+        const successfulResult = response as any;
         const appointments = extractAppointments(
           successfulResult.appointments ?? successfulResult.data
         );
@@ -2233,16 +2294,25 @@ export async function prefetchAppointments(
     await queryClient.prefetchQuery({
       queryKey: queryKey as unknown as readonly unknown[],
       queryFn: async () => {
-        const response = await getAppointments(resolvedFilters as any);
+        // ✅ REST path — same rationale as the live hooks above: keep
+        // prefetches off the server-action surface so they don't each
+        // trigger an RSC POST that contributes to the revalidation storm.
+        const response = await clinicApiClient.getAppointments({
+          ...(resolvedFilters.doctorId ? { doctorId: resolvedFilters.doctorId } : {}),
+          ...(resolvedFilters.startDate ? { startDate: resolvedFilters.startDate } : {}),
+          ...(resolvedFilters.endDate ? { endDate: resolvedFilters.endDate } : {}),
+          ...(resolvedFilters.limit ? { limit: resolvedFilters.limit } : {}),
+        });
         if (!response.success) {
-          throw new Error(response.error || 'Failed to fetch appointments');
+          throw new Error(response.error || response.message || 'Failed to fetch appointments');
         }
-        const appointments = response.appointments || [];
+        const result = response as any;
+        const appointments = extractAppointments(result.appointments ?? result.data);
         return {
           success: true,
           appointments,
           data: appointments,
-          meta: response.meta,
+          meta: result.meta,
         } as any;
       },
       staleTime: 10 * 60 * 1000,
@@ -2290,44 +2360,30 @@ export function usePrefetchAppointmentsForRole() {
     // Counselor / therapist: warm the scoped appointment query key. The hook
     // uses `['counselorAppointments', counselorId, filters]` /
     // `['therapistAppointments', therapistId, filters]` so we mirror that
-    // shape here.
-    if (role === 'COUNSELOR') {
+    // shape here. We go straight to REST (the counselor/therapist server
+    // actions are thin proxies over `/appointments?doctorId=<userId>`) so
+    // prefetches never enter the RSC POST surface.
+    if (role === 'COUNSELOR' || role === 'THERAPIST') {
+      const family = role === 'COUNSELOR' ? 'counselorAppointments' : 'therapistAppointments';
       void queryClient
         .prefetchQuery({
-          queryKey: ['counselorAppointments', userId, undefined] as unknown as readonly unknown[],
+          queryKey: [family, userId, undefined] as unknown as readonly unknown[],
           queryFn: async () => {
-            const result = await (await import('@/lib/actions/counselor.server')).getCounselorAppointments(
-              userId,
-              undefined
-            );
-            return result as any;
+            const response = await clinicApiClient.getAppointments({ doctorId: userId });
+            if (!response.success) {
+              throw new Error(response.error || response.message || 'Failed to fetch appointments');
+            }
+            const result = response as any;
+            return {
+              appointments: extractAppointments(result.appointments ?? result.data),
+              meta: result.meta,
+            } as any;
           },
           staleTime: 10 * 60 * 1000,
         })
         .catch((error) => {
           if (process.env.NODE_ENV !== 'production') {
-            logger.warn?.('[usePrefetchAppointmentsForRole] counselor prefetch failed', { error });
-          }
-        });
-      return;
-    }
-
-    if (role === 'THERAPIST') {
-      void queryClient
-        .prefetchQuery({
-          queryKey: ['therapistAppointments', userId, undefined] as unknown as readonly unknown[],
-          queryFn: async () => {
-            const result = await (await import('@/lib/actions/therapist.server')).getAppointments(
-              userId,
-              undefined
-            );
-            return result as any;
-          },
-          staleTime: 10 * 60 * 1000,
-        })
-        .catch((error) => {
-          if (process.env.NODE_ENV !== 'production') {
-            logger.warn?.('[usePrefetchAppointmentsForRole] therapist prefetch failed', { error });
+            logger.warn?.('[usePrefetchAppointmentsForRole] scoped prefetch failed', { role, error });
           }
         });
       return;

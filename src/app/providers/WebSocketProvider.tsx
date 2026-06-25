@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, use, useEffect, ReactNode } from "react";
+import React, { createContext, use, useEffect, useMemo, ReactNode } from "react";
 import { useWebSocketIntegration } from "@/hooks/realtime/useWebSocketIntegration";
 import { useAppStore } from "@/stores";
 import { WebSocketErrorBoundary } from "@/components/common/ErrorBoundary";
@@ -70,10 +70,30 @@ export function WebSocketProvider({
   }, []);
 
   // Context value
-  const contextValue: WebSocketContextType = {
-    ...webSocketIntegration,
-    isRealTimeEnabled: webSocketIntegration.isReady,
-  };
+  // ✅ Memoize so consumers don't re-register subscriptions on every parent
+  // re-render. Without this, the `subscribe` identity changes per render
+  // which causes `useWebSocketQuerySync` and other hooks to tear down and
+  // rebuild their listener tree on every render of any ancestor — a major
+  // source of refetch storms after token expiry reconnects.
+  const contextValue = useMemo<WebSocketContextType>(
+    () => ({
+      ...webSocketIntegration,
+      isRealTimeEnabled: webSocketIntegration.isReady,
+    }),
+    // Only depend on the values that change the public surface of this context.
+    // The store's `subscribe`/`emit`/`reconnect` are stable across renders
+    // (zustand selectors return stable references), and `isReady` is derived
+    // from `isConnected && !error`.
+    [
+      webSocketIntegration.isConnected,
+      webSocketIntegration.connectionStatus,
+      webSocketIntegration.error,
+      webSocketIntegration.isReady,
+      webSocketIntegration.reconnect,
+      webSocketIntegration.emit,
+      webSocketIntegration.subscribe,
+    ]
+  );
 
   const content = (
     <WebSocketContext.Provider value={contextValue}>

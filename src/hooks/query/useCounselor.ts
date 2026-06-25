@@ -11,6 +11,7 @@ import {
   deleteCounselorAppointment,
   updateCounselorClientSession,
 } from '@/lib/actions/counselor.server';
+import { clinicApiClient } from '@/lib/api/client';
 import { usePatientStore } from '@/stores';
 import type { CounselorAppointment, CounselorClient, CounselorSession } from '@/types/medical-records.types';
 
@@ -25,14 +26,24 @@ export const useCounselorAppointments = (counselorId?: string, filters?: {
   return useQueryData(
     ['counselorAppointments', counselorId, filters],
     async () => {
-      const cleanedFilters = filters
-        ? {
-            ...(filters.status ? { status: filters.status } : {}),
-            ...(filters.startDate ? { startDate: filters.startDate } : {}),
-            ...(filters.endDate ? { endDate: filters.endDate } : {}),
-          }
-        : undefined;
-      return await getCounselorAppointments(counselorId || '', cleanedFilters);
+      // ✅ REST path — the previous server-action call ran a full RSC POST
+      // each refetch, contributing to the revalidation storm. The counselor
+      // server action is a thin proxy over `/appointments?doctorId=<id>`,
+      // so we call the REST endpoint directly.
+      const response = await clinicApiClient.getAppointments({
+        ...(counselorId ? { doctorId: counselorId } : {}),
+        ...(filters?.status ? { status: filters.status } : {}),
+        ...(filters?.startDate ? { startDate: filters.startDate } : {}),
+        ...(filters?.endDate ? { endDate: filters.endDate } : {}),
+      });
+      if (!response.success) {
+        throw new Error(response.error || response.message || 'Failed to fetch counselor appointments');
+      }
+      const result = response as any;
+      const appointments = Array.isArray(result)
+        ? result
+        : (result.appointments ?? result.data ?? []);
+      return { appointments };
     },
     {
       enabled: !!counselorId,

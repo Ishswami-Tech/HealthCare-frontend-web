@@ -25,6 +25,9 @@ import { logger } from '@/lib/utils/logger';
 // prefetch helper all share the same list. Re-exported here to keep call
 // sites within this file readable.
 import { APPOINTMENT_QUERY_FAMILIES } from '@/hooks/query/useAppointments';
+import {
+  coalesceRealtimeInvalidation,
+} from '@/hooks/realtime/useRealtimeInvalidationCoalescer';
 
 export function invalidateAppointmentQueryFamilies(queryClient: QueryClient) {
   // Fan-out invalidation: every appointment-surface query refetches on the
@@ -774,8 +777,15 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
     const unsubscribeCallbacks: (() => void)[] = [];
 
     if (subscribeToAppointments && clinicId) {
+      // Coalesce so a burst of appointment events (e.g. a single backend
+      // mutation producing created+updated+status_changed+checked_in in quick
+      // succession, or a token-expiry reconnect firing all handlers at once)
+      // collapses into a single invalidation pass within a 200ms window,
+      // instead of fanning out N times to 40+ query keys.
       const invalidateAppointmentQueries = () => {
-        invalidateAppointmentQueryFamilies(queryClient);
+        coalesceRealtimeInvalidation(queryClient, 'appointments', (qc) => {
+          invalidateAppointmentQueryFamilies(qc);
+        });
       };
 
       const unsubscribeAppointmentCreated = subscribe('appointment.created', (rawData: unknown) => {
@@ -903,9 +913,15 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
             invalidateAppointmentQueries();
           }
 
-          invalidateDashboardQueryFamilies(queryClient);
+          // Dashboard/doctor-availability families also coalesce through the
+          // same window so a multi-event burst doesn't run them N times.
+          coalesceRealtimeInvalidation(queryClient, 'dashboard', (qc) => {
+            invalidateDashboardQueryFamilies(qc);
+          });
           if (event === 'doctor.availability.changed') {
-            invalidateDoctorAvailabilityQueryFamilies(queryClient);
+            coalesceRealtimeInvalidation(queryClient, 'doctor-availability', (qc) => {
+              invalidateDoctorAvailabilityQueryFamilies(qc);
+            });
           }
         })
       );
@@ -1244,85 +1260,63 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
     unsubscribeCallbacks.push(unsubscribeTokenExpired);
 
     if (subscribeToQueues && clinicId) {
-      const invalidateQueueQueries = (payload?: Record<string, unknown>) => {
+      const invalidateQueueQueries = (qc: QueryClient, payload?: Record<string, unknown>) => {
         const payloadLocationId =
           typeof payload?.locationId === 'string' ? payload.locationId : undefined;
         const payloadQueueName =
           typeof payload?.queueName === 'string' ? payload.queueName : undefined;
 
-        void queryClient.invalidateQueries({ queryKey: ['queue'], exact: false });
-        queryClient.invalidateQueries({ queryKey: ['queue-status'] });
-        queryClient.invalidateQueries({ queryKey: ['queue-metrics'] });
-        queryClient.invalidateQueries({ queryKey: ['myAppointments'], exact: false });
-        queryClient.invalidateQueries({ queryKey: ['appointments'], exact: false });
-        invalidateDashboardQueryFamilies(queryClient);
+        void qc.invalidateQueries({ queryKey: ['queue'], exact: false });
+        qc.invalidateQueries({ queryKey: ['queue-status'] });
+        qc.invalidateQueries({ queryKey: ['queue-metrics'] });
+        qc.invalidateQueries({ queryKey: ['myAppointments'], exact: false });
+        qc.invalidateQueries({ queryKey: ['appointments'], exact: false });
 
         if (payloadLocationId || payloadQueueName) {
-          void queryClient.invalidateQueries({
+          void qc.invalidateQueries({
             queryKey: getQueueStatusQueryKey(currentClinicId, payloadLocationId, payloadQueueName),
             exact: true,
           });
         }
       };
 
-      const invalidateMedicineDeskQueries = () => {
-        queryClient.invalidateQueries({ queryKey: ['prescriptions'], exact: false });
-        queryClient.invalidateQueries({ queryKey: ['medicineDeskQueue'], exact: false });
-        queryClient.invalidateQueries({ queryKey: ['pharmacyStats'], exact: false });
+      const invalidateMedicineDeskQueries = (qc: QueryClient) => {
+        qc.invalidateQueries({ queryKey: ['prescriptions'], exact: false });
+        qc.invalidateQueries({ queryKey: ['medicineDeskQueue'], exact: false });
+        qc.invalidateQueries({ queryKey: ['pharmacyStats'], exact: false });
       };
 
-      const unsubscribeQueueUpdate = subscribe('queue:update', (rawData: unknown) => {
+      // Hoist + coalesce: a single backend mutation can fire several of these
+      // queue events back-to-back. Without coalescing, each one fans out to
+      // ~12 queue query keys (queue, queue-status, queue-metrics,
+      // queueHistory, queueAnalytics, queueConfig, queueNotifications,
+      // queueWaitTimes, queueCapacity, queuePerformanceMetrics, queueAlerts,
+      // prescriptions, medicineDeskQueue, pharmacyStats). With 5 events in
+      // 200ms that's 60+ refetches scheduled, instead of 12.
+      const handleQueueEvent = (rawData: unknown) => {
         const data = rawData as Record<string, unknown>;
-        invalidateQueueQueries(data);
-      });
+        coalesceRealtimeInvalidation(queryClient, 'queue', (qc) => {
+          invalidateQueueQueries(qc, data);
+        });
+      };
 
-      const unsubscribeQueueUpdated = subscribe('queue.updated', (rawData: unknown) => {
-        const data = rawData as Record<string, unknown>;
-        invalidateQueueQueries(data);
-      });
-
-      const unsubscribeQueuePositionUpdated = subscribe('queue.position.updated', (rawData: unknown) => {
-        const data = rawData as Record<string, unknown>;
-        invalidateQueueQueries(data);
-      });
-
-      const unsubscribeQueuePatientAdded = subscribe('queue:patient_added', (rawData: unknown) => {
-        const data = rawData as Record<string, unknown>;
-        invalidateQueueQueries(data);
-      });
-
-      const unsubscribeQueuePatientRemoved = subscribe('queue:patient_removed', (rawData: unknown) => {
-        const data = rawData as Record<string, unknown>;
-        invalidateQueueQueries(data);
-      });
-
-      const unsubscribeEnterpriseQueueUpdated = subscribe('appointment.queue.updated', (rawData: unknown) => {
-        const data = rawData as Record<string, unknown>;
-        invalidateQueueQueries(data);
-      });
-
-      const unsubscribeEnterpriseQueuePosition = subscribe(
+      const queueEventNames = [
+        'queue:update',
+        'queue.updated',
+        'queue.position.updated',
+        'queue:patient_added',
+        'queue:patient_removed',
+        'appointment.queue.updated',
         'appointment.queue.position.updated',
-        (rawData: unknown) => {
-          const data = rawData as Record<string, unknown>;
-          invalidateQueueQueries(data);
-        }
+        'appointment.queue.reordered',
+        'queue.alert.created',
+        'queue.alert.resolved',
+        'queue.report.generated',
+      ] as const;
+
+      const queueEventUnsubscribers = queueEventNames.map((eventName) =>
+        subscribe(eventName, handleQueueEvent)
       );
-
-      const unsubscribeAppointmentQueueReordered = subscribe('appointment.queue.reordered', (rawData: unknown) => {
-        const data = rawData as Record<string, unknown>;
-        invalidateQueueQueries(data);
-      });
-
-      const unsubscribeAppointmentReassigned = subscribe('appointment.reassigned', (rawData: unknown) => {
-        const data = rawData as Record<string, unknown>;
-        invalidateQueueQueries(data);
-      });
-
-      const unsubscribeAppointmentCheckedIn = subscribe('appointment.checked_in', (rawData: unknown) => {
-        const data = rawData as Record<string, unknown>;
-        invalidateQueueQueries(data);
-      });
 
       const unsubscribeQueueMetrics = subscribe('queue_metrics_update', (rawData: unknown) => {
         const data = rawData as Record<string, unknown>;
@@ -1339,7 +1333,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
           );
         }
 
-        invalidateQueueQueries(data);
+        handleQueueEvent(rawData);
       });
 
       const unsubscribeQueueMetricsEnterprise = subscribe('queue.metrics.updated', (rawData: unknown) => {
@@ -1357,54 +1351,27 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
           );
         }
 
-        invalidateQueueQueries(data);
+        handleQueueEvent(rawData);
       });
 
       const unsubscribeQueueHealthChanged = subscribe('queue.health.changed', (rawData: unknown) => {
-        const data = rawData as Record<string, unknown>;
-        invalidateQueueQueries(data);
-      });
-
-      const unsubscribeQueueAlertCreated = subscribe('queue.alert.created', (rawData: unknown) => {
-        const data = rawData as Record<string, unknown>;
-        invalidateQueueQueries(data);
-      });
-
-      const unsubscribeQueueAlertResolved = subscribe('queue.alert.resolved', (rawData: unknown) => {
-        const data = rawData as Record<string, unknown>;
-        invalidateQueueQueries(data);
-      });
-
-      const unsubscribeQueueReportGenerated = subscribe('queue.report.generated', (rawData: unknown) => {
-        const data = rawData as Record<string, unknown>;
-        invalidateQueueQueries(data);
+        handleQueueEvent(rawData);
       });
 
       const unsubscribeMedicineDeskUpdated = subscribe(
         'pharmacy.medicine_desk.updated',
         (rawData: unknown) => {
-          const data = rawData as Record<string, unknown>;
-          invalidateMedicineDeskQueries();
+          coalesceRealtimeInvalidation(queryClient, 'medicine-desk', (qc) => {
+            invalidateMedicineDeskQueries(qc);
+          });
         }
       );
 
       unsubscribeCallbacks.push(
-        unsubscribeQueueUpdate,
-        unsubscribeQueueUpdated,
-        unsubscribeQueuePositionUpdated,
-        unsubscribeQueuePatientAdded,
-        unsubscribeQueuePatientRemoved,
-        unsubscribeEnterpriseQueueUpdated,
-        unsubscribeEnterpriseQueuePosition,
-        unsubscribeAppointmentQueueReordered,
-        unsubscribeAppointmentReassigned,
-        unsubscribeAppointmentCheckedIn,
+        ...queueEventUnsubscribers,
         unsubscribeQueueMetrics,
         unsubscribeQueueMetricsEnterprise,
         unsubscribeQueueHealthChanged,
-        unsubscribeQueueAlertCreated,
-        unsubscribeQueueAlertResolved,
-        unsubscribeQueueReportGenerated,
         unsubscribeMedicineDeskUpdated
       );
     }

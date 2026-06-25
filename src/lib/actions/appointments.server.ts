@@ -13,6 +13,7 @@ import { logger } from '@/lib/utils/logger';
 import { isApiError } from '@/lib/utils/error-handler';
 import { API_ENDPOINTS, APP_CONFIG } from '@/lib/config/config';
 import { formatISODateInIST, formatTimeInIST } from '@/lib/utils/appointmentUtils';
+import { normalizeAppointment as normalizeAppointmentShared } from '@/lib/utils/appointmentUtils';
 import type { 
   Appointment, 
   CreateAppointmentData, 
@@ -44,62 +45,7 @@ function toIstAppointmentIso(date: string, time: string): string {
 }
 
 function normalizeAppointment(raw: Appointment | (Appointment & { appointmentDate?: string })) {
-  const metadata =
-    raw.metadata && typeof raw.metadata === 'object' && !Array.isArray(raw.metadata)
-      ? (raw.metadata as Record<string, unknown>)
-      : {};
-  const appointmentDate =
-    typeof (raw as { appointmentDate?: string }).appointmentDate === 'string'
-      ? (raw as { appointmentDate?: string }).appointmentDate
-      : undefined;
-
-  const normalizedRaw = {
-    ...raw,
-    primaryDoctorId:
-      typeof raw.primaryDoctorId === 'string'
-        ? raw.primaryDoctorId
-        : typeof metadata.primaryDoctorId === 'string'
-          ? metadata.primaryDoctorId
-          : raw.doctorId,
-    assignedDoctorId:
-      typeof raw.assignedDoctorId === 'string'
-        ? raw.assignedDoctorId
-        : typeof metadata.assignedDoctorId === 'string'
-          ? metadata.assignedDoctorId
-          : raw.doctorId,
-    doctorRole:
-      typeof raw.doctorRole === 'string'
-        ? raw.doctorRole
-        : typeof (raw as { doctor?: { role?: string; user?: { role?: string } } }).doctor?.role === 'string'
-          ? (raw as { doctor?: { role?: string; user?: { role?: string } } }).doctor?.role
-          : typeof (raw as { doctor?: { role?: string; user?: { role?: string } } }).doctor?.user?.role ===
-              'string'
-            ? (raw as { doctor?: { role?: string; user?: { role?: string } } }).doctor?.user?.role
-            : undefined,
-  };
-
-  if (!appointmentDate) {
-    return normalizedRaw;
-  }
-
-  const parsedDate = new Date(appointmentDate);
-  if (Number.isNaN(parsedDate.getTime())) {
-    return normalizedRaw;
-  }
-
-  // Use IST timezone for both date and time to ensure correct clinic-local values
-  const istDate = formatISODateInIST(parsedDate);
-  const istTime = formatTimeInIST(parsedDate, {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-
-  return {
-    ...normalizedRaw,
-    date: istDate,
-    time: istTime,
-  };
+  return normalizeAppointmentShared(raw as unknown as Record<string, unknown>) as Appointment;
 }
 
 // ===== APPOINTMENT ACTIONS =====
@@ -1309,7 +1255,7 @@ export async function getUserUpcomingAppointments(filters?: { clinicId?: string 
 
     const now = new Date();
     const appointments = Array.isArray(result.appointments)
-      ? (result.appointments as Array<Record<string, unknown>>).filter(appointment => {
+      ? (result.appointments as unknown as Array<Record<string, unknown>>).filter(appointment => {
           const status = String(appointment.status || '').toUpperCase();
           if (['CANCELLED', 'COMPLETED', 'NO_SHOW', 'EXPIRED'].includes(status)) {
             return false;

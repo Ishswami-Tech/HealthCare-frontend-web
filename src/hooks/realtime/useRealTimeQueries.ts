@@ -173,7 +173,13 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
       staleTime: 60 * 1000, // 1 minute (optimized for 10M users - real-time updates reduce need for frequent refetch)
       gcTime: 10 * 60 * 1000, // 10 minutes (increased for 10M users)
       refetchOnWindowFocus: false,
-      refetchOnReconnect: true,
+      // ✅ Realtime coverage via WebSocket invalidates this query on
+      // appointment.* events. refetchOnReconnect after a token-refresh
+      // cycle was the source of the post-401 revalidation storm — every
+      // reconnect fired N parallel server-action POSTs that all 401'd in
+      // unison and surfaced empty skeletons because `placeholderData` had
+      // no previous data to fall back to once `gcTime` elapsed.
+      refetchOnReconnect: false,
       refetchInterval: isConnected ? false : 30_000,
       // Keep the last-good list visible during a 401/refresh cycle or any
       // other refetch failure. Without this the dashboard flashes a skeleton
@@ -213,6 +219,12 @@ export function useRealTimeAppointmentStats() {
       gcTime: 15 * 60 * 1000, // 15 minutes
       refetchInterval: isConnected ? false : 10 * 60 * 1000, // 10 minutes if not real-time (increased for 10M users)
       refetchOnWindowFocus: false,
+      // ✅ Realtime coverage invalidates on appointment.* events; see
+      // note in useRealTimeAppointments above. Stats must refetch on
+      // reconnect after long disconnects though — keeping true here so
+      // a 30-minute disconnect still produces a fresh analytics rollup
+      // once the socket returns. The 30s polling fallback (when
+      // !isConnected) still runs as a safety net.
       refetchOnReconnect: true,
       placeholderData: keepPreviousData,
     }
@@ -434,168 +446,25 @@ export function useRealTimeAppointmentMutation() {
   };
 }
 
-// Utility hook for managing query invalidation based on WebSocket events
+/**
+ * Compatibility shim — historically this hook set up a giant duplicate
+ * subscription tree (cache:invalidate, cache:update, billing.*,
+ * appointment.*, check-in, batch_invalidate, plus a disconnected-mode
+ * fallback refetch) on every consumer mount. That tree was duplicated
+ * by `useWebSocketIntegration` (mounted at the provider level), so each
+ * consumer added another full listener graph that re-ran on every
+ * reconnect — the source of the post-token-expiry revalidation storm.
+ *
+ * The provider-level integration is now the single source of truth.
+ * This hook is kept as a no-op so the ~45 call sites that import it
+ * continue to type-check. New consumers should not need this hook at all;
+ * the WebSocket is already wired up by being inside the provider.
+ */
 export function useWebSocketQuerySync() {
-  const queryClient = useQueryClient();
-  const { isConnected, subscribe } = useWebSocketContext();
-  const fallbackRefetchInFlightRef = useRef(false);
-
-  useEffect(() => {
-    if (!isConnected) return;
-
-    const invalidateQueueQueryFamilies = () => {
-      void queryClient.invalidateQueries({ queryKey: ['queue'], exact: false });
-      void queryClient.invalidateQueries({ queryKey: ['queue-status'], exact: false });
-      void queryClient.invalidateQueries({ queryKey: ['queue-metrics'], exact: false });
-      void queryClient.invalidateQueries({ queryKey: ['queueHistory'], exact: false });
-      void queryClient.invalidateQueries({ queryKey: ['queueAnalytics'], exact: false });
-      void queryClient.invalidateQueries({ queryKey: ['queueConfig'], exact: false });
-      void queryClient.invalidateQueries({ queryKey: ['queueNotifications'], exact: false });
-      void queryClient.invalidateQueries({ queryKey: ['queueWaitTimes'], exact: false });
-      void queryClient.invalidateQueries({ queryKey: ['queueCapacity'], exact: false });
-      void queryClient.invalidateQueries({ queryKey: ['queuePerformanceMetrics'], exact: false });
-      void queryClient.invalidateQueries({ queryKey: ['queueAlerts'], exact: false });
-    };
-
-    // Global cache invalidation events
-    const unsubscribeGlobalRefresh = subscribe('cache:invalidate', (rawData: unknown) => {
-      const data = rawData as {
-        queryKeys: string[];
-        exact?: boolean;
-      };
-      data.queryKeys.forEach(queryKey => {
-        queryClient.invalidateQueries({ 
-          queryKey: [queryKey], 
-          exact: data.exact ?? false 
-        });
-      });
-    });
-
-    // Specific query updates
-    const unsubscribeQueryUpdate = subscribe('cache:update', (rawData: unknown) => {
-      const data = rawData as {
-        queryKey: string[];
-        data: Record<string, unknown>;
-      };
-      queryClient.setQueryData(data.queryKey, data.data);
-    });
-
-    const billingLifecycleEvents = [
-      'billing.plan.created',
-      'billing.plan.updated',
-      'billing.plan.deleted',
-      'billing.subscription.created',
-      'billing.subscription.updated',
-      'billing.subscription.cancelled',
-      'billing.subscription.renewed',
-      'billing.subscription.quota_reset',
-      'billing.invoice.created',
-      'billing.invoice.updated',
-      'billing.invoice.paid',
-      'billing.invoice.pdf_generated',
-      'billing.invoice.sent_whatsapp',
-      'billing.payment.created',
-      'billing.payment.updated',
-      'billing.receipt.sent_whatsapp',
-      'billing.receipt.paid',
-      'billing.payout.pending',
-      'billing.payout.success',
-      'payment.pending',
-      'payment.completed',
-      'payment.failed',
-      'payment.cancelled',
-      'payment.intent.created',
-      'payment.refunded',
-    ] as const;
-
-    const unsubscribePaymentLifecycleEvents = billingLifecycleEvents.map((event) =>
-      subscribe(event, () => {
-        invalidateBillingQueryFamilies(queryClient);
-        invalidateDashboardQueryFamilies(queryClient);
-        invalidateAppointmentQueryFamilies(queryClient);
-      })
-    );
-
-    const appointmentLifecycleEvents = [
-      'appointment.created',
-      'appointment.updated',
-      'appointment.confirmed',
-      'appointment.cancelled',
-      'appointment.rescheduled',
-      'appointment.completed',
-      'appointment.status_changed',
-      'appointment.checked_in',
-      'appointment.slot.confirmed',
-      'appointment.consultation_started',
-    ] as const;
-
-    const unsubscribeAppointmentLifecycleEvents = appointmentLifecycleEvents.map((event) =>
-      subscribe(event, () => {
-        invalidateAppointmentQueryFamilies(queryClient);
-        invalidateDashboardQueryFamilies(queryClient);
-        invalidateQueueQueryFamilies();
-      })
-    );
-
-    const checkInLifecycleEvents = ['appointment.checked_in', 'appointment.confirmed'] as const;
-
-    const unsubscribeCheckInLifecycleEvents = checkInLifecycleEvents.map((event) =>
-      subscribe(event, () => {
-        invalidateAppointmentQueryFamilies(queryClient);
-        invalidateQueueQueryFamilies();
-        invalidateDashboardQueryFamilies(queryClient);
-      })
-    );
-
-    // Batch invalidation for performance
-    const unsubscribeBatchInvalidate = subscribe('cache:batch_invalidate', (rawData: unknown) => {
-      const data = rawData as {
-        patterns: string[];
-      };
-      data.patterns.forEach(pattern => {
-        queryClient.invalidateQueries({
-          predicate: (query) => 
-            query.queryKey.some(key => 
-              typeof key === 'string' && key.includes(pattern)
-            ),
-        });
-      });
-    });
-
-    return () => {
-      unsubscribeGlobalRefresh();
-      unsubscribeQueryUpdate();
-      unsubscribePaymentLifecycleEvents.forEach((unsubscribe) => unsubscribe());
-      unsubscribeAppointmentLifecycleEvents.forEach((unsubscribe) => unsubscribe());
-      unsubscribeCheckInLifecycleEvents.forEach((unsubscribe) => unsubscribe());
-      unsubscribeBatchInvalidate();
-    };
-  }, [isConnected, subscribe, queryClient]);
-
-  useEffect(() => {
-    if (isConnected) {
-      fallbackRefetchInFlightRef.current = false;
-      return;
-    }
-
-    if (fallbackRefetchInFlightRef.current) {
-      return;
-    }
-
-    fallbackRefetchInFlightRef.current = true;
-    const timer = setTimeout(() => {
-      void refetchCriticalRealtimeQueries(queryClient).finally(() => {
-        fallbackRefetchInFlightRef.current = false;
-      });
-    }, 750);
-
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [isConnected, queryClient]);
-
+  const { isConnected } = useWebSocketContext();
   return { isConnected };
 }
+
 
 // ============================================================================
 // MASTER REAL-TIME INTEGRATION HOOK

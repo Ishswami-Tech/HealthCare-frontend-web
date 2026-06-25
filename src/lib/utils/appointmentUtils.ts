@@ -1494,3 +1494,85 @@ export function getReceptionistAppointmentTimeLabel(
     hour12: true,
   });
 }
+
+/**
+ * Normalize a raw appointment record from any source (REST or server action)
+ * into the canonical shape used by the UI.
+ *
+ * IMPORTANT: This MUST stay in lock-step with the original
+ * `normalizeAppointment` in `src/lib/actions/appointments.server.ts`.
+ * Extracted here so the realtime hooks (which are pure client code and
+ * cannot import from a 'use server' module) can normalize the same way
+ * the server actions do — preventing drift between cached data and
+ * what the UI expects.
+ */
+export interface NormalizeAppointmentInput {
+  appointmentDate?: string;
+  primaryDoctorId?: unknown;
+  assignedDoctorId?: unknown;
+  doctorId?: unknown;
+  doctorRole?: unknown;
+  doctor?: { role?: unknown; user?: { role?: unknown } };
+  metadata?: unknown;
+  [key: string]: unknown;
+}
+
+export function normalizeAppointment<
+  T extends NormalizeAppointmentInput,
+  R = T & { date?: string; time?: string }
+>(raw: T): R {
+  const metadata =
+    raw.metadata && typeof raw.metadata === 'object' && !Array.isArray(raw.metadata)
+      ? (raw.metadata as Record<string, unknown>)
+      : {};
+  const appointmentDate =
+    typeof raw.appointmentDate === 'string' ? raw.appointmentDate : undefined;
+
+  const normalizedRaw: Record<string, unknown> = {
+    ...raw,
+    primaryDoctorId:
+      typeof raw.primaryDoctorId === 'string'
+        ? raw.primaryDoctorId
+        : typeof metadata.primaryDoctorId === 'string'
+          ? metadata.primaryDoctorId
+          : raw.doctorId,
+    assignedDoctorId:
+      typeof raw.assignedDoctorId === 'string'
+        ? raw.assignedDoctorId
+        : typeof metadata.assignedDoctorId === 'string'
+          ? metadata.assignedDoctorId
+          : raw.doctorId,
+    doctorRole:
+      typeof raw.doctorRole === 'string'
+        ? raw.doctorRole
+        : typeof raw.doctor?.role === 'string'
+          ? raw.doctor.role
+          : typeof raw.doctor?.user?.role === 'string'
+            ? raw.doctor.user.role
+            : undefined,
+  };
+
+  if (!appointmentDate) {
+    return normalizedRaw as unknown as R;
+  }
+
+  const parsedDate = new Date(appointmentDate);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return normalizedRaw as unknown as R;
+  }
+
+  // Use IST timezone for both date and time to ensure correct clinic-local values
+  const istDate = formatISODateInIST(parsedDate);
+  const istTime = formatTimeInIST(parsedDate, {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+
+  return {
+    ...normalizedRaw,
+    date: istDate,
+    time: istTime,
+  } as unknown as R;
+}
+
