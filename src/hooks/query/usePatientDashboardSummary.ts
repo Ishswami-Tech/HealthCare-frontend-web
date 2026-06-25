@@ -140,7 +140,10 @@ export const usePatientDashboardSummary = (
       // window so navigating away and back doesn't refetch.
       staleTime: 60 * 1000,
       gcTime: 10 * 60 * 1000,
-      refetchOnMount: true,
+      // Use cached data on mount if available. Realtime invalidation or staleTime
+      // will trigger refetch when needed. This eliminates redundant fetch on
+      // each navigation to the dashboard.
+      refetchOnMount: false,
       refetchOnWindowFocus: false,
       refetchOnReconnect: !isAuthRefreshing,
       // While the WebSocket is connected the realtime layer invalidates
