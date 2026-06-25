@@ -1444,10 +1444,13 @@ export const useMyAppointments = (filters?: {
 }) => {
   const { hasPermission } = useRBAC();
   const { session } = useAuth();
-  const { isConnected } = useWebSocketStatus();
+  const { connectionStatus } = useWebSocketStatus();
   const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
   const userId = session?.user?.id;
   const userRole = session?.user?.role;
+
+  const hasSocketFailed =
+    connectionStatus === 'error' || connectionStatus === 'disconnected';
 
   const query = useQueryData(
     ['myAppointments', userId, userRole, filters],
@@ -1485,10 +1488,10 @@ export const useMyAppointments = (filters?: {
       enabled: (options?.enabled ?? true) && !!userId && hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 2 * 60 * 1000, // reuse recent appointment data across patient pages
       gcTime: 10 * 60 * 1000,
-      refetchOnMount: true, // Refetch when invalidated so payment callback navigation refreshes the list
+      refetchOnMount: false,
       refetchOnWindowFocus: false,
-      refetchOnReconnect: !isAuthRefreshing,
-      refetchInterval: isConnected || isAuthRefreshing ? false : 30_000,
+      refetchOnReconnect: false,
+      refetchInterval: hasSocketFailed && !isAuthRefreshing ? 2 * 60_000 : false,
       retry: (failureCount, error: Error) => {
         if (error.message.includes('Access denied')) {
           return false;
@@ -2259,7 +2262,6 @@ export function usePrefetchMyAppointments(filters?: { clinicId?: string }) {
   // Stabilize the filter object so we don't refire on every render.
   const stableFilters = useMemo(
     () => (filters ? { ...filters } : undefined),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [filters?.clinicId]
   );
 
@@ -2325,11 +2327,10 @@ export async function prefetchAppointments(
 }
 
 /**
- * Role-aware dashboard prefetch: warms the cache for the appointments list
- * appropriate to the viewer's role (patient, doctor, counselor, therapist,
- * admin/reception) so the first navigation to the corresponding dashboard
- * has no loading skeleton. No-ops for guests and for users without the
- * permission to view appointments.
+ * Role-aware dashboard prefetch: warms staff appointment lists. Patient
+ * dashboards use `patientDashboardSummary` as their appointment bootstrap
+ * and rely on realtime cache updates after that, so this intentionally
+ * no-ops for patients.
  */
 export function usePrefetchAppointmentsForRole() {
   const queryClient = useQueryClient();
@@ -2346,14 +2347,10 @@ export function usePrefetchAppointmentsForRole() {
 
     const role = String(userRole || '').toUpperCase();
 
-    // Patient: warm `myAppointments` (uses the same key as `useMyAppointments`).
+    // Patient dashboard uses `patientDashboardSummary` for appointment widgets.
+    // Do not prefetch `myAppointments` globally; that would trigger a REST
+    // appointment request on every dashboard load even when realtime is active.
     if (role === 'PATIENT') {
-      void prefetchMyAppointments(queryClient, {
-        userId,
-        userRole,
-        hasPermission,
-        filters: clinicId ? { clinicId } : undefined,
-      });
       return;
     }
 

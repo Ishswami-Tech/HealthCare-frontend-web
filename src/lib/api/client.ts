@@ -1144,6 +1144,12 @@ export class ClinicApiClient extends ApiClient {
     return this.get(API_ENDPOINTS.APPOINTMENTS.MY_APPOINTMENTS, params);
   }
 
+  async getPatientDashboardSummary() {
+    return this.get(API_ENDPOINTS.PATIENTS.DASHBOARD_SUMMARY, {
+      cache: 'no-store',
+    });
+  }
+
   async getAppointmentById(id: string) {
     return this.get(API_ENDPOINTS.APPOINTMENTS.GET_BY_ID(id));
   }

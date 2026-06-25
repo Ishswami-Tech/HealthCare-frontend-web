@@ -217,16 +217,14 @@ export function DashboardLayout({
   }, [user, currentUserProfile, normalizedUserRole]);
 
   // ─── Role-aware prefetch for every dashboard scope ───────────────────────
-  // Warms the React Query cache for the appointments list as soon as the
-  // dashboard mounts. The patient branch of this hook prefetches under the
-  // `['myAppointments', userId, userRole, { clinicId }]` key, which matches
-  // what the patient dashboard and appointments page use, so the first paint
-  // reads from cache.
+  // Warms staff appointment lists as soon as the dashboard mounts. Patients
+  // intentionally use `patientDashboardSummary` for dashboard appointment
+  // bootstrap so the dashboard does not issue a separate `myAppointments`
+  // REST request on every load.
   //
   // Previously this layout also called `usePrefetchMyAppointments()` (no
   // clinicId), which used the no-filter key and produced a duplicate fetch
-  // with a different cache slot. The role-aware hook covers the patient case
-  // now, so the redundant call has been removed.
+  // with a different cache slot.
   usePrefetchAppointmentsForRole();
 
   // Prefetch the composed dashboard summary so the first paint of

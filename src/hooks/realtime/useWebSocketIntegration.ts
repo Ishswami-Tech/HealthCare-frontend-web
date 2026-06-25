@@ -37,7 +37,7 @@ export function invalidateAppointmentQueryFamilies(queryClient: QueryClient) {
   // used here — the realtime event is a state-change signal, not a
   // hint to silently invalidate.
   for (const queryKey of APPOINTMENT_QUERY_FAMILIES) {
-    void queryClient.invalidateQueries({ queryKey, exact: false });
+    void queryClient.invalidateQueries({ queryKey, exact: false, refetchType: 'none' });
   }
   // Non-appointment keys that still benefit from a refetch when the
   // underlying clinic data changes (e.g. doctor list reflowing as a
@@ -1273,9 +1273,6 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         void qc.invalidateQueries({ queryKey: ['queue'], exact: false });
         qc.invalidateQueries({ queryKey: ['queue-status'] });
         qc.invalidateQueries({ queryKey: ['queue-metrics'] });
-        qc.invalidateQueries({ queryKey: ['myAppointments'], exact: false });
-        qc.invalidateQueries({ queryKey: ['appointments'], exact: false });
-
         if (payloadLocationId || payloadQueueName) {
           void qc.invalidateQueries({
             queryKey: getQueueStatusQueryKey(currentClinicId, payloadLocationId, payloadQueueName),

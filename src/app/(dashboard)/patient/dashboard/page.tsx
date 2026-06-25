@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useUserProfile } from "@/hooks/query/useUsers";
-import { useMyAppointments, hasAppointmentsLoadedForSession } from "@/hooks/query/useAppointments";
 import {
   usePatientDashboardSummary,
   hasDashboardSummaryLoadedForSession,
@@ -71,18 +70,6 @@ export default function PatientDashboard() {
   const clinicId = session?.user?.clinicId || "";
   const patientId = user?.id || "";
 
-  // Fetch real data using hooks with loading and error states.
-  //
-  // Passing `{ clinicId }` explicitly aligns the query key with the layout-level
-  // prefetch (`usePrefetchMyAppointments` / `usePrefetchAppointmentsForRole`) so
-  // the prefetched entry is reused on first mount instead of triggering a fresh
-  // server-action fetch. It also matches the appointments-page key, so the
-  // cache entry is shared between both pages. Without this, the dashboard and
-  // appointments page store the same data under different keys and the
-  // dashboard sees an empty list on first paint.
-  const appointmentsFilters = clinicId ? { clinicId } : undefined;
-  const { data: appointmentsData, isPending: isPendingAppointments } = useMyAppointments(appointmentsFilters);
-
   // Composed single-round-trip summary. Replaces the previous fan-out of
   // 5+ separate hooks (vitals, prescriptions, comprehensive EHR, invoices,
   // payments, medical records). Each sub-field below is derived from the
@@ -97,18 +84,15 @@ export default function PatientDashboard() {
   const prescriptionsData = Array.isArray(summary?.prescriptions) ? summary!.prescriptions : [];
   const invoicesData = Array.isArray(summary?.invoices) ? summary!.invoices : [];
   const paymentsData = Array.isArray(summary?.payments) ? summary!.payments : [];
-
-  // First-load-only skeleton gate: keep the previous list visible during
-  // background refetches. The hook uses `placeholderData: keepPreviousData`
-  // so the previous payload is preserved; the gate only triggers when the
-  // cache is truly empty.
-  const hasCachedAppointments =
-    Array.isArray(appointmentsData?.appointments) &&
-    (appointmentsData.appointments as any[]).length > 0;
-  const showAppointmentsSkeleton =
-    isPendingAppointments &&
-    !hasCachedAppointments &&
-    !hasAppointmentsLoadedForSession();
+  const summaryAppointments = Array.isArray(summary?.appointments) ? summary.appointments : [];
+  const appointmentsData = useMemo(
+    () => ({
+      success: true,
+      appointments: summaryAppointments,
+      data: { appointments: summaryAppointments },
+    }),
+    [summaryAppointments]
+  );
 
   // Same gate for the dashboard summary — if it's the first load this
   // session and the cache is empty, show a skeleton; otherwise keep the
@@ -122,9 +106,10 @@ export default function PatientDashboard() {
     isPendingSummary &&
     !hasCachedSummary &&
     !hasDashboardSummaryLoadedForSession();
+  const showAppointmentsSkeleton = showSummarySkeleton;
 
   const hasInPersonAppointment = useMemo(() => {
-    const appointments = Array.isArray(appointmentsData?.appointments) ? appointmentsData.appointments : [];
+    const appointments = summaryAppointments;
 
     return appointments.some((appointment: any) => {
       const status = normalizeAppointmentStatus(appointment?.status);
@@ -137,7 +122,7 @@ export default function PatientDashboard() {
           status !== "EXPIRED"
         );
     });
-  }, [appointmentsData]);
+  }, [summaryAppointments]);
 
   const resolvePatientDisplayName = (value: {
     firstName?: string | undefined;
@@ -182,9 +167,7 @@ export default function PatientDashboard() {
       }
     };
 
-    const rawAppointments = Array.isArray(appointmentsData?.appointments)
-      ? appointmentsData.appointments
-      : [];
+    const rawAppointments = summaryAppointments;
     const appointments = Array.isArray(rawAppointments) ? rawAppointments : [];
     const uniqueAppointments = Array.from(
       new Map(
@@ -489,7 +472,7 @@ export default function PatientDashboard() {
       recordsCount: Array.isArray(medicalRecordsData) ? medicalRecordsData.length : 0,
     };
   }, [
-    appointmentsData,
+    summaryAppointments,
     medicalRecordsData,
     vitalSignsData,
     prescriptionsData,
