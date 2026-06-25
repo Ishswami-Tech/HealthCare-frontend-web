@@ -7,6 +7,7 @@ import { APP_CONFIG } from "@/lib/config/config";
 
 export interface WebSocketState {
   socket: Socket | null;
+  connectionKey: string | null;
   isConnected: boolean;
   connectionStatus: 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'error';
   error: string | null;
@@ -37,14 +38,44 @@ export interface ConnectionOptions {
   autoReconnect?: boolean;
   reconnectionAttempts?: number;
   reconnectionDelay?: number;
+  forceReconnect?: boolean;
   onAuthError?: (error: Error) => void;
   onConnect?: () => void;
+}
+
+function normalizeSocketUrl(url: string, namespace = '') {
+  let normalizedUrl = url.trim();
+
+  if (!/^[a-z]+:\/\//i.test(normalizedUrl)) {
+    normalizedUrl = /^(localhost|127\.0\.0\.1|\[::1\]|::1)(:\d+)?(\/.*)?$/i.test(normalizedUrl)
+      ? `http://${normalizedUrl}`
+      : `https://${normalizedUrl}`;
+  }
+
+  normalizedUrl = normalizedUrl.replace(/\/socket\.io\/?$/, '');
+  normalizedUrl = normalizedUrl.replace(/^ws:\/\//, 'http://');
+  normalizedUrl = normalizedUrl.replace(/^wss:\/\//, 'https://');
+
+  return namespace ? `${normalizedUrl}${namespace}` : normalizedUrl;
+}
+
+function buildConnectionKey(args: {
+  fullUrl: string;
+  tenantId?: string;
+  userId?: string;
+}) {
+  return [
+    args.fullUrl,
+    args.tenantId?.trim() || '',
+    args.userId?.trim() || '',
+  ].join('|');
 }
 
 export const useWebSocketStore = create<WebSocketState>()(
   devtools(
     (set, get) => ({
       socket: null,
+      connectionKey: null,
       isConnected: false,
       connectionStatus: 'disconnected',
       error: null,
@@ -66,10 +97,27 @@ export const useWebSocketStore = create<WebSocketState>()(
           autoReconnect = true,
           reconnectionAttempts = 5,
           reconnectionDelay = 1000,
+          forceReconnect = false,
           onAuthError,
         } = options;
 
+        const fullUrl = normalizeSocketUrl(url, namespace);
+        const connectionKey = buildConnectionKey({ fullUrl, tenantId, userId });
         const currentSocket = get().socket;
+        const currentState = get();
+        const isSameConnection = currentState.connectionKey === connectionKey;
+        const isActiveOrConnecting =
+          currentSocket?.connected ||
+          currentState.connectionStatus === 'connecting' ||
+          currentState.connectionStatus === 'reconnecting';
+
+        if (currentSocket && isSameConnection && isActiveOrConnecting && !forceReconnect) {
+          if (currentSocket.connected && typeof options.onConnect === 'function') {
+            options.onConnect();
+          }
+          return;
+        }
+
         if (currentSocket) {
           try {
             currentSocket.removeAllListeners();
@@ -77,7 +125,7 @@ export const useWebSocketStore = create<WebSocketState>()(
             // Ignore listener cleanup failures during reconnect teardown.
           }
           currentSocket.disconnect();
-          set({ socket: null, isConnected: false });
+          set({ socket: null, connectionKey: null, isConnected: false });
         }
 
         set({ connectionStatus: 'connecting', error: null });
@@ -86,25 +134,6 @@ export const useWebSocketStore = create<WebSocketState>()(
           // ✅ FIX: Normalize Socket.IO URL
           // Socket.IO expects base HTTP/HTTPS URL, not ws:// or wss://
           // It automatically handles protocol upgrade and /socket.io path
-          let normalizedUrl = url.trim();
-          
-          // Ensure bare localhost endpoints stay on HTTP unless explicitly configured otherwise
-          if (!/^[a-z]+:\/\//i.test(normalizedUrl)) {
-            normalizedUrl = /^(localhost|127\.0\.0\.1|\[::1\]|::1)(:\d+)?(\/.*)?$/i.test(normalizedUrl)
-              ? `http://${normalizedUrl}`
-              : `https://${normalizedUrl}`;
-          }
-
-          // Remove /socket.io if present (Socket.IO adds it automatically)
-          normalizedUrl = normalizedUrl.replace(/\/socket\.io\/?$/, '');
-          
-          // Convert ws:// to http:// and wss:// to https://
-          normalizedUrl = normalizedUrl.replace(/^ws:\/\//, 'http://');
-          normalizedUrl = normalizedUrl.replace(/^wss:\/\//, 'https://');
-          
-          // Add namespace if provided (Socket.IO namespaces start with /)
-          const fullUrl = namespace ? `${normalizedUrl}${namespace}` : normalizedUrl;
-
           const auth: Record<string, string> = {};
           if (typeof token === 'string' && token.trim().length > 0) {
             auth.token = token;
@@ -257,7 +286,7 @@ export const useWebSocketStore = create<WebSocketState>()(
             }));
           });
 
-          set({ socket });
+          set({ socket, connectionKey });
 
         } catch (error) {
           set({

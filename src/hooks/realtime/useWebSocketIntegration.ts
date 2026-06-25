@@ -704,6 +704,8 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
     [currentClinicId, options.clinicId, session?.user?.clinicId]
   );
   const accessToken = session?.access_token;
+  const latestAccessTokenRef = useRef(accessToken);
+  const hasAccessToken = Boolean(accessToken);
   const tenantId = resolvedTenantId;
   const clinicId = resolvedClinicId;
 
@@ -1203,6 +1205,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
           withCredentials: true,
           autoReconnect: true,
           reconnectionAttempts: 5,
+          forceReconnect: true,
           onConnect: registerRealtimeSubscriptions,
           onAuthError: async () => {
             // The refresh-token was also stale (or the new access token
@@ -1232,6 +1235,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
                 withCredentials: true,
                 autoReconnect: true,
                 reconnectionAttempts: 5,
+                forceReconnect: true,
                 onConnect: registerRealtimeSubscriptions,
               });
             } finally {
@@ -1497,6 +1501,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
             withCredentials: true,
             autoReconnect: true,
             reconnectionAttempts: 5,
+            forceReconnect: true,
             onConnect: registerRealtimeSubscriptions,
             onAuthError: async () => {
               if (authRefreshInFlightRef.current) return;
@@ -1510,16 +1515,17 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
                   return;
                 }
 
-              postAuthRefreshRef.current = true;
-              connect(websocketUrl, {
-                tenantId,
-                userId: resolvedUserId,
-                token: failedRefreshSession.access_token,
-                withCredentials: true,
-                autoReconnect: true,
-                reconnectionAttempts: 5,
-                onConnect: registerRealtimeSubscriptions,
-              });
+                postAuthRefreshRef.current = true;
+                connect(websocketUrl, {
+                  tenantId,
+                  userId: resolvedUserId,
+                  token: failedRefreshSession.access_token,
+                  withCredentials: true,
+                  autoReconnect: true,
+                  reconnectionAttempts: 5,
+                  forceReconnect: true,
+                  onConnect: registerRealtimeSubscriptions,
+                });
               } catch (refreshError) {
                 logger.warn('Socket auth refresh failed', {
                   component: 'appointment-live-ws',
@@ -1545,16 +1551,22 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
     [clearAuthRefreshTimer, connect, registerRealtimeSubscriptions, tenantId, resolvedUserId, websocketUrl]
   );
 
+  useEffect(() => {
+    latestAccessTokenRef.current = accessToken;
+    if (!autoConnect) return;
+    scheduleAuthRefresh(accessToken);
+  }, [accessToken, autoConnect, scheduleAuthRefresh]);
+
   // Initialize WebSocket connection - Real-time enabled
   useEffect(() => {
     if (!autoConnect) return;
-    const currentSubscriptions = subscriptionsRef.current;
 
     // Create async function to handle WebSocket initialization
     const initializeWebSocket = async () => {
       try {
         // ⚠️ SECURITY: Use APP_CONFIG instead of hardcoded URLs
-        if (!accessToken) {
+        const tokenForConnect = latestAccessTokenRef.current;
+        if (!tokenForConnect) {
           disconnect();
           clearError();
           return;
@@ -1564,7 +1576,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         connect(websocketUrl, {
           tenantId,
           userId: resolvedUserId,
-          token: accessToken,
+          token: tokenForConnect,
           withCredentials: true,
           autoReconnect: true,
           reconnectionAttempts: 5,
@@ -1576,7 +1588,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
             if (authRefreshInFlightRef.current) return;
             authRefreshInFlightRef.current = true;
             try {
-              if (shouldBypassAuthRefresh(accessToken)) {
+              if (shouldBypassAuthRefresh(tokenForConnect)) {
                 tripAuthCircuit('bypass');
                 return;
               }
@@ -1598,6 +1610,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
                 withCredentials: true,
                 autoReconnect: true,
                 reconnectionAttempts: 5,
+                forceReconnect: true,
                 onConnect: registerRealtimeSubscriptions,
               });
             } catch (refreshError) {
@@ -1615,8 +1628,6 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
             }
           },
         });
-        scheduleAuthRefresh(accessToken);
-
       } catch (error) {
         logger.warn('Failed to initialize appointment websocket', {
           component: 'appointment-live-ws',
@@ -1635,9 +1646,10 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         window.clearTimeout(authCircuitResetTimerRef.current);
         authCircuitResetTimerRef.current = null;
       }
-      currentSubscriptions.forEach((unsubscribe) => unsubscribe());
+      subscriptionsRef.current.forEach((unsubscribe) => unsubscribe());
+      subscriptionsRef.current = [];
     };
-  }, [accessToken, autoConnect, tenantId, resolvedUserId, websocketUrl, connect, disconnect, clearError, scheduleAuthRefresh, clearAuthRefreshTimer, registerRealtimeSubscriptions]);
+  }, [hasAccessToken, autoConnect, tenantId, resolvedUserId, websocketUrl, connect, disconnect, clearError, clearAuthRefreshTimer, registerRealtimeSubscriptions, tripAuthCircuit]);
 
   // Refresh once on connect so missed payment/slot changes are reconciled from the backend snapshot.
   useEffect(() => {
@@ -1891,6 +1903,7 @@ function scheduleTokenExpiredBackoffRetry(
           withCredentials: true,
           autoReconnect: true,
           reconnectionAttempts: 5,
+          forceReconnect: true,
           onConnect: args.onConnect,
         });
         args.onSuccess(refreshed.access_token);
