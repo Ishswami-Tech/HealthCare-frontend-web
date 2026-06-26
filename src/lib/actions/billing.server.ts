@@ -1000,6 +1000,9 @@ export async function verifyPaymentCallback(params: {
   success: boolean;
   message?: string;
   error?: string;
+  payment?: unknown;
+  invoice?: unknown;
+  appointment?: unknown;
 }> {
   try {
     const session = await getServerSession();
@@ -1016,6 +1019,9 @@ export async function verifyPaymentCallback(params: {
     const { data } = await publicApi<{
       success?: boolean;
       message?: string;
+      payment?: unknown;
+      invoice?: unknown;
+      appointment?: unknown;
     }>(`${API_ENDPOINTS.BILLING.PAYMENTS.CALLBACK}?${queryParams.toString()}`, {
       method: 'POST',
       headers: {
@@ -1028,6 +1034,9 @@ export async function verifyPaymentCallback(params: {
     return {
       success: Boolean(data?.success),
       message: data?.message ?? 'Payment verified successfully',
+      ...(data?.payment ? { payment: data.payment } : {}),
+      ...(data?.invoice ? { invoice: data.invoice } : {}),
+      ...(data?.appointment ? { appointment: data.appointment } : {}),
     };
   } catch (error) {
     return {

@@ -1,19 +1,14 @@
 import { useQueryData } from '../core/useQueryData';
 import { useMutationOperation } from '../core/useMutationOperation';
 import { TOAST_IDS } from '../utils/use-toast';
-import {
-  createNotificationPreferences,
-  deleteNotificationPreferences,
-  getMyNotificationPreferences,
-  getUserNotificationPreferences,
-  updateNotificationPreferences,
-} from '@/lib/actions/notifications.server';
+import { clinicApiClient } from '@/lib/api/client';
+import { API_ENDPOINTS } from '@/lib/config/config';
 
 export const useNotificationPreferences = () => {
   return useQueryData(
     ['notificationPreferences', 'me'],
     async () => {
-      return await getMyNotificationPreferences();
+      return await clinicApiClient.get(API_ENDPOINTS.NOTIFICATION_PREFERENCES.GET_MY);
     }
   );
 };
@@ -22,7 +17,7 @@ export const useUserNotificationPreferences = (userId: string) => {
   return useQueryData(
     ['notificationPreferences', userId],
     async () => {
-      return await getUserNotificationPreferences(userId);
+      return await clinicApiClient.get(API_ENDPOINTS.NOTIFICATION_PREFERENCES.GET_BY_USER(userId));
     },
     { enabled: !!userId }
   );
@@ -42,7 +37,7 @@ export const useCreateNotificationPreferences = () => {
         marketing?: boolean;
       };
     }) => {
-      return await createNotificationPreferences(data);
+      return await clinicApiClient.post(API_ENDPOINTS.NOTIFICATION_PREFERENCES.BASE, data);
     },
     {
       toastId: TOAST_IDS.NOTIFICATION.PREFERENCE_CREATE,
@@ -68,7 +63,11 @@ export const useUpdateNotificationPreferences = () => {
         marketing?: boolean;
       };
     }) => {
-      return await updateNotificationPreferences(data);
+      const { userId, ...payload } = data;
+      const endpoint = userId
+        ? API_ENDPOINTS.NOTIFICATION_PREFERENCES.UPDATE(userId)
+        : API_ENDPOINTS.NOTIFICATION_PREFERENCES.BASE;
+      return await clinicApiClient.put(endpoint, payload);
     },
     {
       toastId: TOAST_IDS.NOTIFICATION.PREFERENCE_UPDATE,
@@ -82,7 +81,10 @@ export const useUpdateNotificationPreferences = () => {
 export const useDeleteNotificationPreferences = () => {
   return useMutationOperation(
     async (userId?: string) => {
-      return await deleteNotificationPreferences(userId);
+      const endpoint = userId
+        ? API_ENDPOINTS.NOTIFICATION_PREFERENCES.DELETE(userId)
+        : API_ENDPOINTS.NOTIFICATION_PREFERENCES.BASE;
+      return await clinicApiClient.delete(endpoint);
     },
     {
       toastId: TOAST_IDS.NOTIFICATION.PREFERENCE_DELETE,

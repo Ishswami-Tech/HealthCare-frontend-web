@@ -5,42 +5,90 @@ import { useQueryData } from '../core/useQueryData';
 import { useMutationOperation } from '../core/useMutationOperation';
 import { useCurrentClinicId } from './useClinics';
 import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
-import {
-  getBillingPlans,
-  getBillingPlan,
-  createBillingPlan,
-  updateBillingPlan,
-  deleteBillingPlan,
-  getSubscriptions,
-  getClinicSubscriptions,
-  getActiveSubscription,
-  createSubscription,
-  cancelSubscription,
-  getSubscriptionUsageStats,
-  getInvoices,
-  getClinicInvoices,
-  createInvoice,
-  getPayments,
-  getClinicPayments,
-  getClinicLedger,
-  releaseAppointmentPayout,
-  reconcilePayment,
-  createPayment,
-  getBillingAnalytics,
-  sendInvoiceViaWhatsApp,
-  generateInvoicePDF,
-  markInvoiceAsPaid,
-  checkSubscriptionCoverage,
-  createInPersonAppointmentWithSubscription,
-} from '@/lib/actions/billing.server';
+import { clinicApiClient } from '@/lib/api/client';
+import { API_ENDPOINTS } from '@/lib/config/config';
 import type { PaymentProvider } from '@/lib/payments/providers';
 import type {
+  BillingPlan,
   CreateBillingPlanData,
   CreateSubscriptionData,
   CreateInvoiceData,
   CreatePaymentData,
   Invoice,
+  Subscription,
+  Payment,
+  BillingAnalytics,
+  SubscriptionUsageStats,
+  ClinicLedgerResponse,
 } from '@/types/billing.types';
+
+type SubscriptionCoverage = {
+  covered?: boolean;
+  allowed?: boolean;
+  requiresPayment?: boolean;
+  message?: string;
+  reason?: string;
+  paymentAmount?: number;
+};
+
+type SubscriptionCoverageResult = {
+  success: boolean;
+  coverage?: SubscriptionCoverage;
+  error?: string;
+};
+
+type InPersonSubscriptionAppointmentData = {
+  subscriptionId: string;
+  patientId: string;
+  doctorId: string;
+  clinicId: string;
+  locationId: string;
+  appointmentDate: string;
+  duration: number;
+  treatmentType?: string;
+  priority?: string;
+  notes?: string;
+};
+
+type ActionEnvelope<TKey extends string, TValue> = {
+  success: boolean;
+} & Record<TKey, TValue>;
+
+function unwrapList<T>(value: unknown, keys: string[]): T[] {
+  if (Array.isArray(value)) {
+    return value as T[];
+  }
+
+  if (!value || typeof value !== 'object') {
+    return [];
+  }
+
+  const record = value as Record<string, unknown>;
+  for (const key of keys) {
+    const candidate = record[key];
+    if (Array.isArray(candidate)) {
+      return candidate as T[];
+    }
+  }
+
+  return [];
+}
+
+function unwrapObject<T>(value: unknown, keys: string[]): T | undefined {
+  if (!value || typeof value !== 'object') {
+    return undefined;
+  }
+
+  const record = value as Record<string, unknown>;
+  for (const key of keys) {
+    const candidate = record[key];
+    if (candidate && typeof candidate === 'object') {
+      return candidate as T;
+    }
+  }
+
+  return undefined;
+}
 
 function getInvoiceSortTimestamp(invoice: Pick<Invoice, 'createdAt' | 'updatedAt' | 'dueDate' | 'paidDate'>): number {
   const candidate =
@@ -76,14 +124,11 @@ function sortPaymentsNewestFirst<T extends { createdAt?: string; updatedAt?: str
 // ============ Billing Plans Hooks ============
 
 export function useBillingPlans(clinicId?: string, enabled: boolean = true) {
-  return useQueryData(
+  return useQueryData<BillingPlan[]>(
     ['billing-plans', clinicId],
     async () => {
-      const result = await getBillingPlans(clinicId);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch billing plans');
-      }
-      return result.plans || [];
+      const result = await clinicApiClient.get(API_ENDPOINTS.BILLING.PLANS.GET_ALL, clinicId ? { clinicId } : undefined);
+      return unwrapList<BillingPlan>(result.data, ['plans', 'data', 'items', 'results']);
     },
     {
       enabled,
@@ -95,14 +140,11 @@ export function useBillingPlans(clinicId?: string, enabled: boolean = true) {
 }
 
 export function useBillingPlan(id: string) {
-  return useQueryData(
+  return useQueryData<BillingPlan | null>(
     ['billing-plan', id],
     async () => {
-      const result = await getBillingPlan(id);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch billing plan');
-      }
-      return result.plan;
+      const result = await clinicApiClient.get(API_ENDPOINTS.BILLING.PLANS.GET_BY_ID(id));
+      return (unwrapObject<BillingPlan>(result.data, ['plan']) ?? (result.data as BillingPlan | null)) ?? null;
     },
     {
       enabled: !!id,
@@ -111,13 +153,11 @@ export function useBillingPlan(id: string) {
 }
 
 export function useCreateBillingPlan() {
-  return useMutationOperation(
+  return useMutationOperation<ActionEnvelope<'plan', BillingPlan>, CreateBillingPlanData>(
     async (data: CreateBillingPlanData) => {
-      const result = await createBillingPlan(data);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to create billing plan');
-      }
-      return result.plan;
+      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.PLANS.CREATE, data);
+      const plan = unwrapObject<BillingPlan>(result.data, ['plan']) ?? (result.data as BillingPlan);
+      return { success: true, plan };
     },
     {
       toastId: 'billing-plan-create',
@@ -129,13 +169,11 @@ export function useCreateBillingPlan() {
 }
 
 export function useUpdateBillingPlan() {
-  return useMutationOperation(
+  return useMutationOperation<ActionEnvelope<'plan', BillingPlan>, { id: string; data: Partial<CreateBillingPlanData> }>(
     async ({ id, data }: { id: string; data: Partial<CreateBillingPlanData> }) => {
-      const result = await updateBillingPlan(id, data);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to update billing plan');
-      }
-      return result.plan;
+      const result = await clinicApiClient.put(API_ENDPOINTS.BILLING.PLANS.UPDATE(id), data);
+      const plan = unwrapObject<BillingPlan>(result.data, ['plan']) ?? (result.data as BillingPlan);
+      return { success: true, plan };
     },
     {
       toastId: 'billing-plan-update',
@@ -147,12 +185,10 @@ export function useUpdateBillingPlan() {
 }
 
 export function useDeleteBillingPlan() {
-  return useMutationOperation(
+  return useMutationOperation<{ success: boolean }, string>(
     async (id: string) => {
-      const result = await deleteBillingPlan(id);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to delete billing plan');
-      }
+      await clinicApiClient.delete(API_ENDPOINTS.BILLING.PLANS.DELETE(id));
+      return { success: true };
     },
     {
       toastId: 'billing-plan-delete',
@@ -168,14 +204,11 @@ export function useDeleteBillingPlan() {
 export function useSubscriptions(userId: string, enabled: boolean = true) {
   const { isConnected } = useWebSocketStatus();
 
-  return useQueryData(
+  return useQueryData<Subscription[]>(
     ['subscriptions', userId],
     async () => {
-      const result = await getSubscriptions(userId);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch subscriptions');
-      }
-      return result.subscriptions || [];
+      const result = await clinicApiClient.get(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.GET_USER_SUBSCRIPTIONS(userId));
+      return unwrapList<Subscription>(result.data, ['subscriptions', 'data', 'items', 'results']);
     },
     {
       enabled: enabled && !!userId,
@@ -191,14 +224,11 @@ export function useClinicSubscriptions(enabled: boolean = true) {
   const clinicId = useCurrentClinicId();
   const { isConnected } = useWebSocketStatus();
 
-  return useQueryData(
+  return useQueryData<Subscription[]>(
     ['clinic-subscriptions', clinicId],
     async () => {
-      const result = await getClinicSubscriptions();
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch clinic subscriptions');
-      }
-      return result.subscriptions || [];
+      const result = await clinicApiClient.get(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.GET_CLINIC_SUBSCRIPTIONS, clinicId ? { clinicId } : undefined);
+      return unwrapList<Subscription>(result.data, ['subscriptions', 'data', 'items', 'results']);
     },
     {
       enabled: enabled && !!clinicId,
@@ -213,14 +243,11 @@ export function useClinicSubscriptions(enabled: boolean = true) {
 export function useActiveSubscription(userId: string, clinicId: string, enabled: boolean = true) {
   const { isConnected } = useWebSocketStatus();
 
-  return useQueryData(
+  return useQueryData<Subscription | null>(
     ['active-subscription', userId, clinicId],
     async () => {
-      const result = await getActiveSubscription(userId, clinicId);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch active subscription');
-      }
-      return result.subscription;
+      const result = await clinicApiClient.get(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.GET_ACTIVE(userId), { clinicId });
+      return (unwrapObject<Subscription>(result.data, ['subscription']) ?? (result.data as Subscription | null)) ?? null;
     },
     {
       enabled: enabled && !!userId && !!clinicId,
@@ -233,13 +260,10 @@ export function useActiveSubscription(userId: string, clinicId: string, enabled:
 }
 
 export function useCreateSubscription() {
-  return useMutationOperation(
+  return useMutationOperation<Subscription, CreateSubscriptionData>(
     async (data: CreateSubscriptionData) => {
-      const result = await createSubscription(data);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to create subscription');
-      }
-      return result.subscription;
+      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.CREATE, data);
+      return (unwrapObject<Subscription>(result.data, ['subscription']) ?? (result.data as Subscription)) as Subscription;
     },
     {
       toastId: 'subscription-create',
@@ -251,13 +275,10 @@ export function useCreateSubscription() {
 }
 
 export function useCancelSubscription() {
-  return useMutationOperation(
+  return useMutationOperation<Subscription, { id: string; immediate?: boolean }>(
     async ({ id, immediate }: { id: string; immediate?: boolean }) => {
-      const result = await cancelSubscription(id, immediate);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to cancel subscription');
-      }
-      return result.subscription;
+      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.CANCEL(id), { immediate });
+      return (unwrapObject<Subscription>(result.data, ['subscription']) ?? (result.data as Subscription)) as Subscription;
     },
     {
       toastId: 'subscription-cancel',
@@ -269,14 +290,11 @@ export function useCancelSubscription() {
 }
 
 export function useSubscriptionUsageStats(id: string) {
-  return useQueryData(
+  return useQueryData<SubscriptionUsageStats>(
     ['subscription-usage', id],
     async () => {
-      const result = await getSubscriptionUsageStats(id);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch usage stats');
-      }
-      return result.stats;
+      const result = await clinicApiClient.get(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.USAGE_STATS(id));
+      return (unwrapObject<SubscriptionUsageStats>(result.data, ['stats']) ?? (result.data as SubscriptionUsageStats)) as SubscriptionUsageStats;
     },
     {
       enabled: !!id,
@@ -292,14 +310,11 @@ export function useSubscriptionUsageStats(id: string) {
 export function useInvoices(userId: string) {
   const { isConnected } = useWebSocketStatus();
 
-  return useQueryData(
+  return useQueryData<Invoice[]>(
     ['invoices', userId],
     async () => {
-      const result = await getInvoices(userId);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch invoices');
-      }
-      return sortInvoicesNewestFirst((result.invoices || []) as Invoice[]);
+      const result = await clinicApiClient.get(API_ENDPOINTS.BILLING.INVOICES.GET_USER_INVOICES(userId));
+      return sortInvoicesNewestFirst(unwrapList<Invoice>(result.data, ['invoices', 'data', 'items', 'results']));
     },
     {
       enabled: !!userId,
@@ -315,14 +330,11 @@ export function useClinicInvoices(enabled: boolean = true) {
   const clinicId = useCurrentClinicId();
   const { isConnected } = useWebSocketStatus();
 
-  return useQueryData(
+  return useQueryData<Invoice[]>(
     ['clinic-invoices', clinicId],
     async () => {
-      const result = await getClinicInvoices();
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch clinic invoices');
-      }
-      return sortInvoicesNewestFirst((result.invoices || []) as Invoice[]);
+      const result = await clinicApiClient.get(API_ENDPOINTS.BILLING.INVOICES.GET_CLINIC_INVOICES, clinicId ? { clinicId } : undefined);
+      return sortInvoicesNewestFirst(unwrapList<Invoice>(result.data, ['invoices', 'data', 'items', 'results']));
     },
     {
       enabled: enabled && !!clinicId,
@@ -335,13 +347,11 @@ export function useClinicInvoices(enabled: boolean = true) {
 }
 
 export function useCreateInvoice() {
-  return useMutationOperation(
+  return useMutationOperation<{ success: boolean; invoice?: Invoice; error?: string }, CreateInvoiceData>(
     async (data: CreateInvoiceData) => {
-      const result = await createInvoice(data);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to create invoice');
-      }
-      return result;
+      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.INVOICES.CREATE, data);
+      const invoice = unwrapObject<Invoice>(result.data, ['invoice']) ?? (result.data as Invoice);
+      return { success: true, invoice };
     },
     {
       toastId: 'invoice-create',
@@ -353,13 +363,11 @@ export function useCreateInvoice() {
 }
 
 export function useMarkInvoiceAsPaid() {
-  return useMutationOperation(
+  return useMutationOperation<{ success: boolean; invoice?: Invoice; error?: string }, string>(
     async (invoiceId: string) => {
-      const result = await markInvoiceAsPaid(invoiceId);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to mark invoice as paid');
-      }
-      return result.invoice;
+      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.INVOICES.MARK_PAID(invoiceId));
+      const invoice = unwrapObject<Invoice>(result.data, ['invoice']) ?? (result.data as Invoice);
+      return { success: true, invoice };
     },
     {
       toastId: 'invoice-mark-paid',
@@ -382,14 +390,11 @@ export function useMarkInvoiceAsPaid() {
 export function usePayments(userId: string) {
   const { isConnected } = useWebSocketStatus();
 
-  return useQueryData(
+  return useQueryData<Payment[]>(
     ['payments', userId],
     async () => {
-      const result = await getPayments(userId);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch payments');
-      }
-      return sortPaymentsNewestFirst(result.payments || []);
+      const result = await clinicApiClient.get(API_ENDPOINTS.BILLING.PAYMENTS.GET_USER_PAYMENTS(userId));
+      return sortPaymentsNewestFirst(unwrapList<Payment>(result.data, ['payments', 'data', 'items', 'results']));
     },
     {
       enabled: !!userId,
@@ -412,14 +417,11 @@ export function useClinicPayments(filters?: {
   const clinicId = useCurrentClinicId();
   const { isConnected } = useWebSocketStatus();
 
-  return useQueryData(
+  return useQueryData<Payment[]>(
     ['clinic-payments', clinicId, filters],
     async () => {
-      const result = await getClinicPayments(filters);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch clinic payments');
-      }
-      return sortPaymentsNewestFirst(result.payments || []);
+      const result = await clinicApiClient.get(API_ENDPOINTS.BILLING.PAYMENTS.GET_CLINIC_PAYMENTS, { clinicId, ...filters });
+      return sortPaymentsNewestFirst(unwrapList<Payment>(result.data, ['payments', 'data', 'items', 'results']));
     },
     {
       enabled: enabled && !!clinicId,
@@ -441,14 +443,11 @@ export function useClinicLedger(filters?: {
 }, enabled: boolean = true) {
   const { isConnected } = useWebSocketStatus();
 
-  return useQueryData(
+  return useQueryData<ClinicLedgerResponse>(
     ['clinic-ledger', filters],
     async () => {
-      const result = await getClinicLedger(filters);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch clinic ledger');
-      }
-      return result.ledger;
+      const result = await clinicApiClient.get(API_ENDPOINTS.BILLING.PAYMENTS.GET_LEDGER, filters);
+      return (unwrapObject<ClinicLedgerResponse>(result.data, ['ledger']) ?? (result.data as ClinicLedgerResponse)) as ClinicLedgerResponse;
     },
     {
       enabled,
@@ -461,13 +460,11 @@ export function useClinicLedger(filters?: {
 }
 
 export function useCreatePayment() {
-  return useMutationOperation(
+  return useMutationOperation<{ success: boolean; payment?: Payment; error?: string }, CreatePaymentData>(
     async (data: CreatePaymentData) => {
-      const result = await createPayment(data);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to create payment');
-      }
-      return result.payment;
+      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.PAYMENTS.CREATE, data);
+      const payment = unwrapObject<Payment>(result.data, ['payment']) ?? (result.data as Payment);
+      return { success: true, payment };
     },
     {
       toastId: 'payment-create',
@@ -486,13 +483,10 @@ export function useCreatePayment() {
 }
 
 export function useReleaseAppointmentPayout() {
-  return useMutationOperation(
+  return useMutationOperation<unknown, string>(
     async (appointmentId: string) => {
-      const result = await releaseAppointmentPayout(appointmentId);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to release payout');
-      }
-      return result.data;
+      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.APPOINTMENT_PAYMENTS.RELEASE_PAYOUT(appointmentId));
+      return (result.data ?? result) as Record<string, unknown>;
     },
     {
       toastId: 'release-payout',
@@ -510,7 +504,10 @@ export function useReleaseAppointmentPayout() {
 }
 
 export function useCheckSubscriptionCoverage() {
-  return useMutationOperation(
+  return useMutationOperation<SubscriptionCoverageResult, {
+    subscriptionId: string;
+    appointmentType: 'VIDEO_CALL' | 'IN_PERSON' | 'HOME_VISIT';
+  }>(
     async ({
       subscriptionId,
       appointmentType,
@@ -518,11 +515,9 @@ export function useCheckSubscriptionCoverage() {
       subscriptionId: string;
       appointmentType: 'VIDEO_CALL' | 'IN_PERSON' | 'HOME_VISIT';
     }) => {
-      const result = await checkSubscriptionCoverage(subscriptionId, appointmentType);
-      if (!result.success) {
-        throw new Error(result.error || 'Unable to validate subscription coverage');
-      }
-      return result;
+      const result = await clinicApiClient.get(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.CHECK_COVERAGE(subscriptionId), { appointmentType });
+      const coverage = unwrapObject<SubscriptionCoverage>(result.data, ['coverage']) ?? (result.data as SubscriptionCoverage);
+      return { success: true, coverage };
     },
     {
       toastId: 'subscription-coverage-check',
@@ -535,15 +530,20 @@ export function useCheckSubscriptionCoverage() {
 }
 
 export function useCreateInPersonAppointmentWithSubscription() {
-  return useMutationOperation(
-    async (
-      data: Parameters<typeof createInPersonAppointmentWithSubscription>[0]
-    ) => {
-      const result = await createInPersonAppointmentWithSubscription(data);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to create subscription-based appointment');
-      }
-      return result;
+  return useMutationOperation<{ success: boolean; appointment?: unknown; message?: string; error?: string }, InPersonSubscriptionAppointmentData>(
+    async (data: InPersonSubscriptionAppointmentData) => {
+      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.BOOK_INPERSON(data.subscriptionId), {
+        ...data,
+        type: 'IN_PERSON',
+      });
+      const appointment = unwrapObject<unknown>(result.data, ['appointment']) ?? (result.data as unknown);
+      return {
+        success: true,
+        appointment,
+        ...(result.data && typeof result.data === 'object' && 'message' in (result.data as Record<string, unknown>)
+          ? { message: String((result.data as Record<string, unknown>).message ?? '') }
+          : {}),
+      };
     },
     {
       toastId: 'subscription-appointment-create',
@@ -563,13 +563,11 @@ export function useCreateInPersonAppointmentWithSubscription() {
 }
 
 export function useReconcilePayment() {
-  return useMutationOperation(
+  return useMutationOperation<{ success: boolean; payment?: Payment; error?: string }, { paymentId: string; provider?: PaymentProvider }>(
     async ({ paymentId, provider }: { paymentId: string; provider?: PaymentProvider }) => {
-      const result = await reconcilePayment(paymentId, provider);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to reconcile payment');
-      }
-      return result.data;
+      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.PAYMENTS.RECONCILE(paymentId), { provider });
+      const payment = unwrapObject<Payment>(result.data, ['payment']) ?? (result.data as Payment);
+      return { success: true, payment };
     },
     {
       toastId: 'reconcile-payment',
@@ -590,7 +588,11 @@ export function useReconcilePayment() {
 
 export function useSendInvoiceViaWhatsApp() {
   return useMutationOperation<{ success: boolean; error?: string }, string>(
-    (invoiceId: string) => sendInvoiceViaWhatsApp(invoiceId),
+    async (invoiceId: string) => {
+      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.INVOICES.SEND_WHATSAPP(invoiceId));
+      const payload = result.data as { success?: boolean; error?: string } | undefined;
+      return { success: payload?.success ?? true, ...(payload?.error ? { error: payload.error } : {}) };
+    },
     {
       toastId: 'send-invoice-whatsapp',
       loadingMessage: 'Sending invoice via WhatsApp...',
@@ -604,13 +606,26 @@ export function useGenerateInvoicePDF() {
   return useMutationOperation<
     { success: boolean; pdfUrl?: string; message?: string; data?: unknown; error?: string },
     string
-  >((invoiceId: string) => generateInvoicePDF(invoiceId), {
-    toastId: 'generate-invoice-pdf',
-    loadingMessage: 'Generating invoice PDF...',
-    successMessage: 'Invoice PDF request submitted',
-    errorMessage: 'Failed to generate invoice PDF',
-    invalidateQueries: [['invoices'], ['clinic-invoices'], ['billing-analytics']],
-  });
+  >(
+    async (invoiceId: string) => {
+      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.INVOICES.GENERATE_PDF(invoiceId));
+      const payload = result.data as { success?: boolean; pdfUrl?: string; url?: string; message?: string; data?: unknown; error?: string } | undefined;
+      return {
+        success: payload?.success ?? true,
+        ...(payload?.pdfUrl || payload?.url ? { pdfUrl: payload.pdfUrl || payload.url } : {}),
+        ...(payload?.message ? { message: payload.message } : {}),
+        ...(payload?.data !== undefined ? { data: payload.data } : {}),
+        ...(payload?.error ? { error: payload.error } : {}),
+      };
+    },
+    {
+      toastId: 'generate-invoice-pdf',
+      loadingMessage: 'Generating invoice PDF...',
+      successMessage: 'Invoice PDF request submitted',
+      errorMessage: 'Failed to generate invoice PDF',
+      invalidateQueries: [['invoices'], ['clinic-invoices'], ['billing-analytics']],
+    }
+  );
 }
 
 // ============ Analytics Hooks ============
@@ -618,14 +633,11 @@ export function useGenerateInvoicePDF() {
 export function useBillingAnalytics(clinicId: string) {
   const { isConnected } = useWebSocketStatus();
 
-  return useQueryData(
+  return useQueryData<BillingAnalytics>(
     ['billing-analytics', clinicId],
     async () => {
-      const result = await getBillingAnalytics(clinicId);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch analytics');
-      }
-      return result.analytics;
+      const result = await clinicApiClient.get(API_ENDPOINTS.BILLING.ANALYTICS.REVENUE, { clinicId });
+      return ((result.data as { analytics?: BillingAnalytics } | undefined)?.analytics ?? result.data) as BillingAnalytics;
     },
     {
       enabled: !!clinicId,

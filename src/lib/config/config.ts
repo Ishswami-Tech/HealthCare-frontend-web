@@ -383,6 +383,8 @@ export const API_ENDPOINTS = {
     RESEND_VERIFICATION: '/auth/resend-verification',
     FACEBOOK_LOGIN: '/auth/facebook',
     APPLE_LOGIN: '/auth/apple',
+    PERMISSIONS: '/auth/permissions',
+    PERMISSION_VALIDATE: '/auth/permissions/validate',
   },
   
   // Clinic Management Endpoints
@@ -1037,6 +1039,13 @@ export const API_ENDPOINTS = {
     UPDATE: (clinicId: string, id: string) => `/clinics/${clinicId}/communication/${id}`,
     DELETE: (clinicId: string, id: string) => `/clinics/${clinicId}/communication/${id}`,
     TEST: (clinicId: string) => `/clinics/${clinicId}/communication/test`,
+  },
+
+  // Logging Endpoints
+  LOGGING: {
+    AUDIT: '/logger/audit',
+    LOGS: '/logger/logs',
+    EVENTS: '/logger/events',
   },
 } as const;
 

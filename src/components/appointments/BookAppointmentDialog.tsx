@@ -74,7 +74,8 @@ import {
 import { useWebSocketContext } from "@/app/providers/WebSocketProvider";
 import { useRBAC } from "@/hooks/utils/useRBAC";
 import { getAppointmentStatsQueryKey } from "@/lib/query/appointment-query-keys";
-import { getUserProfile, updateUserProfile } from "@/lib/actions/users.server";
+import { updateUserProfile } from "@/lib/actions/users.server";
+import { clinicApiClient } from "@/lib/api/client";
 import {
   dismissToast,
   showErrorToast,
@@ -4127,7 +4128,10 @@ export function BookAppointmentDialog({
 
         const refreshedProfile = (await queryClient.fetchQuery({
           queryKey: ["userProfile"],
-          queryFn: async () => await getUserProfile(),
+          queryFn: async () => {
+            const response = await clinicApiClient.getProfile();
+            return response.data;
+          },
         })) as Record<string, unknown> | undefined;
 
         bookingPatientId =

@@ -1,6 +1,6 @@
+import { authenticatedApi } from '@/lib/actions/auth.server';
+import { API_ENDPOINTS } from '@/lib/config/config';
 import { nowIso } from '@/lib/utils/date-time';
-// ✅ Audit Logging for Healthcare Frontend
-// This module provides comprehensive audit logging for HIPAA compliance
 
 export interface AuditLogData {
   userId: string;
@@ -22,32 +22,39 @@ export interface AuditLogResponse {
   error?: string;
 }
 
-/**
- * Audit logging function for HIPAA compliance
- * Logs all user actions for security and compliance purposes
- */
+type BackendAuditLog = {
+  id: string;
+  type: string;
+  level: string;
+  message: string;
+  context: string;
+  timestamp: string;
+  metadata?: Record<string, unknown>;
+};
+
+function toAuditCsvCell(value: unknown): string {
+  return `"${String(value ?? '').replace(/"/g, '""')}"`;
+}
+
 export async function auditLog(data: AuditLogData): Promise<AuditLogResponse> {
   try {
-    // In a real implementation, this would send to your audit service
-    // For now, we'll log to console and could integrate with your backend
-    
     const auditEntry = {
       ...data,
       timestamp: data.timestamp || nowIso(),
-      logId: `audit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      logId: `audit_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`,
     };
 
-    // Log to console in development
     if (process.env.NODE_ENV === 'development') {
-      console.debug('🔍 AUDIT LOG:', auditEntry);
+      console.debug('[AUDIT]', auditEntry);
     }
 
-    // TODO: Send to your audit service/backend
-    // const response = await fetch('/api/audit', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(auditEntry),
-    // });
+    await authenticatedApi(API_ENDPOINTS.LOGGING.AUDIT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(auditEntry),
+    });
 
     return {
       success: true,
@@ -62,26 +69,67 @@ export async function auditLog(data: AuditLogData): Promise<AuditLogResponse> {
   }
 }
 
-/**
- * Get audit logs for a user
- */
-export async function getAuditLogs(_userId: string, _filters?: {
-  startDate?: string;
-  endDate?: string;
-  action?: string;
-  resource?: string;
-  riskLevel?: string;
-  page?: number;
-  limit?: number;
-}): Promise<{ success: boolean; logs?: AuditLogData[]; meta?: any; error?: string }> {
+export async function getAuditLogs(
+  _userId: string,
+  _filters?: {
+    startDate?: string;
+    endDate?: string;
+    action?: string;
+    resource?: string;
+    riskLevel?: string;
+    page?: number;
+    limit?: number;
+  }
+): Promise<{ success: boolean; logs?: AuditLogData[]; meta?: any; error?: string }> {
   try {
-    // TODO: Implement audit log retrieval from your backend
-    // const response = await fetch(`/api/audit?userId=${userId}&${new URLSearchParams(filters)}`);
-    
+    const params = new URLSearchParams();
+    params.set('type', 'AUDIT');
+    if (_filters?.startDate) params.set('startTime', _filters.startDate);
+    if (_filters?.endDate) params.set('endTime', _filters.endDate);
+    if (_filters?.page) params.set('page', String(_filters.page));
+    if (_filters?.limit) params.set('limit', String(_filters.limit));
+    const searchTerms = [_filters?.action, _filters?.resource, _filters?.riskLevel]
+      .filter((value): value is string => Boolean(value && value.trim()))
+      .join(' ');
+    if (searchTerms) params.set('search', searchTerms);
+
+    const endpoint = `${API_ENDPOINTS.LOGGING.LOGS}?${params.toString()}`;
+    const { data } = await authenticatedApi<{
+      logs?: BackendAuditLog[];
+      pagination?: { page: number; limit: number; total: number };
+    }>(endpoint);
+
+    const logs =
+      data?.logs?.map(log => ({
+        userId: String(log.metadata?.userId || _userId || ''),
+        action: String(log.metadata?.action || log.message || ''),
+        resource: String(log.metadata?.resource || log.context || ''),
+        resourceId:
+          typeof log.metadata?.resourceId === 'string' ? log.metadata.resourceId : undefined,
+        result:
+          log.metadata?.result === 'SUCCESS' ||
+          log.metadata?.result === 'FAILURE' ||
+          log.metadata?.result === 'PENDING'
+            ? (log.metadata.result as AuditLogData['result'])
+            : 'SUCCESS',
+        riskLevel:
+          log.metadata?.riskLevel === 'LOW' ||
+          log.metadata?.riskLevel === 'MEDIUM' ||
+          log.metadata?.riskLevel === 'HIGH' ||
+          log.metadata?.riskLevel === 'CRITICAL'
+            ? (log.metadata.riskLevel as AuditLogData['riskLevel'])
+            : 'LOW',
+        ipAddress: typeof log.metadata?.ipAddress === 'string' ? log.metadata.ipAddress : undefined,
+        userAgent: typeof log.metadata?.userAgent === 'string' ? log.metadata.userAgent : undefined,
+        sessionId: typeof log.metadata?.sessionId === 'string' ? log.metadata.sessionId : undefined,
+        metadata: log.metadata as Record<string, any> | undefined,
+        timestamp: log.timestamp,
+      })) || [];
+
     return {
       success: true,
-      logs: [],
-      meta: { page: 1, limit: 10, total: 0 },
+      logs,
+      meta: data?.pagination || { page: 1, limit: logs.length, total: logs.length },
     };
   } catch (error) {
     console.error('Failed to get audit logs:', error);
@@ -92,19 +140,55 @@ export async function getAuditLogs(_userId: string, _filters?: {
   }
 }
 
-/**
- * Export audit logs for compliance reporting
- */
 export async function exportAuditLogs(_filters: {
   startDate: string;
   endDate: string;
   format?: 'csv' | 'json' | 'pdf';
 }): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
-    // TODO: Implement audit log export
+    const result = await getAuditLogs('system', {
+      startDate: _filters.startDate,
+      endDate: _filters.endDate,
+      page: 1,
+      limit: 5000,
+    });
+
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error || 'Failed to export audit logs',
+      };
+    }
+
+    if (_filters.format === 'csv') {
+      const rows = [
+        ['timestamp', 'userId', 'action', 'resource', 'result', 'riskLevel', 'resourceId'].map(
+          toAuditCsvCell
+        ).join(','),
+        ...(result.logs || []).map(log =>
+          [
+            log.timestamp,
+            log.userId,
+            log.action,
+            log.resource,
+            log.result,
+            log.riskLevel,
+            log.resourceId,
+          ]
+            .map(toAuditCsvCell)
+            .join(',')
+        ),
+      ];
+
+      return {
+        success: true,
+        data: rows.join('\n'),
+      };
+    }
+
     return {
       success: true,
-      data: null,
+      data: _filters.format === 'json' ? result.logs || [] : result,
     };
   } catch (error) {
     console.error('Failed to export audit logs:', error);

@@ -3,24 +3,17 @@ import { useQueryData } from '../core/useQueryData';
 import { useMutationOperation } from '../core/useMutationOperation';
 import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import { TOAST_IDS } from '../utils/use-toast';
+import { clinicApiClient } from '@/lib/api/client';
+import { API_ENDPOINTS } from '@/lib/config/config';
 import {
-  getPatients,
-  getPatientById,
   createPatient,
   updatePatient,
   deletePatient,
-  getPatientAppointments,
-  getPatientMedicalHistory,
   addPatientMedicalHistory,
-  getPatientVitalSigns,
   addPatientVitalSigns,
-  getPatientLabResults,
   addPatientLabResult,
-  getPatientStats,
   searchPatients,
-  getPatientTimeline,
   exportPatientData,
-  getPatientCarePlan,
   updatePatientCarePlan
 } from '@/lib/actions/patients.server';
 import { createUser } from '@/lib/actions/users.server';
@@ -47,7 +40,17 @@ export const usePatients = (clinicId: string, filters?: {
   const setCollection = usePatientStore((state) => state.setCollection);
 
   const query = useQueryData(['patients', clinicId, filters], async () => {
-    return await getPatients(clinicId, filters);
+    const params = {
+      ...(filters?.search ? { search: filters.search } : {}),
+      ...(filters?.gender ? { gender: filters.gender } : {}),
+      ...(filters?.ageRange ? { ageRange: filters.ageRange } : {}),
+      ...(filters?.bloodGroup ? { bloodGroup: filters.bloodGroup } : {}),
+      ...(filters?.doctorId ? { doctorId: filters.doctorId } : {}),
+      ...(typeof filters?.isActive === 'boolean' ? { isActive: filters.isActive } : {}),
+      ...(typeof filters?.limit === 'number' ? { limit: filters.limit } : {}),
+      ...(typeof filters?.offset === 'number' ? { offset: filters.offset } : {}),
+    };
+    return (await clinicApiClient.get(API_ENDPOINTS.PATIENTS.GET_CLINIC_PATIENTS(clinicId), params)).data;
   }, {
     enabled: !!clinicId && (options?.enabled ?? true),
     refetchInterval: isConnected ? false : 120_000,
@@ -75,7 +78,7 @@ export const usePatients = (clinicId: string, filters?: {
 export const usePatient = (clinicId: string, patientId: string) => {
   const { isConnected } = useWebSocketStatus();
   return useQueryData(['patient', clinicId, patientId], async () => {
-    return await getPatientById(clinicId, patientId);
+    return (await clinicApiClient.get(API_ENDPOINTS.PATIENTS.GET_BY_ID(clinicId, patientId))).data;
   }, {
     enabled: !!clinicId && !!patientId,
     refetchInterval: isConnected ? false : 120_000,
@@ -94,7 +97,14 @@ export const usePatientAppointments = (patientId: string, filters?: {
 }) => {
   const { isConnected } = useWebSocketStatus();
   return useQueryData(['patientAppointments', patientId, filters], async () => {
-    return await getPatientAppointments(patientId, filters);
+    const params = {
+      ...(filters?.status ? { status: filters.status } : {}),
+      ...(filters?.startDate ? { startDate: filters.startDate } : {}),
+      ...(filters?.endDate ? { endDate: filters.endDate } : {}),
+      ...(filters?.doctorId ? { doctorId: filters.doctorId } : {}),
+      ...(typeof filters?.limit === 'number' ? { limit: filters.limit } : {}),
+    };
+    return (await clinicApiClient.get(API_ENDPOINTS.PATIENTS.APPOINTMENTS(patientId), params)).data;
   }, {
     enabled: !!patientId,
     refetchInterval: isConnected ? false : 30_000,
@@ -112,7 +122,13 @@ export const usePatientMedicalHistory = (patientId: string, filters?: {
 }) => {
   const { isConnected } = useWebSocketStatus();
   return useQueryData(['patientMedicalHistory', patientId, filters], async () => {
-    return await getPatientMedicalHistory('', patientId, filters);
+    const params = {
+      ...(filters?.type ? { type: filters.type } : {}),
+      ...(filters?.startDate ? { startDate: filters.startDate } : {}),
+      ...(filters?.endDate ? { endDate: filters.endDate } : {}),
+      ...(typeof filters?.limit === 'number' ? { limit: filters.limit } : {}),
+    };
+    return (await clinicApiClient.get(API_ENDPOINTS.EHR.MEDICAL_HISTORY.GET_BY_USER(patientId), params)).data;
   }, {
     enabled: !!patientId,
     refetchInterval: isConnected ? false : 120_000,
@@ -127,7 +143,7 @@ export const usePatientMedicalRecords = (clinicId: string, patientId: string, op
 }) => {
   const { isConnected } = useWebSocketStatus();
   return useQueryData(['patientMedicalRecords', clinicId, patientId], async () => {
-    return await getPatientMedicalHistory(clinicId, patientId);
+    return (await clinicApiClient.get(API_ENDPOINTS.EHR.MEDICAL_HISTORY.GET_BY_USER(patientId))).data;
   }, {
     enabled: !!clinicId && !!patientId && (options?.enabled !== false),
     refetchInterval: isConnected ? false : 120_000,
@@ -144,7 +160,12 @@ export const usePatientVitalSigns = (patientId: string, filters?: {
 }) => {
   const { isConnected } = useWebSocketStatus();
   return useQueryData(['patientVitalSigns', patientId, filters], async () => {
-    return await getPatientVitalSigns(patientId, filters);
+    const params = {
+      ...(filters?.startDate ? { startDate: filters.startDate } : {}),
+      ...(filters?.endDate ? { endDate: filters.endDate } : {}),
+      ...(typeof filters?.limit === 'number' ? { limit: filters.limit } : {}),
+    };
+    return (await clinicApiClient.get(API_ENDPOINTS.EHR.VITALS.GET_BY_USER(patientId), params)).data;
   }, {
     enabled: !!patientId,
     refetchInterval: isConnected ? false : 30_000,
@@ -162,7 +183,13 @@ export const usePatientLabResults = (patientId: string, filters?: {
 }) => {
   const { isConnected } = useWebSocketStatus();
   return useQueryData(['patientLabResults', patientId, filters], async () => {
-    return await getPatientLabResults(patientId, filters);
+    const params = {
+      ...(filters?.testType ? { testType: filters.testType } : {}),
+      ...(filters?.startDate ? { startDate: filters.startDate } : {}),
+      ...(filters?.endDate ? { endDate: filters.endDate } : {}),
+      ...(typeof filters?.limit === 'number' ? { limit: filters.limit } : {}),
+    };
+    return (await clinicApiClient.get(API_ENDPOINTS.EHR.LAB_REPORTS.GET_BY_USER(patientId), params)).data;
   }, {
     enabled: !!patientId,
     refetchInterval: isConnected ? false : 60_000,
@@ -175,7 +202,7 @@ export const usePatientLabResults = (patientId: string, filters?: {
 export const usePatientStats = (patientId: string) => {
   const { isConnected } = useWebSocketStatus();
   return useQueryData(['patientStats', patientId], async () => {
-    return await getPatientStats(patientId);
+    return (await clinicApiClient.get(API_ENDPOINTS.PATIENTS.STATS(patientId))).data;
   }, {
     enabled: !!patientId,
     refetchInterval: isConnected ? false : 60_000,
@@ -193,7 +220,13 @@ export const usePatientTimeline = (patientId: string, filters?: {
 }) => {
   const { isConnected } = useWebSocketStatus();
   return useQueryData(['patientTimeline', patientId, filters], async () => {
-    return await getPatientTimeline(patientId, filters);
+    const params = {
+      ...(filters?.startDate ? { startDate: filters.startDate } : {}),
+      ...(filters?.endDate ? { endDate: filters.endDate } : {}),
+      ...(filters?.eventTypes ? { eventTypes: filters.eventTypes.join(',') } : {}),
+      ...(typeof filters?.limit === 'number' ? { limit: filters.limit } : {}),
+    };
+    return (await clinicApiClient.get(API_ENDPOINTS.PATIENTS.TIMELINE(patientId), params)).data;
   }, {
     enabled: !!patientId,
     refetchInterval: isConnected ? false : 60_000,
@@ -206,7 +239,7 @@ export const usePatientTimeline = (patientId: string, filters?: {
 export const usePatientCarePlan = (patientId: string) => {
   const { isConnected } = useWebSocketStatus();
   return useQueryData(['patientCarePlan', patientId], async () => {
-    return await getPatientCarePlan(patientId);
+    return (await clinicApiClient.get(API_ENDPOINTS.PATIENTS.CARE_PLAN.GET(patientId))).data;
   }, {
     enabled: !!patientId,
     refetchInterval: isConnected ? false : 120_000,

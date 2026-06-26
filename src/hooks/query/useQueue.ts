@@ -3,42 +3,13 @@ import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import { useQueryData } from '../core/useQueryData';
 import { useMutationOperation } from '../core/useMutationOperation';
 import { TOAST_IDS } from '../utils/use-toast';
+import { clinicApiClient } from '@/lib/api/client';
+import { API_ENDPOINTS } from '@/lib/config/config';
 import {
   getQueueListQueryKey,
   getQueueStatsQueryKey,
   type QueueListFilters,
 } from '@/lib/queue/queue-cache';
-import {
-  getQueue,
-  getQueueStats,
-  getQueueFilters,
-  updateQueueStatus,
-  callNextPatient,
-  getQueueHistory,
-  addToQueue,
-  removeFromQueue,
-  reorderQueue,
-  getQueueAnalytics,
-  updateQueuePosition,
-  pauseQueue,
-  resumeQueue,
-  getQueueConfig,
-  updateQueueConfig,
-  getQueueNotifications,
-  markQueueNotificationAsRead,
-  sendQueueNotification,
-  getQueueWaitTimes,
-  estimateWaitTime,
-  getQueueCapacity,
-  updateQueueCapacity,
-  getQueuePerformanceMetrics,
-  exportQueueData,
-  getQueueAlerts,
-  createQueueAlert,
-  updateQueueAlert,
-  deleteQueueAlert,
-  transferQueueEntry,
-} from '@/lib/actions/queue.server';
 
 // ===== QUEUE MANAGEMENT HOOKS =====
 
@@ -69,10 +40,11 @@ export const useQueue = (clinicId?: string, filters?: {
     : undefined;
 
   return useQueryData(getQueueListQueryKey(normalizedClinicId, queueFilters), async () => {
-    return await getQueue({
+    const response = await clinicApiClient.get(API_ENDPOINTS.QUEUE.GET, {
       ...queueRequestFilters,
       ...(normalizedClinicId ? { clinicId: normalizedClinicId } : {}),
     });
+    return response.data;
   }, {
     enabled: enabled !== false,
     // Websocket invalidation owns freshness when connected; polling becomes fallback only.
@@ -88,7 +60,7 @@ export const useQueueStats = (locationId?: string, options?: { enabled?: boolean
 
   return useQueryData(getQueueStatsQueryKey(locationId), async () => {
     if (!locationId) throw new Error('Location ID required for queue stats');
-    return await getQueueStats(locationId);
+    return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.STATS, { locationId })).data;
   }, {
     enabled: !!locationId && options?.enabled !== false,
     refetchInterval: isConnected ? false : 60000,
@@ -100,7 +72,7 @@ export const useQueueStats = (locationId?: string, options?: { enabled?: boolean
  */
 export const useQueueFilters = (options?: { enabled?: boolean }) => {
   return useQueryData(['queue-filters'], async () => {
-    const result = await getQueueFilters();
+    const result = (await clinicApiClient.get(API_ENDPOINTS.QUEUE.FILTERS)).data;
     if (!result) {
       throw new Error('Failed to fetch queue filters');
     }
@@ -124,7 +96,7 @@ export const useUpdateQueueStatus = () => {
       patientId: string;
       status: string;
     }) => {
-      return await updateQueueStatus(patientId, status);
+      return (await clinicApiClient.patch(API_ENDPOINTS.QUEUE.UPDATE_STATUS(patientId), { status })).data;
     },
     {
       toastId: TOAST_IDS.QUEUE.UPDATE,
@@ -150,7 +122,7 @@ export const useCallNextPatient = () => {
       doctorId: string;
       appointmentId: string;
     }) => {
-      return await callNextPatient(doctorId, appointmentId);
+      return (await clinicApiClient.post(API_ENDPOINTS.QUEUE.CALL_NEXT, { doctorId, appointmentId })).data;
     },
     {
       toastId: TOAST_IDS.QUEUE.CALL_NEXT,
@@ -179,7 +151,7 @@ export const useAddToQueue = () => {
       priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
       estimatedDuration?: number;
     }) => {
-      return await addToQueue(queueData);
+      return (await clinicApiClient.post(API_ENDPOINTS.QUEUE.ADD, queueData)).data;
     },
     {
       toastId: TOAST_IDS.QUEUE.UPDATE,
@@ -205,7 +177,9 @@ export const useRemoveFromQueue = () => {
       queueId: string;
       reason?: string;
     }) => {
-      return await removeFromQueue(queueId, reason);
+      return (await clinicApiClient.delete(API_ENDPOINTS.QUEUE.REMOVE(queueId), {
+        body: reason ? JSON.stringify({ reason }) : undefined,
+      })).data;
     },
     {
       toastId: TOAST_IDS.QUEUE.UPDATE,
@@ -232,7 +206,7 @@ export const useReorderQueue = () => {
       date: string;
       newOrder: string[];
     }) => {
-      return await reorderQueue(doctorId, date, newOrder);
+      return (await clinicApiClient.post(API_ENDPOINTS.QUEUE.REORDER, { doctorId, date, newOrder })).data;
     },
     {
       toastId: TOAST_IDS.QUEUE.UPDATE,
@@ -260,7 +234,7 @@ export const useQueueHistory = (filters?: {
   limit?: number;
 }) => {
   return useQueryData(['queueHistory', filters], async () => {
-    return await getQueueHistory(filters);
+    return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.HISTORY, filters as Record<string, string | number | boolean | undefined>)).data;
   });
 };
 
@@ -269,7 +243,7 @@ export const useQueueHistory = (filters?: {
  */
 export const useQueueAnalytics = (period: 'day' | 'week' | 'month' | 'year' = 'day') => {
   return useQueryData(['queueAnalytics', period], async () => {
-    return await getQueueAnalytics(period);
+    return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.ANALYTICS, { period })).data;
   });
 };
 
@@ -389,7 +363,7 @@ export const useUpdateQueuePosition = () => {
       queueId: string;
       newPosition: number;
     }) => {
-      return await updateQueuePosition(queueId, newPosition);
+      return (await clinicApiClient.patch(API_ENDPOINTS.QUEUE.UPDATE_POSITION(queueId), { newPosition })).data;
     },
     {
       toastId: TOAST_IDS.QUEUE.UPDATE,
@@ -414,7 +388,7 @@ export const usePauseQueue = () => {
     async ({ doctorId }: {
       doctorId: string;
     }) => {
-      return await pauseQueue(doctorId);
+      return (await clinicApiClient.post(API_ENDPOINTS.QUEUE.PAUSE, { doctorId })).data;
     },
     {
       toastId: TOAST_IDS.QUEUE.UPDATE,
@@ -447,11 +421,11 @@ export const useTransferQueueEntry = () => {
       treatmentType?: string;
       notes?: string;
     }) => {
-      const result = await transferQueueEntry(entryId, targetQueue, treatmentType, notes);
-      if (!result) {
-        throw new Error('Failed to transfer queue entry');
-      }
-      return result;
+      return (await clinicApiClient.post(API_ENDPOINTS.QUEUE.TRANSFER(entryId), {
+        targetQueue,
+        treatmentType,
+        notes,
+      })).data;
     },
     {
       toastId: TOAST_IDS.QUEUE.UPDATE,
@@ -476,7 +450,7 @@ export const useResumeQueue = () => {
     async ({ doctorId }: {
       doctorId: string;
     }) => {
-      return await resumeQueue(doctorId);
+      return (await clinicApiClient.post(API_ENDPOINTS.QUEUE.RESUME, { doctorId })).data;
     },
     {
       toastId: TOAST_IDS.QUEUE.UPDATE,
@@ -498,7 +472,7 @@ export const useResumeQueue = () => {
  */
 export const useQueueConfig = () => {
   return useQueryData(['queueConfig'], async () => {
-    return await getQueueConfig();
+    return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.CONFIG)).data;
   });
 };
 
@@ -514,7 +488,7 @@ export const useUpdateQueueConfig = () => {
       allowWalkIns?: boolean;
       priorityEnabled?: boolean;
     }) => {
-      return await updateQueueConfig(config);
+      return (await clinicApiClient.put(API_ENDPOINTS.QUEUE.CONFIG, config)).data;
     },
     {
       toastId: TOAST_IDS.QUEUE.UPDATE,
@@ -537,7 +511,7 @@ export const useUpdateQueueConfig = () => {
  */
 export const useQueueNotifications = (userId?: string) => {
   return useQueryData(['queueNotifications', userId], async () => {
-    return await getQueueNotifications(userId);
+    return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.NOTIFICATIONS.GET, userId ? { userId } : undefined)).data;
   }, {
     enabled: true,
   });
@@ -551,7 +525,7 @@ export const useMarkQueueNotificationAsRead = () => {
     async ({ notificationId }: {
       notificationId: string;
     }) => {
-      return await markQueueNotificationAsRead(notificationId);
+      return (await clinicApiClient.patch(API_ENDPOINTS.QUEUE.NOTIFICATIONS.MARK_READ(notificationId), { read: true })).data;
     },
     {
       toastId: TOAST_IDS.NOTIFICATION.NEW,
@@ -574,7 +548,7 @@ export const useSendQueueNotification = () => {
       message: string;
       channels?: ('sms' | 'email' | 'push')[];
     }) => {
-      return await sendQueueNotification(notificationData);
+      return (await clinicApiClient.post(API_ENDPOINTS.QUEUE.NOTIFICATIONS.SEND, notificationData)).data;
     },
     {
       toastId: TOAST_IDS.COMMUNICATION.SEND,
@@ -589,7 +563,7 @@ export const useSendQueueNotification = () => {
  */
 export const useQueueWaitTimes = (queueType?: string) => {
   return useQueryData(['queueWaitTimes', queueType], async () => {
-    return await getQueueWaitTimes(queueType);
+    return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.WAIT_TIMES, queueType ? { queueType } : undefined)).data;
   });
 };
 
@@ -602,7 +576,7 @@ export const useEstimateWaitTime = () => {
       queueType: string;
       priority?: string;
     }) => {
-      return await estimateWaitTime(queueType, priority);
+      return (await clinicApiClient.post(API_ENDPOINTS.QUEUE.ESTIMATE_WAIT_TIME, { queueType, priority })).data;
     },
     {
       toastId: TOAST_IDS.QUEUE.UPDATE,
@@ -618,7 +592,7 @@ export const useEstimateWaitTime = () => {
  */
 export const useQueueCapacity = (queueType: string) => {
   return useQueryData(['queueCapacity', queueType], async () => {
-    return await getQueueCapacity(queueType);
+    return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.CAPACITY, { queueType })).data;
   }, {
     enabled: !!queueType,
   });
@@ -633,7 +607,7 @@ export const useUpdateQueueCapacity = () => {
       queueType: string;
       capacity: number;
     }) => {
-      return await updateQueueCapacity(queueType, capacity);
+      return (await clinicApiClient.put(API_ENDPOINTS.QUEUE.CAPACITY, { queueType, capacity })).data;
     },
     {
       toastId: TOAST_IDS.QUEUE.UPDATE,
@@ -657,9 +631,9 @@ export const useQueuePerformanceMetrics = (filters?: {
   startDate?: string;
   endDate?: string;
   queueType?: string;
-}) => {
+  }) => {
   return useQueryData(['queuePerformanceMetrics', filters], async () => {
-    return await getQueuePerformanceMetrics(filters);
+    return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.PERFORMANCE, filters as Record<string, string | number | boolean | undefined>)).data;
   });
 };
 
@@ -674,7 +648,7 @@ export const useExportQueueData = () => {
       format: 'csv' | 'excel' | 'pdf';
       queueType?: string;
     }) => {
-      return await exportQueueData(filters);
+      return (await clinicApiClient.post(API_ENDPOINTS.QUEUE.EXPORT, filters)).data;
     },
     {
       toastId: TOAST_IDS.ANALYTICS.REPORT_DOWNLOAD,
@@ -689,7 +663,7 @@ export const useExportQueueData = () => {
  */
 export const useQueueAlerts = () => {
   return useQueryData(['queueAlerts'], async () => {
-    return await getQueueAlerts();
+    return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.ALERTS.GET)).data;
   });
 };
 
@@ -704,7 +678,7 @@ export const useCreateQueueAlert = () => {
       queueType?: string;
       enabled: boolean;
     }) => {
-      return await createQueueAlert(alertData);
+      return (await clinicApiClient.post(API_ENDPOINTS.QUEUE.ALERTS.CREATE, alertData)).data;
     },
     {
       toastId: TOAST_IDS.QUEUE.UPDATE,
@@ -727,7 +701,7 @@ export const useUpdateQueueAlert = () => {
         enabled?: boolean;
       };
     }) => {
-      return await updateQueueAlert(alertId, updates);
+      return (await clinicApiClient.put(API_ENDPOINTS.QUEUE.ALERTS.UPDATE(alertId), updates)).data;
     },
     {
       toastId: TOAST_IDS.QUEUE.UPDATE,
@@ -746,7 +720,7 @@ export const useDeleteQueueAlert = () => {
     async ({ alertId }: {
       alertId: string;
     }) => {
-      return await deleteQueueAlert(alertId);
+      return (await clinicApiClient.delete(API_ENDPOINTS.QUEUE.ALERTS.DELETE(alertId))).data;
     },
     {
       toastId: TOAST_IDS.QUEUE.UPDATE,

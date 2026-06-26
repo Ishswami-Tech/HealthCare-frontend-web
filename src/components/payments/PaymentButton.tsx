@@ -12,17 +12,15 @@ import {
 import { useQueryClient } from "@/hooks/core";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { APP_CONFIG } from "@/lib/config/config";
+import { API_ENDPOINTS } from "@/lib/config/config";
 import {
   DEFAULT_PAYMENT_PROVIDER,
   isPaymentProviderEnabled,
   type PaymentProvider,
 } from "@/lib/payments/providers";
-import {
-  createPaymentIntent,
-  verifyPaymentCallback,
-} from "@/lib/actions/billing.server";
 import { getClinicId } from "@/lib/utils/token-manager";
 import { syncAppointmentInCache } from "@/lib/utils/appointment-cache";
+import { clinicApiClient } from "@/lib/api/client";
 
 const BILLING_QUERY_KEYS = [
   ["invoices"],
@@ -34,6 +32,7 @@ const BILLING_QUERY_KEYS = [
   ["active-subscription"],
   ["clinic-ledger"],
   ["billing-analytics"],
+  ["patientDashboardSummary"],
 ] as const;
 
 const CASHFREE_LOAD_TIMEOUT_MS = 10000;
@@ -133,32 +132,30 @@ export function PaymentButton({
   };
 
   const getPaymentIntent = async () => {
+    const providerQuery = `?provider=${effectiveProvider}`;
     if (subscriptionId) {
-      return await createPaymentIntent({
-        subscriptionId,
-        provider: effectiveProvider,
-      });
+      return await clinicApiClient.request<Record<string, unknown>>(
+        `${API_ENDPOINTS.BILLING.SUBSCRIPTIONS.BASE}/${subscriptionId}/process-payment${providerQuery}`,
+        { method: "POST" }
+      );
     } else if (appointmentId) {
-      return appointmentType
-        ? await createPaymentIntent({
-            appointmentId,
-            appointmentType,
-            provider: effectiveProvider,
-          })
-        : await createPaymentIntent({
-            appointmentId,
-            provider: effectiveProvider,
-          });
+      return await clinicApiClient.request<Record<string, unknown>>(
+        `${API_ENDPOINTS.BILLING.APPOINTMENT_PAYMENTS.PROCESS_PAYMENT(appointmentId)}${providerQuery}`,
+        {
+          method: "POST",
+          ...(appointmentType ? { body: JSON.stringify({ appointmentType }) } : {}),
+        }
+      );
     } else if (invoiceId) {
-      return await createPaymentIntent({
-        invoiceId,
-        provider: effectiveProvider,
-      });
+      return await clinicApiClient.request<Record<string, unknown>>(
+        `${API_ENDPOINTS.BILLING.INVOICES.PROCESS_PAYMENT(invoiceId)}${providerQuery}`,
+        { method: "POST" }
+      );
     } else if (prescriptionId) {
-      return await createPaymentIntent({
-        prescriptionId,
-        provider: effectiveProvider,
-      });
+      return await clinicApiClient.request<Record<string, unknown>>(
+        `${API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.PROCESS_PAYMENT(prescriptionId)}${providerQuery}`,
+        { method: "POST" }
+      );
     } else {
       throw new Error(
         "Either invoiceId, appointmentId, subscriptionId, or prescriptionId is required"
@@ -174,14 +171,25 @@ export function PaymentButton({
       clinicId: string;
     }
   ) => {
-    const verifyResponse = await verifyPaymentCallback({
+    const queryParams = new URLSearchParams({
       clinicId: params.clinicId,
       paymentId: params.paymentId || params.orderId,
       orderId: params.orderId,
       provider: usedProvider,
     });
+    const verifyResponse = await clinicApiClient.publicRequest<Record<string, unknown>>(
+      `${API_ENDPOINTS.BILLING.PAYMENTS.CALLBACK}?${queryParams.toString()}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Clinic-ID": params.clinicId,
+        },
+        body: JSON.stringify({ orderId: params.orderId }),
+      }
+    );
     if (!verifyResponse.success) {
-      throw new Error(verifyResponse.error || verifyResponse.message || "Payment verification failed");
+      throw new Error(verifyResponse.error || (verifyResponse as any).message || "Payment verification failed");
     }
     return verifyResponse;
   };
@@ -396,10 +404,17 @@ export function PaymentButton({
     setIsProcessing(true);
     try {
       const paymentResponse = await getPaymentIntent();
-      if (!paymentResponse.success || !paymentResponse.paymentIntent) {
+      const paymentIntentResponse = paymentResponse as unknown as {
+        paymentIntent?: Record<string, unknown>;
+      };
+      const paymentIntentData =
+        paymentIntentResponse.paymentIntent ||
+        (paymentResponse.data as { paymentIntent?: Record<string, unknown> } | undefined)?.paymentIntent;
+
+      if (!paymentResponse.success || !paymentIntentData) {
         throw new Error(paymentResponse.error || paymentResponse.message || "Failed to create payment intent");
       }
-      const paymentIntent = paymentResponse.paymentIntent as Record<string, unknown>;
+      const paymentIntent = paymentIntentData as Record<string, unknown>;
       const providerFromIntent =
         typeof paymentIntent?.provider === "string"
           ? paymentIntent.provider.toLowerCase()

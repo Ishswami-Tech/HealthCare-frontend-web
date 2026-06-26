@@ -6,31 +6,11 @@ import { useMutationOperation } from '../core/useMutationOperation';
 import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import { TOAST_IDS } from '../utils/use-toast';
 import { useAuth } from '@/hooks/auth/useAuth';
-import {
-  getDoctors,
-  getDoctorById,
-  createDoctor,
-  updateDoctor,
-  deleteDoctor,
-  getDoctorSchedule,
-  updateDoctorSchedule,
-  updateDoctorAvailability,
-  getDoctorAppointments,
-  getDoctorPatients,
-  getDoctorStats,
-  getDoctorReviews,
-  addDoctorReview,
-  getDoctorSpecializations,
-  searchDoctors,
-  getDoctorPerformanceMetrics,
-  updateDoctorProfile,
-  getDoctorEarnings,
-  exportDoctorData
-} from '@/lib/actions/doctors.server';
-import { getDoctorAvailability } from '@/lib/actions/appointments.server';
+import { clinicApiClient } from '@/lib/api/client';
+import { API_ENDPOINTS } from '@/lib/config/config';
 import { usePatientStore } from '@/stores';
 import { useAuthStore } from '@/stores/auth.store';
-import { useClinicDoctors, useCurrentClinicId } from './useClinics';
+import { useCurrentClinicId } from './useClinics';
 
 const useDoctorQueryScope = () => {
   const sessionId = useAuthStore((state) => state.session?.session_id?.trim() || '');
@@ -60,9 +40,10 @@ export const useDoctors = (clinicId: string, filters?: {
 
   return useQueryData(['doctors', clinicId, authScope, filters], async () => {
     console.log('[useDoctors] Fetching doctors for clinicId:', clinicId, 'filters:', filters);
-    const result = await getDoctors(clinicId, filters);
-    console.log('[useDoctors] Received doctors:', result?.length || 0, 'doctors');
-    return result;
+    const result = await clinicApiClient.get(API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId), filters);
+    const doctors = Array.isArray(result.data) ? result.data : [];
+    console.log('[useDoctors] Received doctors:', doctors.length, 'doctors');
+    return doctors;
   }, {
     enabled: !!clinicId && (options?.enabled ?? true),
     refetchInterval: isConnected ? false : 120_000,
@@ -76,7 +57,7 @@ export const useDoctor = (doctorId: string) => {
   const { isConnected } = useWebSocketStatus();
 
   return useQueryData(['doctor', doctorId], async () => {
-    return await getDoctorById(doctorId);
+    return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.GET_BY_ID(doctorId));
   }, {
     enabled: !!doctorId,
     refetchInterval: isConnected ? false : 120_000,
@@ -90,7 +71,7 @@ export const useDoctorSchedule = (clinicId: string, doctorId: string, date?: str
   const { isConnected } = useWebSocketStatus();
 
   return useQueryData(['doctorSchedule', clinicId, doctorId, date], async () => {
-    return await getDoctorSchedule(clinicId, doctorId, date);
+    return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.SCHEDULE.GET(clinicId, doctorId), date ? { date } : undefined);
   }, {
     enabled: !!clinicId && !!doctorId,
     refetchInterval: isConnected ? false : 30_000,
@@ -109,8 +90,12 @@ export const useDoctorAvailabilityLegacy = (doctorId: string, date: string, loca
     if (!clinicId) {
       throw new Error('No clinic ID available');
     }
-    const res = await getDoctorAvailability(clinicId, doctorId, date, locationId);
-    return res.availability;
+    const res = await clinicApiClient.get(API_ENDPOINTS.DOCTORS.AVAILABILITY.GET(doctorId), {
+      clinicId,
+      date,
+      locationId,
+    });
+    return (res as any).availability ?? res;
   }, {
     enabled: !!clinicId && !!doctorId && !!date,
     refetchInterval: isConnected ? false : 30_000,
@@ -128,7 +113,7 @@ export const useDoctorAppointments = (doctorId: string, filters?: {
   const { isConnected } = useWebSocketStatus();
 
   return useQueryData(['doctorAppointments', doctorId, filters], async () => {
-    return await getDoctorAppointments(doctorId, filters);
+    return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.APPOINTMENTS(doctorId), filters);
   }, {
     enabled: !!doctorId,
     staleTime: 0,
@@ -155,7 +140,8 @@ export const useDoctorPatients = (clinicId: string, filters?: {
   const setCollection = usePatientStore((state) => state.setCollection);
 
   const query = useQueryData(['doctorPatients', clinicId, filters], async () => {
-    return await getDoctorPatients(clinicId, filters);
+    const doctorId = useAuthStore.getState().session?.user?.id || '';
+    return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.PATIENTS(clinicId, doctorId), filters);
   }, {
     enabled: !!clinicId && (options?.enabled ?? true),
     refetchInterval: isConnected ? false : 60_000,
@@ -184,7 +170,7 @@ export const useDoctorStats = (doctorId: string, period?: 'day' | 'week' | 'mont
   const { isConnected } = useWebSocketStatus();
 
   return useQueryData(['doctorStats', doctorId, period], async () => {
-    return await getDoctorStats(doctorId, period);
+    return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.STATS(doctorId), period ? { period } : undefined);
   }, {
     enabled: !!doctorId,
     refetchInterval: isConnected ? false : 120_000,
@@ -198,7 +184,7 @@ export const useDoctorReviews = (doctorId: string, limit: number = 10) => {
   const { isConnected } = useWebSocketStatus();
 
   return useQueryData(['doctorReviews', doctorId, limit], async () => {
-    return await getDoctorReviews(doctorId, limit);
+    return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.REVIEWS.GET(doctorId), { limit });
   }, {
     enabled: !!doctorId,
     refetchInterval: isConnected ? false : 300_000,
@@ -210,7 +196,7 @@ export const useDoctorReviews = (doctorId: string, limit: number = 10) => {
  */
 export const useDoctorSpecializations = () => {
   return useQueryData(['doctorSpecializations'], async () => {
-    return await getDoctorSpecializations();
+    return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.SPECIALIZATIONS);
   });
 };
 
@@ -224,7 +210,7 @@ export const useDoctorPerformanceMetrics = (doctorId: string, filters?: {
   const { isConnected } = useWebSocketStatus();
 
   return useQueryData(['doctorPerformanceMetrics', doctorId, filters], async () => {
-    return await getDoctorPerformanceMetrics(doctorId, filters);
+    return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.PERFORMANCE(doctorId), filters);
   }, {
     enabled: !!doctorId,
     refetchInterval: isConnected ? false : 300_000,
@@ -242,7 +228,7 @@ export const useDoctorEarnings = (doctorId: string, filters?: {
   const { isConnected } = useWebSocketStatus();
 
   return useQueryData(['doctorEarnings', doctorId, filters], async () => {
-    return await getDoctorEarnings(doctorId, filters);
+    return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.EARNINGS(doctorId), filters);
   }, {
     enabled: !!doctorId,
     refetchInterval: isConnected ? false : 300_000,
@@ -271,7 +257,7 @@ export const useCreateDoctor = () => {
         isAvailable: boolean;
       }[];
     }) => {
-      return await createDoctor(doctorData);
+      return await clinicApiClient.post(API_ENDPOINTS.DOCTORS.CREATE, doctorData);
     },
     {
       toastId: TOAST_IDS.DOCTOR.CREATE,
@@ -312,7 +298,7 @@ export const useUpdateDoctor = () => {
         clinicId?: string;
       };
     }) => {
-      return await updateDoctor(doctorId, updates);
+      return await clinicApiClient.put(API_ENDPOINTS.DOCTORS.UPDATE(doctorId), updates);
     },
     {
       toastId: TOAST_IDS.DOCTOR.UPDATE,
@@ -342,7 +328,7 @@ export const useUpdateDoctor = () => {
 export const useDeleteDoctor = () => {
   return useMutationOperation(
     async (doctorId: string) => {
-      return await deleteDoctor(doctorId);
+      return await clinicApiClient.delete(API_ENDPOINTS.DOCTORS.DELETE(doctorId));
     },
     {
       toastId: TOAST_IDS.DOCTOR.DELETE,
@@ -381,7 +367,7 @@ export const useUpdateDoctorSchedule = () => {
         isAvailable: boolean;
       }[];
     }) => {
-      return await updateDoctorSchedule(doctorId, schedule, clinicId);
+      return await clinicApiClient.put(API_ENDPOINTS.DOCTORS.SCHEDULE.UPDATE(doctorId), { schedule, clinicId });
     },
     {
       toastId: TOAST_IDS.DOCTOR.UPDATE,
@@ -415,7 +401,7 @@ export const useUpdateDoctorAvailability = () => {
         }[];
       };
     }) => {
-      return await updateDoctorAvailability(doctorId, availabilityData);
+      return await clinicApiClient.put(API_ENDPOINTS.DOCTORS.AVAILABILITY.UPDATE(doctorId), availabilityData);
     },
     {
       toastId: TOAST_IDS.DOCTOR.UPDATE,
@@ -447,7 +433,7 @@ export const useAddDoctorReview = () => {
         appointmentId?: string;
       };
     }) => {
-      return await addDoctorReview(doctorId, reviewData);
+      return await clinicApiClient.post(API_ENDPOINTS.DOCTORS.REVIEWS.CREATE(doctorId), reviewData);
     },
     {
       toastId: TOAST_IDS.DOCTOR.UPDATE,
@@ -473,7 +459,7 @@ export const useSearchDoctors = () => {
         limit?: number;
       };
     }) => {
-      return await searchDoctors(query, filters);
+      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.SEARCH, { query, ...filters });
     },
     {
       toastId: TOAST_IDS.DOCTOR.UPDATE,
@@ -499,7 +485,7 @@ export const useUpdateDoctorProfile = () => {
         profilePicture?: string;
       };
     }) => {
-      return await updateDoctorProfile(doctorId, profileData);
+      return await clinicApiClient.put(API_ENDPOINTS.DOCTORS.PROFILE.UPDATE(doctorId), profileData);
     },
     {
       toastId: TOAST_IDS.DOCTOR.UPDATE,
@@ -522,7 +508,7 @@ export const useExportDoctorData = () => {
       startDate?: string;
       endDate?: string;
     }) => {
-      return await exportDoctorData(filters);
+      return await clinicApiClient.post(API_ENDPOINTS.DOCTORS.EXPORT, filters);
     },
     {
       toastId: TOAST_IDS.ANALYTICS.REPORT_DOWNLOAD,
@@ -533,14 +519,21 @@ export const useExportDoctorData = () => {
 };
 
 export const useCurrentDoctorEntityId = (clinicId?: string) => {
-  const { session } = useAuth();
+  const { session } = useAuth() as { session?: { user?: { id?: string; email?: string } } };
   const authenticatedUserId = session?.user?.id || '';
   const authenticatedEmail = session?.user?.email?.toLowerCase() || '';
-  const clinicDoctors = useClinicDoctors(clinicId || '');
+  const clinicDoctors = useQueryData(
+    ['clinicDoctors', clinicId],
+    async () => {
+      if (!clinicId) return [];
+      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId));
+    },
+    { enabled: !!clinicId }
+  );
 
   const doctorId = useMemo(() => {
-    const doctors = Array.isArray(clinicDoctors.data) ? clinicDoctors.data : [];
-    const matchedDoctor = doctors.find((doctor) => {
+    const doctors: any[] = Array.isArray(clinicDoctors.data) ? (clinicDoctors.data as any[]) : [];
+    const matchedDoctor = doctors.find((doctor: any) => {
       const doctorUserId = doctor.userId || doctor.user?.id || '';
       const doctorEmail = doctor.user?.email?.toLowerCase() || '';
       return doctorUserId === authenticatedUserId || (authenticatedEmail && doctorEmail === authenticatedEmail);

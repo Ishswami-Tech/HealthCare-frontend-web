@@ -1,29 +1,8 @@
 import { useQueryData } from '../core/useQueryData';
 import { useMutationOperation } from '../core/useMutationOperation';
 import { TOAST_IDS } from '../utils/use-toast';
-import {
-  getDashboardAnalytics,
-  getAppointmentAnalytics,
-  getPatientAnalytics,
-  getRevenueAnalytics,
-  getDoctorPerformanceAnalytics,
-  getClinicPerformanceAnalytics,
-  getServiceUtilizationAnalytics,
-  getWaitTimeAnalytics,
-  getPatientSatisfactionAnalytics,
-  getQueueAnalytics,
-  generateAppointmentReport,
-  generatePatientReport,
-  generateRevenueReport,
-  generateDoctorPerformanceReport,
-  generateClinicSummaryReport,
-  getReportHistory,
-  downloadReport,
-  deleteReport,
-  getCustomAnalytics,
-  saveCustomAnalyticsQuery,
-  getSavedAnalyticsQueries
-} from '@/lib/actions/analytics.server';
+import { clinicApiClient } from '@/lib/api/client';
+import { API_ENDPOINTS } from '@/lib/config/config';
 
 // ===== ANALYTICS HOOKS =====
 
@@ -32,7 +11,8 @@ import {
  */
 export const useDashboardAnalytics = (period: 'day' | 'week' | 'month' | 'year' = 'month', clinicId?: string) => {
   return useQueryData(['dashboardAnalytics', period, clinicId], async () => {
-    return await getDashboardAnalytics(period, clinicId);
+    const result = await clinicApiClient.get(API_ENDPOINTS.ANALYTICS.DASHBOARD, { period, clinicId });
+    return result.data ?? result;
   });
 };
 
@@ -47,7 +27,8 @@ export const useAppointmentAnalytics = (filters?: {
   clinicId?: string;
 }) => {
   return useQueryData(['appointmentAnalytics', filters], async () => {
-    return await getAppointmentAnalytics(filters);
+    const result = await clinicApiClient.get(API_ENDPOINTS.ANALYTICS.APPOINTMENTS, filters);
+    return result.data ?? result;
   });
 };
 
@@ -63,7 +44,8 @@ export const usePatientAnalytics = (filters?: {
   gender?: string;
 }) => {
   return useQueryData(['patientAnalytics', filters], async () => {
-    return await getPatientAnalytics(filters);
+    const result = await clinicApiClient.get(API_ENDPOINTS.ANALYTICS.PATIENTS, filters);
+    return result.data ?? result;
   });
 };
 
@@ -78,7 +60,8 @@ export const useRevenueAnalytics = (filters?: {
   serviceId?: string;
 }) => {
   return useQueryData(['revenueAnalytics', filters], async () => {
-    return await getRevenueAnalytics(filters);
+    const result = await clinicApiClient.get(API_ENDPOINTS.ANALYTICS.REVENUE, filters);
+    return result.data ?? result;
   });
 };
 
@@ -87,7 +70,8 @@ export const useRevenueAnalytics = (filters?: {
  */
 export const useDoctorPerformanceAnalytics = (doctorId?: string, period: 'day' | 'week' | 'month' | 'year' = 'month') => {
   return useQueryData(['doctorPerformanceAnalytics', doctorId, period], async () => {
-    return await getDoctorPerformanceAnalytics(doctorId, period);
+    const result = await clinicApiClient.get(API_ENDPOINTS.ANALYTICS.DOCTORS_PERFORMANCE, { doctorId, period });
+    return result.data ?? result;
   });
 };
 
@@ -96,7 +80,8 @@ export const useDoctorPerformanceAnalytics = (doctorId?: string, period: 'day' |
  */
 export const useClinicPerformanceAnalytics = (clinicId?: string, period: 'day' | 'week' | 'month' | 'year' = 'month') => {
   return useQueryData(['clinicPerformanceAnalytics', clinicId, period], async () => {
-    return await getClinicPerformanceAnalytics(clinicId, period);
+    const result = await clinicApiClient.get(API_ENDPOINTS.ANALYTICS.CLINICS_PERFORMANCE, { clinicId, period });
+    return result.data ?? result;
   });
 };
 
@@ -109,7 +94,8 @@ export const useServiceUtilizationAnalytics = (filters?: {
   serviceCategory?: string;
 }) => {
   return useQueryData(['serviceUtilizationAnalytics', filters], async () => {
-    return await getServiceUtilizationAnalytics(filters);
+    const result = await clinicApiClient.get(API_ENDPOINTS.ANALYTICS.SERVICES_UTILIZATION, filters);
+    return result.data ?? result;
   });
 };
 
@@ -122,7 +108,8 @@ export const useWaitTimeAnalytics = (filters?: {
   doctorId?: string;
 }) => {
   return useQueryData(['waitTimeAnalytics', filters], async () => {
-    return await getWaitTimeAnalytics(filters);
+    const result = await clinicApiClient.get(API_ENDPOINTS.ANALYTICS.WAIT_TIMES, filters);
+    return result.data ?? result;
   });
 };
 
@@ -135,7 +122,8 @@ export const usePatientSatisfactionAnalytics = (filters?: {
   doctorId?: string;
 }) => {
   return useQueryData(['patientSatisfactionAnalytics', filters], async () => {
-    return await getPatientSatisfactionAnalytics(filters);
+    const result = await clinicApiClient.get(API_ENDPOINTS.ANALYTICS.SATISFACTION, filters);
+    return result.data ?? result;
   });
 };
 
@@ -153,7 +141,8 @@ export const useQueueAnalytics = (
   }
 ) => {
   return useQueryData(['queueAnalytics', clinicId, filters], async () => {
-    return await getQueueAnalytics({ ...filters, clinicId });
+    const result = await clinicApiClient.get(API_ENDPOINTS.ANALYTICS.QUEUE, { ...filters, clinicId });
+    return result.data ?? result;
   }, {
     enabled: !!clinicId,
     staleTime: 5 * 60 * 1000,
@@ -175,7 +164,8 @@ export const useGenerateAppointmentReport = () => {
       doctorId?: string;
       status?: string;
     }) => {
-      return await generateAppointmentReport(filters);
+      const result = await clinicApiClient.post(API_ENDPOINTS.REPORTS.APPOINTMENTS, filters);
+      return result.data ?? result;
     },
     {
       toastId: TOAST_IDS.ANALYTICS.REPORT_GENERATE,
@@ -197,7 +187,8 @@ export const useGeneratePatientReport = () => {
       clinicId?: string;
       includeDetails?: boolean;
     }) => {
-      return await generatePatientReport(filters);
+      const result = await clinicApiClient.post(API_ENDPOINTS.REPORTS.PATIENTS, filters);
+      return result.data ?? result;
     },
     {
       toastId: TOAST_IDS.ANALYTICS.REPORT_GENERATE,
@@ -219,7 +210,8 @@ export const useGenerateRevenueReport = () => {
       clinicId?: string;
       groupBy?: 'day' | 'week' | 'month';
     }) => {
-      return await generateRevenueReport(filters);
+      const result = await clinicApiClient.post(API_ENDPOINTS.REPORTS.REVENUE, filters);
+      return result.data ?? result;
     },
     {
       toastId: TOAST_IDS.ANALYTICS.REPORT_GENERATE,
@@ -241,7 +233,8 @@ export const useGenerateDoctorPerformanceReport = () => {
       doctorId?: string;
       clinicId?: string;
     }) => {
-      return await generateDoctorPerformanceReport(filters);
+      const result = await clinicApiClient.post(API_ENDPOINTS.REPORTS.DOCTORS_PERFORMANCE, filters);
+      return result.data ?? result;
     },
     {
       toastId: TOAST_IDS.ANALYTICS.REPORT_GENERATE,
@@ -262,7 +255,8 @@ export const useGenerateClinicSummaryReport = () => {
       format: 'pdf' | 'excel' | 'csv';
       clinicId?: string;
     }) => {
-      return await generateClinicSummaryReport(filters);
+      const result = await clinicApiClient.post(API_ENDPOINTS.REPORTS.CLINICS_SUMMARY, filters);
+      return result.data ?? result;
     },
     {
       toastId: TOAST_IDS.ANALYTICS.REPORT_GENERATE,
@@ -281,7 +275,8 @@ export const useReportHistory = (filters?: {
   limit?: number;
 }) => {
   return useQueryData(['reportHistory', filters], async () => {
-    return await getReportHistory(filters);
+    const result = await clinicApiClient.get(API_ENDPOINTS.REPORTS.HISTORY, filters);
+    return result.data ?? result;
   });
 };
 
@@ -291,7 +286,8 @@ export const useReportHistory = (filters?: {
 export const useDownloadReport = () => {
   return useMutationOperation(
     async (reportId: string) => {
-      return await downloadReport(reportId);
+      const result = await clinicApiClient.get(API_ENDPOINTS.REPORTS.DOWNLOAD(reportId));
+      return result.data ?? result;
     },
     {
       toastId: TOAST_IDS.ANALYTICS.REPORT_DOWNLOAD,
@@ -307,7 +303,8 @@ export const useDownloadReport = () => {
 export const useDeleteReport = () => {
   return useMutationOperation(
     async (reportId: string) => {
-      return await deleteReport(reportId);
+      const result = await clinicApiClient.delete(API_ENDPOINTS.REPORTS.DELETE(reportId));
+      return result.data ?? result;
     },
     {
       toastId: TOAST_IDS.ANALYTICS.REPORT_DOWNLOAD,
@@ -332,7 +329,8 @@ export const useCustomAnalytics = () => {
       startDate: string;
       endDate: string;
     }) => {
-      return await getCustomAnalytics(query);
+      const result = await clinicApiClient.post(API_ENDPOINTS.ANALYTICS.CUSTOM, query);
+      return result.data ?? result;
     },
     {
       toastId: TOAST_IDS.ANALYTICS.REPORT_GENERATE,
@@ -357,7 +355,8 @@ export const useSaveCustomAnalyticsQuery = () => {
         filters?: Record<string, any>;
       };
     }) => {
-      return await saveCustomAnalyticsQuery(queryData);
+      const result = await clinicApiClient.post(API_ENDPOINTS.ANALYTICS.CUSTOM_QUERIES.CREATE, queryData);
+      return result.data ?? result;
     },
     {
       toastId: TOAST_IDS.ANALYTICS.REPORT_GENERATE,
@@ -373,7 +372,8 @@ export const useSaveCustomAnalyticsQuery = () => {
  */
 export const useSavedAnalyticsQueries = () => {
   return useQueryData(['savedAnalyticsQueries'], async () => {
-    return await getSavedAnalyticsQueries();
+    const result = await clinicApiClient.get(API_ENDPOINTS.ANALYTICS.CUSTOM_QUERIES.GET_ALL);
+    return result.data ?? result;
   });
 };
 

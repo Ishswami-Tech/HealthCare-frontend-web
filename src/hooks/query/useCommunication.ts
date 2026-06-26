@@ -11,31 +11,8 @@
 
 import { useQueryData } from '../core/useQueryData';
 import { useMutationOperation } from '../core/useMutationOperation';
-import {
-  sendUnifiedCommunication,
-  sendAppointmentReminder,
-  sendPrescriptionReady,
-  sendPushNotification,
-  sendMultiplePushNotifications,
-  sendTopicPushNotification,
-  subscribeToTopic,
-  unsubscribeFromTopic,
-  sendEmail,
-  backupChat,
-  getChatHistory,
-  getChatStats,
-  getCommunicationStats,
-  getCommunicationHealth,
-  testCommunication,
-  sendSMS,
-  sendWhatsAppMessage,
-  getMessageTemplates,
-  createMessageTemplate,
-  updateMessageTemplate,
-  deleteMessageTemplate,
-  getMessageHistory,
-  getMessagingStats,
-} from '@/lib/actions/communication.server';
+import { clinicApiClient } from '@/lib/api/client';
+import { API_ENDPOINTS } from '@/lib/config/config';
 import {
   submitContactForm,
   submitConsultationBooking,
@@ -53,10 +30,7 @@ import { TOAST_IDS } from '@/hooks/utils/use-toast';
  */
 export const useSendUnifiedCommunication = () => {
   return useMutationOperation(
-    async (data: Parameters<typeof sendUnifiedCommunication>[0]) => {
-      const result = await sendUnifiedCommunication(data);
-      return result;
-    },
+    async (data: any) => clinicApiClient.post(API_ENDPOINTS.COMMUNICATION.SEND, data),
     {
       toastId: TOAST_IDS.COMMUNICATION.SEND,
       loadingMessage: 'Sending communication...',
@@ -71,10 +45,7 @@ export const useSendUnifiedCommunication = () => {
  */
 export const useSendAppointmentReminder = () => {
   return useMutationOperation(
-    async (data: Parameters<typeof sendAppointmentReminder>[0]) => {
-      const result = await sendAppointmentReminder(data);
-      return result;
-    },
+    async (data: any) => clinicApiClient.post(API_ENDPOINTS.COMMUNICATION.APPOINTMENT_REMINDER, data),
     {
       toastId: TOAST_IDS.APPOINTMENT.REMINDER,
       loadingMessage: 'Sending reminder...',
@@ -89,10 +60,7 @@ export const useSendAppointmentReminder = () => {
  */
 export const useSendPrescriptionReady = () => {
   return useMutationOperation(
-    async (data: Parameters<typeof sendPrescriptionReady>[0]) => {
-      const result = await sendPrescriptionReady(data);
-      return result;
-    },
+    async (data: any) => clinicApiClient.post(API_ENDPOINTS.COMMUNICATION.PRESCRIPTION_READY, data),
     {
       toastId: TOAST_IDS.COMMUNICATION.PRESCRIPTION,
       loadingMessage: 'Sending notification...',
@@ -109,10 +77,7 @@ export const useSendPrescriptionReady = () => {
  */
 export const useSendPushNotification = () => {
   return useMutationOperation(
-    async (data: Parameters<typeof sendPushNotification>[0]) => {
-      const result = await sendPushNotification(data);
-      return result;
-    },
+    async (data: any) => clinicApiClient.post(API_ENDPOINTS.COMMUNICATION.PUSH.SEND, data),
     {
       toastId: TOAST_IDS.COMMUNICATION.PUSH,
       loadingMessage: 'Sending push notification...',
@@ -127,10 +92,7 @@ export const useSendPushNotification = () => {
  */
 export const useSendMultiplePushNotifications = () => {
   return useMutationOperation(
-    async (data: Parameters<typeof sendMultiplePushNotifications>[0]) => {
-      const result = await sendMultiplePushNotifications(data);
-      return result;
-    },
+    async (data: any) => clinicApiClient.post(API_ENDPOINTS.COMMUNICATION.PUSH.SEND_MULTIPLE, data),
     {
       toastId: TOAST_IDS.COMMUNICATION.PUSH_BULK,
       loadingMessage: 'Sending push notifications...',
@@ -145,10 +107,7 @@ export const useSendMultiplePushNotifications = () => {
  */
 export const useSendTopicPushNotification = () => {
   return useMutationOperation(
-    async (data: Parameters<typeof sendTopicPushNotification>[0]) => {
-      const result = await sendTopicPushNotification(data);
-      return result;
-    },
+    async (data: any) => clinicApiClient.post(API_ENDPOINTS.COMMUNICATION.PUSH.SEND_TOPIC, data),
     {
       toastId: TOAST_IDS.COMMUNICATION.PUSH_TOPIC,
       loadingMessage: 'Sending topic notification...',
@@ -163,10 +122,7 @@ export const useSendTopicPushNotification = () => {
  */
 export const useSubscribeToTopic = () => {
   return useMutationOperation(
-    async (data: Parameters<typeof subscribeToTopic>[0]) => {
-      const result = await subscribeToTopic(data);
-      return result;
-    },
+    async (data: any) => clinicApiClient.post(API_ENDPOINTS.COMMUNICATION.PUSH.SUBSCRIBE, data),
     {
       toastId: TOAST_IDS.COMMUNICATION.TOPIC_SUB,
       loadingMessage: 'Subscribing to topic...',
@@ -181,10 +137,7 @@ export const useSubscribeToTopic = () => {
  */
 export const useUnsubscribeFromTopic = () => {
   return useMutationOperation(
-    async (data: Parameters<typeof unsubscribeFromTopic>[0]) => {
-      const result = await unsubscribeFromTopic(data);
-      return result;
-    },
+    async (data: any) => clinicApiClient.post(API_ENDPOINTS.COMMUNICATION.PUSH.UNSUBSCRIBE, data),
     {
       toastId: TOAST_IDS.COMMUNICATION.TOPIC_UNSUB,
       loadingMessage: 'Unsubscribing from topic...',
@@ -213,8 +166,7 @@ export const useSendEmail = () => {
         contentType: string;
       }>;
     }) => {
-      const result = await sendEmail(emailData);
-      return result;
+      return await clinicApiClient.post(API_ENDPOINTS.COMMUNICATION.EMAIL.SEND, emailData);
     },
     {
       toastId: TOAST_IDS.COMMUNICATION.EMAIL,
@@ -232,10 +184,7 @@ export const useSendEmail = () => {
  */
 export const useBackupChat = () => {
   return useMutationOperation(
-    async (data: Parameters<typeof backupChat>[0]) => {
-      const result = await backupChat(data);
-      return result;
-    },
+    async (data: any) => clinicApiClient.post(API_ENDPOINTS.COMMUNICATION.CHAT.BACKUP, data),
     {
       toastId: TOAST_IDS.COMMUNICATION.CHAT_BACKUP,
       loadingMessage: 'Backing up chat...',
@@ -250,12 +199,12 @@ export const useBackupChat = () => {
  */
 export const useChatHistory = (
   userId: string,
-  filters?: Parameters<typeof getChatHistory>[1]
+  filters?: any
 ) => {
   return useQueryData(
     ['communication', 'chat', 'history', userId, filters],
     async () => {
-      return await getChatHistory(userId, filters);
+      return await clinicApiClient.get(API_ENDPOINTS.COMMUNICATION.CHAT.HISTORY(userId), filters);
     },
     { enabled: !!userId }
   );
@@ -264,11 +213,11 @@ export const useChatHistory = (
 /**
  * Hook to get chat statistics
  */
-export const useChatStats = (filters?: Parameters<typeof getChatStats>[0]) => {
+export const useChatStats = (filters?: any) => {
   return useQueryData(
     ['communication', 'chat', 'stats', filters],
     async () => {
-      return await getChatStats(filters);
+      return await clinicApiClient.get(API_ENDPOINTS.COMMUNICATION.CHAT.STATS, filters);
     }
   );
 };
@@ -279,12 +228,12 @@ export const useChatStats = (filters?: Parameters<typeof getChatStats>[0]) => {
  * Hook to get communication statistics
  */
 export const useCommunicationStats = (
-  filters?: Parameters<typeof getCommunicationStats>[0]
+  filters?: any
 ) => {
   return useQueryData(
     ['communication', 'stats', filters],
     async () => {
-      return await getCommunicationStats(filters);
+      return await clinicApiClient.get(API_ENDPOINTS.COMMUNICATION.STATS, filters);
     }
   );
 };
@@ -294,7 +243,7 @@ export const useCommunicationStats = (
  */
 export const useCommunicationHealth = () => {
   return useQueryData(['communication', 'health'], async () => {
-    return await getCommunicationHealth();
+    return await clinicApiClient.get(API_ENDPOINTS.COMMUNICATION.HEALTH);
   });
 };
 
@@ -303,10 +252,7 @@ export const useCommunicationHealth = () => {
  */
 export const useTestCommunication = () => {
   return useMutationOperation(
-    async (data: Parameters<typeof testCommunication>[0]) => {
-      const result = await testCommunication(data);
-      return result;
-    },
+    async (data: any) => clinicApiClient.post(API_ENDPOINTS.COMMUNICATION.TEST, data),
     {
       toastId: TOAST_IDS.COMMUNICATION.TEST,
       loadingMessage: 'Testing communication...',
@@ -333,8 +279,7 @@ export const useSendSMS = () => {
       templateId?: string;
       variables?: Record<string, string>;
     }) => {
-      const result = await sendSMS(messageData);
-      return result;
+      return await clinicApiClient.post(API_ENDPOINTS.COMMUNICATION.MESSAGING.SMS, messageData);
     },
     {
       toastId: TOAST_IDS.COMMUNICATION.SMS,
@@ -357,8 +302,7 @@ export const useSendWhatsAppMessage = () => {
       variables?: Record<string, string>;
       mediaUrl?: string;
     }) => {
-      const result = await sendWhatsAppMessage(messageData);
-      return result;
+      return await clinicApiClient.post(API_ENDPOINTS.COMMUNICATION.MESSAGING.WHATSAPP, messageData);
     },
     {
       toastId: TOAST_IDS.COMMUNICATION.WHATSAPP,
@@ -376,7 +320,7 @@ export const useMessageTemplates = (type?: 'sms' | 'email' | 'whatsapp') => {
   return useQueryData(
     ['messageTemplates', type],
     async () => {
-      return await getMessageTemplates(type);
+      return await clinicApiClient.get(API_ENDPOINTS.COMMUNICATION.MESSAGING.TEMPLATES.BASE, type ? { type } : undefined);
     }
   );
 };
@@ -394,8 +338,7 @@ export const useCreateMessageTemplate = () => {
       variables?: string[];
       category?: string;
     }) => {
-      const result = await createMessageTemplate(templateData);
-      return result;
+      return await clinicApiClient.post(API_ENDPOINTS.COMMUNICATION.MESSAGING.TEMPLATES.CREATE, templateData);
     },
     {
       toastId: TOAST_IDS.COMMUNICATION.TEMPLATE_CREATE,
@@ -425,8 +368,7 @@ export const useUpdateMessageTemplate = () => {
         isActive?: boolean;
       };
     }) => {
-      const result = await updateMessageTemplate(templateId, updates);
-      return result;
+      return await clinicApiClient.put(API_ENDPOINTS.COMMUNICATION.MESSAGING.TEMPLATES.UPDATE(templateId), updates);
     },
     {
       toastId: TOAST_IDS.COMMUNICATION.TEMPLATE_UPDATE,
@@ -443,8 +385,7 @@ export const useUpdateMessageTemplate = () => {
 export const useDeleteMessageTemplate = () => {
   return useMutationOperation(
     async (templateId: string) => {
-      const result = await deleteMessageTemplate(templateId);
-      return result;
+      return await clinicApiClient.delete(API_ENDPOINTS.COMMUNICATION.MESSAGING.TEMPLATES.DELETE(templateId));
     },
     {
       toastId: TOAST_IDS.COMMUNICATION.TEMPLATE_DELETE,
@@ -469,7 +410,7 @@ export const useMessageHistory = (filters?: {
   return useQueryData(
     ['messageHistory', filters],
     async () => {
-      return await getMessageHistory(filters);
+      return await clinicApiClient.get(API_ENDPOINTS.COMMUNICATION.MESSAGING.HISTORY, filters);
     }
   );
 };
@@ -483,7 +424,7 @@ export const useMessagingStats = (
   return useQueryData(
     ['messagingStats', period],
     async () => {
-      return await getMessagingStats(period);
+      return await clinicApiClient.get(API_ENDPOINTS.COMMUNICATION.MESSAGING.STATS, { period });
     }
   );
 };
@@ -502,8 +443,7 @@ export const useScheduleMessage = () => {
       templateId?: string;
       variables?: Record<string, string>;
     }) => {
-      const result = await scheduleMessage(messageData);
-      return result;
+      return await clinicApiClient.post(API_ENDPOINTS.COMMUNICATION.MESSAGING.SCHEDULE.CREATE, messageData);
     },
     {
       toastId: TOAST_IDS.COMMUNICATION.SCHEDULE,
@@ -519,10 +459,7 @@ export const useScheduleMessage = () => {
  */
 export const useCancelScheduledMessage = () => {
   return useMutationOperation(
-    async (messageId: string) => {
-      const result = await cancelScheduledMessage(messageId);
-      return result;
-    },
+    async (messageId: string) => clinicApiClient.delete(API_ENDPOINTS.COMMUNICATION.MESSAGING.SCHEDULE.DELETE(messageId)),
     {
       toastId: TOAST_IDS.COMMUNICATION.CANCEL_SCHEDULE,
       loadingMessage: 'Cancelling scheduled message...',
@@ -542,7 +479,7 @@ export const useScheduledMessages = (filters?: {
   return useQueryData(
     ['scheduledMessages', filters],
     async () => {
-      return await getScheduledMessages(filters);
+      return await clinicApiClient.get(API_ENDPOINTS.COMMUNICATION.MESSAGING.SCHEDULE.BASE, filters);
     }
   );
 };

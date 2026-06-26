@@ -3,53 +3,39 @@ import { keepPreviousData } from '@tanstack/react-query';
 import { useQueryData } from '../core/useQueryData';
 import { useMutationOperation } from '../core/useMutationOperation';
 import { TOAST_IDS } from '../utils/use-toast';
-import {
-  getCounselorAppointments,
-  getCounselorClients,
-  createCounselorAppointment,
-  updateCounselorAppointment,
-  deleteCounselorAppointment,
-  updateCounselorClientSession,
-} from '@/lib/actions/counselor.server';
 import { clinicApiClient } from '@/lib/api/client';
+import { API_ENDPOINTS } from '@/lib/config/config';
+import { useAuth } from '@/hooks/auth/useAuth';
+import { nowIso } from '@/lib/utils/date-time';
 import { usePatientStore } from '@/stores';
-import type { CounselorAppointment, CounselorClient, CounselorSession } from '@/types/medical-records.types';
+import type { CounselorAppointment } from '@/types/medical-records.types';
 
 /**
  * Hook to get all counselor appointments
  */
-export const useCounselorAppointments = (counselorId?: string, filters?: {
-  status?: string | undefined;
-  startDate?: string | undefined;
-  endDate?: string | undefined;
-}) => {
+export const useCounselorAppointments = (
+  counselorId?: string,
+  filters?: {
+    status?: string | undefined;
+    startDate?: string | undefined;
+    endDate?: string | undefined;
+  }
+) => {
   return useQueryData(
     ['counselorAppointments', counselorId, filters],
     async () => {
-      // ✅ REST path — the previous server-action call ran a full RSC POST
-      // each refetch, contributing to the revalidation storm. The counselor
-      // server action is a thin proxy over `/appointments?doctorId=<id>`,
-      // so we call the REST endpoint directly.
-      const response = await clinicApiClient.getAppointments({
+      const response = await clinicApiClient.get(API_ENDPOINTS.APPOINTMENTS.GET_ALL, {
         ...(counselorId ? { doctorId: counselorId } : {}),
         ...(filters?.status ? { status: filters.status } : {}),
         ...(filters?.startDate ? { startDate: filters.startDate } : {}),
         ...(filters?.endDate ? { endDate: filters.endDate } : {}),
       });
-      if (!response.success) {
-        throw new Error(response.error || response.message || 'Failed to fetch counselor appointments');
-      }
-      const result = response as any;
-      const appointments = Array.isArray(result)
-        ? result
-        : (result.appointments ?? result.data ?? []);
+      const result = response.data as any;
+      const appointments = Array.isArray(result) ? result : (result?.appointments ?? result?.data ?? []);
       return { appointments };
     },
     {
       enabled: !!counselorId,
-      // Keep previous list visible during background refetches so the
-      // counselor dashboard doesn't flash empty/loading on focus, reconnect,
-      // or filter changes. First load still surfaces isPending=true.
       placeholderData: keepPreviousData,
     }
   );
@@ -58,15 +44,20 @@ export const useCounselorAppointments = (counselorId?: string, filters?: {
 /**
  * Hook to get all counselor clients
  */
-export const useCounselorClients = (counselorId?: string, filters?: {
-  search?: string | undefined;
-  status?: string | undefined;
-  condition?: string | undefined;
-  limit?: number | undefined;
-  offset?: number | undefined;
-  clientId?: string | undefined;
-}) => {
+export const useCounselorClients = (
+  counselorId?: string,
+  filters?: {
+    search?: string | undefined;
+    status?: string | undefined;
+    condition?: string | undefined;
+    limit?: number | undefined;
+    offset?: number | undefined;
+    clientId?: string | undefined;
+  }
+) => {
   const setCollection = usePatientStore((state) => state.setCollection);
+  const { session } = useAuth();
+  const clinicId = session?.user?.clinicId;
 
   const query = useQueryData(
     ['counselorClients', counselorId, filters],
@@ -81,13 +72,21 @@ export const useCounselorClients = (counselorId?: string, filters?: {
             ...(filters.clientId ? { clientId: filters.clientId } : {}),
           }
         : undefined;
-      return await getCounselorClients(counselorId || '', cleanedFilters);
+
+      if (!clinicId) return { clients: [] };
+
+      const params = {
+        ...(cleanedFilters?.search ? { search: cleanedFilters.search } : {}),
+        ...(cleanedFilters?.status ? { status: cleanedFilters.status } : {}),
+        ...(cleanedFilters?.clientId ? { patientId: cleanedFilters.clientId } : {}),
+        ...(typeof cleanedFilters?.limit === 'number' ? { limit: cleanedFilters.limit } : {}),
+        ...(typeof cleanedFilters?.offset === 'number' ? { offset: cleanedFilters.offset } : {}),
+      };
+
+      return (await clinicApiClient.get(API_ENDPOINTS.PATIENTS.GET_CLINIC_PATIENTS(clinicId), params)).data;
     },
     {
       enabled: true,
-      // Keep the previous client list visible during background refetches so
-      // the counselor dashboard doesn't blank the client panel on focus,
-      // reconnect, or filter changes. First load still surfaces isPending=true.
       placeholderData: keepPreviousData,
     }
   );
@@ -103,10 +102,6 @@ export const useCounselorClients = (counselorId?: string, filters?: {
           : [];
 
     setCollection('counselor', normalizedClients);
-    // Include the serialized filters in the deps so a filter change re-fires
-    // the writeback. Without this, placeholderData could keep the store at
-    // an old filter's snapshot during a refetch and overwrite when the new
-    // data lands out-of-order.
   }, [
     query.data,
     setCollection,
@@ -125,9 +120,15 @@ export const useCounselorClients = (counselorId?: string, filters?: {
  * Hook to get counselor client by ID
  */
 export const useCounselorClient = (counselorId: string, clientId: string) => {
+  const { session } = useAuth();
+  const clinicId = session?.user?.clinicId;
+
   return useQueryData(
     ['counselorClient', counselorId, clientId],
-    async () => await getCounselorClients(counselorId, { clientId }),
+    async () => {
+      if (!clinicId) return { clients: [] };
+      return (await clinicApiClient.get(API_ENDPOINTS.PATIENTS.GET_BY_ID(clinicId, clientId))).data;
+    },
     {
       enabled: !!counselorId && !!clientId,
     }
@@ -140,7 +141,16 @@ export const useCounselorClient = (counselorId: string, clientId: string) => {
 export const useCreateCounselorAppointment = () => {
   return useMutationOperation(
     async (appointmentData: CounselorAppointment) => {
-      return await createCounselorAppointment(appointmentData);
+      return (await clinicApiClient.post(API_ENDPOINTS.APPOINTMENTS.CREATE, {
+        patientId: appointmentData.patientId || appointmentData.clientId,
+        doctorId: appointmentData.counselorId || appointmentData.doctorId,
+        date: appointmentData.date,
+        time: appointmentData.time,
+        type: appointmentData.type || 'IN_PERSON',
+        treatmentType: appointmentData.treatmentType || 'THERAPY',
+        notes: appointmentData.notes,
+        duration: appointmentData.duration,
+      })).data;
     },
     {
       toastId: TOAST_IDS.APPOINTMENT.CREATE,
@@ -161,7 +171,7 @@ export const useCreateCounselorAppointment = () => {
 export const useUpdateCounselorAppointment = () => {
   return useMutationOperation(
     async ({ appointmentId, updates }: { appointmentId: string; updates: Partial<CounselorAppointment> }) => {
-      return await updateCounselorAppointment(appointmentId, updates);
+      return (await clinicApiClient.put(API_ENDPOINTS.APPOINTMENTS.UPDATE(appointmentId), updates)).data;
     },
     {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
@@ -182,7 +192,7 @@ export const useUpdateCounselorAppointment = () => {
 export const useDeleteCounselorAppointment = () => {
   return useMutationOperation(
     async (appointmentId: string) => {
-      return await deleteCounselorAppointment(appointmentId);
+      return (await clinicApiClient.patch(API_ENDPOINTS.APPOINTMENTS.STATUS(appointmentId), { status: 'CANCELLED' })).data;
     },
     {
       toastId: TOAST_IDS.APPOINTMENT.DELETE,
@@ -202,7 +212,7 @@ export const useDeleteCounselorAppointment = () => {
  */
 export const useUpdateCounselorClientSession = () => {
   return useMutationOperation(
-    async ({ counselorId, clientId, sessionData }: {
+    async ({ clientId, sessionData }: {
       counselorId: string;
       clientId: string;
       sessionData: {
@@ -211,7 +221,14 @@ export const useUpdateCounselorClientSession = () => {
         nextSessionDate?: string;
       };
     }) => {
-      return await updateCounselorClientSession(counselorId, clientId, sessionData);
+      return (await clinicApiClient.post(API_ENDPOINTS.EHR.MEDICAL_HISTORY.CREATE, {
+        userId: clientId,
+        type: 'TREATMENT',
+        title: 'Counseling Session',
+        description: sessionData.notes || '',
+        date: sessionData.sessionDate || nowIso(),
+        ...(sessionData.nextSessionDate ? { followUpDate: sessionData.nextSessionDate } : {}),
+      })).data;
     },
     {
       toastId: TOAST_IDS.PROFILE.COMPLETE,

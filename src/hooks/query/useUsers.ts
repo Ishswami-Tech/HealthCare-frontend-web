@@ -3,27 +3,11 @@ import { useMutationOperation } from '../core/useMutationOperation';
 import { TOAST_IDS } from '../utils/use-toast';
 import { useAuth } from '../auth/useAuth';
 import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
+import { clinicApiClient } from '@/lib/api/client';
+import { API_ENDPOINTS } from '@/lib/config/config';
 import { setProfileComplete } from '@/lib/actions/auth.server';
 import {
-  getAllUsers,
-  getUserProfile,
-  getUserById,
   updateUserProfile,
-  createUser,
-  updateUser,
-  deleteUser,
-  updateUserRole,
-  getUsersByRole,
-  getUsersByClinic,
-  searchUsers,
-  getUserStats,
-  bulkUpdateUsers,
-  exportUsers,
-  changeUserPassword,
-  toggleUserVerification,
-  getUserActivityLogs,
-  getUserSessions,
-  terminateUserSession,
 } from '@/lib/actions/users.server';
 
 // ===== USER PROFILE HOOKS =====
@@ -36,13 +20,14 @@ export const useUserProfile = (
 ) => {
   const { isConnected } = useWebSocketStatus();
   return useQueryData(['userProfile'], async () => {
-    return await getUserProfile();
+    const response = await clinicApiClient.getProfile();
+    return response.data;
   }, {
     // Use a long staleTime so multiple mount sites
     // (`DashboardLayout`, `BookAppointmentDialog`, profile pages) don't
-    // trigger a server-action POST on every remount. Profile data only
-    // changes on explicit profile updates, so 5 minutes is more than
-    // enough freshness for the header avatar / RBAC fallback.
+    // refetch profile data on every remount. Profile data only changes on
+    // explicit updates, so 5 minutes is more than enough freshness for the
+    // header avatar / RBAC fallback.
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     refetchInterval: isConnected ? false : 300_000,
@@ -78,7 +63,7 @@ export const useUser = (id: string) => {
   const { isConnected } = useWebSocketStatus();
   return useQueryData<Record<string, unknown>>(
     ['user', id],
-    async () => (await getUserById(id)) as Record<string, unknown>,
+    async () => (await clinicApiClient.get(API_ENDPOINTS.USERS.GET_BY_ID(id))).data as Record<string, unknown>,
     {
       enabled: !!id && !!session?.user,
       refetchInterval: isConnected ? false : 300_000,
@@ -92,7 +77,7 @@ export const useUser = (id: string) => {
 export const useUpdateUser = () => {
   return useMutationOperation<{ status: number; data: Record<string, unknown> }, { id: string; data: Record<string, unknown> }>(
     async ({ id, data }) => {
-      return { status: 200, data: (await updateUser(id, data)) as Record<string, unknown> };
+      return { status: 200, data: (await clinicApiClient.put(API_ENDPOINTS.USERS.UPDATE(id), data)).data as Record<string, unknown> };
     },
     {
       toastId: TOAST_IDS.USER.UPDATE,
@@ -109,7 +94,8 @@ export const useUpdateUser = () => {
 export const useDeleteUser = () => {
   return useMutationOperation<{ status: number; data: { message: string } }, string>(
     async (id) => {
-      return { status: 200, data: { message: String((await deleteUser(id)) ?? 'User deleted successfully') } };
+      const response = await clinicApiClient.delete(API_ENDPOINTS.USERS.DELETE(id));
+      return { status: 200, data: { message: String((response.data as any)?.message ?? 'User deleted successfully') } };
     },
     {
       toastId: TOAST_IDS.USER.DELETE,
@@ -128,7 +114,7 @@ export const useUsers = () => {
   const { isConnected } = useWebSocketStatus();
   return useQueryData<Record<string, unknown>[]>(
     ['users'],
-    async () => (await getAllUsers()) as Record<string, unknown>[],
+    async () => (await clinicApiClient.get(API_ENDPOINTS.USERS.GET_ALL)).data as Record<string, unknown>[],
     {
       enabled: !!session?.user,
       refetchInterval: isConnected ? false : 600_000,
@@ -146,7 +132,7 @@ export const usePatients = () => {
   const { isConnected } = useWebSocketStatus();
   return useQueryData<Record<string, unknown>[]>(
     ['patients'],
-    async () => (await getUsersByRole('PATIENT')) as Record<string, unknown>[],
+    async () => (await clinicApiClient.get(API_ENDPOINTS.USERS.GET_BY_ROLE.PATIENT)).data as Record<string, unknown>[],
     {
       enabled: !!session?.user,
       refetchInterval: isConnected ? false : 300_000,
@@ -162,7 +148,7 @@ export const useDoctors = () => {
   const { isConnected } = useWebSocketStatus();
   return useQueryData<Record<string, unknown>[]>(
     ['doctors'],
-    async () => (await getUsersByRole('DOCTOR')) as Record<string, unknown>[],
+    async () => (await clinicApiClient.get(API_ENDPOINTS.USERS.GET_BY_ROLE.DOCTORS)).data as Record<string, unknown>[],
     {
       enabled: !!session?.user,
       refetchInterval: isConnected ? false : 300_000,
@@ -178,7 +164,7 @@ export const useReceptionists = () => {
   const { isConnected } = useWebSocketStatus();
   return useQueryData<Record<string, unknown>[]>(
     ['receptionists'],
-    async () => (await getUsersByRole('RECEPTIONIST')) as Record<string, unknown>[],
+    async () => (await clinicApiClient.get(API_ENDPOINTS.USERS.GET_BY_ROLE.RECEPTIONISTS)).data as Record<string, unknown>[],
     {
       enabled: !!session?.user,
       refetchInterval: isConnected ? false : 300_000,
@@ -194,7 +180,7 @@ export const useClinicAdmins = () => {
   const { isConnected } = useWebSocketStatus();
   return useQueryData<Record<string, unknown>[]>(
     ['clinicAdmins'],
-    async () => (await getUsersByRole('CLINIC_ADMIN')) as Record<string, unknown>[],
+    async () => (await clinicApiClient.get(API_ENDPOINTS.USERS.GET_BY_ROLE.CLINIC_ADMINS)).data as Record<string, unknown>[],
     {
       enabled: !!session?.user,
       refetchInterval: isConnected ? false : 300_000,
@@ -369,7 +355,7 @@ export const useCreateUser = () => {
       country?: string;
       zipCode?: string;
     }) => {
-      return await createUser(userData);
+      return (await clinicApiClient.post(API_ENDPOINTS.USERS.BASE, userData)).data;
     },
     {
       toastId: TOAST_IDS.USER.CREATE,
@@ -407,7 +393,7 @@ export const useUpdateUserRole = () => {
       if (locationId) updatePayload.locationId = locationId;
       if (permissions) updatePayload.permissions = permissions;
 
-      return (await updateUserRole(userId, role, updatePayload)) as Record<string, unknown>;
+      return (await clinicApiClient.put(API_ENDPOINTS.USERS.UPDATE_ROLE(userId), { role, ...updatePayload })).data as Record<string, unknown>;
     },
     {
       toastId: TOAST_IDS.USER.UPDATE,
@@ -451,7 +437,19 @@ export const useSetProfileComplete = () => {
  */
 export const useUsersByRole = (role: string) => {
   return useQueryData(['users', 'role', role], async () => {
-    return (await getUsersByRole(role)) as Record<string, unknown>[];
+    const normalizedRole = role.trim().toUpperCase();
+    const endpointMap: Record<string, string> = {
+      PATIENT: API_ENDPOINTS.USERS.GET_BY_ROLE.PATIENT,
+      DOCTOR: API_ENDPOINTS.USERS.GET_BY_ROLE.DOCTORS,
+      ASSISTANT_DOCTOR: API_ENDPOINTS.USERS.GET_BY_ROLE.DOCTORS,
+      RECEPTIONIST: API_ENDPOINTS.USERS.GET_BY_ROLE.RECEPTIONISTS,
+      CLINIC_ADMIN: API_ENDPOINTS.USERS.GET_BY_ROLE.CLINIC_ADMINS,
+    };
+    const endpoint = endpointMap[normalizedRole];
+    if (endpoint) {
+      return (await clinicApiClient.get(endpoint)).data as Record<string, unknown>[];
+    }
+    return (await clinicApiClient.get(API_ENDPOINTS.USERS.SEARCH, { q: '', roles: role })).data as Record<string, unknown>[];
   }, {
     enabled: !!role,
   });
@@ -462,7 +460,7 @@ export const useUsersByRole = (role: string) => {
  */
 export const useUsersByClinic = (clinicId: string) => {
   return useQueryData(['users', 'clinic', clinicId], async () => {
-    return (await getUsersByClinic(clinicId)) as Record<string, unknown>[];
+    return (await clinicApiClient.get(API_ENDPOINTS.USERS.GET_BY_CLINIC(clinicId))).data as Record<string, unknown>[];
   }, {
     enabled: !!clinicId,
   });
@@ -481,7 +479,12 @@ export const useSearchUsers = () => {
         isVerified?: boolean;
       };
     }) => {
-      return (await searchUsers(query, filters)) as Record<string, unknown>[];
+      return (await clinicApiClient.get(API_ENDPOINTS.USERS.SEARCH, {
+        q: query,
+        ...(filters?.role ? { role: filters.role } : {}),
+        ...(filters?.clinicId ? { clinicId: filters.clinicId } : {}),
+        ...(typeof filters?.isVerified === 'boolean' ? { isVerified: filters.isVerified } : {}),
+      })).data as Record<string, unknown>[];
     },
     {
       toastId: TOAST_IDS.USER.UPDATE,
@@ -497,7 +500,7 @@ export const useSearchUsers = () => {
  */
 export const useUserStats = () => {
   return useQueryData(['userStats'], async () => {
-    return (await getUserStats()) as Record<string, unknown>;
+    return (await clinicApiClient.get(API_ENDPOINTS.USERS.STATS)).data as Record<string, unknown>;
   });
 };
 
@@ -510,7 +513,7 @@ export const useBulkUpdateUsers = () => {
       userIds: string[];
       updates: Record<string, any>;
     }) => {
-      return (await bulkUpdateUsers(userIds, updates)) as Record<string, unknown>;
+      return (await clinicApiClient.patch(API_ENDPOINTS.USERS.BULK_UPDATE, { userIds, updates })).data as Record<string, unknown>;
     },
     {
       toastId: TOAST_IDS.USER.UPDATE,
@@ -530,7 +533,10 @@ export const useExportUsers = () => {
       format?: 'csv' | 'excel';
       filters?: Record<string, any>;
     }) => {
-      return (await exportUsers(format, filters)) as Record<string, unknown>;
+      return (await clinicApiClient.get(API_ENDPOINTS.USERS.EXPORT, {
+        format: format || 'csv',
+        ...(filters ?? {}),
+      })).data as Record<string, unknown>;
     },
     {
       toastId: TOAST_IDS.ANALYTICS.REPORT_DOWNLOAD,
@@ -549,7 +555,7 @@ export const useChangeUserPassword = () => {
       userId: string;
       newPassword: string;
     }) => {
-      return (await changeUserPassword(userId, newPassword)) as Record<string, unknown>;
+      return (await clinicApiClient.patch(API_ENDPOINTS.USERS.CHANGE_PASSWORD(userId), { password: newPassword })).data as Record<string, unknown>;
     },
     {
       toastId: TOAST_IDS.USER.UPDATE,
@@ -568,7 +574,7 @@ export const useToggleUserVerification = () => {
       userId: string;
       isVerified: boolean;
     }) => {
-      return (await toggleUserVerification(userId, isVerified)) as Record<string, unknown>;
+      return (await clinicApiClient.patch(API_ENDPOINTS.USERS.TOGGLE_VERIFICATION(userId), { isVerified })).data as Record<string, unknown>;
     },
     {
       toastId: TOAST_IDS.USER.UPDATE,
@@ -584,7 +590,7 @@ export const useToggleUserVerification = () => {
  */
 export const useUserActivityLogs = (userId: string, limit: number = 50) => {
   return useQueryData(['userActivityLogs', userId], async () => {
-    return (await getUserActivityLogs(userId, limit)) as Record<string, unknown>[];
+    return (await clinicApiClient.get(API_ENDPOINTS.USERS.ACTIVITY_LOGS(userId), { limit })).data as Record<string, unknown>[];
   }, {
     enabled: !!userId,
   });
@@ -595,7 +601,7 @@ export const useUserActivityLogs = (userId: string, limit: number = 50) => {
  */
 export const useUserSessions = (userId: string) => {
   return useQueryData(['userSessions', userId], async () => {
-    return (await getUserSessions(userId)) as Record<string, unknown>[];
+    return (await clinicApiClient.get(API_ENDPOINTS.USERS.SESSIONS.GET_ALL, { userId })).data as Record<string, unknown>[];
   }, {
     enabled: !!userId,
   });
@@ -610,7 +616,7 @@ export const useTerminateUserSession = () => {
       userId: string;
       sessionId: string;
     }) => {
-      return (await terminateUserSession(userId, sessionId)) as Record<string, unknown>;
+      return (await clinicApiClient.delete(API_ENDPOINTS.USERS.TERMINATE_SESSION(sessionId))).data as Record<string, unknown>;
     },
     {
       toastId: TOAST_IDS.SESSION.TERMINATE,

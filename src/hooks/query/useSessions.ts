@@ -3,7 +3,8 @@
 import { useQueryData } from "../core/useQueryData";
 import { useMutationOperation } from "../core/useMutationOperation";
 import { TOAST_IDS } from "../utils/use-toast";
-import { getActiveSessions, revokeSession } from "@/lib/actions/session.server";
+import { clinicApiClient } from "@/lib/api/client";
+import { API_ENDPOINTS } from "@/lib/config/config";
 
 export interface ActiveSession {
   id: string;
@@ -17,7 +18,13 @@ export interface ActiveSession {
 export const useActiveSessions = (enabled: boolean = true) => {
   return useQueryData<ActiveSession[]>(
     ["activeSessions"],
-    async () => await getActiveSessions(),
+    async () => {
+      const result = await clinicApiClient.get<{ sessions?: ActiveSession[]; data?: ActiveSession[] }>(
+        API_ENDPOINTS.AUTH.SESSIONS
+      );
+      const payload = result.data as { sessions?: ActiveSession[]; data?: ActiveSession[] } | undefined;
+      return payload?.sessions ?? payload?.data ?? [];
+    },
     {
       enabled,
       staleTime: 60 * 1000,
@@ -28,7 +35,7 @@ export const useActiveSessions = (enabled: boolean = true) => {
 export const useRevokeSession = () => {
   return useMutationOperation<void, string>(
     async (sessionId) => {
-      await revokeSession(sessionId);
+      await clinicApiClient.delete(API_ENDPOINTS.USERS.SESSIONS.REVOKE(sessionId));
     },
     {
       toastId: TOAST_IDS.SESSION.TERMINATE,

@@ -1,5 +1,5 @@
 import { useQueryData } from '../core/useQueryData';
-import { getDetailedHealthStatus } from '@/lib/actions/health.server';
+import { clinicApiClient } from '@/lib/api/client';
 import { useHealthRealtime } from '../realtime/useHealthRealtime';
 import { useHealthStore } from '@/stores';
 import { useEffect } from 'react';
@@ -139,7 +139,10 @@ export const useDetailedHealthStatus = () => {
   
   const queryResult = useQueryData<DetailedHealthStatus>(
     ['detailedHealthStatus'],
-    getDetailedHealthStatus,
+    async () => {
+      const result = await clinicApiClient.getDetailedHealth();
+      return (result.data ?? result) as DetailedHealthStatus;
+    },
     { 
       // Only use REST polling as fallback when Socket.IO fails
       refetchInterval: shouldUseRestFallback ? 15000 : false, // Poll every 15s only if Socket.IO failed

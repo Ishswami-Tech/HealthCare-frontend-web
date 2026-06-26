@@ -1,13 +1,8 @@
 import { useQueryData } from '../core/useQueryData';
 import { useMutationOperation } from '../core/useMutationOperation';
 import { TOAST_IDS } from '../utils/use-toast';
-import {
-  getPrescriptions,
-  getPrescriptionsByPatientId,
-  createPrescription,
-  updatePrescription,
-  deletePrescription,
-} from '@/lib/actions/prescriptions.server';
+import { clinicApiClient } from '@/lib/api/client';
+import { API_ENDPOINTS } from '@/lib/config/config';
 import type { Prescription } from '@/types/medical-records.types';
 
 /**
@@ -25,7 +20,11 @@ export const usePrescriptions = (doctorId?: string, filters?: {
 }) => {
   return useQueryData(
     ['prescriptions', doctorId, filters],
-    async () => await getPrescriptions(doctorId, filters),
+    async () => {
+      const result = await clinicApiClient.get(API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.LIST, { doctorId, ...filters });
+      const payload = result.data as { prescriptions?: Prescription[]; data?: Prescription[] } | undefined;
+      return { prescriptions: payload?.prescriptions ?? payload?.data ?? [] };
+    },
     {
       enabled: (options?.enabled ?? true) && !!doctorId,
     }
@@ -46,7 +45,14 @@ export const usePatientPrescriptions = (
 ) => {
   return useQueryData(
     ['patientPrescriptions', doctorId, patientId, filters],
-    async () => await getPrescriptionsByPatientId(doctorId, patientId, filters),
+    async () => {
+      const result = await clinicApiClient.get(API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.GET_BY_PATIENT(patientId), {
+        doctorId,
+        ...filters,
+      });
+      const payload = result.data as { prescriptions?: Prescription[]; data?: Prescription[] } | undefined;
+      return { prescriptions: payload?.prescriptions ?? payload?.data ?? [] };
+    },
     {
       enabled: !!doctorId && !!patientId,
     }
@@ -59,7 +65,7 @@ export const usePatientPrescriptions = (
 export const useCreatePrescription = () => {
   return useMutationOperation(
     async (prescriptionData: Prescription) => {
-      return await createPrescription(prescriptionData);
+      return await clinicApiClient.post(API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.CREATE, prescriptionData);
     },
     {
       toastId: TOAST_IDS.PRESCRIPTION.CREATE,
@@ -84,7 +90,7 @@ export const useCreatePrescription = () => {
 export const useUpdatePrescription = () => {
   return useMutationOperation(
     async ({ prescriptionId, updates }: { prescriptionId: string; updates: Partial<Prescription> }) => {
-      return await updatePrescription(prescriptionId, updates);
+      return await clinicApiClient.put(API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.UPDATE_STATUS(prescriptionId), updates);
     },
     {
       toastId: TOAST_IDS.PRESCRIPTION.UPDATE,
@@ -109,7 +115,7 @@ export const useUpdatePrescription = () => {
 export const useDeletePrescription = () => {
   return useMutationOperation(
     async (prescriptionId: string) => {
-      return await deletePrescription(prescriptionId);
+      return await clinicApiClient.delete(API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.GET(prescriptionId));
     },
     {
       toastId: TOAST_IDS.PRESCRIPTION.DELETE,

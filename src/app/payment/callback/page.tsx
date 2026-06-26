@@ -7,7 +7,8 @@ import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@/hooks/core";
 import { getAppointmentStatsQueryKey } from "@/lib/query/appointment-query-keys";
-import { verifyPaymentCallback } from "@/lib/actions/billing.server";
+import { API_ENDPOINTS } from "@/lib/config/config";
+import { clinicApiClient } from "@/lib/api/client";
 import { syncAppointmentInCache } from "@/lib/utils/appointment-cache";
 
 type VerifyState = "loading" | "success" | "failed";
@@ -108,15 +109,56 @@ function PaymentCallbackPageContent() {
       }
 
       try {
-        const response = await verifyPaymentCallback({
+        const queryParams = new URLSearchParams({
           clinicId: params.clinicId,
           paymentId: params.paymentId || params.orderId,
           orderId: params.orderId,
-          provider: params.provider as "cashfree",
+          provider: params.provider,
         });
+
+        const response = await clinicApiClient.publicRequest<Record<string, unknown>>(
+          `${API_ENDPOINTS.BILLING.PAYMENTS.CALLBACK}?${queryParams.toString()}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Clinic-ID": params.clinicId,
+            },
+            body: JSON.stringify({ orderId: params.orderId }),
+          }
+        );
 
         if (!response.success) {
           throw new Error(response.error || response.message || "Payment verification failed");
+        }
+
+        const appointmentSnapshot =
+          ((response as any).appointment as Record<string, unknown> | undefined) ??
+          ((response.data as { appointment?: Record<string, unknown> } | undefined)?.appointment) ??
+          (params.appointmentId
+            ? {
+                id: params.appointmentId,
+                appointmentId: params.appointmentId,
+                status: "CONFIRMED",
+                paymentCompleted: true,
+                paymentPending: false,
+                paymentStatus: "PAID",
+                updatedAt: new Date().toISOString(),
+              }
+            : undefined);
+
+        if (appointmentSnapshot) {
+          syncAppointmentInCache(queryClient, appointmentSnapshot, {
+            appointmentStatus: "CONFIRMED",
+            queryKeys: [
+              ["myAppointments"],
+              ["appointments"],
+              ["userUpcomingAppointments"],
+              ["appointment", params.appointmentId],
+              ["video-appointments"],
+              ["video-appointment", params.appointmentId],
+            ],
+          });
         }
 
         await Promise.all([
@@ -135,29 +177,6 @@ function PaymentCallbackPageContent() {
           queryClient.invalidateQueries({ queryKey: ["active-subscription"], exact: false }),
           queryClient.invalidateQueries({ queryKey: ["billing-analytics"], exact: false }),
         ]);
-
-        if (params.appointmentId) {
-          syncAppointmentInCache(queryClient, {
-            id: params.appointmentId,
-            appointmentId: params.appointmentId,
-            status: "CONFIRMED",
-            paymentCompleted: true,
-            isPaid: true,
-            paid: true,
-            paymentStatus: "PAID",
-            updatedAt: new Date().toISOString(),
-          }, {
-            appointmentStatus: "CONFIRMED",
-            queryKeys: [
-              ["myAppointments"],
-              ["appointments"],
-              ["userUpcomingAppointments"],
-              ["appointment", params.appointmentId],
-              ["video-appointments"],
-              ["video-appointment", params.appointmentId],
-            ],
-          });
-        }
 
         dispatch({
           type: "SUCCESS",
