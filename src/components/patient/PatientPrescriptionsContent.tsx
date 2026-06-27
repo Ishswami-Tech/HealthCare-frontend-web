@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useState } from "react";
 
@@ -311,12 +311,14 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
       )}
 
       <Tabs defaultValue="prescriptions" className="flex flex-col gap-y-6">
-        <TabsList className="max-w-full overflow-x-auto h-auto p-1 justify-start scrollbar-hide">
-          <TabsTrigger value="prescriptions" className="text-xs sm:text-sm px-3 sm:px-4">Current Prescriptions</TabsTrigger>
-          <TabsTrigger value="plan" className="text-xs sm:text-sm px-3 sm:px-4">Medication Plan</TabsTrigger>
-          <TabsTrigger value="pharmacy" className="text-xs sm:text-sm px-3 sm:px-4">Medicine Queue</TabsTrigger>
-          <TabsTrigger value="history" className="text-xs sm:text-sm px-3 sm:px-4">Prescription History</TabsTrigger>
-        </TabsList>
+        <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+          <TabsList className="inline-flex w-max min-w-full sm:flex sm:w-full">
+            <TabsTrigger value="prescriptions">Current Prescriptions</TabsTrigger>
+            <TabsTrigger value="plan">Medication Plan</TabsTrigger>
+            <TabsTrigger value="pharmacy">Medicine Queue</TabsTrigger>
+            <TabsTrigger value="history">Prescription History</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="prescriptions" className="flex flex-col gap-y-4">
           <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
@@ -369,7 +371,7 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
               icon={Pill}
             />
           ) : (
-            <div className="flex flex-col gap-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
               {filteredPrescriptions.map((prescription) => (
                 <Card key={prescription.id} className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
                   <CardHeader>

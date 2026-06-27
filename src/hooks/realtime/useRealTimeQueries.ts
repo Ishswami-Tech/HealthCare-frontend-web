@@ -225,7 +225,7 @@ export function useRealTimeAppointmentStats() {
       // a 30-minute disconnect still produces a fresh analytics rollup
       // once the socket returns. The 30s polling fallback (when
       // !isConnected) still runs as a safety net.
-      refetchOnReconnect: true,
+      refetchOnReconnect: false,
       placeholderData: keepPreviousData,
     }
   );

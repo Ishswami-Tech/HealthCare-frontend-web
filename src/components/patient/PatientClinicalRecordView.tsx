@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -336,7 +336,8 @@ export function PatientClinicalRecordView({
       </div>
 
       <Tabs defaultValue="overview" className="flex flex-col gap-y-4">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+        <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+          <TabsList className="inline-flex w-max min-w-full sm:flex sm:w-full">
           <TabsTrigger value="overview" className="gap-2">
             <UserRound className="size-4" />
             Overview
@@ -362,6 +363,7 @@ export function PatientClinicalRecordView({
             Medications
           </TabsTrigger>
         </TabsList>
+        </div>
 
         <TabsContent value="overview" className="flex flex-col gap-y-4">
           <div className="grid gap-4 lg:grid-cols-3">

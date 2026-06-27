@@ -325,7 +325,7 @@ export function DashboardLayout({
           <div className="flex flex-col h-full bg-background overflow-hidden text-neutral-900 dark:text-neutral-50">
             <Header className="bg-transparent border-b border-muted transition-none" />
             <main className="flex-1 overflow-auto">
-              <div className="p-4 md:p-8 max-w-6xl mx-auto">
+              <div className="px-2 pt-4 pb-24 md:px-8 md:pt-8 lg:pb-8 max-w-6xl mx-auto">
                 {showPermissionWarnings && title.toLowerCase().includes("appointment") && !appointmentPermissions.canViewAppointments && (
                   <Alert className="mb-4 bg-yellow-50 border-yellow-200">
                     <AlertTriangle className="size-4 text-yellow-600" />

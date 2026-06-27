@@ -47,7 +47,7 @@ export function DashboardPageHeader({
     <div className="relative overflow-hidden rounded-xl border border-border bg-card shadow-sm sm:rounded-xl">
       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400" />
 
-      <div className="relative px-4 pb-4 pt-5 sm:px-6 sm:pb-5 sm:pt-6">
+      <div className="relative px-3 pb-4 pt-5 sm:px-6 sm:pb-5 sm:pt-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div className="flex min-w-0 flex-col gap-y-1">
             <span className="inline-block text-[9px] font-extrabold uppercase tracking-[0.25em] text-primary sm:text-[11px]">

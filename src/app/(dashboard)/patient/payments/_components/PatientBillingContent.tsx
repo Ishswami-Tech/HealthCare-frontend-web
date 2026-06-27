@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -142,10 +142,14 @@ function formatSubscriptionStatus(status: string) {
   return status.replace(/_/g, " ");
 }
 
-function getInvoiceDateLabel(invoice: { status: string; dueDate?: string; paidDate?: string }) {
-  return invoice.status === "PAID"
-    ? `Paid: ${invoice.paidDate ? formatDate(invoice.paidDate) : "--"}`
-    : `Due: ${invoice.dueDate ? formatDate(invoice.dueDate) : "--"}`;
+function getInvoiceDateLabel(invoice: { status: string; dueDate?: string; paidDate?: string; paidAt?: string; invoiceDate?: string; createdAt?: string; updatedAt?: string }) {
+  const issuedAt = invoice.invoiceDate || invoice.createdAt;
+  const paidTime = invoice.paidDate || invoice.paidAt || invoice.updatedAt;
+  const statusLabel =
+    invoice.status === "PAID"
+      ? `Paid: ${paidTime ? formatDate(paidTime) : "--"}`
+      : `Due: ${invoice.dueDate ? formatDate(invoice.dueDate) : "--"}`;
+  return `Issued: ${issuedAt ? formatDate(issuedAt) : "--"} · ${statusLabel}`;
 }
 
 export function PatientBillingContent({
@@ -303,26 +307,26 @@ export function PatientBillingContent({
   ];
 
   return (
-    <PatientPageShell className="mx-auto max-w-6xl gap-y-4 p-4 sm:p-6">
+    <PatientPageShell className="mx-auto max-w-6xl gap-y-4">
       <DashboardPageHeader
         eyebrow="Payments"
         title="My payments"
         description="Review invoices, payments, and subscription plans in one place."
       />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-        <Card><CardContent className="flex items-center gap-3 p-3 sm:p-4"><div className="rounded-full bg-amber-100 p-3 dark:bg-amber-950/40"><FileText className="size-5 text-amber-600 dark:text-amber-300" /></div><div><p className="text-sm text-muted-foreground">Open Invoices</p><p className="text-2xl font-bold">{openInvoices.length}</p></div></CardContent></Card>
-        <Card><CardContent className="flex items-center gap-3 p-3 sm:p-4"><div className="rounded-full bg-emerald-100 p-3 dark:bg-emerald-950/40"><CreditCard className="size-5 text-emerald-600 dark:text-emerald-300" /></div><div><p className="text-sm text-muted-foreground">Total Payments</p><p className="text-2xl font-bold">{payments.length}</p></div></CardContent></Card>
-        <Card><CardContent className="flex items-center gap-3 p-3 sm:p-4"><div className="rounded-full bg-blue-100 p-3 dark:bg-blue-950/40"><Wallet className="size-5 text-blue-600 dark:text-blue-300" /></div><div><p className="text-sm text-muted-foreground">Active Subscriptions</p><p className="text-2xl font-bold">{activeSubscriptionCount}</p></div></CardContent></Card>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+        <Card><CardContent className="flex flex-row items-center gap-3 p-3 sm:p-4 text-left"><div className="rounded-full bg-amber-100 p-2 sm:p-3 dark:bg-amber-950/40"><FileText className="size-5 text-amber-600 dark:text-amber-300" /></div><div><p className="text-xs sm:text-sm text-muted-foreground">Open Invoices</p><p className="text-xl sm:text-2xl font-bold">{openInvoices.length}</p></div></CardContent></Card>
+        <Card><CardContent className="flex flex-row items-center gap-3 p-3 sm:p-4 text-left"><div className="rounded-full bg-emerald-100 p-2 sm:p-3 dark:bg-emerald-950/40"><CreditCard className="size-5 text-emerald-600 dark:text-emerald-300" /></div><div><p className="text-xs sm:text-sm text-muted-foreground">Total Payments</p><p className="text-xl sm:text-2xl font-bold">{payments.length}</p></div></CardContent></Card>
+        <Card className="col-span-2 sm:col-span-1"><CardContent className="flex flex-row items-center justify-start gap-3 p-3 sm:p-4 text-left"><div className="rounded-full bg-blue-100 p-2 sm:p-3 dark:bg-blue-950/40"><Wallet className="size-5 text-blue-600 dark:text-blue-300" /></div><div><p className="text-xs sm:text-sm text-muted-foreground">Active Subscriptions</p><p className="text-xl sm:text-2xl font-bold">{activeSubscriptionCount}</p></div></CardContent></Card>
       </div>
 
       <Tabs defaultValue="plans" className="flex flex-col gap-y-4">
         <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
           <TabsList className="inline-flex w-max min-w-full sm:flex sm:w-full">
-            <TabsTrigger id="patient-billing-plans-trigger" value="plans" className="px-4 text-xs sm:text-sm">Plans</TabsTrigger>
-            <TabsTrigger value="invoices" className="px-4 text-xs sm:text-sm">Invoices</TabsTrigger>
-            <TabsTrigger value="payments" className="px-4 text-xs sm:text-sm">Payments</TabsTrigger>
-            <TabsTrigger value="subscriptions" className="px-4 text-xs sm:text-sm">Subscriptions</TabsTrigger>
+            <TabsTrigger id="patient-billing-plans-trigger" value="plans">Plans</TabsTrigger>
+            <TabsTrigger value="invoices">Invoices</TabsTrigger>
+            <TabsTrigger value="payments">Payments</TabsTrigger>
+            <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
           </TabsList>
         </div>
 
@@ -336,30 +340,30 @@ export function PatientBillingContent({
               {currentActiveSubscription && (
                 <Card className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30"><CardContent className="flex items-start gap-3 py-4"><div className="rounded-full bg-green-100 p-2 dark:bg-green-900/40 shrink-0"><CheckCircle2 className="size-4 text-green-700 dark:text-green-300" /></div><div className="min-w-0"><p className="font-semibold text-green-900 dark:text-green-200 text-sm">{currentActiveSubscription.plan?.name ? `${currentActiveSubscription.plan.name} is active` : "You have an active subscription"}</p><p className="text-xs text-green-700 dark:text-green-300 mt-0.5">You can still review or switch plans below.</p></div></CardContent></Card>
               )}
-              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-2 sm:gap-4">
                 {activePlans.map((plan) => {
                   const isCurrentPlan = currentActivePlanId === plan.id;
                   return (
                     <Card key={plan.id} className={`overflow-hidden ${isCurrentPlan ? "border-green-300 dark:border-green-900" : ""}`}>
                       {isCurrentPlan && <div className="h-1 w-full bg-green-500" />}
-                      <CardContent className="flex flex-col gap-y-3 p-4 sm:p-5">
-                        <div className="flex items-start justify-between gap-3">
+                      <CardContent className="flex flex-col gap-y-2.5 p-3 sm:p-4">
+                        <div className="flex flex-col sm:flex-row items-start justify-between gap-2 sm:gap-3">
                           <div className="flex min-w-0 flex-1 flex-col gap-y-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="font-semibold text-base leading-tight">{plan.name}</p>
-                              {isCurrentPlan && <Badge className="bg-green-600 text-white hover:bg-green-600 dark:bg-green-700 text-xs px-2 py-0">Active</Badge>}
-                              <Badge variant="secondary" className="text-xs px-2 py-0 font-normal">{cycleLabel(plan.billingCycle)}</Badge>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className="font-semibold text-sm sm:text-base leading-tight">{plan.name}</p>
+                              {isCurrentPlan && <Badge className="bg-green-600 text-white hover:bg-green-600 dark:bg-green-700 text-[10px] sm:text-xs px-1.5 py-0">Active</Badge>}
+                              <Badge variant="secondary" className="text-[10px] sm:text-xs px-1.5 py-0 font-normal">{cycleLabel(plan.billingCycle)}</Badge>
                             </div>
-                            {plan.description && <p className="text-xs text-muted-foreground">{plan.description}</p>}
+                            {plan.description && <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-1">{plan.description}</p>}
                           </div>
-                          <div className="shrink-0 text-right">
-                            <p className="text-xl font-bold tracking-tight">{formatAmount(plan.price, plan.currency)}</p>
-                            <p className="text-xs text-muted-foreground">per {cycleLabel(plan.billingCycle).toLowerCase()}</p>
+                          <div className="shrink-0 text-left sm:text-right">
+                            <p className="text-base sm:text-xl font-bold tracking-tight">{formatAmount(plan.price, plan.currency)}</p>
+                            <p className="text-[10px] sm:text-xs text-muted-foreground">per {cycleLabel(plan.billingCycle).toLowerCase()}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground"><CheckCircle2 className="size-3.5 text-green-500 shrink-0" />{plan.isUnlimitedAppointments ? "Unlimited visits included" : `${plan.appointmentsIncluded ?? 0} visits included`}</div>
-                        {Array.isArray(plan.features) && plan.features.length > 0 && <div className="grid gap-1 pt-1 border-t">{plan.features.slice(0, 4).map((feature) => <div key={`${plan.id}-feature-${feature}`} className="flex items-center gap-2 text-xs text-muted-foreground"><Check className="size-3.5 text-green-600 shrink-0" /><span>{feature}</span></div>)}</div>}
-                        <div className="flex justify-stretch sm:justify-end pt-1">{isCurrentPlan ? <Button variant="outline" disabled className="w-full sm:w-auto gap-1.5"><CheckCircle2 className="size-4 text-green-600" />Current Plan</Button> : <Button onClick={() => onSetPlanToConfirm(plan)} className="w-full sm:w-auto">Subscribe & Pay</Button>}</div>
+                        <div className="flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground"><CheckCircle2 className="size-3.5 text-green-500 shrink-0" />{plan.isUnlimitedAppointments ? "Unlimited visits included" : `${plan.appointmentsIncluded ?? 0} visits included`}</div>
+                        {Array.isArray(plan.features) && plan.features.length > 0 && <div className="grid gap-1 pt-1 border-t">{plan.features.slice(0, 3).map((feature) => <div key={`${plan.id}-feature-${feature}`} className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground"><Check className="size-3 text-green-600 shrink-0" /><span className="truncate">{feature}</span></div>)}</div>}
+                        <div className="flex justify-stretch sm:justify-end pt-1 mt-auto">{isCurrentPlan ? <Button variant="outline" disabled size="sm" className="w-full sm:w-auto gap-1.5 text-xs"><CheckCircle2 className="size-3 text-green-600" />Current Plan</Button> : <Button size="sm" onClick={() => onSetPlanToConfirm(plan)} className="w-full sm:w-auto text-xs">Subscribe</Button>}</div>
                       </CardContent>
                     </Card>
                   );
@@ -375,7 +379,14 @@ export function PatientBillingContent({
           ) : invoices.length === 0 ? (
             <Empty><EmptyContent><EmptyMedia><FileText className="size-5" /></EmptyMedia><EmptyTitle>No invoices found.</EmptyTitle><EmptyDescription>Any open or paid invoices will appear here.</EmptyDescription></EmptyContent></Empty>
           ) : (
-            <DataTable columns={invoiceColumns} data={invoices} pageSize={10} emptyMessage="No invoices found" />
+            <Card className="border-border/70 bg-card overflow-hidden">
+              <CardHeader className="p-2 sm:p-4 pb-0 sm:pb-0">
+                <CardTitle className="text-lg font-extrabold text-foreground">Invoices</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <DataTable columns={invoiceColumns} data={invoices} pageSize={10} emptyMessage="No invoices found" compact scrollable hideBorder />
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
 
@@ -402,7 +413,14 @@ export function PatientBillingContent({
               {activeSubscriptions.length > 0 && endedSubscriptions.length > 0 && (
                 <div className="flex justify-end"><Button type="button" variant="outline" size="sm" onClick={() => onSetShowSubscriptionHistory((value) => !value)}>{showSubscriptionHistory ? "Hide subscription history" : `View subscription history (${endedSubscriptions.length})`}</Button></div>
               )}
-              <DataTable columns={subscriptionColumns} data={subscriptionCards} pageSize={10} emptyMessage="No subscriptions found" />
+              <Card className="border-border/70 bg-card overflow-hidden">
+                <CardHeader className="p-2 sm:p-4 pb-0 sm:pb-0">
+                  <CardTitle className="text-lg font-extrabold text-foreground">Subscriptions</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <DataTable columns={subscriptionColumns} data={subscriptionCards} pageSize={10} emptyMessage="No subscriptions found" compact scrollable hideBorder />
+                </CardContent>
+              </Card>
             </>
           )}
         </TabsContent>

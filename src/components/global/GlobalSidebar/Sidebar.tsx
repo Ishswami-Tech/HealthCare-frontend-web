@@ -46,6 +46,7 @@ import { Button } from "@/components/ui/button";
 import { LogOut, Menu } from "lucide-react";
 import { useLayoutStore } from "@/stores/layout.store";
 import { LazyMotion, domAnimation, m } from "framer-motion";
+import { MobileBottomBar } from "@/components/global/GlobalSidebar/MobileBottomBar";
 
 // ============================================================================
 // TYPES
@@ -471,6 +472,7 @@ export default function Sidebar({ links, user, children }: SidebarProps) {
               </div>
             </div>
           </div>
+          <MobileBottomBar links={links} />
         </SidebarProvider>
 
         {/* Logout Confirmation Dialog */}

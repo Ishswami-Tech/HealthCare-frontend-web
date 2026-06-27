@@ -5,6 +5,7 @@ import { useQueryData } from '../core/useQueryData';
 import { useMutationOperation } from '../core/useMutationOperation';
 import { useCurrentClinicId } from './useClinics';
 import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
+import { useAuthStore } from '@/stores/auth.store';
 import { clinicApiClient } from '@/lib/api/client';
 import { API_ENDPOINTS } from '@/lib/config/config';
 import type { PaymentProvider } from '@/lib/payments/providers';
@@ -203,6 +204,7 @@ export function useDeleteBillingPlan() {
 
 export function useSubscriptions(userId: string, enabled: boolean = true) {
   const { isConnected } = useWebSocketStatus();
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
 
   return useQueryData<Subscription[]>(
     ['subscriptions', userId],
@@ -215,7 +217,7 @@ export function useSubscriptions(userId: string, enabled: boolean = true) {
       staleTime: 10 * 60 * 1000, // 10 minutes (optimized for 10M users)
       gcTime: 30 * 60 * 1000, // 30 minutes
       refetchOnWindowFocus: false,
-      refetchInterval: isConnected ? false : 60_000,
+      refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
   );
 }
@@ -223,6 +225,7 @@ export function useSubscriptions(userId: string, enabled: boolean = true) {
 export function useClinicSubscriptions(enabled: boolean = true) {
   const clinicId = useCurrentClinicId();
   const { isConnected } = useWebSocketStatus();
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
 
   return useQueryData<Subscription[]>(
     ['clinic-subscriptions', clinicId],
@@ -235,13 +238,14 @@ export function useClinicSubscriptions(enabled: boolean = true) {
       staleTime: 10 * 60 * 1000,
       gcTime: 30 * 60 * 1000,
       refetchOnWindowFocus: false,
-      refetchInterval: isConnected ? false : 60_000,
+      refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
   );
 }
 
 export function useActiveSubscription(userId: string, clinicId: string, enabled: boolean = true) {
   const { isConnected } = useWebSocketStatus();
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
 
   return useQueryData<Subscription | null>(
     ['active-subscription', userId, clinicId],
@@ -254,7 +258,7 @@ export function useActiveSubscription(userId: string, clinicId: string, enabled:
       staleTime: 5 * 60 * 1000, // 5 minutes (optimized for 10M users)
       gcTime: 15 * 60 * 1000, // 15 minutes
       refetchOnWindowFocus: false,
-      refetchInterval: isConnected ? false : 60_000,
+      refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
   );
 }
@@ -309,6 +313,7 @@ export function useSubscriptionUsageStats(id: string) {
 
 export function useInvoices(userId: string) {
   const { isConnected } = useWebSocketStatus();
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
 
   return useQueryData<Invoice[]>(
     ['invoices', userId],
@@ -321,7 +326,7 @@ export function useInvoices(userId: string) {
       staleTime: 10 * 60 * 1000, // 10 minutes (optimized for 10M users)
       gcTime: 30 * 60 * 1000, // 30 minutes
       refetchOnWindowFocus: false,
-      refetchInterval: isConnected ? false : 60_000,
+      refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
   );
 }
@@ -329,6 +334,7 @@ export function useInvoices(userId: string) {
 export function useClinicInvoices(enabled: boolean = true) {
   const clinicId = useCurrentClinicId();
   const { isConnected } = useWebSocketStatus();
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
 
   return useQueryData<Invoice[]>(
     ['clinic-invoices', clinicId],
@@ -341,7 +347,7 @@ export function useClinicInvoices(enabled: boolean = true) {
       staleTime: 10 * 60 * 1000,
       gcTime: 30 * 60 * 1000,
       refetchOnWindowFocus: false,
-      refetchInterval: isConnected ? false : 60_000,
+      refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
   );
 }
@@ -389,6 +395,7 @@ export function useMarkInvoiceAsPaid() {
 
 export function usePayments(userId: string) {
   const { isConnected } = useWebSocketStatus();
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
 
   return useQueryData<Payment[]>(
     ['payments', userId],
@@ -401,7 +408,7 @@ export function usePayments(userId: string) {
       staleTime: 10 * 60 * 1000, // 10 minutes (optimized for 10M users)
       gcTime: 30 * 60 * 1000, // 30 minutes
       refetchOnWindowFocus: false,
-      refetchInterval: isConnected ? false : 60_000,
+      refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
   );
 }
@@ -416,6 +423,7 @@ export function useClinicPayments(filters?: {
 }, enabled: boolean = true) {
   const clinicId = useCurrentClinicId();
   const { isConnected } = useWebSocketStatus();
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
 
   return useQueryData<Payment[]>(
     ['clinic-payments', clinicId, filters],
@@ -428,7 +436,7 @@ export function useClinicPayments(filters?: {
       staleTime: 2 * 60 * 1000,
       gcTime: 10 * 60 * 1000,
       refetchOnWindowFocus: false,
-      refetchInterval: isConnected ? false : 60_000,
+      refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
   );
 }
@@ -442,6 +450,7 @@ export function useClinicLedger(filters?: {
   endDate?: string;
 }, enabled: boolean = true) {
   const { isConnected } = useWebSocketStatus();
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
 
   return useQueryData<ClinicLedgerResponse>(
     ['clinic-ledger', filters],
@@ -454,7 +463,7 @@ export function useClinicLedger(filters?: {
       staleTime: 2 * 60 * 1000,
       gcTime: 10 * 60 * 1000,
       refetchOnWindowFocus: false,
-      refetchInterval: isConnected ? false : 60_000,
+      refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
   );
 }
@@ -632,6 +641,7 @@ export function useGenerateInvoicePDF() {
 
 export function useBillingAnalytics(clinicId: string) {
   const { isConnected } = useWebSocketStatus();
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
 
   return useQueryData<BillingAnalytics>(
     ['billing-analytics', clinicId],
@@ -642,7 +652,7 @@ export function useBillingAnalytics(clinicId: string) {
     {
       enabled: !!clinicId,
       staleTime: 10 * 60 * 1000, // 10 minutes
-      refetchInterval: isConnected ? false : 60_000,
+      refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
   );
 }

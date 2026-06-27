@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
@@ -263,14 +263,16 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
       )}
 
           <Tabs defaultValue="history" className="flex flex-col gap-y-6">
-            <TabsList className="max-w-full overflow-x-auto h-auto p-1 justify-start scrollbar-hide">
-              <TabsTrigger value="history" className="text-xs sm:text-sm px-3 sm:px-4">History</TabsTrigger>
-              <TabsTrigger value="prescriptions" className="text-xs sm:text-sm px-3 sm:px-4">Prescriptions</TabsTrigger>
-              <TabsTrigger value="reports" className="text-xs sm:text-sm px-3 sm:px-4">Reports</TabsTrigger>
-              <TabsTrigger value="vitals" className="text-xs sm:text-sm px-3 sm:px-4">Vitals</TabsTrigger>
-              <TabsTrigger value="allergies" className="text-xs sm:text-sm px-3 sm:px-4">Allergies</TabsTrigger>
-              <TabsTrigger value="diet" className="text-xs sm:text-sm px-3 sm:px-4">Diet</TabsTrigger>
-            </TabsList>
+            <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+              <TabsList className="inline-flex w-max min-w-full sm:flex sm:w-full">
+                <TabsTrigger value="history">History</TabsTrigger>
+                <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
+                <TabsTrigger value="reports">Reports</TabsTrigger>
+                <TabsTrigger value="vitals">Vitals</TabsTrigger>
+                <TabsTrigger value="allergies">Allergies</TabsTrigger>
+                <TabsTrigger value="diet">Diet</TabsTrigger>
+              </TabsList>
+            </div>
 
             <TabsContent value="history">
               <div className="flex flex-col gap-y-4">
@@ -301,7 +303,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                         </Button>
                       </div>
 
-                      <div className="flex flex-col gap-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
                         {filteredMedicalHistory.length === 0 ? (
                           <EmptyState
                             title={searchTerm ? "No matching records" : "No medical history"}
@@ -398,7 +400,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="flex flex-col gap-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
                       {prescriptions.map((prescription: PatientPrescriptionEntry) => (
                         <div key={prescription.id} className="rounded-2xl border border-border/70 p-3 sm:p-4 dark:border-border/60">
                           <div className="flex items-center justify-between mb-4">
@@ -491,7 +493,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="flex flex-col gap-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
                       {labReports.map((report: PatientLabReportEntry) => (
                         <div key={report.id} className="border rounded-lg p-3 sm:p-4">
                           <div className="flex items-center justify-between mb-4">
@@ -784,7 +786,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
               <CardTitle>Quick Upload</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4 sm:gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                 <Button
                   variant="outline"
                   className="h-20 flex flex-col items-center justify-center gap-2"

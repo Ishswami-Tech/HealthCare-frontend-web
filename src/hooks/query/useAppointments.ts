@@ -22,6 +22,7 @@ import { useAuth } from '../auth/useAuth';
 import { Role } from '@/types/auth.types';
 import { getClinicId } from '@/lib/utils/token-manager';
 import { syncAppointmentInCache } from '@/lib/utils/appointment-cache';
+import { API_ENDPOINTS } from '@/lib/config/config';
 
 const useAppointmentQueryScope = () => {
   const sessionId = useAuthStore((state) => state.session?.session_id?.trim() || '');
@@ -35,34 +36,26 @@ const useAppointmentQueryScope = () => {
   );
 };
 import {
-    getAppointmentById,
-    getAppointmentServiceCatalog,
-    getCheckInLocations,
-    getCheckInHistory,
     updateAppointment,
     updateAppointmentStatus, // Consolidated status update
     startConsultation,
     completeAppointment,
   bulkUpdateAppointmentStatus,
-  getUserUpcomingAppointments,
   cancelAppointment,
   testAppointmentContext,
   rescheduleAppointment,
   rejectVideoProposal,
   reassignAppointmentDoctor,
-  getAssistantDoctorCoverage,
-  updateAssistantDoctorCoverage,
-  checkInAppointment,
-  forceCheckInAppointment,
-  scanLocationQRAndCheckIn,
-  getDoctorAvailability,
+    getAssistantDoctorCoverage,
+    updateAssistantDoctorCoverage,
+    checkInAppointment,
+    forceCheckInAppointment,
+    scanLocationQRAndCheckIn,
 } from '@/lib/actions/appointments.server';
 import { clinicApiClient } from '@/lib/api/client';
 import {
-  getQueue,
   addToQueue,
   callNextPatient,
-  getQueueStats,
 } from '@/lib/actions/queue.server';
 import {
   getQueueListQueryKey,
@@ -484,11 +477,13 @@ export const useAppointmentServices = (enabled: boolean = true) => {
   return useQueryData(
     ['appointment-services'],
     async () => {
-      const result = await getAppointmentServiceCatalog();
+      const result = await clinicApiClient.get(API_ENDPOINTS.APPOINTMENTS.SERVICES);
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch appointment services');
       }
-      return (result.services || []).filter(
+      const response = result as any;
+      const services = response.services ?? response.data?.services ?? response.data ?? [];
+      return (Array.isArray(services) ? services : []).filter(
         (service): service is AppointmentServiceDefinition => !!service?.active
       );
     },
@@ -509,22 +504,28 @@ export const useAppointmentServices = (enabled: boolean = true) => {
  */
 export const useAppointment = (appointmentId: string) => {
   const { hasPermission } = useRBAC();
+  const { isConnected } = useWebSocketStatus();
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
   
   return useQueryData(
     ['appointment', appointmentId],
     async (): Promise<any> => {
-      const response = await getAppointmentById(appointmentId);
-      if (!response.success || !response.appointment) {
-        throw new Error(response.error || 'Failed to fetch appointment');
+      const response = await clinicApiClient.getAppointmentById(appointmentId);
+      const responseRecord = response as any;
+      const appointment = responseRecord?.appointment ?? responseRecord?.data?.appointment ?? responseRecord?.data;
+      if (!response.success || !appointment) {
+        throw new Error(response.error || responseRecord?.message || 'Failed to fetch appointment');
       }
-      return response.appointment as any;
+      return appointment as any;
     },
     {
       enabled: !!appointmentId && hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 0,
       gcTime: 2 * 60 * 1000,
-      refetchOnMount: 'always',
-      refetchOnWindowFocus: true,
+      refetchOnMount: !isConnected,
+      refetchOnWindowFocus: !isConnected && !isAuthRefreshing,
+      refetchOnReconnect: false,
+      refetchInterval: isConnected || isAuthRefreshing ? false : 30_000,
       retry: (failureCount, error: Error) => {
         if (error.message.includes('Access denied') || error.message.includes('not found')) {
           return false;
@@ -819,8 +820,10 @@ export const useUserUpcomingAppointments = () => {
   return useQueryData(
     ['userUpcomingAppointments'],
     async () => {
-      // ✅ Fix: No arguments needed for this action
-      const result = await getUserUpcomingAppointments() as any;
+      if (!userId) {
+        throw new Error('User identity is unavailable');
+      }
+      const result = await clinicApiClient.getUserUpcomingAppointments(userId) as any;
       if (!result.success) {
         throw new Error(result.error);
       }
@@ -832,7 +835,7 @@ export const useUserUpcomingAppointments = () => {
       enabled: hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 5 * 60 * 1000, // 5 minutes
       refetchOnWindowFocus: false,
-      refetchOnReconnect: !isAuthRefreshing,
+      refetchOnReconnect: false,
       refetchInterval: isConnected || isAuthRefreshing ? false : 30_000,
       placeholderData: keepPreviousData,
     }
@@ -851,7 +854,7 @@ export const useCheckInLocations = () => {
   return useQueryData(
     ['checkInLocations', clinicId],
     async () => {
-      const result = await getCheckInLocations();
+      const result = await clinicApiClient.get(API_ENDPOINTS.APPOINTMENTS.CHECK_IN_LOCATIONS);
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch check-in locations');
       }
@@ -861,7 +864,7 @@ export const useCheckInLocations = () => {
       enabled: !!clinicId && hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 5 * 60 * 1000,
       refetchOnWindowFocus: false,
-      refetchOnReconnect: !isAuthRefreshing,
+      refetchOnReconnect: false,
       refetchInterval: isConnected || isAuthRefreshing ? false : 30_000,
     }
   );
@@ -879,7 +882,7 @@ export const useCheckInHistory = () => {
   return useQueryData(
     ['checkInHistory', clinicId],
     async () => {
-      const result = await getCheckInHistory();
+      const result = await clinicApiClient.get(API_ENDPOINTS.APPOINTMENTS.CHECK_IN_HISTORY);
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch check-in history');
       }
@@ -889,7 +892,7 @@ export const useCheckInHistory = () => {
       enabled: !!clinicId && hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 2 * 60 * 1000,
       refetchOnWindowFocus: false,
-      refetchOnReconnect: !isAuthRefreshing,
+      refetchOnReconnect: false,
       refetchInterval: isConnected || isAuthRefreshing ? false : 30_000,
     }
   );
@@ -1222,55 +1225,42 @@ export const useReassignAppointmentDoctor = () => {
  */
 export const useQueue = (queueType: string) => {
   const { hasPermission } = useRBAC();
+  const { isConnected } = useWebSocketStatus();
   const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
-  // Memoize query key
   const queryKey = useMemo(
     () => getQueueListQueryKey(undefined, { treatmentType: queueType }),
     [queueType]
   );
-  
-  // Memoize query function
+
   const queryFn = useCallback(async () => {
-    // ✅ Fix: queueType is passed as filter object
-    const result = await getQueue({ treatmentType: queueType }) as any;
+    const result = await clinicApiClient.get(API_ENDPOINTS.QUEUE.GET, { type: queueType }) as any;
     if (!result) {
       throw new Error('Failed to fetch queue');
     }
-    return Array.isArray(result?.queue) ? result.queue : result;
+    return Array.isArray(result?.queue) ? result.queue : result.data ?? result;
   }, [queueType]);
-  
+
   return useQueryData(
     queryKey,
     queryFn,
     {
       enabled: !!queueType && hasPermission(Permission.VIEW_QUEUE),
-      staleTime: 15 * 1000, // 15 seconds for real-time feel
-    gcTime: 2 * 60 * 1000, // 2 minutes GC for queue data
-    refetchInterval: (query) => {
-      // Skip polling entirely while the realtime socket is mid-token-refresh
-      // so we don't pile refetches on top of the reconnect storm.
-      if (isAuthRefreshing) return false;
-      // Smart polling: faster when queue is active, slower when empty
-      const data = query.state.data as any[] | undefined;
-      const queueLength = data?.length || 0;
-      if (queueLength === 0) return 2 * 60 * 1000; // 2 minutes when empty
-      if (queueLength > 10) return 30 * 1000; // 30 seconds when busy
-      return 45 * 1000; // 45 seconds default
-    },
-    refetchIntervalInBackground: false, // Don't poll in background
-    refetchOnWindowFocus: false,
-    // Keep previous queue visible during background refetches so the
-    // queue panel doesn't flash an empty list every poll cycle. The hook
-    // owns freshness via `refetchInterval` (15-60s) and WebSocket events;
-    // placeholderData prevents the intermediate skeleton/empty flash.
-    placeholderData: keepPreviousData,
-    retry: (failureCount, error) => {
-      if (error.message.includes('Access denied')) {
-        return false;
-      }
-      return failureCount < 2;
-    },
-  });
+      staleTime: 15 * 1000,
+      gcTime: 2 * 60 * 1000,
+      refetchInterval: isConnected || isAuthRefreshing ? false : 45 * 1000,
+      refetchIntervalInBackground: false,
+      refetchOnWindowFocus: false,
+      refetchOnMount: !isConnected,
+      refetchOnReconnect: false,
+      placeholderData: keepPreviousData,
+      retry: (failureCount, error) => {
+        if (error.message.includes('Access denied')) {
+          return false;
+        }
+        return failureCount < 2;
+      },
+    }
+  );
 };
 
 /**
@@ -1337,21 +1327,21 @@ export const useCallNextPatient = () => {
  */
 export const useQueueStats = (locationId?: string) => {
   const { hasPermission } = useRBAC();
+  const { isConnected } = useWebSocketStatus();
   const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
 
   return useQueryData(
     getQueueStatsQueryKey(locationId),
     async () => {
       if (!locationId) throw new Error('Location ID required for queue stats');
-      // getQueueStats returns raw data directly (no .success/.stats wrapper)
-      return await getQueueStats(locationId);
+      return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.STATS, { locationId })).data;
     },
     {
       enabled: !!locationId && hasPermission(Permission.VIEW_QUEUE),
-      staleTime: 30 * 1000, // 30 seconds
-      refetchInterval: isAuthRefreshing ? false : 60 * 1000, // 1 minute
-      // Keep previous stats visible during the 1-minute poll cycle so the
-      // dashboard header card doesn't flicker on every tick.
+      staleTime: 30 * 1000,
+      refetchInterval: isConnected || isAuthRefreshing ? false : 60 * 1000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
       placeholderData: keepPreviousData,
       retry: (failureCount, error: Error) => {
         if (error.message.includes('Access denied')) {
@@ -1525,14 +1515,15 @@ export const useDoctorAvailability = (
   ) => {
     const authScope = useAppointmentQueryScope();
     
-    return useQueryData(
+  return useQueryData(
       ['doctorAvailability', clinicId, doctorId, date, locationId, appointmentType, authScope],
       async (): Promise<any> => {
-        const response = await getDoctorAvailability(clinicId, doctorId, date, locationId, appointmentType);
+        const response = await clinicApiClient.getDoctorAvailability(doctorId, date, locationId, appointmentType);
       if (!response.success) {
         throw new Error(response.error || 'Failed to fetch doctor availability');
       }
-      return response.availability as any;
+      const responseRecord = response as any;
+      return responseRecord.availability ?? responseRecord.data?.availability ?? responseRecord.data as any;
     },
     {
       enabled: !!doctorId && !!date && (options?.enabled ?? true), // Enabled for everyone, including guests
@@ -1892,8 +1883,7 @@ export const usePatientQueuePosition = (patientId: string, queueType: string) =>
   return useQueryData(
     ['patientQueuePosition', patientId, queueType],
     async () => {
-      // ✅ Fix: Pass object to getQueue
-      const result = (await getQueue({ type: queueType })) as any;
+      const result = (await clinicApiClient.get(API_ENDPOINTS.QUEUE.GET, { type: queueType })) as any;
       if (!result) {
         throw new Error('Failed to fetch queue');
       }
@@ -1924,8 +1914,7 @@ export const useDoctorQueue = (doctorId: string) => {
   return useQueryData(
     getQueueListQueryKey(undefined, { doctorId }),
     async () => {
-      // ✅ Fix: Pass object to getQueue
-      const result = (await getQueue({ doctorId })) as any;
+      const result = (await clinicApiClient.get(API_ENDPOINTS.QUEUE.GET, { doctorId })) as any;
       if (!result) {
         throw new Error('Failed to fetch queue');
       }
@@ -1965,11 +1954,11 @@ export const useCanCancelAppointment = (appointmentId: string) => {
         return { canCancel: false, reason: 'Insufficient permissions' };
       }
       
-      const response = await getAppointmentById(appointmentId);
-      const appointment = response.appointment;
+      const response = (await clinicApiClient.getAppointmentById(appointmentId)) as any;
+      const appointment = response?.appointment ?? response?.data?.appointment ?? response?.data;
 
-      if (!response.success || !appointment) {
-        return { canCancel: false, reason: 'Appointment not found' };
+      if (!response?.success || !appointment) {
+        return { canCancel: false, reason: response?.error || 'Appointment not found' };
       }
       
       const now = new Date();

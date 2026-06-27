@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import Image from "next/image";
@@ -346,11 +346,21 @@ function BookAppointmentStepBar({
           const done = step > s;
           const active = step === s;
           return (
-            <div key={stepId} className="flex min-w-0 flex-1 items-center">
+            <div key={stepId} className="relative flex min-w-0 flex-1 flex-col items-center">
+              {i < activeSteps.length - 1 && (
+                <div className="absolute top-[11px] left-[calc(50%+16px)] w-[calc(100%-32px)] sm:top-[13px] sm:left-[calc(50%+20px)] sm:w-[calc(100%-40px)] h-[2px] rounded-full bg-muted/70 z-0">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all duration-300"
+                    style={{
+                      width: `${step > i + 1 ? 100 : step === i + 1 ? 50 : 0}%`,
+                    }}
+                  />
+                </div>
+              )}
               <button
                 type="button"
                 onClick={() => goToStep(stepId)}
-                className="flex min-w-0 flex-1 flex-col items-center my-1 gap-0.5 text-center sm:gap-1"
+                className="relative z-10 flex min-w-0 flex-col items-center gap-1 text-center outline-none sm:gap-1.5"
               >
                 <div
                   className={`size-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all sm:size-7 sm:text-xs ${
@@ -364,7 +374,7 @@ function BookAppointmentStepBar({
                   {done ? <Check className="size-3.5" /> : s}
                 </div>
                 <span
-                  className={`hidden min-w-0 w-full truncate text-[9px] font-semibold uppercase tracking-wider sm:block sm:text-[10px] ${
+                  className={`hidden w-full max-w-[60px] truncate text-[9px] font-semibold uppercase tracking-wider sm:block sm:text-[10px] ${
                     active
                       ? "text-primary"
                       : done
@@ -375,16 +385,6 @@ function BookAppointmentStepBar({
                   {STEP_LABELS[stepId]}
                 </span>
               </button>
-              {i < activeSteps.length - 1 && (
-                <div className="mx-2 mt-3 h-0.5 flex-1 rounded-full bg-muted/70">
-                  <div
-                    className="h-full rounded-full bg-primary transition-all duration-300"
-                    style={{
-                      width: `${step > i + 1 ? 100 : step === i + 1 ? 35 : 0}%`,
-                    }}
-                  />
-                </div>
-              )}
             </div>
           );
         })}
@@ -3285,32 +3285,31 @@ export function BookAppointmentDialog({
     userRole === "PATIENT" &&
     videoPaymentAmount > 0;
 
-  // DEBUG: Log video payment state
-  console.log('[BookAppointmentDialog] Video payment state:', {
-    consultationMode,
-    userRole,
-    selectedServiceId,
-    selectedService: selectedService?.label || 'none',
-    videoPaymentAmount,
-    shouldCollectVideoPayment,
-    visibleServicesCount: visibleServices.length,
-    visibleServicesTreatmentTypes: visibleServices.map(s => s.treatmentType),
-    allServicesCount: appointmentServices.length,
-    allServicesTreatmentTypes: (appointmentServices as AppointmentServiceDefinition[]).map(s => s.treatmentType),
-  });
-
-  // DEBUG: Log appointment services data
-  console.log('[BookAppointmentDialog] Appointment services:', {
-    servicesLoading,
-    servicesCount: appointmentServices.length,
-    services: (appointmentServices as AppointmentServiceDefinition[]).map(s => ({
-      treatmentType: s.treatmentType,
-      label: s.label,
-      active: s.active,
-      appointmentModes: s.appointmentModes,
-      videoConsultationFee: s.videoConsultationFee,
-    }))
-  });
+  if (APP_CONFIG.ENVIRONMENT === "development") {
+    console.log('[BookAppointmentDialog] Video payment state:', {
+      consultationMode,
+      userRole,
+      selectedServiceId,
+      selectedService: selectedService?.label || 'none',
+      videoPaymentAmount,
+      shouldCollectVideoPayment,
+      visibleServicesCount: visibleServices.length,
+      visibleServicesTreatmentTypes: visibleServices.map(s => s.treatmentType),
+      allServicesCount: appointmentServices.length,
+      allServicesTreatmentTypes: (appointmentServices as AppointmentServiceDefinition[]).map(s => s.treatmentType),
+    });
+    console.log('[BookAppointmentDialog] Appointment services:', {
+      servicesLoading,
+      servicesCount: appointmentServices.length,
+      services: (appointmentServices as AppointmentServiceDefinition[]).map(s => ({
+        treatmentType: s.treatmentType,
+        label: s.label,
+        active: s.active,
+        appointmentModes: s.appointmentModes,
+        videoConsultationFee: s.videoConsultationFee,
+      }))
+    });
+  }
 
   const doctorsList: any[] = useMemo(() => {
     // The GET /doctors API returns User records with a nested `doctor` relation:
@@ -3337,14 +3336,15 @@ export function BookAppointmentDialog({
     return normalize(raw);
   }, [doctorsData]);
 
-  // DEBUG: Log doctors data processing
-  console.log('[BookAppointmentDialog] doctorsData raw:', {
-    type: typeof doctorsData,
-    isArray: Array.isArray(doctorsData),
-    hasData: !!(doctorsData as any)?.data,
-    doctorsCount: Array.isArray(doctorsData) ? doctorsData.length : ((doctorsData as any)?.data ? ((doctorsData as any).data.doctors?.length || (doctorsData as any).data.length || 'unknown') : 'no data'),
-    firstFew: Array.isArray(doctorsData) ? doctorsData.slice(0, 2) : ((doctorsData as any)?.data?.doctors?.slice(0, 2) || (doctorsData as any)?.data?.slice(0, 2))
-  });
+  if (APP_CONFIG.ENVIRONMENT === "development") {
+    console.log('[BookAppointmentDialog] doctorsData raw:', {
+      type: typeof doctorsData,
+      isArray: Array.isArray(doctorsData),
+      hasData: !!(doctorsData as any)?.data,
+      doctorsCount: Array.isArray(doctorsData) ? doctorsData.length : ((doctorsData as any)?.data ? ((doctorsData as any).data.doctors?.length || (doctorsData as any).data.length || 'unknown') : 'no data'),
+      firstFew: Array.isArray(doctorsData) ? doctorsData.slice(0, 2) : ((doctorsData as any)?.data?.doctors?.slice(0, 2) || (doctorsData as any)?.data?.slice(0, 2))
+    });
+  }
 
   const autoSelectedDoctorId = useMemo(() => {
     if (
@@ -3364,20 +3364,21 @@ export function BookAppointmentDialog({
     [doctorsList, resolvedDoctorId],
   );
 
-  // DEBUG: Log doctorsList and selection state
-  console.log('[BookAppointmentDialog] doctors state:', {
-    doctorsListLength: doctorsList.length,
-    doctorsLoading,
-    doctorsFetched,
-    doctorsError: doctorsError?.message || doctorsError,
-    shouldLoadDoctors,
-    dialogOpen,
-    activeClinicId,
-    consultationMode,
-    resolvedLocationId,
-    resolvedDoctorId,
-    selectedDoctor: selectedDoctor?.name || 'none'
-  });
+  if (APP_CONFIG.ENVIRONMENT === "development") {
+    console.log('[BookAppointmentDialog] doctors state:', {
+      doctorsListLength: doctorsList.length,
+      doctorsLoading,
+      doctorsFetched,
+      doctorsError: doctorsError?.message || doctorsError,
+      shouldLoadDoctors,
+      dialogOpen,
+      activeClinicId,
+      consultationMode,
+      resolvedLocationId,
+      resolvedDoctorId,
+      selectedDoctor: selectedDoctor?.name || 'none'
+    });
+  }
 
   const dateString = useMemo(
     () => (selectedDate ? formatDateIST(selectedDate) : ""),
@@ -3875,25 +3876,25 @@ export function BookAppointmentDialog({
     refetchAvailability,
   ]);
 
-  // DEBUG: Log availability loading
-  console.log('[BookAppointmentDialog] Availability state:', {
-    resolvedDoctorId,
-    dateString,
-    shouldLoadAvailability,
-    consultationMode,
-    rawSlots: slots.length,
-    effectiveSlots: effectiveSlots.length,
-    backendVideoWindow: backendVideoCallWindow,
-    clinicVideoWindow: clinicVideoCallWindow,
-    // Log raw availability to debug backend response
-    availabilityKeys: availability ? Object.keys(availability) : null,
-    availabilityAvailableSlots: (availability as any)?.availableSlots,
-    availabilityBookedSlots: (availability as any)?.bookedSlots,
-    availabilityVideoWindow: (availability as any)?.videoCallWindow,
-    availabilityRestrictions: (availability as any)?.restrictions,
-    availabilityLoading,
-    availabilityError: availabilityError?.message || availabilityError
-  });
+  if (APP_CONFIG.ENVIRONMENT === "development") {
+    console.log('[BookAppointmentDialog] Availability state:', {
+      resolvedDoctorId,
+      dateString,
+      shouldLoadAvailability,
+      consultationMode,
+      rawSlots: slots.length,
+      effectiveSlots: effectiveSlots.length,
+      backendVideoWindow: backendVideoCallWindow,
+      clinicVideoWindow: clinicVideoCallWindow,
+      availabilityKeys: availability ? Object.keys(availability) : null,
+      availabilityAvailableSlots: (availability as any)?.availableSlots,
+      availabilityBookedSlots: (availability as any)?.bookedSlots,
+      availabilityVideoWindow: (availability as any)?.videoCallWindow,
+      availabilityRestrictions: (availability as any)?.restrictions,
+      availabilityLoading,
+      availabilityError: availabilityError?.message || availabilityError
+    });
+  }
 
   useEffect(() => {
     if (!dialogOpen || !isConnected || !resolvedDoctorId || !dateString) {
@@ -4230,18 +4231,6 @@ export function BookAppointmentDialog({
             ],
           },
         );
-        queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
-        queryClient.invalidateQueries({ queryKey: ["appointments"] });
-        queryClient.invalidateQueries({
-          queryKey: ["userUpcomingAppointments"],
-        });
-        queryClient.invalidateQueries({
-          queryKey: getAppointmentStatsQueryKey(activeClinicId),
-          exact: false,
-        });
-        queryClient.invalidateQueries({
-          queryKey: ["appointment", createdAppointmentId],
-        });
         if (shouldCollectVideoPayment) {
           setRequiresVideoPayment(true);
           setVideoPaymentCompleted(false);
@@ -4418,14 +4407,6 @@ export function BookAppointmentDialog({
       }
 
       setBookedAppointmentId(apptId);
-      queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
-      queryClient.invalidateQueries({ queryKey: ["appointments"] });
-      queryClient.invalidateQueries({ queryKey: ["userUpcomingAppointments"] });
-      queryClient.invalidateQueries({
-        queryKey: getAppointmentStatsQueryKey(activeClinicId),
-        exact: false,
-      });
-      queryClient.invalidateQueries({ queryKey: ["appointment", apptId] });
       // Send appointment reminder via push + email + WhatsApp
       if (hasPermission(Permission.SEND_NOTIFICATIONS)) {
         sendReminder({ appointmentId: apptId, reminderType: "all" });

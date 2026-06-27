@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useReducer, useCallback, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
@@ -16,12 +16,12 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { 
-  Card, 
-  CardHeader, 
-  CardTitle, 
-  CardContent, 
-  CardFooter 
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter
 } from "@/components/ui/card";
 
 import { showErrorToast, showInfoToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
@@ -93,14 +93,14 @@ import { Role } from "@/types/auth.types";
 type StatusFilter = "ALL" | "SCHEDULED" | "CONFIRMED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string; bg: string }> = {
-  PENDING:     { label: "Payment Pending", color: "text-amber-800 dark:text-amber-200", dot: "bg-amber-500", bg: "bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700" },
-  SCHEDULED:   { label: "Scheduled",   color: "text-blue-700 dark:text-blue-300",   dot: "bg-blue-500",   bg: "bg-blue-50 dark:bg-blue-950/30 border-blue-300 dark:border-blue-800" },
-  CONFIRMED:   { label: "Confirmed",   color: "text-green-700 dark:text-green-300", dot: "bg-green-500", bg: "bg-green-50 dark:bg-green-950/30 border-green-300 dark:border-green-800" },
-  IN_PROGRESS: { label: "In Progress", color: "text-purple-700 dark:text-purple-300",dot: "bg-purple-500",bg: "bg-purple-50 dark:bg-purple-950/30 border-purple-300 dark:border-purple-800" },
-  COMPLETED:   { label: "Completed",   color: "text-slate-700 dark:text-slate-300", dot: "bg-slate-500", bg: "bg-slate-50 dark:bg-slate-800/30 border-slate-300 dark:border-slate-600" },
-  CANCELLED:   { label: "Cancelled",   color: "text-red-700 dark:text-red-300",       dot: "bg-red-500",    bg: "bg-red-50 dark:bg-red-950/40 border-red-300 dark:border-red-700" },
-  NO_SHOW:     { label: "No Show",     color: "text-orange-700 dark:text-orange-300",dot: "bg-orange-400",bg: "bg-orange-50 dark:bg-orange-950/30 border-orange-300 dark:border-orange-800" },
-  EXPIRED:     { label: "Expired",     color: "text-amber-800 dark:text-amber-200", dot: "bg-amber-500", bg: "bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700" },
+  PENDING: { label: "Payment Pending", color: "text-amber-800 dark:text-amber-200", dot: "bg-amber-500", bg: "bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700" },
+  SCHEDULED: { label: "Scheduled", color: "text-blue-700 dark:text-blue-300", dot: "bg-blue-500", bg: "bg-blue-50 dark:bg-blue-950/30 border-blue-300 dark:border-blue-800" },
+  CONFIRMED: { label: "Confirmed", color: "text-green-700 dark:text-green-300", dot: "bg-green-500", bg: "bg-green-50 dark:bg-green-950/30 border-green-300 dark:border-green-800" },
+  IN_PROGRESS: { label: "In Progress", color: "text-purple-700 dark:text-purple-300", dot: "bg-purple-500", bg: "bg-purple-50 dark:bg-purple-950/30 border-purple-300 dark:border-purple-800" },
+  COMPLETED: { label: "Completed", color: "text-slate-700 dark:text-slate-300", dot: "bg-slate-500", bg: "bg-slate-50 dark:bg-slate-800/30 border-slate-300 dark:border-slate-600" },
+  CANCELLED: { label: "Cancelled", color: "text-red-700 dark:text-red-300", dot: "bg-red-500", bg: "bg-red-50 dark:bg-red-950/40 border-red-300 dark:border-red-700" },
+  NO_SHOW: { label: "No Show", color: "text-orange-700 dark:text-orange-300", dot: "bg-orange-400", bg: "bg-orange-50 dark:bg-orange-950/30 border-orange-300 dark:border-orange-800" },
+  EXPIRED: { label: "Expired", color: "text-amber-800 dark:text-amber-200", dot: "bg-amber-500", bg: "bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700" },
 };
 
 function getPaginationWindow(currentPage: number, totalPages: number): Array<number | "ellipsis"> {
@@ -166,8 +166,8 @@ function StatCard({
   className,
 }: StatCardProps) {
   return (
-    <div className={`flex items-center gap-3 rounded-2xl border ${cardBorder} bg-card p-3 transition-all ${cardHover} hover:shadow-sm sm:p-4 ${className || ""}`}>
-      <div className={`rounded-xl ${iconBg} border p-2 ${iconBorder} ${iconColor}`}>{icon}</div>
+    <div className={`flex items-center gap-2 sm:gap-3 rounded-2xl border ${cardBorder} bg-card p-2 sm:p-4 transition-all ${cardHover} hover:shadow-sm ${className || ""}`}>
+      <div className={`rounded-xl ${iconBg} border p-1.5 sm:p-2 ${iconBorder} ${iconColor}`}>{icon}</div>
       <div>
         <p className="text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">{value}</p>
         <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
@@ -204,17 +204,17 @@ type AppointmentManagerAction =
   | { type: "setSearchQuery"; value: string }
   | { type: "setIsRescheduleDialogOpen"; value: boolean }
   | {
-      type: "setRescheduleData";
-      value:
-        | { date: string; time: string }
-        | ((prev: { date: string; time: string }) => { date: string; time: string });
-    }
+    type: "setRescheduleData";
+    value:
+    | { date: string; time: string }
+    | ((prev: { date: string; time: string }) => { date: string; time: string });
+  }
   | { type: "setIsRejectDialogOpen"; value: boolean }
   | { type: "setRejectReason"; value: string }
   | {
-      type: "setCurrentPage";
-      value: number | ((prev: number) => number);
-    }
+    type: "setCurrentPage";
+    value: number | ((prev: number) => number);
+  }
   | { type: "setExpandedCard"; value: string | null }
   | { type: "resetRescheduleState" };
 
@@ -338,13 +338,12 @@ function AppointmentCard({
   const isCancelled = effectiveStatus === "CANCELLED" || effectiveStatus === "NO_SHOW" || effectiveStatus === "EXPIRED";
   const isConfirmed = effectiveStatus === "CONFIRMED";
   return (
-    <div className={`w-full overflow-visible rounded-2xl border transition-all duration-200 hover:shadow-md ${
-      isCancelled
-        ? "bg-red-50/60 border-red-200/80 dark:bg-red-950/15 dark:border-red-900/50"
-        : isConfirmed
-          ? "bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900/60 hover:border-emerald-300"
+    <div className={`w-full overflow-visible rounded-2xl border transition-all duration-200 hover:shadow-md ${isCancelled
+      ? "bg-red-50/60 border-red-200/80 dark:bg-red-950/15 dark:border-red-900/50"
+      : isConfirmed
+        ? "bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900/60 hover:border-emerald-300"
         : `bg-card border-border hover:border-emerald-200 ${isExpanded ? "shadow-md border-emerald-300" : ""}`
-    }`}>
+      }`}>
       {/* Card header */}
       <button
         type="button"
@@ -401,6 +400,12 @@ function AppointmentCard({
               <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold capitalize text-slate-700 shadow-sm dark:border-slate-600 dark:bg-slate-800/40 dark:text-slate-200">
                 <Stethoscope className="size-3.5" />
                 {appointmentTypeLabel}
+              </span>
+            )}
+            {apt.treatmentType && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-300 bg-violet-50 px-2.5 py-1 text-[11px] font-semibold capitalize text-violet-800 shadow-sm dark:border-violet-700 dark:bg-violet-950/30 dark:text-violet-200">
+                <Activity className="size-3.5" />
+                {String(apt.treatmentType).replace(/_/g, " ").toLowerCase()}
               </span>
             )}
             {/* Payment pending badge for video appointments awaiting payment */}
@@ -540,7 +545,7 @@ function AppointmentCard({
                 </div>
               )
             ) : (
-                  <p className="text-sm italic text-muted-foreground">
+              <p className="text-sm italic text-muted-foreground">
                 {effectiveStatus === "CANCELLED"
                   ? "This appointment was cancelled. Book a new appointment to continue."
                   : effectiveStatus === "COMPLETED"
@@ -549,7 +554,7 @@ function AppointmentCard({
                       ? "Marked as no-show. Book a new appointment if you still need care."
                       : effectiveStatus === "EXPIRED"
                         ? "This appointment expired because nobody joined in time. Please book a new appointment."
-                      : "No further actions available for this appointment."}
+                        : "No further actions available for this appointment."}
               </p>
             )
           ) : (
@@ -653,9 +658,9 @@ function getEffectiveAppointmentId(appointment: AppointmentWithRelations | any):
   return String(appointment?.appointmentId || appointment?.id || "");
 }
 
-export default function AppointmentManager({ 
-  filterType, 
-  defaultConsultationMode, 
+export default function AppointmentManager({
+  filterType,
+  defaultConsultationMode,
   isAdminView = false,
   clinicId: propClinicId,
   patientId: propPatientId,
@@ -733,7 +738,7 @@ export default function AppointmentManager({
   const ITEMS_PER_PAGE = 5;
 
   //”€â”€â”€ Data Fetching”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  
+
   // Choose hook based on view role
   // Sanitize filters to avoid undefined properties breaking exactOptionalPropertyTypes
   const adminFilters = useMemo(() => {
@@ -1042,10 +1047,10 @@ export default function AppointmentManager({
     const parsed = parseDateValue(value);
     return parsed
       ? formatDateInIST(parsed, {
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-        })
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
       : placeholder;
   };
 
@@ -1160,7 +1165,7 @@ export default function AppointmentManager({
 
   if (isAppointmentsLoading) {
     return (
-    <div className="flex flex-col gap-y-4 p-6">
+      <div className="flex flex-col gap-y-4 p-6">
         <div className="h-8 w-64 bg-muted animate-pulse rounded-lg" />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
           {[1, 2, 3, 4].map(i => <div key={i} className="h-20 bg-muted animate-pulse rounded-2xl" />)}
@@ -1176,11 +1181,11 @@ export default function AppointmentManager({
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <CardTitle className="flex items-center gap-2 text-lg font-bold sm:text-xl">
             <div className="flex size-7 items-center justify-center rounded-lg bg-emerald-100 sm:h-8 sm:w-8">
-               <Calendar className="size-5 text-emerald-600" />
+              <Calendar className="size-5 text-emerald-600" />
             </div>
             Current Appointments
           </CardTitle>
-          <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-start sm:gap-3 lg:w-auto lg:justify-end">
+          <div className="flex w-full flex-wrap items-center justify-center gap-3 sm:justify-start lg:w-auto lg:justify-end">
             {isRealTimeEnabled && (
               <span className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${isConnected ? "border-green-200 bg-green-50 text-green-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
                 <span className={`size-1.5 rounded-full ${isConnected ? "bg-green-500 animate-pulse" : "bg-amber-500"}`} />
@@ -1194,12 +1199,12 @@ export default function AppointmentManager({
                 {...(propClinicId ? { clinicId: propClinicId } : {})}
                 {...(propPatientId ? { initialPatientId: propPatientId } : {})}
                 trigger={
-                <Button
-                  className="h-9 w-full gap-2 rounded-xl border-0 bg-gradient-to-r from-orange-500 to-amber-500 px-4 text-sm font-bold text-white shadow-md transition-all active:scale-95 hover:from-orange-600 hover:to-amber-600 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-orange-500/30 sm:w-auto sm:px-5 animate-pulse"
-                >
-                  <Video className="size-4" />
-                  Book Video Appointment
-                </Button>
+                  <Button
+                    className="order-last h-9 w-full gap-2 rounded-xl border-0 bg-gradient-to-r from-red-500 to-rose-600 px-4 text-sm font-bold text-white shadow-md transition-all active:scale-95 hover:from-red-600 hover:to-rose-700 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-red-500/30 sm:order-none sm:w-auto sm:px-5 animate-pulse"
+                  >
+                    <Video className="size-4" />
+                    Book Video Appointment
+                  </Button>
                 }
               />
             )}
@@ -1207,7 +1212,7 @@ export default function AppointmentManager({
             <Button
               variant="outline"
               onClick={() => void handleRefreshAppointments()}
-              className="h-9 w-full gap-2 rounded-xl border-sky-200 bg-sky-50 px-4 py-2 text-sm text-sky-700 transition-all shadow-sm hover:bg-sky-100 hover:text-sky-800 dark:border-sky-900/70 dark:bg-sky-950/25 dark:text-sky-300 dark:hover:bg-sky-950/45 sm:w-auto"
+              className="h-9 gap-2 rounded-xl border-sky-200 bg-sky-50 px-4 py-2 text-sm text-sky-700 transition-all shadow-sm hover:bg-sky-100 hover:text-sky-800 dark:border-sky-900/70 dark:bg-sky-950/25 dark:text-sky-300 dark:hover:bg-sky-950/45"
               disabled={isRefreshInProgress}
               title="Refresh Appointments"
             >
@@ -1224,16 +1229,16 @@ export default function AppointmentManager({
         </div>
       </CardHeader>
 
-      <CardContent className="flex flex-col gap-y-4 sm:gap-y-5">
-      {isRefreshingAppointments && (
-        <div className="flex items-center gap-2 rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-200">
-          <Loader2 className="size-4 animate-spin" />
-          <span>Refreshing appointments...</span>
-        </div>
-      )}
+      <CardContent className="flex flex-col gap-y-1 sm:gap-y-4 lg:gap-y-5">
+        {isRefreshingAppointments && (
+          <div className="flex items-center gap-2 rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-200">
+            <Loader2 className="size-4 animate-spin" />
+            <span>Refreshing appointments...</span>
+          </div>
+        )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4 lg:gap-4">
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4 lg:gap-4">
           <StatCard
             label="Total"
             value={stats.total}
@@ -1278,362 +1283,362 @@ export default function AppointmentManager({
             cardHover="hover:border-violet-300"
             className="bg-violet-50/70 dark:bg-violet-950/20"
           />
-      </div>
-
-      {/* Search and Filters (REPLICATING DASHBOARD EXACTLY) */}
-      <div className="mb-6 flex flex-col gap-y-3.5 sm:mb-8 sm:gap-y-4">
-        {/* 1. Search Bar */}
-        <div className="relative w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by doctor, location..."
-            className="pl-10 h-11 border-muted/30 bg-muted/5 rounded-lg text-sm focus-visible:ring-primary shadow-sm w-full"
-          />
         </div>
 
-        <div className="flex h-11 max-w-full gap-1 overflow-x-auto rounded-xl border border-border/60 bg-card p-1 shadow-sm sm:h-12 sm:gap-1.5 sm:rounded-2xl sm:p-1.5 scrollbar-hide">
-          {(["ALL", "SCHEDULED", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as StatusFilter[]).map(s => {
-            const isActive = statusFilter === s;
-            const labelMap: Record<string, string> = {
-              ALL: "All",
-              SCHEDULED: "Scheduled",
-              CONFIRMED: "Confirmed",
-              IN_PROGRESS: "In Progress",
-              COMPLETED: "Completed",
-              CANCELLED: "Cancelled"
-            };
+        {/* Search and Filters (REPLICATING DASHBOARD EXACTLY) */}
+        <div className="mb-3 mt-4 flex flex-col gap-y-3.5 sm:mb-8 sm:mt-6 sm:gap-y-4">
+          {/* 1. Search Bar */}
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by doctor, location..."
+              className="pl-10 h-11 border-muted/30 bg-muted/5 rounded-lg text-sm focus-visible:ring-primary shadow-sm w-full"
+            />
+          </div>
 
-            return (
-              <button
-                type="button"
-                key={s}
-                onClick={() => setStatusFilter(s)}
-                className={cn(
-                  "h-full whitespace-nowrap rounded-lg px-3 text-[11px] font-semibold transition-all sm:rounded-xl sm:px-5 sm:text-sm",
-                  isActive
-                    ? "bg-emerald-600 text-white shadow-sm"
-                    : "text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50"
-                )}
-              >
-                {labelMap[s]}
-              </button>
-            );
-          })}
-        </div>
+          <div className="flex h-12 max-w-full gap-1 overflow-x-auto rounded-xl border border-border/60 bg-card p-1 shadow-sm sm:h-12 sm:gap-1.5 sm:rounded-2xl sm:p-1.5 scrollbar-hide">
+            {(["ALL", "SCHEDULED", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as StatusFilter[]).map(s => {
+              const isActive = statusFilter === s;
+              const labelMap: Record<string, string> = {
+                ALL: "All",
+                SCHEDULED: "Scheduled",
+                CONFIRMED: "Confirmed",
+                IN_PROGRESS: "In Progress",
+                COMPLETED: "Completed",
+                CANCELLED: "Cancelled"
+              };
 
-        {/* 3. Default View Label */}
-        <p className="px-1 text-[13px] text-muted-foreground/80">
-          Default view shows all appointments, newest first.
-        </p>
+              return (
+                <button
+                  type="button"
+                  key={s}
+                  onClick={() => setStatusFilter(s)}
+                  className={cn(
+                    "h-full whitespace-nowrap rounded-lg px-4 text-xs sm:text-[13px] font-semibold transition-all sm:rounded-xl sm:px-5",
+                    isActive
+                      ? "bg-emerald-600 text-white shadow-sm"
+                      : "text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50"
+                  )}
+                >
+                  {labelMap[s]}
+                </button>
+              );
+            })}
+          </div>
 
-        {/* 4. Date Range Pickers (From date, To date) */}
-        <div className="mt-2 flex flex-wrap items-center gap-2.5 sm:gap-3">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "h-9 w-full justify-between rounded-xl border-border/70 bg-background text-left text-sm font-medium shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50 dark:hover:border-emerald-900/50 dark:hover:bg-emerald-950/30 sm:w-44",
-                  !dateFilter.start && "text-muted-foreground"
-                )}
-              >
-                <Calendar className="mr-2 size-4 opacity-50" />
-                {formatDateValue(dateFilter.start, "From date")}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto rounded-2xl border border-border/60 bg-popover p-3 shadow-xl" align="start" sideOffset={8}>
-              <CalendarPicker
-                mode="single"
-                selected={parseDateValue(dateFilter.start)}
-                onSelect={(date) => setDateFilter((p) => ({ ...p, start: toDateString(date) }))}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "h-9 w-full justify-between rounded-xl border-border/70 bg-background text-left text-sm font-medium shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50 dark:hover:border-emerald-900/50 dark:hover:bg-emerald-950/30 sm:w-44",
-                  !dateFilter.end && "text-muted-foreground"
-                )}
-              >
-                <Calendar className="mr-2 size-4 opacity-50" />
-                {formatDateValue(dateFilter.end, "To date")}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto rounded-2xl border border-border/60 bg-popover p-3 shadow-xl" align="start" sideOffset={8}>
-              <CalendarPicker
-                mode="single"
-                selected={parseDateValue(dateFilter.end)}
-                onSelect={(date) => setDateFilter((p) => ({ ...p, end: toDateString(date) }))}
-                disabled={(date) => {
-                  const startDate = parseDateValue(dateFilter.start);
-                  return !!startDate && date < startDate;
-                }}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-
-          {(dateFilter.start || dateFilter.end || (statusFilter && statusFilter !== "SCHEDULED")) && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setDateFilter({ start: "", end: "" });
-              setStatusFilter("ALL");
-                setSearchQuery("");
-              }}
-              className="h-8 text-primary hover:bg-primary/5"
-            >
-              Clear Filters
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Appointments list */}
-      {filteredAppointments.length === 0 ? (
-        <div className="rounded-2xl border-2 border-dashed bg-muted/20 py-12 text-center">
-          <Calendar className="size-12 mx-auto mb-3 text-muted-foreground/40" />
-          <p className="font-semibold text-muted-foreground">
-            {allAppointments.length === 0 ? "No appointments yet" : "No appointments match your filters"}
+          {/* 3. Default View Label */}
+          <p className="px-1 text-[13px] text-muted-foreground/80">
+            Default view shows all appointments, newest first.
           </p>
-          <p className="text-sm text-muted-foreground mt-1">
-            {allAppointments.length === 0
-              ? "Book your first appointment to get started"
-              : "Try adjusting the status filter or search query"}
-          </p>
-          {allAppointments.length === 0 && !hideBookButton && (
-            <BookAppointmentDialog
-              defaultOpen={autoOpenBookDialog}
-              {...(propClinicId ? { clinicId: propClinicId } : {})}
-              {...(propPatientId ? { initialPatientId: propPatientId } : {})}
-              trigger={
-                <Button className="mt-4 gap-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 animate-pulse">
-                  <Video className="size-4" />
-                  Book Video Appointment
+
+          {/* 4. Date Range Pickers (From date, To date) */}
+          <div className="mt-2 grid grid-cols-2 gap-2.5 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "h-9 w-full justify-between rounded-xl border-border/70 bg-background text-left text-sm font-medium shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50 dark:hover:border-emerald-900/50 dark:hover:bg-emerald-950/30 sm:w-44",
+                    !dateFilter.start && "text-muted-foreground"
+                  )}
+                >
+                  <Calendar className="mr-2 size-4 opacity-50 shrink-0" />
+                  <span className="truncate">{formatDateValue(dateFilter.start, "From date")}</span>
                 </Button>
-              }
-            />
-          )}
+              </PopoverTrigger>
+              <PopoverContent className="w-auto rounded-2xl border border-border/60 bg-popover p-3 shadow-xl" align="start" sideOffset={8}>
+                <CalendarPicker
+                  mode="single"
+                  selected={parseDateValue(dateFilter.start)}
+                  onSelect={(date) => setDateFilter((p) => ({ ...p, start: toDateString(date) }))}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "h-9 w-full justify-between rounded-xl border-border/70 bg-background text-left text-sm font-medium shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50 dark:hover:border-emerald-900/50 dark:hover:bg-emerald-950/30 sm:w-44",
+                    !dateFilter.end && "text-muted-foreground"
+                  )}
+                >
+                  <Calendar className="mr-2 size-4 opacity-50 shrink-0" />
+                  <span className="truncate">{formatDateValue(dateFilter.end, "To date")}</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto rounded-2xl border border-border/60 bg-popover p-3 shadow-xl" align="start" sideOffset={8}>
+                <CalendarPicker
+                  mode="single"
+                  selected={parseDateValue(dateFilter.end)}
+                  onSelect={(date) => setDateFilter((p) => ({ ...p, end: toDateString(date) }))}
+                  disabled={(date) => {
+                    const startDate = parseDateValue(dateFilter.start);
+                    return !!startDate && date < startDate;
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+
+            {(dateFilter.start || dateFilter.end || (statusFilter && statusFilter !== "SCHEDULED")) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setDateFilter({ start: "", end: "" });
+                  setStatusFilter("ALL");
+                  setSearchQuery("");
+                }}
+                className="col-span-2 sm:col-span-1 h-8 text-primary hover:bg-primary/5"
+              >
+                Clear Filters
+              </Button>
+            )}
+          </div>
         </div>
-      ) : (
-        <div className="flex flex-col gap-y-2.5 sm:gap-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-muted-foreground">
-              Showing {filteredAppointments.length === 0 ? 0 : (safeCurrentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(safeCurrentPage * ITEMS_PER_PAGE, filteredAppointments.length)} of {filteredAppointments.length}
+
+        {/* Appointments list */}
+        {filteredAppointments.length === 0 ? (
+          <div className="rounded-2xl border-2 border-dashed bg-muted/20 py-12 text-center">
+            <Calendar className="size-12 mx-auto mb-3 text-muted-foreground/40" />
+            <p className="font-semibold text-muted-foreground">
+              {allAppointments.length === 0 ? "No appointments yet" : "No appointments match your filters"}
             </p>
-          </div>
-          {filteredAppointments
-            .slice((safeCurrentPage - 1) * ITEMS_PER_PAGE, safeCurrentPage * ITEMS_PER_PAGE)
-            .map((apt) => (
-              <AppointmentCard
-                key={apt.id}
-                apt={apt}
-                expandedCard={expandedCard}
-                checkInRoute={checkInRoute}
-                cancellingAppointment={cancellingAppointment}
-                onCancelAppointment={handleCancelAppointment}
-                handleJoinVideo={handleJoinVideo}
-                onExpand={setExpandedCard}
-                onSelect={(appointment) => {
-                  selectedAppointmentRef.current = appointment;
-                }}
-                onReschedule={(apt) => {
-                  selectedAppointmentRef.current = apt;
-                  setRescheduleData({
-                    date: formatISODateInIST(apt.date),
-                    time: apt.time || "",
-                  });
-                  setIsRescheduleDialogOpen(true);
-                }}
-                onBookNew={handleOpenBookDialogFromCancelled}
-                viewerRole={user?.role}
-              />
-            ))}
-          {filteredAppointments.length > ITEMS_PER_PAGE && (
-            <div className="flex flex-wrap items-center justify-center gap-2 pt-3 sm:pt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={safeCurrentPage === 1}
-                className="h-8 rounded-lg border-border/60 px-3 text-sm sm:h-9 sm:px-4"
-              >
-                Prev
-              </Button>
-              <span className="hidden rounded-full border border-border/60 px-3 py-1 text-xs font-medium text-muted-foreground sm:inline-flex">
-                Page {safeCurrentPage} of {totalPages}
-              </span>
-              {getPaginationWindow(safeCurrentPage, totalPages).map((page, index) =>
-                page === "ellipsis" ? (
-                  <span key={`ellipsis-${index}`} className="px-1 text-sm text-muted-foreground">...
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={cn(
-                      "size-8 rounded-lg text-sm font-semibold transition-all sm:h-9 sm:w-9",
-                      page === safeCurrentPage
-                        ? "bg-emerald-600 text-white shadow-sm"
-                        : "border border-border/60 text-muted-foreground hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200"
-                    )}
-                  >
-                    {page}
-                  </button>
-                )
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={safeCurrentPage === totalPages}
-                className="h-8 rounded-lg border-border/60 px-3 text-sm sm:h-9 sm:px-4"
-              >
-                Next
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Reschedule Dialog */}
-      <Dialog open={isRescheduleDialogOpen} onOpenChange={setIsRescheduleDialogOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <RefreshCw className="size-5 text-primary" />
-              Reschedule Appointment
-            </DialogTitle>
-            <DialogDescription>
-              Choose a new date and time for your appointment.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-y-4 py-2">
-            <div>
-              <span className="mb-1.5 block text-sm font-medium">New Date</span>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-between rounded-xl border-border/70 bg-background text-left font-medium shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50 dark:hover:border-emerald-900/50 dark:hover:bg-emerald-950/30",
-                      !rescheduleData.date && "text-muted-foreground"
-                    )}
-                  >
-                    <Calendar className="mr-2 size-4" />
-                    {formatDateValue(rescheduleData.date, "Pick a new date")}
+            <p className="text-sm text-muted-foreground mt-1">
+              {allAppointments.length === 0
+                ? "Book your first appointment to get started"
+                : "Try adjusting the status filter or search query"}
+            </p>
+            {allAppointments.length === 0 && !hideBookButton && (
+              <BookAppointmentDialog
+                defaultOpen={autoOpenBookDialog}
+                {...(propClinicId ? { clinicId: propClinicId } : {})}
+                {...(propPatientId ? { initialPatientId: propPatientId } : {})}
+                trigger={
+                  <Button className="mt-4 gap-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 animate-pulse">
+                    <Video className="size-4" />
+                    Book Video Appointment
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto rounded-2xl border border-border/60 bg-popover p-3 shadow-xl" align="start" sideOffset={8} suppressHydrationWarning>
-                  <CalendarPicker
-                    mode="single"
-                    selected={parseDateValue(rescheduleData.date)}
-                    onSelect={(date) => setRescheduleData((p) => ({ ...p, date: toDateString(date) }))}
-                    disabled={(date) => !!rescheduleMinDate && date < rescheduleMinDate}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+                }
+              />
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-y-2.5 sm:gap-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-muted-foreground">
+                Showing {filteredAppointments.length === 0 ? 0 : (safeCurrentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(safeCurrentPage * ITEMS_PER_PAGE, filteredAppointments.length)} of {filteredAppointments.length}
+              </p>
             </div>
-            <div>
-              <label htmlFor="appointment-reschedule-time" className="text-sm font-medium mb-1.5 block">
-                New Time
+            {filteredAppointments
+              .slice((safeCurrentPage - 1) * ITEMS_PER_PAGE, safeCurrentPage * ITEMS_PER_PAGE)
+              .map((apt) => (
+                <AppointmentCard
+                  key={apt.id}
+                  apt={apt}
+                  expandedCard={expandedCard}
+                  checkInRoute={checkInRoute}
+                  cancellingAppointment={cancellingAppointment}
+                  onCancelAppointment={handleCancelAppointment}
+                  handleJoinVideo={handleJoinVideo}
+                  onExpand={setExpandedCard}
+                  onSelect={(appointment) => {
+                    selectedAppointmentRef.current = appointment;
+                  }}
+                  onReschedule={(apt) => {
+                    selectedAppointmentRef.current = apt;
+                    setRescheduleData({
+                      date: formatISODateInIST(apt.date),
+                      time: apt.time || "",
+                    });
+                    setIsRescheduleDialogOpen(true);
+                  }}
+                  onBookNew={handleOpenBookDialogFromCancelled}
+                  viewerRole={user?.role}
+                />
+              ))}
+            {filteredAppointments.length > ITEMS_PER_PAGE && (
+              <div className="flex flex-wrap items-center justify-center gap-2 pt-3 sm:pt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safeCurrentPage === 1}
+                  className="h-8 rounded-lg border-border/60 px-3 text-sm sm:h-9 sm:px-4"
+                >
+                  Prev
+                </Button>
+                <span className="hidden rounded-full border border-border/60 px-3 py-1 text-xs font-medium text-muted-foreground sm:inline-flex">
+                  Page {safeCurrentPage} of {totalPages}
+                </span>
+                {getPaginationWindow(safeCurrentPage, totalPages).map((page, index) =>
+                  page === "ellipsis" ? (
+                    <span key={`ellipsis-${index}`} className="px-1 text-sm text-muted-foreground">...
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={cn(
+                        "size-8 rounded-lg text-sm font-semibold transition-all sm:h-9 sm:w-9",
+                        page === safeCurrentPage
+                          ? "bg-emerald-600 text-white shadow-sm"
+                          : "border border-border/60 text-muted-foreground hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200"
+                      )}
+                    >
+                      {page}
+                    </button>
+                  )
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safeCurrentPage === totalPages}
+                  className="h-8 rounded-lg border-border/60 px-3 text-sm sm:h-9 sm:px-4"
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Reschedule Dialog */}
+        <Dialog open={isRescheduleDialogOpen} onOpenChange={setIsRescheduleDialogOpen}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <RefreshCw className="size-5 text-primary" />
+                Reschedule Appointment
+              </DialogTitle>
+              <DialogDescription>
+                Choose a new date and time for your appointment.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-y-4 py-2">
+              <div>
+                <span className="mb-1.5 block text-sm font-medium">New Date</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-between rounded-xl border-border/70 bg-background text-left font-medium shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50 dark:hover:border-emerald-900/50 dark:hover:bg-emerald-950/30",
+                        !rescheduleData.date && "text-muted-foreground"
+                      )}
+                    >
+                      <Calendar className="mr-2 size-4" />
+                      {formatDateValue(rescheduleData.date, "Pick a new date")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto rounded-2xl border border-border/60 bg-popover p-3 shadow-xl" align="start" sideOffset={8} suppressHydrationWarning>
+                    <CalendarPicker
+                      mode="single"
+                      selected={parseDateValue(rescheduleData.date)}
+                      onSelect={(date) => setRescheduleData((p) => ({ ...p, date: toDateString(date) }))}
+                      disabled={(date) => !!rescheduleMinDate && date < rescheduleMinDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <label htmlFor="appointment-reschedule-time" className="text-sm font-medium mb-1.5 block">
+                  New Time
+                </label>
+                <Input
+                  id="appointment-reschedule-time"
+                  type="time"
+                  value={rescheduleData.time}
+                  onChange={(e) => setRescheduleData(p => ({ ...p, time: e.target.value }))}
+                />
+              </div>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsRescheduleDialogOpen(false)}
+                className="h-11 px-6 rounded-xl border-border/50 transition-all active:scale-95"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleRescheduleSubmit}
+                disabled={reschedulingAppointment || !rescheduleData.date || !rescheduleData.time}
+                className="h-11 px-8 rounded-xl font-semibold shadow-sm transition-all active:scale-95 bg-primary hover:bg-primary/90 text-white"
+              >
+                {reschedulingAppointment ? "Rescheduling..." : "Confirm Reschedule"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Reject Proposal Dialog */}
+        <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Reject Proposal</DialogTitle>
+              <DialogDescription>
+                Please provide a reason for rejecting the proposed time slots.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <label htmlFor="reject-proposal-reason" className="text-sm font-medium mb-1.5 block">
+                Reason
               </label>
-              <Input
-                id="appointment-reschedule-time"
-                type="time"
-                value={rescheduleData.time}
-                onChange={(e) => setRescheduleData(p => ({ ...p, time: e.target.value }))}
+              <Textarea
+                id="reject-proposal-reason"
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="e.g., Only available in evenings"
+                className="mt-2 rounded-xl"
               />
             </div>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button 
-              variant="outline" 
-              onClick={() => setIsRescheduleDialogOpen(false)}
-              className="h-11 px-6 rounded-xl border-border/50 transition-all active:scale-95"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleRescheduleSubmit}
-              disabled={reschedulingAppointment || !rescheduleData.date || !rescheduleData.time}
-              className="h-11 px-8 rounded-xl font-semibold shadow-sm transition-all active:scale-95 bg-primary hover:bg-primary/90 text-white"
-            >
-              {reschedulingAppointment ? "Rescheduling..." : "Confirm Reschedule"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogFooter className="gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsRejectDialogOpen(false)}
+                className="h-11 px-6 rounded-xl border-border/50 transition-all active:scale-95"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleRejectProposal}
+                disabled={!rejectReason || rejectingProposal}
+                className="h-11 px-8 rounded-xl font-semibold shadow-sm transition-all active:scale-95"
+              >
+                {rejectingProposal ? "Rejecting..." : "Reject Proposal"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      {/* Reject Proposal Dialog */}
-      <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reject Proposal</DialogTitle>
-            <DialogDescription>
-              Please provide a reason for rejecting the proposed time slots.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <label htmlFor="reject-proposal-reason" className="text-sm font-medium mb-1.5 block">
-              Reason
-            </label>
-            <Textarea
-              id="reject-proposal-reason"
-              value={rejectReason}
-              onChange={(e) => setRejectReason(e.target.value)}
-              placeholder="e.g., Only available in evenings"
-              className="mt-2 rounded-xl"
-            />
-          </div>
-          <DialogFooter className="gap-2">
-            <Button 
-              variant="outline" 
-              onClick={() => setIsRejectDialogOpen(false)}
-              className="h-11 px-6 rounded-xl border-border/50 transition-all active:scale-95"
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleRejectProposal}
-              disabled={!rejectReason || rejectingProposal}
-              className="h-11 px-8 rounded-xl font-semibold shadow-sm transition-all active:scale-95"
-            >
-              {rejectingProposal ? "Rejecting..." : "Reject Proposal"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Main booking dialog (controlled) — opened when the user clicks
+        {/* Main booking dialog (controlled) — opened when the user clicks
           "Book New Appointment" on a cancelled appointment so they get the
           full booking flow with all time slots and the doctor pre-filled. */}
-      <BookAppointmentDialog
-        hideTrigger
-        open={isBookDialogOpen}
-        onOpenChange={setIsBookDialogOpen}
-        {...(bookPrefill?.doctorId ? { initialDoctorId: bookPrefill.doctorId } : {})}
-        {...(bookPrefill?.consultationMode
-          ? { initialConsultationMode: bookPrefill.consultationMode }
-          : {})}
-        {...(propClinicId ? { clinicId: propClinicId } : {})}
-        {...(propPatientId ? { initialPatientId: propPatientId } : {})}
-        onBooked={() => {
-          setIsBookDialogOpen(false);
-          setBookPrefill(null);
-        }}
-      />
+        <BookAppointmentDialog
+          hideTrigger
+          open={isBookDialogOpen}
+          onOpenChange={setIsBookDialogOpen}
+          {...(bookPrefill?.doctorId ? { initialDoctorId: bookPrefill.doctorId } : {})}
+          {...(bookPrefill?.consultationMode
+            ? { initialConsultationMode: bookPrefill.consultationMode }
+            : {})}
+          {...(propClinicId ? { clinicId: propClinicId } : {})}
+          {...(propPatientId ? { initialPatientId: propPatientId } : {})}
+          onBooked={() => {
+            setIsBookDialogOpen(false);
+            setBookPrefill(null);
+          }}
+        />
       </CardContent>
     </Card>
   );

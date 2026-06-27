@@ -22,7 +22,7 @@ function Table({
         data-slot="table"
         className={cn(
           "caption-bottom text-sm",
-          scrollable ? "min-w-max w-max" : "w-full",
+          scrollable ? "w-full min-w-max" : "w-full",
           compact && !scrollable && "table-fixed",
           className
         )}

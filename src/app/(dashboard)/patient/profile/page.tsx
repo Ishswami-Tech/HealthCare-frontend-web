@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -235,7 +235,7 @@ export default function PatientProfile() {
   }
 
   return (
-    <PatientPageShell className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+    <PatientPageShell className="mx-auto max-w-7xl">
         <PatientPageHeader
           eyebrow="MY PROFILE"
           title="My Profile"
@@ -336,13 +336,13 @@ export default function PatientProfile() {
 
           <Tabs defaultValue="personal" className="flex flex-col gap-y-4">
             <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-              <TabsList className="inline-flex w-max min-w-full sm:grid sm:w-full sm:grid-cols-3 lg:grid-cols-6">
-                <TabsTrigger value="personal" className="px-3 text-[11px] sm:text-sm">Personal</TabsTrigger>
-                <TabsTrigger value="ayurveda" className="px-3 text-[11px] sm:text-sm">Ayurveda</TabsTrigger>
-                <TabsTrigger value="medical" className="px-3 text-[11px] sm:text-sm">Medical</TabsTrigger>
-                <TabsTrigger value="lifestyle" className="px-3 text-[11px] sm:text-sm">Lifestyle</TabsTrigger>
-                <TabsTrigger value="documents" className="px-3 text-[11px] sm:text-sm">Documents</TabsTrigger>
-                <TabsTrigger value="preferences" className="px-3 text-[11px] sm:text-sm">Preferences</TabsTrigger>
+              <TabsList>
+                <TabsTrigger value="personal">Personal</TabsTrigger>
+                <TabsTrigger value="ayurveda">Ayurveda</TabsTrigger>
+                <TabsTrigger value="medical">Medical</TabsTrigger>
+                <TabsTrigger value="lifestyle">Lifestyle</TabsTrigger>
+                <TabsTrigger value="documents">Documents</TabsTrigger>
+                <TabsTrigger value="preferences">Preferences</TabsTrigger>
               </TabsList>
             </div>
 

@@ -14,7 +14,7 @@ function PatientHealthPageContent() {
   const initialTab = getSearchParam("tab") === "medicines" ? "medicines" : "records";
 
   return (
-    <PatientPageShell className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+    <PatientPageShell className="mx-auto max-w-7xl">
       <PatientPageHeader
         eyebrow="My Health"
         title="Health"
@@ -23,9 +23,9 @@ function PatientHealthPageContent() {
 
       <Tabs defaultValue={initialTab} className="flex flex-col gap-y-4">
         <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-          <TabsList className="inline-flex w-max min-w-full sm:grid sm:w-full sm:grid-cols-2">
-          <TabsTrigger value="records">Records</TabsTrigger>
-          <TabsTrigger value="medicines">Medicines</TabsTrigger>
+          <TabsList className="inline-flex w-max min-w-full sm:flex sm:w-full">
+            <TabsTrigger value="records">Records</TabsTrigger>
+            <TabsTrigger value="medicines">Medicines</TabsTrigger>
           </TabsList>
         </div>
 
@@ -48,4 +48,3 @@ export default function PatientHealthPage() {
     </Suspense>
   );
 }
-

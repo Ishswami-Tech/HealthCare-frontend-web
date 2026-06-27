@@ -58,6 +58,16 @@ interface PaymentButtonProps {
   children?: React.ReactNode;
 }
 
+type PaymentIntentResponse = {
+  success: boolean;
+  data?: {
+    paymentIntent?: Record<string, unknown>;
+  };
+  paymentIntent?: Record<string, unknown>;
+  error?: string;
+  message?: string;
+};
+
 export function PaymentButton({
   invoiceId,
   appointmentId,
@@ -80,6 +90,8 @@ export function PaymentButton({
   const { session } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const hasAutoStartedRef = useRef(false);
+  const paymentIntentPromiseRef = useRef<Promise<PaymentIntentResponse> | null>(null);
+  const cashfreeSdkPromiseRef = useRef<Promise<Awaited<ReturnType<typeof load>> | null> | null>(null);
   const userRole = (session?.user?.role || "").toUpperCase();
   const normalizedCandidates = [provider, DEFAULT_PAYMENT_PROVIDER].reduce<string[]>(
     (candidates, value) => {
@@ -131,15 +143,15 @@ export function PaymentButton({
     }
   };
 
-  const getPaymentIntent = async () => {
+  const getPaymentIntent = async (): Promise<PaymentIntentResponse> => {
     const providerQuery = `?provider=${effectiveProvider}`;
     if (subscriptionId) {
-      return await clinicApiClient.request<Record<string, unknown>>(
+      return await clinicApiClient.request<PaymentIntentResponse>(
         `${API_ENDPOINTS.BILLING.SUBSCRIPTIONS.BASE}/${subscriptionId}/process-payment${providerQuery}`,
         { method: "POST" }
       );
     } else if (appointmentId) {
-      return await clinicApiClient.request<Record<string, unknown>>(
+      return await clinicApiClient.request<PaymentIntentResponse>(
         `${API_ENDPOINTS.BILLING.APPOINTMENT_PAYMENTS.PROCESS_PAYMENT(appointmentId)}${providerQuery}`,
         {
           method: "POST",
@@ -147,12 +159,12 @@ export function PaymentButton({
         }
       );
     } else if (invoiceId) {
-      return await clinicApiClient.request<Record<string, unknown>>(
+      return await clinicApiClient.request<PaymentIntentResponse>(
         `${API_ENDPOINTS.BILLING.INVOICES.PROCESS_PAYMENT(invoiceId)}${providerQuery}`,
         { method: "POST" }
       );
     } else if (prescriptionId) {
-      return await clinicApiClient.request<Record<string, unknown>>(
+      return await clinicApiClient.request<PaymentIntentResponse>(
         `${API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.PROCESS_PAYMENT(prescriptionId)}${providerQuery}`,
         { method: "POST" }
       );
@@ -161,6 +173,32 @@ export function PaymentButton({
         "Either invoiceId, appointmentId, subscriptionId, or prescriptionId is required"
       );
     }
+  };
+
+  const preloadPaymentIntent = () => {
+    if (paymentIntentPromiseRef.current) {
+      return paymentIntentPromiseRef.current;
+    }
+
+    paymentIntentPromiseRef.current = getPaymentIntent().catch((error) => {
+      paymentIntentPromiseRef.current = null;
+      throw error;
+    });
+
+    return paymentIntentPromiseRef.current;
+  };
+
+  const preloadCashfreeSdk = () => {
+    if (cashfreeSdkPromiseRef.current) {
+      return cashfreeSdkPromiseRef.current;
+    }
+
+    cashfreeSdkPromiseRef.current = load({ mode: cashfreeMode }).catch((error) => {
+      cashfreeSdkPromiseRef.current = null;
+      throw error;
+    });
+
+    return cashfreeSdkPromiseRef.current;
   };
 
   const verifyPayment = async (
@@ -263,7 +301,8 @@ export function PaymentButton({
 
   const handleCashfreePayment = async (
     paymentIntent: Record<string, unknown>,
-    usedProvider: PaymentProvider
+    usedProvider: PaymentProvider,
+    preloadedCashfree?: Awaited<ReturnType<typeof load>> | null
   ) => {
     const metadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
     const providerResponse = (paymentIntent?.providerResponse as Record<string, unknown>) || {};
@@ -319,10 +358,12 @@ export function PaymentButton({
     });
 
     try {
+      const cashfreePromise = preloadedCashfree
+        ? Promise.resolve(preloadedCashfree)
+        : preloadCashfreeSdk();
+
       const cashfree = await withTimeout(
-        load({
-          mode: cashfreeMode,
-        }),
+        cashfreePromise,
         CASHFREE_LOAD_TIMEOUT_MS,
         `Cashfree SDK load timed out in ${cashfreeMode} mode`
       );
@@ -403,13 +444,14 @@ export function PaymentButton({
   const handlePayment = async () => {
     setIsProcessing(true);
     try {
-      const paymentResponse = await getPaymentIntent();
-      const paymentIntentResponse = paymentResponse as unknown as {
-        paymentIntent?: Record<string, unknown>;
-      };
+      const [paymentResponse, cashfreeClient] = await Promise.all([
+        preloadPaymentIntent(),
+        preloadCashfreeSdk(),
+      ]);
+      const paymentIntentResponse = paymentResponse as PaymentIntentResponse;
       const paymentIntentData =
         paymentIntentResponse.paymentIntent ||
-        (paymentResponse.data as { paymentIntent?: Record<string, unknown> } | undefined)?.paymentIntent;
+        paymentIntentResponse.data?.paymentIntent;
 
       if (!paymentResponse.success || !paymentIntentData) {
         throw new Error(paymentResponse.error || paymentResponse.message || "Failed to create payment intent");
@@ -428,7 +470,7 @@ export function PaymentButton({
       if (usedProvider !== "cashfree") {
         throw new Error(`Provider '${usedProvider}' is enabled but SDK handler is not implemented yet`);
       }
-      await handleCashfreePayment(paymentIntent, usedProvider);
+      await handleCashfreePayment(paymentIntent, usedProvider, cashfreeClient);
     } catch (error) {
       setIsProcessing(false);
       const message =
@@ -443,6 +485,20 @@ export function PaymentButton({
   useEffect(() => {
     handlePaymentRef.current = handlePayment;
   });
+
+  useEffect(() => {
+    if (disabled) {
+      return;
+    }
+
+    void preloadPaymentIntent();
+    if (!cashfreeSdkPromiseRef.current) {
+      cashfreeSdkPromiseRef.current = load({ mode: cashfreeMode }).catch((error) => {
+        cashfreeSdkPromiseRef.current = null;
+        throw error;
+      });
+    }
+  }, [cashfreeMode, disabled]);
 
   useEffect(() => {
     if (!autoStart || disabled || hasAutoStartedRef.current || isProcessing) {

@@ -81,7 +81,7 @@ export function PaymentHistory({ payments, onRefetch, compact = false }: Payment
         accessorKey: "paymentDate",
         header: "Date",
         cell: ({ row }) => {
-          const paymentDate = row.original.paymentDate ?? row.original.createdAt;
+          const paymentDate = row.original.paymentDate ?? row.original.updatedAt ?? row.original.createdAt;
           return (
             <span className="text-sm text-muted-foreground">
               {paymentDate
@@ -96,9 +96,9 @@ export function PaymentHistory({ payments, onRefetch, compact = false }: Payment
         },
       },
       {
-        accessorKey: "patientName",
+        accessorKey: "patientName" as const,
         header: "Patient",
-        cell: ({ row }) => (
+        cell: ({ row }: { row: { original: Payment } }) => (
           <span className="text-sm text-muted-foreground">
             {row.original.patientName || "Unknown"}
           </span>
@@ -121,6 +121,7 @@ export function PaymentHistory({ payments, onRefetch, compact = false }: Payment
         ),
       },
     ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 
@@ -149,16 +150,19 @@ export function PaymentHistory({ payments, onRefetch, compact = false }: Payment
         </div>
       )}
 
-      <Card className="border-border/70 bg-card">
-        <CardHeader className="pb-4">
+      <Card className="border-border/70 bg-card overflow-hidden">
+        <CardHeader className="p-2 sm:p-4 pb-0 sm:pb-0">
           <CardTitle className="text-lg font-extrabold text-foreground">Recent Transactions</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <DataTable
             columns={columns}
             data={sortedPayments}
             pageSize={10}
             emptyMessage="No payment records found"
+            compact={compact}
+            scrollable
+            hideBorder
           />
         </CardContent>
       </Card>

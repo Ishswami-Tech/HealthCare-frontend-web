@@ -111,7 +111,7 @@ export const useClinics = (options?: { enabled?: boolean }) => {
     },
     {
       enabled: options?.enabled ?? true,
-      refetchInterval: isConnected ? false : 300_000,
+      refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 300_000,
     }
   );
 };
@@ -136,7 +136,7 @@ export const useClinic = (clinicId?: string) => {
     },
     {
       enabled: !!id,
-      refetchInterval: isConnected ? false : 300_000,
+      refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 300_000,
     }
   );
 };
@@ -157,7 +157,7 @@ export const useClinicByAppName = (appName: string) => {
     },
     {
       enabled: !!appName,
-      refetchInterval: isConnected ? false : 900_000,
+      refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 900_000,
     }
   );
 };
@@ -182,7 +182,7 @@ export const useMyClinic = () => {
     },
     {
       enabled: !!session?.user?.id && !isPending,
-      refetchInterval: isConnected ? false : 120_000,
+      refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 120_000,
     }
   );
 };
@@ -291,7 +291,7 @@ export const useClinicLocations = (
     },
     {
       enabled: !!clinicId && (options?.enabled ?? true),
-      refetchInterval: isConnected ? false : 300_000,
+      refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 300_000,
     }
   );
 };
@@ -312,7 +312,7 @@ export const useClinicLocation = (clinicId: string, locationId: string) => {
     },
     {
       enabled: !!clinicId && !!locationId,
-      refetchInterval: isConnected ? false : 300_000,
+      refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 300_000,
     }
   );
 };
@@ -442,7 +442,7 @@ export const useClinicDoctors = (clinicId: string) => {
     },
     {
       enabled: !!clinicId,
-      refetchInterval: isConnected ? false : 300_000,
+      refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 300_000,
     }
   );
 };
@@ -465,7 +465,7 @@ export const useClinicPatients = (clinicId: string, params?: {
     },
     {
       enabled: !!clinicId,
-      refetchInterval: isConnected ? false : 180_000,
+      refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 180_000,
     }
   );
 };
@@ -503,7 +503,7 @@ export const useClinicUsersByRole = (clinicId: string, role: string) => {
     },
     {
       enabled: !!clinicId && !!role,
-      refetchInterval: isConnected ? false : 300_000,
+      refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 300_000,
     }
   );
 };
@@ -583,7 +583,7 @@ export const useClinicOperatingHours = (clinicId: string) => {
     },
     {
       enabled: !!clinicId,
-      refetchInterval: isConnected ? false : 900_000,
+      refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 900_000,
     }
   );
 };
@@ -604,7 +604,7 @@ export const useClinicSettings = (clinicId: string) => {
     },
     {
       enabled: !!clinicId,
-      refetchInterval: isConnected ? false : 900_000,
+      refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 900_000,
     }
   );
 };
@@ -658,7 +658,7 @@ export const useActiveLocations = (clinicId: string, options?: {
       gcTime: 30 * 60 * 1000,
       refetchOnWindowFocus: false,
       refetchOnMount: true,
-      refetchInterval: isConnected ? false : 300_000,
+      refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 300_000,
     }
   );
 };
@@ -695,7 +695,7 @@ export const useHasClinicPermission = (clinicId: string) => {
     },
     {
       enabled: !!clinicId,
-      refetchInterval: isConnected ? false : 300_000,
+      refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 300_000,
     }
   );
 };

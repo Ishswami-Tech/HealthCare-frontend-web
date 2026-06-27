@@ -42,6 +42,7 @@ type DataTableProps<TData, TValue> = {
   pageSizeOptions?: number[];
   compact?: boolean;
   scrollable?: boolean;
+  hideBorder?: boolean;
 };
 
 export function DataTable<TData, TValue>({
@@ -56,6 +57,7 @@ export function DataTable<TData, TValue>({
   pageSizeOptions = [10, 25, 50, 100],
   compact = false,
   scrollable = false,
+  hideBorder = false,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
 
@@ -85,11 +87,11 @@ export function DataTable<TData, TValue>({
   const rangeEnd = data.length === 0 ? 0 : pageIndex * activePageSize + currentPageRows;
 
   return (
-    <div className={cn("min-w-0 gap-y-4", className)}>
+    <div className={cn("flex flex-col min-w-0", compact && hideBorder ? "gap-y-2" : "gap-y-4", className)}>
       {toolbar}
-      <div className="w-full rounded-xl border border-border bg-card">
+      <div className={cn("w-full", !hideBorder && "rounded-xl border border-border bg-card")}>
         <Table
-          className={cn(compact ? "min-w-0" : "min-w-[720px]", scrollable && "min-w-[860px] lg:min-w-0", tableClassName)}
+          className={cn(compact ? "min-w-0" : "min-w-[720px]", tableClassName)}
           compact={compact}
           scrollable={scrollable}
         >
@@ -138,10 +140,8 @@ export function DataTable<TData, TValue>({
       {showPagination ? (
         <div
           className={cn(
-            "flex flex-col gap-3 text-sm text-muted-foreground sm:gap-4",
-            compact
-              ? "sm:flex-row sm:items-center sm:justify-between"
-              : "sm:flex-row sm:items-center sm:justify-between"
+            "flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:gap-4",
+            compact && hideBorder ? "px-3 py-2" : ""
           )}
         >
           <div className={cn("font-medium", compact && "text-xs sm:text-sm")}>

@@ -1,10 +1,12 @@
 import React, { useEffect, useCallback } from 'react';
 import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
+import { useAuthStore } from '@/stores/auth.store';
 import { useQueryData } from '../core/useQueryData';
 import { useMutationOperation } from '../core/useMutationOperation';
 import { TOAST_IDS } from '../utils/use-toast';
 import { clinicApiClient } from '@/lib/api/client';
 import { API_ENDPOINTS } from '@/lib/config/config';
+import { keepPreviousData } from '@tanstack/react-query';
 import {
   getQueueListQueryKey,
   getQueueStatsQueryKey,
@@ -28,6 +30,7 @@ export const useQueue = (clinicId?: string, filters?: {
 }) => {
   const normalizedClinicId = clinicId?.trim();
   const { isConnected } = useWebSocketStatus();
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
   const { enabled, ...queueRequestFilters } = filters ?? {};
   const canonicalTreatmentType = filters?.treatmentType || filters?.type;
   const queueFilters: QueueListFilters | undefined = filters
@@ -48,7 +51,10 @@ export const useQueue = (clinicId?: string, filters?: {
   }, {
     enabled: enabled !== false,
     // Websocket invalidation owns freshness when connected; polling becomes fallback only.
-    refetchInterval: isConnected ? false : 30000,
+    refetchInterval: isConnected || isAuthRefreshing ? false : 30000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    placeholderData: keepPreviousData,
   });
 };
 
@@ -57,13 +63,17 @@ export const useQueue = (clinicId?: string, filters?: {
  */
 export const useQueueStats = (locationId?: string, options?: { enabled?: boolean }) => {
   const { isConnected } = useWebSocketStatus();
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
 
   return useQueryData(getQueueStatsQueryKey(locationId), async () => {
     if (!locationId) throw new Error('Location ID required for queue stats');
     return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.STATS, { locationId })).data;
   }, {
     enabled: !!locationId && options?.enabled !== false,
-    refetchInterval: isConnected ? false : 60000,
+    refetchInterval: isConnected || isAuthRefreshing ? false : 60000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    placeholderData: keepPreviousData,
   });
 };
 

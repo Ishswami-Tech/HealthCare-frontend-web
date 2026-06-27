@@ -39,15 +39,6 @@ export function invalidateAppointmentQueryFamilies(queryClient: QueryClient) {
   for (const queryKey of APPOINTMENT_QUERY_FAMILIES) {
     void queryClient.invalidateQueries({ queryKey, exact: false, refetchType: 'none' });
   }
-  // Non-appointment keys that still benefit from a refetch when the
-  // underlying clinic data changes (e.g. doctor list reflowing as a
-  // consequence of a status change).
-  void queryClient.invalidateQueries({ queryKey: ['clinics'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinic'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['myClinic'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinicLocations'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinicLocation'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinicDoctors'], exact: false });
 }
 
 export function invalidateDashboardQueryFamilies(queryClient: QueryClient) {

@@ -157,7 +157,7 @@ function PatientAppointmentsContent() {
                 Scan QR
               </Button>
               <Button
-                className="h-10 gap-2 rounded-xl border border-amber-400 bg-amber-600 px-4 font-semibold text-white shadow-[0_8px_20px_rgba(217,119,6,0.22)] transition-all hover:-translate-y-0.5 hover:border-amber-500 hover:bg-amber-700 hover:shadow-[0_12px_28px_rgba(217,119,6,0.28)] active:scale-95 focus-visible:ring-2 focus-visible:ring-amber-300 dark:border-amber-700 dark:bg-amber-600 dark:shadow-[0_8px_20px_rgba(245,158,11,0.15)] dark:hover:bg-amber-500"
+                className="h-10 gap-2 rounded-xl border border-red-500 bg-red-600 px-4 font-semibold text-white shadow-[0_8px_20px_rgba(220,38,38,0.22)] transition-all hover:-translate-y-0.5 hover:border-red-600 hover:bg-red-700 hover:shadow-[0_12px_28px_rgba(220,38,38,0.28)] active:scale-95 focus-visible:ring-2 focus-visible:ring-red-300 dark:border-red-700 dark:bg-red-600 dark:shadow-[0_8px_20px_rgba(239,68,68,0.15)] dark:hover:bg-red-500"
                 onClick={() => setIsBookingDialogOpen(true)}
               >
                 <BookOpen className="size-4" />
@@ -178,14 +178,14 @@ function PatientAppointmentsContent() {
           onBooked={() => setIsBookingDialogOpen(false)}
         />
 
-        <div id="patient-queue-status" className="animate-in fade-in slide-in-from-top-4 duration-500">
+        {/* Queue/check-in UI hidden intentionally. */}
+        {/* <div id="patient-queue-status" className="animate-in fade-in slide-in-from-top-4 duration-500">
           <PatientQueueCard
             appointmentsData={appointmentsData}
             isAppointmentsPending={showAppointmentsSkeleton}
             onBookAppointment={() => setIsBookingDialogOpen(true)}
           />
-        </div>
-
+        </div> */}
         <div id="appointment-manager">
           <AppointmentManager
             hideBookButton
@@ -213,22 +213,29 @@ function PatientAppointmentsContent() {
           <CardContent>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
               {TREATMENT_CATEGORIES.map(({ icon: Icon, title, description, containerClass, iconClass }) => (
-                <div key={title} className={`rounded-xl border p-4 shadow-sm transition-all hover:shadow-md ${containerClass}`}>
-                  <Icon className={`mb-3 size-8 ${iconClass}`} />
-                  <h3 className="mb-2 font-semibold">{title}</h3>
-                  <p className={`mb-3 text-sm ${theme.textColors.secondary}`}>{description}</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full border-emerald-200 bg-emerald-50/60 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100"
-                    onClick={() =>
-                      document
-                        .getElementById("appointment-manager")
-                        ?.scrollIntoView({ behavior: "smooth", block: "start" })
-                    }
-                  >
-                    Use Booking Manager
-                  </Button>
+                <div key={title} className={`flex flex-row sm:flex-col items-center sm:items-start gap-4 sm:gap-0 rounded-xl border p-3 sm:p-4 shadow-sm transition-all hover:shadow-md ${containerClass}`}>
+                  <div className="shrink-0">
+                    <Icon className={`sm:mb-3 size-10 sm:size-8 ${iconClass}`} />
+                  </div>
+                  <div className="flex-1 flex flex-col justify-center text-left">
+                    <h3 className="mb-1 sm:mb-2 font-semibold text-sm sm:text-base">{title}</h3>
+                    <p className={`mb-0 sm:mb-3 text-xs sm:text-sm ${theme.textColors.secondary}`}>{description}</p>
+                  </div>
+                  <div className="shrink-0 sm:w-full mt-0 sm:mt-auto">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full border-emerald-200 bg-emerald-50/60 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100"
+                      onClick={() =>
+                        document
+                          .getElementById("appointment-manager")
+                          ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                      }
+                    >
+                      <span className="hidden sm:inline">Use Booking Manager</span>
+                      <span className="sm:hidden">Book</span>
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

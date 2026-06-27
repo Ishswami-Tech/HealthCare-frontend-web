@@ -58,7 +58,9 @@ export interface Invoice {
   amount: number;
   currency: string;
   status: 'DRAFT' | 'OPEN' | 'PAID' | 'VOID' | 'UNCOLLECTIBLE' | 'OVERDUE';
+  invoiceDate?: string;
   dueDate: string;
+  paidAt?: string;
   paidDate?: string;
   items: InvoiceItem[];
   pdfUrl?: string;
