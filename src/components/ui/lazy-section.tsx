@@ -1,10 +1,14 @@
-﻿"use client";
+"use client";
 
-import React, { Suspense } from 'react';
+import React, { Suspense } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const DEFAULT_FALLBACK = (
   <div className="flex items-center justify-center py-20">
-    <div className="animate-spin rounded-full size-12 border-b-2 border-orange-600"></div>
+    <div className="w-full max-w-md space-y-3">
+      <Skeleton className="mx-auto h-4 w-40 rounded-full" />
+      <Skeleton className="h-20 w-full rounded-2xl" />
+    </div>
   </div>
 );
 
@@ -69,22 +73,22 @@ export const LazySection: React.FC<LazySectionProps> = ({
  */
 interface PreloadProps {
   href: string;
-  as: 'script' | 'style' | 'font' | 'image';
+  as: "script" | "style" | "font" | "image";
   type?: string;
-  crossOrigin?: 'anonymous' | 'use-credentials';
+  crossOrigin?: "anonymous" | "use-credentials";
 }
 
 export const Preload: React.FC<PreloadProps> = ({ href, as, type, crossOrigin }) => {
   React.useEffect(() => {
-    const link = document.createElement('link');
-    link.rel = 'preload';
+    const link = document.createElement("link");
+    link.rel = "preload";
     link.href = href;
     link.as = as;
     if (type) link.type = type;
     if (crossOrigin) link.crossOrigin = crossOrigin;
-    
+
     document.head.appendChild(link);
-    
+
     return () => {
       document.head.removeChild(link);
     };
@@ -101,9 +105,7 @@ interface CriticalCSSProps {
 }
 
 export const CriticalCSS: React.FC<CriticalCSSProps> = ({ css }) => {
-  return (
-    <style data-critical="true">{css}</style>
-  );
+  return <style data-critical="true">{css}</style>;
 };
 
 /**
@@ -111,36 +113,15 @@ export const CriticalCSS: React.FC<CriticalCSSProps> = ({ css }) => {
  */
 export const ResourceHints: React.FC = () => {
   React.useEffect(() => {
-    // DNS prefetch for external domains
-    const dnsPrefetchDomains = [
-      'fonts.googleapis.com',
-      'fonts.gstatic.com',
-      'www.google-analytics.com',
-    ];
+    const dnsPrefetchDomains = ["fonts.googleapis.com", "fonts.gstatic.com", "www.google-analytics.com"];
 
-    dnsPrefetchDomains.forEach(domain => {
-      const link = document.createElement('link');
-      link.rel = 'dns-prefetch';
+    dnsPrefetchDomains.forEach((domain) => {
+      const link = document.createElement("link");
+      link.rel = "dns-prefetch";
       link.href = `//${domain}`;
-      document.head.appendChild(link);
-    });
-
-    // Preconnect to critical third-party origins
-    const preconnectDomains = [
-      'https://fonts.googleapis.com',
-      'https://fonts.gstatic.com',
-    ];
-
-    preconnectDomains.forEach(domain => {
-      const link = document.createElement('link');
-      link.rel = 'preconnect';
-      link.href = domain;
-      link.crossOrigin = 'anonymous';
       document.head.appendChild(link);
     });
   }, []);
 
   return null;
 };
-
-

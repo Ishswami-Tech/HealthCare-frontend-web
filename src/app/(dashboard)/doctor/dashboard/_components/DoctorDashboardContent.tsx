@@ -20,14 +20,6 @@ export default function DoctorDashboardContent() {
     data.appointmentsArray.length === 0 &&
     !data.hasAppointmentsLoadedForSession
   ) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="size-12 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
-          <p className="font-medium text-emerald-700">Loading your clinical workspace…</p>
-        </div>
-      </div>
-    );
   }
 
   if (data.appointmentsError && data.appointmentsArray.length === 0) {

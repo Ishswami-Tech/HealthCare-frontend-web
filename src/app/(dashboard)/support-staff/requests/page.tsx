@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
-import { Loader2 } from "@/components/ui/loader";
+import { TableSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import {
   Search,
@@ -44,6 +44,7 @@ export default function SupportStaffRequests() {
   useWebSocketQuerySync();
 
   const requests = requestsData?.requests || [];
+  const showSkeleton = isPending && requests.length === 0;
 
   const filteredRequests = requests.filter((request: any) => {
     const matchesSearch =
@@ -173,14 +174,6 @@ export default function SupportStaffRequests() {
     [deleteMutation.isPending, handleDelete, handleStatusChange, updateMutation.isPending]
   );
 
-  if (isPending) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="size-8 animate-spin" />
-      </div>
-    );
-  }
-
   return (
     <div className="p-6 gap-y-6">
       <div>
@@ -238,7 +231,9 @@ export default function SupportStaffRequests() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {filteredRequests.length === 0 ? (
+          {showSkeleton ? (
+            <TableSkeleton columns={["Type", "Priority", "Status", "Requester", "Created", "Actions"]} rows={4} />
+          ) : filteredRequests.length === 0 ? (
             <Empty>
               <EmptyContent>
                 <EmptyMedia>

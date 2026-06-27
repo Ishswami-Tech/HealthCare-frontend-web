@@ -2,11 +2,14 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AlertTriangle, CheckCircle, Clock, Pill, TrendingUp } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { usePrescriptions, useInventory, usePharmacyStats, useMedicineDeskQueue } from "@/hooks/query/usePharmacy";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { getQueuePositionLabel, normalizeQueueEntry } from "@/lib/queue/queue-adapter";
+import { SkeletonList } from "@/components/ui/loading";
+import { StatCardSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { PharmacistDashboardHeader } from "./PharmacistDashboardHeader";
 import { PharmacistDashboardStatsGrid } from "./PharmacistDashboardStatsGrid";
 import { PharmacistDashboardQueueCard } from "./PharmacistDashboardQueueCard";
@@ -147,13 +150,7 @@ export default function PharmacistDashboardContent() {
     [push]
   );
 
-  if ((prescriptionsPending || inventoryPending) && prescriptions.length === 0 && inventory.length === 0) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const isInitialLoading = (prescriptionsPending || inventoryPending) && prescriptions.length === 0 && inventory.length === 0;
 
   return (
     <div className="gap-y-4 p-4 sm:gap-y-5 sm:p-6">
@@ -164,31 +161,67 @@ export default function PharmacistDashboardContent() {
         onSearchTermChange={setSearchTerm}
       />
 
-      <PharmacistDashboardStatsGrid
-        pendingPrescriptions={stats.pendingPrescriptions}
-        awaitingPayment={stats.awaitingPayment}
-        dispensedToday={stats.dispensedToday}
-        lowStockItems={stats.lowStockItems}
-        monthlyDispensed={stats.monthlyDispensed}
-      />
+      {isInitialLoading ? (
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
+          <StatCardSkeleton icon={<Pill className="size-4" />} label="Pending" />
+          <StatCardSkeleton icon={<Clock className="size-4" />} label="Payment Due" />
+          <StatCardSkeleton icon={<CheckCircle className="size-4" />} label="Dispensed" />
+          <StatCardSkeleton icon={<AlertTriangle className="size-4" />} label="Low Stock" />
+          <StatCardSkeleton icon={<TrendingUp className="size-4" />} label="Monthly" />
+        </div>
+      ) : (
+        <PharmacistDashboardStatsGrid
+          pendingPrescriptions={stats.pendingPrescriptions}
+          awaitingPayment={stats.awaitingPayment}
+          dispensedToday={stats.dispensedToday}
+          lowStockItems={stats.lowStockItems}
+          monthlyDispensed={stats.monthlyDispensed}
+        />
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <PharmacistDashboardQueueCard
-          queueItems={processedQueue}
-          searchTerm={searchTerm}
-          onSearchTermChange={setSearchTerm}
-          onOpenPrescription={handleOpenPrescription}
-          onDispensePrescription={handleDispensePrescription}
-        />
+        {isInitialLoading ? (
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium uppercase tracking-tight text-slate-500">
+                Today&apos;s Queue
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="gap-y-3">
+              <SkeletonList items={4} />
+            </CardContent>
+          </Card>
+        ) : (
+          <PharmacistDashboardQueueCard
+            queueItems={processedQueue}
+            searchTerm={searchTerm}
+            onSearchTermChange={setSearchTerm}
+            onOpenPrescription={handleOpenPrescription}
+            onDispensePrescription={handleDispensePrescription}
+          />
+        )}
 
         <div className="gap-y-6">
-          <PharmacistDashboardInventoryAlerts
-            inventoryItems={inventory as InventoryData[]}
-            lowStockCount={stats.lowStockItems}
-            onRestock={(itemId, itemName) =>
-              push(`/pharmacist/inventory?action=add&item=${encodeURIComponent(itemId || itemName)}`)
-            }
-          />
+          {isInitialLoading ? (
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-sm font-medium uppercase tracking-tight text-slate-500">
+                  Inventory Alerts
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="gap-y-3">
+                <SkeletonList items={3} />
+              </CardContent>
+            </Card>
+          ) : (
+            <PharmacistDashboardInventoryAlerts
+              inventoryItems={inventory as InventoryData[]}
+              lowStockCount={stats.lowStockItems}
+              onRestock={(itemId, itemName) =>
+                push(`/pharmacist/inventory?action=add&item=${encodeURIComponent(itemId || itemName)}`)
+              }
+            />
+          )}
 
           <PharmacistDashboardOperations
             onOpenInventory={() => push("/pharmacist/inventory")}

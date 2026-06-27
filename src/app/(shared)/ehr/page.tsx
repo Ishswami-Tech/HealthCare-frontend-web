@@ -39,6 +39,7 @@ import {
   MedicalRecordsRouteProtection,
 } from "@/components/rbac";
 import { LoadingSpinner } from "@/components/ui/loading";
+import { AppointmentListSkeleton, StatCardSkeleton, TableSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import {
   FileText,
   Users,
@@ -317,11 +318,36 @@ export default function EHRSystem() {
   // Show loading state
   if (patientsLoading) {
     return (
-      
-        <div className="flex items-center justify-center min-h-screen">
-          <LoadingSpinner size="lg" color="primary" text="Loading EHR system..." />
+      <div className="p-6 gap-y-6">
+        <div>
+          <div className="h-9 w-80 rounded bg-muted animate-pulse" />
+          <div className="mt-2 h-4 w-64 rounded bg-muted animate-pulse" />
         </div>
-      
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCardSkeleton icon={<Users className="size-4 text-blue-600" />} label="Total Patients" />
+          <StatCardSkeleton icon={<Clipboard className="size-4 text-emerald-600" />} label="Records" />
+          <StatCardSkeleton icon={<Bell className="size-4 text-amber-600" />} label="Alerts" />
+          <StatCardSkeleton icon={<Shield className="size-4 text-violet-600" />} label="Permissions" />
+        </div>
+        <div className="grid gap-4 lg:grid-cols-[1.35fr_0.65fr]">
+          <Card>
+            <CardHeader>
+              <div className="h-6 w-48 rounded bg-muted animate-pulse" />
+            </CardHeader>
+            <CardContent>
+              <TableSkeleton columns={["Patient", "ID", "Age", "Condition", "Status", "Actions"]} rows={4} />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <div className="h-6 w-40 rounded bg-muted animate-pulse" />
+            </CardHeader>
+            <CardContent>
+              <AppointmentListSkeleton items={3} />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     );
   }
 

@@ -1,4 +1,5 @@
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense } from "react";
+import { LoadingSpinner } from "@/components/ui/loading";
 
 export function withLazyLoading<P extends object>(
   Component: React.ComponentType<P>,
@@ -8,7 +9,7 @@ export function withLazyLoading<P extends object>(
 
   return function WrappedComponent(props: P) {
     return (
-      <Suspense fallback={fallback || <div>Loading…</div>}>
+      <Suspense fallback={fallback || <LoadingSpinner size="sm" center />}>
         <LazyComponent {...props} />
       </Suspense>
     );

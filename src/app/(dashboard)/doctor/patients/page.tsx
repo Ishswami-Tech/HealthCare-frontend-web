@@ -23,6 +23,7 @@ import { usePatientStore } from "@/stores";
 import { getAppointmentDateTimeValue } from "@/lib/utils/appointmentUtils";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import { useCurrentTimestamp } from "@/hooks/utils/useClientDate";
+import { StatCardSkeleton, TableSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import {
   Calendar,
   Users,
@@ -388,14 +389,6 @@ export default function DoctorPatients() {
     return { upcomingAppointments, followUps, recoveryRate };
   }, [appointments, totalPatientsCount]);
 
-  if (isPendingPatients) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center p-6">
-        <Loader2 className="size-8 animate-spin text-blue-600" />
-      </div>
-    );
-  }
-
   return (
     <DashboardPageShell>
       <DashboardPageHeader
@@ -407,49 +400,60 @@ export default function DoctorPatients() {
       />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-6">
-        <Card className="border-l-2 border-l-emerald-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
-          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Patients</CardTitle>
-            <Users className="size-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalPatientsCount}</div>
-            <p className="text-xs text-muted-foreground">Under your care</p>
-          </CardContent>
-        </Card>
+        {isPendingPatients ? (
+          <>
+            <StatCardSkeleton icon={<Users className="size-4" />} label="Total Patients" />
+            <StatCardSkeleton icon={<Calendar className="size-4" />} label="This Week" />
+            <StatCardSkeleton icon={<Clock className="size-4" />} label="Follow-ups" />
+            <StatCardSkeleton icon={<TrendingUp className="size-4" />} label="Recovery Rate" />
+          </>
+        ) : (
+          <>
+            <Card className="border-l-2 border-l-emerald-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
+              <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Patients</CardTitle>
+                <Users className="size-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{totalPatientsCount}</div>
+                <p className="text-xs text-muted-foreground">Under your care</p>
+              </CardContent>
+            </Card>
 
-        <Card className="border-l-2 border-l-blue-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
-          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">This Week</CardTitle>
-            <Calendar className="size-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats.upcomingAppointments}</div>
-            <p className="text-xs text-muted-foreground">Appointments scheduled</p>
-          </CardContent>
-        </Card>
+            <Card className="border-l-2 border-l-blue-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
+              <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">This Week</CardTitle>
+                <Calendar className="size-4 text-blue-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">{stats.upcomingAppointments}</div>
+                <p className="text-xs text-muted-foreground">Appointments scheduled</p>
+              </CardContent>
+            </Card>
 
-        <Card className="border-l-2 border-l-amber-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
-          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Follow-ups</CardTitle>
-            <Clock className="size-4 text-orange-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{stats.followUps}</div>
-            <p className="text-xs text-muted-foreground">Due this week</p>
-          </CardContent>
-        </Card>
+            <Card className="border-l-2 border-l-amber-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
+              <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Follow-ups</CardTitle>
+                <Clock className="size-4 text-orange-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-600">{stats.followUps}</div>
+                <p className="text-xs text-muted-foreground">Due this week</p>
+              </CardContent>
+            </Card>
 
-        <Card className="border-l-2 border-l-green-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
-          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Recovery Rate</CardTitle>
-            <TrendingUp className="size-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.recoveryRate}%</div>
-            <p className="text-xs text-muted-foreground">Patient improvement</p>
-          </CardContent>
-        </Card>
+            <Card className="border-l-2 border-l-green-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
+              <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Recovery Rate</CardTitle>
+                <TrendingUp className="size-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">{stats.recoveryRate}%</div>
+                <p className="text-xs text-muted-foreground">Patient improvement</p>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
 
       <Card>
@@ -502,18 +506,25 @@ export default function DoctorPatients() {
         </CardContent>
       </Card>
 
-      <DataTable
-        columns={patientColumns}
-        data={filteredPatients}
-        emptyMessage="No patients found"
-        pageSize={10}
-        showPagination={false}
-      />
+      {isPendingPatients ? (
+        <TableSkeleton
+          columns={["Patient", "Age", "Status", "Next Visit", "Actions"]}
+          rows={5}
+        />
+      ) : (
+        <DataTable
+          columns={patientColumns}
+          data={filteredPatients}
+          emptyMessage="No patients found"
+          pageSize={10}
+          showPagination={false}
+        />
+      )}
 
       <ServerPagination
-        page={page}
-        totalPages={patientsPage.totalPages}
-        totalItems={patientsPage.total}
+        page={isPendingPatients ? 1 : page}
+        totalPages={isPendingPatients ? 1 : patientsPage.totalPages}
+        totalItems={isPendingPatients ? 0 : patientsPage.total}
         pageSize={pageSize}
         onPageChange={(nextPage) => dispatch({ type: "set_page", value: nextPage })}
       />

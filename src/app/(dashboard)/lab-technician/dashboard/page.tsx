@@ -1,14 +1,35 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useMemo } from "react";
-import { Loader2 } from "@/components/ui/loader";
+import { DashboardPageSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useLabTechnicianResults } from "@/hooks/query/useLabTechnician";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { formatDateTimeInIST } from "@/lib/utils/date-time";
-import { LabTechnicianCategoryStats } from "../_components/LabTechnicianCategoryStats";
-import { LabTechnicianPanels } from "../_components/LabTechnicianPanels";
-import { LabTechnicianStatsCards } from "../_components/LabTechnicianStatsCards";
+const LabTechnicianStatsCards = dynamic(
+  () => import("../_components/LabTechnicianStatsCards").then((module) => module.LabTechnicianStatsCards),
+  {
+    ssr: false,
+    loading: () => <DashboardPageSkeleton />,
+  }
+);
+
+const LabTechnicianPanels = dynamic(
+  () => import("../_components/LabTechnicianPanels").then((module) => module.LabTechnicianPanels),
+  {
+    ssr: false,
+    loading: () => <DashboardPageSkeleton />,
+  }
+);
+
+const LabTechnicianCategoryStats = dynamic(
+  () => import("../_components/LabTechnicianCategoryStats").then((module) => module.LabTechnicianCategoryStats),
+  {
+    ssr: false,
+    loading: () => <DashboardPageSkeleton />,
+  }
+);
 
 type LabTechnicianResultRow = {
   id: string;
@@ -221,14 +242,6 @@ export default function LabTechnicianDashboard() {
     },
     [labResults]
   );
-
-  if (isPending) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-primary" />
-      </div>
-    );
-  }
 
   return (
     <div className="gap-y-4 p-4 sm:p-6 sm:gap-y-5">

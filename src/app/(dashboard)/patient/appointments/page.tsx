@@ -27,6 +27,7 @@ interface TreatmentCategory {
   description: string;
   containerClass: string;
   iconClass: string;
+  buttonClass: string;
 }
 
 const TREATMENT_CATEGORIES: TreatmentCategory[] = [
@@ -36,6 +37,7 @@ const TREATMENT_CATEGORIES: TreatmentCategory[] = [
     description: "General health assessment and follow-ups",
     containerClass: theme.containers.featureBlue,
     iconClass: theme.iconColors.blue,
+    buttonClass: "border-blue-200 bg-blue-50/60 text-blue-700 hover:border-blue-300 hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-950/60 dark:hover:border-blue-800",
   },
   {
     icon: Droplets,
@@ -43,20 +45,23 @@ const TREATMENT_CATEGORIES: TreatmentCategory[] = [
     description: "Detox and rejuvenation therapies",
     containerClass: theme.containers.featureGreen,
     iconClass: theme.iconColors.emerald,
+    buttonClass: "border-emerald-200 bg-emerald-50/60 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-950/60 dark:hover:border-emerald-800",
   },
   {
     icon: Heart,
     title: "Diagnosis",
     description: "Nadi Pariksha and dosha analysis",
-    containerClass: theme.containers.featureBlue,
-    iconClass: theme.iconColors.blue,
+    containerClass: theme.containers.featureOrange,
+    iconClass: theme.iconColors.orange,
+    buttonClass: "border-orange-200 bg-orange-50/60 text-orange-700 hover:border-orange-300 hover:bg-orange-100 dark:border-orange-900/60 dark:bg-orange-950/40 dark:text-orange-300 dark:hover:bg-orange-950/60 dark:hover:border-orange-800",
   },
   {
     icon: Leaf,
     title: "Specialized",
     description: "Agnikarma, Viddhakarma procedures",
-    containerClass: theme.containers.featureGreen,
-    iconClass: theme.iconColors.emerald,
+    containerClass: theme.containers.featureYellow,
+    iconClass: theme.iconColors.yellow,
+    buttonClass: "border-yellow-200 bg-yellow-50/60 text-yellow-700 hover:border-yellow-300 hover:bg-yellow-100 dark:border-yellow-900/60 dark:bg-yellow-950/40 dark:text-yellow-300 dark:hover:bg-yellow-950/60 dark:hover:border-yellow-800",
   },
 ];
 
@@ -212,7 +217,7 @@ function PatientAppointmentsContent() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
-              {TREATMENT_CATEGORIES.map(({ icon: Icon, title, description, containerClass, iconClass }) => (
+              {TREATMENT_CATEGORIES.map(({ icon: Icon, title, description, containerClass, iconClass, buttonClass }) => (
                 <div key={title} className={`flex flex-row sm:flex-col items-center sm:items-start gap-4 sm:gap-0 rounded-xl border p-3 sm:p-4 shadow-sm transition-all hover:shadow-md ${containerClass}`}>
                   <div className="shrink-0">
                     <Icon className={`sm:mb-3 size-10 sm:size-8 ${iconClass}`} />
@@ -225,7 +230,7 @@ function PatientAppointmentsContent() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full border-emerald-200 bg-emerald-50/60 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100"
+                      className={`w-full ${buttonClass}`}
                       onClick={() =>
                         document
                           .getElementById("appointment-manager")

@@ -3,7 +3,6 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "@/components/ui/loader";
 import {
   Users,
   Calendar,
@@ -17,6 +16,7 @@ import { useCounselorAppointments } from "@/hooks/query/useCounselor";
 import { hasAppointmentsLoadedForSession } from "@/hooks/query/useAppointments";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { AppointmentListSkeleton, StatCardSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { formatISODateInIST } from "@/lib/utils/date-time";
 
 export default function CounselorDashboard() {
@@ -99,14 +99,6 @@ export default function CounselorDashboard() {
     }
   };
 
-  if (showInitialLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="size-8 animate-spin" />
-      </div>
-    );
-  }
-
   return (
     <DashboardPageShell>
       <DashboardPageHeader
@@ -117,65 +109,76 @@ export default function CounselorDashboard() {
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Today&apos;s Sessions
-            </CardTitle>
-            <Calendar className="size-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats.todaySessions}
-            </div>
-            <p className="text-xs text-muted-foreground">Scheduled</p>
-          </CardContent>
-        </Card>
+        {showInitialLoading ? (
+          <>
+            <StatCardSkeleton icon={<Calendar className="size-4" />} label="Today's Sessions" />
+            <StatCardSkeleton icon={<CheckCircle className="size-4" />} label="Completed Today" />
+            <StatCardSkeleton icon={<Users className="size-4" />} label="Total Clients" />
+            <StatCardSkeleton icon={<Clock className="size-4" />} label="Avg. Duration" />
+          </>
+        ) : (
+          <>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Today&apos;s Sessions
+                </CardTitle>
+                <Calendar className="size-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {stats.todaySessions}
+                </div>
+                <p className="text-xs text-muted-foreground">Scheduled</p>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Completed Today
-            </CardTitle>
-            <CheckCircle className="size-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {stats.completedToday}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Sessions finished
-            </p>
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Completed Today
+                </CardTitle>
+                <CheckCircle className="size-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                  {stats.completedToday}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Sessions finished
+                </p>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Clients
-            </CardTitle>
-            <Users className="size-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalClients}</div>
-            <p className="text-xs text-muted-foreground">Under care</p>
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Total Clients
+                </CardTitle>
+                <Users className="size-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalClients}</div>
+                <p className="text-xs text-muted-foreground">Under care</p>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Avg. Duration
-            </CardTitle>
-            <Clock className="size-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats.avgSessionDuration} min
-            </div>
-            <p className="text-xs text-muted-foreground">Per session</p>
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Avg. Duration
+                </CardTitle>
+                <Clock className="size-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {stats.avgSessionDuration} min
+                </div>
+                <p className="text-xs text-muted-foreground">Per session</p>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
 
       <Card>
@@ -186,7 +189,9 @@ export default function CounselorDashboard() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {todayAppointments.length === 0 ? (
+          {showInitialLoading ? (
+            <AppointmentListSkeleton items={3} />
+          ) : todayAppointments.length === 0 ? (
             <div className="text-center py-12">
               <Calendar className="size-16 mx-auto text-gray-300 mb-4" />
               <p className="text-gray-500">No sessions scheduled today</p>

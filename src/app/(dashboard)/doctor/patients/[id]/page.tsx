@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { AlertCircle, ArrowLeft } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { PatientClinicalRecordView } from "@/components/patient/PatientClinicalRecordView";
@@ -136,7 +137,14 @@ export default function DoctorPatientDetailPage() {
 
       {!hasError && isLoading ? (
         <Card className="border-border/70 bg-card shadow-sm">
-          <CardContent className="py-12 text-center text-muted-foreground">Loading patient record…</CardContent>
+          <CardContent className="py-12">
+            <div className="mx-auto max-w-md space-y-3">
+              <Skeleton className="h-5 w-48" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-5/6" />
+              <Skeleton className="h-24 rounded-2xl" />
+            </div>
+          </CardContent>
         </Card>
       ) : null}
 

@@ -1,14 +1,24 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "@/components/ui/loader";
+import { DashboardPageSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { useCurrentClinicId } from "@/hooks/query/useClinics";
 import { useClinicInvoices, useClinicPayments, useBillingAnalytics } from "@/hooks/query/useBilling";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { useCurrentTimestamp } from "@/hooks/utils/useClientDate";
 import type { BillingAnalytics, Invoice, Payment } from "@/types/billing.types";
-import { FinanceBillingDashboardContent } from "./_components/FinanceBillingDashboardContent";
+
+const FinanceBillingDashboardContent = dynamic(
+  () => import("./_components/FinanceBillingDashboardContent").then(
+    (module) => module.FinanceBillingDashboardContent
+  ),
+  {
+    ssr: false,
+    loading: () => <DashboardPageSkeleton />,
+  }
+);
 
 const FINANCE_CURRENCY_FORMATTER = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -85,9 +95,7 @@ export default function FinanceBillingDashboard() {
     invoicesPending && paymentsPending && invoiceList.length === 0 && paymentList.length === 0;
 
   return isLoading ? (
-    <div className="flex h-64 items-center justify-center">
-      <Loader2 className="size-8 animate-spin text-primary" />
-    </div>
+    <DashboardPageSkeleton />
   ) : (
     <FinanceBillingDashboardContent
       push={push}

@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "@/components/ui/loader";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import {
   Search,
@@ -20,6 +19,7 @@ import { useNursePatients } from "@/hooks/query/useNurse";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { usePatientStore } from "@/stores";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { AppointmentListSkeleton, StatCardSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import { ServerPagination } from "@/components/ui/pagination";
 import { useDebouncedCallback } from "@/lib/utils/performance";
@@ -99,11 +99,46 @@ export default function NursePatients() {
     }
   };
 
-  if (isPending) {
+  const showSkeleton = isPending && filteredPatients.length === 0;
+
+  if (showSkeleton) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="size-8 animate-spin" />
-      </div>
+      <DashboardPageShell>
+        <DashboardPageHeader
+          eyebrow="Nurse Patients"
+          title="Patient Care"
+          description="Manage assigned patients, review care status, and jump into vitals or bedside workflows."
+          meta={`Loaded: ${patientsPage.total} patients`}
+        />
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col gap-4 sm:flex-row">
+              <div className="h-10 flex-1 rounded-lg bg-muted animate-pulse" />
+              <div className="h-10 w-28 rounded-lg bg-muted animate-pulse" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCardSkeleton icon={<Users className="size-4 text-blue-600" />} label="Active Patients" />
+          <StatCardSkeleton icon={<Heart className="size-4 text-green-600" />} label="Stable" />
+          <StatCardSkeleton icon={<BedDouble className="size-4 text-orange-600" />} label="Pending" />
+          <StatCardSkeleton icon={<Users className="size-4 text-violet-600" />} label="Care Team" />
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="size-5" />
+              Patients Under Care
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AppointmentListSkeleton items={4} />
+          </CardContent>
+        </Card>
+      </DashboardPageShell>
     );
   }
 

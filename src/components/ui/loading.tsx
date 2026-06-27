@@ -1,18 +1,14 @@
 ﻿/**
- *… Enterprise Loading Components
- * Uses shadcn Spinner as single source of truth
- * Follows DRY, SOLID, KISS principles
- * 
- * Pattern: Component-first, no blocking overlays
- * Integration: Zustand (useAppStore) for global state
+ * Enterprise Loading Components
+ * Uses a single icon-based spinner source for all loading states.
+ * Pattern: component-first, no blocking overlays.
  */
 
 "use client";
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { Spinner } from "@/components/ui/spinner";
-import { WifiOff, RefreshCw, Inbox, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { Loader2Icon, WifiOff, RefreshCw, Inbox, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // ============================================================================
@@ -48,8 +44,8 @@ const SPINNER_COLORS = {
 } as const;
 
 /**
- *… LoadingSpinner - Primary loading indicator
- * Uses shadcn Spinner underneath
+ * LoadingSpinner - Primary loading indicator
+ * Uses the shared icon spinner underneath
  */
 export function LoadingSpinner({
   size = "md",
@@ -60,7 +56,7 @@ export function LoadingSpinner({
 }: LoadingSpinnerProps) {
   const content = (
     <div className={cn("flex items-center gap-2", className)}>
-      <Spinner className={cn(SPINNER_SIZES[size], SPINNER_COLORS[color])} />
+      <Loader2Icon className={cn(SPINNER_SIZES[size], SPINNER_COLORS[color])} />
       {text && <span className="text-sm text-muted-foreground">{text}</span>}
     </div>
   );
@@ -73,31 +69,6 @@ export function LoadingSpinner({
 }
 
 // ============================================================================
-// PAGE LOADING - For Next.js Suspense boundaries
-// ============================================================================
-
-export interface PageLoadingProps {
-  text?: string;
-  className?: string;
-}
-
-/**
- *… PageLoading - Full page loading state (non-blocking)
- * Use in loading.tsx or Suspense fallbacks
- */
-export function PageLoading({ text = "Loading…", className }: PageLoadingProps) {
-  return (
-    <div className={cn(
-      "flex flex-col items-center justify-center min-h-[50vh] gap-4",
-      className
-    )}>
-      <Spinner className="size-10 text-primary" />
-      <p className="text-sm text-muted-foreground">{text}</p>
-    </div>
-  );
-}
-
-// ============================================================================
 // INLINE LOADER - For buttons and form elements
 // ============================================================================
 
@@ -107,10 +78,10 @@ export interface InlineLoaderProps {
 }
 
 /**
- *… InlineLoader - Compact spinner for buttons/inputs
+ * InlineLoader - Compact spinner for buttons/inputs
  */
 export function InlineLoader({ size = "sm", className }: InlineLoaderProps) {
-  return <Spinner className={cn(size === "sm" ? "size-4" : "size-5", className)} />;
+  return <Loader2Icon className={cn(size === "sm" ? "size-4" : "size-5", className)} />;
 }
 
 // ============================================================================
@@ -267,7 +238,7 @@ export interface ConnectionStatusProps {
 const CONNECTION_CONFIG = {
   connected: { icon: CheckCircle, color: "text-green-600", bg: "bg-green-100 dark:bg-green-900/20", text: "Connected" },
   disconnected: { icon: WifiOff, color: "text-gray-500", bg: "bg-gray-100 dark:bg-gray-800", text: "Disconnected" },
-  connecting: { icon: Spinner, color: "text-yellow-600", bg: "bg-yellow-100 dark:bg-yellow-900/20", text: "Connecting…" },
+  connecting: { icon: Loader2Icon, color: "text-yellow-600", bg: "bg-yellow-100 dark:bg-yellow-900/20", text: "Connecting..." },
   error: { icon: AlertTriangle, color: "text-red-600", bg: "bg-red-100 dark:bg-red-900/20", text: "Error" },
 } as const;
 
@@ -348,7 +319,7 @@ export function LoadingButton({
     <Button disabled={loading || disabled} {...props}>
       {loading ? (
         <>
-          <Spinner className="size-4 mr-2" />
+          <Loader2Icon className="size-4 mr-2" />
           {loadingText || children}
         </>
       ) : (

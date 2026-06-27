@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "@/components/ui/loader";
+import { AppointmentListSkeleton, StatCardSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import {
@@ -130,13 +130,7 @@ export default function SupportStaffDashboard() {
     return "bg-slate-100 text-slate-800";
   };
 
-  if (isPending) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="size-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const showSkeleton = isPending && requests.length === 0;
 
   return (
     <div className="p-4 gap-y-4 sm:p-6 sm:gap-y-5">
@@ -148,42 +142,53 @@ export default function SupportStaffDashboard() {
       </div>
 
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-        <DashboardMetricCard
-          label="Active Requests"
-          value={stats.activeRequests}
-          subtext="Awaiting response"
-          accentClassName="border-orange-200 bg-orange-50 dark:border-orange-500/20 dark:bg-orange-500/10"
-          valueClassName="mt-1 text-2xl font-bold text-orange-600"
-          labelClassName="text-orange-700 dark:text-orange-300"
-          compact
-        />
-        <DashboardMetricCard
-          label="Resolved Today"
-          value={stats.resolvedToday}
-          subtext="Issues closed"
-          accentClassName="border-green-200 bg-green-50 dark:border-green-500/20 dark:bg-green-500/10"
-          valueClassName="mt-1 text-2xl font-bold text-green-600"
-          labelClassName="text-green-700 dark:text-green-300"
-          compact
-        />
-        <DashboardMetricCard
-          label="Total Requests"
-          value={stats.totalRequests}
-          subtext="This session"
-          accentClassName="border-slate-200 bg-slate-50 dark:border-slate-500/20 dark:bg-slate-500/10"
-          valueClassName="mt-1 text-2xl font-bold"
-          labelClassName="text-slate-700 dark:text-slate-300"
-          compact
-        />
-        <DashboardMetricCard
-          label="Avg. Response"
-          value={stats.avgResponseTime}
-          subtext="First response time"
-          accentClassName="border-blue-200 bg-blue-50 dark:border-blue-500/20 dark:bg-blue-500/10"
-          valueClassName="mt-1 text-2xl font-bold text-blue-600"
-          labelClassName="text-blue-700 dark:text-blue-300"
-          compact
-        />
+        {showSkeleton ? (
+          <>
+            <StatCardSkeleton icon={<AlertTriangle className="size-4 text-orange-600" />} label="Active Requests" />
+            <StatCardSkeleton icon={<CheckCircle className="size-4 text-green-600" />} label="Resolved Today" />
+            <StatCardSkeleton icon={<Users className="size-4 text-slate-600" />} label="Total Requests" />
+            <StatCardSkeleton icon={<Clock className="size-4 text-blue-600" />} label="Avg. Response" />
+          </>
+        ) : (
+          <>
+            <DashboardMetricCard
+              label="Active Requests"
+              value={stats.activeRequests}
+              subtext="Awaiting response"
+              accentClassName="border-orange-200 bg-orange-50 dark:border-orange-500/20 dark:bg-orange-500/10"
+              valueClassName="mt-1 text-2xl font-bold text-orange-600"
+              labelClassName="text-orange-700 dark:text-orange-300"
+              compact
+            />
+            <DashboardMetricCard
+              label="Resolved Today"
+              value={stats.resolvedToday}
+              subtext="Issues closed"
+              accentClassName="border-green-200 bg-green-50 dark:border-green-500/20 dark:bg-green-500/10"
+              valueClassName="mt-1 text-2xl font-bold text-green-600"
+              labelClassName="text-green-700 dark:text-green-300"
+              compact
+            />
+            <DashboardMetricCard
+              label="Total Requests"
+              value={stats.totalRequests}
+              subtext="This session"
+              accentClassName="border-slate-200 bg-slate-50 dark:border-slate-500/20 dark:bg-slate-500/10"
+              valueClassName="mt-1 text-2xl font-bold"
+              labelClassName="text-slate-700 dark:text-slate-300"
+              compact
+            />
+            <DashboardMetricCard
+              label="Avg. Response"
+              value={stats.avgResponseTime}
+              subtext="First response time"
+              accentClassName="border-blue-200 bg-blue-50 dark:border-blue-500/20 dark:bg-blue-500/10"
+              valueClassName="mt-1 text-2xl font-bold text-blue-600"
+              labelClassName="text-blue-700 dark:text-blue-300"
+              compact
+            />
+          </>
+        )}
       </div>
 
       <Card>
@@ -192,10 +197,14 @@ export default function SupportStaffDashboard() {
             <AlertTriangle className="size-5 text-orange-600" />
             Support Queue
           </CardTitle>
-          <Badge variant="outline">{activeRequests.length} Pending</Badge>
+          <Badge variant="outline">
+            {showSkeleton ? <span className="size-3.5 animate-spin rounded-full border-2 border-current border-r-transparent" /> : `${activeRequests.length} Pending`}
+          </Badge>
         </CardHeader>
         <CardContent>
-          {activeRequests.length === 0 ? (
+          {showSkeleton ? (
+            <AppointmentListSkeleton items={3} />
+          ) : activeRequests.length === 0 ? (
             <Empty className="min-h-[220px] border-border/70 bg-muted/20">
               <EmptyContent>
                 <EmptyMedia variant="icon">

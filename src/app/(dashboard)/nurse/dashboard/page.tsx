@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "@/components/ui/loader";
+import { StatCardSkeleton, TableSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
 import {
   Users,
@@ -133,13 +133,7 @@ export default function NurseDashboard() {
     },
   ];
 
-  if (isPatientsPending && patients.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="size-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const showSkeleton = isPatientsPending && patients.length === 0;
 
   const headerMeta = `${stats.activePatients} assigned patients`;
 
@@ -153,42 +147,53 @@ export default function NurseDashboard() {
       />
 
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-        <DashboardMetricCard
-          label="Active Patients"
-          value={stats.activePatients}
-          subtext="Assigned to you"
-          accentClassName="border-blue-200 bg-blue-50 dark:border-blue-500/20 dark:bg-blue-500/10"
-          valueClassName="mt-1 text-2xl font-bold text-blue-600"
-          labelClassName="text-blue-700 dark:text-blue-300"
-          compact
-        />
-        <DashboardMetricCard
-          label="Vitals Recorded"
-          value={stats.vitalsRecordedToday}
-          subtext="Patients updated today"
-          accentClassName="border-green-200 bg-green-50 dark:border-green-500/20 dark:bg-green-500/10"
-          valueClassName="mt-1 text-2xl font-bold text-green-600"
-          labelClassName="text-green-700 dark:text-green-300"
-          compact
-        />
-        <DashboardMetricCard
-          label="Vitals Updated"
-          value={stats.vitalsRecordedToday}
-          subtext="Patients updated today"
-          accentClassName="border-purple-200 bg-purple-50 dark:border-purple-500/20 dark:bg-purple-500/10"
-          valueClassName="mt-1 text-2xl font-bold text-purple-600"
-          labelClassName="text-purple-700 dark:text-purple-300"
-          compact
-        />
-        <DashboardMetricCard
-          label="Vitals Needed"
-          value={stats.vitalsNeeded}
-          subtext="Patients pending check"
-          accentClassName="border-orange-200 bg-orange-50 dark:border-orange-500/20 dark:bg-orange-500/10"
-          valueClassName="mt-1 text-2xl font-bold text-orange-600"
-          labelClassName="text-orange-700 dark:text-orange-300"
-          compact
-        />
+        {showSkeleton ? (
+          <>
+            <StatCardSkeleton icon={<Users className="size-4 text-blue-600" />} label="Active Patients" />
+            <StatCardSkeleton icon={<Activity className="size-4 text-green-600" />} label="Vitals Recorded" />
+            <StatCardSkeleton icon={<CheckCircle className="size-4 text-purple-600" />} label="Vitals Updated" />
+            <StatCardSkeleton icon={<Heart className="size-4 text-orange-600" />} label="Vitals Needed" />
+          </>
+        ) : (
+          <>
+            <DashboardMetricCard
+              label="Active Patients"
+              value={stats.activePatients}
+              subtext="Assigned to you"
+              accentClassName="border-blue-200 bg-blue-50 dark:border-blue-500/20 dark:bg-blue-500/10"
+              valueClassName="mt-1 text-2xl font-bold text-blue-600"
+              labelClassName="text-blue-700 dark:text-blue-300"
+              compact
+            />
+            <DashboardMetricCard
+              label="Vitals Recorded"
+              value={stats.vitalsRecordedToday}
+              subtext="Patients updated today"
+              accentClassName="border-green-200 bg-green-50 dark:border-green-500/20 dark:bg-green-500/10"
+              valueClassName="mt-1 text-2xl font-bold text-green-600"
+              labelClassName="text-green-700 dark:text-green-300"
+              compact
+            />
+            <DashboardMetricCard
+              label="Vitals Updated"
+              value={stats.vitalsRecordedToday}
+              subtext="Patients updated today"
+              accentClassName="border-purple-200 bg-purple-50 dark:border-purple-500/20 dark:bg-purple-500/10"
+              valueClassName="mt-1 text-2xl font-bold text-purple-600"
+              labelClassName="text-purple-700 dark:text-purple-300"
+              compact
+            />
+            <DashboardMetricCard
+              label="Vitals Needed"
+              value={stats.vitalsNeeded}
+              subtext="Patients pending check"
+              accentClassName="border-orange-200 bg-orange-50 dark:border-orange-500/20 dark:bg-orange-500/10"
+              valueClassName="mt-1 text-2xl font-bold text-orange-600"
+              labelClassName="text-orange-700 dark:text-orange-300"
+              compact
+            />
+          </>
+        )}
       </div>
 
       <Card>
@@ -220,12 +225,16 @@ export default function NurseDashboard() {
           </div>
         </CardHeader>
         <CardContent>
-          <DataTable
-            columns={columns}
-            data={patients}
-            pageSize={10}
-            emptyMessage="No assigned patients found"
-          />
+          {showSkeleton ? (
+            <TableSkeleton columns={["Patient", "Priority", "Latest Vitals", "Last Check", "Actions"]} rows={3} />
+          ) : (
+            <DataTable
+              columns={columns}
+              data={patients}
+              pageSize={10}
+              emptyMessage="No assigned patients found"
+            />
+          )}
         </CardContent>
       </Card>
 

@@ -7,17 +7,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2 } from "@/components/ui/loader";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, } from "@/components/ui/dialog";
 import {
-  Activity, Thermometer, Heart, Search, Calendar, Save, Plus, Edit2, } from "lucide-react";
+  Activity, Thermometer, Heart, Search, Calendar, Save, Plus, Edit2, Loader2, } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useNursePatientVitals, useNursePatients, useCreateNursePatientRecord, useUpdateNursePatientRecord, } from "@/hooks/query/useNurse";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { usePatientStore } from "@/stores";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { AppointmentListSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { formatDateTimeInIST, nowIso } from '@/lib/utils/date-time';
 
 interface VitalsFormData {
@@ -111,6 +111,7 @@ function NurseVitalsContent() {
   useWebSocketQuerySync();
 
   const vitalsRecords = vitalsData?.vitals || [];
+  const showSkeleton = isPending && vitalsRecords.length === 0;
 
   const filteredRecords = vitalsRecords.filter((record: any) =>
     record.patientName?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -177,14 +178,6 @@ function NurseVitalsContent() {
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
-  if (isPending) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="size-8 animate-spin" />
-      </div>
-    );
-  }
-
   return (
     <DashboardPageShell>
       <DashboardPageHeader
@@ -222,7 +215,9 @@ function NurseVitalsContent() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {filteredRecords.length === 0 ? (
+          {showSkeleton ? (
+            <AppointmentListSkeleton items={3} />
+          ) : filteredRecords.length === 0 ? (
             <div className="text-center py-12">
               <Heart className="size-16 mx-auto text-gray-300 mb-4" />
               <p className="text-gray-500">No vitals recorded yet</p>

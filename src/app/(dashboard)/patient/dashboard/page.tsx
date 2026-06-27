@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
@@ -46,7 +46,6 @@ import {
   Leaf,
   Stethoscope,
   BookOpen,
-  Loader2,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -573,10 +572,6 @@ export default function PatientDashboard() {
                   </div>
                   {showAppointmentsSkeleton ? (
                     <div className="rounded-2xl border border-emerald-200/80 bg-white/80 p-3 shadow-sm backdrop-blur dark:border-emerald-900/40 dark:bg-card/80 sm:p-4">
-                      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700/80 dark:text-emerald-300/80">
-                        <Loader2 className="size-4 animate-spin" />
-                        Loading current appointments
-                      </div>
                       <div className="mt-4 space-y-3">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1 space-y-2">
@@ -979,12 +974,12 @@ export default function PatientDashboard() {
                 <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
                   Next visit
                 </CardTitle>
-                <div className="flex size-7 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                <div className="flex size-7 items-center justify-center rounded-xl bg-teal-100 text-teal-700 dark:bg-teal-500/10 dark:text-teal-300">
                   <Clock className="size-4" />
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="text-xl font-bold leading-none text-emerald-700 dark:text-emerald-300 sm:text-2xl truncate">
+                <div className="text-xl font-bold leading-none text-teal-700 dark:text-teal-300 sm:text-2xl truncate">
                   {patientData.healthOverview.nextAppointment || "None"}
                 </div>
                 <p className={`mt-1 text-xs ${theme.textColors.secondary}`}>
@@ -998,12 +993,12 @@ export default function PatientDashboard() {
                 <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
                   Medicines
                 </CardTitle>
-                <div className="flex size-7 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">
+                <div className="flex size-7 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300">
                   <Pill className="size-4" />
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="text-xl font-bold leading-none text-violet-700 dark:text-violet-300 sm:text-2xl">
+                <div className="text-xl font-bold leading-none text-indigo-700 dark:text-indigo-300 sm:text-2xl">
                   {patientData.medications.length}
                 </div>
                 <p className={`mt-1 text-xs ${theme.textColors.secondary}`}>
@@ -1036,12 +1031,12 @@ export default function PatientDashboard() {
                 <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
                   Records
                 </CardTitle>
-                <div className="flex size-7 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                <div className="flex size-7 items-center justify-center rounded-xl bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-300">
                   <FileText className="size-4" />
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="text-xl font-bold leading-none text-amber-700 dark:text-amber-300 sm:text-2xl">
+                <div className="text-xl font-bold leading-none text-orange-700 dark:text-orange-300 sm:text-2xl">
                   {patientData.recordsCount}
                 </div>
                 <p className={`mt-1 text-xs ${theme.textColors.secondary}`}>

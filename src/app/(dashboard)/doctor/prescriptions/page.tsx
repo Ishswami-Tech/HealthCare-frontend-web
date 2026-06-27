@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "@/components/ui/loader";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import {
   Dialog,
@@ -45,6 +44,7 @@ import {
 } from "@/hooks/query/usePrescriptions";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { AppointmentListSkeleton, StatCardSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { formatDateInIST } from "@/lib/utils/date-time";
 
 export default function DoctorPrescriptions() {
@@ -238,11 +238,36 @@ export default function DoctorPrescriptions() {
     }
   };
 
-  if (isPending) {
+  const showSkeleton = isPending && prescriptions.length === 0;
+
+  if (showSkeleton) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="size-8 animate-spin" />
-      </div>
+      <DashboardPageShell>
+        <DashboardPageHeader
+          eyebrow="Doctor Prescriptions"
+          title="Prescriptions"
+          description="Review prescribed medicines and clinical notes. Medicine payment, packing, and dispatch stay with the medicine desk."
+        />
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col gap-4 sm:flex-row">
+              <div className="h-10 flex-1 rounded-lg bg-muted animate-pulse" />
+              <div className="flex gap-2">
+                <div className="h-10 w-20 rounded-lg bg-muted animate-pulse" />
+                <div className="h-10 w-24 rounded-lg bg-muted animate-pulse" />
+                <div className="h-10 w-24 rounded-lg bg-muted animate-pulse" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
+          <StatCardSkeleton icon={<FileText className="size-4 text-blue-600" />} label="Total Prescriptions" />
+          <StatCardSkeleton icon={<Pill className="size-4 text-green-600" />} label="Active" />
+          <StatCardSkeleton icon={<Calendar className="size-4 text-amber-600" />} label="Today" />
+          <StatCardSkeleton icon={<User className="size-4 text-violet-600" />} label="Patients" />
+        </div>
+        <AppointmentListSkeleton items={4} />
+      </DashboardPageShell>
     );
   }
 

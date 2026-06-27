@@ -1,14 +1,22 @@
 ﻿"use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useMemo, useReducer } from "react";
 import { useRouter } from "next/navigation";
+import { DashboardPageSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useStartAppointment, useCompleteAppointment, useUpdateAppointment } from "@/hooks/query/useAppointments";
 import { useRealTimeAppointments, useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { showInfoToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { useCurrentTimestamp } from "@/hooks/utils/useClientDate";
-import { DoctorAppointmentsContent } from "./_components/DoctorAppointmentsContent";
+const DoctorAppointmentsContent = dynamic(
+  () => import("./_components/DoctorAppointmentsContent").then((module) => module.DoctorAppointmentsContent),
+  {
+    ssr: false,
+    loading: () => <DashboardPageSkeleton />,
+  }
+);
 import {
   getAppointmentViewState,
   getAppointmentPatientName,

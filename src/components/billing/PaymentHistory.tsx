@@ -86,10 +86,10 @@ export function PaymentHistory({ payments, onRefetch, compact = false }: Payment
             <span className="text-sm text-muted-foreground">
               {paymentDate
                 ? formatDateInIST(paymentDate, {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  })
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                })
                 : "-"}
             </span>
           );
@@ -121,7 +121,6 @@ export function PaymentHistory({ payments, onRefetch, compact = false }: Payment
         ),
       },
     ],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 
@@ -154,7 +153,7 @@ export function PaymentHistory({ payments, onRefetch, compact = false }: Payment
         <CardHeader className="p-2 sm:p-4 pb-0 sm:pb-0">
           <CardTitle className="text-lg font-extrabold text-foreground">Recent Transactions</CardTitle>
         </CardHeader>
-        <CardContent className="overflow-x-auto p-3 sm:p-4 pt-3">
+        <CardContent className="p-3 sm:p-4 pt-3">
           <DataTable
             columns={columns}
             data={sortedPayments}

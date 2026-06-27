@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
+import { StatCardSkeleton, TableSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import { buildGatewayOrderId } from "@/lib/utils/gateway-order-id";
 import { type Invoice, type Payment, type BillingAnalytics } from "@/types/billing.types";
@@ -50,16 +51,76 @@ export function FinanceBillingDashboardContent({
     .toSorted((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime())
     .slice(0, 5);
 
-  if (isLoading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Clock className="size-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const showSkeleton = isLoading && invoices.length === 0 && payments.length === 0;
 
   const monthlyValue = analytics?.monthlyRevenue ?? monthlyRevenue;
   const pendingValue = analytics?.pendingInvoices ?? pendingInvoices;
+
+  if (showSkeleton) {
+    return (
+      <div className="gap-y-4 p-4 sm:gap-y-5 sm:p-6">
+        <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
+          <div className="space-y-2">
+            <div className="h-9 w-72 rounded bg-muted animate-pulse" />
+            <div className="h-4 w-56 rounded bg-muted animate-pulse" />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <div className="h-10 w-24 rounded-lg bg-muted animate-pulse" />
+            <div className="h-10 w-24 rounded-lg bg-muted animate-pulse" />
+            <div className="h-10 w-24 rounded-lg bg-muted animate-pulse" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
+          <StatCardSkeleton icon={<CreditCard className="size-4 text-emerald-600" />} label="Total Revenue" />
+          <StatCardSkeleton icon={<Clock className="size-4 text-blue-600" />} label="This Month" />
+          <StatCardSkeleton icon={<Receipt className="size-4 text-amber-600" />} label="Pending" />
+          <StatCardSkeleton icon={<CheckCircle className="size-4 text-slate-600" />} label="Overdue" />
+          <StatCardSkeleton icon={<TrendingUp className="size-4 text-violet-600" />} label="Paid" />
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <Card className="lg:col-span-2">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Receipt className="size-5 text-blue-600" />
+                Recent Invoices
+              </CardTitle>
+              <div className="h-8 w-20 rounded-lg bg-muted animate-pulse" />
+            </CardHeader>
+            <CardContent>
+              <TableSkeleton columns={["Invoice", "Patient", "Status", "Amount"]} rows={4} />
+            </CardContent>
+          </Card>
+
+          <div className="gap-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Finance Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-2 gap-3">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div key={index} className="h-20 rounded-xl bg-muted animate-pulse" />
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <CreditCard className="size-4 text-slate-500" />
+                  Recent Payments
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <TableSkeleton columns={["Payment", "Method", "Status"]} rows={4} />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="gap-y-4 p-4 sm:gap-y-5 sm:p-6">

@@ -368,15 +368,6 @@ export default function ClinicAdminStaff() {
     []
   );
 
-  if (isLoadingStaff) {
-    return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
-        <Loader2 className="size-10 animate-spin text-primary" />
-        <p className="animate-pulse text-muted-foreground">Loading staff database…</p>
-      </div>
-    );
-  }
-
   const staffHeaderMeta = `${clinicName || "Your clinic"} • ${staff.length} staff members`;
 
   return (

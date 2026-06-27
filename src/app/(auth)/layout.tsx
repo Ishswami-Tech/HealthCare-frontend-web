@@ -14,7 +14,7 @@ import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { ROUTES, getDashboardByRole } from "@/lib/config/routes";
-import { PageLoading } from "@/components/ui/loading";
+import { LoadingSpinner } from "@/components/ui/loading";
 import { StatusFooter } from "@/components/status/StatusFooter";
 
 export default function AuthLayout({
@@ -48,7 +48,7 @@ export default function AuthLayout({
   if (isAuthenticated && session?.user && !hasErrorParams) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <PageLoading text="Preparing secure session..." />
+        <LoadingSpinner size="lg" center />
       </div>
     );
   }

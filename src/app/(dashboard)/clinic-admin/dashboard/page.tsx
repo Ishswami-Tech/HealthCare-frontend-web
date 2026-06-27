@@ -45,7 +45,6 @@ import {
   Clock,
   AlertCircle,
   CalendarDays,
-  Loader2,
   ArrowUpRight,
   ArrowDownRight,
   Activity,
@@ -488,15 +487,6 @@ export default function ClinicAdminDashboard() {
     { href: "/queue", label: "Queue", icon: Activity },
   ];
 
-  if (isLoadingClinic || isLoadingStats || isLoadingLocations) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[80vh] gap-4">
-        <Loader2 className="size-12 animate-spin text-primary" />
-        <p className="text-muted-foreground font-medium animate-pulse text-lg">Waking up the clinic dashboard…</p>
-      </div>
-    );
-  }
-
   return (
     <DashboardPageShell className="mx-auto flex max-w-7xl flex-col gap-y-4 px-4 pb-6 pt-0 sm:gap-y-5 sm:px-6 lg:px-8">
       <DashboardPageHeader
@@ -896,8 +886,10 @@ export default function ClinicAdminDashboard() {
           </CardHeader>
           <CardContent className="gap-y-3 p-3 sm:p-4">
             {isLoadingQueue ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="size-8 animate-spin text-primary" />
+              <div className="space-y-3 py-2">
+                <div className="h-4 w-32 rounded bg-muted animate-pulse" />
+                <div className="h-16 rounded-2xl bg-muted animate-pulse" />
+                <div className="h-16 rounded-2xl bg-muted animate-pulse" />
               </div>
             ) : queueItems.length > 0 ? (
         <div className="flex flex-col gap-y-3">
@@ -916,7 +908,7 @@ export default function ClinicAdminDashboard() {
                             {highlightedQueueItem.locationName || highlightedQueueItem.locationId || "Main clinic"}
                           </Badge>
                           <span>{highlightedQueueItem.doctorName || "Assigned doctor pending"}</span>
-                          <span className="text-muted-foreground/60">Â·</span>
+                          <span className="text-muted-foreground/60">·</span>
                           <span>Queue #{highlightedQueueItem.position || 0}</span>
                         </div>
                       </div>
@@ -1148,7 +1140,7 @@ export default function ClinicAdminDashboard() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right text-sm font-medium text-muted-foreground">
-                            {item.pendingAmount > 0 ? `₹${item.pendingAmount.toFixed(2)}` : "â€”"}
+                            {item.pendingAmount > 0 ? `₹${item.pendingAmount.toFixed(2)}` : "—"}
                           </TableCell>
                         </TableRow>
                       ))}

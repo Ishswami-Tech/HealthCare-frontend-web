@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "@/components/ui/loader";
+import { AppointmentListSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import {
   Search,
   Calendar,
@@ -90,14 +90,6 @@ export default function CounselorAppointments() {
     }
   };
 
-  if (showInitialSkeleton) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="size-8 animate-spin" />
-      </div>
-    );
-  }
-
   return (
     <div className="flex min-h-screen flex-col gap-6 p-4 sm:p-6">
       <div>
@@ -152,7 +144,9 @@ export default function CounselorAppointments() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {filteredAppointments.length === 0 ? (
+          {showInitialSkeleton ? (
+            <AppointmentListSkeleton items={3} />
+          ) : filteredAppointments.length === 0 ? (
             <div className="text-center py-12">
               <Calendar className="size-16 mx-auto text-gray-300 mb-4" />
               <p className="text-gray-500">No appointments found</p>

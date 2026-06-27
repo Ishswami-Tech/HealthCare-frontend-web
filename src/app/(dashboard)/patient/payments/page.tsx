@@ -1,6 +1,8 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState } from "react";
+import { DashboardPageSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useActiveSubscription,
@@ -12,7 +14,14 @@ import {
 } from "@/hooks/query/useBilling";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import type { BillingPlan, Subscription } from "@/types/billing.types";
-import { PatientBillingContent } from "./_components/PatientBillingContent";
+
+const PatientBillingContent = dynamic(
+  () => import("./_components/PatientBillingContent").then((module) => module.PatientBillingContent),
+  {
+    ssr: false,
+    loading: () => <DashboardPageSkeleton />,
+  }
+);
 
 export default function PatientBillingPage() {
   const { session } = useAuth();

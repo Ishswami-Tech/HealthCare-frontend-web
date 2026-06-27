@@ -90,14 +90,6 @@ export function InventoryPageContent({
   setFilterStatus,
 }: InventoryPageContentProps) {
   if (inventoryPending) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="mx-auto size-32 animate-spin rounded-full border-b-2 border-blue-600" />
-          <p className="mt-4 text-gray-600">Loading inventory…</p>
-        </div>
-      </div>
-    );
   }
 
   return (

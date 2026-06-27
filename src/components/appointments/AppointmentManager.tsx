@@ -166,8 +166,8 @@ function StatCard({
   className,
 }: StatCardProps) {
   return (
-    <div className={`flex items-center gap-2 sm:gap-3 rounded-2xl border ${cardBorder} bg-card p-2 sm:p-4 transition-all ${cardHover} hover:shadow-sm ${className || ""}`}>
-      <div className={`rounded-xl ${iconBg} border p-1.5 sm:p-2 ${iconBorder} ${iconColor}`}>{icon}</div>
+    <div className={cn(`flex items-center gap-2 sm:gap-3 rounded-2xl border ${cardBorder} p-2 sm:p-4 transition-all ${cardHover} hover:shadow-sm`, className)}>
+      <div className={cn(`rounded-xl ${iconBg} border p-1.5 sm:p-2 ${iconBorder} ${iconColor}`)}>{icon}</div>
       <div>
         <p className="text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">{value}</p>
         <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
@@ -1248,7 +1248,7 @@ export default function AppointmentManager({
             iconColor="text-blue-600"
             cardBorder="border-blue-100 dark:border-blue-900"
             cardHover="hover:border-blue-300"
-            className="bg-blue-50/70 dark:bg-blue-950/20"
+            className="bg-blue-50 dark:bg-blue-950/20"
           />
           <StatCard
             label="Upcoming"
@@ -1259,7 +1259,7 @@ export default function AppointmentManager({
             iconColor="text-emerald-600"
             cardBorder="border-emerald-100 dark:border-emerald-900"
             cardHover="hover:border-emerald-300"
-            className="bg-emerald-50/70 dark:bg-emerald-950/20"
+            className="bg-emerald-50 dark:bg-emerald-950/20"
           />
           <StatCard
             label="In Progress"
@@ -1270,7 +1270,7 @@ export default function AppointmentManager({
             iconColor="text-amber-600"
             cardBorder="border-amber-100 dark:border-amber-900"
             cardHover="hover:border-amber-300"
-            className="bg-amber-50/70 dark:bg-amber-950/20"
+            className="bg-amber-50 dark:bg-amber-950/20"
           />
           <StatCard
             label="Completed"
@@ -1281,7 +1281,7 @@ export default function AppointmentManager({
             iconColor="text-violet-600"
             cardBorder="border-violet-100 dark:border-violet-900"
             cardHover="hover:border-violet-300"
-            className="bg-violet-50/70 dark:bg-violet-950/20"
+            className="bg-violet-50 dark:bg-violet-950/20"
           />
         </div>
 

@@ -1071,17 +1071,6 @@ export default function PharmacistPrescriptionsPage() {
     [],
   );
 
-  if (isPending) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <div className="text-center">
-          <div className="mx-auto size-10 animate-spin rounded-full border-b-2 border-blue-600" />
-          <p className="mt-3 text-sm text-gray-600">Loading prescriptions…</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col gap-y-6 p-6">
       <div>

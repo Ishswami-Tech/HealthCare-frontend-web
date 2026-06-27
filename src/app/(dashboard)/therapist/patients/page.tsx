@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import {
-  Search, Users, Calendar, Brain, Loader2, } from "lucide-react";
+import { Search, Users, Calendar, Brain } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useTherapistClients, useUpdateTherapistClientSession } from "@/hooks/query/useTherapist";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { usePatientStore } from "@/stores";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { SkeletonList } from "@/components/ui/loading";
 import { formatDateInIST, nowIso } from '@/lib/utils/date-time';
 import { ServerPagination } from "@/components/ui/pagination";
 
@@ -164,9 +164,7 @@ export default function TherapistPatients() {
         </CardHeader>
         <CardContent>
           {isPending ? (
-            <div className="flex items-center justify-center min-h-[200px]">
-              <Loader2 className="size-8 animate-spin text-blue-600" />
-            </div>
+            <SkeletonList items={4} />
           ) : clients.length === 0 ? (
             <Empty>
               <EmptyContent>

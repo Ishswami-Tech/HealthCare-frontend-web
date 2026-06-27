@@ -4,24 +4,17 @@ import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Calendar,
-  Users,
-  Clock,
-  CheckCircle,
-  Brain,
-  Activity,
-  Play,
-  Loader2,
-} from "lucide-react";
+import { Calendar, Users, Clock, CheckCircle, Brain, Activity, Play } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useTherapistAppointments, useTherapistClients } from "@/hooks/query/useTherapist";
 import { hasAppointmentsLoadedForSession } from "@/hooks/query/useAppointments";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { SkeletonList } from "@/components/ui/loading";
 import { usePatientStore } from "@/stores";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { AppointmentListSkeleton, StatCardSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import {
   formatDateInIST,
   formatISODateInIST,
@@ -66,6 +59,7 @@ export default function TherapistDashboard() {
   // flips during a refetch.
   const hasCachedClients = clientsArray.length > 0;
   const showClientsSkeleton = isPendingClients && !hasCachedClients;
+  const showInitialLoading = showAppointmentsSkeleton || showClientsSkeleton;
   const stats = useMemo(() => {
     const today = formatISODateInIST(new Date());
     const todayAppointments = appointmentsArray.filter(
@@ -178,42 +172,53 @@ export default function TherapistDashboard() {
 
       {/* Key Metrics */}
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-        <DashboardMetricCard
-          label="Today's Sessions"
-          value={stats.todayAppointments}
-          subtext={`${stats.completedToday} completed`}
-          accentClassName="border-blue-200 bg-blue-50 dark:border-blue-500/20 dark:bg-blue-500/10"
-          valueClassName="mt-1 text-2xl font-bold text-blue-900 dark:text-blue-100"
-          labelClassName="text-blue-700 dark:text-blue-300"
-          compact
-        />
-        <DashboardMetricCard
-          label="Completed Today"
-          value={stats.completedToday}
-          subtext="Procedural sessions finished"
-          accentClassName="border-green-200 bg-green-50 dark:border-green-500/20 dark:bg-green-500/10"
-          valueClassName="mt-1 text-2xl font-bold text-green-600"
-          labelClassName="text-green-700 dark:text-green-300"
-          compact
-        />
-        <DashboardMetricCard
-          label="Total Clients"
-          value={stats.totalPatients}
-          subtext="Under care"
-          accentClassName="border-slate-200 bg-slate-50 dark:border-slate-500/20 dark:bg-slate-500/10"
-          valueClassName="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100"
-          labelClassName="text-slate-700 dark:text-slate-300"
-          compact
-        />
-        <DashboardMetricCard
-          label="Avg. Session"
-          value={`${stats.avgSessionDuration} min`}
-          subtext="Per session"
-          accentClassName="border-indigo-200 bg-indigo-50 dark:border-indigo-500/20 dark:bg-indigo-500/10"
-          valueClassName="mt-1 text-2xl font-bold text-indigo-900 dark:text-indigo-100"
-          labelClassName="text-indigo-700 dark:text-indigo-300"
-          compact
-        />
+        {showInitialLoading ? (
+          <>
+            <StatCardSkeleton icon={<Calendar className="size-4" />} label="Today's Sessions" />
+            <StatCardSkeleton icon={<CheckCircle className="size-4" />} label="Completed Today" />
+            <StatCardSkeleton icon={<Users className="size-4" />} label="Total Clients" />
+            <StatCardSkeleton icon={<Clock className="size-4" />} label="Avg. Session" />
+          </>
+        ) : (
+          <>
+            <DashboardMetricCard
+              label="Today's Sessions"
+              value={stats.todayAppointments}
+              subtext={`${stats.completedToday} completed`}
+              accentClassName="border-blue-200 bg-blue-50 dark:border-blue-500/20 dark:bg-blue-500/10"
+              valueClassName="mt-1 text-2xl font-bold text-blue-900 dark:text-blue-100"
+              labelClassName="text-blue-700 dark:text-blue-300"
+              compact
+            />
+            <DashboardMetricCard
+              label="Completed Today"
+              value={stats.completedToday}
+              subtext="Procedural sessions finished"
+              accentClassName="border-green-200 bg-green-50 dark:border-green-500/20 dark:bg-green-500/10"
+              valueClassName="mt-1 text-2xl font-bold text-green-600"
+              labelClassName="text-green-700 dark:text-green-300"
+              compact
+            />
+            <DashboardMetricCard
+              label="Total Clients"
+              value={stats.totalPatients}
+              subtext="Under care"
+              accentClassName="border-slate-200 bg-slate-50 dark:border-slate-500/20 dark:bg-slate-500/10"
+              valueClassName="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100"
+              labelClassName="text-slate-700 dark:text-slate-300"
+              compact
+            />
+            <DashboardMetricCard
+              label="Avg. Session"
+              value={`${stats.avgSessionDuration} min`}
+              subtext="Per session"
+              accentClassName="border-indigo-200 bg-indigo-50 dark:border-indigo-500/20 dark:bg-indigo-500/10"
+              valueClassName="mt-1 text-2xl font-bold text-indigo-900 dark:text-indigo-100"
+              labelClassName="text-indigo-700 dark:text-indigo-300"
+              compact
+            />
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -227,9 +232,7 @@ export default function TherapistDashboard() {
           </CardHeader>
           <CardContent>
             {showAppointmentsSkeleton ? (
-              <div className="flex items-center justify-center min-h-[200px]">
-                <Loader2 className="size-8 animate-spin text-blue-600" />
-              </div>
+              <AppointmentListSkeleton items={3} />
             ) : recentSessions.length === 0 ? (
               <Empty>
                 <EmptyContent>
@@ -291,9 +294,7 @@ export default function TherapistDashboard() {
           </CardHeader>
           <CardContent>
             {showClientsSkeleton ? (
-              <div className="flex items-center justify-center min-h-[200px]">
-                <Loader2 className="size-8 animate-spin text-blue-600" />
-              </div>
+              <SkeletonList items={3} />
             ) : clientsArray.length === 0 ? (
               <Empty>
                 <EmptyContent>

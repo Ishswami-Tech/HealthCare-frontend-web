@@ -5,19 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  Search,
-  Calendar,
-  Clock,
-  CheckCircle,
-  MessageCircle,
-  Play,
-  Loader2,
-} from "lucide-react";
+import { Search, Calendar, Clock, CheckCircle, MessageCircle, Play } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useTherapistAppointments, useCreateTherapistAppointment, useUpdateTherapistAppointment, useDeleteTherapistAppointment } from "@/hooks/query/useTherapist";
 import { hasAppointmentsLoadedForSession } from "@/hooks/query/useAppointments";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { AppointmentListSkeleton, StatCardSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import {
   formatDateInIST,
   formatISODateInIST,
@@ -190,68 +183,79 @@ export default function TherapistAppointments() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <Calendar className="size-6 text-blue-600" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold">{appointments.length}</div>
-                <div className="text-sm text-gray-600">Total Appointments</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-green-100 rounded-lg">
-                <CheckCircle className="size-6 text-green-600" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-green-600">
-                  {
-                    appointments.filter(
-                      (a) => getStatusValue(a.status) === "COMPLETED"
-                    ).length
-                  }
+        {showInitialSkeleton ? (
+          <>
+            <StatCardSkeleton icon={<Calendar className="size-4" />} label="Total Appointments" />
+            <StatCardSkeleton icon={<CheckCircle className="size-4" />} label="Completed Sessions" />
+            <StatCardSkeleton icon={<MessageCircle className="size-4" />} label="Procedural Sessions" />
+            <StatCardSkeleton icon={<Clock className="size-4" />} label="Today's Sessions" />
+          </>
+        ) : (
+          <>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-blue-100 rounded-lg">
+                    <Calendar className="size-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold">{appointments.length}</div>
+                    <div className="text-sm text-gray-600">Total Appointments</div>
+                  </div>
                 </div>
-                <div className="text-sm text-gray-600">Completed Sessions</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-purple-100 rounded-lg">
-                <MessageCircle className="size-6 text-purple-600" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold">
-                  {appointments.filter((a) => a.type === "Session").length}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-green-100 rounded-lg">
+                    <CheckCircle className="size-6 text-green-600" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-green-600">
+                      {
+                        appointments.filter(
+                          (a) => getStatusValue(a.status) === "COMPLETED"
+                        ).length
+                      }
+                    </div>
+                    <div className="text-sm text-gray-600">Completed Sessions</div>
+                  </div>
                 </div>
-                <div className="text-sm text-gray-600">Procedural Sessions</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-orange-100 rounded-lg">
-                <Clock className="size-6 text-orange-600" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold">
-                  {appointments.filter((a) => isToday(a.date)).length}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-purple-100 rounded-lg">
+                    <MessageCircle className="size-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold">
+                      {appointments.filter((a) => a.type === "Session").length}
+                    </div>
+                    <div className="text-sm text-gray-600">Procedural Sessions</div>
+                  </div>
                 </div>
-                <div className="text-sm text-gray-600">Today&apos;s Sessions</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-orange-100 rounded-lg">
+                    <Clock className="size-6 text-orange-600" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold">
+                      {appointments.filter((a) => isToday(a.date)).length}
+                    </div>
+                    <div className="text-sm text-gray-600">Today&apos;s Sessions</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
 
       {/* Appointments List */}
@@ -264,9 +268,7 @@ export default function TherapistAppointments() {
         </CardHeader>
         <CardContent>
           {showInitialSkeleton ? (
-            <div className="flex items-center justify-center min-h-[200px]">
-              <Loader2 className="size-8 animate-spin text-blue-600" />
-            </div>
+            <AppointmentListSkeleton items={3} />
           ) : visibleAppointments.length === 0 ? (
             <div className="text-center py-12">
               <MessageCircle className="size-16 mx-auto text-gray-300 mb-4" />

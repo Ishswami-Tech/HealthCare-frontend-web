@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/loading";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useUserProfile, useUpdateUserProfile } from "@/hooks/query/useUsers";
 import { Loader2, Mail, Phone, MapPin, Calendar, Shield, Save } from "lucide-react";
@@ -62,15 +63,8 @@ export default function PharmacistProfile() {
     await updateProfile.mutateAsync(payload);
   };
 
-  if (isProfileLoading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   const initials = `${formData.firstName?.charAt(0) || ""}${formData.lastName?.charAt(0) || ""}`.toUpperCase() || "P";
+  const showSkeleton = isProfileLoading && !userProfile;
 
   return (
     <div className="flex flex-col gap-y-6">
@@ -86,33 +80,55 @@ export default function PharmacistProfile() {
       <div className="grid gap-6 md:grid-cols-12">
         {/* Profile Card */}
         <Card className="md:col-span-4">
-          <CardHeader className="text-center">
-            <div className="flex justify-center pb-4">
-              <Avatar className="size-24">
-                <AvatarImage src={(userProfile as any)?.avatar} />
-                <AvatarFallback className={`text-2xl ${getAvatarTone(initials).backgroundClass} ${getAvatarTone(initials).textClass}`}>{initials}</AvatarFallback>
-              </Avatar>
-            </div>
-            <CardTitle>{formData.firstName} {formData.lastName}</CardTitle>
-            <div className="flex flex-wrap justify-center gap-2 pt-2">
-              <Badge variant="secondary">Pharmacist</Badge>
-              <Badge variant="outline">{(userProfile as any)?.isVerified ? "Verified" : "Unverified"}</Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-y-4">
-            <div className="flex items-center gap-3 text-sm">
-              <Mail className="size-4 text-muted-foreground" />
-              <span>{formData.email}</span>
-            </div>
-            <div className="flex items-center gap-3 text-sm">
-              <Phone className="size-4 text-muted-foreground" />
-              <span>{formData.phone || "No phone added"}</span>
-            </div>
-            <div className="flex items-center gap-3 text-sm">
-              <MapPin className="size-4 text-muted-foreground" />
-              <span>{formData.city && formData.state ? `${formData.city}, ${formData.state}` : "No location added"}</span>
-            </div>
-          </CardContent>
+          {showSkeleton ? (
+            <>
+              <CardHeader className="text-center">
+                <div className="flex justify-center pb-4">
+                  <Skeleton className="size-24 rounded-full" />
+                </div>
+                <Skeleton className="mx-auto h-6 w-40" />
+                <div className="flex flex-wrap justify-center gap-2 pt-2">
+                  <Skeleton className="h-5 w-20 rounded-full" />
+                  <Skeleton className="h-5 w-24 rounded-full" />
+                </div>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-y-4">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-5/6" />
+                <Skeleton className="h-4 w-4/5" />
+              </CardContent>
+            </>
+          ) : (
+            <>
+              <CardHeader className="text-center">
+                <div className="flex justify-center pb-4">
+                  <Avatar className="size-24">
+                    <AvatarImage src={(userProfile as any)?.avatar} />
+                    <AvatarFallback className={`text-2xl ${getAvatarTone(initials).backgroundClass} ${getAvatarTone(initials).textClass}`}>{initials}</AvatarFallback>
+                  </Avatar>
+                </div>
+                <CardTitle>{formData.firstName} {formData.lastName}</CardTitle>
+                <div className="flex flex-wrap justify-center gap-2 pt-2">
+                  <Badge variant="secondary">Pharmacist</Badge>
+                  <Badge variant="outline">{(userProfile as any)?.isVerified ? "Verified" : "Unverified"}</Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-y-4">
+                <div className="flex items-center gap-3 text-sm">
+                  <Mail className="size-4 text-muted-foreground" />
+                  <span>{formData.email}</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <Phone className="size-4 text-muted-foreground" />
+                  <span>{formData.phone || "No phone added"}</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <MapPin className="size-4 text-muted-foreground" />
+                  <span>{formData.city && formData.state ? `${formData.city}, ${formData.state}` : "No location added"}</span>
+                </div>
+              </CardContent>
+            </>
+          )}
         </Card>
 
         {/* Settings Tabs */}
@@ -129,6 +145,16 @@ export default function PharmacistProfile() {
                   <CardTitle>Personal Details</CardTitle>
                 </CardHeader>
                 <CardContent>
+                  {showSkeleton ? (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {Array.from({ length: 8 }).map((_, index) => (
+                        <div key={index} className="space-y-2">
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="h-10 w-full rounded-lg" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
                   <form onSubmit={handleSubmit} className="flex flex-col gap-y-4">
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="flex flex-col gap-y-2">
@@ -261,6 +287,7 @@ export default function PharmacistProfile() {
                       </Button>
                     </div>
                   </form>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -271,20 +298,29 @@ export default function PharmacistProfile() {
                   <CardTitle>Account Security</CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-y-4">
-                  <div className="flex items-center justify-between rounded-lg border p-4">
-                    <div className="flex flex-col gap-y-1">
-                      <p className="font-medium">Password</p>
-                      <p className="text-sm text-muted-foreground">Change your account password</p>
-                    </div>
-                    <Button variant="outline">Update</Button>
-                  </div>
-                  <div className="flex items-center justify-between rounded-lg border p-4">
-                    <div className="flex flex-col gap-y-1">
-                      <p className="font-medium">Two-Factor Authentication</p>
-                      <p className="text-sm text-muted-foreground">Add an extra layer of security</p>
-                    </div>
-                    <Button variant="outline">Enable</Button>
-                  </div>
+                  {showSkeleton ? (
+                    <>
+                      <Skeleton className="h-16 w-full rounded-lg" />
+                      <Skeleton className="h-16 w-full rounded-lg" />
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between rounded-lg border p-4">
+                        <div className="flex flex-col gap-y-1">
+                          <p className="font-medium">Password</p>
+                          <p className="text-sm text-muted-foreground">Change your account password</p>
+                        </div>
+                        <Button variant="outline">Update</Button>
+                      </div>
+                      <div className="flex items-center justify-between rounded-lg border p-4">
+                        <div className="flex flex-col gap-y-1">
+                          <p className="font-medium">Two-Factor Authentication</p>
+                          <p className="text-sm text-muted-foreground">Add an extra layer of security</p>
+                        </div>
+                        <Button variant="outline">Enable</Button>
+                      </div>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

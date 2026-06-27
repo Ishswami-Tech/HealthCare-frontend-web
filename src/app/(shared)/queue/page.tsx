@@ -46,7 +46,8 @@ import {
   useWebSocketQuerySync,
 } from "@/hooks/realtime/useRealTimeQueries";
 import { useQueueWebSocketIntegration } from "@/hooks/realtime/useWebSocketIntegration";
-import { PageLoading, Skeleton } from "@/components/ui/loading";
+import { LoadingSpinner, Skeleton } from "@/components/ui/loading";
+import { DashboardPageSkeleton, StatCardSkeleton, TableSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import {
   Dialog,
   DialogContent,
@@ -1136,9 +1137,7 @@ export default function QueuePage() {
           <Skeleton className="h-[104px] w-full rounded-xl" />
           <Skeleton className="h-[104px] w-full rounded-xl" />
         </div>
-        <div className="mt-24">
-          <PageLoading text="Loading active queue flow…" />
-        </div>
+        <TableSkeleton columns={["Queue", "Patient", "Doctor", "Status", "Wait", "Actions"]} rows={4} />
       </div>
     );
   }

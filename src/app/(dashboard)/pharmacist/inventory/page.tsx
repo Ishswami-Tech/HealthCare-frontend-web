@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Role } from "@/types/auth.types";
@@ -8,10 +9,19 @@ import { useInventory } from "@/hooks/query/usePharmacy";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { formatDateInIST } from "@/lib/utils/date-time";
-import { InventoryPageContent, type InventoryItem } from "./_components/InventoryPageContent";
+import { DashboardPageSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Plus, Edit, Eye } from "lucide-react";
+import type { InventoryItem } from "./_components/InventoryPageContent";
+
+const InventoryPageContent = dynamic(
+  () => import("./_components/InventoryPageContent").then((module) => module.InventoryPageContent),
+  {
+    ssr: false,
+    loading: () => <DashboardPageSkeleton />,
+  }
+);
 
 const getStatusColor = (status: string) => {
   switch (status) {

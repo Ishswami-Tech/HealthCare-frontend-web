@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useReducer, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { DataTable } from "@/components/ui/data-table";
+import { TableSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import {
   Table,
   TableBody,
@@ -841,9 +843,16 @@ export default function ClinicLocationsPage() {
   if (isPendingLocations) {
     return (
       <PatientPageShell className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
-        <div className="flex min-h-[400px] items-center justify-center rounded-xl border border-border bg-card">
-          <Loader2 className="size-8 animate-spin text-primary" />
-        </div>
+        <PatientPageHeader
+          eyebrow="Clinic Admin"
+          title="Clinic Locations"
+          description="Manage your clinic locations and branches"
+        />
+        <Card>
+          <CardContent className="p-4">
+            <TableSkeleton columns={["Location", "Contact", "Status", "Permissions", "Working Hours", "Actions"]} rows={4} />
+          </CardContent>
+        </Card>
       </PatientPageShell>
     );
   }

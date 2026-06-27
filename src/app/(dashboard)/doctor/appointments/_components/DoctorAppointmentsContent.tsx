@@ -5,7 +5,8 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
-import { Loader2, Eye, Play, Video, CheckCircle } from "lucide-react";
+import { Eye, Play, Video, CheckCircle } from "lucide-react";
+import { TableSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 import { getAppointmentPatientName, getAppointmentViewState, getDisplayAppointmentDuration, getReceptionistAppointmentDateLabel, getReceptionistAppointmentTimeLabel, getAppointmentDateTimeValue, formatDateInIST, formatTimeInIST } from "@/lib/utils/appointmentUtils";
 import { DoctorAppointmentsSummary } from "./DoctorAppointmentsSummary";
@@ -220,14 +221,6 @@ export function DoctorAppointmentsContent(props: Props) {
     [completeAppointmentPending, completeConsultation, consultationNotes, diagnosis, openAppointmentDetails, prescription, startConsultation],
   );
 
-  if (isLoadingAppointments) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-blue-600" />
-      </div>
-    );
-  }
-
   return (
     <>
       <DoctorAppointmentsSummary
@@ -245,15 +238,20 @@ export function DoctorAppointmentsContent(props: Props) {
         totalAppointmentsCount={totalAppointmentsCount}
         setSearchTerm={setSearchTerm}
         setAppointmentViewFilter={setAppointmentViewFilter}
+        loading={isLoadingAppointments}
       />
 
-      <DataTable
-        columns={appointmentColumns}
-        data={filteredAppointments}
-        emptyMessage="No appointments match this view"
-        pageSize={10}
-        scrollable
-      />
+      {isLoadingAppointments ? (
+        <TableSkeleton columns={["Patient", "Date", "Time", "Status", "Actions"]} rows={5} />
+      ) : (
+        <DataTable
+          columns={appointmentColumns}
+          data={filteredAppointments}
+          emptyMessage="No appointments match this view"
+          pageSize={10}
+          scrollable
+        />
+      )}
 
       <DoctorAppointmentsDetailsDialog
         selectedAppointment={selectedAppointment}

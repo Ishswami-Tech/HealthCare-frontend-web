@@ -4,6 +4,7 @@ import { Calendar, CheckCircle, Clock, Play, Search, XCircle, AlertCircle, Video
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
+import { StatCardSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +26,7 @@ interface DoctorAppointmentsSummaryProps {
   totalAppointmentsCount: number;
   setSearchTerm: (value: string) => void;
   setAppointmentViewFilter: (value: DoctorAppointmentViewFilter) => void;
+  loading?: boolean;
 }
 
 export function DoctorAppointmentsSummary({
@@ -42,6 +44,7 @@ export function DoctorAppointmentsSummary({
   totalAppointmentsCount,
   setSearchTerm,
   setAppointmentViewFilter,
+  loading = false,
 }: DoctorAppointmentsSummaryProps) {
   return (
     <DashboardPageShell>
@@ -67,62 +70,76 @@ export function DoctorAppointmentsSummary({
       />
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        <DashboardMetricCard
-          label="Active"
-          value={activeAppointmentsCount}
-          icon={<Clock className="size-3.5 text-slate-600" />}
-          accentClassName="border-l-slate-400"
-          valueClassName="text-sm font-semibold text-slate-600 sm:text-base"
-          compact
-        />
-        <DashboardMetricCard
-          label="In Progress"
-          value={inProgressAppointmentsCount}
-          icon={<Play className="size-3.5 text-blue-600" />}
-          accentClassName="border-l-blue-400"
-          valueClassName="text-sm font-semibold text-blue-600 sm:text-base"
-          compact
-        />
-        <DashboardMetricCard
-          label="Completed"
-          value={completedAppointmentsCount}
-          icon={<CheckCircle className="size-3.5 text-purple-600" />}
-          accentClassName="border-l-purple-400"
-          valueClassName="text-sm font-semibold text-purple-600 sm:text-base"
-          compact
-        />
-        <DashboardMetricCard
-          label="Cancelled"
-          value={cancelledAppointmentsCount}
-          icon={<XCircle className="size-3.5 text-rose-600" />}
-          accentClassName="border-l-rose-400"
-          valueClassName="text-sm font-semibold text-rose-600 sm:text-base"
-          compact
-        />
-        <DashboardMetricCard
-          label="Expired"
-          value={expiredAppointmentsCount}
-          icon={<AlertCircle className="size-3.5 text-slate-600" />}
-          accentClassName="border-l-slate-400"
-          valueClassName="text-sm font-semibold text-slate-600 sm:text-base"
-          compact
-        />
-        <DashboardMetricCard
-          label="No Show"
-          value={noShowAppointmentsCount}
-          icon={<AlertCircle className="size-3.5 text-orange-600" />}
-          accentClassName="border-l-orange-400"
-          valueClassName="text-sm font-semibold text-orange-600 sm:text-base"
-          compact
-        />
-        <DashboardMetricCard
-          label="Total"
-          value={totalAppointmentsCount}
-          icon={<Calendar className="size-3.5 text-violet-600" />}
-          accentClassName="border-l-violet-400"
-          valueClassName="text-sm font-semibold text-violet-600 sm:text-base"
-          compact
-        />
+        {loading ? (
+          <>
+            <StatCardSkeleton icon={<Clock className="size-4" />} label="Active" />
+            <StatCardSkeleton icon={<Play className="size-4" />} label="In Progress" />
+            <StatCardSkeleton icon={<CheckCircle className="size-4" />} label="Completed" />
+            <StatCardSkeleton icon={<XCircle className="size-4" />} label="Cancelled" />
+            <StatCardSkeleton icon={<AlertCircle className="size-4" />} label="Expired" />
+            <StatCardSkeleton icon={<AlertCircle className="size-4" />} label="No Show" />
+            <StatCardSkeleton icon={<Calendar className="size-4" />} label="Total" />
+          </>
+        ) : (
+          <>
+            <DashboardMetricCard
+              label="Active"
+              value={activeAppointmentsCount}
+              icon={<Clock className="size-3.5 text-slate-600" />}
+              accentClassName="border-l-slate-400"
+              valueClassName="text-sm font-semibold text-slate-600 sm:text-base"
+              compact
+            />
+            <DashboardMetricCard
+              label="In Progress"
+              value={inProgressAppointmentsCount}
+              icon={<Play className="size-3.5 text-blue-600" />}
+              accentClassName="border-l-blue-400"
+              valueClassName="text-sm font-semibold text-blue-600 sm:text-base"
+              compact
+            />
+            <DashboardMetricCard
+              label="Completed"
+              value={completedAppointmentsCount}
+              icon={<CheckCircle className="size-3.5 text-purple-600" />}
+              accentClassName="border-l-purple-400"
+              valueClassName="text-sm font-semibold text-purple-600 sm:text-base"
+              compact
+            />
+            <DashboardMetricCard
+              label="Cancelled"
+              value={cancelledAppointmentsCount}
+              icon={<XCircle className="size-3.5 text-rose-600" />}
+              accentClassName="border-l-rose-400"
+              valueClassName="text-sm font-semibold text-rose-600 sm:text-base"
+              compact
+            />
+            <DashboardMetricCard
+              label="Expired"
+              value={expiredAppointmentsCount}
+              icon={<AlertCircle className="size-3.5 text-slate-600" />}
+              accentClassName="border-l-slate-400"
+              valueClassName="text-sm font-semibold text-slate-600 sm:text-base"
+              compact
+            />
+            <DashboardMetricCard
+              label="No Show"
+              value={noShowAppointmentsCount}
+              icon={<AlertCircle className="size-3.5 text-orange-600" />}
+              accentClassName="border-l-orange-400"
+              valueClassName="text-sm font-semibold text-orange-600 sm:text-base"
+              compact
+            />
+            <DashboardMetricCard
+              label="Total"
+              value={totalAppointmentsCount}
+              icon={<Calendar className="size-3.5 text-violet-600" />}
+              accentClassName="border-l-violet-400"
+              valueClassName="text-sm font-semibold text-violet-600 sm:text-base"
+              compact
+            />
+          </>
+        )}
       </div>
 
       <Card className="rounded-2xl border-border/60 shadow-sm">

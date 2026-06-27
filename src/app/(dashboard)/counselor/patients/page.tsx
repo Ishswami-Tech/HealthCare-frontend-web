@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "@/components/ui/loader";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import {
   Search,
@@ -18,6 +17,7 @@ import { useCounselorClients } from "@/hooks/query/useCounselor";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { usePatientStore } from "@/stores";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { AppointmentListSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import { ServerPagination } from "@/components/ui/pagination";
 
@@ -89,13 +89,7 @@ export default function CounselorPatients() {
     }
   };
 
-  if (isPending) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="size-8 animate-spin" />
-      </div>
-    );
-  }
+  const showSkeleton = isPending && filteredClients.length === 0;
 
   return (
     <DashboardPageShell>
@@ -162,7 +156,9 @@ export default function CounselorPatients() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {filteredClients.length === 0 ? (
+          {showSkeleton ? (
+            <AppointmentListSkeleton items={4} />
+          ) : filteredClients.length === 0 ? (
             <Empty>
               <EmptyContent>
                 <EmptyMedia>

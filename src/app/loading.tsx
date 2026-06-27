@@ -1,6 +1,5 @@
-﻿import { PageLoading } from "@/components/ui/loading";
+import { LoadingSpinner } from "@/components/ui/loading";
 
 export default function Loading() {
-  return <PageLoading text="Loading…" />;
+  return <LoadingSpinner size="lg" center />;
 }
-

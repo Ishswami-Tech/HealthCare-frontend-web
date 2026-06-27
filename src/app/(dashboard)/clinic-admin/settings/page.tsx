@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Skeleton } from "@/components/ui/loading";
 import {
   Table,
   TableBody,
@@ -442,13 +443,59 @@ export default function ClinicAdminSettingsPage() {
     }));
 
   const isSaving = updateClinic.isPending || updateAssistantCoverageMutation.isPending;
+  const showSkeleton = isPending || !hasInitializedRef.current;
 
-  if (isPending || !hasInitializedRef.current) {
+  if (showSkeleton) {
     return (
       <PatientPageShell className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
-        <div className="flex min-h-[420px] items-center justify-center rounded-xl border border-border bg-card">
-          <Loader2 className="size-8 animate-spin text-primary" />
+        <PatientPageHeader
+          eyebrow="Clinic Admin"
+          title="Clinic Settings"
+          description="Configure clinic profile, booking rules, notifications, and role coverage."
+        />
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card className={PROFILE_CARD_CLASS}>
+            <CardHeader>
+              <Skeleton className="h-5 w-44" />
+              <Skeleton className="mt-2 h-4 w-72" />
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="space-y-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-10 w-full rounded-lg" />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+          <Card className={BOOKING_CARD_CLASS}>
+            <CardHeader>
+              <Skeleton className="h-5 w-40" />
+              <Skeleton className="mt-2 h-4 w-64" />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <div key={index} className="space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-10 w-full rounded-lg" />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
         </div>
+
+        <Card className={DOCTOR_CARD_CLASS}>
+          <CardHeader>
+            <Skeleton className="h-5 w-48" />
+            <Skeleton className="mt-2 h-4 w-80" />
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Skeleton key={index} className="h-12 w-full rounded-lg" />
+            ))}
+          </CardContent>
+        </Card>
       </PatientPageShell>
     );
   }

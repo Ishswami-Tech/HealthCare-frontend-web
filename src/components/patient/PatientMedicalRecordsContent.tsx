@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { theme } from "@/lib/utils/theme-utils";
-import { LoadingSpinner, PageLoading, ErrorState, EmptyState } from "@/components/ui/loading";
+import { LoadingSpinner, ErrorState, EmptyState } from "@/components/ui/loading";
 import { useComprehensiveHealthRecord, useAllergies } from "@/hooks/query/useMedicalRecords";
 import { showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { formatDateInIST } from "@/lib/utils/date-time";
@@ -201,9 +201,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
   // Show loading state while data is fetching
   if (isLoading) {
     return (
-      
-        <PageLoading text="Loading your medical records..." />
-      
+      <LoadingSpinner size="lg" center />
     );
   }
 

@@ -260,8 +260,6 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
     });
 
     // Extract validation errors from nested error structures (ApiError, details, errors, etc.)
-    let validationErrors: Array<{ field: string; constraints: Record<string, string> }> | undefined;
-
     const extractValidationErrors = (obj: unknown): Array<{ field: string; constraints: Record<string, string> }> | undefined => {
       if (!obj || typeof obj !== 'object') return undefined;
 
@@ -301,7 +299,7 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
       return undefined;
     };
 
-    validationErrors = extractValidationErrors(error);
+    const validationErrors = extractValidationErrors(error);
 
     return {
       success: false,

@@ -11,7 +11,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { EmptyState, ErrorState, PageLoading } from "@/components/ui/loading";
+import { EmptyState, ErrorState, LoadingSpinner } from "@/components/ui/loading";
 import { PaymentButton } from "@/components/payments/PaymentButton";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { usePrescriptions } from "@/hooks/query/usePharmacy";
@@ -284,7 +284,7 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
   }
 
   if (isLoading) {
-    return <PageLoading text="Loading your prescriptions..." />;
+    return <LoadingSpinner size="lg" center />;
   }
 
   const content = (

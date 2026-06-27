@@ -2,7 +2,6 @@
 
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "@/components/ui/loader";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useAppointments } from "@/hooks/query/useAppointments";
 import { useQueue, useQueueStats } from "@/hooks/query/useQueue";
@@ -109,14 +108,6 @@ export default function ClinicLocationHeadDashboardContent() {
   );
 
   const isLoading = appointmentsPending && queuePending && appointments.length === 0;
-
-  if (isLoading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-primary" />
-      </div>
-    );
-  }
 
   return (
     <div className="gap-y-4 p-4 sm:gap-y-5 sm:p-6">

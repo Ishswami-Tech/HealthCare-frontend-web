@@ -763,7 +763,7 @@ export default function ReceptionistDashboard() {
                 {appointmentsError
                   ? `Error loading appointments: ${appointmentsError.message}`
                   : isPending
-                    ? "Loading clinic backlog…"
+                    ? " "
                     : "No doctor backlog for today."}
               </p>
             ) : (

@@ -1,4 +1,15 @@
-import { AssistantDoctorWorkspaceShell } from "../../_components/AssistantDoctorWorkspaceShell";
+"use client";
+
+import dynamic from "next/dynamic";
+import { DashboardPageSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
+
+const AssistantDoctorWorkspaceShell = dynamic(
+  () => import("../../_components/AssistantDoctorWorkspaceShell").then((module) => module.AssistantDoctorWorkspaceShell),
+  {
+    ssr: false,
+    loading: () => <DashboardPageSkeleton />,
+  }
+);
 
 export default function AssistantDoctorPatientDetailPage({
   params,

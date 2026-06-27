@@ -1,8 +1,9 @@
 ﻿"use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useReducer, useState } from "react";
 import type { Reducer } from "react";
-import { ClinicAdminScheduleContent } from "./_components/ClinicAdminScheduleContent";
+import { DashboardPageSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext, useMyClinic, useUpdateClinic } from "@/hooks/query/useClinics";
 import {
@@ -12,6 +13,14 @@ import {
 } from "@/hooks/query/useDoctors";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+
+const ClinicAdminScheduleContent = dynamic(
+  () => import("./_components/ClinicAdminScheduleContent").then((module) => module.ClinicAdminScheduleContent),
+  {
+    ssr: false,
+    loading: () => <DashboardPageSkeleton />,
+  }
+);
 
 type DoctorScheduleDay = {
   day: string;

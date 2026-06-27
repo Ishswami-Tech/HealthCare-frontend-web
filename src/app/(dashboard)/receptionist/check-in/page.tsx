@@ -931,7 +931,7 @@ export default function ReceptionistCheckInPage() {
               <DataTable
                 columns={historyColumns}
                 data={filteredHistoryRows}
-                emptyMessage={isCheckInHistoryLoading ? "Loading check-in history…" : "No check-in history found"}
+                emptyMessage={isCheckInHistoryLoading ? " " : "No check-in history found"}
                 pageSize={10}
                 compact
               />

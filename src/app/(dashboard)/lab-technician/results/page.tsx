@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "@/components/ui/loader";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import {
   Search,
@@ -25,6 +24,7 @@ import {
   useDeleteLabResult,
 } from "@/hooks/query/useLabTechnician";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { AppointmentListSkeleton, StatCardSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { formatDateInIST } from "@/lib/utils/date-time";
 
 export default function LabTechnicianResults() {
@@ -95,10 +95,38 @@ export default function LabTechnicianResults() {
     }
   };
 
-  if (isPending) {
+  const showSkeleton = isPending && testResults.length === 0;
+
+  if (showSkeleton) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="size-8 animate-spin" />
+      <div className="p-6 gap-y-6">
+        <div>
+          <div className="h-9 w-56 rounded bg-muted animate-pulse" />
+          <div className="mt-2 h-4 w-72 rounded bg-muted animate-pulse" />
+        </div>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col gap-4 sm:flex-row">
+              <div className="h-10 flex-1 rounded-lg bg-muted animate-pulse" />
+              <div className="flex gap-2">
+                <div className="h-10 w-20 rounded-lg bg-muted animate-pulse" />
+                <div className="h-10 w-20 rounded-lg bg-muted animate-pulse" />
+                <div className="h-10 w-24 rounded-lg bg-muted animate-pulse" />
+                <div className="h-10 w-24 rounded-lg bg-muted animate-pulse" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCardSkeleton icon={<FileText className="size-4 text-blue-600" />} label="Total Results" />
+          <StatCardSkeleton icon={<CheckCircle className="size-4 text-green-600" />} label="Completed" />
+          <StatCardSkeleton icon={<Clock className="size-4 text-orange-600" />} label="Pending" />
+          <StatCardSkeleton icon={<User className="size-4 text-violet-600" />} label="Patients" />
+        </div>
+
+        <AppointmentListSkeleton items={4} />
       </div>
     );
   }

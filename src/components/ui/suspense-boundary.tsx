@@ -1,13 +1,13 @@
-﻿/**
- *… Granular Suspense Boundaries
+/**
+ * Granular Suspense Boundaries
  * For better loading states and streaming
  * Uses consolidated loading components
  */
 
 "use client";
 
-import { Suspense, ReactNode } from 'react';
-import { InlineLoader, LoadingSpinner } from '@/components/ui/loading';
+import { ReactNode, Suspense } from "react";
+import { InlineLoader, LoadingSpinner, Skeleton } from "@/components/ui/loading";
 
 export interface SuspenseBoundaryProps {
   children: ReactNode;
@@ -22,21 +22,8 @@ export interface SuspenseBoundaryProps {
 export function SuspenseBoundary({
   children,
   fallback,
-  name,
 }: SuspenseBoundaryProps) {
-  return (
-    <Suspense
-      fallback={
-        fallback || (
-          <div className="flex items-center justify-center p-8">
-            <LoadingSpinner size="md" color="primary" text={name ? `Loading ${name}...` : ""} />
-          </div>
-        )
-      }
-    >
-      {children}
-    </Suspense>
-  );
+  return <Suspense fallback={fallback || <div className="flex items-center justify-center p-8"><LoadingSpinner size="md" color="primary" /></div>}>{children}</Suspense>;
 }
 
 /**
@@ -48,7 +35,6 @@ export function CompactSuspense({ children }: { children: ReactNode }) {
       fallback={
         <div className="flex items-center gap-2 p-2">
           <InlineLoader size="sm" />
-          <span className="text-xs text-muted-foreground">Loading…</span>
         </div>
       }
     >
@@ -61,13 +47,7 @@ export function CompactSuspense({ children }: { children: ReactNode }) {
  * Inline loading fallback for inline content
  */
 export function InlineSuspense({ children }: { children: ReactNode }) {
-  return (
-    <SuspenseBoundary
-      fallback={<InlineLoader size="sm" className="inline-block" />}
-    >
-      {children}
-    </SuspenseBoundary>
-  );
+  return <SuspenseBoundary fallback={<InlineLoader size="sm" className="inline-block" />}>{children}</SuspenseBoundary>;
 }
 
 /**
@@ -78,7 +58,7 @@ export function PageSuspense({ children }: { children: ReactNode }) {
     <SuspenseBoundary
       fallback={
         <div className="min-h-screen flex items-center justify-center">
-          <LoadingSpinner size="lg" color="primary" text="Loading page..." />
+          <LoadingSpinner size="lg" color="primary" />
         </div>
       }
     >
@@ -94,11 +74,9 @@ export function CardSuspense({ children }: { children: ReactNode }) {
   return (
     <SuspenseBoundary
       fallback={
-        <div className="p-6 border rounded-lg">
-          <div className="flex items-center gap-2">
-            <InlineLoader size="md" />
-            <span className="text-sm text-muted-foreground">Loading…</span>
-          </div>
+        <div className="p-6 border rounded-lg space-y-3">
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-4 w-40" />
         </div>
       }
     >
@@ -115,9 +93,8 @@ export function TableRowSuspense({ children }: { children: ReactNode }) {
     <SuspenseBoundary
       fallback={
         <tr>
-          <td colSpan={100} className="p-4 text-center">
-            <InlineLoader size="sm" className="inline-block" />
-            <span className="ml-2 text-sm text-muted-foreground">Loading…</span>
+          <td colSpan={100} className="p-4">
+            <div className="mx-auto h-4 w-32 rounded bg-muted animate-pulse" />
           </td>
         </tr>
       }
@@ -126,5 +103,3 @@ export function TableRowSuspense({ children }: { children: ReactNode }) {
     </SuspenseBoundary>
   );
 }
-
-

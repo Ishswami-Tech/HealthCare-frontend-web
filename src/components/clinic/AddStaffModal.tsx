@@ -54,6 +54,7 @@ import { cn, clean } from "@/lib/utils";
 import { format } from "date-fns";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useCurrentTimestamp } from "@/hooks/utils/useClientDate";
+import { useWatch } from "react-hook-form";
 
 const staffSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters"),
@@ -116,6 +117,7 @@ export function AddStaffModal({ open, onOpenChange, onSuccess }: AddStaffModalPr
       address: "",
     },
   });
+  const selectedRole = useWatch({ control: form.control, name: "role" });
 
   const onSubmit = async (values: StaffFormValues) => {
     if (!currentClinic?.id) {
@@ -372,7 +374,7 @@ export function AddStaffModal({ open, onOpenChange, onSuccess }: AddStaffModalPr
                   />
                 </div>
 
-                {(form.watch("role") === Role.DOCTOR || form.watch("role") === Role.NURSE) && (
+                {(selectedRole === Role.DOCTOR || selectedRole === Role.NURSE) && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-xl border border-dashed border-neutral-300 dark:border-neutral-700">
                     <FormField
                       control={form.control}

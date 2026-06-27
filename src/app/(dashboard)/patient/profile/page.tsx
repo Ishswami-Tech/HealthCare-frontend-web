@@ -20,7 +20,8 @@ import {
 import { useAuth } from "@/hooks/auth/useAuth";
 import { theme } from "@/lib/utils/theme-utils";
 import { formatDateInIST } from "@/lib/utils/date-time";
-import { PageLoading, ErrorState } from "@/components/ui/loading";
+import { ErrorState } from "@/components/ui/loading";
+import { Skeleton } from "@/components/ui/loading";
 import { DataExportModal, PasswordChangeModal } from "@/components/patient/PatientModals";
 import {
   DashboardPageHeader as PatientPageHeader,
@@ -56,6 +57,7 @@ export default function PatientProfile() {
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const { data: userProfile, isPending: isLoading, error: profileError } = useUserProfile();
   const updateProfileMutation = useUpdateUserProfile();
+  const showSkeleton = isLoading && !userProfile;
 
   const [profileData, setProfileData] = useState({
     personalInfo: {
@@ -218,6 +220,25 @@ export default function PatientProfile() {
     return theme.badges.gray;
   };
 
+  const ProfileSectionSkeleton = ({ title, rows = 4 }: { title: string; rows?: number }) => (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-3.5 w-64" />
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-4 md:grid-cols-2">
+        {Array.from({ length: rows }).map((_, index) => (
+          <div key={index} className="space-y-2">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-11 w-full rounded-xl" />
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+
   if (profileError) {
     return (
         <ErrorState
@@ -225,12 +246,6 @@ export default function PatientProfile() {
           message="We couldn't fetch your profile data. Please try again."
           onRetry={() => window.location.reload()}
         />
-    );
-  }
-
-  if (isLoading) {
-    return (
-        <PageLoading text="Loading your profile..." />
     );
   }
 
@@ -276,63 +291,87 @@ export default function PatientProfile() {
             </Alert>
           )}
 
-          {/* Profile Overview */}
-          <Card>
-            <CardContent className="p-3.5 sm:p-4">
-              <div className="flex flex-col items-center gap-3.5 sm:flex-row sm:items-start sm:gap-4">
-                <div className="relative shrink-0">
-                  <div className="flex size-16 items-center justify-center rounded-full bg-linear-to-br from-blue-100 to-green-100 sm:h-18 sm:w-18">
-                    <span className={`${theme.textColors.info} text-lg font-semibold sm:text-xl`}>
-                      {profileData.personalInfo.firstName.charAt(0)}
-                    </span>
-                  </div>
-                  <Button 
-                    size="sm" 
-                    className="absolute -bottom-1 -right-1 size-6.5 rounded-full p-0"
-                  >
-                    <Camera className="size-3" />
-                  </Button>
-                </div>
-                <div className="min-w-0 flex-1 text-center sm:text-left">
-                  <h2 className={`text-lg sm:text-xl font-semibold ${theme.textColors.heading}`}>
-                    {profileData.personalInfo.firstName} {profileData.personalInfo.lastName}
-                  </h2>
-                  <div className={`mt-1.5 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 text-[11px] sm:justify-start sm:text-sm ${theme.textColors.secondary}`}>
-                    <span className="flex items-center gap-1">
-                      <User className="size-3 sm:w-4 sm:h-4" />
-                      {profileData.personalInfo.occupation}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <MapPin className="size-3 sm:w-4 sm:h-4" />
-                      {profileData.personalInfo.city}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Heart className="size-3 sm:w-4 sm:h-4" />
-                      {profileData.personalInfo.maritalStatus}
-                    </span>
-                  </div>
-                  <div className="mt-2.5 flex items-center justify-center gap-2 sm:justify-start">
-                    <div className={`rounded-lg p-1.5 ${getDoshaColor(profileData.ayurvedaProfile.primaryDosha)}`}>
-                      {getDoshaIcon(profileData.ayurvedaProfile.primaryDosha)}
+          {showSkeleton ? (
+            <Card>
+              <CardContent className="p-3.5 sm:p-4">
+                <div className="flex flex-col items-center gap-3.5 sm:flex-row sm:items-start sm:gap-4">
+                  <Skeleton className="size-16 rounded-full sm:size-18" />
+                  <div className="min-w-0 flex-1 space-y-3 text-center sm:text-left">
+                    <Skeleton className="h-6 w-56 mx-auto sm:mx-0" />
+                    <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="h-4 w-24" />
                     </div>
-                    <span className="font-medium text-[11px] sm:text-sm">Primary Constitution: {profileData.ayurvedaProfile.primaryDosha}</span>
+                    <Skeleton className="h-7 w-64 mx-auto sm:mx-0" />
                   </div>
-                </div>
-                <div className="w-full border-t border-border pt-3 text-center sm:w-auto sm:border-t-0 sm:pt-0 sm:text-left">
-                  <div className="grid grid-cols-1 gap-2.5 text-center sm:grid-cols-2 sm:gap-3">
-                    <div>
-                      <div className={`text-lg sm:text-xl font-bold ${theme.iconColors.green}`}>{profileData.vitals.bmi}</div>
-                      <div className={`text-[10px] sm:text-xs ${theme.textColors.secondary} uppercase tracking-wider font-bold`}>BMI</div>
-                    </div>
-                    <div>
-                      <div className={`text-base sm:text-lg font-bold ${theme.iconColors.blue}`}>{profileData.vitals.bloodPressure}</div>
-                      <div className={`text-[10px] sm:text-xs ${theme.textColors.secondary} uppercase tracking-wider font-bold`}>BP</div>
+                  <div className="w-full border-t border-border pt-3 sm:w-auto sm:border-t-0 sm:pt-0">
+                    <div className="grid grid-cols-2 gap-3 text-center">
+                      <Skeleton className="h-14 rounded-xl" />
+                      <Skeleton className="h-14 rounded-xl" />
                     </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-3.5 sm:p-4">
+                <div className="flex flex-col items-center gap-3.5 sm:flex-row sm:items-start sm:gap-4">
+                  <div className="relative shrink-0">
+                    <div className="flex size-16 items-center justify-center rounded-full bg-linear-to-br from-blue-100 to-green-100 sm:h-18 sm:w-18">
+                      <span className={`${theme.textColors.info} text-lg font-semibold sm:text-xl`}>
+                        {profileData.personalInfo.firstName.charAt(0)}
+                      </span>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      className="absolute -bottom-1 -right-1 size-6.5 rounded-full p-0"
+                    >
+                      <Camera className="size-3" />
+                    </Button>
+                  </div>
+                  <div className="min-w-0 flex-1 text-center sm:text-left">
+                    <h2 className={`text-lg sm:text-xl font-semibold ${theme.textColors.heading}`}>
+                      {profileData.personalInfo.firstName} {profileData.personalInfo.lastName}
+                    </h2>
+                    <div className={`mt-1.5 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 text-[11px] sm:justify-start sm:text-sm ${theme.textColors.secondary}`}>
+                      <span className="flex items-center gap-1">
+                        <User className="size-3 sm:w-4 sm:h-4" />
+                        {profileData.personalInfo.occupation}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <MapPin className="size-3 sm:w-4 sm:h-4" />
+                        {profileData.personalInfo.city}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Heart className="size-3 sm:w-4 sm:h-4" />
+                        {profileData.personalInfo.maritalStatus}
+                      </span>
+                    </div>
+                    <div className="mt-2.5 flex items-center justify-center gap-2 sm:justify-start">
+                      <div className={`rounded-lg p-1.5 ${getDoshaColor(profileData.ayurvedaProfile.primaryDosha)}`}>
+                        {getDoshaIcon(profileData.ayurvedaProfile.primaryDosha)}
+                      </div>
+                      <span className="font-medium text-[11px] sm:text-sm">Primary Constitution: {profileData.ayurvedaProfile.primaryDosha}</span>
+                    </div>
+                  </div>
+                  <div className="w-full border-t border-border pt-3 text-center sm:w-auto sm:border-t-0 sm:pt-0 sm:text-left">
+                    <div className="grid grid-cols-1 gap-2.5 text-center sm:grid-cols-2 sm:gap-3">
+                      <div>
+                        <div className={`text-lg sm:text-xl font-bold ${theme.iconColors.green}`}>{profileData.vitals.bmi}</div>
+                        <div className={`text-[10px] sm:text-xs ${theme.textColors.secondary} uppercase tracking-wider font-bold`}>BMI</div>
+                      </div>
+                      <div>
+                        <div className={`text-base sm:text-lg font-bold ${theme.iconColors.blue}`}>{profileData.vitals.bloodPressure}</div>
+                        <div className={`text-[10px] sm:text-xs ${theme.textColors.secondary} uppercase tracking-wider font-bold`}>BP</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Tabs defaultValue="personal" className="flex flex-col gap-y-4">
             <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
@@ -347,6 +386,9 @@ export default function PatientProfile() {
             </div>
 
             <TabsContent value="personal">
+              {showSkeleton ? (
+                <ProfileSectionSkeleton title="Personal Information" rows={6} />
+              ) : (
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2">
@@ -495,9 +537,13 @@ export default function PatientProfile() {
                   </div>
                 </CardContent>
               </Card>
+              )}
             </TabsContent>
 
             <TabsContent value="ayurveda">
+              {showSkeleton ? (
+                <ProfileSectionSkeleton title="Ayurvedic Profile" rows={5} />
+              ) : (
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2">
@@ -564,9 +610,13 @@ export default function PatientProfile() {
                   </div>
                 </CardContent>
               </Card>
+              )}
             </TabsContent>
 
             <TabsContent value="medical">
+              {showSkeleton ? (
+                <ProfileSectionSkeleton title="Medical History" rows={4} />
+              ) : (
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2">
@@ -622,9 +672,13 @@ export default function PatientProfile() {
                   </div>
                 </CardContent>
               </Card>
+              )}
             </TabsContent>
 
             <TabsContent value="lifestyle">
+              {showSkeleton ? (
+                <ProfileSectionSkeleton title="Lifestyle & Wellness" rows={4} />
+              ) : (
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2">
@@ -687,9 +741,13 @@ export default function PatientProfile() {
                   </div>
                 </CardContent>
               </Card>
+              )}
             </TabsContent>
 
             <TabsContent value="documents">
+              {showSkeleton ? (
+                <ProfileSectionSkeleton title="Health Documents" rows={3} />
+              ) : (
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-2">
@@ -721,11 +779,18 @@ export default function PatientProfile() {
                         </div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                   </CardContent>
+                 </Card>
+              )}
             </TabsContent>
 
             <TabsContent value="preferences">
+              {showSkeleton ? (
+                <div className="flex flex-col gap-y-4">
+                  <ProfileSectionSkeleton title="Communication" rows={4} />
+                  <ProfileSectionSkeleton title="Notifications" rows={3} />
+                </div>
+              ) : (
               <div className="flex flex-col gap-y-4">
                 <Card>
                 <CardHeader className="pb-2">
@@ -773,6 +838,7 @@ export default function PatientProfile() {
                   </CardContent>
                 </Card>
               </div>
+              )}
             </TabsContent>
           </Tabs>
       </PatientPageShell>

@@ -12,7 +12,9 @@ import { DataTable } from "@/components/ui/data-table";
 import { PaymentHistory } from "@/components/billing/PaymentHistory";
 import { PaymentButton } from "@/components/payments";
 import { DashboardPageHeader, DashboardPageShell as PatientPageShell } from "@/components/dashboard/DashboardPageShell";
-import { Check, CheckCircle2, CreditCard, Download, FileText, RefreshCw, Wallet } from "lucide-react";
+import { Check, CheckCircle2, CreditCard, Download, FileText, Wallet } from "lucide-react";
+import { Skeleton } from "@/components/ui/loading";
+import { TableSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import type { BillingPlan, Invoice, Subscription } from "@/types/billing.types";
 
@@ -47,6 +49,31 @@ interface PatientBillingContentProps {
   onRefetchSubscriptions: () => void;
   onRefetchActiveSubscription: () => void;
   onCreateSubscription: (plan: BillingPlan) => Promise<void>;
+}
+
+function PlanLoadingCard() {
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-y-3 p-3 sm:p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3.5 w-20" />
+          </div>
+          <Skeleton className="h-5 w-16 rounded-full" />
+        </div>
+        <Skeleton className="h-3.5 w-full" />
+        <Skeleton className="h-3.5 w-4/5" />
+        <div className="flex items-center gap-2">
+          <Skeleton className="size-3.5 rounded-full" />
+          <Skeleton className="h-3.5 w-28" />
+        </div>
+        <div className="flex justify-end pt-1">
+          <Skeleton className="h-8 w-28 rounded-xl" />
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 function statusColor(status: string) {
@@ -332,7 +359,12 @@ export function PatientBillingContent({
 
         <TabsContent value="plans" className="mt-4 flex flex-col gap-y-4">
           {plansPending ? (
-            <Card><CardContent className="py-10 text-center"><RefreshCw className="mx-auto mb-3 size-5 animate-spin text-muted-foreground" /><p className="text-sm text-muted-foreground">Loading plans…</p></CardContent></Card>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2">
+              <PlanLoadingCard />
+              <PlanLoadingCard />
+              <PlanLoadingCard />
+              <PlanLoadingCard />
+            </div>
           ) : activePlans.length === 0 ? (
             <Empty><EmptyContent><EmptyMedia><Wallet className="size-5" /></EmptyMedia><EmptyTitle>No subscription plans are available right now.</EmptyTitle><EmptyDescription>Try refreshing or check again later.</EmptyDescription><Button variant="outline" className="mt-2" onClick={() => { void onRefetchClinicPlans(); void onRefetchFallbackPlans(); }}>Refresh Plans</Button></EmptyContent></Empty>
           ) : (
@@ -375,7 +407,7 @@ export function PatientBillingContent({
 
         <TabsContent value="invoices" className="mt-4 flex flex-col gap-y-3">
           {invoicesPending ? (
-            <Card><CardContent className="py-10 text-center"><RefreshCw className="mx-auto mb-3 size-5 animate-spin text-muted-foreground" /><p className="text-sm text-muted-foreground">Loading invoices…</p></CardContent></Card>
+            <TableSkeleton columns={["Invoice", "Date", "Status", "Amount"]} rows={4} />
           ) : invoices.length === 0 ? (
             <Empty><EmptyContent><EmptyMedia><FileText className="size-5" /></EmptyMedia><EmptyTitle>No invoices found.</EmptyTitle><EmptyDescription>Any open or paid invoices will appear here.</EmptyDescription></EmptyContent></Empty>
           ) : (
@@ -383,7 +415,7 @@ export function PatientBillingContent({
               <CardHeader className="p-2 sm:p-4 pb-0 sm:pb-0">
                 <CardTitle className="text-lg font-extrabold text-foreground">Invoices</CardTitle>
               </CardHeader>
-              <CardContent className="overflow-x-auto p-3 sm:p-4 pt-3">
+              <CardContent className="p-3 sm:p-4 pt-3">
                 <DataTable columns={invoiceColumns} data={invoices} pageSize={10} emptyMessage="No invoices found" compact scrollable />
               </CardContent>
             </Card>
@@ -392,7 +424,7 @@ export function PatientBillingContent({
 
         <TabsContent value="payments" className="mt-4 flex flex-col gap-y-3">
           {paymentsPending ? (
-            <Card><CardContent className="py-10 text-center"><RefreshCw className="mx-auto mb-3 size-5 animate-spin text-muted-foreground" /><p className="text-sm text-muted-foreground">Loading payments…</p></CardContent></Card>
+            <TableSkeleton columns={["Date", "Method", "Status", "Amount"]} rows={4} />
           ) : payments.length === 0 ? (
             <Empty><EmptyContent><EmptyMedia><CreditCard className="size-5" /></EmptyMedia><EmptyTitle>No payment history found.</EmptyTitle><EmptyDescription>Completed or pending payments will appear here.</EmptyDescription></EmptyContent></Empty>
           ) : (
@@ -402,7 +434,7 @@ export function PatientBillingContent({
 
         <TabsContent value="subscriptions" className="mt-4 flex flex-col gap-y-4">
           {subscriptionsPending ? (
-            <Card><CardContent className="py-10 text-center"><RefreshCw className="mx-auto mb-3 size-5 animate-spin text-muted-foreground" /><p className="text-sm text-muted-foreground">Loading subscriptions…</p></CardContent></Card>
+            <TableSkeleton columns={["Plan", "Start", "End", "Status"]} rows={4} />
           ) : displayedSubscriptions.length === 0 ? (
             <Empty><EmptyContent><EmptyMedia><Wallet className="size-5" /></EmptyMedia><EmptyTitle>You do not have any subscriptions yet.</EmptyTitle><EmptyDescription>Pick a plan to start using subscription benefits.</EmptyDescription><Button className="mt-2" onClick={onOpenPlansTab}>View Plans</Button></EmptyContent></Empty>
           ) : (
@@ -417,7 +449,7 @@ export function PatientBillingContent({
                 <CardHeader className="p-2 sm:p-4 pb-0 sm:pb-0">
                   <CardTitle className="text-lg font-extrabold text-foreground">Subscriptions</CardTitle>
                 </CardHeader>
-                <CardContent className="overflow-x-auto p-3 sm:p-4 pt-3">
+                <CardContent className="p-3 sm:p-4 pt-3">
                   <DataTable columns={subscriptionColumns} data={subscriptionCards} pageSize={10} emptyMessage="No subscriptions found" compact scrollable />
                 </CardContent>
               </Card>

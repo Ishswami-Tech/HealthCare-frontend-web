@@ -9,6 +9,7 @@ import React, {
   useReducer,
 } from "react";
 import { useForm } from "react-hook-form";
+import { useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
@@ -535,7 +536,7 @@ function ProfileCompletionFormContent({
     },
   });
 
-  const watchedPhone = form.watch("phone");
+  const watchedPhone = useWatch({ control: form.control, name: "phone" });
 
   useEffect(() => {
     const nextPhoneVerified =
