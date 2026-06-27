@@ -150,11 +150,11 @@ export function PaymentHistory({ payments, onRefetch, compact = false }: Payment
         </div>
       )}
 
-      <Card className="border-border/70 bg-card overflow-hidden">
+      <Card className="border-border/70 bg-card">
         <CardHeader className="p-2 sm:p-4 pb-0 sm:pb-0">
           <CardTitle className="text-lg font-extrabold text-foreground">Recent Transactions</CardTitle>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="overflow-x-auto p-3 sm:p-4 pt-3">
           <DataTable
             columns={columns}
             data={sortedPayments}
@@ -162,7 +162,6 @@ export function PaymentHistory({ payments, onRefetch, compact = false }: Payment
             emptyMessage="No payment records found"
             compact={compact}
             scrollable
-            hideBorder
           />
         </CardContent>
       </Card>

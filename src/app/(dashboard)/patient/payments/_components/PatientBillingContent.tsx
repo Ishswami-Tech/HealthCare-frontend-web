@@ -379,12 +379,12 @@ export function PatientBillingContent({
           ) : invoices.length === 0 ? (
             <Empty><EmptyContent><EmptyMedia><FileText className="size-5" /></EmptyMedia><EmptyTitle>No invoices found.</EmptyTitle><EmptyDescription>Any open or paid invoices will appear here.</EmptyDescription></EmptyContent></Empty>
           ) : (
-            <Card className="border-border/70 bg-card overflow-hidden">
+            <Card className="border-border/70 bg-card">
               <CardHeader className="p-2 sm:p-4 pb-0 sm:pb-0">
                 <CardTitle className="text-lg font-extrabold text-foreground">Invoices</CardTitle>
               </CardHeader>
-              <CardContent className="p-0">
-                <DataTable columns={invoiceColumns} data={invoices} pageSize={10} emptyMessage="No invoices found" compact scrollable hideBorder />
+              <CardContent className="overflow-x-auto p-3 sm:p-4 pt-3">
+                <DataTable columns={invoiceColumns} data={invoices} pageSize={10} emptyMessage="No invoices found" compact scrollable />
               </CardContent>
             </Card>
           )}
@@ -413,12 +413,12 @@ export function PatientBillingContent({
               {activeSubscriptions.length > 0 && endedSubscriptions.length > 0 && (
                 <div className="flex justify-end"><Button type="button" variant="outline" size="sm" onClick={() => onSetShowSubscriptionHistory((value) => !value)}>{showSubscriptionHistory ? "Hide subscription history" : `View subscription history (${endedSubscriptions.length})`}</Button></div>
               )}
-              <Card className="border-border/70 bg-card overflow-hidden">
+              <Card className="border-border/70 bg-card">
                 <CardHeader className="p-2 sm:p-4 pb-0 sm:pb-0">
                   <CardTitle className="text-lg font-extrabold text-foreground">Subscriptions</CardTitle>
                 </CardHeader>
-                <CardContent className="p-0">
-                  <DataTable columns={subscriptionColumns} data={subscriptionCards} pageSize={10} emptyMessage="No subscriptions found" compact scrollable hideBorder />
+                <CardContent className="overflow-x-auto p-3 sm:p-4 pt-3">
+                  <DataTable columns={subscriptionColumns} data={subscriptionCards} pageSize={10} emptyMessage="No subscriptions found" compact scrollable />
                 </CardContent>
               </Card>
             </>
