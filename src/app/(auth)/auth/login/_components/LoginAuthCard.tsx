@@ -48,6 +48,7 @@ interface LoginAuthCardProps {
   onOtpChange: (value: string) => void;
   onSocialSuccess: () => void;
   onSocialError: (error: Error) => void;
+  isSocialLoading?: boolean;
   onPhoneChange: (value: string) => void;
   onEmailChange: (value: string) => void;
 }
@@ -66,6 +67,7 @@ export function LoginAuthCard({
   onOtpChange,
   onSocialSuccess,
   onSocialError,
+  isSocialLoading,
   onPhoneChange,
   onEmailChange,
 }: LoginAuthCardProps) {
@@ -176,6 +178,7 @@ export function LoginAuthCard({
             <SocialLogin
               showDivider={true}
               clinicId={defaultClinicId}
+              isLoading={isSocialLoading}
               onSuccess={onSocialSuccess}
               onError={onSocialError}
             />

@@ -284,6 +284,23 @@ function resolveProfileComplete(userData: Record<string, unknown> | undefined): 
   return calculateProfileCompletion(userData as any);
 }
 
+function hasMeaningfulPatientIdentity(userData: Record<string, unknown> | undefined): boolean {
+  if (!userData) {
+    return false;
+  }
+
+  if (String(userData.role || '').toUpperCase() !== String(Role.PATIENT)) {
+    return true;
+  }
+
+  const firstName =
+    String(userData.firstName || userData.first_name || '').trim();
+  const lastName =
+    String(userData.lastName || userData.last_name || '').trim();
+
+  return firstName.length > 0 && lastName.length > 0;
+}
+
 function resolveProfileCompleteFromPayload(
   payload: Record<string, unknown> | null | undefined
 ): boolean | undefined {
@@ -310,10 +327,6 @@ function resolveProfileCompleteFromPayload(
 
   const nestedUser = payload['user'];
   if (nestedUser && typeof nestedUser === 'object') {
-    const nestedRole = String((nestedUser as Record<string, unknown>)['role'] || '').toUpperCase();
-    if (nestedRole && nestedRole !== String(Role.PATIENT)) {
-      return true;
-    }
     return resolveProfileComplete(nestedUser as Record<string, unknown>);
   }
 
@@ -742,21 +755,33 @@ export async function getServerSession(): Promise<Session | null> {
             payloadClinicId || cookieClinicId;
         }
 
+        const hasMeaningfulName =
+          String(session.user.firstName || '').trim().length > 0 &&
+          String(session.user.lastName || '').trim().length > 0;
+        if (String(session.user.role || '').toUpperCase() === String(Role.PATIENT) && !hasMeaningfulName) {
+          authoritativeProfileComplete = false;
+          cookieStore.set({
+            name: 'profile_complete',
+            value: 'false',
+            ...cookieOptions(),
+          });
+        }
+
         if (session.user.id && session.user.role && (isPhoneOtpSession || session.user.email)) {
           if (tokenProfileComplete === true) {
-            authoritativeProfileComplete = true;
+            authoritativeProfileComplete = hasMeaningfulName ? true : false;
             cookieStore.set({
               name: 'profile_complete',
-              value: 'true',
+              value: authoritativeProfileComplete ? 'true' : 'false',
               ...cookieOptions(),
             });
           } else if (!authoritativeProfileComplete) {
             const backendProfileComplete = await fetchAuthoritativeProfileComplete(accessToken, sessionId);
             if (backendProfileComplete === true) {
-              authoritativeProfileComplete = true;
+              authoritativeProfileComplete = hasMeaningfulName;
               cookieStore.set({
                 name: 'profile_complete',
-                value: 'true',
+                value: authoritativeProfileComplete ? 'true' : 'false',
                 ...cookieOptions(),
               });
             }
@@ -818,7 +843,9 @@ export async function getServerSession(): Promise<Session | null> {
       // Prefer the authoritative backend result here.
       // Do NOT use `||` to combine sources — if any source says `true`, the cookie gets stuck at `true`
       // and the user can never be redirected to profile completion even when the actual data is empty.
-      const finalProfileComplete = resolvedFromUserData ?? authoritativeProfileComplete ?? profileComplete;
+      const hasIdentity = hasMeaningfulPatientIdentity(userData as Record<string, unknown>);
+      const finalProfileComplete =
+        (resolvedFromUserData ?? authoritativeProfileComplete ?? profileComplete) && hasIdentity;
 
       return {
         user: {

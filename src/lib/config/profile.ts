@@ -65,9 +65,8 @@ export function checkProfileCompletion(profileData: UserProfileData): ProfileCom
 
   const requiredFields: string[] = [
     'firstName',
-    'lastName', 
+    'lastName',
     'phone'
-    // emergencyContact removed - not collected in profile completion form
   ];
 
   const optionalFields: string[] = [];
@@ -137,15 +136,12 @@ export function calculateProfileCompletion(userData: UserProfileData): boolean {
   }
 
   if (typeof userData.profileComplete === 'boolean') {
-    return userData.profileComplete;
+    if (userData.profileComplete !== true) {
+      return false;
+    }
   }
 
-  // Essential required fields for all users
-  const requiredFields = [
-    'firstName',
-    'lastName', 
-    'phone'
-  ];
+  const requiredFields = ['firstName', 'lastName', 'phone'];
 
   // Check if all required fields are present and not empty
   const missingFields = requiredFields.filter(field => {
@@ -207,14 +203,7 @@ export function getRequiredFieldsForRole(role?: Role): string[] {
     return [];
   }
 
-  const baseFields = [
-    'firstName',
-    'lastName',
-    'phone'
-    // emergencyContact removed - not collected in profile completion form
-  ];
-
-  return baseFields;
+  return ['firstName', 'lastName', 'phone'];
 }
 
 /**

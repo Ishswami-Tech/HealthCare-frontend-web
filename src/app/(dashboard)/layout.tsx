@@ -7,6 +7,9 @@ import { getAppointmentQueryKey } from "@/lib/query/appointment-query-keys";
 import { getQueueListQueryKey } from "@/lib/queue/queue-cache";
 import { API_ENDPOINTS } from "@/lib/config/config";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 async function buildDashboardHydrationState() {
   const session = await getServerSession();
   if (!session?.user?.id) {

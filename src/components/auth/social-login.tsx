@@ -3,6 +3,7 @@
 import { useAuth } from "@/hooks/auth/useAuth";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, useCallback, useState } from "react";
+import { InlineLoader } from "@/components/ui/loading";
 
 // Google client ID from environment variable
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
@@ -249,17 +250,23 @@ export function SocialLogin({
           "dark:border-slate-700 dark:bg-slate-900/50 dark:hover:border-slate-600",
           isButtonDisabled && "opacity-60"
         )}
+        aria-busy={isButtonDisabled}
       >
-      <div
-        ref={googleButtonRef}
-        className={cn(
-          "flex items-center justify-center w-full min-h-[46px] rounded-lg",
-          isButtonDisabled && "cursor-not-allowed"
+        <div
+          ref={googleButtonRef}
+          className={cn(
+            "flex items-center justify-center w-full min-h-[46px] rounded-lg",
+            isButtonDisabled && "pointer-events-none"
+          )}
+        />
+        {isButtonDisabled && (
+          <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-background/40 backdrop-blur-[1px]">
+            <InlineLoader className="text-muted-foreground" />
+          </div>
         )}
-      />
-      {displayError && (
-        <p className="text-xs text-destructive px-1">{displayError}</p>
-      )}
+        {displayError && (
+          <p className="px-1 pt-2 text-xs text-destructive">{displayError}</p>
+        )}
       </div>
       {showDivider && (
         <div className="relative">

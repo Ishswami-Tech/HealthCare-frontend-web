@@ -2,6 +2,8 @@ import { VideoAppointmentMeetSession } from "@/components/video/VideoAppointment
 import { getServerSession } from "@/lib/actions/auth.server";
 import { normalizeVideoSessionAppointmentId } from "@/lib/utils/video-session-route";
 
+export const dynamic = "force-dynamic";
+
 type MeetPageParams = {
   appointmentId?: string | string[];
 };

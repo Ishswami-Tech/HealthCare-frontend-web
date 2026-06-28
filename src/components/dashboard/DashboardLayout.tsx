@@ -83,6 +83,21 @@ function resolveDisplayNameAndInitials(user: {
   };
 }
 
+function hasPatientIdentity(user: {
+  firstName?: string | null | undefined;
+  lastName?: string | null | undefined;
+  role?: string | null | undefined;
+}) {
+  if (String(user.role || "").toUpperCase().replace(/\s+/g, "_") !== String(Role.PATIENT)) {
+    return true;
+  }
+
+  return (
+    String(user.firstName || "").trim().length > 0 &&
+    String(user.lastName || "").trim().length > 0
+  );
+}
+
 interface DashboardLayoutProps {
   children: React.ReactNode;
   /** Optional — used for RBAC error messages and permission warnings */
@@ -189,11 +204,29 @@ export function DashboardLayout({
     if (!user) return ROUTES.LOGIN;
     if (!hasAccess) return getDefaultRoute();
     const profileComplete = authoritativeProfileComplete ?? user?.profileComplete;
-    if (normalizedUserRole === Role.PATIENT && profileComplete === false) {
+    const patientIdentityComplete = hasPatientIdentity({
+      firstName: user?.firstName,
+      lastName: user?.lastName,
+      role: user?.role,
+    });
+    if (
+      normalizedUserRole === Role.PATIENT &&
+      (profileComplete === false || !patientIdentityComplete)
+    ) {
       return ROUTES.PROFILE_COMPLETION;
     }
     return null;
-  }, [isPending, user, hasAccess, getDefaultRoute, authoritativeProfileComplete, normalizedUserRole]);
+  }, [
+    isPending,
+    user,
+    hasAccess,
+    getDefaultRoute,
+    authoritativeProfileComplete,
+    normalizedUserRole,
+    user?.firstName,
+    user?.lastName,
+    user?.role,
+  ]);
 
   // ─── Fetch User Profile (React Query) ──────────────────────────────────────
   // ─── Sync Store Data (Zustand) ─────────────────────────────────────────────
@@ -280,7 +313,12 @@ export function DashboardLayout({
 
   // Profile completeness check
   const profileComplete = authoritativeProfileComplete ?? user?.profileComplete;
-  if (normalizedUserRole === Role.PATIENT && profileComplete === false) {
+  const patientIdentityComplete = hasPatientIdentity({
+    firstName: user?.firstName,
+    lastName: user?.lastName,
+    role: user?.role,
+  });
+  if (normalizedUserRole === Role.PATIENT && (profileComplete === false || !patientIdentityComplete)) {
     return (
       <div className={cn(
         "flex items-center justify-center bg-background",

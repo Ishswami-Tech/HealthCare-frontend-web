@@ -74,7 +74,8 @@ function LoginPageContent() {
     prevSessionRef.current = session?.user;
   }, [session?.user, isRestoringSession]);
 
-  const isFormDisabled = isGoogleLoggingIn || successPhase !== "none";
+  const isFormDisabled =
+    isGoogleLoggingIn || isSendingOtp || isVerifyingOTP || successPhase !== "none";
 
   const triggerSuccessFlow = useCallback(() => {
     setAuthError(null);
@@ -255,6 +256,7 @@ function LoginPageContent() {
       authError={authError}
       otpForm={otpForm}
       defaultClinicId={defaultClinicId}
+      isSocialLoading={isFormDisabled}
       getCachedIdentifier={(method) =>
         method === "phone"
           ? identifierCacheRef.current.phone

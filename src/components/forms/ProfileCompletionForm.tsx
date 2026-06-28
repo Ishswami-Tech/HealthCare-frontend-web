@@ -2,6 +2,7 @@
 
 import React, {
   Suspense,
+  useCallback,
   useState,
   useEffect,
   useRef,
@@ -461,6 +462,10 @@ function ProfileCompletionFormContent({
   const autoFilledLastName = getAutoLastName();
   const autoFilledEmail = isPhoneOtpLogin ? "" : sessionUser?.email || "";
   const showEmailField = true;
+  const googleNameCacheRef = useRef<{ firstName: string; lastName: string }>({
+    firstName: "",
+    lastName: "",
+  });
   const sessionIdentityKey = useMemo(
     () =>
       [
@@ -596,11 +601,21 @@ function ProfileCompletionFormContent({
     if (!sessionUser) return;
     if (lastInitializedSessionKeyRef.current === sessionIdentityKey) return;
     const finalFirstName = isGoogleLogin
-      ? autoFilledFirstName || resolveNameParts(sessionUser).firstName
+      ? autoFilledFirstName ||
+        googleNameCacheRef.current.firstName ||
+        resolveNameParts(sessionUser).firstName
       : "";
     const finalLastName = isGoogleLogin
-      ? autoFilledLastName || resolveNameParts(sessionUser).lastName
+      ? autoFilledLastName ||
+        googleNameCacheRef.current.lastName ||
+        resolveNameParts(sessionUser).lastName
       : "";
+    if (isGoogleLogin) {
+      googleNameCacheRef.current = {
+        firstName: finalFirstName || googleNameCacheRef.current.firstName,
+        lastName: finalLastName || googleNameCacheRef.current.lastName,
+      };
+    }
     form.reset({
       firstName: finalFirstName,
       lastName: finalLastName,
@@ -632,6 +647,41 @@ function ProfileCompletionFormContent({
   const updateProfileMutation = useUpdateUserProfile();
   const setProfileCompleteMutation = useSetProfileComplete();
   const updatingProfile = updateProfileMutation.isPending;
+
+  const syncCompletedProfileState = useCallback(
+    (profileData: Record<string, unknown>) => {
+      queryClient.setQueryData<Record<string, unknown>>(["userProfile"], (current) => {
+        const currentProfile =
+          current && typeof current === "object" ? (current as Record<string, unknown>) : {};
+
+        return {
+          ...currentProfile,
+          ...profileData,
+          phoneVerified: true,
+          profileComplete: true,
+          isProfileComplete: true,
+          requiresProfileCompletion: false,
+          updatedAt: new Date().toISOString(),
+        };
+      });
+
+      queryClient.setQueryData<Session | null>(["session"], (current) => {
+        const source = current || session;
+        if (!source?.user) return source;
+
+        const updatedUser = {
+          ...source.user,
+          ...(profileData || {}),
+          phoneVerified: true,
+          profileComplete: true,
+          isProfileComplete: true,
+        };
+
+        return { ...source, user: updatedUser };
+      });
+    },
+    [queryClient, session],
+  );
 
   const sendPhoneOtp = async () => {
     try {
@@ -824,21 +874,7 @@ function ProfileCompletionFormContent({
 
       // Update frontend state
       setProfileCompletion(true, false);
-
-      // Update session with submitted profile data
-      queryClient.setQueryData<Session | null>(["session"], (current) => {
-        const source = current || session;
-        if (!source?.user) return source;
-
-        const updatedUser = {
-          ...source.user,
-          ...(profileData || {}),
-          profileComplete: true,
-          isProfileComplete: true,
-        };
-
-        return { ...source, user: updatedUser };
-      });
+      syncCompletedProfileState(profileData);
 
       // Invalidate clinic queries
       const clinicQueryKeys = [
@@ -913,20 +949,7 @@ function ProfileCompletionFormContent({
 
         // Update state
         setProfileCompletion(true, false);
-
-        queryClient.setQueryData<Session | null>(["session"], (current) => {
-          const source = current || session;
-          if (!source?.user) return source;
-
-          const updatedUser = {
-            ...source.user,
-            ...(profileData || {}),
-            profileComplete: true,
-            isProfileComplete: true,
-          };
-
-          return { ...source, user: updatedUser };
-        });
+        syncCompletedProfileState(profileData);
 
         window.location.replace(finalRedirect);
       } else {
@@ -976,13 +999,9 @@ function ProfileCompletionFormContent({
       }
 
       // Validation: For email OTP and Google login, phone must be verified
-      // Check if user entered a phone but hasn't verified it yet
-      const hasEnteredPhone = data.phone?.trim() && !isPhoneOtpLogin;
-      if (
-        (isEmailOtpLogin || isGoogleLogin) &&
-        hasEnteredPhone &&
-        !isPhoneVerified
-      ) {
+      // before the profile can be completed, regardless of whether the
+      // user already typed a phone number.
+      if ((isEmailOtpLogin || isGoogleLogin) && !isPhoneVerified) {
         form.setError("phone", {
           type: "manual",
           message:
