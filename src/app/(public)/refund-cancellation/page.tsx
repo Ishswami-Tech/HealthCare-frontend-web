@@ -46,7 +46,7 @@ export default function RefundCancellationPage() {
           </div>
         </div>
 
-        <Card className="border-t-4 border-t-primary shadow-lg">
+        <Card className="border-t-4 border-t-primary">
           <CardHeader className="flex flex-col gap-y-4 border-b pb-8">
             <div className="mb-2 flex items-center gap-3">
               <div className="flex size-10 items-center justify-center rounded-full bg-primary/10">

@@ -15,5 +15,8 @@ export const healthcareProvider = {
 export const paymentCollectionDisclosure =
   "Online payments for video appointments, in-person appointments, invoices, and related clinic services may be collected by IshSwamiTech as the technology and payment collection partner. Healthcare services are provided by Dr Chandrakumar Deshmukh through the Viddhakarma platform/domain.";
 
+export const videoAppointmentNoRefundDisclosure =
+  "Video appointment payments are non-refundable once payment is completed because the selected doctor slot is reserved for the patient.";
+
 export const patientDataDisclosure =
   "To operate the clinic platform, booking flow, billing flow, and support process, the platform may process patient profile details, verified phone/email status, appointment records, video consultation details, in-person visit details, invoices, payment transactions, refund records, and support requests.";

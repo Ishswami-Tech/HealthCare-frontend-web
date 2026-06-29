@@ -22,7 +22,7 @@ export default function DataDeletionPage() {
           </div>
         </div>
 
-        <Card className="border-t-4 border-t-primary shadow-lg">
+        <Card className="border-t-4 border-t-primary">
           <CardHeader className="flex flex-col gap-y-4 border-b pb-8">
             <div className="flex items-center gap-3 mb-2">
               <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center">

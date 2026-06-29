@@ -7,7 +7,7 @@ import { ArrowLeft, Shield, AlertTriangle, FileText, Info } from "lucide-react";
 
 export default function DisclaimerPage() {
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background px-4 py-12 text-foreground sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto gap-y-8">
         <div className="flex items-center justify-between">
             <Link href="/" prefetch={false}>
@@ -16,72 +16,72 @@ export default function DisclaimerPage() {
                 Back to Home
             </Button>
             </Link>
-             <div className="flex items-center gap-2 text-blue-600">
+             <div className="flex items-center gap-2 text-primary">
                 <Shield className="size-6" />
                 <span className="font-semibold text-lg">Dr Chandrakumar Deshmukh</span>
             </div>
         </div>
 
-        <Card className="shadow-lg border-t-4 border-t-blue-600">
+        <Card className="border-t-4 border-t-primary">
           <CardHeader className="gap-y-4 pb-8 border-b">
             <div className="flex items-center gap-3 mb-2">
-                <div className="size-10 rounded-full bg-blue-100 flex items-center justify-center">
-                    <AlertTriangle className="size-5 text-blue-600" />
+                <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <AlertTriangle className="size-5 text-primary" />
                 </div>
-                <CardTitle className="text-3xl font-bold text-gray-900">Disclaimer</CardTitle>
+                <CardTitle className="text-3xl font-bold text-foreground">Disclaimer</CardTitle>
             </div>
-            <p className="text-gray-500">
+            <p className="text-muted-foreground">
               Last updated: January 21, 2026
             </p>
-            <p className="text-lg text-gray-700 leading-relaxed font-medium">
+            <p className="text-lg text-muted-foreground leading-relaxed font-medium">
               Important information regarding the use of the Dr Chandrakumar Deshmukh platform and services.
             </p>
           </CardHeader>
           <CardContent className="gap-y-8 pt-8 px-6 sm:px-10">
             <section className="gap-y-3">
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                 <Info className="size-5 text-blue-600" />
+              <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+                 <Info className="size-5 text-primary" />
                  1. Medical Information Disclaimer
               </h2>
-              <p className="text-gray-600 leading-relaxed">
+              <p className="text-muted-foreground leading-relaxed">
                 The content provided on Dr Chandrakumar Deshmukh, including text, graphics, images, and other material, is for informational purposes only. It is not intended to be a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition.
               </p>
             </section>
 
              <section className="gap-y-3">
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                 <AlertTriangle className="size-5 text-blue-600" />
+              <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+                 <AlertTriangle className="size-5 text-primary" />
                  2. No Emergency Services
               </h2>
-              <p className="text-gray-600 leading-relaxed">
+              <p className="text-muted-foreground leading-relaxed">
                 Dr Chandrakumar Deshmukh is not intended for use in medical emergencies. If you are experiencing a medical emergency, call your local emergency services immediately.
               </p>
             </section>
 
              <section className="gap-y-3">
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                 <FileText className="size-5 text-blue-600" />
+              <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+                 <FileText className="size-5 text-primary" />
                  3. Accuracy of Information
               </h2>
-              <p className="text-gray-600 leading-relaxed">
+              <p className="text-muted-foreground leading-relaxed">
                 While we strive to provide accurate and up-to-date information, medical knowledge is constantly evolving. Dr Chandrakumar Deshmukh makes no representations or warranties, express or implied, about the completeness, accuracy, reliability, or suitability of the information contained on the platform.
               </p>
             </section>
 
              <section className="gap-y-3">
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                 <Shield className="size-5 text-blue-600" />
+              <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+                 <Shield className="size-5 text-primary" />
                  4. Limitation of Liability
               </h2>
-              <p className="text-gray-600 leading-relaxed">
+              <p className="text-muted-foreground leading-relaxed">
                 In no event will Dr Chandrakumar Deshmukh, its directors, employees, or partners be liable for any loss or damage including without limitation, indirect or consequential loss or damage, or any loss or damage whatsoever arising from loss of data or profits arising out of, or in connection with, the use of this platform.
               </p>
             </section>
 
-            <section className="bg-blue-50 rounded-xl p-6 mt-8">
-                <h3 className="font-semibold text-blue-900 mb-2">Questions?</h3>
-                <p className="text-blue-800 text-sm">
-                    If you have any questions regarding this disclaimer, please contact us at <a href="mailto:info@viddhakarma.com" className="underline hover:text-blue-600">info@viddhakarma.com</a> or visit our <Link href="/contact" prefetch={false} className="underline hover:text-blue-600">contact page</Link>.
+            <section className="bg-primary/10 rounded-xl p-6 mt-8">
+                <h3 className="font-semibold text-primary mb-2">Questions?</h3>
+                <p className="text-muted-foreground text-sm">
+                    If you have any questions regarding this disclaimer, please contact us at <a href="mailto:info@viddhakarma.com" className="underline hover:text-primary">info@viddhakarma.com</a> or visit our <Link href="/contact" prefetch={false} className="underline hover:text-primary">contact page</Link>.
                 </p>
             </section>
           </CardContent>
