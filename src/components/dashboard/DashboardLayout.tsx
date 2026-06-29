@@ -203,16 +203,20 @@ export function DashboardLayout({
     if (isPending) return null;
     if (!user) return ROUTES.LOGIN;
     if (!hasAccess) return getDefaultRoute();
+    const mergedUser = {
+      ...(user as unknown as Record<string, unknown>),
+      ...(currentUserProfile as unknown as Record<string, unknown> | undefined),
+    };
     const profileComplete = authoritativeProfileComplete ?? user?.profileComplete;
     const patientIdentityComplete = hasPatientIdentity({
-      firstName: user?.firstName,
-      lastName: user?.lastName,
-      role: user?.role,
+      firstName: mergedUser.firstName as string | null | undefined,
+      lastName: mergedUser.lastName as string | null | undefined,
+      role: mergedUser.role as string | null | undefined,
     });
-    if (
-      normalizedUserRole === Role.PATIENT &&
-      (profileComplete === false || !patientIdentityComplete)
-    ) {
+    if (normalizedUserRole === Role.PATIENT && profileComplete !== true && !patientIdentityComplete) {
+      return ROUTES.PROFILE_COMPLETION;
+    }
+    if (normalizedUserRole === Role.PATIENT && profileComplete === false) {
       return ROUTES.PROFILE_COMPLETION;
     }
     return null;
@@ -222,6 +226,7 @@ export function DashboardLayout({
     hasAccess,
     getDefaultRoute,
     authoritativeProfileComplete,
+    currentUserProfile,
     normalizedUserRole,
     user?.firstName,
     user?.lastName,
@@ -313,12 +318,29 @@ export function DashboardLayout({
 
   // Profile completeness check
   const profileComplete = authoritativeProfileComplete ?? user?.profileComplete;
+  const mergedPatientUser = {
+    ...(user as unknown as Record<string, unknown>),
+    ...(currentUserProfile as unknown as Record<string, unknown> | undefined),
+  };
   const patientIdentityComplete = hasPatientIdentity({
-    firstName: user?.firstName,
-    lastName: user?.lastName,
-    role: user?.role,
+    firstName: mergedPatientUser.firstName as string | null | undefined,
+    lastName: mergedPatientUser.lastName as string | null | undefined,
+    role: mergedPatientUser.role as string | null | undefined,
   });
-  if (normalizedUserRole === Role.PATIENT && (profileComplete === false || !patientIdentityComplete)) {
+  if (normalizedUserRole === Role.PATIENT && profileComplete !== true && !patientIdentityComplete) {
+    return (
+      <div
+        className={cn(
+          "flex items-center justify-center bg-background",
+          isInsideShell ? "h-[400px] w-full" : "min-h-screen"
+        )}
+      >
+        <Loader2 className="size-8 animate-spin text-blue-600" />
+        <p className="ml-2">Redirecting to profile completion…</p>
+      </div>
+    );
+  }
+  if (normalizedUserRole === Role.PATIENT && profileComplete === false) {
     return (
       <div className={cn(
         "flex items-center justify-center bg-background",
