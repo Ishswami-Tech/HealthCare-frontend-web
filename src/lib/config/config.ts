@@ -618,12 +618,6 @@ export const API_ENDPOINTS = {
     DELETE: (id: string) => `/staff/${id}`,
   },
   
-  // Profile Completion Endpoints
-  PROFILE_COMPLETION: {
-    COMPLETE: '/profile/completion/complete',
-    UPDATE: '/profile/completion/update',
-  },
-
   // Users Endpoints (Updated to /users for naming consistency)
   USERS: {
     BASE: '/user',
