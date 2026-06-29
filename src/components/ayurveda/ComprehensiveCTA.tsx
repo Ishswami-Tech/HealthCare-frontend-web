@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -550,8 +551,15 @@ const ComprehensiveCTA = () => {
               </Button>
             </div>
 
-            <p className="text-xs text-muted-foreground mt-4">
-              {t("comprehensiveCTA.newsletter.privacy")}
+            <p className="mt-4 text-xs text-muted-foreground">
+              We respect your privacy. Read our{" "}
+              <Link
+                href="/privacy-policy"
+                className="font-medium text-foreground underline underline-offset-4 hover:text-primary"
+              >
+                Privacy Policy
+              </Link>
+              . Unsubscribe at any time.
             </p>
           </div>
         </div>
