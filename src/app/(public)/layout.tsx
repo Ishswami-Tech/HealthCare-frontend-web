@@ -13,6 +13,7 @@ import {
 import Navigation from "@/components/ayurveda/Navigation";
 import Footer from "@/components/ayurveda/Footer";
 import { WhatsAppButton } from "@/components/contact/whatsapp-button";
+import { CookieConsent } from "@/components/legal/CookieConsent";
 import { useTranslation } from "@/lib/i18n/context";
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
@@ -33,6 +34,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       <Navigation />
       <main className="relative z-10 overflow-x-clip">{children}</main>
       <Footer />
+      <CookieConsent />
 
       {/* WhatsApp Button - Available on all pages */}
       <WhatsAppButton

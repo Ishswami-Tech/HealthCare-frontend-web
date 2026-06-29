@@ -4,7 +4,6 @@ import Link from "next/link";
 import { ArrowLeft, PackageCheck, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ROUTES } from "@/lib/config/routes";
 import {
   healthcareProvider,
   paymentCollectionDisclosure,
@@ -35,10 +34,10 @@ export default function ShippingDeliveryPage() {
     <div className="min-h-screen bg-background px-4 py-12 text-foreground sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-4xl flex-col gap-y-8">
         <div className="flex items-center justify-between">
-          <Link href={ROUTES.LOGIN} prefetch={false}>
+          <Link href="/" prefetch={false}>
             <Button variant="ghost" className="gap-2">
               <ArrowLeft className="size-4" />
-              Back to Login
+              Back to Home
             </Button>
           </Link>
           <div className="flex items-center gap-2 text-primary">
