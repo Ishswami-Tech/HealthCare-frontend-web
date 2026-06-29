@@ -35,8 +35,9 @@ const BILLING_QUERY_KEYS = [
   ["patientDashboardSummary"],
 ] as const;
 
-const CASHFREE_LOAD_TIMEOUT_MS = 10000;
-const CASHFREE_CHECKOUT_TIMEOUT_MS = 15000;
+// Fast timeouts for better UX
+const CASHFREE_LOAD_TIMEOUT_MS = 8000;
+const CASHFREE_CHECKOUT_TIMEOUT_MS = 10000;
 
 interface PaymentButtonProps {
   invoiceId?: string;
@@ -199,6 +200,15 @@ export function PaymentButton({
     });
 
     return cashfreeSdkPromiseRef.current;
+  };
+
+  const warmUpPaymentResources = () => {
+    if (disabled) {
+      return;
+    }
+
+    void preloadPaymentIntent();
+    void preloadCashfreeSdk();
   };
 
   const verifyPayment = async (
@@ -487,18 +497,8 @@ export function PaymentButton({
   });
 
   useEffect(() => {
-    if (disabled) {
-      return;
-    }
-
-    void preloadPaymentIntent();
-    if (!cashfreeSdkPromiseRef.current) {
-      cashfreeSdkPromiseRef.current = load({ mode: cashfreeMode }).catch((error) => {
-        cashfreeSdkPromiseRef.current = null;
-        throw error;
-      });
-    }
-  }, [cashfreeMode, disabled]);
+    warmUpPaymentResources();
+  }, [warmUpPaymentResources]);
 
   useEffect(() => {
     if (!autoStart || disabled || hasAutoStartedRef.current || isProcessing) {
@@ -513,6 +513,8 @@ export function PaymentButton({
     <Button
       type="button"
       onClick={handlePayment}
+      onPointerEnter={warmUpPaymentResources}
+      onFocus={warmUpPaymentResources}
       disabled={isProcessing || disabled}
       className={className}
     >

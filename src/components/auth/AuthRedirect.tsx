@@ -1,28 +1,46 @@
-﻿"use client";
+"use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
+import { useUserProfile } from "@/hooks/query/useUsers";
 import { ROUTES, getDashboardByRole } from "@/lib/config/routes";
 import { LoadingSpinner } from "@/components/ui/loading";
+import { resolveAuthoritativeProfileComplete } from "@/lib/config/profile";
 
 export function AuthRedirect() {
-  const { isAuthenticated, session, isPending } = useAuth();
-  const { replace } = useRouter();
+  const { isAuthenticated, isPending: authPending } = useAuth();
+  const router = useRouter();
+  const [hasRedirected, setHasRedirected] = useState(false);
+
+  // Only fetch profile when authenticated - prevents blocking login page
+  const { data: userProfile, isPending: profilePending } = useUserProfile({
+    enabled: isAuthenticated,
+  });
 
   useEffect(() => {
-    if (!isPending && isAuthenticated && session?.user) {
-      const nextPath =
-        String(session.user.role || "").toUpperCase() === "PATIENT" &&
-        session.user.profileComplete === false
-          ? ROUTES.PROFILE_COMPLETION
-          : getDashboardByRole(session.user.role);
-      replace(nextPath);
-    }
-  }, [isPending, isAuthenticated, replace, session]);
+    // Only redirect when auth is settled and we have profile data
+    if (authPending) return;
+    if (!isAuthenticated) return;
+    if (profilePending) return;
+    if (!userProfile) return;
+    if (hasRedirected) return;
 
-  // Optionally show a loader while checking/redirecting
-  if (isPending || (isAuthenticated && session?.user)) {
+    const role = (userProfile as { role?: string })?.role || "";
+    const profileComplete = resolveAuthoritativeProfileComplete(userProfile as Record<string, unknown> | null | undefined);
+    const nextPath =
+      String(role).toUpperCase() === "PATIENT" && profileComplete !== true
+        ? ROUTES.PROFILE_COMPLETION
+        : getDashboardByRole(role);
+
+    setHasRedirected(true);
+    router.replace(nextPath);
+  }, [authPending, isAuthenticated, profilePending, userProfile, hasRedirected, router]);
+
+  // Show loader while auth AND profile are loading
+  const showLoader = authPending || profilePending || (isAuthenticated && !hasRedirected);
+
+  if (showLoader) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 mobile-only-loader">
         <LoadingSpinner size="lg" center />
@@ -32,4 +50,3 @@ export function AuthRedirect() {
 
   return null;
 }
-

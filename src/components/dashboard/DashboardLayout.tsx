@@ -15,6 +15,7 @@ import { ROUTES, getProtectedRouteRoles } from "@/lib/config/routes";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { RouteRedirect } from "@/components/navigation/RouteRedirect";
+import { resolveAuthoritativeProfileComplete } from "@/lib/config/profile";
 
 // Layout imports
 import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
@@ -83,21 +84,6 @@ function resolveDisplayNameAndInitials(user: {
   };
 }
 
-function hasPatientIdentity(user: {
-  firstName?: string | null | undefined;
-  lastName?: string | null | undefined;
-  role?: string | null | undefined;
-}) {
-  if (String(user.role || "").toUpperCase().replace(/\s+/g, "_") !== String(Role.PATIENT)) {
-    return true;
-  }
-
-  return (
-    String(user.firstName || "").trim().length > 0 &&
-    String(user.lastName || "").trim().length > 0
-  );
-}
-
 interface DashboardLayoutProps {
   children: React.ReactNode;
   /** Optional — used for RBAC error messages and permission warnings */
@@ -128,22 +114,13 @@ export function DashboardLayout({
   const { session, isPending } = useAuth();
   const { back, push, replace } = useRouter();
   const { user } = session || {};
-  const { data: currentUserProfile } = useUserProfile();
+  const { data: currentUserProfile, isPending: isUserProfilePending } = useUserProfile({
+    enabled: !!user,
+  });
   // RBAC hooks
   const rbac = useRBAC();
   const { getDefaultRoute } = useRoleBasedNavigation();
   const appointmentPermissions = useAppointmentPermissions();
-
-  const authoritativeProfileComplete = useMemo(() => {
-    const profile = currentUserProfile as Record<string, unknown> | undefined;
-    if (!profile) return undefined;
-    if (typeof profile.profileComplete === "boolean") return profile.profileComplete;
-    if (typeof profile.isProfileComplete === "boolean") return profile.isProfileComplete;
-    if (typeof profile.requiresProfileCompletion === "boolean") {
-      return !profile.requiresProfileCompletion;
-    }
-    return undefined;
-  }, [currentUserProfile]);
 
   // Memoize allowed roles array
   const allowedRoles = useMemo(
@@ -203,17 +180,25 @@ export function DashboardLayout({
     if (isPending) return null;
     if (!user) return ROUTES.LOGIN;
     if (!hasAccess) return getDefaultRoute();
-    const profileComplete = authoritativeProfileComplete ?? user?.profileComplete;
-    const patientIdentityComplete = hasPatientIdentity({
-      firstName: user?.firstName,
-      lastName: user?.lastName,
-      role: user?.role,
-    });
-    if (
-      normalizedUserRole === Role.PATIENT &&
-      (profileComplete === false || !patientIdentityComplete)
-    ) {
-      return ROUTES.PROFILE_COMPLETION;
+
+    // Patient profile completeness check - use authoritative profile data
+    if (normalizedUserRole === Role.PATIENT) {
+      // Always show shell immediately - redirect decision happens after profile loads
+      // If profile is loading, return null (show shell) and redirect later in a second pass
+      if (isUserProfilePending) {
+        return null;
+      }
+
+      // Profile loaded - make definitive redirect decision
+      const profileComplete = resolveAuthoritativeProfileComplete(
+        currentUserProfile as Record<string, unknown> | null | undefined,
+      );
+
+      const needsProfileCompletion = profileComplete !== true;
+
+      if (needsProfileCompletion) {
+        return ROUTES.PROFILE_COMPLETION;
+      }
     }
     return null;
   }, [
@@ -221,11 +206,9 @@ export function DashboardLayout({
     user,
     hasAccess,
     getDefaultRoute,
-    authoritativeProfileComplete,
+    currentUserProfile,
+    isUserProfilePending,
     normalizedUserRole,
-    user?.firstName,
-    user?.lastName,
-    user?.role,
   ]);
 
   // ─── Fetch User Profile (React Query) ──────────────────────────────────────
@@ -309,25 +292,6 @@ export function DashboardLayout({
 
   if (redirectTarget) {
     return <RouteRedirect target={redirectTarget} />;
-  }
-
-  // Profile completeness check
-  const profileComplete = authoritativeProfileComplete ?? user?.profileComplete;
-  const patientIdentityComplete = hasPatientIdentity({
-    firstName: user?.firstName,
-    lastName: user?.lastName,
-    role: user?.role,
-  });
-  if (normalizedUserRole === Role.PATIENT && (profileComplete === false || !patientIdentityComplete)) {
-    return (
-      <div className={cn(
-        "flex items-center justify-center bg-background",
-        isInsideShell ? "h-[400px] w-full" : "min-h-screen"
-      )}>
-        <Loader2 className="size-8 animate-spin text-blue-600" />
-        <p className="ml-2">Redirecting to profile completion…</p>
-      </div>
-    );
   }
 
   // Shell Rendering info

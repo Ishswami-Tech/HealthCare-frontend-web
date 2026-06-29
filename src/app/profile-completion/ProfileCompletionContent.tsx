@@ -1,11 +1,11 @@
-﻿"use client";
+"use client";
 
 /**
- *… Profile Completion Content
- * Uses LoadingSpinner for loading states (no blocking overlay)
+ * Profile Completion Content
+ * Renders the form until the authoritative profile query confirms completion.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useRouter, useSearchParams } from "next/navigation";
 import ProfileCompletionForm from "@/components/forms/ProfileCompletionForm";
@@ -13,42 +13,47 @@ import { getProfileCompletionRedirectUrl } from "@/lib/config/profile";
 import { Role } from "@/types/auth.types";
 import { LoadingSpinner } from "@/components/ui/loading";
 import { ROUTES } from "@/lib/config/routes";
+import { useUserProfile } from "@/hooks/query/useUsers";
+import { resolveAuthoritativeProfileComplete } from "@/lib/config/profile";
 
 export default function ProfileCompletionContent() {
-  const { session, isPending, refreshSession } = useAuth();
+  const { session, isPending } = useAuth();
   const { push } = useRouter();
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get("redirect") || undefined;
-  const hasRefreshedRef = useRef(false);
+  const { data: currentUserProfile, isPending: isProfilePending } = useUserProfile({
+    enabled: !!session?.user,
+  });
+
+  const authoritativeProfileComplete = resolveAuthoritativeProfileComplete(
+    currentUserProfile as Record<string, unknown> | null | undefined,
+  );
 
   useEffect(() => {
-    if (!isPending) {
-      if (!session?.user) {
-        push(ROUTES.LOGIN);
-        return;
-      }
-      if (session.user.profileComplete === false && !hasRefreshedRef.current) {
-        hasRefreshedRef.current = true;
-        void refreshSession(true);
-        return;
-      }
-      if (session.user.profileComplete === true) {
-        const userRole = session.user.role as Role;
-        // Use redirectUrl if valid and not an auth route
-        const safeRedirectUrl =
-          redirectUrl &&
-          redirectUrl !== "/" &&
-          !redirectUrl.startsWith("/auth/")
-            ? redirectUrl
-            : undefined;
-        const dashboardPath = getProfileCompletionRedirectUrl(userRole, safeRedirectUrl);
-        window.location.replace(dashboardPath);
-      }
-    }
-  }, [session, isPending, push, refreshSession, redirectUrl]);
+    if (isPending) return;
 
-  // Show loading while checking auth
-  if (isPending) {
+    if (!session?.user) {
+      push(ROUTES.LOGIN);
+      return;
+    }
+
+    // Fail-closed: only redirect when AUTHORITATIVE profile confirms completion.
+    // Ignore session.user.profileComplete (may be stale from initial hydration).
+    // This prevents the dashboard/profile-completion bounce when session state is partial.
+    if (authoritativeProfileComplete === true) {
+      const userRole = session.user.role as Role;
+      const safeRedirectUrl =
+        redirectUrl &&
+        redirectUrl !== "/" &&
+        !redirectUrl.startsWith("/auth/")
+          ? redirectUrl
+          : undefined;
+      const dashboardPath = getProfileCompletionRedirectUrl(userRole, safeRedirectUrl);
+      window.location.replace(dashboardPath);
+    }
+  }, [authoritativeProfileComplete, isPending, push, redirectUrl, session]);
+
+  if (isPending || (session?.user && isProfilePending && authoritativeProfileComplete === undefined)) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <LoadingSpinner size="lg" text="Loading profile..." center />
@@ -56,7 +61,7 @@ export default function ProfileCompletionContent() {
     );
   }
 
-  if (session?.user && session.user.profileComplete === true) {
+  if (session?.user && authoritativeProfileComplete === true) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <LoadingSpinner size="lg" text="Redirecting…" center />
@@ -66,5 +71,3 @@ export default function ProfileCompletionContent() {
 
   return <ProfileCompletionForm />;
 }
-
-

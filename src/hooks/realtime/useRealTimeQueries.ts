@@ -1,136 +1,143 @@
 "use client";
-import { nowIso } from '@/lib/utils/date-time';
+import { nowIso } from "@/lib/utils/date-time";
 
-import { useEffect, useRef, useCallback } from 'react';
-import type { QueryClient } from '@tanstack/react-query';
-import { keepPreviousData } from '@tanstack/react-query';
-import { useQueryData, useOptimisticMutation, useQueryClient } from '@/hooks/core';
+import { useEffect, useRef, useCallback } from "react";
+import type { QueryClient } from "@tanstack/react-query";
+import { keepPreviousData } from "@tanstack/react-query";
+import {
+  useQueryData,
+  useOptimisticMutation,
+  useQueryClient,
+} from "@/hooks/core";
 import {
   invalidateAppointmentQueryFamilies,
   invalidateBillingQueryFamilies,
   invalidateDashboardQueryFamilies,
-} from './useWebSocketIntegration';
-import { useWebSocketContext, useWebSocketStatus } from '@/app/providers/WebSocketProvider';
-import { useAppStore, useAuthStore } from '@/stores';
-import { useAuth } from '@/hooks/auth/useAuth';
+} from "./useWebSocketIntegration";
+import {
+  useWebSocketContext,
+  useWebSocketStatus,
+} from "@/app/providers/WebSocketProvider";
+import { useAppStore, useAuthStore } from "@/stores";
+import { useAuth } from "@/hooks/auth/useAuth";
 import {
   createAppointment as createAppointmentAction,
   cancelAppointment as cancelAppointmentAction,
   getAppointments,
   updateAppointment as updateAppointmentAction,
-} from '@/lib/actions/appointments.server';
-import { getAppointmentAnalytics } from '@/lib/actions/analytics.server';
-import { getQueueStats } from '@/lib/actions/queue.server';
+} from "@/lib/actions/appointments.server";
 import {
   getQueueStatusQueryKey,
   normalizeQueueStatusSnapshot,
   type QueueStatusSnapshot,
-} from '@/lib/queue/queue-cache';
+} from "@/lib/queue/queue-cache";
 // ✅ Consolidated: Import types from @/types (single source of truth)
-import type { Appointment, AppointmentFilters } from '@/types/appointment.types';
-import {
-  getAppointmentQueryKey,
-  getAppointmentStatsQueryKey,
-} from '@/lib/query/appointment-query-keys';
+import type {
+  Appointment,
+  AppointmentFilters,
+} from "@/types/appointment.types";
+import { getAppointmentQueryKey } from "@/lib/query/appointment-query-keys";
+import { useAppointmentAnalytics } from "@/hooks/query/useAnalytics";
+import { useQueueStats } from "@/hooks/query/useQueue";
 
 function resolveRealtimeClinicId(
   currentClinic: { id?: string } | null | undefined,
-  sessionUser: { clinicId?: string; clinic?: { id?: string } } | undefined
+  sessionUser: { clinicId?: string; clinic?: { id?: string } } | undefined,
 ): string | undefined {
   return sessionUser?.clinicId || sessionUser?.clinic?.id || currentClinic?.id;
 }
 
 const CRITICAL_REALTIME_QUERY_PREFIXES: readonly ReadonlyArray<string>[] = [
-  ['appointments'],
-  ['appointment'],
-  ['appointmentStats'],
-  ['myAppointments'],
-  ['userUpcomingAppointments'],
-  ['video-appointments'],
-  ['video-appointment'],
-  ['doctorAppointments'],
-  ['doctorSchedule'],
-  ['doctorAvailability'],
-  ['doctorPatients'],
-  ['doctors'],
-  ['doctor'],
-  ['counselorAppointments'],
-  ['counselorClients'],
-  ['counselorClient'],
-  ['therapistAppointments'],
-  ['therapistPatientAppointments'],
-  ['therapistClients'],
-  ['therapistClient'],
+  ["appointments"],
+  ["appointment"],
+  ["appointmentStats"],
+  ["myAppointments"],
+  ["userUpcomingAppointments"],
+  ["video-appointments"],
+  ["video-appointment"],
+  ["doctorAppointments"],
+  ["doctorSchedule"],
+  ["doctorAvailability"],
+  ["doctorPatients"],
+  ["doctors"],
+  ["doctor"],
+  ["counselorAppointments"],
+  ["counselorClients"],
+  ["counselorClient"],
+  ["therapistAppointments"],
+  ["therapistPatientAppointments"],
+  ["therapistClients"],
+  ["therapistClient"],
   // Patient dashboard summary — single-round-trip composition endpoint.
   // Invalidating this key on lifecycle events (appointments, billing,
   // prescriptions) busts the cache so the next visit fetches fresh data.
-  ['patientDashboardSummary'],
-  ['queue'],
-  ['queue-status'],
-  ['queue-metrics'],
-  ['queueHistory'],
-  ['queueAnalytics'],
-  ['queueConfig'],
-  ['queueNotifications'],
-  ['queueWaitTimes'],
-  ['queueCapacity'],
-  ['queuePerformanceMetrics'],
-  ['queueAlerts'],
-  ['billing'],
-  ['billing-plans'],
-  ['billing-plan'],
-  ['subscriptions'],
-  ['clinic-subscriptions'],
-  ['active-subscription'],
-  ['invoices'],
-  ['clinic-invoices'],
-  ['payments'],
-  ['clinic-payments'],
-  ['clinic-ledger'],
-  ['billing-analytics'],
-  ['clinicStats'],
-  ['dashboardAnalytics'],
-  ['appointmentAnalytics'],
-  ['patientAnalytics'],
-  ['revenueAnalytics'],
-  ['serviceUtilizationAnalytics'],
-  ['waitTimeAnalytics'],
-  ['patientSatisfactionAnalytics'],
-  ['pharmacyStats'],
-  ['medicineDeskQueue'],
-  ['prescriptions'],
-  ['medicalRecords'],
-  ['medicineCategories'],
-  ['medicines'],
-  ['medicineInventory'],
-  ['pharmacyOrders'],
-  ['pharmacySales'],
-  ['pharmacyBatchAudit'],
-  ['ehr'],
-  ['ehrClinic'],
-  ['clinics'],
-  ['clinic'],
-  ['clinicByAppName'],
-  ['myClinic'],
-  ['current-clinic'],
-  ['clinicLocations'],
-  ['clinicLocation'],
-  ['activeLocations'],
-  ['clinicDoctors'],
-  ['clinicStaff'],
-  ['clinicUsers'],
-  ['clinicUsersByRole'],
-  ['clinicPatients'],
-  ['clinicOperatingHours'],
-  ['clinicSettings'],
-  ['clinicCommunication'],
-  ['notifications'],
-  ['userProfile'],
-  ['user'],
-  ['users'],
-  ['patients'],
-  ['receptionists'],
-  ['clinicAdmins'],
+  ["patientDashboardSummary"],
+  ["queue"],
+  ["queue-status"],
+  ["queue-metrics"],
+  ["queueHistory"],
+  ["queueAnalytics"],
+  ["queueConfig"],
+  ["queueNotifications"],
+  ["queueWaitTimes"],
+  ["queueCapacity"],
+  ["queuePerformanceMetrics"],
+  ["queueAlerts"],
+  ["billing"],
+  ["billing-plans"],
+  ["billing-plan"],
+  ["subscriptions"],
+  ["clinic-subscriptions"],
+  ["active-subscription"],
+  ["invoices"],
+  ["clinic-invoices"],
+  ["payments"],
+  ["clinic-payments"],
+  ["clinic-ledger"],
+  ["billing-analytics"],
+  ["clinicStats"],
+  ["dashboardAnalytics"],
+  ["appointmentAnalytics"],
+  ["patientAnalytics"],
+  ["revenueAnalytics"],
+  ["serviceUtilizationAnalytics"],
+  ["waitTimeAnalytics"],
+  ["patientSatisfactionAnalytics"],
+  ["pharmacyStats"],
+  ["medicineDeskQueue"],
+  ["prescriptions"],
+  ["medicalRecords"],
+  ["medicineCategories"],
+  ["medicines"],
+  ["medicineInventory"],
+  ["pharmacyOrders"],
+  ["pharmacySales"],
+  ["pharmacyBatchAudit"],
+  ["ehr"],
+  ["ehrClinic"],
+  ["clinics"],
+  ["clinic"],
+  ["clinicByAppName"],
+  ["myClinic"],
+  ["current-clinic"],
+  ["clinicLocations"],
+  ["clinicLocation"],
+  ["activeLocations"],
+  ["clinicDoctors"],
+  ["clinicStaff"],
+  ["clinicUsers"],
+  ["clinicUsersByRole"],
+  ["clinicPatients"],
+  ["clinicOperatingHours"],
+  ["clinicSettings"],
+  ["clinicCommunication"],
+  ["notifications"],
+  ["userProfile"],
+  ["user"],
+  ["users"],
+  ["patients"],
+  ["receptionists"],
+  ["clinicAdmins"],
 ];
 
 async function refetchCriticalRealtimeQueries(queryClient: QueryClient) {
@@ -139,8 +146,8 @@ async function refetchCriticalRealtimeQueries(queryClient: QueryClient) {
       queryClient.refetchQueries({
         queryKey,
         exact: false,
-      })
-    )
+      }),
+    ),
   );
 }
 
@@ -150,19 +157,26 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
   const { currentClinic } = useAppStore();
   const { session } = useAuth();
   const { isConnected } = useWebSocketContext();
-  const sessionUser = session?.user as { clinicId?: string; clinic?: { id?: string } } | undefined;
+  const sessionUser = session?.user as
+    { clinicId?: string; clinic?: { id?: string } } | undefined;
   const resolvedClinicId = resolveRealtimeClinicId(currentClinic, sessionUser);
-  const hasDoctorFilter = Object.prototype.hasOwnProperty.call(filters, 'doctorId');
+  const hasDoctorFilter = Object.prototype.hasOwnProperty.call(
+    filters,
+    "doctorId",
+  );
   const doctorFilterReady = !hasDoctorFilter || Boolean(filters.doctorId);
 
   const query = useQueryData(
     getAppointmentQueryKey(resolvedClinicId, filters),
     async () => {
-      if (!resolvedClinicId) throw new Error('No clinic selected');
+      if (!resolvedClinicId) throw new Error("No clinic selected");
 
-      const response = await getAppointments({ ...filters, clinicId: resolvedClinicId });
+      const response = await getAppointments({
+        ...filters,
+        clinicId: resolvedClinicId,
+      });
       if (!response.success) {
-        throw new Error(response.error || 'Failed to fetch appointments');
+        throw new Error(response.error || "Failed to fetch appointments");
       }
 
       const appointments = response.appointments || [];
@@ -185,7 +199,7 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
       // other refetch failure. Without this the dashboard flashes a skeleton
       // for ~30s while the socket reconnects and the next refetch lands.
       placeholderData: keepPreviousData,
-    }
+    },
   );
 
   return {
@@ -196,81 +210,55 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
 
 export function useRealTimeAppointmentStats() {
   const { currentClinic } = useAppStore();
-  const { session } = useAuth();
-  const { isConnected, subscribe } = useWebSocketContext();
-  const sessionUser = session?.user as { clinicId?: string; clinic?: { id?: string } } | undefined;
+  const { session, isPending: authPending } = useAuth();
+  const { isConnected } = useWebSocketContext();
+  const sessionUser = session?.user as
+    { clinicId?: string; clinic?: { id?: string } } | undefined;
   const resolvedClinicId = resolveRealtimeClinicId(currentClinic, sessionUser);
 
-  const query = useQueryData(
-    getAppointmentStatsQueryKey(resolvedClinicId),
-    async () => {
-      if (!resolvedClinicId) throw new Error('No clinic selected');
-
-      const response = await getAppointmentAnalytics({ clinicId: resolvedClinicId });
-      if (!response) {
-        throw new Error('Failed to fetch appointment stats');
-      }
-
-      return { success: true, data: response as Record<string, unknown> };
+  // Explicit guard: only fire when BOTH auth is settled AND clinic context is ready
+  // This prevents premature firing during hydration or auth transitions
+  const isAuthReady = !authPending && !!session?.user;
+  const query = useAppointmentAnalytics(
+    {
+      clinicId: resolvedClinicId,
+      period: "month",
     },
     {
-      enabled: !!resolvedClinicId,
-      staleTime: 5 * 60 * 1000, // 5 minutes (optimized for 10M users)
-      gcTime: 15 * 60 * 1000, // 15 minutes
-      refetchInterval: isConnected ? false : 10 * 60 * 1000, // 10 minutes if not real-time (increased for 10M users)
-      refetchOnWindowFocus: false,
-      // ✅ Realtime coverage invalidates on appointment.* events; see
-      // note in useRealTimeAppointments above. Stats must refetch on
-      // reconnect after long disconnects though — keeping true here so
-      // a 30-minute disconnect still produces a fresh analytics rollup
-      // once the socket returns. The 30s polling fallback (when
-      // !isConnected) still runs as a safety net.
-      refetchOnReconnect: false,
-      placeholderData: keepPreviousData,
-    }
+      enabled: !!resolvedClinicId && isAuthReady,
+      staleTime: 60 * 1000, // 1 minute
+    },
   );
 
   return {
     ...query,
-    isRealTimeEnabled: isConnected,
+    isRealTimeEnabled: isConnected && isAuthReady && !!resolvedClinicId,
   };
 }
 
-export function useRealTimeQueueStatus(queueName?: string, locationId?: string) {
+export function useRealTimeQueueStatus(
+  queueName?: string,
+  locationId?: string,
+) {
   const queryClient = useQueryClient();
   const { currentClinic } = useAppStore();
   const { session } = useAuth();
   const { isConnected } = useWebSocketStatus();
   const { subscribe } = useWebSocketContext();
   const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
-  const sessionUser = session?.user as { clinicId?: string; clinic?: { id?: string } } | undefined;
+  const sessionUser = session?.user as
+    { clinicId?: string; clinic?: { id?: string } } | undefined;
   const resolvedClinicId = resolveRealtimeClinicId(currentClinic, sessionUser);
-  const queryKey = getQueueStatusQueryKey(resolvedClinicId, locationId, queueName);
-
-  const query = useQueryData(
-    queryKey,
-    async () => {
-      if (!resolvedClinicId) throw new Error('No clinic selected');
-
-      const response = await getQueueStats(locationId || resolvedClinicId);
-      if (!response) {
-        throw new Error('Failed to fetch queue status');
-      }
-
-      return normalizeQueueStatusSnapshot(response as QueueStatusSnapshot);
-    },
-    {
-      enabled: !!resolvedClinicId && !!locationId,
-      staleTime: 30 * 1000, // 30 seconds (optimized for 10M users)
-      gcTime: 5 * 60 * 1000, // 5 minutes
-      // Keep queue status fresh even when the websocket is connected because
-      // the backend socket layer does not emit the same location-level stats
-      // shape that this hook reads from the API. Pause during auth refresh so
-      // we don't pile 401s on top of the reconnect.
-      refetchInterval: isAuthRefreshing ? false : 15 * 1000,
-      refetchOnWindowFocus: false,
-    }
+  const queryKey = getQueueStatusQueryKey(
+    resolvedClinicId,
+    locationId,
+    queueName,
   );
+
+  // Use React Query hook for queue stats - benefits from caching, deduplication, and real-time invalidation
+  const queueStatsQuery = useQueueStats(locationId || resolvedClinicId, {
+    enabled: !!resolvedClinicId && !!locationId,
+  });
 
   const invalidateQueueStatus = useCallback(() => {
     queryClient.invalidateQueries({
@@ -283,16 +271,16 @@ export function useRealTimeQueueStatus(queueName?: string, locationId?: string) 
     if (!isConnected || !resolvedClinicId) return;
 
     const queueEvents = [
-      'queue_status_update',
-      'queue.updated',
-      'queue.position.updated',
-      'appointment.queue.reordered',
-      'queue_metrics_update',
-      'queue.metrics.updated',
-      'queue.alert.created',
-      'queue.alert.resolved',
-      'queue.report.generated',
-      'queue.health.changed',
+      "queue_status_update",
+      "queue.updated",
+      "queue.position.updated",
+      "appointment.queue.reordered",
+      "queue_metrics_update",
+      "queue.metrics.updated",
+      "queue.alert.created",
+      "queue.alert.resolved",
+      "queue.report.generated",
+      "queue.health.changed",
     ] as const;
 
     const unsubscribes = queueEvents.map((event) =>
@@ -320,21 +308,29 @@ export function useRealTimeQueueStatus(queueName?: string, locationId?: string) 
         if (data.status) {
           queryClient.setQueryData(
             getQueueStatusQueryKey(resolvedClinicId, locationId, queueName),
-            normalizeQueueStatusSnapshot(data.status)
+            normalizeQueueStatusSnapshot(data.status),
           );
         } else {
           invalidateQueueStatus();
         }
-      })
+      }),
     );
 
     return () => {
       unsubscribes.forEach((unsubscribe) => unsubscribe());
     };
-  }, [invalidateQueueStatus, isConnected, locationId, queueName, queryClient, resolvedClinicId, subscribe]);
+  }, [
+    invalidateQueueStatus,
+    isConnected,
+    locationId,
+    queueName,
+    queryClient,
+    resolvedClinicId,
+    subscribe,
+  ]);
 
   return {
-    ...query,
+    ...queueStatsQuery,
     isRealTimeEnabled: isConnected,
   };
 }
@@ -345,10 +341,13 @@ export function useRealTimeAppointmentMutation() {
   const { currentClinic } = useAppStore();
   const { emit } = useWebSocketContext();
 
-  const createAppointment = useOptimisticMutation<Appointment, Partial<Appointment>>({
+  const createAppointment = useOptimisticMutation<
+    Appointment,
+    Partial<Appointment>
+  >({
     queryKey: getAppointmentQueryKey(currentClinic?.id),
     mutationFn: async (appointmentData: Partial<Appointment>) => {
-      if (!currentClinic) throw new Error('No clinic selected');
+      if (!currentClinic) throw new Error("No clinic selected");
 
       const response = await createAppointmentAction({
         ...(appointmentData as any),
@@ -356,7 +355,7 @@ export function useRealTimeAppointmentMutation() {
       });
 
       if (!response.success || !response.appointment) {
-        throw new Error(response.error || 'Failed to create appointment');
+        throw new Error(response.error || "Failed to create appointment");
       }
 
       return response.appointment;
@@ -374,7 +373,7 @@ export function useRealTimeAppointmentMutation() {
     mutationOptions: {
       onSuccess: (data) => {
         // Notify other clients via WebSocket
-        emit('appointment.created', {
+        emit("appointment.created", {
           appointment: data,
           clinicId: currentClinic?.id,
         });
@@ -382,26 +381,35 @@ export function useRealTimeAppointmentMutation() {
     },
   });
 
-  const updateAppointment = useOptimisticMutation<Appointment, { id: string; updates: Partial<Appointment> }>({
+  const updateAppointment = useOptimisticMutation<
+    Appointment,
+    { id: string; updates: Partial<Appointment> }
+  >({
     queryKey: getAppointmentQueryKey(currentClinic?.id),
-    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Appointment> }) => {
+    mutationFn: async ({
+      id,
+      updates,
+    }: {
+      id: string;
+      updates: Partial<Appointment>;
+    }) => {
       const response = await updateAppointmentAction(id, updates as any);
 
       if (!response.success || !response.appointment) {
-        throw new Error(response.error || 'Failed to update appointment');
+        throw new Error(response.error || "Failed to update appointment");
       }
 
       return response.appointment;
     },
     optimisticUpdate: (current, variables) => {
       return (current || []).map((apt: Appointment) =>
-        apt.id === variables.id ? { ...apt, ...variables.updates } : apt
+        apt.id === variables.id ? { ...apt, ...variables.updates } : apt,
       );
     },
     mutationOptions: {
       onSuccess: (data, variables) => {
         // Notify other clients via WebSocket
-        emit('appointment.updated', {
+        emit("appointment.updated", {
           id: variables.id,
           updates: data,
           clinicId: currentClinic?.id,
@@ -415,14 +423,17 @@ export function useRealTimeAppointmentMutation() {
     mutationFn: async (id: string) => {
       const response = await cancelAppointmentAction(id);
       if (!response.success) {
-        throw new Error(response.error || 'Failed to delete appointment');
+        throw new Error(response.error || "Failed to delete appointment");
       }
 
       // Return the deleted appointment for optimistic update
-      const appointments = queryClient.getQueryData<{ success: boolean; data: Appointment[] }>(
-        getAppointmentQueryKey(currentClinic?.id)
+      const appointments = queryClient.getQueryData<{
+        success: boolean;
+        data: Appointment[];
+      }>(getAppointmentQueryKey(currentClinic?.id));
+      const deletedAppointment = appointments?.data?.find(
+        (apt) => apt.id === id,
       );
-      const deletedAppointment = appointments?.data?.find(apt => apt.id === id);
       return deletedAppointment || ({ id } as Appointment);
     },
     optimisticUpdate: (current, id) => {
@@ -431,7 +442,7 @@ export function useRealTimeAppointmentMutation() {
     mutationOptions: {
       onSuccess: (_, id) => {
         // Notify other clients via WebSocket
-        emit('appointment.deleted', {
+        emit("appointment.deleted", {
           id,
           clinicId: currentClinic?.id,
         });
@@ -464,7 +475,6 @@ export function useWebSocketQuerySync() {
   const { isConnected } = useWebSocketContext();
   return { isConnected };
 }
-
 
 // ============================================================================
 // MASTER REAL-TIME INTEGRATION HOOK

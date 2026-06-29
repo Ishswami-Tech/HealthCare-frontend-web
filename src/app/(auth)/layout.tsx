@@ -13,9 +13,11 @@
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
+import { useUserProfile } from "@/hooks/query/useUsers";
 import { ROUTES, getDashboardByRole } from "@/lib/config/routes";
 import { LoadingSpinner } from "@/components/ui/loading";
 import { StatusFooter } from "@/components/status/StatusFooter";
+import { resolveAuthoritativeProfileComplete } from "@/lib/config/profile";
 
 export default function AuthLayout({
   children,
@@ -30,22 +32,33 @@ export default function AuthLayout({
   const hasErrorParams = searchParams.get('error') !== null;
   const callbackUrl = searchParams.get('callbackUrl');
 
-  const { isPending, session, isAuthenticated } = useAuth();
+  const { isPending: authPending, isAuthenticated } = useAuth();
+
+  // Only fetch profile when authenticated - prevents blocking public auth pages
+  const { data: userProfile, isPending: profilePending } = useUserProfile({
+    enabled: isAuthenticated,
+  });
 
   useEffect(() => {
-    if (!isPending && isAuthenticated && session?.user) {
-      const nextPath =
-        String(session.user.role || "").toUpperCase() === "PATIENT" &&
-        session.user.profileComplete === false
-          ? ROUTES.PROFILE_COMPLETION
-          : getDashboardByRole(session.user.role);
-      replace(nextPath);
-    }
-  }, [isPending, isAuthenticated, replace, session?.user]);
+    // Wait for BOTH auth and profile to settle
+    if (authPending || profilePending) return;
+    const role = (userProfile as { role?: string })?.role;
+    if (!isAuthenticated || !role) return;
+
+    const profileComplete = resolveAuthoritativeProfileComplete(userProfile as Record<string, unknown> | null | undefined);
+    const nextPath =
+      String(role).toUpperCase() === "PATIENT" && profileComplete !== true
+        ? ROUTES.PROFILE_COMPLETION
+        : getDashboardByRole(role);
+
+    replace(nextPath);
+  }, [authPending, profilePending, isAuthenticated, userProfile, replace]);
 
   // Only show loading when we have a real authenticated session to redirect away from auth pages.
   // Unauthenticated users should see the login form immediately.
-  if (isAuthenticated && session?.user && !hasErrorParams) {
+  const showLoader = (isAuthenticated && !hasErrorParams) || (authPending && !hasErrorParams);
+
+  if (showLoader) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <LoadingSpinner size="lg" center />

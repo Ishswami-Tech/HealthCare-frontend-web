@@ -19,16 +19,25 @@ export const useDashboardAnalytics = (period: 'day' | 'week' | 'month' | 'year' 
 /**
  * Hook to get appointment analytics
  */
-export const useAppointmentAnalytics = (filters?: {
-  period?: 'day' | 'week' | 'month' | 'year';
-  startDate?: string;
-  endDate?: string;
-  doctorId?: string;
-  clinicId?: string;
-}) => {
+export const useAppointmentAnalytics = (
+  filters?: {
+    period?: 'day' | 'week' | 'month' | 'year';
+    startDate?: string;
+    endDate?: string;
+    doctorId?: string;
+    clinicId?: string;
+  },
+  options?: {
+    enabled?: boolean;
+    staleTime?: number;
+  }
+) => {
   return useQueryData(['appointmentAnalytics', filters], async () => {
     const result = await clinicApiClient.get(API_ENDPOINTS.ANALYTICS.APPOINTMENTS, filters);
     return result.data ?? result;
+  }, {
+    enabled: options?.enabled !== false,
+    staleTime: options?.staleTime,
   });
 };
 

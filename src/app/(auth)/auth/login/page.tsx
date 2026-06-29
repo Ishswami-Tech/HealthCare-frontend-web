@@ -97,17 +97,23 @@ function LoginPageContent() {
     let cancelled = false;
     const restoreSession = async () => {
       setIsRestoringSession(true);
-      const restoredSession = await refreshSession(true);
-      if (cancelled) return;
-      if (restoredSession?.user) {
-        const nextPath =
-          restoredSession.user.role === "PATIENT" && restoredSession.user.profileComplete === false
-            ? ROUTES.PROFILE_COMPLETION
-            : getDashboardByRole(restoredSession.user.role);
-        replace(nextPath);
-        return;
+      try {
+        // Attempt to refresh the session from the server
+        const refreshedSession = await refreshSession(true);
+        if (cancelled) return;
+
+        if (refreshedSession) {
+          // Session restored successfully - the useAuth hook will handle the redirect
+          // based on the new session state
+        } else {
+          // Session couldn't be restored - clear error params and show login
+          // The session_expired param will be cleared by the login page on next render
+        }
+      } finally {
+        if (!cancelled) {
+          setIsRestoringSession(false);
+        }
       }
-      setIsRestoringSession(false);
     };
 
     void restoreSession();
@@ -118,7 +124,6 @@ function LoginPageContent() {
     isRestoringSession,
     isGoogleLoggingIn,
     refreshSession,
-    replace,
     session?.user,
     sessionExpired,
     successPhase,

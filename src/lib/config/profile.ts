@@ -51,6 +51,24 @@ export interface UserProfileData {
 }
 
 /**
+ * Resolve the authoritative completion state for a user profile.
+ * For patients, this derives completion from the actual profile fields
+ * instead of trusting a potentially stale session flag.
+ */
+export function resolveAuthoritativeProfileComplete(
+  profileData: Partial<UserProfileData> | Record<string, unknown> | null | undefined
+): boolean | undefined {
+  if (!profileData) return undefined;
+
+  const role = String((profileData as Record<string, unknown>).role || '').toUpperCase();
+  if (role !== String(Role.PATIENT)) {
+    return true;
+  }
+
+  return calculateProfileCompletion(profileData as UserProfileData);
+}
+
+/**
  * Check if a user's profile is complete based on their role
  */
 export function checkProfileCompletion(profileData: UserProfileData): ProfileCompletionStatus {

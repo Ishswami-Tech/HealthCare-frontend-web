@@ -56,6 +56,7 @@ import {
   DashboardPageShell as PatientPageShell,
 } from "@/components/dashboard/DashboardPageShell";
 import { usePatientUiStore } from "@/stores/patient-ui.store";
+import { resolveAuthoritativeProfileComplete } from "@/lib/config/profile";
 
 export default function PatientDashboard() {
   const { session } = useAuth();
@@ -70,6 +71,9 @@ export default function PatientDashboard() {
 
   const clinicId = session?.user?.clinicId || "";
   const patientId = user?.id || "";
+  const authoritativeProfileComplete = resolveAuthoritativeProfileComplete(
+    userProfile as Record<string, unknown> | null | undefined
+  );
 
   // Composed single-round-trip summary. Replaces the previous fan-out of
   // 5+ separate hooks (vitals, prescriptions, comprehensive EHR, invoices,
@@ -508,7 +512,7 @@ export default function PatientDashboard() {
   return (
     <PatientPageShell className="mx-auto max-w-7xl">
           {/* Profile completion banner â€” only for patients the backend still marks incomplete */}
-          {session?.user?.profileComplete === false && (
+          {authoritativeProfileComplete !== true && (
             <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
               <div>
                 <p className="font-semibold">Complete your profile</p>

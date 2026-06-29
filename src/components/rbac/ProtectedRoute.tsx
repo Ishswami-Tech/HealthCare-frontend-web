@@ -10,6 +10,7 @@ import { ROUTES, getRouteGuardPolicy } from "@/lib/config/routes";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { RouteRedirect } from "@/components/navigation/RouteRedirect";
+import { resolveAuthoritativeProfileComplete } from "@/lib/config/profile";
 import { Lock, ArrowLeft } from "lucide-react";
 
 interface ProtectedRouteProps {
@@ -58,6 +59,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   const userRole = user?.role as Role;
   const routePolicy = React.useMemo(() => getRouteGuardPolicy(pathname || ""), [pathname]);
+  const profileComplete = React.useMemo(
+    () => resolveAuthoritativeProfileComplete(user as Record<string, unknown> | null | undefined),
+    [user],
+  );
   const isRoleRestricted = Boolean(
     allowedRoles && allowedRoles.length > 0 && (!userRole || !allowedRoles.includes(userRole))
   );
@@ -69,7 +74,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       return ROUTES.LOGIN;
     }
 
-    if (routePolicy.kind === 'profile-gated' && user.profileComplete === false) {
+    if (routePolicy.kind === 'profile-gated' && profileComplete !== true) {
       return `${ROUTES.PROFILE_COMPLETION}?redirect=${encodeURIComponent(pathname || "/")}`;
     }
 
@@ -88,6 +93,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     user,
     routePolicy.kind,
     pathname,
+    profileComplete,
     isRoleRestricted,
     isPermissionRestricted,
     redirectTo,

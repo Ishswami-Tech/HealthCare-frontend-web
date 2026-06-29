@@ -183,11 +183,11 @@ export function useAuth() {
       // Cancel in-flight queries so we don't get a 401-stale response landing
       // on top of the new session's first fetch.
       void queryClient.cancelQueries();
-      // Drop only the explicit `['session']` key (auth meta) and let
-      // TanStack Query rehydrate everything else on its own. The new
-      // session's queries will fetch fresh; the old session's queries
+      // Drop session and userProfile keys to prevent stale auth state
+      // The new session's queries will fetch fresh; the old session's queries
       // age out via gcTime.
       queryClient.removeQueries({ queryKey: ['session'] });
+      queryClient.removeQueries({ queryKey: ['userProfile'] });
       clinicApiClient.clearRequestCache();
       clearInflightRequests('api-client');
       clearInflightRequests('query');

@@ -14,7 +14,7 @@
 
 import { Role } from '@/types/auth.types';
 import { getDashboardByRole, ROUTES, isAuthPath } from '@/lib/config/routes';
-import { getProfileCompletionRedirectUrl } from '@/lib/config/profile';
+import { resolveAuthoritativeProfileComplete } from '@/lib/config/profile';
 
 function isSafeInternalPath(path?: string | null): path is string {
   if (!path) return false;
@@ -29,7 +29,13 @@ function isSafeInternalPath(path?: string | null): path is string {
 export interface RedirectContext {
   user?: {
     role?: Role | string;
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    phoneVerified?: boolean;
     profileComplete?: boolean;
+    isProfileComplete?: boolean;
+    requiresProfileCompletion?: boolean;
   } | null;
   currentPath?: string;
   redirectUrl?: string;
@@ -63,6 +69,7 @@ export function getLoginRedirect(context: RedirectContext): RedirectResult {
   }
 
   const userRole = user.role as Role;
+  const profileComplete = resolveAuthoritativeProfileComplete(user);
 
   // Priority 1: Use redirect URL from the backend if provided and valid.
   // The backend already decides whether the user should land on the dashboard
@@ -83,7 +90,7 @@ export function getLoginRedirect(context: RedirectContext): RedirectResult {
   }
 
   // Priority 3: Check if profile is incomplete
-  if (userRole === Role.PATIENT && user.profileComplete === false) {
+  if (userRole === Role.PATIENT && profileComplete !== true) {
     const profileUrl = new URL(ROUTES.PROFILE_COMPLETION, window.location.origin);
     if (isSafeInternalPath(currentPath) && !isAuthPath(currentPath)) {
       profileUrl.searchParams.set('redirect', currentPath);
@@ -145,8 +152,9 @@ export function getUnauthorizedRedirect(context: RedirectContext): RedirectResul
   }
 
   const userRole = user.role as Role;
+  const profileComplete = resolveAuthoritativeProfileComplete(user);
 
-  if (userRole === Role.PATIENT && user.profileComplete === false) {
+  if (userRole === Role.PATIENT && profileComplete !== true) {
     return getProfileCompletionRedirect(userRole, currentPath);
   }
 
@@ -278,7 +286,11 @@ export function resolveRedirect(context: RedirectContext): RedirectResult {
   }
 
   // Handle profile completion
-  if (user.role && String(user.role).toUpperCase() === String(Role.PATIENT) && user.profileComplete === false) {
+  if (
+    user.role &&
+    String(user.role).toUpperCase() === String(Role.PATIENT) &&
+    resolveAuthoritativeProfileComplete(user) !== true
+  ) {
     return getProfileCompletionRedirect(user.role as Role, currentPath);
   }
 

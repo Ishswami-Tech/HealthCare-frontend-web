@@ -3,6 +3,7 @@
 import { authenticatedApi, getServerSession } from './auth.server';
 import { revalidateCache } from '@/lib/utils/revalidate-cache';
 import { API_ENDPOINTS } from '../config/config';
+import { logger } from '@/lib/utils/logger';
 
 function unsupportedDoctorRoute(feature: string): never {
   throw new Error(`Unsupported doctor backend route: ${feature}`);
@@ -74,11 +75,11 @@ export async function getDoctors(clinicId: string, filters?: {
   const serverClinicId = session.user.clinicId;
   const resolvedClinicId = serverClinicId || clinicId;
 
-  console.log('[getDoctors] Called with:', {
+  logger.debug('[getDoctors] Called', {
     inputClinicId: clinicId,
     serverClinicId,
     resolvedClinicId,
-    sessionUser: { id: session.user.id, clinicId: session.user.clinicId, role: session.user.role }
+    userId: session.user.id,
   });
 
   const params = new URLSearchParams();
@@ -92,11 +93,11 @@ export async function getDoctors(clinicId: string, filters?: {
 
   if (resolvedClinicId) {
     params.append('clinicId', resolvedClinicId);
-    console.log('[getDoctors] Sending request with clinicId:', resolvedClinicId);
   }
 
   const endpoint = `${API_ENDPOINTS.DOCTORS.GET_ALL}${params.toString() ? `?${params.toString()}` : ''}`;
-  console.log('[getDoctors] Endpoint:', endpoint);
+
+  logger.debug('[getDoctors] Requesting doctors', { resolvedClinicId, endpoint });
 
   const { data } = await authenticatedApi<unknown>(endpoint, {
     ...(resolvedClinicId ? { headers: { 'X-Clinic-ID': resolvedClinicId } } : {}),
@@ -108,15 +109,13 @@ export async function getDoctors(clinicId: string, filters?: {
       : null;
   const nestedData = responseObject?.data;
 
-  console.log('[getDoctors] Response received:', {
+  logger.debug('[getDoctors] Response received', {
     hasData: !!data,
-    dataKeys: data && typeof data === 'object' ? Object.keys(data) : [],
     doctorsCount: Array.isArray(data)
       ? data.length
       : nestedData
         ? (Array.isArray(nestedData) ? nestedData.length : 'not array')
         : 'no data',
-    doctors: Array.isArray(data) ? data : (nestedData || data)
   });
 
   return normalizeCollectionResponse(data);

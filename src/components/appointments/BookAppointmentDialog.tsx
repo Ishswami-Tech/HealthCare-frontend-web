@@ -84,6 +84,7 @@ import {
 } from "@/hooks/utils/use-toast";
 import { Permission } from "@/types/rbac.types";
 import { APP_CONFIG } from "@/lib/config/config";
+import { resolveAuthoritativeProfileComplete } from "@/lib/config/profile";
 import { ROUTES } from "@/lib/config/routes";
 import { theme } from "@/lib/utils/theme-utils";
 import { cn } from "@/lib/utils";
@@ -2967,20 +2968,17 @@ export function BookAppointmentDialog({
   const { data: currentPatientProfile } = useUserProfile(
     dialogOpen ? undefined : { enabled: false }
   );
-  const authoritativeProfileComplete = useMemo(() => {
-    const profile = currentPatientProfile as Record<string, unknown> | undefined;
-    if (!profile) return undefined;
-    if (typeof profile.profileComplete === "boolean") return profile.profileComplete;
-    if (typeof profile.isProfileComplete === "boolean") return profile.isProfileComplete;
-    if (typeof profile.requiresProfileCompletion === "boolean") {
-      return !profile.requiresProfileCompletion;
-    }
-    return undefined;
-  }, [currentPatientProfile]);
+  const authoritativeProfileComplete = useMemo(
+    () =>
+      resolveAuthoritativeProfileComplete(
+        currentPatientProfile as Record<string, unknown> | null | undefined,
+      ),
+    [currentPatientProfile],
+  );
   const profileCompletionBlocked = useMemo(
     () =>
       (String(session?.user?.role || '').toUpperCase() === String(Role.PATIENT) &&
-        (authoritativeProfileComplete ?? session?.user?.profileComplete) === false) ||
+        authoritativeProfileComplete !== true) ||
       isProfileCompletionError(activeLocationsError) ||
       isProfileCompletionError(allLocationsError) ||
       isProfileCompletionError(doctorsError),
@@ -2989,7 +2987,6 @@ export function BookAppointmentDialog({
       allLocationsError,
       doctorsError,
       authoritativeProfileComplete,
-      session?.user?.profileComplete,
     ],
   );
 
@@ -3384,6 +3381,8 @@ export function BookAppointmentDialog({
     () => (selectedDate ? formatDateIST(selectedDate) : ""),
     [selectedDate],
   );
+  const appointmentQueryScope =
+    session?.session_id?.trim() || session?.user?.id?.trim() || "guest";
 
   const availabilityRefetchIntervalMs =
     consultationMode === "VIDEO"
@@ -3399,6 +3398,7 @@ export function BookAppointmentDialog({
       dateString,
       consultationMode === "VIDEO" ? undefined : resolvedLocationId,
       consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON",
+      appointmentQueryScope,
     ],
     [
       activeClinicId,
@@ -3406,6 +3406,7 @@ export function BookAppointmentDialog({
       dateString,
       resolvedLocationId,
       consultationMode,
+      appointmentQueryScope,
     ],
   );
 
@@ -3862,13 +3863,18 @@ export function BookAppointmentDialog({
     consultationMode,
     slots,
   ]);
-  const validateLatestAvailability = useCallback(async () => {
+  const validateLatestAvailability = useCallback(async (selectedSlot?: string) => {
+    const cachedAvailability = queryClient.getQueryData(availabilityQueryKey);
+    const cachedSlots = extractAvailabilitySlots(cachedAvailability);
+
+    if (selectedSlot && cachedSlots.includes(selectedSlot)) {
+      return cachedSlots;
+    }
+
     const refreshed = await refetchAvailability({ cancelRefetch: true });
-    const refreshedSlots = extractAvailabilitySlots(
+    return extractAvailabilitySlots(
       refreshed?.data ?? queryClient.getQueryData(availabilityQueryKey),
     );
-
-    return refreshedSlots;
   }, [
     availabilityQueryKey,
     extractAvailabilitySlots,
@@ -4127,13 +4133,18 @@ export function BookAppointmentDialog({
           }
         }
 
-        const refreshedProfile = (await queryClient.fetchQuery({
-          queryKey: ["userProfile"],
-          queryFn: async () => {
-            const response = await clinicApiClient.getProfile();
-            return response.data;
-          },
-        })) as Record<string, unknown> | undefined;
+        const cachedProfile = queryClient.getQueryData<Record<string, unknown>>([
+          "userProfile",
+        ]);
+        const refreshedProfile =
+          cachedProfile ||
+          ((await queryClient.fetchQuery({
+            queryKey: ["userProfile"],
+            queryFn: async () => {
+              const response = await clinicApiClient.getProfile();
+              return response.data;
+            },
+          })) as Record<string, unknown> | undefined);
 
         bookingPatientId =
           (refreshedProfile as any)?.patient?.id ||
@@ -4150,8 +4161,17 @@ export function BookAppointmentDialog({
       const finalAppointmentType: AppointmentType =
         consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON";
       const selectedDateString = formatDateIST(selectedDate);
+      if (!selectedSlot) {
+        showErrorToast(
+          finalAppointmentType === "VIDEO_CALL"
+            ? "Please select a video time slot."
+            : "Please select a time slot.",
+        );
+        return;
+      }
+
       const freshSlots = await withTimeout(
-        validateLatestAvailability(),
+        validateLatestAvailability(selectedSlot),
         AVAILABILITY_TIMEOUT_MS,
         "Checking availability is taking longer than expected. Please try again.",
       );
@@ -4236,7 +4256,7 @@ export function BookAppointmentDialog({
           setVideoPaymentCompleted(false);
           setAcceptedVideoPaymentPolicy(true);
           showInfoToast(
-            "Appointment created. Complete payment in the confirm screen to finish booking.",
+            "Appointment created. Complete payment in in the confirm screen to finish booking.",
           );
           return;
         }
