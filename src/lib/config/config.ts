@@ -617,7 +617,13 @@ export const API_ENDPOINTS = {
     UPDATE: (id: string) => `/staff/${id}`,
     DELETE: (id: string) => `/staff/${id}`,
   },
-  
+
+  // Profile Completion Endpoints (accessible to all authenticated users including PATIENT)
+  PROFILE_COMPLETION: {
+    COMPLETE: '/profile/completion/complete',
+    UPDATE: '/profile/completion/update',
+  },
+
   // Users Endpoints (Updated to /users for naming consistency)
   USERS: {
     BASE: '/user',
