@@ -268,6 +268,20 @@ const Footer = () => {
                 {t("footer.termsOfService")}
               </Link>
               <Link
+                href="/refund-cancellation"
+                prefetch={false}
+                className="text-muted-foreground hover:text-primary"
+              >
+                Refund & Cancellation
+              </Link>
+              <Link
+                href="/shipping-delivery"
+                prefetch={false}
+                className="text-muted-foreground hover:text-primary"
+              >
+                Shipping & Delivery
+              </Link>
+              <Link
                 href="/disclaimer"
                 prefetch={false}
                 className="text-muted-foreground hover:text-primary"

@@ -7,12 +7,10 @@
 import "./globals.css";
 import { AppProvider } from "@/app/providers/AppProvider";
 import { PerformanceProvider } from "@/app/providers/PerformanceProvider";
-import { Suspense } from "react";
 import Script from "next/script";
 import { APP_CONFIG } from "@/lib/config/config";
 import { baseSEO } from "@/lib/config/seo";
 import { DEFAULT_LANGUAGE } from "@/lib/i18n/config";
-import { LoadingSpinner } from "@/components/ui/loading";
 import { cn } from "@/lib/utils";
 
 const BRAND_NAME = baseSEO.siteName;
@@ -114,16 +112,8 @@ export default async function RootLayout({
             enableNavigationTracking: true,
           }}
         >
-          <Suspense
-            fallback={
-              <div className="min-h-screen bg-background flex items-center justify-center">
-                <LoadingSpinner size="lg" color="primary" text={`Preparing ${BRAND_NAME}...`} />
-              </div>
-            }
-          >
-            {/* AppProvider handles Language, Store, Query, WS, and Theme */}
-            <AppProvider>{children}</AppProvider>
-          </Suspense>
+          {/* AppProvider handles Language, Store, Query, WS, and Theme */}
+          <AppProvider>{children}</AppProvider>
         </PerformanceProvider>
       </body>
     </html>

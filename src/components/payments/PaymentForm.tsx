@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PaymentButton } from "@/components/payments/PaymentButton";
+import { PaymentDisclosure } from "@/components/payments/PaymentDisclosure";
 
 interface PaymentFormProps {
   invoiceId?: string;
@@ -39,6 +40,7 @@ export function PaymentForm({
           <div className="rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
             This checkout creates a real backend payment intent and then redirects to the configured provider.
           </div>
+          <PaymentDisclosure />
           <div className="flex gap-4">
             {onCancel && (
               <Button

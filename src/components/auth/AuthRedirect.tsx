@@ -37,8 +37,9 @@ export function AuthRedirect() {
     router.replace(nextPath);
   }, [authPending, isAuthenticated, profilePending, userProfile, hasRedirected, router]);
 
-  // Show loader while auth AND profile are loading
-  const showLoader = authPending || profilePending || (isAuthenticated && !hasRedirected);
+  // Only show loader if we know they are authenticated and are in the process of redirecting them.
+  // We do not want to block public pages for unauthenticated users while auth is still checking.
+  const showLoader = isAuthenticated && (profilePending || !hasRedirected);
 
   if (showLoader) {
     return (

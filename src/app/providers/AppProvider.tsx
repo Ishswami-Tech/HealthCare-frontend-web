@@ -11,7 +11,6 @@ import QueryProvider from "@/app/providers/QueryProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { ReactNode, Suspense } from "react";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
-import { LoadingSpinner } from "@/components/ui/loading";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LanguageProvider } from "@/lib/i18n/context";
@@ -43,15 +42,15 @@ function ErrorFallback({
   resetErrorBoundary: () => void;
 }) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex items-center justify-center px-4">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
       <div className="max-w-md w-full text-center">
-        <div className="mx-auto size-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-          <AlertTriangle className="size-8 text-red-600" />
+        <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-destructive/10">
+          <AlertTriangle className="size-8 text-destructive" />
         </div>
-        <h1 className="text-2xl font-semibold text-gray-900 mb-2">
+        <h1 className="mb-2 text-2xl font-semibold text-foreground">
           Application Error
         </h1>
-        <p className="text-gray-600 mb-6">
+        <p className="mb-6 text-muted-foreground">
           {error ? sanitizeErrorMessage(error) : ERROR_MESSAGES.UNKNOWN_ERROR}
         </p>
         <Button onClick={resetErrorBoundary} className="w-full">
@@ -59,24 +58,16 @@ function ErrorFallback({
           Try Again
         </Button>
         {process.env.NODE_ENV === "development" && (
-          <div className="mt-6 p-4 bg-gray-100 rounded-lg text-left">
-            <h3 className="font-semibold text-sm text-gray-900 mb-2">
+          <div className="mt-6 rounded-lg border bg-muted p-4 text-left">
+            <h3 className="mb-2 text-sm font-semibold text-foreground">
               Error Details:
             </h3>
-            <pre className="text-xs text-gray-600 overflow-auto whitespace-pre-wrap">
+            <pre className="overflow-auto whitespace-pre-wrap text-xs text-muted-foreground">
               {error?.message || "Unknown error"}
             </pre>
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-function AppProviderFallback() {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-blue-950/20 dark:via-background dark:to-indigo-950/20 flex items-center justify-center">
-      <LoadingSpinner size="lg" text="Initializing…" center />
     </div>
   );
 }
@@ -89,7 +80,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         console.error("App Provider Error:", error, errorInfo);
       }}
     >
-      <Suspense fallback={<AppProviderFallback />}>
+      <Suspense fallback={null}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

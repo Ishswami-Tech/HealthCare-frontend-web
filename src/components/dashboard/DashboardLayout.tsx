@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useMemo, createContext } from "react";
+import { use, useEffect, useMemo, useState, createContext } from "react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useRBAC,
@@ -9,7 +9,7 @@ import {
 } from "@/hooks/utils/useRBAC";
 import { Role } from "@/types/auth.types";
 import { Permission } from "@/types/rbac.types";
-import { Loader2, Shield, AlertTriangle } from "lucide-react";
+import { Shield, AlertTriangle } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { ROUTES, getProtectedRouteRoles } from "@/lib/config/routes";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -23,10 +23,12 @@ import { Header } from "@/components/global/Header";
 import { cn } from "@/lib/utils";
 import { sidebarLinksByRole, SidebarLink } from "@/lib/config/sidebarLinks";
 import { useLayoutStore } from "@/stores/layout.store";
+import { useAuthStore } from "@/stores";
 import { PatientQrGateHost } from "@/components/patient/PatientQrGateHost";
 import { useUserProfile } from "@/hooks/query/useUsers";
 import { usePrefetchAppointmentsForRole } from "@/hooks/query/useAppointments";
 import { usePrefetchPatientDashboardSummary } from "@/hooks/query/usePatientDashboardSummary";
+import { DashboardPageSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 const DashboardShellContext = createContext<boolean>(false);
 
 const DASHBOARD_ROUTE_TITLES: Record<string, string> = {
@@ -112,8 +114,11 @@ export function DashboardLayout({
   const setDashboardMeta = useLayoutStore((state) => state.setDashboardMeta);
 
   const { session, isPending } = useAuth();
+  const storeSession = useAuthStore((state) => state.session);
+  const effectiveSession = session ?? storeSession;
+  const [authBootstrapTimedOut, setAuthBootstrapTimedOut] = useState(false);
   const { back, push, replace } = useRouter();
-  const { user } = session || {};
+  const { user } = effectiveSession || {};
   const { data: currentUserProfile, isPending: isUserProfilePending } = useUserProfile({
     enabled: !!user,
   });
@@ -176,9 +181,30 @@ export function DashboardLayout({
 
   // Overall access check
   const hasAccess = hasRoleAccess && hasRouteRoleAccess && hasPermissionAccess;
+
+  useEffect(() => {
+    if (user || effectiveSession || !isPending) {
+      setAuthBootstrapTimedOut(false);
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setAuthBootstrapTimedOut(true);
+    }, 2500);
+
+    return () => window.clearTimeout(timeout);
+  }, [effectiveSession, isPending, user]);
+
   const redirectTarget = useMemo(() => {
-    if (isPending) return null;
-    if (!user) return ROUTES.LOGIN;
+    if (isPending && !authBootstrapTimedOut) return null;
+    if (!user) {
+      const loginUrl = new URL(ROUTES.LOGIN, "http://local");
+      if (pathname) {
+        loginUrl.searchParams.set("callbackUrl", pathname);
+        loginUrl.searchParams.set("from", pathname);
+      }
+      return `${loginUrl.pathname}${loginUrl.search}`;
+    }
     if (!hasAccess) return getDefaultRoute();
 
     // Patient profile completeness check - use authoritative profile data
@@ -203,7 +229,9 @@ export function DashboardLayout({
     return null;
   }, [
     isPending,
+    authBootstrapTimedOut,
     user,
+    pathname,
     hasAccess,
     getDefaultRoute,
     currentUserProfile,
@@ -255,13 +283,17 @@ export function DashboardLayout({
     });
   }, [resolvedPageTitle, setDashboardMeta, userDisplayData]);
 
-  if (isPending || (!user && !session)) {
+  if (!user && !effectiveSession) {
+    if ((!isPending || authBootstrapTimedOut) && redirectTarget) {
+      return <RouteRedirect target={redirectTarget} />;
+    }
+
     return (
       <div className={cn(
-        "flex items-center justify-center bg-background",
+        "bg-background p-4",
         isInsideShell ? "h-[400px] w-full" : "min-h-screen"
       )}>
-        <Loader2 className="size-8 animate-spin text-blue-600" />
+        <DashboardPageSkeleton />
       </div>
     );
   }
