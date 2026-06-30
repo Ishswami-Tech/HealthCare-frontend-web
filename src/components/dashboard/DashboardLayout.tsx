@@ -29,62 +29,13 @@ import { useUserProfile } from "@/hooks/query/useUsers";
 import { usePrefetchAppointmentsForRole } from "@/hooks/query/useAppointments";
 import { usePrefetchPatientDashboardSummary } from "@/hooks/query/usePatientDashboardSummary";
 import { DashboardPageSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
+import { resolveDisplayNameAndInitials } from "@/lib/utils/display-name";
 const DashboardShellContext = createContext<boolean>(false);
 
 const DASHBOARD_ROUTE_TITLES: Record<string, string> = {
   "/clinic-admin/staff": "Staff Directory",
   "/patient/payments": "My Billing & Payments",
 };
-
-function resolveDisplayNameAndInitials(user: {
-  firstName?: string | null | undefined;
-  lastName?: string | null | undefined;
-  name?: string | null | undefined;
-  email?: string | null | undefined;
-  role?: string | null | undefined;
-}) {
-  const firstName = String(user.firstName || "").trim();
-  const lastName = String(user.lastName || "").trim();
-  if (firstName || lastName) {
-    return {
-      displayName: [firstName, lastName].filter(Boolean).join(" ").trim(),
-      initials: `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase(),
-    };
-  }
-
-  const rawName = String(user.name || "").trim();
-  // Don't use name if it looks like a phone number or temp email
-  const isPhoneOrTempEmail = /^[+\d][\d\s().-]{6,}$/.test(rawName) ||
-    /@(temp|tempemail|fake|test)\./i.test(rawName);
-  if (rawName && !isPhoneOrTempEmail) {
-    const candidate = rawName.includes("@") ? rawName.split("@")[0] : rawName;
-    const safeCandidate = candidate || "User";
-    const tokens = safeCandidate.split(/[^a-zA-Z0-9]+/).filter(Boolean);
-    return {
-      displayName: safeCandidate.replace(/[._-]+/g, " ").trim() || "User",
-      initials: `${tokens[0]?.[0] || safeCandidate[0] || "U"}${tokens[1]?.[0] || tokens[0]?.[1] || ""}`.toUpperCase(),
-    };
-  }
-
-  // Check if email is valid (not temp/fake email)
-  const rawEmail = String(user.email || "").trim();
-  const isFakeEmail = /@(temp|tempemail|fake|test)\./i.test(rawEmail);
-  if (rawEmail && !isFakeEmail) {
-    const emailPrefix = rawEmail.split("@")[0] || "";
-    const emailTokens = emailPrefix.split(/[^a-zA-Z0-9]+/).filter(Boolean);
-    return {
-      displayName: emailPrefix.replace(/[._-]+/g, " ").trim() || "User",
-      initials: `${emailTokens[0]?.[0] || "U"}${emailTokens[1]?.[0] || emailTokens[0]?.[1] || ""}`.toUpperCase(),
-    };
-  }
-
-  // No valid name or email found
-  // Show a friendly prompt so the user knows they need to complete their profile.
-  return {
-    displayName: String(user.role || "").toUpperCase().replace(/\s+/g, "_") === "PATIENT" ? "Patient" : "User",
-    initials: String(user.role || "").toUpperCase().replace(/\s+/g, "_") === "PATIENT" ? "P" : "U",
-  };
-}
 
 interface DashboardLayoutProps {
   children: React.ReactNode;

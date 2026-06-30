@@ -57,6 +57,7 @@ import {
 } from "@/components/dashboard/DashboardPageShell";
 import { usePatientUiStore } from "@/stores/patient-ui.store";
 import { resolveAuthoritativeProfileCompleteFromCandidates } from "@/lib/config/profile";
+import { resolvePatientDisplayName } from "@/lib/utils/display-name";
 
 export default function PatientDashboard() {
   const { session } = useAuth();
@@ -129,28 +130,6 @@ export default function PatientDashboard() {
         );
     });
   }, [summaryAppointments]);
-
-  const resolvePatientDisplayName = (value: {
-    firstName?: string | undefined;
-    lastName?: string | undefined;
-    name?: string | undefined;
-    phone?: string | undefined;
-  } | null | undefined) => {
-    const fullName = [value?.firstName, value?.lastName].filter(Boolean).join(" ").trim();
-    if (fullName) {
-      return fullName;
-    }
-
-    const fallbackName = value?.name?.trim() || "";
-    const looksLikePhoneNumber = /^[+\d][\d\s().-]{6,}$/.test(fallbackName);
-
-    if (fallbackName && !looksLikePhoneNumber) {
-      return fallbackName;
-    }
-
-    // No name set yet. Use a neutral label instead of the previous "New Patient" fallback.
-    return "Patient";
-  };
 
   // Transform real data
   const patientData = useMemo(() => {

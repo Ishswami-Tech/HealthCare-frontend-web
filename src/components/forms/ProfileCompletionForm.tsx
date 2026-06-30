@@ -358,6 +358,8 @@ function ProfileCompletionFormContent({
   const setProfileCompletion = useAuthStore(
     (state) => state.setProfileCompletion,
   );
+  const setAuthSession = useAuthStore((state) => state.setSession);
+  const setAuthUser = useAuthStore((state) => state.setUser);
   const currentTimestamp = useCurrentTimestamp();
   const getSearchParam = useMemo(
     () => searchParams.get.bind(searchParams),
@@ -654,9 +656,18 @@ function ProfileCompletionFormContent({
         const currentProfile =
           current && typeof current === "object" ? (current as Record<string, unknown>) : {};
 
+        const mergedName = [
+          String(profileData.firstName || currentProfile.firstName || "").trim(),
+          String(profileData.lastName || currentProfile.lastName || "").trim(),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .trim();
+
         return {
           ...currentProfile,
           ...profileData,
+          ...(mergedName ? { name: mergedName } : {}),
           phoneVerified: true,
           profileComplete: true,
           isProfileComplete: true,
@@ -669,18 +680,30 @@ function ProfileCompletionFormContent({
         const source = current || session;
         if (!source?.user) return source;
 
+        const mergedName = [
+          String(profileData.firstName || source.user.firstName || "").trim(),
+          String(profileData.lastName || source.user.lastName || "").trim(),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .trim();
+
         const updatedUser = {
           ...source.user,
           ...(profileData || {}),
+          ...(mergedName ? { name: mergedName } : {}),
           phoneVerified: true,
           profileComplete: true,
           isProfileComplete: true,
         };
 
+        setAuthUser(updatedUser as typeof source.user);
+        setAuthSession({ ...source, user: updatedUser });
+
         return { ...source, user: updatedUser };
       });
     },
-    [queryClient, session],
+    [queryClient, session, setAuthSession, setAuthUser],
   );
 
   const sendPhoneOtp = async () => {
