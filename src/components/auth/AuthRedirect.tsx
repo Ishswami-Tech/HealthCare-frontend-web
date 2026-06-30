@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useUserProfile } from "@/hooks/query/useUsers";
 import { ROUTES, getDashboardByRole } from "@/lib/config/routes";
-import { LoadingSpinner } from "@/components/ui/loading";
 import { resolveAuthoritativeProfileComplete } from "@/lib/config/profile";
 
 export function AuthRedirect() {
@@ -36,18 +35,6 @@ export function AuthRedirect() {
     setHasRedirected(true);
     router.replace(nextPath);
   }, [authPending, isAuthenticated, profilePending, userProfile, hasRedirected, router]);
-
-  // Only show loader if we know they are authenticated and are in the process of redirecting them.
-  // We do not want to block public pages for unauthenticated users while auth is still checking.
-  const showLoader = isAuthenticated && (profilePending || !hasRedirected);
-
-  if (showLoader) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 mobile-only-loader">
-        <LoadingSpinner size="lg" center />
-      </div>
-    );
-  }
 
   return null;
 }
