@@ -15,7 +15,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useUserProfile } from "@/hooks/query/useUsers";
 import { ROUTES, getDashboardByRole } from "@/lib/config/routes";
-import { LoadingSpinner } from "@/components/ui/loading";
 import { StatusFooter } from "@/components/status/StatusFooter";
 import { resolveAuthoritativeProfileComplete } from "@/lib/config/profile";
 
@@ -53,18 +52,6 @@ export default function AuthLayout({
 
     replace(nextPath);
   }, [authPending, profilePending, isAuthenticated, userProfile, replace]);
-
-  // Only show loading when we have a real authenticated session to redirect away from auth pages.
-  // Unauthenticated users should see the login form immediately.
-  const showLoader = (isAuthenticated && !hasErrorParams) || (authPending && !hasErrorParams);
-
-  if (showLoader) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <LoadingSpinner size="lg" center />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex">

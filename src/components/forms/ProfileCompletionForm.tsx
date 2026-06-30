@@ -1049,7 +1049,6 @@ function ProfileCompletionFormContent({
         // emailVerified is intentionally not sent — the User table has no
         // `emailVerified` column, so the backend silently drops it. The DTO
         // was cleaned up to no longer accept this field.
-        ...(sessionUser?.clinicId ? { clinicId: sessionUser.clinicId } : {}),
         // Include clinicName and clinicAddress when provided
         ...(data.clinicName?.trim()
           ? { clinicName: data.clinicName.trim() }
