@@ -1024,8 +1024,9 @@ function ProfileCompletionFormContent({
         resolvedPhone = formatPhoneNumber(data.phone);
       }
 
-      // For email OTP and Google login, email is already verified and included from session.
-      // For phone OTP login, email is optional and may be entered by the user.
+      // Email is optional for phone OTP users and comes from the login/session
+      // context for Google/email OTP users. It is accepted by the backend
+      // profile-completion DTO for account notifications.
       const resolvedEmail =
         isPhoneOtpLogin
           ? data.email?.trim() || undefined
@@ -1036,8 +1037,6 @@ function ProfileCompletionFormContent({
       const baseProfileData: Record<string, unknown> = {
         firstName: data.firstName,
         lastName: data.lastName,
-        // Include email if provided by the user or already verified.
-        // Phone OTP users can still enter an optional email here.
         ...(resolvedEmail ? { email: resolvedEmail } : {}),
         // Include phone if available and verified
         ...(resolvedPhone ? { phone: resolvedPhone } : {}),

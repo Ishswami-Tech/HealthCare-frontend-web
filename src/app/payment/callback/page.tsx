@@ -12,7 +12,14 @@ import { clinicApiClient } from "@/lib/api/client";
 import { syncAppointmentInCache } from "@/lib/utils/appointment-cache";
 
 type VerifyState = "loading" | "success" | "failed";
-const ALLOWED_PROVIDERS = new Set(["cashfree"]);
+const ALLOWED_PROVIDERS = new Set([
+  "cashfree",
+  "razorpay",
+  "phonepe",
+  "easebuzz",
+  "paytm",
+  "payu",
+]);
 
 type CallbackState = {
   state: VerifyState;

@@ -38,6 +38,39 @@ const BILLING_QUERY_KEYS = [
 // Fast timeouts for better UX
 const CASHFREE_LOAD_TIMEOUT_MS = 8000;
 const CASHFREE_CHECKOUT_TIMEOUT_MS = 10000;
+const RAZORPAY_SCRIPT_ID = "razorpay-checkout-script";
+
+declare global {
+  interface Window {
+    Razorpay: new (options: RazorpayOptions) => RazorpayInstance;
+  }
+}
+
+interface RazorpayOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description?: string;
+  order_id?: string;
+  prefill?: {
+    name?: string;
+    email?: string;
+    contact?: string;
+  };
+  theme?: {
+    color?: string;
+  };
+  handler?: (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => void;
+  modal?: {
+    ondismiss?: () => void;
+  };
+}
+
+interface RazorpayInstance {
+  open: () => void;
+  on: (event: string, handler: () => void) => void;
+}
 
 interface PaymentButtonProps {
   invoiceId?: string;
@@ -49,7 +82,7 @@ interface PaymentButtonProps {
   currency?: string;
   description?: string;
   clinicId?: string;
-  /** Optional: force provider (cashfree only). */
+  /** Optional: force a specific provider (cashfree|razorpay|phonepe|easebuzz|paytm|payu). */
   provider?: PaymentProvider;
   autoStart?: boolean;
   disabled?: boolean;
@@ -202,13 +235,51 @@ export function PaymentButton({
     return cashfreeSdkPromiseRef.current;
   };
 
+  const loadRazorpayScript = (): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      if (window.Razorpay) {
+        resolve();
+        return;
+      }
+      if (document.getElementById(RAZORPAY_SCRIPT_ID)) {
+        const check = setInterval(() => {
+          if (window.Razorpay) {
+            clearInterval(check);
+            resolve();
+          }
+        }, 100);
+        return;
+      }
+      const script = document.createElement("script");
+      script.id = RAZORPAY_SCRIPT_ID;
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("Failed to load Razorpay SDK"));
+      document.body.appendChild(script);
+    });
+  };
+
+  const preloadRazorpayScript = () => {
+    if (effectiveProvider !== "razorpay" || disabled) {
+      return;
+    }
+    void loadRazorpayScript().catch((err) =>
+      console.warn("[PaymentButton] Razorpay script preload failed", err)
+    );
+  };
+
   const warmUpPaymentResources = () => {
     if (disabled) {
       return;
     }
 
     void preloadPaymentIntent();
-    void preloadCashfreeSdk();
+    if (effectiveProvider === "cashfree") {
+      void preloadCashfreeSdk();
+    } else if (effectiveProvider === "razorpay") {
+      preloadRazorpayScript();
+    }
   };
 
   const verifyPayment = async (
@@ -451,13 +522,95 @@ export function PaymentButton({
     }
   };
 
+  const handleRazorpayPayment = async (
+    paymentIntent: Record<string, unknown>,
+    usedProvider: PaymentProvider,
+    resolvedClinicId: string
+  ) => {
+    const metadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
+    const providerResponse = (paymentIntent?.providerResponse as Record<string, unknown>) || {};
+    const orderId =
+      (paymentIntent?.orderId as string) ||
+      (paymentIntent?.paymentId as string) ||
+      (paymentIntent?.id as string) ||
+      (providerResponse?.razorpay_order_id as string) ||
+      (metadata?.orderId as string) ||
+      "";
+    const razorpayKey =
+      (providerResponse?.razorpay_key_id as string) ||
+      (metadata?.razorpayKeyId as string) ||
+      process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
+      "";
+    const paymentAmount =
+      (paymentIntent?.amount as number) ||
+      (metadata?.amount as number) ||
+      amount;
+
+    if (!orderId) {
+      throw new Error("Order ID not received from server");
+    }
+
+    await loadRazorpayScript();
+
+    return new Promise<void>((resolve, reject) => {
+      const rz = new window.Razorpay({
+        key: razorpayKey,
+        amount: paymentAmount,
+        currency: currency,
+        name: "Healthcare Payment",
+        description: description || "Appointment Payment",
+        order_id: orderId,
+        prefill: {},
+        theme: { color: "#0B5E45" },
+        handler: async (response) => {
+          try {
+            await finalizeSuccessfulPayment(usedProvider, response.razorpay_order_id, resolvedClinicId);
+            resolve();
+          } catch (err) {
+            reject(err);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            reject(new Error("Payment cancelled"));
+          },
+        },
+      });
+
+      rz.on("payment.failed", () => {
+        reject(new Error("Payment failed"));
+      });
+
+      rz.open();
+    });
+  };
+
+  const handleRedirectPayment = async (
+    paymentIntent: Record<string, unknown>,
+    usedProvider: PaymentProvider
+  ) => {
+    const metadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
+    const providerResponse = (paymentIntent?.providerResponse as Record<string, unknown>) || {};
+    const redirectUrl =
+      (paymentIntent?.redirectUrl as string) ||
+      (paymentIntent?.paymentLink as string) ||
+      (providerResponse?.payment_link as string) ||
+      (providerResponse?.checkoutUrl as string) ||
+      (metadata?.redirectUrl as string) ||
+      (metadata?.paymentLink as string) ||
+      "";
+
+    if (!redirectUrl) {
+      throw new Error(`No redirect URL returned for provider '${usedProvider}'`);
+    }
+
+    window.location.href = redirectUrl;
+  };
+
   const handlePayment = async () => {
     setIsProcessing(true);
     try {
-      const [paymentResponse, cashfreeClient] = await Promise.all([
-        preloadPaymentIntent(),
-        preloadCashfreeSdk(),
-      ]);
+      const paymentResponse = await preloadPaymentIntent();
       const paymentIntentResponse = paymentResponse as PaymentIntentResponse;
       const paymentIntentData =
         paymentIntentResponse.paymentIntent ||
@@ -477,10 +630,36 @@ export function PaymentButton({
       if (!isPaymentProviderEnabled(usedProvider)) {
         throw new Error(`Payment provider '${usedProvider}' is not enabled`);
       }
-      if (usedProvider !== "cashfree") {
-        throw new Error(`Provider '${usedProvider}' is enabled but SDK handler is not implemented yet`);
+
+      const paymentMetadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
+      let resolvedClinicId =
+        clinicId ||
+        (paymentIntent?.clinicId as string) ||
+        (paymentMetadata?.clinicId as string) ||
+        APP_CONFIG.CLINIC.ID;
+      if (!resolvedClinicId) {
+        resolvedClinicId = (await getClinicId()) || APP_CONFIG.CLINIC.ID;
       }
-      await handleCashfreePayment(paymentIntent, usedProvider, cashfreeClient);
+      if (!resolvedClinicId) {
+        throw new Error("Clinic context is required for payment verification");
+      }
+
+      switch (usedProvider) {
+        case "cashfree": {
+          const cashfreeClient = await preloadCashfreeSdk();
+          await handleCashfreePayment(paymentIntent, usedProvider, cashfreeClient);
+          break;
+        }
+        case "razorpay": {
+          await handleRazorpayPayment(paymentIntent, usedProvider, resolvedClinicId);
+          break;
+        }
+        default: {
+          // PhonePe, Easebuzz, Paytm, PayU — redirect-based
+          await handleRedirectPayment(paymentIntent, usedProvider);
+          break;
+        }
+      }
     } catch (error) {
       setIsProcessing(false);
       const message =

@@ -1,4 +1,11 @@
-export const SUPPORTED_PAYMENT_PROVIDERS = ["cashfree"] as const;
+export const SUPPORTED_PAYMENT_PROVIDERS = [
+  "cashfree",
+  "razorpay",
+  "phonepe",
+  "easebuzz",
+  "paytm",
+  "payu",
+] as const;
 export type PaymentProvider = (typeof SUPPORTED_PAYMENT_PROVIDERS)[number];
 
 const configuredProviders =
