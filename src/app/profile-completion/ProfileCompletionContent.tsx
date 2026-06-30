@@ -14,7 +14,7 @@ import { Role } from "@/types/auth.types";
 import { LoadingSpinner } from "@/components/ui/loading";
 import { ROUTES } from "@/lib/config/routes";
 import { useUserProfile } from "@/hooks/query/useUsers";
-import { resolveAuthoritativeProfileComplete } from "@/lib/config/profile";
+import { resolveAuthoritativeProfileCompleteFromCandidates } from "@/lib/config/profile";
 
 export default function ProfileCompletionContent() {
   const { session, isPending } = useAuth();
@@ -25,7 +25,8 @@ export default function ProfileCompletionContent() {
     enabled: !!session?.user,
   });
 
-  const authoritativeProfileComplete = resolveAuthoritativeProfileComplete(
+  const authoritativeProfileComplete = resolveAuthoritativeProfileCompleteFromCandidates(
+    session?.user as Record<string, unknown> | null | undefined,
     currentUserProfile as Record<string, unknown> | null | undefined,
   );
 

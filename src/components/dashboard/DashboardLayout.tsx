@@ -15,7 +15,7 @@ import { ROUTES, getProtectedRouteRoles } from "@/lib/config/routes";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { RouteRedirect } from "@/components/navigation/RouteRedirect";
-import { resolveAuthoritativeProfileComplete } from "@/lib/config/profile";
+import { resolveAuthoritativeProfileCompleteFromCandidates } from "@/lib/config/profile";
 
 // Layout imports
 import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
@@ -216,7 +216,8 @@ export function DashboardLayout({
       }
 
       // Profile loaded - make definitive redirect decision
-      const profileComplete = resolveAuthoritativeProfileComplete(
+      const profileComplete = resolveAuthoritativeProfileCompleteFromCandidates(
+        effectiveSession?.user as Record<string, unknown> | null | undefined,
         currentUserProfile as Record<string, unknown> | null | undefined,
       );
 

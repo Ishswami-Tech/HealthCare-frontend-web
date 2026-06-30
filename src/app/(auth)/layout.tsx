@@ -16,7 +16,7 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { useUserProfile } from "@/hooks/query/useUsers";
 import { ROUTES, getDashboardByRole } from "@/lib/config/routes";
 import { StatusFooter } from "@/components/status/StatusFooter";
-import { resolveAuthoritativeProfileComplete } from "@/lib/config/profile";
+import { resolveAuthoritativeProfileCompleteFromCandidates } from "@/lib/config/profile";
 
 export default function AuthLayout({
   children,
@@ -31,7 +31,7 @@ export default function AuthLayout({
   const hasErrorParams = searchParams.get('error') !== null;
   const callbackUrl = searchParams.get('callbackUrl');
 
-  const { isPending: authPending, isAuthenticated } = useAuth();
+  const { session, isPending: authPending, isAuthenticated } = useAuth();
 
   // Only fetch profile when authenticated - prevents blocking public auth pages
   const { data: userProfile, isPending: profilePending } = useUserProfile({
@@ -44,7 +44,10 @@ export default function AuthLayout({
     const role = (userProfile as { role?: string })?.role;
     if (!isAuthenticated || !role) return;
 
-    const profileComplete = resolveAuthoritativeProfileComplete(userProfile as Record<string, unknown> | null | undefined);
+    const profileComplete = resolveAuthoritativeProfileCompleteFromCandidates(
+      session?.user as Record<string, unknown> | null | undefined,
+      userProfile as Record<string, unknown> | null | undefined,
+    );
     const nextPath =
       String(role).toUpperCase() === "PATIENT" && profileComplete !== true
         ? ROUTES.PROFILE_COMPLETION

@@ -56,7 +56,7 @@ import {
   DashboardPageShell as PatientPageShell,
 } from "@/components/dashboard/DashboardPageShell";
 import { usePatientUiStore } from "@/stores/patient-ui.store";
-import { resolveAuthoritativeProfileComplete } from "@/lib/config/profile";
+import { resolveAuthoritativeProfileCompleteFromCandidates } from "@/lib/config/profile";
 
 export default function PatientDashboard() {
   const { session } = useAuth();
@@ -71,7 +71,8 @@ export default function PatientDashboard() {
 
   const clinicId = session?.user?.clinicId || "";
   const patientId = user?.id || "";
-  const authoritativeProfileComplete = resolveAuthoritativeProfileComplete(
+  const authoritativeProfileComplete = resolveAuthoritativeProfileCompleteFromCandidates(
+    session?.user as Record<string, unknown> | null | undefined,
     userProfile as Record<string, unknown> | null | undefined
   );
 

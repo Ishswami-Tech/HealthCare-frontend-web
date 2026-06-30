@@ -50,6 +50,25 @@ export interface UserProfileData {
   profileComplete?: boolean;
 }
 
+function resolveExplicitProfileCompletionFlag(
+  profileData: Partial<UserProfileData> | Record<string, unknown> | null | undefined
+): boolean | undefined {
+  if (!profileData) return undefined;
+
+  const data = profileData as Record<string, unknown>;
+  if (typeof data.profileComplete === 'boolean') {
+    return data.profileComplete;
+  }
+  if (typeof data.isProfileComplete === 'boolean') {
+    return data.isProfileComplete;
+  }
+  if (typeof data.requiresProfileCompletion === 'boolean') {
+    return !data.requiresProfileCompletion;
+  }
+
+  return undefined;
+}
+
 /**
  * Resolve the authoritative completion state for a user profile.
  * For patients, this derives completion from the actual profile fields
@@ -65,7 +84,30 @@ export function resolveAuthoritativeProfileComplete(
     return true;
   }
 
+  const explicitProfileComplete = resolveExplicitProfileCompletionFlag(profileData);
+  if (explicitProfileComplete !== undefined) {
+    return explicitProfileComplete;
+  }
+
   return calculateProfileCompletion(profileData as UserProfileData);
+}
+
+export function resolveAuthoritativeProfileCompleteFromCandidates(
+  ...profileSources: Array<Partial<UserProfileData> | Record<string, unknown> | null | undefined>
+): boolean | undefined {
+  let sawIncomplete = false;
+
+  for (const profileSource of profileSources) {
+    const resolved = resolveAuthoritativeProfileComplete(profileSource);
+    if (resolved === true) {
+      return true;
+    }
+    if (resolved === false) {
+      sawIncomplete = true;
+    }
+  }
+
+  return sawIncomplete ? false : undefined;
 }
 
 /**
@@ -90,6 +132,16 @@ export function checkProfileCompletion(profileData: UserProfileData): ProfileCom
   const optionalFields: string[] = [];
 
   const missingFields: string[] = [];
+
+  const explicitProfileComplete = resolveExplicitProfileCompletionFlag(profileData);
+  if (explicitProfileComplete === true) {
+    return {
+      isComplete: true,
+      missingFields: [],
+      requiredFields,
+      optionalFields,
+    };
+  }
 
   // Check required fields
   requiredFields.forEach(field => {
@@ -153,10 +205,9 @@ export function calculateProfileCompletion(userData: UserProfileData): boolean {
     return true;
   }
 
-  if (typeof userData.profileComplete === 'boolean') {
-    if (userData.profileComplete !== true) {
-      return false;
-    }
+  const explicitProfileComplete = resolveExplicitProfileCompletionFlag(userData);
+  if (explicitProfileComplete !== undefined) {
+    return explicitProfileComplete;
   }
 
   const requiredFields = ['firstName', 'lastName', 'phone'];
@@ -186,8 +237,9 @@ export function getProfileCompletionStatus(
 ): boolean {
   // If we have user data, calculate completion status
   if (userData) {
-    if (typeof userData.profileComplete === 'boolean') {
-      return userData.profileComplete;
+    const explicitProfileComplete = resolveExplicitProfileCompletionFlag(userData);
+    if (explicitProfileComplete !== undefined) {
+      return explicitProfileComplete;
     }
     return calculateProfileCompletion(userData);
   }

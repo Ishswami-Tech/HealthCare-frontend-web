@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useUserProfile } from "@/hooks/query/useUsers";
 import { ROUTES, getDashboardByRole } from "@/lib/config/routes";
-import { resolveAuthoritativeProfileComplete } from "@/lib/config/profile";
+import { resolveAuthoritativeProfileCompleteFromCandidates } from "@/lib/config/profile";
 
 export function AuthRedirect() {
-  const { isAuthenticated, isPending: authPending } = useAuth();
+  const { session, isAuthenticated, isPending: authPending } = useAuth();
   const router = useRouter();
   const [hasRedirected, setHasRedirected] = useState(false);
 
@@ -26,7 +26,10 @@ export function AuthRedirect() {
     if (hasRedirected) return;
 
     const role = (userProfile as { role?: string })?.role || "";
-    const profileComplete = resolveAuthoritativeProfileComplete(userProfile as Record<string, unknown> | null | undefined);
+    const profileComplete = resolveAuthoritativeProfileCompleteFromCandidates(
+      session?.user as Record<string, unknown> | null | undefined,
+      userProfile as Record<string, unknown> | null | undefined,
+    );
     const nextPath =
       String(role).toUpperCase() === "PATIENT" && profileComplete !== true
         ? ROUTES.PROFILE_COMPLETION

@@ -84,7 +84,7 @@ import {
 } from "@/hooks/utils/use-toast";
 import { Permission } from "@/types/rbac.types";
 import { APP_CONFIG } from "@/lib/config/config";
-import { resolveAuthoritativeProfileComplete } from "@/lib/config/profile";
+import { resolveAuthoritativeProfileCompleteFromCandidates } from "@/lib/config/profile";
 import { ROUTES } from "@/lib/config/routes";
 import { theme } from "@/lib/utils/theme-utils";
 import { cn } from "@/lib/utils";
@@ -2970,10 +2970,11 @@ export function BookAppointmentDialog({
   );
   const authoritativeProfileComplete = useMemo(
     () =>
-      resolveAuthoritativeProfileComplete(
+      resolveAuthoritativeProfileCompleteFromCandidates(
+        session?.user as Record<string, unknown> | null | undefined,
         currentPatientProfile as Record<string, unknown> | null | undefined,
       ),
-    [currentPatientProfile],
+    [currentPatientProfile, session?.user],
   );
   const profileCompletionBlocked = useMemo(
     () =>
