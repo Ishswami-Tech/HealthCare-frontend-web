@@ -97,6 +97,8 @@ function VerifyOTPPageContent() {
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
   const lastAutoSubmittedOtpRef = useRef<string>("");
   const otpSubmitLockRef = useRef(false);
+  const successRedirectTimerRef = useRef<number | null>(null);
+  const toastRedirectTimerRef = useRef<number | null>(null);
 
   const setEmail = (value: string) => dispatch({ type: "setEmail", value });
   const setSuccessPhase = (value: VerifyOTPState["successPhase"]) =>
@@ -111,7 +113,24 @@ function VerifyOTPPageContent() {
   const triggerSuccessFlow = useCallback(() => {
     setFormError(null);
     setSuccessPhase("alert");
-    setTimeout(() => setSuccessPhase("redirecting"), 1500);
+    if (successRedirectTimerRef.current) {
+      window.clearTimeout(successRedirectTimerRef.current);
+    }
+    successRedirectTimerRef.current = window.setTimeout(
+      () => setSuccessPhase("redirecting"),
+      1500,
+    );
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (successRedirectTimerRef.current) {
+        window.clearTimeout(successRedirectTimerRef.current);
+      }
+      if (toastRedirectTimerRef.current) {
+        window.clearTimeout(toastRedirectTimerRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -143,7 +162,10 @@ function VerifyOTPPageContent() {
         throw new Error("Backend redirectUrl missing or invalid");
       }
       // Wait a bit to let the toast display then redirect
-      setTimeout(() => push(redirectUrl), 100);
+      if (toastRedirectTimerRef.current) {
+        window.clearTimeout(toastRedirectTimerRef.current);
+      }
+      toastRedirectTimerRef.current = window.setTimeout(() => push(redirectUrl), 100);
     },
     {
       identifier: email,

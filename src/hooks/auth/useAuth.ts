@@ -719,7 +719,6 @@ export function useAuth() {
       successMessage: 'OTP sent successfully! Please check your email.',
       showToast: false,
       showLoading: false,
-      invalidateQueries: [['session']],
       onSuccess: (_data, variables) => {
         clearOtpVerificationLock(variables.identifier, variables.clinicId);
         if (process.env.NODE_ENV === 'development') {

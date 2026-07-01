@@ -177,6 +177,44 @@ function refreshTokenOptions(): Partial<ResponseCookie> {
   };
 }
 
+function isMeaningfulIdentityValue(value?: string | null): boolean {
+  if (!value) {
+    return false;
+  }
+
+  const normalized = value.trim();
+  if (!normalized) {
+    return false;
+  }
+
+  const genericTokens = new Set([
+    'patient',
+    'user',
+    'doctor',
+    'guest',
+    'unknown',
+    'member',
+    'account',
+    'anonymous',
+  ]);
+
+  const lower = normalized.toLowerCase();
+  const compactTokens = lower.replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/).filter(Boolean);
+  if (compactTokens.length > 0 && compactTokens.every((token) => genericTokens.has(token))) {
+    return false;
+  }
+
+  if (normalized.includes('@')) {
+    return false;
+  }
+
+  if (/^\+?[\d\s().-]{7,}$/.test(normalized)) {
+    return false;
+  }
+
+  return true;
+}
+
 const INVALID_REFRESH_TOKEN_TTL_MS = 5 * 60 * 1000;
 const INVALID_REFRESH_TOKEN_COOKIE = 'invalid_refresh_token';
 
@@ -299,6 +337,21 @@ function hasMeaningfulPatientIdentity(userData: Record<string, unknown> | undefi
     String(userData.lastName || userData.last_name || '').trim();
 
   return firstName.length > 0 && lastName.length > 0;
+}
+
+function hasMeaningfulPatientIdentityFromCandidates(
+  userData: Record<string, unknown> | undefined,
+  firstNameCookie?: string,
+  lastNameCookie?: string
+): boolean {
+  if (hasMeaningfulPatientIdentity(userData)) {
+    return true;
+  }
+
+  return (
+    isMeaningfulIdentityValue(firstNameCookie) &&
+    isMeaningfulIdentityValue(lastNameCookie)
+  );
 }
 
 function resolveProfileCompleteFromPayload(
@@ -843,9 +896,14 @@ export async function getServerSession(): Promise<Session | null> {
       // Prefer the authoritative backend result here.
       // Do NOT use `||` to combine sources — if any source says `true`, the cookie gets stuck at `true`
       // and the user can never be redirected to profile completion even when the actual data is empty.
-      const hasIdentity = hasMeaningfulPatientIdentity(userData as Record<string, unknown>);
+      const hasIdentity = hasMeaningfulPatientIdentityFromCandidates(
+        userData as Record<string, unknown>,
+        firstNameCookie,
+        lastNameCookie,
+      );
       const finalProfileComplete =
-        (resolvedFromUserData ?? authoritativeProfileComplete ?? profileComplete) && hasIdentity;
+        ((authoritativeProfileComplete ?? resolvedFromUserData ?? profileComplete) === true) &&
+        hasIdentity;
 
       return {
         user: {
@@ -2242,7 +2300,7 @@ export async function setProfileComplete(complete: boolean) {
     maxAge: 60 * 60 * 24 * 7,
   });
 
-  if (firstName) {
+  if (isMeaningfulIdentityValue(firstName)) {
     cookieStore.set({
       name: 'first_name',
       value: firstName,
@@ -2254,7 +2312,7 @@ export async function setProfileComplete(complete: boolean) {
     });
   }
 
-  if (lastName) {
+  if (isMeaningfulIdentityValue(lastName)) {
     cookieStore.set({
       name: 'last_name',
       value: lastName,
@@ -2266,7 +2324,7 @@ export async function setProfileComplete(complete: boolean) {
     });
   }
 
-  if (userName) {
+  if (isMeaningfulIdentityValue(userName)) {
     cookieStore.set({
       name: 'user_name',
       value: userName,

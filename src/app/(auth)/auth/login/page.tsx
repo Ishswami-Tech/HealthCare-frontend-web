@@ -45,6 +45,7 @@ function LoginPageContent() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const requestOtpLockRef = useRef(false);
+  const successRedirectTimerRef = useRef<number | null>(null);
   const identifierCacheRef = useRef({ email: "", phone: "" });
 
   const { showOTPInput, otpMethod } = loginFlow;
@@ -80,7 +81,21 @@ function LoginPageContent() {
   const triggerSuccessFlow = useCallback(() => {
     setAuthError(null);
     setSuccessPhase("alert");
-    setTimeout(() => setSuccessPhase("redirecting"), 1500);
+    if (successRedirectTimerRef.current) {
+      window.clearTimeout(successRedirectTimerRef.current);
+    }
+    successRedirectTimerRef.current = window.setTimeout(
+      () => setSuccessPhase("redirecting"),
+      1500,
+    );
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (successRedirectTimerRef.current) {
+        window.clearTimeout(successRedirectTimerRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
