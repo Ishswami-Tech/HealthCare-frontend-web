@@ -168,7 +168,7 @@ function PaymentCallbackPageContent() {
           });
         }
 
-        await Promise.all([
+        void Promise.all([
           queryClient.invalidateQueries({ queryKey: ["myAppointments"], exact: false }),
           queryClient.invalidateQueries({ queryKey: ["appointments"], exact: false }),
           queryClient.invalidateQueries({ queryKey: ["video-appointments"], exact: false }),
@@ -183,12 +183,12 @@ function PaymentCallbackPageContent() {
           queryClient.invalidateQueries({ queryKey: ["subscriptions"], exact: false }),
           queryClient.invalidateQueries({ queryKey: ["active-subscription"], exact: false }),
           queryClient.invalidateQueries({ queryKey: ["billing-analytics"], exact: false }),
-        ]);
+        ]).catch(() => undefined);
 
         dispatch({
           type: "SUCCESS",
-          message: "Payment verified. Redirecting shortly...",
-          secondsLeft: 3,
+          message: "Payment verified. Redirecting now...",
+          secondsLeft: 1,
         });
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {

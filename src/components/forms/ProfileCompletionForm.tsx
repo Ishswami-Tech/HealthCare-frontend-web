@@ -915,75 +915,19 @@ function ProfileCompletionFormContent({
       // Now navigate with cookie properly set
       window.location.replace(finalRedirect);
     } else {
-      // Backend reported success but did not confirm completion.
-      // This could be due to:
-      // 1. Missing required fields (firstName, lastName, phone)
-      // 2. Phone not verified
-      // 3. Backend response timing issues (cache, transaction isolation)
-
-      // Check if we have all required data locally - if so, proceed anyway
-      // since the DB is likely correct even if the response flag is stale
-      // Use trim+length to require non-empty firstName AND lastName, but
-      // accept any truthy value (mirrors backend isProfileFieldPresent check).
-      const firstNameValid =
-        typeof profileData?.firstName === 'string' &&
-        (profileData.firstName as string).trim().length > 0;
-      const lastNameValid =
-        typeof profileData?.lastName === 'string' &&
-        (profileData.lastName as string).trim().length > 0;
-      const hasRequiredFields = firstNameValid && lastNameValid;
-      const hasPhoneVerification = isPhoneVerified || isPhoneOtpLogin;
-
       logger.warn('[ProfileCompletionForm] Backend did not confirm profile completion:', {
         responseProfileComplete: response?.profileComplete,
-        hasRequiredFields,
-        hasPhoneVerification,
-        firstNameValid,
-        lastNameValid,
         profileDataKeys: profileData && typeof profileData === 'object' ? Object.keys(profileData) : undefined,
       });
 
-      if (hasRequiredFields && hasPhoneVerification) {
-        // We have all required data and phone is verified - proceed with redirect
-        // The DB is likely correct even if the PATCH response had a stale flag
-        logger.info('[ProfileCompletionForm] Proceeding with redirect despite stale response flag');
-
-        const userRole = sessionUser?.role as Role;
-        const safeRedirectUrl =
-          redirectUrl &&
-          redirectUrl !== "/" &&
-          !redirectUrl.startsWith("/auth/")
-            ? redirectUrl
-            : undefined;
-        const finalRedirect = getProfileCompletionRedirectUrl(
-          userRole,
-          safeRedirectUrl,
-        );
-
-        // Wait for cookie to be set BEFORE navigating
-        try {
-          await setProfileCompleteMutation.mutateAsync(true);
-          logger.info('[ProfileCompletionForm] Cookie set successfully (fallback path), navigating');
-        } catch (cookieError) {
-          logger.warn("Unable to sync profile-complete cookie (fallback path)", {
-            error: cookieError instanceof Error ? cookieError.message : String(cookieError),
-          });
-        }
-
-        // Update state
-        setProfileCompletion(true, false);
-        syncCompletedProfileState(profileData);
-
-        window.location.replace(finalRedirect);
-      } else {
-        // Actually missing required data - show error
-        form.setError("root", {
-          type: "server",
-          message:
-            response?.error ||
-            "Profile was saved, but the server could not confirm completion. Please verify your name and phone number, then try again.",
-        });
-      }
+      form.setError("root", {
+        type: "server",
+        message:
+          response?.error ||
+          "Profile was saved, but the server could not confirm completion. Please verify your name and phone number, then try again.",
+      });
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
   };
 

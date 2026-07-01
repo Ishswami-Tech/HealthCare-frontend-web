@@ -1204,6 +1204,18 @@ export async function clearSession() {
   });
 
   cookieStore.set({
+    name: 'verified_phone',
+    value: '',
+    ...expiredOptions,
+  });
+
+  cookieStore.set({
+    name: 'login_method',
+    value: '',
+    ...expiredOptions,
+  });
+
+  cookieStore.set({
     name: INVALID_REFRESH_TOKEN_COOKIE,
     value: '',
     ...expiredOptions,
@@ -2210,9 +2222,15 @@ export async function setProfileComplete(complete: boolean) {
     throw new Error('Unauthorized');
   }
 
-
   const cookieStore = await cookies();
   const secure = process.env.NODE_ENV === 'production';
+  const firstName = typeof session.user.firstName === 'string' ? session.user.firstName.trim() : '';
+  const lastName = typeof session.user.lastName === 'string' ? session.user.lastName.trim() : '';
+  const userName =
+    typeof session.user.name === 'string' && session.user.name.trim()
+      ? session.user.name.trim()
+      : [firstName, lastName].filter(Boolean).join(' ').trim();
+  const verifiedPhone = typeof session.user.phone === 'string' ? session.user.phone.trim() : '';
   
   cookieStore.set({
     name: 'profile_complete',
@@ -2223,6 +2241,54 @@ export async function setProfileComplete(complete: boolean) {
     path: '/',
     maxAge: 60 * 60 * 24 * 7,
   });
+
+  if (firstName) {
+    cookieStore.set({
+      name: 'first_name',
+      value: firstName,
+      httpOnly: true,
+      secure,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7,
+    });
+  }
+
+  if (lastName) {
+    cookieStore.set({
+      name: 'last_name',
+      value: lastName,
+      httpOnly: true,
+      secure,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7,
+    });
+  }
+
+  if (userName) {
+    cookieStore.set({
+      name: 'user_name',
+      value: userName,
+      httpOnly: true,
+      secure,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7,
+    });
+  }
+
+  if (verifiedPhone) {
+    cookieStore.set({
+      name: 'verified_phone',
+      value: verifiedPhone,
+      httpOnly: true,
+      secure,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7,
+    });
+  }
 
   revalidatePath('/', 'layout');
 }

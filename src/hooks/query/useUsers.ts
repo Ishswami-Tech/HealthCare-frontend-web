@@ -427,7 +427,7 @@ export const useSetProfileComplete = () => {
       loadingMessage: 'Finalizing profile...',
       successMessage: 'Profile finalized successfully',
       showToast: false,
-      invalidateQueries: [['userProfile'], ['user'], ['myClinic']],
+      invalidateQueries: [['userProfile'], ['user'], ['session'], ['myClinic']],
     }
   );
 };

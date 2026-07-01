@@ -94,6 +94,44 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
         ? (responseData.user as Record<string, unknown>)
         : undefined;
 
+    if (responseUser) {
+      const secure = process.env.NODE_ENV === 'production';
+      const cookieOptions = {
+        httpOnly: true,
+        secure,
+        sameSite: 'lax' as const,
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7,
+      };
+      const explicitProfileComplete =
+        typeof responseUser.profileComplete === 'boolean'
+          ? responseUser.profileComplete
+          : typeof responseUser.isProfileComplete === 'boolean'
+            ? responseUser.isProfileComplete
+            : typeof responseUser.requiresProfileCompletion === 'boolean'
+              ? !responseUser.requiresProfileCompletion
+              : undefined;
+      const firstName = typeof responseUser.firstName === 'string' ? responseUser.firstName.trim() : '';
+      const lastName = typeof responseUser.lastName === 'string' ? responseUser.lastName.trim() : '';
+      const userName =
+        typeof responseUser.name === 'string' && responseUser.name.trim()
+          ? responseUser.name.trim()
+          : [firstName, lastName].filter(Boolean).join(' ').trim();
+      const verifiedPhone = typeof responseUser.phone === 'string' ? responseUser.phone.trim() : '';
+
+      if (firstName) cookieStore.set({ name: 'first_name', value: firstName, ...cookieOptions });
+      if (lastName) cookieStore.set({ name: 'last_name', value: lastName, ...cookieOptions });
+      if (userName) cookieStore.set({ name: 'user_name', value: userName, ...cookieOptions });
+      if (verifiedPhone) cookieStore.set({ name: 'verified_phone', value: verifiedPhone, ...cookieOptions });
+      if (explicitProfileComplete !== undefined) {
+        cookieStore.set({
+          name: 'profile_complete',
+          value: explicitProfileComplete.toString(),
+          ...cookieOptions,
+        });
+      }
+    }
+
     // Extract profile completion status from user object
     const isProfileComplete =
       typeof responseUser?.profileComplete === 'boolean'
@@ -111,29 +149,6 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
       responseUserProfileComplete: responseUser?.profileComplete,
       responseUserIsProfileComplete: responseUser?.isProfileComplete,
     });
-
-    if (isProfileComplete === true) {
-      cookieStore.set({
-        name: 'profile_complete',
-        value: 'true',
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 60 * 60 * 24 * 7, // 7 days
-      });
-      logger.info('[updateUserProfile] Profile completion cookie set to true');
-    } else if (isProfileComplete === false) {
-      cookieStore.set({
-        name: 'profile_complete',
-        value: 'false',
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 60 * 60 * 24 * 7, // 7 days
-      });
-    }
 
     return {
       success: responseData?.success === true,
