@@ -1,5 +1,4 @@
 import { VideoAppointmentMeetSession } from "@/components/video/VideoAppointmentMeetSession";
-import { getServerSession } from "@/lib/actions/auth.server";
 import { normalizeVideoSessionAppointmentId } from "@/lib/utils/video-session-route";
 
 export const dynamic = "force-dynamic";
@@ -17,13 +16,10 @@ export default async function MeetPage({
   const appointmentId = Array.isArray(resolvedParams.appointmentId)
     ? resolvedParams.appointmentId[0]
     : resolvedParams.appointmentId;
-  const session = await getServerSession();
-  const viewerRole = session?.user?.role || "";
 
   return (
     <VideoAppointmentMeetSession
       appointmentId={normalizeVideoSessionAppointmentId(appointmentId || "")}
-      viewerRole={viewerRole}
     />
   );
 }
