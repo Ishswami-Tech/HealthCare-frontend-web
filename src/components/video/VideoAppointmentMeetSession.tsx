@@ -915,7 +915,7 @@ export function VideoAppointmentMeetSession({
   if (isPending || !appointment || isRequesting) {
     return (
       <div className="flex min-h-dvh w-full items-center justify-center bg-[#111315] px-6 text-center text-white">
-        <div className="gap-y-4 max-w-xs w-full">
+        <div className="flex flex-col items-center gap-y-4 max-w-xs w-full">
           <div className="relative mx-auto size-14">
             <div className="h-full w-full animate-spin rounded-full border-2 border-[#8ab4f8]/20 border-t-[#8ab4f8]" />
             <div className="absolute inset-0 flex items-center justify-center">
@@ -980,8 +980,8 @@ export function VideoAppointmentMeetSession({
           <div className="relative w-full overflow-hidden rounded-2xl bg-[#1e1f20] border border-white/10">
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#ea4335] via-[#fbbc05] to-[#34a853]" />
 
-            {/* 3:4 portrait on mobile, 16:9 landscape on desktop */}
-            <div className="relative w-full aspect-[3/4] lg:aspect-video">
+            {/* 16:9 on all screen sizes for consistent video preview */}
+            <div className="relative w-full aspect-video">
               <video
                 ref={videoRef}
                 autoPlay

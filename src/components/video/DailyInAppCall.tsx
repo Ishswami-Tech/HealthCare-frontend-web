@@ -216,7 +216,7 @@ function VideoLoadingScreen({
 }) {
   return (
     <div className="flex h-full w-full min-h-[100dvh] items-center justify-center bg-[#111315] px-6 text-center text-white">
-      <div className="gap-y-4 max-w-xs w-full">
+      <div className="flex flex-col items-center gap-y-4 max-w-xs w-full">
         <div className="relative mx-auto size-14">
           <Loader2 className="h-full w-full animate-spin text-[#8ab4f8]/40" />
           <div className="absolute inset-0 flex items-center justify-center">
@@ -243,7 +243,7 @@ function DeviceSelect({
   onChange: (deviceId: string) => void | Promise<void>;
 }) {
   return (
-    <div className="gap-y-1.5">
+    <div className="flex flex-col gap-y-1.5">
       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#9aa0a6]">
         {label}
       </p>
@@ -331,13 +331,13 @@ function DeviceChevronMenu({
         style={{ width: "220px", maxWidth: "85vw" }}
         className="!w-auto rounded-2xl border border-[#3c4043] bg-[#202124] p-2 text-white shadow-2xl z-[200] overflow-hidden"
       >
-        <div className="gap-y-2">
+        <div className="flex flex-col gap-y-2">
           {/* Primary device list */}
           <div>
             <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9aa0a6] px-2">
               {label}
             </p>
-            <div className="gap-y-0.5">
+            <div className="flex flex-col gap-y-0.5">
               {devices.length === 0 ? (
                 <div className="px-2 py-1.5 text-[12px] text-[#5f6368]">
                   No devices found
@@ -393,7 +393,7 @@ function DeviceChevronMenu({
                 <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9aa0a6] px-2">
                   {extraLabel}
                 </p>
-                <div className="gap-y-0.5">
+                <div className="flex flex-col gap-y-0.5">
                   {extraDevices.map((d) => (
                     <button
                       key={d.device.deviceId}
@@ -1006,10 +1006,10 @@ function MeetingSidebar({
             </div>
 
             {/* Messages list */}
-            <div className="flex-1 overflow-y-auto p-4 gap-y-5 min-h-0">
+            <div className="flex flex-1 flex-col overflow-y-auto p-4 gap-y-5 min-h-0">
               {sentMessages.length === 0 && (
                 <div className="flex h-full items-center justify-center pt-8">
-                  <div className="text-center gap-y-2">
+                  <div className="flex flex-col items-center text-center gap-y-2">
                     <MessageSquare className="mx-auto size-10 text-[#3c4043]" />
                     <p className="text-[13px] text-[#5f6368]">
                       No messages yet
@@ -1099,7 +1099,7 @@ function MeetingSidebar({
                   });
                   setDraft("");
                 }}
-                className="flex items-center gap-2 rounded-xl border border-white/15 bg-[#2d2e30] px-4 py-1 focus-within:border-[#8ab4f8]/50 focus-within:ring-1 focus-within:ring-[#8ab4f8]/20 transition-all"
+                className="flex items-center gap-2 rounded-xl border border-white/15 bg-[#2d2e30] px-4 py-1 focus-within:border-[#8ab4f8]/50 focus-within:ring-1 focus-within:ring-[#8ab4f8]/20 focus-within:outline-none transition-all"
                 suppressHydrationWarning
               >
                 <input
@@ -1108,7 +1108,7 @@ function MeetingSidebar({
                   onChange={(e) => setDraft(e.target.value)}
                   placeholder="Send a message to everyone"
                   aria-label="Message"
-                  className="flex-1 bg-transparent py-3 text-[13px] text-white outline-none placeholder:text-[#5f6368]"
+                  className="flex-1 bg-transparent py-3 text-[13px] text-white outline-none focus:outline-none focus:ring-0 placeholder:text-[#5f6368]"
                 />
                 <button
                   type="submit"
@@ -1123,13 +1123,13 @@ function MeetingSidebar({
           </>
         ) : (
           /* ── People panel ── */
-          <div className="flex-1 overflow-y-auto p-4 min-h-0 gap-y-5">
+          <div className="flex flex-1 flex-col overflow-y-auto p-4 min-h-0 gap-y-5">
             {waitingParticipants.length > 0 && (
               <div>
                 <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#9aa0a6]">
                   Waiting to join · {waitingParticipants.length}
                 </p>
-                <div className="gap-y-2">
+                <div className="flex flex-col gap-y-2">
                   {waitingParticipants.map((p) => {
                     const rawName = String(p.name || p.user_name || "").trim();
                     const pName =
@@ -1178,7 +1178,7 @@ function MeetingSidebar({
               <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#9aa0a6]">
                 In call · {participantIds.length}
               </p>
-              <div className="gap-y-2">
+              <div className="flex flex-col gap-y-2">
                 {participantIds.map((id) => (
                   <SidebarParticipantRow
                     key={id}
@@ -1242,7 +1242,7 @@ function EndCallModal({
             </DialogTitle>
           </DialogHeader>
 
-          <div className="mt-4 gap-y-2">
+          <div className="mt-4 flex flex-col gap-y-2">
             {/* Leave Meeting — no API call */}
             <button
               type="button"
@@ -1363,18 +1363,28 @@ function GridLayout({
     const all = activeSessionId
       ? [activeSessionId, ...secondaryIds]
       : secondaryIds;
-    const cols = all.length <= 2 ? "grid-cols-2" : "grid-cols-2 md:grid-cols-3";
+    const cols =
+      all.length <= 2
+        ? "grid-cols-1 sm:grid-cols-2"
+        : all.length <= 4
+          ? "grid-cols-1 sm:grid-cols-2"
+          : all.length <= 6
+            ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+            : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
     return (
-      <div className={`grid flex-1 gap-1.5 sm:gap-2 min-h-0 ${cols}`}>
+      <div
+        className={`grid flex-1 min-h-0 min-w-0 gap-1.5 sm:gap-2 [grid-auto-rows:minmax(0,1fr)] ${cols}`}
+      >
         {all.map((id) => (
-          <ParticipantTile
-            key={id}
-            sessionId={id}
-            isLocal={id === localSessionId}
-            localName={displayName}
-            waitingForName={waitingForName}
-            isActiveSpeaker={id === activeSpeakerId}
-          />
+          <div key={id} className="min-h-0 min-w-0">
+            <ParticipantTile
+              sessionId={id}
+              isLocal={id === localSessionId}
+              localName={displayName}
+              waitingForName={waitingForName}
+              isActiveSpeaker={id === activeSpeakerId}
+            />
+          </div>
         ))}
       </div>
     );
@@ -1711,9 +1721,9 @@ function DailyCallSurfaceContent({
               </div>
 
               {/* Video grid */}
-              <div className="flex flex-1 min-h-0 overflow-hidden p-1.5 sm:p-3 gap-1.5 sm:gap-3">
+              <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden p-1.5 sm:p-3 gap-1.5 sm:gap-3">
                 {hasScreenShare ? (
-                  <div className="flex flex-1 gap-2 sm:gap-3 min-h-0">
+                  <div className="flex flex-1 min-h-0 min-w-0 gap-2 sm:gap-3">
                     <div className="flex-1 min-w-0 min-h-0">
                       {screenShare.screens[0] && (
                         <ScreenShareTile
@@ -1728,7 +1738,7 @@ function DailyCallSurfaceContent({
                       )}
                     </div>
                     {secondaryIds.length > 0 && (
-                      <div className="flex w-[140px] sm:w-[168px] shrink-0 flex-col gap-2 overflow-y-auto">
+                      <div className="flex w-[90px] sm:w-[140px] lg:w-[168px] shrink-0 flex-col gap-1.5 sm:gap-2 overflow-y-auto">
                         {secondaryIds.map((id) => (
                           <div
                             key={id}
@@ -2067,7 +2077,7 @@ function DailyCallSurfaceContent({
                     align="center"
                     className="w-[min(92vw,22rem)] rounded-2xl border border-[#3c4043] bg-[#202124] p-3 text-white shadow-2xl z-[200]"
                   >
-                    <div className="gap-y-1">
+                    <div className="flex flex-col gap-y-1">
                       <button
                         type="button"
                         onClick={() => {
