@@ -1013,7 +1013,7 @@ export async function verifyPaymentCallback(params: {
       clinicId: params.clinicId,
       paymentId: params.paymentId || params.orderId,
       orderId: params.orderId,
-      provider: params.provider ?? 'cashfree',
+      ...(params.provider ? { provider: params.provider } : {}),
     });
 
     const { data } = await publicApi<{

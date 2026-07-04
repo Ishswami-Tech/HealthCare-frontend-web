@@ -88,8 +88,8 @@ function PaymentCallbackPageContent() {
       getSearchParam("paymentId") ||
       getSearchParam("payment_id") ||
       orderId;
-    const rawProvider = (getSearchParam("provider") || "cashfree").toLowerCase();
-    const provider = ALLOWED_PROVIDERS.has(rawProvider) ? rawProvider : "cashfree";
+    const rawProvider = (getSearchParam("provider") || "").toLowerCase();
+    const provider = ALLOWED_PROVIDERS.has(rawProvider) ? rawProvider : undefined;
     const clinicId = getSearchParam("clinicId") || "";
     const appointmentId = getSearchParam("appointmentId") || "";
     const appointmentType = (getSearchParam("appointmentType") || "").toUpperCase();
@@ -120,7 +120,7 @@ function PaymentCallbackPageContent() {
           clinicId: params.clinicId,
           paymentId: params.paymentId || params.orderId,
           orderId: params.orderId,
-          provider: params.provider,
+          ...(params.provider ? { provider: params.provider } : {}),
         });
 
         const response = await clinicApiClient.publicRequest<Record<string, unknown>>(
