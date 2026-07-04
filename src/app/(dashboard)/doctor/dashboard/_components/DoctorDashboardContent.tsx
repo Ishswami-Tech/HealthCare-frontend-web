@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { AlertCircle } from "lucide-react";
+import { Activity, AlertCircle, Stethoscope, Users, Video } from "lucide-react";
 import { QuickPrescriptionModal } from "@/components/doctor/QuickPrescriptionModal";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { DoctorDashboardSummaryCard } from "./DoctorDashboardSummaryCard";
@@ -10,7 +10,6 @@ import { DoctorDashboardQueueCard } from "./DoctorDashboardQueueCard";
 import { DoctorDashboardScheduleCard } from "./DoctorDashboardScheduleCard";
 import { DoctorDashboardSidebar } from "./DoctorDashboardSidebar";
 import { useDoctorDashboardData } from "./useDoctorDashboardData";
-import { Video, Users } from "lucide-react";
 
 export default function DoctorDashboardContent() {
   const data = useDoctorDashboardData();
@@ -48,6 +47,16 @@ export default function DoctorDashboardContent() {
         meta={data.meta}
         actions={[
           {
+            label: `In-person (${data.stats.inPersonToday})`,
+            href: "#in-person-consultation",
+            icon: <Stethoscope className="size-4" />,
+          },
+          {
+            label: `Live Queue (${data.stats.liveQueueCount})`,
+            href: "#live-queue",
+            icon: <Activity className="size-4" />,
+          },
+          {
             label: "Appointments",
             href: "/doctor/appointments",
             icon: <Video className="size-4" />,
@@ -62,39 +71,43 @@ export default function DoctorDashboardContent() {
 
       <DoctorDashboardSummaryCard dashboardTodayLabel={data.dashboardTodayLabel} stats={data.stats} />
 
-      <DoctorDashboardConsultationCard
-        currentInPersonConsult={data.currentInPersonConsult}
-        doctorDisplayName={data.displayDoctorName}
-        consultSummary={data.consultSummary}
-        consultElapsedLabel={data.consultElapsedLabel}
-        currentConsultStartedAtMs={data.currentConsultStartedAtMs}
-        consultationState={{
-          isConsultInProgress: data.isConsultInProgress,
-          canStartConsultation: data.canStartConsultation,
-        }}
-        actionState={{
-          isStartPending: data.isStartPending,
-          isCompletePending: data.isCompletePending,
-        }}
-        prescriptionModal={data.prescriptionModal}
-        onConsultSummaryChange={data.onConsultSummaryChange}
-        onStartConsultation={data.onStartConsultation}
-        onOpenPrescriptionForConsult={data.onOpenPrescriptionForConsult}
-        onToggleSkipMedicine={data.onToggleSkipMedicine}
-        onCompleteWithoutMedicine={data.onCompleteWithoutMedicine}
-      />
+      <section id="in-person-consultation" className="scroll-mt-24">
+        <DoctorDashboardConsultationCard
+          currentInPersonConsult={data.currentInPersonConsult}
+          doctorDisplayName={data.displayDoctorName}
+          consultSummary={data.consultSummary}
+          consultElapsedLabel={data.consultElapsedLabel}
+          currentConsultStartedAtMs={data.currentConsultStartedAtMs}
+          consultationState={{
+            isConsultInProgress: data.isConsultInProgress,
+            canStartConsultation: data.canStartConsultation,
+          }}
+          actionState={{
+            isStartPending: data.isStartPending,
+            isCompletePending: data.isCompletePending,
+          }}
+          prescriptionModal={data.prescriptionModal}
+          onConsultSummaryChange={data.onConsultSummaryChange}
+          onStartConsultation={data.onStartConsultation}
+          onOpenPrescriptionForConsult={data.onOpenPrescriptionForConsult}
+          onToggleSkipMedicine={data.onToggleSkipMedicine}
+          onCompleteWithoutMedicine={data.onCompleteWithoutMedicine}
+        />
+      </section>
 
       <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-4">
         <div className="flex flex-col gap-y-4 lg:col-span-3">
-          <DoctorDashboardQueueCard
-            doctorQueueSections={data.doctorQueueSections}
-            resolvedActiveDoctorQueueLane={data.resolvedActiveDoctorQueueLane}
-            activeDoctorQueueSection={data.activeDoctorQueueSection}
-            selectedDoctorQueueItems={data.selectedDoctorQueueItems}
-            highlightedQueuePatient={data.highlightedQueuePatient}
-            onSelectQueueLane={data.onSelectQueueLane}
-            onViewQueue={data.onOpenQueue}
-          />
+          <section id="live-queue" className="scroll-mt-24">
+            <DoctorDashboardQueueCard
+              doctorQueueSections={data.doctorQueueSections}
+              resolvedActiveDoctorQueueLane={data.resolvedActiveDoctorQueueLane}
+              activeDoctorQueueSection={data.activeDoctorQueueSection}
+              selectedDoctorQueueItems={data.selectedDoctorQueueItems}
+              highlightedQueuePatient={data.highlightedQueuePatient}
+              onSelectQueueLane={data.onSelectQueueLane}
+              onViewQueue={data.onOpenQueue}
+            />
+          </section>
 
           <DoctorDashboardScheduleCard
             appointments={data.appointmentTimeline}

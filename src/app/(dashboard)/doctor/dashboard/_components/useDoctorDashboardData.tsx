@@ -228,7 +228,10 @@ export function useDoctorDashboardData() {
     [today, visibleAppointmentsArray]
   );
 
-  const stats = useMemo(() => buildDoctorDashboardStats(appointmentsArray, appointmentTimeline), [appointmentTimeline, appointmentsArray]);
+  const stats = useMemo(
+    () => buildDoctorDashboardStats(appointmentsArray, appointmentTimeline, liveQueueEntries),
+    [appointmentTimeline, appointmentsArray, liveQueueEntries]
+  );
 
   const handleOpenPrescription = useCallback((apt: TransformedAppointment) => {
     dispatch({

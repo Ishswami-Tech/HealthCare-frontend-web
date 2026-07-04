@@ -66,6 +66,8 @@ export type DoctorDashboardAction =
 
 export interface DoctorDashboardStats {
   todayAppointments: number;
+  inPersonToday: number;
+  liveQueueCount: number;
   checkedInPatients: number;
   completedToday: number;
   totalPatients: number;
@@ -257,7 +259,8 @@ export function mapDoctorAppointmentToTimelineItem(
 
 export function buildDoctorDashboardStats(
   appointmentsArray: AppointmentWithRelations[],
-  appointmentTimeline: TransformedAppointment[]
+  appointmentTimeline: TransformedAppointment[],
+  liveQueueEntries: CanonicalQueueEntry[] = []
 ): DoctorDashboardStats {
   const todayStr = formatDateInIST(new Date(), { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA");
   const todayApts = appointmentsArray.filter((apt: AppointmentWithRelations) => {
@@ -274,6 +277,8 @@ export function buildDoctorDashboardStats(
 
   return {
     todayAppointments: todayApts.length,
+    inPersonToday: todayApts.filter((apt: AppointmentWithRelations) => String(apt.type || "").toUpperCase() === "IN_PERSON").length,
+    liveQueueCount: liveQueueEntries.length,
     checkedInPatients: todayApts.filter((apt: AppointmentWithRelations) => Boolean((apt as any).checkedInAt)).length,
     completedToday: todayApts.filter((apt: AppointmentWithRelations) => apt.status === "COMPLETED").length,
     totalPatients: new Set(appointmentsArray.map((apt: AppointmentWithRelations) => apt.patientId)).size,
