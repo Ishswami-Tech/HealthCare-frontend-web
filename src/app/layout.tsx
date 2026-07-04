@@ -19,6 +19,19 @@ const OG_IMAGE = "/assets/og/og-image.png";
 const SITE_DESCRIPTION =
   "Experience authentic Ayurvedic care in Chinchwad, Pune with Panchakarma, Agnikarma, Viddha Karma, appointments, and secure patient workflows.";
 
+function getMetadataBaseUrl(): URL {
+  const rawUrl = APP_CONFIG.APP.URL?.trim();
+  if (!rawUrl) {
+    return new URL("http://localhost:3000");
+  }
+
+  try {
+    return new URL(rawUrl);
+  } catch {
+    return new URL("http://localhost:3000");
+  }
+}
+
 export const metadata = {
   title: BRAND_TITLE,
   description: SITE_DESCRIPTION,
@@ -42,9 +55,7 @@ export const metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: APP_CONFIG.APP.URL && APP_CONFIG.APP.URL.trim() !== '' 
-    ? new URL(APP_CONFIG.APP.URL) 
-    : new URL('http://localhost:3000'),
+  metadataBase: getMetadataBaseUrl(),
   icons: {
     icon: "/favicon.ico",
     apple: "/favicon.ico",
