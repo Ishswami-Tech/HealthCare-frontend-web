@@ -178,7 +178,7 @@ export function PaymentButton({
   };
 
   const getPaymentIntent = async (): Promise<PaymentIntentResponse> => {
-    const providerQuery = `?provider=${effectiveProvider}`;
+    const providerQuery = provider ? `?provider=${effectiveProvider}` : "";
     if (subscriptionId) {
       return await clinicApiClient.request<PaymentIntentResponse>(
         `${API_ENDPOINTS.BILLING.SUBSCRIPTIONS.BASE}/${subscriptionId}/process-payment${providerQuery}`,

@@ -20,7 +20,9 @@ const normalizedConfiguredProviders = configuredProviders.filter((value): value 
 );
 
 export const ENABLED_PAYMENT_PROVIDERS: PaymentProvider[] =
-  normalizedConfiguredProviders.length > 0 ? normalizedConfiguredProviders : ["cashfree"];
+  normalizedConfiguredProviders.length > 0
+    ? normalizedConfiguredProviders
+    : ["cashfree", "razorpay", "phonepe"];
 
 export const DEFAULT_PAYMENT_PROVIDER: PaymentProvider =
   ENABLED_PAYMENT_PROVIDERS[0] || "cashfree";

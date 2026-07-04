@@ -921,8 +921,8 @@ export async function createPaymentIntent(
     if (!session?.user?.id) {
       throw new Error('Unauthorized: Authentication required');
     }
-    const provider = request.provider ?? 'cashfree';
-    const providerQuery = `?provider=${provider}`;
+    const provider = request.provider?.trim().toLowerCase();
+    const providerQuery = provider ? `?provider=${provider}` : '';
 
     let endpoint: string;
     const body: Record<string, unknown> = {};
