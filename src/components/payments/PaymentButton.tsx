@@ -614,7 +614,10 @@ export function PaymentButton({
       (paymentIntent?.redirectUrl as string) ||
       (paymentIntent?.paymentLink as string) ||
       (providerResponse?.payment_link as string) ||
+      (providerResponse?.redirectUrl as string) ||
+      (providerResponse?.redirect_url as string) ||
       (providerResponse?.checkoutUrl as string) ||
+      (providerResponse?.url as string) ||
       (metadata?.redirectUrl as string) ||
       (metadata?.paymentLink as string) ||
       "";
@@ -623,7 +626,7 @@ export function PaymentButton({
       throw new Error(`No redirect URL returned for provider '${usedProvider}'`);
     }
 
-    window.location.href = redirectUrl;
+    window.location.assign(redirectUrl);
   };
 
   const handlePayment = async () => {
