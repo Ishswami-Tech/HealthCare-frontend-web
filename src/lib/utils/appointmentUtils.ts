@@ -805,6 +805,10 @@ export function isAwaitingDoctorSlotConfirmation(appointment: any): boolean {
 }
 
 export function getAppointmentStatusBadgeLabel(appointment: any): string {
+  if (wasCancelledDueToPaymentFailure(appointment)) {
+    return 'Payment Failed';
+  }
+
   const normalizedStatus = getAppointmentStatusWithPaymentFallback(appointment);
 
   if (

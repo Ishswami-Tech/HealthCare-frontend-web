@@ -948,11 +948,14 @@ export function VideoAppointmentsList({
   const openReschedule = (apt: VideoAppointment) => {
     setActionAppointment(apt);
     const appointmentDateTime = getAppointmentDateTimeValue(apt);
-    const dateValue = appointmentDateTime
+    const now = currentTimestamp ? new Date(currentTimestamp) : new Date();
+    now.setHours(0, 0, 0, 0);
+    const isPastAppointment = Boolean(appointmentDateTime && appointmentDateTime.getTime() < now.getTime());
+    const dateValue = appointmentDateTime && !isPastAppointment
       ? formatDateInIST(appointmentDateTime, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA")
-      : "";
+      : formatDateInIST(now, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA");
     setRescheduleDate(dateValue);
-    setRescheduleTime(appointmentDateTime ? formatTimeInIST(appointmentDateTime) : "");
+    setRescheduleTime(appointmentDateTime && !isPastAppointment ? formatTimeInIST(appointmentDateTime) : "");
     setIsRescheduleOpen(true);
   };
   const openCancel = (apt: VideoAppointment) => { setActionAppointment(apt); setIsCancelOpen(true); };

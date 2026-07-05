@@ -90,7 +90,15 @@ import { PaymentButton } from "@/components/payments/PaymentButton";
 import { PaymentCountdown } from "@/components/appointments/PaymentCountdown";
 import { Role } from "@/types/auth.types";
 
-type StatusFilter = "ALL" | "SCHEDULED" | "CONFIRMED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+type StatusFilter =
+  | "ALL"
+  | "SCHEDULED"
+  | "CONFIRMED"
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "NO_SHOW"
+  | "EXPIRED";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string; bg: string }> = {
   PENDING: { label: "Payment Pending", color: "text-amber-800 dark:text-amber-200", dot: "bg-amber-500", bg: "bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700" },
@@ -997,7 +1005,7 @@ export default function AppointmentManager({
       const matchesStatus =
         statusFilter === "ALL"
           ? true
-          : apt.status === statusFilter;
+          : normalizeAppointmentStatus(apt.status) === statusFilter;
       const q = searchQuery.toLowerCase();
       const matchesSearch = !q ||
         apt.doctorLabel.toLowerCase().includes(q) ||
@@ -1006,7 +1014,8 @@ export default function AppointmentManager({
         (apt as any).doctorName?.toLowerCase().includes(q) ||
         apt.locationLabel.toLowerCase().includes(q) ||
         (apt as any).locationName?.toLowerCase().includes(q) ||
-        apt.status?.toLowerCase().includes(q);
+        apt.status?.toLowerCase().includes(q) ||
+        (wasCancelledDueToPaymentFailure(apt) ? "payment failed".includes(q) : false);
       const appointmentDate = apt.appointmentDateTime;
       const matchesStartDate = !startDate || (appointmentDate !== null && appointmentDate >= startDate);
       const matchesEndDate = !endDate || (appointmentDate !== null && appointmentDate <= endDate);
@@ -1023,7 +1032,10 @@ export default function AppointmentManager({
     const upcoming = normalizedAppointments.filter(a => ["SCHEDULED", "CONFIRMED"].includes(a.status)).length;
     const completed = normalizedAppointments.filter(a => a.status === "COMPLETED").length;
     const inProgress = normalizedAppointments.filter(a => a.status === "IN_PROGRESS").length;
-    return { total, upcoming, completed, inProgress };
+    const terminal = normalizedAppointments.filter(a =>
+      ["CANCELLED", "NO_SHOW", "EXPIRED"].includes(a.status)
+    ).length;
+    return { total, upcoming, completed, inProgress, terminal };
   }, [normalizedAppointments]);
 
   const formatDate = (date: string) => {
@@ -1299,7 +1311,18 @@ export default function AppointmentManager({
           </div>
 
           <div className="flex h-12 max-w-full gap-1 overflow-x-auto rounded-xl border border-border/60 bg-card p-1 shadow-sm sm:h-12 sm:gap-1.5 sm:rounded-2xl sm:p-1.5 scrollbar-hide">
-            {(["ALL", "SCHEDULED", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as StatusFilter[]).map(s => {
+            {(
+              [
+                "ALL",
+                "SCHEDULED",
+                "CONFIRMED",
+                "IN_PROGRESS",
+                "COMPLETED",
+                "CANCELLED",
+                "NO_SHOW",
+                "EXPIRED",
+              ] as StatusFilter[]
+            ).map(s => {
               const isActive = statusFilter === s;
               const labelMap: Record<string, string> = {
                 ALL: "All",
@@ -1307,7 +1330,9 @@ export default function AppointmentManager({
                 CONFIRMED: "Confirmed",
                 IN_PROGRESS: "In Progress",
                 COMPLETED: "Completed",
-                CANCELLED: "Cancelled"
+                CANCELLED: "Cancelled",
+                NO_SHOW: "No Show",
+                EXPIRED: "Expired",
               };
 
               return (
