@@ -1,88 +1,75 @@
 "use client";
 
 import Link from "next/link";
+import { AlertTriangle, ArrowLeft, FileText, Info, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Shield, AlertTriangle, FileText, Info } from "lucide-react";
+import { disclaimerSections, legalBrand, legalDates, legalContacts } from "@/lib/legal/policy-content";
 
 export default function DisclaimerPage() {
   return (
     <div className="min-h-screen bg-background px-4 py-12 text-foreground sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto gap-y-8">
+      <div className="mx-auto max-w-4xl gap-y-8">
         <div className="flex items-center justify-between">
-            <Link href="/" prefetch={false}>
+          <Link href="/" prefetch={false}>
             <Button variant="ghost" className="gap-2">
-                <ArrowLeft className="size-4" />
-                Back to Home
+              <ArrowLeft className="size-4" />
+              Back to Home
             </Button>
-            </Link>
-             <div className="flex items-center gap-2 text-primary">
-                <Shield className="size-6" />
-                <span className="font-semibold text-lg">Dr Chandrakumar Deshmukh</span>
-            </div>
+          </Link>
+          <div className="flex items-center gap-2 text-primary">
+            <Shield className="size-6" />
+            <span className="text-lg font-semibold">{legalBrand.displayName}</span>
+          </div>
         </div>
 
         <Card className="border-t-4 border-t-primary">
-          <CardHeader className="gap-y-4 pb-8 border-b">
-            <div className="flex items-center gap-3 mb-2">
-                <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <AlertTriangle className="size-5 text-primary" />
-                </div>
-                <CardTitle className="text-3xl font-bold text-foreground">Disclaimer</CardTitle>
+          <CardHeader className="gap-y-4 border-b pb-8">
+            <div className="mb-2 flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-full bg-primary/10">
+                <AlertTriangle className="size-5 text-primary" />
+              </div>
+              <CardTitle className="text-3xl font-bold text-foreground">Disclaimer</CardTitle>
             </div>
-            <p className="text-muted-foreground">
-              Last updated: January 21, 2026
-            </p>
-            <p className="text-lg text-muted-foreground leading-relaxed font-medium">
-              Important information regarding the use of the Dr Chandrakumar Deshmukh platform and services.
+            <p className="text-muted-foreground">Last updated: {legalDates.updated}</p>
+            <p className="text-lg font-medium leading-relaxed text-muted-foreground">
+              Important information regarding the use of the {legalBrand.displayName} platform and
+              services.
             </p>
           </CardHeader>
-          <CardContent className="gap-y-8 pt-8 px-6 sm:px-10">
-            <section className="gap-y-3">
-              <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
-                 <Info className="size-5 text-primary" />
-                 1. Medical Information Disclaimer
-              </h2>
-              <p className="text-muted-foreground leading-relaxed">
-                The content provided on Dr Chandrakumar Deshmukh, including text, graphics, images, and other material, is for informational purposes only. It is not intended to be a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition.
-              </p>
-            </section>
 
-             <section className="gap-y-3">
-              <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
-                 <AlertTriangle className="size-5 text-primary" />
-                 2. No Emergency Services
-              </h2>
-              <p className="text-muted-foreground leading-relaxed">
-                Dr Chandrakumar Deshmukh is not intended for use in medical emergencies. If you are experiencing a medical emergency, call your local emergency services immediately.
-              </p>
-            </section>
+          <CardContent className="gap-y-8 px-6 pt-8 sm:px-10">
+            {disclaimerSections.map((section) => (
+              <section key={section.title} className="gap-y-3">
+                <h2 className="flex items-center gap-2 text-xl font-semibold text-foreground">
+                  {section.title.includes("Emergency") ? (
+                    <AlertTriangle className="size-5 text-primary" />
+                  ) : section.title.includes("Accuracy") ? (
+                    <FileText className="size-5 text-primary" />
+                  ) : section.title.includes("Liability") ? (
+                    <Shield className="size-5 text-primary" />
+                  ) : (
+                    <Info className="size-5 text-primary" />
+                  )}
+                  {section.title}
+                </h2>
+                <p className="leading-relaxed text-muted-foreground">{section.body}</p>
+              </section>
+            ))}
 
-             <section className="gap-y-3">
-              <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
-                 <FileText className="size-5 text-primary" />
-                 3. Accuracy of Information
-              </h2>
-              <p className="text-muted-foreground leading-relaxed">
-                While we strive to provide accurate and up-to-date information, medical knowledge is constantly evolving. Dr Chandrakumar Deshmukh makes no representations or warranties, express or implied, about the completeness, accuracy, reliability, or suitability of the information contained on the platform.
+            <section className="mt-8 rounded-xl bg-primary/10 p-6">
+              <h3 className="mb-2 font-semibold text-primary">Questions?</h3>
+              <p className="text-sm text-muted-foreground">
+                If you have any questions regarding this disclaimer, please contact us at{" "}
+                <a href={`mailto:${legalContacts.healthcare}`} className="underline hover:text-primary">
+                  {legalContacts.healthcare}
+                </a>{" "}
+                or visit our{" "}
+                <Link href="/contact" prefetch={false} className="underline hover:text-primary">
+                  contact page
+                </Link>
+                .
               </p>
-            </section>
-
-             <section className="gap-y-3">
-              <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
-                 <Shield className="size-5 text-primary" />
-                 4. Limitation of Liability
-              </h2>
-              <p className="text-muted-foreground leading-relaxed">
-                In no event will Dr Chandrakumar Deshmukh, its directors, employees, or partners be liable for any loss or damage including without limitation, indirect or consequential loss or damage, or any loss or damage whatsoever arising from loss of data or profits arising out of, or in connection with, the use of this platform.
-              </p>
-            </section>
-
-            <section className="bg-primary/10 rounded-xl p-6 mt-8">
-                <h3 className="font-semibold text-primary mb-2">Questions?</h3>
-                <p className="text-muted-foreground text-sm">
-                    If you have any questions regarding this disclaimer, please contact us at <a href="mailto:info@viddhakarma.com" className="underline hover:text-primary">info@viddhakarma.com</a> or visit our <Link href="/contact" prefetch={false} className="underline hover:text-primary">contact page</Link>.
-                </p>
             </section>
           </CardContent>
         </Card>
@@ -90,6 +77,3 @@ export default function DisclaimerPage() {
     </div>
   );
 }
-
-
-
