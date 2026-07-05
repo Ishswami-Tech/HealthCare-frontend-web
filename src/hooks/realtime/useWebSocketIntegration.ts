@@ -648,7 +648,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
   const session = useAuthStore((state) => state.session);
   const { addNotification } = useNotificationStore();
   const currentClinicId = currentClinic?.id;
-  
+
   const {
     isConnected,
     connectionStatus,
@@ -795,6 +795,14 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         if (!hasRealtimeAppointmentSnapshot(rawData)) {
           invalidateAppointmentQueries();
         }
+
+        if (['EXPIRED', 'CANCELLED', 'COMPLETED', 'NO_SHOW', 'CONFIRMED', 'RESCHEDULED'].includes(
+          String(data.status || '').toUpperCase()
+        )) {
+          coalesceRealtimeInvalidation(queryClient, 'doctor-availability', (qc) => {
+            invalidateDoctorAvailabilityQueryFamilies(qc);
+          });
+        }
       });
 
       const unsubscribeAppointmentUpdated = subscribe('appointment.updated', (rawData: unknown) => {
@@ -818,6 +826,14 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         }
         if (!hasRealtimeAppointmentSnapshot(rawData)) {
           invalidateAppointmentQueries();
+        }
+
+        if (['EXPIRED', 'CANCELLED', 'COMPLETED', 'NO_SHOW', 'CONFIRMED', 'RESCHEDULED'].includes(
+          String(data.status || '').toUpperCase()
+        )) {
+          coalesceRealtimeInvalidation(queryClient, 'doctor-availability', (qc) => {
+            invalidateDoctorAvailabilityQueryFamilies(qc);
+          });
         }
       });
 
@@ -904,6 +920,22 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
 
           if (!hasRealtimeAppointmentSnapshot(rawData)) {
             invalidateAppointmentQueries();
+          }
+
+          if (
+            [
+              'appointment.confirmed',
+              'appointment.rescheduled',
+              'appointment.cancelled',
+              'appointment.completed',
+              'appointment.slot.confirmed',
+              'appointment.consultation_started',
+              'appointment.noshow',
+            ].includes(event)
+          ) {
+            coalesceRealtimeInvalidation(queryClient, 'doctor-availability', (qc) => {
+              invalidateDoctorAvailabilityQueryFamilies(qc);
+            });
           }
 
           // Dashboard/doctor-availability families also coalesce through the
@@ -1755,10 +1787,10 @@ export function useAppointmentWebSocketIntegration() {
   const { isConnected, emit } = useWebSocketStore();
   const { currentClinic } = useAppStore();
 
-  const subscribeToAppointmentUpdates = useCallback((filters?: { 
-    doctorId?: string; 
-    patientId?: string; 
-    date?: string; 
+  const subscribeToAppointmentUpdates = useCallback((filters?: {
+    doctorId?: string;
+    patientId?: string;
+    date?: string;
   }) => {
     if (isConnected && currentClinic) {
       emit('joinRoom', {
