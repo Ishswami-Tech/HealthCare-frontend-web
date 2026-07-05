@@ -806,7 +806,13 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
       });
 
       const unsubscribeAppointmentUpdated = subscribe('appointment.updated', (rawData: unknown) => {
-        const data = rawData as { appointmentId?: string; id?: string; appointment?: Appointment; updates?: Partial<Appointment> };
+        const data = rawData as {
+          appointmentId?: string;
+          id?: string;
+          status?: string;
+          appointment?: Appointment;
+          updates?: Partial<Appointment>;
+        };
         const appointment = extractRealtimeAppointmentSnapshot(rawData);
         const appointmentId = String(
           getRealtimeAppointmentId(appointment || data.appointment || data.updates || data) || ''
@@ -842,7 +848,12 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
       // lifecycle handler below (the `appointment.cancelled` branch).
 
       const unsubscribeAppointmentStatusChanged = subscribe('appointment.status_changed', (rawData: unknown) => {
-        const data = rawData as { id: string; status: string; timestamp: string; appointment?: Appointment };
+        const data = rawData as {
+          id?: string;
+          status?: string;
+          timestamp?: string;
+          appointment?: Appointment;
+        };
         const appointment = extractRealtimeAppointmentSnapshot(rawData);
         const appointmentId = String(getRealtimeAppointmentId(appointment || data.appointment || data) || data.id || '');
         logAppointmentNamespace('appointment.status_changed', {
