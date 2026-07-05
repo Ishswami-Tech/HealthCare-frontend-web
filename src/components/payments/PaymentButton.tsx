@@ -15,6 +15,7 @@ import { APP_CONFIG } from "@/lib/config/config";
 import { API_ENDPOINTS } from "@/lib/config/config";
 import {
   DEFAULT_PAYMENT_PROVIDER,
+  ENABLED_PAYMENT_PROVIDERS,
   isPaymentProviderEnabled,
   type PaymentProvider,
 } from "@/lib/payments/providers";
@@ -124,7 +125,6 @@ export function PaymentButton({
   const { session } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const hasAutoStartedRef = useRef(false);
-  const paymentIntentPromiseRef = useRef<Promise<PaymentIntentResponse> | null>(null);
   const cashfreeSdkPromiseRef = useRef<Promise<Awaited<ReturnType<typeof load>> | null> | null>(null);
   const userRole = (session?.user?.role || "").toUpperCase();
   const normalizedCandidates = [provider, DEFAULT_PAYMENT_PROVIDER].reduce<string[]>(
@@ -177,8 +177,41 @@ export function PaymentButton({
     }
   };
 
-  const getPaymentIntent = async (): Promise<PaymentIntentResponse> => {
-    const providerQuery = provider ? `?provider=${effectiveProvider}` : "";
+  const buildProviderAttemptOrder = (): PaymentProvider[] => {
+    const attempts: PaymentProvider[] = [];
+    const addAttempt = (candidate?: string | null) => {
+      if (!candidate) {
+        return;
+      }
+      const normalized = candidate.trim().toLowerCase();
+      if (!isPaymentProviderEnabled(normalized)) {
+        return;
+      }
+      const typed = normalized as PaymentProvider;
+      if (!attempts.includes(typed)) {
+        attempts.push(typed);
+      }
+    };
+
+    if (provider) {
+      addAttempt(provider);
+    }
+
+    for (const candidate of ENABLED_PAYMENT_PROVIDERS) {
+      if (candidate !== "cashfree") {
+        addAttempt(candidate);
+      }
+    }
+
+    if (!attempts.length || !attempts.includes("cashfree")) {
+      addAttempt("cashfree");
+    }
+
+    return attempts;
+  };
+
+  const getPaymentIntent = async (requestedProvider: PaymentProvider): Promise<PaymentIntentResponse> => {
+    const providerQuery = `?provider=${requestedProvider}`;
     if (subscriptionId) {
       return await clinicApiClient.request<PaymentIntentResponse>(
         `${API_ENDPOINTS.BILLING.SUBSCRIPTIONS.BASE}/${subscriptionId}/process-payment${providerQuery}`,
@@ -207,19 +240,6 @@ export function PaymentButton({
         "Either invoiceId, appointmentId, subscriptionId, or prescriptionId is required"
       );
     }
-  };
-
-  const preloadPaymentIntent = () => {
-    if (paymentIntentPromiseRef.current) {
-      return paymentIntentPromiseRef.current;
-    }
-
-    paymentIntentPromiseRef.current = getPaymentIntent().catch((error) => {
-      paymentIntentPromiseRef.current = null;
-      throw error;
-    });
-
-    return paymentIntentPromiseRef.current;
   };
 
   const preloadCashfreeSdk = () => {
@@ -274,7 +294,6 @@ export function PaymentButton({
       return;
     }
 
-    void preloadPaymentIntent();
     if (effectiveProvider === "cashfree") {
       void preloadCashfreeSdk();
     } else if (effectiveProvider === "razorpay") {
@@ -610,54 +629,86 @@ export function PaymentButton({
   const handlePayment = async () => {
     setIsProcessing(true);
     try {
-      const paymentResponse = await preloadPaymentIntent();
-      const paymentIntentResponse = paymentResponse as PaymentIntentResponse;
-      const paymentIntentData =
-        paymentIntentResponse.paymentIntent ||
-        paymentIntentResponse.data?.paymentIntent;
+      const providerAttempts = buildProviderAttemptOrder();
+      let lastError: unknown = null;
 
-      if (!paymentResponse.success || !paymentIntentData) {
-        throw new Error(paymentResponse.error || paymentResponse.message || "Failed to create payment intent");
-      }
-      const paymentIntent = paymentIntentData as Record<string, unknown>;
-      const providerFromIntent =
-        typeof paymentIntent?.provider === "string"
-          ? paymentIntent.provider.toLowerCase()
-          : undefined;
-      const usedProvider = providerFromIntent && isPaymentProviderEnabled(providerFromIntent)
-        ? (providerFromIntent as PaymentProvider)
-        : effectiveProvider;
-      if (!isPaymentProviderEnabled(usedProvider)) {
-        throw new Error(`Payment provider '${usedProvider}' is not enabled`);
-      }
+      for (let index = 0; index < providerAttempts.length; index += 1) {
+        const attemptedProvider = providerAttempts[index]!;
+        try {
+          const paymentResponse = await getPaymentIntent(attemptedProvider);
+          const paymentIntentResponse = paymentResponse as PaymentIntentResponse;
+          const paymentIntentData =
+            paymentIntentResponse.paymentIntent ||
+            paymentIntentResponse.data?.paymentIntent;
 
-      const paymentMetadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
-      let resolvedClinicId =
-        clinicId ||
-        (paymentIntent?.clinicId as string) ||
-        (paymentMetadata?.clinicId as string) ||
-        APP_CONFIG.CLINIC.ID;
-      if (!resolvedClinicId) {
-        resolvedClinicId = (await getClinicId()) || APP_CONFIG.CLINIC.ID;
-      }
-      if (!resolvedClinicId) {
-        throw new Error("Clinic context is required for payment verification");
-      }
+          if (!paymentResponse.success || !paymentIntentData) {
+            throw new Error(
+              paymentResponse.error ||
+                paymentResponse.message ||
+                "Failed to create payment intent"
+            );
+          }
 
-      switch (usedProvider) {
-        case "cashfree": {
-          const cashfreeClient = await preloadCashfreeSdk();
-          await handleCashfreePayment(paymentIntent, usedProvider, cashfreeClient);
-          break;
-        }
-        case "razorpay": {
-          await handleRazorpayPayment(paymentIntent, usedProvider, resolvedClinicId);
-          break;
-        }
-        default: {
-          // PhonePe, Easebuzz, Paytm, PayU — redirect-based
-          await handleRedirectPayment(paymentIntent, usedProvider);
-          break;
+          const paymentIntent = paymentIntentData as Record<string, unknown>;
+          const providerFromIntent =
+            typeof paymentIntent?.provider === "string"
+              ? paymentIntent.provider.toLowerCase()
+              : undefined;
+          const usedProvider =
+            providerFromIntent && isPaymentProviderEnabled(providerFromIntent)
+              ? (providerFromIntent as PaymentProvider)
+              : attemptedProvider;
+
+          const paymentMetadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
+          let resolvedClinicId =
+            clinicId ||
+            (paymentIntent?.clinicId as string) ||
+            (paymentMetadata?.clinicId as string) ||
+            APP_CONFIG.CLINIC.ID;
+          if (!resolvedClinicId) {
+            resolvedClinicId = (await getClinicId()) || APP_CONFIG.CLINIC.ID;
+          }
+          if (!resolvedClinicId) {
+            throw new Error("Clinic context is required for payment verification");
+          }
+
+          switch (usedProvider) {
+            case "cashfree": {
+              const cashfreeClient = await preloadCashfreeSdk();
+              await handleCashfreePayment(paymentIntent, usedProvider, cashfreeClient);
+              break;
+            }
+            case "razorpay": {
+              await handleRazorpayPayment(paymentIntent, usedProvider, resolvedClinicId);
+              break;
+            }
+            default: {
+              // PhonePe, Easebuzz, Paytm, PayU — redirect-based
+              await handleRedirectPayment(paymentIntent, usedProvider);
+              break;
+            }
+          }
+
+          return;
+        } catch (error) {
+          lastError = error;
+          const message = error instanceof Error ? error.message : "Failed to initiate payment";
+          const normalizedMessage = message.toLowerCase();
+          const isUserCancelled =
+            normalizedMessage.includes("payment cancelled") ||
+            normalizedMessage.includes("payment canceled") ||
+            normalizedMessage.includes("cancelled") ||
+            normalizedMessage.includes("canceled") ||
+            normalizedMessage.includes("dismissed");
+
+          if (isUserCancelled || index === providerAttempts.length - 1) {
+            throw error;
+          }
+
+          console.warn("[PaymentButton] Payment provider attempt failed, trying next", {
+            attemptedProvider,
+            message,
+          });
         }
       }
     } catch (error) {
