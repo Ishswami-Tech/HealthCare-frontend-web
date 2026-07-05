@@ -270,7 +270,7 @@ export function PatientBillingContent({
       cell: ({ row }) => (
         <div className="flex flex-wrap items-center gap-2">
           {(row.original.status === "OPEN" || row.original.status === "OVERDUE") && (
-            <PaymentButton invoiceId={row.original.id} amount={row.original.amount} className="w-full sm:w-auto" />
+            <PaymentButton invoiceId={row.original.id} amount={row.original.amount} provider="phonepe" className="w-full sm:w-auto" />
           )}
           <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => window.open(`/api/billing/invoices/${row.original.id}/download`, "_blank", "noopener,noreferrer")} title="Download invoice PDF">
             <Download className="size-3.5" />
@@ -485,7 +485,7 @@ export function PatientBillingContent({
           {pendingSubscriptionPayment && (
             <div className="flex flex-col gap-y-4">
               <p className="text-sm text-muted-foreground">Plan: <span className="font-medium text-foreground">{pendingSubscriptionPayment.planName}</span></p>
-              <PaymentButton subscriptionId={pendingSubscriptionPayment.subscriptionId} amount={pendingSubscriptionPayment.amount} description={pendingSubscriptionPayment.planName} autoStart className="w-full" onSuccess={() => { onSetPendingSubscriptionPayment(null); onRefetchSubscriptions(); onRefetchActiveSubscription(); onRefetchInvoices(); onRefetchPayments(); onRefetchClinicPlans(); onRefetchFallbackPlans(); }}>
+              <PaymentButton subscriptionId={pendingSubscriptionPayment.subscriptionId} amount={pendingSubscriptionPayment.amount} description={pendingSubscriptionPayment.planName} provider="phonepe" autoStart className="w-full" onSuccess={() => { onSetPendingSubscriptionPayment(null); onRefetchSubscriptions(); onRefetchActiveSubscription(); onRefetchInvoices(); onRefetchPayments(); onRefetchClinicPlans(); onRefetchFallbackPlans(); }}>
                 Pay {formatAmount(pendingSubscriptionPayment.amount)}
               </PaymentButton>
             </div>

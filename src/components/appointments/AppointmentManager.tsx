@@ -484,6 +484,7 @@ function AppointmentCard({
                 <PaymentButton
                   appointmentId={getEffectiveAppointmentId(apt)}
                   amount={getAppointmentPaymentAmount(apt)}
+                  provider="phonepe"
                   appointmentType="VIDEO_CALL"
                   description={`Video consultation with ${doctorName || "doctor"}`}
                   className="h-10 w-full justify-center sm:w-auto sm:px-5"
@@ -531,6 +532,7 @@ function AppointmentCard({
                     <PaymentButton
                       appointmentId={getEffectiveAppointmentId(apt)}
                       amount={getAppointmentPaymentAmount(apt)}
+                      provider="phonepe"
                       appointmentType="VIDEO_CALL"
                       description={`Video consultation with ${doctorName || "doctor"}`}
                       className="h-10 w-full justify-center"
@@ -600,6 +602,7 @@ function AppointmentCard({
                       <PaymentButton
                         appointmentId={getEffectiveAppointmentId(apt)}
                         amount={getAppointmentPaymentAmount(apt)}
+                        provider="phonepe"
                         appointmentType="VIDEO_CALL"
                         description={`Video consultation with ${doctorName || "doctor"}`}
                         className="h-10 w-full justify-center"

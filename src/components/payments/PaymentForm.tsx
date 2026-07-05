@@ -54,6 +54,7 @@ export function PaymentForm({
             )}
             <PaymentButton
               amount={amount}
+              provider="phonepe"
               className="flex-1"
               onSuccess={() => onSuccess?.()}
               {...(invoiceId ? { invoiceId } : {})}

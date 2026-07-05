@@ -511,7 +511,7 @@ export function RoleBasedBillingDashboard({
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-2">
             {(row.original.status === "OPEN" || row.original.status === "OVERDUE") && (
-              <PaymentButton invoiceId={row.original.id} amount={row.original.amount} />
+              <PaymentButton invoiceId={row.original.id} amount={row.original.amount} provider="phonepe" />
             )}
             {canMarkInvoicesPaid &&
               (row.original.status === "OPEN" || row.original.status === "OVERDUE") && (
@@ -1183,7 +1183,7 @@ export function RoleBasedBillingDashboard({
                   Open PDF
                 </Button>
                 {(selectedInvoice.status === "OPEN" || selectedInvoice.status === "OVERDUE") && (
-                  <PaymentButton invoiceId={selectedInvoice.id} amount={selectedInvoice.amount} />
+                  <PaymentButton invoiceId={selectedInvoice.id} amount={selectedInvoice.amount} provider="phonepe" />
                 )}
               </div>
             </div>
@@ -1318,6 +1318,7 @@ export function RoleBasedBillingDashboard({
                 subscriptionId={pendingSubscriptionPayment?.subscriptionId || ""}
                 amount={pendingSubscriptionPayment?.amount || 0}
                 description={pendingSubscriptionPayment?.planName || ""}
+                provider="phonepe"
                 autoStart
                 className="w-full h-11 rounded-xl font-bold bg-[#006951] hover:bg-[#005a45]"
                 onSuccess={() => {
