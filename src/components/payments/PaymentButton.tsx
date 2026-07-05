@@ -611,6 +611,8 @@ export function PaymentButton({
     const metadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
     const providerResponse = (paymentIntent?.providerResponse as Record<string, unknown>) || {};
     const redirectUrl =
+      (paymentIntent?.gatewayRedirectUrl as string) ||
+      (metadata?.gatewayRedirectUrl as string) ||
       (paymentIntent?.redirectUrl as string) ||
       (paymentIntent?.paymentLink as string) ||
       (providerResponse?.payment_link as string) ||
@@ -618,6 +620,7 @@ export function PaymentButton({
       (providerResponse?.redirect_url as string) ||
       (providerResponse?.checkoutUrl as string) ||
       (providerResponse?.url as string) ||
+      (metadata?.callbackUrl as string) ||
       (metadata?.redirectUrl as string) ||
       (metadata?.paymentLink as string) ||
       "";
