@@ -651,52 +651,6 @@ export async function getServerSession(): Promise<Session | null> {
       });
     }
 
-    if (accessToken && refreshTokenValue && shouldRefreshJwt(accessToken)) {
-      try {
-        const refreshedSession = await refreshToken();
-        if (refreshedSession) {
-          return refreshedSession;
-        }
-      } catch (error: unknown) {
-        if (isTransientSessionError(error)) {
-          logger.warn('getServerSession - Refresh failed transiently', {
-            error: error instanceof Error ? error : new Error(String(error)),
-          });
-          throw error;
-        }
-        logger.error('getServerSession - Refresh failed', {
-          error: error instanceof Error ? error : new Error(String(error)),
-        });
-        if (isSessionInvalidError(error)) {
-          await clearSession();
-        }
-        return null;
-      }
-    }
-
-    if (!accessToken && refreshTokenValue) {
-      try {
-        const refreshedSession = await refreshToken();
-        if (refreshedSession) {
-          return refreshedSession;
-        }
-      } catch (error: unknown) {
-        if (isTransientSessionError(error)) {
-          logger.warn('getServerSession - Refresh failed transiently', {
-            error: error instanceof Error ? error : new Error(String(error)),
-          });
-          throw error;
-        }
-        logger.error('getServerSession - Refresh failed', {
-          error: error instanceof Error ? error : new Error(String(error)),
-        });
-        if (isSessionInvalidError(error)) {
-          await clearSession();
-        }
-        return null;
-      }
-    }
-
     if (!accessToken) {
       if (process.env.NODE_ENV === 'development') {
         const now = Date.now();
@@ -711,30 +665,6 @@ export async function getServerSession(): Promise<Session | null> {
 
     const accessTokenExpiryMs = getJwtExpiryMs(accessToken);
     if (accessTokenExpiryMs !== null && accessTokenExpiryMs <= Date.now()) {
-      if (refreshTokenValue) {
-        try {
-          const refreshedSession = await refreshToken();
-          if (refreshedSession) {
-            return refreshedSession;
-          }
-        } catch (error: unknown) {
-          if (isTransientSessionError(error)) {
-            logger.warn('getServerSession - Expired token refresh failed transiently', {
-              error: error instanceof Error ? error : new Error(String(error)),
-            });
-            throw error;
-          }
-          logger.error('getServerSession - Expired token refresh failed', {
-            error: error instanceof Error ? error : new Error(String(error)),
-          });
-          if (isSessionInvalidError(error)) {
-            await clearSession();
-          }
-          return null;
-        }
-      }
-
-      await clearSession();
       return null;
     }
 
@@ -747,14 +677,6 @@ export async function getServerSession(): Promise<Session | null> {
     const tokenProfileComplete = resolveProfileCompleteFromPayload(payload);
     const payloadClinicId = normalizeClinicId(extractClinicIdFromPayload(payload));
     const resolvedClinicId = payloadClinicId || normalizeClinicId(cookieClinicId);
-
-      if (payloadClinicId && payloadClinicId !== cookieClinicId) {
-        cookieStore.set({
-          name: 'clinic_id',
-          value: payloadClinicId,
-          ...cookieOptions(),
-        });
-      }
 
        const session: Session = {
       user: {
@@ -813,30 +735,15 @@ export async function getServerSession(): Promise<Session | null> {
           String(session.user.lastName || '').trim().length > 0;
         if (String(session.user.role || '').toUpperCase() === String(Role.PATIENT) && !hasMeaningfulName) {
           authoritativeProfileComplete = false;
-          cookieStore.set({
-            name: 'profile_complete',
-            value: 'false',
-            ...cookieOptions(),
-          });
         }
 
         if (session.user.id && session.user.role && (isPhoneOtpSession || session.user.email)) {
           if (tokenProfileComplete === true) {
             authoritativeProfileComplete = hasMeaningfulName ? true : false;
-            cookieStore.set({
-              name: 'profile_complete',
-              value: authoritativeProfileComplete ? 'true' : 'false',
-              ...cookieOptions(),
-            });
           } else if (!authoritativeProfileComplete) {
             const backendProfileComplete = await fetchAuthoritativeProfileComplete(accessToken, sessionId);
             if (backendProfileComplete === true) {
               authoritativeProfileComplete = hasMeaningfulName;
-              cookieStore.set({
-                name: 'profile_complete',
-                value: authoritativeProfileComplete ? 'true' : 'false',
-                ...cookieOptions(),
-              });
             }
           }
 
@@ -857,10 +764,6 @@ export async function getServerSession(): Promise<Session | null> {
 
       if (!response.ok) {
         logger.error('getServerSession - User fetch failed', new Error(`HTTP ${response.status}`));
-        if (response.status === 401 && refreshTokenValue) {
-          const refreshedSession = await refreshToken();
-          return refreshedSession;
-        }
         if (response.status === 403) {
           logger.warn('getServerSession - User fetch forbidden, preserving token-derived session', {
             sessionId,
@@ -869,12 +772,7 @@ export async function getServerSession(): Promise<Session | null> {
           session.user.profileComplete = authoritativeProfileComplete ?? profileComplete;
           return session;
         }
-        if (response.status === 401) {
-          await clearSession();
-          return null;
-        }
-
-        throw new Error(`Failed to fetch user profile: HTTP ${response.status}`);
+        return null;
       }
 
       const userData = await response.json();
@@ -883,11 +781,6 @@ export async function getServerSession(): Promise<Session | null> {
         const backendProfileComplete = await fetchAuthoritativeProfileComplete(accessToken, sessionId);
         if (backendProfileComplete === true) {
           authoritativeProfileComplete = true;
-          cookieStore.set({
-            name: 'profile_complete',
-            value: 'true',
-            ...cookieOptions(),
-          });
         }
       } else {
         authoritativeProfileComplete = true;
@@ -942,7 +835,6 @@ export async function getServerSession(): Promise<Session | null> {
       logger.error('getServerSession - Session invalid', {
         error: error instanceof Error ? error : new Error(String(error)),
       });
-        await clearSession();
         return null;
       }
 
@@ -963,7 +855,6 @@ export async function getServerSession(): Promise<Session | null> {
       logger.error('getServerSession - Unexpected session invalid error', {
         error: error instanceof Error ? error : new Error(String(error)),
       });
-      await clearSession();
       return null;
     }
 
