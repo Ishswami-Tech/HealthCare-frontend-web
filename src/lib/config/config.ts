@@ -17,10 +17,14 @@ import { z } from 'zod';
 
 export type Environment = 'development' | 'staging' | 'production';
 
+function getBackendBaseUrl(): string {
+  return process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || '';
+}
+
 function getEnvironment(): Environment {
   const env = process.env.NODE_ENV;
   const customEnv = process.env.NEXT_PUBLIC_ENVIRONMENT;
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+  const apiUrl = getBackendBaseUrl();
 
   if (customEnv) {
     return customEnv as Environment;
@@ -72,6 +76,7 @@ const envSchema = z.object({
   // App Configuration
   NEXT_PUBLIC_APP_URL: z.string().optional(),
   NEXT_PUBLIC_APP_VERSION: z.string().optional(),
+  NEXT_PUBLIC_PAYMENT_BRIDGE_URL: z.string().optional(),
   
   // Third-party API Keys
   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: z.string().optional(),
@@ -126,7 +131,7 @@ const envDefaults = {
     // Development defaults - fallback to localhost only if env vars are not set
     // This prevents "Invalid URL" errors during SSR when env vars aren't loaded yet
     // In production, env vars MUST be set (no fallbacks)
-    apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088',
+    apiUrl: getBackendBaseUrl() || 'http://localhost:8088',
     // ✅ FIX: Socket.IO expects base HTTP URL, not ws:// with /socket.io
     // Socket.IO automatically handles protocol upgrade and path
     websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'http://localhost:8088',
@@ -137,7 +142,7 @@ const envDefaults = {
   },
   staging: {
     // Staging - all URLs must come from env vars
-    apiUrl: process.env.NEXT_PUBLIC_API_URL || '',
+    apiUrl: getBackendBaseUrl() || '',
     websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL || '',
     appUrl: process.env.NEXT_PUBLIC_APP_URL || '',
     enableDebug: true,
@@ -147,7 +152,7 @@ const envDefaults = {
   production: {
     // ⚠️ SECURITY: All URLs MUST be provided via environment variables
     // No hardcoded URLs - prevents accidental exposure and allows flexible deployment
-    apiUrl: process.env.NEXT_PUBLIC_API_URL,
+    apiUrl: getBackendBaseUrl(),
     websocketUrl:
       process.env.NEXT_PUBLIC_WEBSOCKET_URL ||
       process.env.NEXT_PUBLIC_APP_URL ||
@@ -161,6 +166,8 @@ const envDefaults = {
 } as const;
 
 const currentEnvDefaults = envDefaults[currentEnvironment];
+const resolvedBackendApiBaseUrl =
+  env.NEXT_PUBLIC_API_BASE_URL || env.NEXT_PUBLIC_API_URL || currentEnvDefaults.apiUrl;
 
 function normalizeWebSocketBaseUrl(rawUrl: string | undefined): string {
   if (!rawUrl || !rawUrl.trim()) {
@@ -213,12 +220,12 @@ export const APP_CONFIG = {
     // ✅ API prefix is now configurable via environment variable
     PREFIX: env.NEXT_PUBLIC_API_PREFIX || '/api/v1',
     // Raw backend URL without prefix (for health checks, etc.)
-    RAW_URL: env.NEXT_PUBLIC_API_BASE_URL || env.NEXT_PUBLIC_API_URL || currentEnvDefaults.apiUrl,
+    RAW_URL: resolvedBackendApiBaseUrl,
     // Backend uses /api/v1 prefix for all API endpoints (see HealthCareBackend/src/main.ts line 768)
-    BASE_URL: `${env.NEXT_PUBLIC_API_BASE_URL || env.NEXT_PUBLIC_API_URL || currentEnvDefaults.apiUrl}${env.NEXT_PUBLIC_API_PREFIX || '/api/v1'}`,
-    CLINIC_URL: `${env.NEXT_PUBLIC_CLINIC_API_URL || env.NEXT_PUBLIC_API_URL || currentEnvDefaults.apiUrl}${env.NEXT_PUBLIC_API_PREFIX || '/api/v1'}`,
+    BASE_URL: `${resolvedBackendApiBaseUrl}${env.NEXT_PUBLIC_API_PREFIX || '/api/v1'}`,
+    CLINIC_URL: `${env.NEXT_PUBLIC_CLINIC_API_URL || resolvedBackendApiBaseUrl}${env.NEXT_PUBLIC_API_PREFIX || '/api/v1'}`,
     // Health endpoint is excluded from /api/v1 prefix (public endpoint)
-    HEALTH_BASE_URL: env.NEXT_PUBLIC_API_BASE_URL || env.NEXT_PUBLIC_API_URL || currentEnvDefaults.apiUrl,
+    HEALTH_BASE_URL: resolvedBackendApiBaseUrl,
     VERSION: env.NEXT_PUBLIC_API_VERSION,
     TIMEOUT: {
       REQUEST: 30000,
@@ -292,6 +299,13 @@ export const APP_CONFIG = {
     URL: env.NEXT_PUBLIC_APP_URL || currentEnvDefaults.appUrl,
     VERSION: env.NEXT_PUBLIC_APP_VERSION || '1.0.0',
   },
+
+  // ============================================
+  // PAYMENT BRIDGE CONFIGURATION
+  // ============================================
+  PAYMENT: {
+    BRIDGE_URL: env.NEXT_PUBLIC_PAYMENT_BRIDGE_URL || '',
+  },
   
   // ============================================
   // THIRD-PARTY SERVICES
@@ -341,7 +355,7 @@ export const APP_CONFIG = {
   DEBUG: {
     BACKEND_STATUS: env.NEXT_PUBLIC_DEBUG_BACKEND_STATUS ?? false,
     HEALTH_CHECK_INTERVAL: parseInt(env.NEXT_PUBLIC_HEALTH_CHECK_INTERVAL || '15000', 10),
-    BACKEND_URL: env.NEXT_PUBLIC_BACKEND_URL || env.NEXT_PUBLIC_API_URL || currentEnvDefaults.apiUrl,
+    BACKEND_URL: env.NEXT_PUBLIC_BACKEND_URL || resolvedBackendApiBaseUrl,
   },
   
   // ============================================
@@ -1162,17 +1176,17 @@ function validateEnvironment(): void {
   // from .env.local and environment-specific defaults without hard failing on
   // missing URL env keys during build or local development.
   // Validate API URL format only when a URL is available.
-  const apiUrl = env.NEXT_PUBLIC_API_URL || APP_CONFIG.API.BASE_URL;
+  const apiUrl = env.NEXT_PUBLIC_API_BASE_URL || env.NEXT_PUBLIC_API_URL || APP_CONFIG.API.BASE_URL;
   if (apiUrl && apiUrl.trim() !== '') {
     try {
       new URL(apiUrl);
     } catch {
       const errorMessage = `? Invalid API URL format: ${apiUrl}\n` +
-        `Please provide a valid URL via NEXT_PUBLIC_API_URL environment variable`;
+        `Please provide a valid URL via NEXT_PUBLIC_API_BASE_URL environment variable`;
       console.error(errorMessage);
     }
   } else {
-    console.warn('??  NEXT_PUBLIC_API_URL not set. Using resolved defaults.');
+    console.warn('??  NEXT_PUBLIC_API_BASE_URL not set. Using resolved defaults.');
   }
 
   // Validate WebSocket URL format only when explicitly provided.

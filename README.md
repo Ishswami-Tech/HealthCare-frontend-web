@@ -167,9 +167,7 @@ NEXT_PUBLIC_WEBSOCKET_URL=https://backend-service-v1.ishswami.in
 # App Configuration
 NEXT_PUBLIC_APP_URL=https://www.viddhakarma.com
 NEXT_PUBLIC_CLINIC_ID=CL0002
-NEXT_PUBLIC_ENABLED_PAYMENT_PROVIDERS=cashfree
-NEXT_PUBLIC_CASHFREE_MODE=production
-NEXT_PUBLIC_CASHFREE_APP_ID=your-cashfree-app-id
+NEXT_PUBLIC_PAYMENT_BRIDGE_URL=https://ishswami.in/payments/start
 
 # Feature Flags
 NEXT_PUBLIC_ENABLE_REAL_TIME=true

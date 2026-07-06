@@ -330,7 +330,7 @@ export default async function proxy(request: NextRequest) {
   // =========================================================================
   
   // ✅ Dynamically build allowed hosts from environment variables
-  const apiHost = normalizeOrigin(process.env.NEXT_PUBLIC_API_URL);
+  const apiHost = normalizeOrigin(process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL);
   const wsHost =
     normalizeOrigin(process.env.NEXT_PUBLIC_WEBSOCKET_URL) ||
     apiHost;

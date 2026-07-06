@@ -103,6 +103,72 @@ type PaymentIntentResponse = {
   message?: string;
 };
 
+type PaymentBridgePayload = {
+  provider: PaymentProvider;
+  orderId: string;
+  paymentId: string;
+  amount: number;
+  currency: string;
+  description?: string;
+  clinicId: string;
+  callbackUrl?: string;
+  gatewayRedirectUrl?: string;
+  paymentLink?: string;
+  paymentSessionId?: string;
+  razorpayKeyId?: string;
+  paymentIntentId?: string;
+};
+
+function encodeBridgePayload(payload: PaymentBridgePayload): string {
+  const bytes = new TextEncoder().encode(JSON.stringify(payload));
+  let binary = "";
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return window.btoa(binary).replace(/=+$/u, "").replace(/\+/gu, "-").replace(/\//gu, "_");
+}
+
+function decodeBridgeUrl(baseUrl: string): URL | null {
+  const trimmed = baseUrl.trim().replace(/\/+$/u, "");
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    return new URL(trimmed);
+  } catch {
+    try {
+      return new URL(`https://${trimmed}`);
+    } catch {
+      return null;
+    }
+  }
+}
+
+function ensureBridgePreconnect(targetUrl: string): void {
+  if (typeof document === "undefined" || !targetUrl) {
+    return;
+  }
+
+  try {
+    const origin = new URL(targetUrl).origin;
+    const existing = document.head.querySelector<HTMLLinkElement>(
+      `link[rel="preconnect"][href="${origin}"]`
+    );
+    if (existing) {
+      return;
+    }
+
+    const link = document.createElement("link");
+    link.rel = "preconnect";
+    link.href = origin;
+    link.crossOrigin = "anonymous";
+    document.head.appendChild(link);
+  } catch {
+    // Ignore invalid bridge URLs and continue without preconnect.
+  }
+}
+
 export function PaymentButton({
   invoiceId,
   appointmentId,
@@ -153,6 +219,7 @@ export function PaymentButton({
         : process.env.NODE_ENV === "production"
           ? "production"
           : "sandbox";
+  const paymentBridgeUrl = APP_CONFIG.PAYMENT.BRIDGE_URL.trim();
 
   const invalidateSuccessfulPaymentQueries = () => {
     BILLING_QUERY_KEYS.forEach((queryKey) => {
@@ -178,6 +245,12 @@ export function PaymentButton({
   };
 
   const buildProviderAttemptOrder = (): PaymentProvider[] => {
+    if (paymentBridgeUrl) {
+      return provider && isPaymentProviderEnabled(provider)
+        ? [provider]
+        : [DEFAULT_PAYMENT_PROVIDER];
+    }
+
     const attempts: PaymentProvider[] = [];
     const addAttempt = (candidate?: string | null) => {
       if (!candidate) {
@@ -243,6 +316,9 @@ export function PaymentButton({
   };
 
   const preloadCashfreeSdk = () => {
+    if (paymentBridgeUrl) {
+      return Promise.resolve(null);
+    }
     if (cashfreeSdkPromiseRef.current) {
       return cashfreeSdkPromiseRef.current;
     }
@@ -253,6 +329,98 @@ export function PaymentButton({
     });
 
     return cashfreeSdkPromiseRef.current;
+  };
+
+  const buildPaymentBridgeLaunchUrl = (
+    paymentIntent: Record<string, unknown>,
+    usedProvider: PaymentProvider,
+    resolvedClinicId: string
+  ): string => {
+    const metadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
+    const providerResponse = (paymentIntent?.providerResponse as Record<string, unknown>) || {};
+    const bridgeBase = decodeBridgeUrl(paymentBridgeUrl);
+
+    if (!bridgeBase) {
+      return "";
+    }
+
+    const payload: PaymentBridgePayload = {
+      provider: usedProvider,
+      orderId:
+        (paymentIntent?.orderId as string) ||
+        (paymentIntent?.paymentId as string) ||
+        (paymentIntent?.id as string) ||
+        (providerResponse?.order_id as string) ||
+        "",
+      paymentId:
+        (paymentIntent?.paymentId as string) ||
+        (paymentIntent?.orderId as string) ||
+        (paymentIntent?.id as string) ||
+        "",
+      amount: Number(paymentIntent?.amount) || Number(metadata?.amount) || amount,
+      currency: String(paymentIntent?.currency || currency || "INR").toUpperCase(),
+      description: (paymentIntent?.description as string) || description || "",
+      clinicId: resolvedClinicId,
+      callbackUrl:
+        (paymentIntent?.callbackUrl as string) ||
+        (metadata?.callbackUrl as string) ||
+        (paymentIntent?.redirectUrl as string) ||
+        (metadata?.redirectUrl as string) ||
+        "",
+      gatewayRedirectUrl:
+        (paymentIntent?.gatewayRedirectUrl as string) ||
+        (metadata?.gatewayRedirectUrl as string) ||
+        (providerResponse?.redirectUrl as string) ||
+        (providerResponse?.redirect_url as string) ||
+        (providerResponse?.payment_link as string) ||
+        (metadata?.paymentLink as string) ||
+        "",
+      paymentLink:
+        (paymentIntent?.paymentLink as string) ||
+        (providerResponse?.payment_link as string) ||
+        (metadata?.paymentLink as string) ||
+        "",
+      paymentSessionId:
+        (paymentIntent?.paymentSessionId as string) ||
+        (metadata?.paymentSessionId as string) ||
+        (providerResponse?.payment_session_id as string) ||
+        (providerResponse?.paymentSessionId as string) ||
+        "",
+      razorpayKeyId:
+        (providerResponse?.razorpay_key_id as string) ||
+        (metadata?.razorpayKeyId as string) ||
+        "",
+      paymentIntentId:
+        (paymentIntent?.paymentIntentId as string) ||
+        (paymentIntent?.id as string) ||
+        "",
+    };
+
+    bridgeBase.pathname = bridgeBase.pathname.replace(/\/+$/u, "");
+    if (!bridgeBase.pathname || bridgeBase.pathname === "/") {
+      bridgeBase.pathname = "/payments/start";
+    }
+    bridgeBase.searchParams.set("payload", encodeBridgePayload(payload));
+    return bridgeBase.toString();
+  };
+
+  const launchPaymentBridge = (
+    paymentIntent: Record<string, unknown>,
+    usedProvider: PaymentProvider,
+    resolvedClinicId: string
+  ): boolean => {
+    if (!paymentBridgeUrl) {
+      return false;
+    }
+
+    const bridgeLaunchUrl = buildPaymentBridgeLaunchUrl(paymentIntent, usedProvider, resolvedClinicId);
+    if (!bridgeLaunchUrl) {
+      return false;
+    }
+
+    ensureBridgePreconnect(bridgeLaunchUrl);
+    window.location.assign(bridgeLaunchUrl);
+    return true;
   };
 
   const loadRazorpayScript = (): Promise<void> => {
@@ -291,6 +459,11 @@ export function PaymentButton({
 
   const warmUpPaymentResources = () => {
     if (disabled) {
+      return;
+    }
+
+    if (paymentBridgeUrl) {
+      ensureBridgePreconnect(paymentBridgeUrl);
       return;
     }
 
@@ -404,6 +577,7 @@ export function PaymentButton({
     usedProvider: PaymentProvider,
     preloadedCashfree?: Awaited<ReturnType<typeof load>> | null
   ) => {
+    const paymentMetadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
     const metadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
     const providerResponse = (paymentIntent?.providerResponse as Record<string, unknown>) || {};
     const providerResponseMeta =
@@ -432,7 +606,7 @@ export function PaymentButton({
     let resolvedClinicId =
       clinicId ||
       (paymentIntent?.clinicId as string) ||
-      (metadata?.clinicId as string) ||
+      (paymentMetadata?.clinicId as string) ||
       APP_CONFIG.CLINIC.ID;
 
     if (!orderId) {
@@ -445,6 +619,11 @@ export function PaymentButton({
 
     if (!resolvedClinicId) {
       throw new Error("Clinic context is required for payment verification");
+    }
+
+    if (launchPaymentBridge(paymentIntent, usedProvider, resolvedClinicId)) {
+      setIsProcessing(false);
+      return;
     }
 
     console.info("[PaymentButton] Cashfree checkout diagnostics", {
@@ -546,6 +725,10 @@ export function PaymentButton({
     usedProvider: PaymentProvider,
     resolvedClinicId: string
   ) => {
+    if (launchPaymentBridge(paymentIntent, usedProvider, resolvedClinicId)) {
+      return;
+    }
+
     const metadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
     const providerResponse = (paymentIntent?.providerResponse as Record<string, unknown>) || {};
     const orderId =
@@ -583,7 +766,29 @@ export function PaymentButton({
         theme: { color: "#0B5E45" },
         handler: async (response) => {
           try {
-            await finalizeSuccessfulPayment(usedProvider, response.razorpay_order_id, resolvedClinicId);
+            await verifyPayment(usedProvider, {
+              orderId: response.razorpay_order_id,
+              paymentId: response.razorpay_payment_id,
+              clinicId: resolvedClinicId,
+            });
+            if (appointmentId) {
+              syncAppointmentInCache(queryClient, { id: appointmentId, status: "CONFIRMED" }, {
+                appointmentStatus: "CONFIRMED",
+                queryKeys: [
+                  ["myAppointments"],
+                  ["appointments"],
+                  ["userUpcomingAppointments"],
+                  ["appointment", appointmentId],
+                  ["video-appointments"],
+                  ["video-appointment", appointmentId],
+                ],
+              });
+            }
+            invalidateSuccessfulPaymentQueries();
+            showSuccessToast("Payment verified.", {
+              id: TOAST_IDS.PAYMENT.SUCCESS,
+            });
+            onSuccess?.(response.razorpay_payment_id);
             resolve();
           } catch (err) {
             reject(err);
@@ -610,6 +815,15 @@ export function PaymentButton({
   ) => {
     const metadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
     const providerResponse = (paymentIntent?.providerResponse as Record<string, unknown>) || {};
+    const fallbackClinicId =
+      (paymentIntent?.clinicId as string) ||
+      (metadata?.clinicId as string) ||
+      APP_CONFIG.CLINIC.ID;
+
+    if (launchPaymentBridge(paymentIntent, usedProvider, fallbackClinicId)) {
+      return;
+    }
+
     const redirectUrl =
       (paymentIntent?.gatewayRedirectUrl as string) ||
       (metadata?.gatewayRedirectUrl as string) ||
@@ -676,6 +890,10 @@ export function PaymentButton({
           }
           if (!resolvedClinicId) {
             throw new Error("Clinic context is required for payment verification");
+          }
+
+          if (launchPaymentBridge(paymentIntent, usedProvider, resolvedClinicId)) {
+            return;
           }
 
           switch (usedProvider) {
