@@ -218,6 +218,7 @@ export function PaymentButton({
           ? "production"
           : "sandbox";
   const paymentBridgeUrl = APP_CONFIG.PAYMENT.BRIDGE_URL.trim();
+  const isBridgeOnlyMode = APP_CONFIG.IS_PRODUCTION || Boolean(paymentBridgeUrl);
 
   const invalidateSuccessfulPaymentQueries = () => {
     BILLING_QUERY_KEYS.forEach((queryKey) => {
@@ -802,7 +803,11 @@ export function PaymentButton({
   const handlePayment = async () => {
     setIsProcessing(true);
     try {
-      if (paymentBridgeUrl) {
+      if (isBridgeOnlyMode) {
+        if (!paymentBridgeUrl) {
+          throw new Error("Payment bridge is required in production.");
+        }
+
         let resolvedClinicId = clinicId || APP_CONFIG.CLINIC.ID;
         if (!resolvedClinicId) {
           resolvedClinicId = (await getClinicId()) || APP_CONFIG.CLINIC.ID;
