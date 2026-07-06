@@ -1087,12 +1087,24 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
               queryClient.invalidateQueries({ queryKey: ['billing-analytics'], exact: false });
             }
             invalidateDashboardQueryFamilies(queryClient);
-            if (event === 'payment.completed' || event === 'billing.payment.updated') {
+            if (
+              event === 'payment.completed' ||
+              event === 'billing.payment.updated' ||
+              event === 'payment.failed' ||
+              event === 'payment.pending'
+            ) {
               invalidateAppointmentQueries();
             }
           }
 
           if (appointmentId && event.startsWith('billing.payment.')) {
+            if (!hasRealtimeAppointmentSnapshot(rawData)) {
+              invalidateAppointmentQueries();
+            }
+            invalidateDashboardQueryFamilies(queryClient);
+          }
+
+          if (appointmentId && (event === 'payment.failed' || event === 'payment.pending')) {
             if (!hasRealtimeAppointmentSnapshot(rawData)) {
               invalidateAppointmentQueries();
             }
