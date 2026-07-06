@@ -304,7 +304,9 @@ export const APP_CONFIG = {
   // PAYMENT BRIDGE CONFIGURATION
   // ============================================
   PAYMENT: {
-    BRIDGE_URL: env.NEXT_PUBLIC_PAYMENT_BRIDGE_URL || '',
+    BRIDGE_URL:
+      env.NEXT_PUBLIC_PAYMENT_BRIDGE_URL ||
+      (isProduction ? 'https://ishswami.in/payments/start' : ''),
   },
   
   // ============================================
