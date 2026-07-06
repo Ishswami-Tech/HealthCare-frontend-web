@@ -103,9 +103,12 @@ export default function QueryProvider({
               }
 
               if (apiError?.response?.status === 429) {
-                showErrorToast("Too many requests. Please try again later.", {
-                  id: TOAST_IDS.GLOBAL.ERROR,
-                });
+                showErrorToast(
+                  sanitizeErrorMessage(apiError?.response?.data || apiError),
+                  {
+                    id: TOAST_IDS.GLOBAL.ERROR,
+                  }
+                );
                 return;
               }
 
