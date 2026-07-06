@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 
 import {
   MapPin,
@@ -211,31 +212,41 @@ export function ClinicInfo({
 
       {/* Doctor Information */}
       {showDoctor && (
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-900">
+          <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold text-gray-900 dark:text-gray-100">
             <Stethoscope className="size-6 text-green-600" />
             Meet Our Doctor
           </h2>
 
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid gap-6 md:grid-cols-[minmax(180px,220px)_minmax(0,1fr)_minmax(0,1fr)]">
+            <div className="relative mx-auto aspect-[4/5] w-full max-w-[220px] overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-sm dark:border-gray-700 dark:bg-gray-800 md:mx-0">
+              <Image
+                src="/drdeshmukh.webp"
+                alt={clinicData.doctor.name}
+                fill
+                sizes="(min-width: 768px) 220px, 80vw"
+                className="object-cover"
+              />
+            </div>
+
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
                 {clinicData.doctor.name}
               </h3>
-              <p className="text-green-600 font-medium mb-3">
+              <p className="mb-3 font-medium text-green-600 dark:text-green-400">
                 {clinicData.doctor.title}
               </p>
 
               <div className="flex flex-col gap-y-2">
                 <div className="flex items-center gap-2">
                   <Award className="size-4 text-green-600" />
-                  <span className="text-gray-700">
+                  <span className="text-gray-700 dark:text-gray-300">
                     {clinicData.doctor.experience}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <GraduationCap className="size-4 text-green-600" />
-                  <span className="text-gray-700">
+                  <span className="text-gray-700 dark:text-gray-300">
                     {clinicData.doctor.education}
                   </span>
                 </div>
@@ -243,13 +254,13 @@ export function ClinicInfo({
             </div>
 
             <div>
-              <h4 className="font-semibold text-gray-900 mb-2">
+              <h4 className="mb-2 font-semibold text-gray-900 dark:text-gray-100">
                 Specialization
               </h4>
-              <p className="text-gray-700 mb-3">
+              <p className="mb-3 text-gray-700 dark:text-gray-300">
                 {clinicData.doctor.expertise}
               </p>
-              <p className="text-gray-600 text-sm leading-relaxed">
+              <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-400">
                 {clinicData.doctor.about}
               </p>
             </div>

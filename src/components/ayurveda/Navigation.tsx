@@ -703,11 +703,11 @@ const Navigation = () => {
 
                 <SheetContent
                   side="left"
-                  className="w-80 p-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700"
+                  className="w-[min(22rem,calc(100vw-1rem))] max-w-none gap-0 p-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700"
                 >
-                  <SheetHeader className="p-8 pb-6 border-b border-gray-200 dark:border-gray-700 bg-linear-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20">
-                    <SheetTitle className="text-left text-xl font-bold text-orange-600 dark:text-orange-400 leading-tight tracking-wide flex items-center gap-x-3">
-                      <div className="size-9 flex items-center justify-center overflow-hidden shrink-0 rounded-xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
+                  <SheetHeader className="shrink-0 p-6 pr-12 border-b border-gray-200 dark:border-gray-700 bg-linear-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20">
+                    <SheetTitle className="text-left text-lg font-bold text-orange-600 dark:text-orange-400 leading-tight tracking-wide flex items-center gap-x-3 min-w-0">
+                      <div className="relative size-9 flex items-center justify-center overflow-hidden shrink-0 rounded-xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
                         <Image
                           src="/assets/logo/logowithoutbackground.png"
                           alt={t("navigation.clinicName")}
@@ -723,16 +723,18 @@ const Navigation = () => {
                           className="hidden object-cover dark:block"
                         />
                       </div>
-                      <span>{t("navigation.clinicName")}</span>
+                      <span className="min-w-0 truncate">
+                        {t("navigation.clinicName")}
+                      </span>
                     </SheetTitle>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 font-medium">
                       Navigate to your destination
                     </p>
                   </SheetHeader>
 
-                  <div className="flex flex-col h-full overflow-y-auto">
+                  <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
                     {/* Navigation Items */}
-                    <div className="flex-1 px-8 py-6">
+                    <div className="flex-1 px-6 py-5">
                       <div className="flex flex-col gap-y-3">
                         {navItems.map((item) => (
                           <MobileNavMenuItem
@@ -755,7 +757,7 @@ const Navigation = () => {
                     </div>
 
                     {/* Authentication Section */}
-                    <div className="p-8 pt-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                    <div className="shrink-0 p-6 pt-5 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                       {isAuthenticated && session ? (
                         <div className="flex flex-col gap-y-4">
                           <div className="flex items-center gap-x-2 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
@@ -766,7 +768,10 @@ const Navigation = () => {
                           </div>
                           <Button
                             type="button"
-                            onClick={handleDashboardNavigation}
+                            onClick={() => {
+                              setIsMobileMenuOpen(false);
+                              handleDashboardNavigation();
+                            }}
                             className="bg-linear-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white h-12 text-base touch-manipulation shadow-md"
                           >
                             <User className="size-4 mr-2" />
@@ -775,7 +780,10 @@ const Navigation = () => {
                           <Button
                             type="button"
                             variant="outline"
-                            onClick={handleLogout}
+                            onClick={() => {
+                              setIsMobileMenuOpen(false);
+                              handleLogout();
+                            }}
                             className="border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 h-12 text-base touch-manipulation"
                           >
                             <LogOut className="size-4 mr-2" />
@@ -786,7 +794,10 @@ const Navigation = () => {
                         <div className="flex flex-col gap-y-4">
                           <Button
                             type="button"
-                            onClick={handleLogin}
+                            onClick={() => {
+                              setIsMobileMenuOpen(false);
+                              handleLogin();
+                            }}
                             variant="outline"
                             className="border-orange-300 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 h-12 text-base touch-manipulation"
                           >
@@ -794,7 +805,10 @@ const Navigation = () => {
                           </Button>
                           <Button
                             type="button"
-                            onClick={handleRegister}
+                            onClick={() => {
+                              setIsMobileMenuOpen(false);
+                              handleRegister();
+                            }}
                             className="bg-linear-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white h-12 text-base touch-manipulation shadow-md"
                           >
                             Get Started
@@ -805,6 +819,10 @@ const Navigation = () => {
                       <Button
                         type="button"
                         variant="outline"
+                        onClick={() => {
+                          setIsMobileMenuOpen(false);
+                          window.location.href = "tel:9860370961";
+                        }}
                         className="border-orange-300 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 h-12 text-base touch-manipulation mt-3 w-full"
                       >
                         <Phone className="size-4 mr-2" />

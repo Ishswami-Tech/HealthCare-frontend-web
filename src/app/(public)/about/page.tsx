@@ -589,8 +589,8 @@ export default function AboutPage() {
                   <ClinicInfo
                     variant="full"
                     showDoctor={true}
-                    showTimings={true}
-                    showContact={true}
+                    showTimings={false}
+                    showContact={false}
                   />
                 </Suspense>
               </div>

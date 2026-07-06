@@ -1,26 +1,22 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import Image from "next/image";
 import { useTranslation } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  User,
   Award,
   Users,
   Star,
   CheckCircle,
   Globe,
-  Heart,
-  Brain,
   Shield,
   Sparkles,
   Zap,
   Crown,
   Diamond,
-  Flame,
-  Stethoscope,
   Microscope,
   BookOpen,
 } from "lucide-react";
@@ -65,83 +61,10 @@ export default function TeamPage() {
       title: t("team.teamMembers.drDeshmukh.title"),
       specialization: t("team.teamMembers.drDeshmukh.specialization"),
       experience: t("team.teamMembers.drDeshmukh.experience"),
-      image: "/api/placeholder/150/150",
+      image: "/drdeshmukh.webp",
       credentials: t("team.teamMembers.drDeshmukh.credentials"),
       achievements: t("team.teamMembers.drDeshmukh.achievements"),
-      colorScheme: getIconColorScheme("Brain"),
-      icon: Brain,
       gradient: "from-purple-500 to-indigo-600",
-      accent: "purple",
-    },
-    {
-      name: t("team.teamMembers.vaidyaKrishnamurthy.name"),
-      title: t("team.teamMembers.vaidyaKrishnamurthy.title"),
-      specialization: t("team.teamMembers.vaidyaKrishnamurthy.specialization"),
-      experience: t("team.teamMembers.vaidyaKrishnamurthy.experience"),
-      image: "/api/placeholder/150/150",
-      credentials: t("team.teamMembers.vaidyaKrishnamurthy.credentials"),
-      achievements: t("team.teamMembers.vaidyaKrishnamurthy.achievements"),
-      colorScheme: getIconColorScheme("Flame"),
-      icon: Flame,
-      gradient: "from-orange-500 to-red-600",
-      accent: "orange",
-    },
-    {
-      name: t("team.teamMembers.drPriyaSharma.name"),
-      title: t("team.teamMembers.drPriyaSharma.title"),
-      specialization: t("team.teamMembers.drPriyaSharma.specialization"),
-      experience: t("team.teamMembers.drPriyaSharma.experience"),
-      image: "/api/placeholder/150/150",
-      credentials: t("team.teamMembers.drPriyaSharma.credentials"),
-      achievements: t("team.teamMembers.drPriyaSharma.achievements"),
-      colorScheme: getIconColorScheme("Heart"),
-      icon: Heart,
-      gradient: "from-pink-500 to-rose-600",
-      accent: "pink",
-    },
-    {
-      name: "Dr. Sunita Patel",
-      title: "Women's Health & Fertility Expert",
-      specialization: "Reproductive Health Specialist",
-      experience: "15+ years",
-      image: "/api/placeholder/150/150",
-      credentials: ["BAMS", "Fertility Specialist", "Hormonal Balance Expert"],
-      achievements: [
-        "500+ successful pregnancies",
-        "PCOD treatment expert",
-        "Women wellness advocate",
-      ],
-      colorScheme: getIconColorScheme("Stethoscope"),
-      icon: Stethoscope,
-      gradient: "from-emerald-500 to-teal-600",
-      accent: "emerald",
-    },
-  ];
-
-  const advisoryBoard = [
-    {
-      name: t("team.advisoryBoard.drAshokKumar.name"),
-      title: t("team.advisoryBoard.drAshokKumar.title"),
-      role: t("team.advisoryBoard.drAshokKumar.role"),
-      expertise: t("team.advisoryBoard.drAshokKumar.expertise"),
-    },
-    {
-      name: t("team.advisoryBoard.drMeeraJoshi.name"),
-      title: t("team.advisoryBoard.drMeeraJoshi.title"),
-      role: t("team.advisoryBoard.drMeeraJoshi.role"),
-      expertise: t("team.advisoryBoard.drMeeraJoshi.expertise"),
-    },
-    {
-      name: t("team.advisoryBoard.drJamesWilson.name"),
-      title: t("team.advisoryBoard.drJamesWilson.title"),
-      role: t("team.advisoryBoard.drJamesWilson.role"),
-      expertise: t("team.advisoryBoard.drJamesWilson.expertise"),
-    },
-    {
-      name: t("team.advisoryBoard.drRaviGupta.name"),
-      title: t("team.advisoryBoard.drRaviGupta.title"),
-      role: t("team.advisoryBoard.drRaviGupta.role"),
-      expertise: t("team.advisoryBoard.drRaviGupta.expertise"),
     },
   ];
 
@@ -369,22 +292,19 @@ export default function TeamPage() {
               <div className="max-w-8xl mx-auto">
                 <div className="text-center mb-16 lg:mb-20">
                   <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-semibold text-foreground mb-6 gradient-text">
-                    Chief Medical Officers
+                    Dr. Chandrakumar Deshmukh
                   </h2>
                   <p className="text-lg md:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">
-                    Leading experts in their respective specializations,
-                    bringing decades of combined experience
+                    Authentic Ayurvedic care led by Dr. Chandrakumar Deshmukh.
                   </p>
                 </div>
 
-                <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
+                <div className="mx-auto grid max-w-5xl gap-8 lg:gap-12">
                   {chiefMedicalOfficers.map((doctor, index) => {
-                    const IconComponent = doctor.icon;
-
                     return (
                       <Card
                         key={doctor.name}
-                        className="group hover:shadow-xl dark:hover:shadow-2xl transition-all duration-300 border-0 bg-gradient-to-br from-card/90 to-muted/30 dark:from-card/95 dark:to-muted/40 glass backdrop-blur-sm hover:scale-105 relative overflow-hidden"
+                        className="group relative overflow-hidden border-0 bg-gradient-to-br from-card/90 to-muted/30 transition-all duration-300 hover:shadow-xl dark:from-card/95 dark:to-muted/40 dark:hover:shadow-2xl"
                         onMouseEnter={() => setHoveredCard(index + 10)}
                         onMouseLeave={() => setHoveredCard(null)}
                       >
@@ -394,17 +314,24 @@ export default function TeamPage() {
                         ></div>
 
                         <CardContent className="p-0 relative z-10">
-                          <div className="grid md:grid-cols-3">
+                          <div className="grid md:grid-cols-[minmax(220px,320px)_minmax(0,1fr)]">
                             <div
-                              className={`bg-gradient-to-br ${doctor.gradient} text-white p-8 lg:p-10 flex flex-col justify-center items-center relative overflow-hidden`}
+                              className={`bg-gradient-to-br ${doctor.gradient} text-white p-6 sm:p-8 lg:p-10 flex flex-col justify-center items-center relative overflow-hidden`}
                             >
                               <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
                               <div className="absolute top-4 right-4">
                                 <Diamond className="size-6 text-white/30 animate-pulse" />
                               </div>
 
-                              <div className="size-28 lg:w-32 lg:h-32 bg-white/20 rounded-3xl flex items-center justify-center mb-8 interactive backdrop-blur-sm border border-white/30 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 shadow-lg shadow-white/20">
-                                <IconComponent className="size-16 lg:w-18 lg:h-18 text-white drop-shadow-lg" />
+                              <div className="relative mb-8 aspect-[4/5] w-full max-w-[260px] overflow-hidden rounded-3xl border border-white/30 bg-white/20 shadow-lg shadow-white/20 backdrop-blur-sm transition-all duration-500 group-hover:scale-[1.03]">
+                                <Image
+                                  src={doctor.image}
+                                  alt={doctor.name}
+                                  fill
+                                  sizes="(min-width: 1024px) 260px, (min-width: 768px) 32vw, 80vw"
+                                  className="object-cover"
+                                  priority
+                                />
                               </div>
 
                               <div className="text-center relative z-10">
@@ -417,7 +344,7 @@ export default function TeamPage() {
                               </div>
                             </div>
 
-                            <div className="md:col-span-2 p-8 lg:p-10">
+                            <div className="p-6 sm:p-8 lg:p-10">
                               <div className="mb-6">
                                 <h3 className="text-2xl lg:text-3xl font-semibold text-foreground mb-4 gradient-text group-hover:scale-105 transition-transform duration-300">
                                   {doctor.name}
@@ -457,68 +384,6 @@ export default function TeamPage() {
                       </Card>
                     );
                   })}
-                </div>
-              </div>
-            </div>
-          </section>
-        </LazySection>
-
-        {/* Ultra-Enhanced Medical Advisory Board */}
-        <LazySection fallback={<SectionSkeleton />}>
-          <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-muted/30 via-background to-muted/20 relative overflow-hidden">
-            {/* Section background effects */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/3 via-transparent to-purple-500/3"></div>
-            <div className="absolute bottom-1/4 left-1/4 size-96 bg-gradient-to-r from-indigo-400/5 to-purple-400/5 rounded-full blur-3xl"></div>
-
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-              <div className="max-w-8xl mx-auto">
-                <div className="text-center mb-16 lg:mb-20">
-                  <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-semibold text-foreground mb-6 gradient-text">
-                    {t("team.advisoryBoard.title")}
-                  </h2>
-                  <p className="text-lg md:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">
-                    {t("team.advisoryBoard.subtitle")}
-                  </p>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-8 lg:gap-10">
-                  {advisoryBoard.map((advisor, index) => (
-                    <Card
-                      key={advisor.name}
-                      className="group hover:shadow-xl dark:hover:shadow-2xl transition-all duration-300 border-0 bg-gradient-to-br from-card/90 to-muted/30 dark:from-card/95 dark:to-muted/40 glass backdrop-blur-sm hover:scale-105 relative overflow-hidden"
-                      onMouseEnter={() => setHoveredCard(index + 20)}
-                      onMouseLeave={() => setHoveredCard(null)}
-                    >
-                      {/* Glowing border effect */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 opacity-0 group-hover:opacity-20 transition-opacity duration-500 rounded-xl blur-sm"></div>
-
-                      <CardHeader className="pb-4 relative z-10">
-                        <div className="flex items-center gap-x-4">
-                          <div className="size-16 lg:w-20 lg:h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-3xl flex items-center justify-center interactive group-hover:scale-110 group-hover:rotate-12 transition-all duration-300 shadow-md shadow-blue-500/30 group-hover:shadow-blue-500/50">
-                            <User className="size-8 lg:w-10 lg:h-10 text-white drop-shadow-lg" />
-                          </div>
-                          <div className="flex-1">
-                            <CardTitle className="text-lg lg:text-xl text-foreground mb-2 group-hover:scale-105 transition-transform duration-300">
-                              {advisor.name}
-                            </CardTitle>
-                            <p className="text-muted-foreground mb-2 font-semibold text-base">
-                              {advisor.title}
-                            </p>
-                            <Badge className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-600 dark:text-blue-400 border-blue-200/50 dark:border-blue-800/50 backdrop-blur-sm px-3 py-1 text-xs font-semibold">
-                              {advisor.role}
-                            </Badge>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="pt-0 relative z-10">
-                        <div className="bg-muted/30 p-4 rounded-xl backdrop-blur-sm border border-muted/50 group-hover:bg-muted/40 transition-colors duration-300">
-                          <p className="text-muted-foreground leading-relaxed text-sm">
-                            {advisor.expertise}
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
                 </div>
               </div>
             </div>

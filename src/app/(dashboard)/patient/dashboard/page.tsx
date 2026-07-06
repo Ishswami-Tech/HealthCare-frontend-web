@@ -101,7 +101,7 @@ export default function PatientDashboard() {
     [summaryAppointments]
   );
 
-  // Same gate for the dashboard summary â€” if it's the first load this
+  // Same gate for the dashboard summary — if it's the first load this
   // session and the cache is empty, show a skeleton; otherwise keep the
   // previous summary visible during background refetches.
   const hasCachedSummary = !!summary && (
@@ -272,7 +272,7 @@ export default function PatientDashboard() {
     // Patients want to see what happened to their scheduled sessions,
     // including CANCELLED / NO_SHOW / EXPIRED / COMPLETED rows the
     // backend scheduler has classified. Trust the backend's status
-    // outright â€” we don't infer EXPIRED locally, since the scheduler
+    // outright — we don't infer EXPIRED locally, since the scheduler
     // runs every minute and stamps the row before we need to react.
     const recentAppointments = uniqueAppointments
       .filter((apt: any) => {
@@ -491,7 +491,7 @@ export default function PatientDashboard() {
 
   return (
     <PatientPageShell className="mx-auto max-w-7xl">
-          {/* Profile completion banner â€” only for patients the backend still marks incomplete */}
+          {/* Profile completion banner — only for patients the backend still marks incomplete */}
           {authoritativeProfileComplete !== true && (
             <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
               <div>
@@ -640,9 +640,9 @@ export default function PatientDashboard() {
                                     <p className="mt-0.5 truncate text-sm text-muted-foreground">
                                       {appointment.type}
                                       {appointment.isOnline
-                                        ? " Â· Online"
+                                        ? " · Online"
                                         : appointment.location
-                                          ? ` Â· ${appointment.location}`
+                                          ? ` · ${appointment.location}`
                                           : ""}
                                     </p>
                                   </div>
@@ -718,7 +718,7 @@ export default function PatientDashboard() {
                     />
                   </div> */}
 
-                  {/* Recent appointments â€” backend-driven statuses */}
+                  {/* Recent appointments — backend-driven statuses */}
                   {patientData.recentAppointments.length > 0 ? (
                     <div className="mt-3 rounded-2xl border border-slate-200/70 bg-white/70 p-3 shadow-sm dark:border-slate-800/60 dark:bg-card/70 sm:p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -727,7 +727,7 @@ export default function PatientDashboard() {
                             Recent appointments
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            Cancelled, expired, no-show, and completed sessions â€” statuses from the backend
+                            Cancelled, expired, no-show, and completed sessions — statuses from the backend
                           </p>
                         </div>
                         <Badge className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-700 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
@@ -771,9 +771,9 @@ export default function PatientDashboard() {
                                   <p className="mt-0.5 truncate text-sm text-muted-foreground">
                                     {appointment.type}
                                     {appointment.isOnline
-                                      ? " Â· Online"
+                                      ? " · Online"
                                       : appointment.location
-                                        ? ` Â· ${appointment.location}`
+                                        ? ` · ${appointment.location}`
                                         : ""}
                                   </p>
                                 </div>

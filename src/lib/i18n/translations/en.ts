@@ -1,4 +1,4 @@
-﻿import { TranslationKeys } from '../config';
+import { TranslationKeys } from '../config';
 
 export const en: TranslationKeys = {
   common: {
@@ -982,7 +982,7 @@ export const en: TranslationKeys = {
     twitter: 'Twitter',
     facebook: 'Facebook',
     linkedin: 'LinkedIn',
-    copyright: 'Â© 2024 Dr.Chandrakumar Deshmukh. All rights reserved.',
+    copyright: '© 2024 Dr.Chandrakumar Deshmukh. All rights reserved.',
 
     // Toast Messages
     loginRequired: 'Please login to access the dashboard',
@@ -1320,7 +1320,7 @@ export const en: TranslationKeys = {
       title: 'Emergency Consultation',
       button: 'WhatsApp Now'
     },
-    copyright: 'Â© 2024 Ayurvedic Clinic. All rights reserved.',
+    copyright: '© 2024 Ayurvedic Clinic. All rights reserved.',
     privacy: 'Privacy Policy',
     privacyPolicy: 'Privacy Policy',
     terms: 'Terms of Service',
