@@ -21,6 +21,7 @@ const THIRD_PARTY_CONNECT_SRC = [
   "https://payments.cashfree.com",
   "https://payments-test.cashfree.com",
   "https://sdk.cashfree.com",
+  "https://checkout.razorpay.com",
   "https://*.googleapis.com",
 ];
 

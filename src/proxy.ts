@@ -349,16 +349,16 @@ export default async function proxy(request: NextRequest) {
   // Strict Content Security Policy
   const csp = `
     default-src 'self';
-    script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com https://www.facebook.com https://connect.facebook.net https://sdk.cashfree.com;
+    script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com https://www.facebook.com https://connect.facebook.net https://sdk.cashfree.com https://checkout.razorpay.com;
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     img-src 'self' blob: data: https://lh3.googleusercontent.com https://graph.facebook.com https://platform-lookaside.fbsbx.com https://storage.googleapis.com https://ui-avatars.com https://flagcdn.com https://www.charabibhasma.com https://charabibhasma.com https://i.ytimg.com https://ytimg.com https://img.youtube.com https://www.youtube.com https://youtube.com https://m.youtube.com https://youtu.be;
     font-src 'self' https://fonts.gstatic.com;
     connect-src ${connectSources};
-    frame-src 'self' https://accounts.google.com https://www.facebook.com https://*.cashfree.com https://sdk.cashfree.com https://api.cashfree.com https://sandbox.cashfree.com https://payments.cashfree.com https://payments-test.cashfree.com;
+    frame-src 'self' https://accounts.google.com https://www.facebook.com https://*.cashfree.com https://sdk.cashfree.com https://api.cashfree.com https://sandbox.cashfree.com https://payments.cashfree.com https://payments-test.cashfree.com https://checkout.razorpay.com https://*.razorpay.com;
     media-src 'self' blob:;
     object-src 'none';
     base-uri 'self';
-    form-action 'self' https://*.cashfree.com https://sdk.cashfree.com https://api.cashfree.com https://sandbox.cashfree.com https://payments.cashfree.com https://payments-test.cashfree.com;
+    form-action 'self' https://*.cashfree.com https://sdk.cashfree.com https://api.cashfree.com https://sandbox.cashfree.com https://payments.cashfree.com https://payments-test.cashfree.com https://checkout.razorpay.com https://*.razorpay.com;
     frame-ancestors 'none';
     upgrade-insecure-requests;
   `.replace(/\s{2,}/g, ' ').trim();
