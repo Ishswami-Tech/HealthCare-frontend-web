@@ -115,6 +115,15 @@ type PaymentBridgePayload = {
   prescriptionId?: string;
   appointmentType?: "VIDEO_CALL" | "IN_PERSON" | "HOME_VISIT";
   callbackUrl?: string;
+  orderId?: string;
+  paymentId?: string;
+  paymentSessionId?: string;
+  paymentLink?: string;
+  gatewayRedirectUrl?: string;
+  razorpayKeyId?: string;
+  paymentIntentId?: string;
+  handoffToken?: string;
+  handoffCallbackUrl?: string;
 };
 
 function encodeBridgePayload(payload: PaymentBridgePayload): string {
@@ -218,7 +227,6 @@ export function PaymentButton({
           ? "production"
           : "sandbox";
   const paymentBridgeUrl = APP_CONFIG.PAYMENT.BRIDGE_URL.trim();
-  const isBridgeOnlyMode = APP_CONFIG.IS_PRODUCTION || Boolean(paymentBridgeUrl);
 
   const invalidateSuccessfulPaymentQueries = () => {
     BILLING_QUERY_KEYS.forEach((queryKey) => {
@@ -360,22 +368,95 @@ export function PaymentButton({
     return true;
   };
 
-  const buildBridgePayload = (resolvedClinicId: string): PaymentBridgePayload => ({
-    provider: effectiveProvider,
-    amount,
-    currency,
-    description: description || "",
-    clinicId: resolvedClinicId,
-    appointmentId,
-    subscriptionId,
-    invoiceId,
-    prescriptionId,
-    appointmentType,
-    callbackUrl:
-      typeof window !== "undefined"
+  const buildBridgePayload = (
+    resolvedClinicId: string,
+    paymentIntent?: Record<string, unknown>
+  ): PaymentBridgePayload => {
+    const metadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
+    const providerResponse = (paymentIntent?.providerResponse as Record<string, unknown>) || {};
+    const normalizedAppointmentType = String(
+      paymentIntent?.appointmentType || appointmentType || ""
+    ).toUpperCase();
+    const appointmentTypeValue =
+      normalizedAppointmentType === "VIDEO_CALL" ||
+      normalizedAppointmentType === "IN_PERSON" ||
+      normalizedAppointmentType === "HOME_VISIT"
+        ? (normalizedAppointmentType as PaymentBridgePayload["appointmentType"])
+        : undefined;
+    const callbackUrl =
+      (metadata.handoffCallbackUrl as string) ||
+      (metadata.callbackUrl as string) ||
+      (paymentIntent?.handoffCallbackUrl as string) ||
+      (paymentIntent?.callbackUrl as string) ||
+      (typeof window !== "undefined"
         ? `${window.location.origin}/payment/callback`
-        : `${(APP_CONFIG.APP.URL || "").replace(/\/+$/u, "") || "https://www.viddhakarma.com"}/payment/callback`,
-  });
+        : `${(APP_CONFIG.APP.URL || "").replace(/\/+$/u, "") || "https://www.viddhakarma.com"}/payment/callback`);
+
+    return {
+      provider: (String(paymentIntent?.provider || effectiveProvider) || effectiveProvider).toLowerCase() as PaymentProvider,
+      amount: Number(paymentIntent?.amount || amount),
+      currency: String(paymentIntent?.currency || currency || "INR"),
+      description: String(paymentIntent?.description || description || ""),
+      clinicId: resolvedClinicId,
+      appointmentId: String(paymentIntent?.appointmentId || appointmentId || ""),
+      subscriptionId: String(paymentIntent?.subscriptionId || subscriptionId || ""),
+      invoiceId: String(paymentIntent?.invoiceId || invoiceId || ""),
+      prescriptionId: String(paymentIntent?.prescriptionId || prescriptionId || ""),
+      appointmentType: appointmentTypeValue,
+      callbackUrl,
+      orderId:
+        (paymentIntent?.orderId as string) ||
+        (paymentIntent?.paymentId as string) ||
+        (paymentIntent?.paymentIntentId as string) ||
+        (metadata.orderId as string) ||
+        (providerResponse.order_id as string) ||
+        (providerResponse.orderId as string) ||
+        "",
+      paymentId:
+        (paymentIntent?.paymentId as string) ||
+        (paymentIntent?.transactionId as string) ||
+        (metadata.paymentId as string) ||
+        "",
+      paymentSessionId:
+        (paymentIntent?.paymentSessionId as string) ||
+        (metadata.paymentSessionId as string) ||
+        (providerResponse.payment_session_id as string) ||
+        (providerResponse.paymentSessionId as string) ||
+        "",
+      paymentLink:
+        (paymentIntent?.paymentLink as string) ||
+        (metadata.paymentLink as string) ||
+        (providerResponse.payment_link as string) ||
+        (providerResponse.paymentLink as string) ||
+        "",
+      gatewayRedirectUrl:
+        (paymentIntent?.gatewayRedirectUrl as string) ||
+        (metadata.gatewayRedirectUrl as string) ||
+        (metadata.redirectUrl as string) ||
+        (providerResponse.redirectUrl as string) ||
+        (providerResponse.redirect_url as string) ||
+        "",
+      razorpayKeyId:
+        (paymentIntent?.razorpayKeyId as string) ||
+        (metadata.razorpayKeyId as string) ||
+        (providerResponse.razorpay_key_id as string) ||
+        (providerResponse.key_id as string) ||
+        "",
+      paymentIntentId:
+        (paymentIntent?.paymentIntentId as string) ||
+        (metadata.paymentIntentId as string) ||
+        (paymentIntent?.orderId as string) ||
+        "",
+      handoffToken:
+        (paymentIntent?.handoffToken as string) ||
+        (metadata.handoffToken as string) ||
+        "",
+      handoffCallbackUrl:
+        (paymentIntent?.handoffCallbackUrl as string) ||
+        (metadata.handoffCallbackUrl as string) ||
+        callbackUrl,
+    };
+  };
 
   const loadRazorpayScript = (): Promise<void> => {
     return new Promise((resolve, reject) => {
@@ -803,25 +884,6 @@ export function PaymentButton({
   const handlePayment = async () => {
     setIsProcessing(true);
     try {
-      if (isBridgeOnlyMode) {
-        if (!paymentBridgeUrl) {
-          throw new Error("Payment bridge is required in production.");
-        }
-
-        let resolvedClinicId = clinicId || APP_CONFIG.CLINIC.ID;
-        if (!resolvedClinicId) {
-          resolvedClinicId = (await getClinicId()) || APP_CONFIG.CLINIC.ID;
-        }
-        if (!resolvedClinicId) {
-          throw new Error("Clinic context is required for payment verification");
-        }
-
-        if (!launchPaymentBridge(buildBridgePayload(resolvedClinicId))) {
-          throw new Error("Unable to open payment bridge");
-        }
-        return;
-      }
-
       const providerAttempts = buildProviderAttemptOrder();
       let lastError: unknown = null;
 
@@ -865,7 +927,7 @@ export function PaymentButton({
             throw new Error("Clinic context is required for payment verification");
           }
 
-          if (launchPaymentBridge(buildBridgePayload(resolvedClinicId))) {
+          if (launchPaymentBridge(buildBridgePayload(resolvedClinicId, paymentIntent))) {
             return;
           }
 

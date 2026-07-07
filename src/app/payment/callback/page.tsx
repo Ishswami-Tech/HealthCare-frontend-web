@@ -39,6 +39,11 @@ const initialCallbackState: CallbackState = {
   secondsLeft: null,
 };
 
+function normalizeBaseUrl(rawUrl: string, fallback: string): string {
+  const value = (rawUrl || fallback || "").trim().replace(/\/+$/u, "");
+  return value || fallback;
+}
+
 function callbackReducer(state: CallbackState, action: CallbackAction): CallbackState {
   switch (action.type) {
     case "FAILED":
@@ -93,47 +98,77 @@ function PaymentCallbackPageContent() {
     const clinicId = getSearchParam("clinicId") || "";
     const appointmentId = getSearchParam("appointmentId") || "";
     const appointmentType = (getSearchParam("appointmentType") || "").toUpperCase();
-    return { orderId, paymentId, provider, clinicId, appointmentId, appointmentType };
+    const handoffToken = getSearchParam("handoff_token") || "";
+    return { orderId, paymentId, provider, clinicId, appointmentId, appointmentType, handoffToken };
   }, [getSearchParam]);
 
-  const redirectPath =
-    params.appointmentType === "VIDEO_CALL"
-      ? "/patient/appointments"
-      : params.appointmentId
-        ? "/patient/appointments"
-        : "/patient/payments?tab=payments";
+  const redirectPath = useMemo(() => {
+    if (params.appointmentType === "VIDEO_CALL" || params.appointmentId) {
+      return "/patient/appointments";
+    }
+    return "/patient/payments?tab=payments";
+  }, [params.appointmentId, params.appointmentType]);
 
   useEffect(() => {
     const verify = async () => {
-      if (!params.orderId) {
-        dispatch({ type: "FAILED", message: "Missing order ID in callback URL." });
-        return;
-      }
-
-      if (!params.clinicId) {
-        dispatch({ type: "FAILED", message: "Missing clinic context for payment verification." });
-        return;
-      }
-
       try {
-        const queryParams = new URLSearchParams({
-          clinicId: params.clinicId,
-          paymentId: params.paymentId || params.orderId,
-          orderId: params.orderId,
-          ...(params.provider ? { provider: params.provider } : {}),
-        });
-
-        const response = await clinicApiClient.publicRequest<Record<string, unknown>>(
-          `${API_ENDPOINTS.BILLING.PAYMENTS.CALLBACK}?${queryParams.toString()}`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Clinic-ID": params.clinicId,
-            },
-            body: JSON.stringify({ orderId: params.orderId }),
+        const isHandoff = Boolean(params.handoffToken);
+        if (!isHandoff) {
+          if (!params.orderId) {
+            dispatch({ type: "FAILED", message: "Missing order ID in callback URL." });
+            return;
           }
-        );
+
+          if (!params.clinicId) {
+            dispatch({ type: "FAILED", message: "Missing clinic context for payment verification." });
+            return;
+          }
+        }
+
+        const queryParams = new URLSearchParams();
+        if (isHandoff) {
+          queryParams.set("handoff_token", params.handoffToken);
+          if (params.orderId) {
+            queryParams.set("order_id", params.orderId);
+          }
+          if (params.paymentId) {
+            queryParams.set("payment_id", params.paymentId);
+          }
+          if (params.provider) {
+            queryParams.set("provider", params.provider);
+          }
+        } else {
+          queryParams.set("clinicId", params.clinicId);
+          queryParams.set("paymentId", params.paymentId || params.orderId);
+          queryParams.set("orderId", params.orderId);
+          if (params.provider) {
+            queryParams.set("provider", params.provider);
+          }
+        }
+
+        const response = isHandoff
+          ? await clinicApiClient.publicRequest<Record<string, unknown>>(
+              `${API_ENDPOINTS.BILLING.PAYMENTS.CALLBACK}/handoff?${queryParams.toString()}`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  ...(params.clinicId ? { "X-Clinic-ID": params.clinicId } : {}),
+                },
+                body: JSON.stringify({ orderId: params.orderId }),
+              }
+            )
+          : await clinicApiClient.publicRequest<Record<string, unknown>>(
+              `${API_ENDPOINTS.BILLING.PAYMENTS.CALLBACK}?${queryParams.toString()}`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-Clinic-ID": params.clinicId,
+                },
+                body: JSON.stringify({ orderId: params.orderId }),
+              }
+            );
 
         if (!response.success) {
           throw new Error(response.error || response.message || "Payment verification failed");
@@ -190,6 +225,25 @@ function PaymentCallbackPageContent() {
           message: "Payment verified. Redirecting now...",
           secondsLeft: 1,
         });
+
+        if (isHandoff) {
+          const appBaseUrl = normalizeBaseUrl(
+            process.env.NEXT_PUBLIC_APP_URL || "",
+            "https://www.viddhakarma.com"
+          );
+          const targetUrl = new URL(`${appBaseUrl}${redirectPath}`);
+          targetUrl.searchParams.set("paymentVerified", "1");
+          if (params.appointmentId) {
+            targetUrl.searchParams.set("appointmentId", params.appointmentId);
+          }
+          if (params.orderId) {
+            targetUrl.searchParams.set("orderId", params.orderId);
+          }
+          if (params.provider) {
+            targetUrl.searchParams.set("provider", params.provider);
+          }
+          replace(targetUrl.toString());
+        }
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
