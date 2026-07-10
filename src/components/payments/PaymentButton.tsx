@@ -106,6 +106,7 @@ type PaymentIntentResponse = {
 type PaymentBridgePayload = {
   provider: PaymentProvider;
   amount: number;
+  displayAmount?: string;
   currency: string;
   description?: string;
   clinicId: string;
@@ -395,6 +396,13 @@ export function PaymentButton({
     return {
       provider: (String(paymentIntent?.provider || effectiveProvider) || effectiveProvider).toLowerCase() as PaymentProvider,
       amount: Number(paymentIntent?.amount || amount),
+      displayAmount:
+        String(
+          paymentIntent?.displayAmount ||
+            metadata.displayAmount ||
+            providerResponse.displayAmount ||
+            ""
+        ) || undefined,
       currency: String(paymentIntent?.currency || currency || "INR"),
       description: String(paymentIntent?.description || description || ""),
       clinicId: resolvedClinicId,
