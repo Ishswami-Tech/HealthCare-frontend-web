@@ -112,6 +112,62 @@ function isAuthError(error: unknown): boolean {
   return false;
 }
 
+function isTransientSessionError(error: unknown): boolean {
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    return [
+      'timeout',
+      'timed out',
+      'aborterror',
+      'failed to fetch',
+      'fetch failed',
+      'networkerror',
+      'network error',
+      'econnreset',
+      'enotfound',
+      'econnrefused',
+      'etimedout',
+      'socket hang up',
+      'request aborted',
+      'cookies can only be modified in a server action or route handler',
+    ].some((pattern) => message.includes(pattern));
+  }
+
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const response = (error as { response?: { status?: number; data?: { message?: string; error?: string } } }).response;
+  const status = response?.status;
+  if (typeof status === 'number' && [408, 425, 429, 500, 502, 503, 504].includes(status)) {
+    return true;
+  }
+
+  const message =
+    String(response?.data?.message || response?.data?.error || (error as { message?: string }).message || '').toLowerCase();
+
+  if (!message) {
+    return false;
+  }
+
+  return [
+    'timeout',
+    'timed out',
+    'aborterror',
+    'failed to fetch',
+    'fetch failed',
+    'networkerror',
+    'network error',
+    'econnreset',
+    'enotfound',
+    'econnrefused',
+    'etimedout',
+    'socket hang up',
+    'request aborted',
+    'cookies can only be modified in a server action or route handler',
+  ].some((pattern) => message.includes(pattern));
+}
+
 function resolveProfileCompleteFromBackend(user: Record<string, unknown> | null | undefined): boolean {
   if (!user) return false;
   if (user.role && String(user.role).toUpperCase() !== String(Role.PATIENT)) return true;
@@ -261,7 +317,28 @@ export function useAuth() {
   const { data: session, isPending, error: sessionError } = useQueryData<Session | null>(
     ['session'],
     async (): Promise<Session | null> => {
-      const result = await getServerSession();
+      const cachedSession = queryClient.getQueryData<Session | null>(['session']) || null;
+
+      let result: Session | null;
+      try {
+        result = await getServerSession();
+      } catch (error) {
+        if (isTransientSessionError(error)) {
+          if (process.env.NODE_ENV === 'development') {
+            logger.warn('getServerSession failed transiently during bootstrap; using cached session', {
+              error: error instanceof Error ? error.message : String(error),
+              component: 'useAuth',
+            });
+          }
+          return cachedSession;
+        }
+
+        if (isSessionInvalidError(error)) {
+          return null;
+        }
+
+        throw error;
+      }
 
       if (!result) {
         return null;
@@ -269,18 +346,26 @@ export function useAuth() {
 
       // If session exists but token is expiring soon, refresh it
       if (result.user && result.access_token && isTokenExpiringSoon(result.access_token)) {
-        const refreshedSession = await refreshToken();
-        if (refreshedSession && refreshedSession.access_token && refreshedSession.user) {
-          // Ensure clinicId is compatible by allowing undefined
-          return {
-            ...refreshedSession,
-            user: {
-              ...refreshedSession.user,
-              clinicId: refreshedSession.user.clinicId || undefined
-            }
-          };
+        try {
+          const refreshedSession = await refreshToken();
+          if (refreshedSession && refreshedSession.access_token && refreshedSession.user) {
+            // Ensure clinicId is compatible by allowing undefined
+            return {
+              ...refreshedSession,
+              user: {
+                ...refreshedSession.user,
+                clinicId: refreshedSession.user.clinicId || undefined
+              }
+            };
+          }
+        } catch (error) {
+          if (process.env.NODE_ENV === 'development') {
+            logger.warn('Session refresh failed during bootstrap; continuing with current session', {
+              error: error instanceof Error ? error.message : String(error),
+              component: 'useAuth',
+            });
+          }
         }
-        return null;
       }
 
       return result;
