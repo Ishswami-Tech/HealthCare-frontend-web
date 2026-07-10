@@ -656,7 +656,7 @@ export function PaymentButton({
       throw new Error("Clinic context is required for payment verification");
     }
 
-    if (launchPaymentBridge(buildBridgePayload(resolvedClinicId))) {
+    if (launchPaymentBridge(buildBridgePayload(resolvedClinicId, paymentIntent))) {
       setIsProcessing(false);
       return;
     }
@@ -760,7 +760,7 @@ export function PaymentButton({
     usedProvider: PaymentProvider,
     resolvedClinicId: string
   ) => {
-    if (launchPaymentBridge(buildBridgePayload(resolvedClinicId))) {
+    if (launchPaymentBridge(buildBridgePayload(resolvedClinicId, paymentIntent))) {
       return;
     }
 
@@ -855,7 +855,7 @@ export function PaymentButton({
       (metadata?.clinicId as string) ||
       APP_CONFIG.CLINIC.ID;
 
-    if (launchPaymentBridge(buildBridgePayload(fallbackClinicId))) {
+    if (launchPaymentBridge(buildBridgePayload(fallbackClinicId, paymentIntent))) {
       return;
     }
 
