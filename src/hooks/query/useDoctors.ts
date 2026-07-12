@@ -11,11 +11,20 @@ import { API_ENDPOINTS } from '@/lib/config/config';
 import { usePatientStore } from '@/stores';
 import { useAuthStore } from '@/stores/auth.store';
 import { useCurrentClinicId } from './useClinics';
+import { isSessionInvalidError } from '@/lib/utils/auth-recovery';
 
 const useDoctorQueryScope = () => {
   const sessionId = useAuthStore((state) => state.session?.session_id?.trim() || '');
   const userId = useAuthStore((state) => state.session?.user?.id?.trim() || '');
   return sessionId || userId || 'guest';
+};
+
+const doctorQueryRetry = (failureCount: number, error: unknown) => {
+  if (isSessionInvalidError(error)) {
+    return false;
+  }
+
+  return failureCount < 2;
 };
 
 // ===== DOCTORS QUERY HOOKS =====
@@ -39,14 +48,22 @@ export const useDoctors = (clinicId: string, filters?: {
   console.log('[useDoctors] Hook called with clinicId:', clinicId, 'filters:', filters, 'enabled:', !!clinicId && (options?.enabled ?? true));
 
   return useQueryData(['doctors', clinicId, authScope, filters], async () => {
-    console.log('[useDoctors] Fetching doctors for clinicId:', clinicId, 'filters:', filters);
-    const result = await clinicApiClient.get(API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId), filters);
-    const doctors = Array.isArray(result.data) ? result.data : [];
-    console.log('[useDoctors] Received doctors:', doctors.length, 'doctors');
-    return doctors;
+    try {
+      console.log('[useDoctors] Fetching doctors for clinicId:', clinicId, 'filters:', filters);
+      const result = await clinicApiClient.get(API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId), filters);
+      const doctors = Array.isArray(result.data) ? result.data : [];
+      console.log('[useDoctors] Received doctors:', doctors.length, 'doctors');
+      return doctors;
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return [];
+      }
+      throw error;
+    }
   }, {
     enabled: !!clinicId && (options?.enabled ?? true),
     refetchInterval: isConnected ? false : 120_000,
+    retry: doctorQueryRetry,
   });
 };
 
@@ -57,10 +74,18 @@ export const useDoctor = (doctorId: string) => {
   const { isConnected } = useWebSocketStatus();
 
   return useQueryData(['doctor', doctorId], async () => {
-    return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.GET_BY_ID(doctorId));
+    try {
+      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.GET_BY_ID(doctorId));
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return null;
+      }
+      throw error;
+    }
   }, {
     enabled: !!doctorId,
     refetchInterval: isConnected ? false : 120_000,
+    retry: doctorQueryRetry,
   });
 };
 
@@ -71,10 +96,18 @@ export const useDoctorSchedule = (clinicId: string, doctorId: string, date?: str
   const { isConnected } = useWebSocketStatus();
 
   return useQueryData(['doctorSchedule', clinicId, doctorId, date], async () => {
-    return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.SCHEDULE.GET(clinicId, doctorId), date ? { date } : undefined);
+    try {
+      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.SCHEDULE.GET(clinicId, doctorId), date ? { date } : undefined);
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return null;
+      }
+      throw error;
+    }
   }, {
     enabled: !!clinicId && !!doctorId,
     refetchInterval: isConnected ? false : 30_000,
+    retry: doctorQueryRetry,
   });
 };
 
@@ -87,18 +120,26 @@ export const useDoctorAvailabilityLegacy = (doctorId: string, date: string, loca
   const authScope = useDoctorQueryScope();
 
   return useQueryData(['doctorAvailability', clinicId, doctorId, date, locationId || 'all', authScope], async () => {
-    if (!clinicId) {
-      throw new Error('No clinic ID available');
+    try {
+      if (!clinicId) {
+        throw new Error('No clinic ID available');
+      }
+      const res = await clinicApiClient.get(API_ENDPOINTS.DOCTORS.AVAILABILITY.GET(doctorId), {
+        clinicId,
+        date,
+        locationId,
+      });
+      return (res as any).availability ?? res;
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return [];
+      }
+      throw error;
     }
-    const res = await clinicApiClient.get(API_ENDPOINTS.DOCTORS.AVAILABILITY.GET(doctorId), {
-      clinicId,
-      date,
-      locationId,
-    });
-    return (res as any).availability ?? res;
   }, {
     enabled: !!clinicId && !!doctorId && !!date,
     refetchInterval: isConnected ? false : 30_000,
+    retry: doctorQueryRetry,
   });
 };
 
@@ -113,7 +154,14 @@ export const useDoctorAppointments = (doctorId: string, filters?: {
   const { isConnected } = useWebSocketStatus();
 
   return useQueryData(['doctorAppointments', doctorId, filters], async () => {
-    return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.APPOINTMENTS(doctorId), filters);
+    try {
+      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.APPOINTMENTS(doctorId), filters);
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return [];
+      }
+      throw error;
+    }
   }, {
     enabled: !!doctorId,
     staleTime: 0,
@@ -121,6 +169,7 @@ export const useDoctorAppointments = (doctorId: string, filters?: {
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
     refetchInterval: isConnected ? false : 30_000,
+    retry: doctorQueryRetry,
   });
 };
 
@@ -140,11 +189,19 @@ export const useDoctorPatients = (clinicId: string, filters?: {
   const setCollection = usePatientStore((state) => state.setCollection);
 
   const query = useQueryData(['doctorPatients', clinicId, filters], async () => {
-    const doctorId = useAuthStore.getState().session?.user?.id || '';
-    return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.PATIENTS(clinicId, doctorId), filters);
+    try {
+      const doctorId = useAuthStore.getState().session?.user?.id || '';
+      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.PATIENTS(clinicId, doctorId), filters);
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return [];
+      }
+      throw error;
+    }
   }, {
     enabled: !!clinicId && (options?.enabled ?? true),
     refetchInterval: isConnected ? false : 60_000,
+    retry: doctorQueryRetry,
   });
 
   useEffect(() => {
@@ -170,10 +227,18 @@ export const useDoctorStats = (doctorId: string, period?: 'day' | 'week' | 'mont
   const { isConnected } = useWebSocketStatus();
 
   return useQueryData(['doctorStats', doctorId, period], async () => {
-    return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.STATS(doctorId), period ? { period } : undefined);
+    try {
+      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.STATS(doctorId), period ? { period } : undefined);
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return null;
+      }
+      throw error;
+    }
   }, {
     enabled: !!doctorId,
     refetchInterval: isConnected ? false : 120_000,
+    retry: doctorQueryRetry,
   });
 };
 
@@ -184,10 +249,18 @@ export const useDoctorReviews = (doctorId: string, limit: number = 10) => {
   const { isConnected } = useWebSocketStatus();
 
   return useQueryData(['doctorReviews', doctorId, limit], async () => {
-    return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.REVIEWS.GET(doctorId), { limit });
+    try {
+      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.REVIEWS.GET(doctorId), { limit });
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return [];
+      }
+      throw error;
+    }
   }, {
     enabled: !!doctorId,
     refetchInterval: isConnected ? false : 300_000,
+    retry: doctorQueryRetry,
   });
 };
 
@@ -196,7 +269,16 @@ export const useDoctorReviews = (doctorId: string, limit: number = 10) => {
  */
 export const useDoctorSpecializations = () => {
   return useQueryData(['doctorSpecializations'], async () => {
-    return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.SPECIALIZATIONS);
+    try {
+      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.SPECIALIZATIONS);
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return [];
+      }
+      throw error;
+    }
+  }, {
+    retry: doctorQueryRetry,
   });
 };
 
@@ -210,10 +292,18 @@ export const useDoctorPerformanceMetrics = (doctorId: string, filters?: {
   const { isConnected } = useWebSocketStatus();
 
   return useQueryData(['doctorPerformanceMetrics', doctorId, filters], async () => {
-    return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.PERFORMANCE(doctorId), filters);
+    try {
+      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.PERFORMANCE(doctorId), filters);
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return null;
+      }
+      throw error;
+    }
   }, {
     enabled: !!doctorId,
     refetchInterval: isConnected ? false : 300_000,
+    retry: doctorQueryRetry,
   });
 };
 
@@ -228,10 +318,18 @@ export const useDoctorEarnings = (doctorId: string, filters?: {
   const { isConnected } = useWebSocketStatus();
 
   return useQueryData(['doctorEarnings', doctorId, filters], async () => {
-    return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.EARNINGS(doctorId), filters);
+    try {
+      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.EARNINGS(doctorId), filters);
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return null;
+      }
+      throw error;
+    }
   }, {
     enabled: !!doctorId,
     refetchInterval: isConnected ? false : 300_000,
+    retry: doctorQueryRetry,
   });
 };
 

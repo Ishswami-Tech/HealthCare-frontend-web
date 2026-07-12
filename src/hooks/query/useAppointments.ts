@@ -23,6 +23,7 @@ import { Role } from '@/types/auth.types';
 import { getClinicId } from '@/lib/utils/token-manager';
 import { syncAppointmentInCache } from '@/lib/utils/appointment-cache';
 import { API_ENDPOINTS } from '@/lib/config/config';
+import { isSessionInvalidError } from '@/lib/utils/auth-recovery';
 
 const useAppointmentQueryScope = () => {
   const sessionId = useAuthStore((state) => state.session?.session_id?.trim() || '');
@@ -459,18 +460,26 @@ export const useAppointments = (
       refetchOnReconnect: !isAuthRefreshing,
       refetchInterval:
         options?.enabled === false || isConnected || isAuthRefreshing ? false : 30_000,
-      retry: (failureCount, error: Error) => {
-        if (error.message.includes('Access denied')) {
-          return false;
-        }
-        return failureCount < 2; // Reduce retry attempts
-      },
+      retry: appointmentQueryRetry,
       // Keep the previous list visible during background refetches and key
       // transitions so screens don't flash empty/loading while polling or
       // after filter changes. First-load still surfaces isPending=true.
       placeholderData: keepPreviousData,
     }
   );
+};
+
+const appointmentQueryRetry = (failureCount: number, error: unknown) => {
+  if (isSessionInvalidError(error)) {
+    return false;
+  }
+
+  const message = error instanceof Error ? error.message : String(error || '');
+  if (message.includes('Access denied') || message.includes('not found')) {
+    return false;
+  }
+
+  return failureCount < 2;
 };
 
 export const useAppointmentServices = (enabled: boolean = true) => {
@@ -492,7 +501,7 @@ export const useAppointmentServices = (enabled: boolean = true) => {
       staleTime: 30 * 60 * 1000,
       gcTime: 60 * 60 * 1000,
       refetchOnWindowFocus: false,
-      retry: 2,
+      retry: appointmentQueryRetry,
     }
   );
 };
@@ -526,12 +535,7 @@ export const useAppointment = (appointmentId: string) => {
       refetchOnWindowFocus: !isConnected && !isAuthRefreshing,
       refetchOnReconnect: false,
       refetchInterval: isConnected || isAuthRefreshing ? false : 30_000,
-      retry: (failureCount, error: Error) => {
-        if (error.message.includes('Access denied') || error.message.includes('not found')) {
-          return false;
-        }
-        return failureCount < 3;
-      },
+      retry: appointmentQueryRetry,
     }
   );
 };
@@ -1233,11 +1237,18 @@ export const useQueue = (queueType: string) => {
   );
 
   const queryFn = useCallback(async () => {
-    const result = await clinicApiClient.get(API_ENDPOINTS.QUEUE.GET, { type: queueType }) as any;
-    if (!result) {
-      throw new Error('Failed to fetch queue');
+    try {
+      const result = await clinicApiClient.get(API_ENDPOINTS.QUEUE.GET, { type: queueType }) as any;
+      if (!result) {
+        throw new Error('Failed to fetch queue');
+      }
+      return Array.isArray(result?.queue) ? result.queue : result.data ?? result;
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return [];
+      }
+      throw error;
     }
-    return Array.isArray(result?.queue) ? result.queue : result.data ?? result;
   }, [queueType]);
 
   return useQueryData(
@@ -1253,12 +1264,7 @@ export const useQueue = (queueType: string) => {
       refetchOnMount: !isConnected,
       refetchOnReconnect: false,
       placeholderData: keepPreviousData,
-      retry: (failureCount, error) => {
-        if (error.message.includes('Access denied')) {
-          return false;
-        }
-        return failureCount < 2;
-      },
+      retry: appointmentQueryRetry,
     }
   );
 };
@@ -1343,12 +1349,7 @@ export const useQueueStats = (locationId?: string) => {
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
       placeholderData: keepPreviousData,
-      retry: (failureCount, error: Error) => {
-        if (error.message.includes('Access denied')) {
-          return false;
-        }
-        return failureCount < 3;
-      },
+      retry: appointmentQueryRetry,
     }
   );
 };
@@ -1375,12 +1376,7 @@ export const useAppointmentAwareQuery = <T>(
       enabled: hasPermission(Permission.VIEW_APPOINTMENTS) && (options?.enabled ?? true),
       refetchInterval: options?.refetchInterval || false,
       staleTime: 2 * 60 * 1000, // 2 minutes
-      retry: (failureCount, error: Error) => {
-        if (error.message.includes('Access denied')) {
-          return false;
-        }
-        return failureCount < 3;
-      },
+      retry: appointmentQueryRetry,
     }
   );
 };
@@ -1482,12 +1478,7 @@ export const useMyAppointments = (filters?: {
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
       refetchInterval: hasSocketFailed && !isAuthRefreshing ? 2 * 60_000 : false,
-      retry: (failureCount, error: Error) => {
-        if (error.message.includes('Access denied')) {
-          return false;
-        }
-        return failureCount < 3;
-      },
+      retry: appointmentQueryRetry,
       // Keep previous patient-appointment list visible during background
       // refetches/payment-callback invalidations; first load still surfaces
       // isPending=true. Pairs with `appointmentsLoadedState` so consumers can
@@ -1532,12 +1523,7 @@ export const useDoctorAvailability = (
       refetchOnMount: true, // Always re-fetch when dialog opens
       refetchOnWindowFocus: false, // Don't refetch on tab switch
       refetchInterval: options?.refetchIntervalMs ?? false,
-      retry: (failureCount, error: Error) => {
-        if (error.message.includes('Access denied')) {
-          return false;
-        }
-        return failureCount < 2; // Fewer retries for faster feedback
-      },
+      retry: appointmentQueryRetry,
       // Keep the previous slot list visible while a new date/doctor is
       // loading — without this, the slot-picker dialog flashes an empty
       // grid whenever the user changes filters.
@@ -1638,17 +1624,7 @@ export const useAppointmentsWithErrorHandling = (filters?: AppointmentFilters) =
       refetchOnReconnect: !isAuthRefreshing,
       refetchOnMount: 'always',
       refetchInterval: isAuthRefreshing ? false : 30_000,
-      retry: (failureCount: number, error: Error) => {
-        // Don't retry on permission errors
-        if (error.message.includes('permission') || error.message.includes('Access denied')) {
-          return false;
-        }
-        // Retry network errors with exponential backoff
-        if (error.message.includes('Network') || error.message.includes('timeout')) {
-          return failureCount < 3;
-        }
-        return failureCount < 2;
-      },
+      retry: appointmentQueryRetry,
       retryDelay: (attemptIndex: number) => Math.min(1000 * 2 ** attemptIndex, 10000), // Exponential backoff
     };
   }, [clinicId, filters, hasPermission, isAuthRefreshing]);
@@ -1832,6 +1808,7 @@ export const useAppointmentStats = () => {
       // header doesn't flicker on every tick or during a transient 401
       // refetch storm while the auth token is mid-refresh.
       placeholderData: keepPreviousData,
+      retry: appointmentQueryRetry,
     }
   );
 };
@@ -1900,6 +1877,7 @@ export const usePatientQueuePosition = (patientId: string, queueType: string) =>
     {
       enabled: !!patientId && !!queueType && hasPermission(Permission.VIEW_QUEUE),
       refetchInterval: isAuthRefreshing ? false : 30 * 1000,
+      retry: appointmentQueryRetry,
     }
   );
 };
@@ -1927,6 +1905,7 @@ export const useDoctorQueue = (doctorId: string) => {
     {
       enabled: !!doctorId && hasPermission(Permission.VIEW_QUEUE),
       refetchInterval: isAuthRefreshing ? false : 30 * 1000,
+      retry: appointmentQueryRetry,
     }
   );
 };
@@ -1979,6 +1958,7 @@ export const useCanCancelAppointment = (appointmentId: string) => {
     {
       enabled: !!appointmentId,
       staleTime: 5 * 60 * 1000, // 5 minutes
+      retry: appointmentQueryRetry,
     }
   );
 };
@@ -1998,6 +1978,7 @@ export const useAssistantDoctorCoverage = () => {
     },
     {
       staleTime: 5 * 60 * 1000,
+      retry: appointmentQueryRetry,
     }
   );
 };

@@ -3368,7 +3368,7 @@ export function BookAppointmentDialog({
       doctorsListLength: doctorsList.length,
       doctorsLoading,
       doctorsFetched,
-      doctorsError: doctorsError?.message || doctorsError,
+      doctorsError: doctorsError instanceof Error ? doctorsError.message : String(doctorsError),
       shouldLoadDoctors,
       dialogOpen,
       activeClinicId,
@@ -3900,7 +3900,7 @@ export function BookAppointmentDialog({
       availabilityVideoWindow: (availability as any)?.videoCallWindow,
       availabilityRestrictions: (availability as any)?.restrictions,
       availabilityLoading,
-      availabilityError: availabilityError?.message || availabilityError
+      availabilityError: availabilityError instanceof Error ? availabilityError.message : String(availabilityError)
     });
   }
 

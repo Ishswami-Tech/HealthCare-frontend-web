@@ -1145,8 +1145,8 @@ export default function QueuePage() {
   if (error) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <p className="text-red-600">Error loading queue: {error.message}</p>
+      <div className="text-center">
+          <p className="text-red-600">Error loading queue: {error instanceof Error ? error.message : String(error)}</p>
           <Button onClick={() => refetchQueue()} className="mt-4">
             Retry
           </Button>

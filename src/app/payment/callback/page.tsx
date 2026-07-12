@@ -297,6 +297,19 @@ function PaymentCallbackPageContent() {
 
         <h1 className="text-lg font-semibold">Payment Callback</h1>
         <p className="text-sm text-muted-foreground">{message}</p>
+        {state === "failed" && (
+          <div className="flex flex-col gap-y-3">
+            <p className="text-sm text-red-600">
+              The payment could not be verified. Please review the error above and try again.
+            </p>
+            <Button
+              className="w-full"
+              onClick={() => replace(redirectPath)}
+            >
+              Go back
+            </Button>
+          </div>
+        )}
         {state === "success" && (
           <div className="flex flex-col gap-y-3">
             <p className="text-sm font-medium text-primary">

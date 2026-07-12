@@ -41,6 +41,7 @@ import { Label } from "@/components/ui/label";
 import { useCurrentTimestamp } from "@/hooks/utils/useClientDate";
 import { Textarea } from "@/components/ui/textarea";
 import { PaymentButton } from "@/components/payments/PaymentButton";
+import { formatAmountFromMinorUnits } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ServerPagination } from "@/components/ui/pagination";
 import {
@@ -497,7 +498,7 @@ const AppointmentCard = ({
               </div>
               {!paymentCompleted && paymentAmount > 0 && (
                 <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
-                  Join unlocks after payment of ₹{paymentAmount.toLocaleString("en-IN")}.
+                  Join unlocks after payment of ₹{formatAmountFromMinorUnits(paymentAmount)}.
                 </p>
               )}
             </div>
@@ -578,7 +579,7 @@ const AppointmentCard = ({
                     <>
                       {!paymentCompleted && paymentAmount > 0 && (
                         <PaymentButton appointmentId={getEffectiveAppointmentId(appointment)} amount={getVideoPaymentAmount(appointment, appointmentServices)} provider="phonepe" appointmentType="VIDEO_CALL" description={serviceLabel} className="h-8 px-3 rounded-xl text-xs font-semibold">
-                          Pay ₹{paymentAmount}
+                          Pay ₹{formatAmountFromMinorUnits(paymentAmount)}
                         </PaymentButton>
                       )}
                       <Button variant="outline" size="sm" onClick={() => openReschedule(appointment)} className="h-8 px-3 rounded-xl text-xs">Reschedule</Button>
@@ -1108,7 +1109,7 @@ const AppointmentCard = ({
                 </div>
                 {!paymentCompleted && paymentAmount > 0 && (
                   <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
-                    Join unlocks after payment of‚¹{paymentAmount.toLocaleString("en-IN")}.
+                    Join unlocks after payment of ₹{formatAmountFromMinorUnits(paymentAmount)}.
                   </p>
                 )}
               </div>
@@ -1189,7 +1190,7 @@ const AppointmentCard = ({
                       <>
                         {!paymentCompleted && paymentAmount > 0 && (
                           <PaymentButton appointmentId={getEffectiveAppointmentId(appointment)} amount={getVideoPaymentAmount(appointment, appointmentServices)} provider="phonepe" appointmentType="VIDEO_CALL" description={serviceLabel} className="h-8 px-3 rounded-xl text-xs font-semibold">
-                            Pay‚¹{paymentAmount}
+                            Pay ₹{formatAmountFromMinorUnits(paymentAmount)}
                           </PaymentButton>
                         )}
                         <Button variant="outline" size="sm" onClick={() => openReschedule(appointment)} className="h-8 px-3 rounded-xl text-xs">Reschedule</Button>

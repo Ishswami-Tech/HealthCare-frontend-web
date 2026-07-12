@@ -7,6 +7,7 @@ import { TOAST_IDS } from '../utils/use-toast';
 import { clinicApiClient } from '@/lib/api/client';
 import { API_ENDPOINTS } from '@/lib/config/config';
 import { keepPreviousData } from '@tanstack/react-query';
+import { isSessionInvalidError } from '@/lib/utils/auth-recovery';
 import {
   getQueueListQueryKey,
   getQueueStatsQueryKey,
@@ -14,6 +15,14 @@ import {
 } from '@/lib/queue/queue-cache';
 
 // ===== QUEUE MANAGEMENT HOOKS =====
+
+const queueQueryRetry = (failureCount: number, error: unknown) => {
+  if (isSessionInvalidError(error)) {
+    return false;
+  }
+
+  return failureCount < 2;
+};
 
 /**
  * Hook to get queue data for a clinic or global queue view.
@@ -43,11 +52,18 @@ export const useQueue = (clinicId?: string, filters?: {
     : undefined;
 
   return useQueryData(getQueueListQueryKey(normalizedClinicId, queueFilters), async () => {
-    const response = await clinicApiClient.get(API_ENDPOINTS.QUEUE.GET, {
-      ...queueRequestFilters,
-      ...(normalizedClinicId ? { clinicId: normalizedClinicId } : {}),
-    });
-    return response.data;
+    try {
+      const response = await clinicApiClient.get(API_ENDPOINTS.QUEUE.GET, {
+        ...queueRequestFilters,
+        ...(normalizedClinicId ? { clinicId: normalizedClinicId } : {}),
+      });
+      return response.data;
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return [];
+      }
+      throw error;
+    }
   }, {
     enabled: enabled !== false,
     // Websocket invalidation owns freshness when connected; polling becomes fallback only.
@@ -55,6 +71,7 @@ export const useQueue = (clinicId?: string, filters?: {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     placeholderData: keepPreviousData,
+    retry: queueQueryRetry,
   });
 };
 
@@ -66,14 +83,22 @@ export const useQueueStats = (locationId?: string, options?: { enabled?: boolean
   const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
 
   return useQueryData(getQueueStatsQueryKey(locationId), async () => {
-    if (!locationId) throw new Error('Location ID required for queue stats');
-    return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.STATS, { locationId })).data;
+    try {
+      if (!locationId) throw new Error('Location ID required for queue stats');
+      return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.STATS, { locationId })).data;
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return null;
+      }
+      throw error;
+    }
   }, {
     enabled: !!locationId && options?.enabled !== false,
     refetchInterval: isConnected || isAuthRefreshing ? false : 60000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     placeholderData: keepPreviousData,
+    retry: queueQueryRetry,
   });
 };
 
@@ -82,18 +107,25 @@ export const useQueueStats = (locationId?: string, options?: { enabled?: boolean
  */
 export const useQueueFilters = (options?: { enabled?: boolean }) => {
   return useQueryData(['queue-filters'], async () => {
-    const result = (await clinicApiClient.get(API_ENDPOINTS.QUEUE.FILTERS)).data;
-    if (!result) {
-      throw new Error('Failed to fetch queue filters');
+    try {
+      const result = (await clinicApiClient.get(API_ENDPOINTS.QUEUE.FILTERS)).data;
+      if (!result) {
+        throw new Error('Failed to fetch queue filters');
+      }
+      const payload = Array.isArray(result) ? result : (result as { availableQueueFilterCatalog?: unknown[]; data?: unknown })?.availableQueueFilterCatalog ?? (result as { data?: unknown })?.data;
+      return Array.isArray(payload) ? payload : [];
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return [];
+      }
+      throw error;
     }
-    const payload = Array.isArray(result) ? result : (result as { availableQueueFilterCatalog?: unknown[]; data?: unknown })?.availableQueueFilterCatalog ?? (result as { data?: unknown })?.data;
-    return Array.isArray(payload) ? payload : [];
   }, {
     enabled: options?.enabled !== false,
     staleTime: 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
     refetchOnWindowFocus: false,
-    retry: 2,
+    retry: queueQueryRetry,
   });
 };
 
@@ -244,7 +276,14 @@ export const useQueueHistory = (filters?: {
   limit?: number;
 }) => {
   return useQueryData(['queueHistory', filters], async () => {
-    return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.HISTORY, filters as Record<string, string | number | boolean | undefined>)).data;
+    try {
+      return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.HISTORY, filters as Record<string, string | number | boolean | undefined>)).data;
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return [];
+      }
+      throw error;
+    }
   });
 };
 
@@ -253,7 +292,14 @@ export const useQueueHistory = (filters?: {
  */
 export const useQueueAnalytics = (period: 'day' | 'week' | 'month' | 'year' = 'day') => {
   return useQueryData(['queueAnalytics', period], async () => {
-    return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.ANALYTICS, { period })).data;
+    try {
+      return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.ANALYTICS, { period })).data;
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return null;
+      }
+      throw error;
+    }
   });
 };
 
@@ -482,7 +528,14 @@ export const useResumeQueue = () => {
  */
 export const useQueueConfig = () => {
   return useQueryData(['queueConfig'], async () => {
-    return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.CONFIG)).data;
+    try {
+      return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.CONFIG)).data;
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return null;
+      }
+      throw error;
+    }
   });
 };
 
@@ -521,7 +574,14 @@ export const useUpdateQueueConfig = () => {
  */
 export const useQueueNotifications = (userId?: string) => {
   return useQueryData(['queueNotifications', userId], async () => {
-    return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.NOTIFICATIONS.GET, userId ? { userId } : undefined)).data;
+    try {
+      return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.NOTIFICATIONS.GET, userId ? { userId } : undefined)).data;
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return [];
+      }
+      throw error;
+    }
   }, {
     enabled: true,
   });
@@ -573,7 +633,14 @@ export const useSendQueueNotification = () => {
  */
 export const useQueueWaitTimes = (queueType?: string) => {
   return useQueryData(['queueWaitTimes', queueType], async () => {
-    return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.WAIT_TIMES, queueType ? { queueType } : undefined)).data;
+    try {
+      return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.WAIT_TIMES, queueType ? { queueType } : undefined)).data;
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return [];
+      }
+      throw error;
+    }
   });
 };
 
@@ -602,7 +669,14 @@ export const useEstimateWaitTime = () => {
  */
 export const useQueueCapacity = (queueType: string) => {
   return useQueryData(['queueCapacity', queueType], async () => {
-    return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.CAPACITY, { queueType })).data;
+    try {
+      return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.CAPACITY, { queueType })).data;
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return null;
+      }
+      throw error;
+    }
   }, {
     enabled: !!queueType,
   });
@@ -643,7 +717,14 @@ export const useQueuePerformanceMetrics = (filters?: {
   queueType?: string;
   }) => {
   return useQueryData(['queuePerformanceMetrics', filters], async () => {
-    return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.PERFORMANCE, filters as Record<string, string | number | boolean | undefined>)).data;
+    try {
+      return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.PERFORMANCE, filters as Record<string, string | number | boolean | undefined>)).data;
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return null;
+      }
+      throw error;
+    }
   });
 };
 
@@ -673,7 +754,14 @@ export const useExportQueueData = () => {
  */
 export const useQueueAlerts = () => {
   return useQueryData(['queueAlerts'], async () => {
-    return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.ALERTS.GET)).data;
+    try {
+      return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.ALERTS.GET)).data;
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return [];
+      }
+      throw error;
+    }
   });
 };
 

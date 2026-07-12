@@ -33,6 +33,7 @@ import { PatientBillingAnalytics } from "./PatientBillingAnalytics";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { formatDateInIST } from "@/lib/utils/date-time";
+import { formatAmountFromMinorUnits } from "@/lib/utils";
 import {
   useCreateSubscription,
   useCreateBillingPlan,
@@ -1329,7 +1330,7 @@ export function RoleBasedBillingDashboard({
                   }
                 }}
               >
-                Pay ₹{(pendingSubscriptionPayment?.amount ?? 0).toLocaleString("en-IN")}
+                Pay ₹{formatAmountFromMinorUnits(pendingSubscriptionPayment?.amount ?? 0)}
               </PaymentButton>
             </div>
           )}

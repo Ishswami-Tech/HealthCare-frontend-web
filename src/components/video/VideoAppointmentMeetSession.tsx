@@ -495,6 +495,7 @@ export function VideoAppointmentMeetSession({
               : `${viewerRoleLabel} appointment`;
   const blockedReason = videoSessionDecision.blockedReason || "";
   const [countdownTime, setCountdownTime] = React.useState<string | null>(null);
+  const appointmentLoadFailed = !isPending && !appointment && !error && !permissionError;
 
   // Calculate countdown timer for "join opens"
   React.useEffect(() => {
@@ -912,7 +913,7 @@ export function VideoAppointmentMeetSession({
     replace(exitRoute);
   };
 
-  if (isPending || !appointment || isRequesting) {
+  if (isPending || isRequesting) {
     return (
       <div className="flex min-h-dvh w-full items-center justify-center bg-[#111315] px-6 text-center text-white">
         <div className="flex flex-col items-center gap-y-4 max-w-xs w-full">
@@ -933,7 +934,7 @@ export function VideoAppointmentMeetSession({
     );
   }
 
-  if (error || permissionError) {
+  if (error || permissionError || appointmentLoadFailed) {
     return (
       <div className="flex min-h-dvh w-full items-center justify-center bg-[#111315] px-6 text-center text-white">
         <div className="max-w-sm w-full rounded-2xl border border-[#ea4335]/20 bg-[#ea4335]/10 px-6 py-8 text-center">
@@ -942,7 +943,9 @@ export function VideoAppointmentMeetSession({
           </div>
           <p className="text-[16px] font-semibold text-white">Unable to join</p>
           <p className="mt-2 text-[13px] text-[#9aa0a6]">
-            {permissionError || "Unable to load this meeting."}
+            {permissionError ||
+              error?.message ||
+              "Unable to load this meeting. Please reopen the consultation from your appointment list."}
           </p>
           <button
             type="button"

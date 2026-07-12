@@ -9,6 +9,7 @@ import { setProfileComplete } from '@/lib/actions/auth.server';
 import {
   updateUserProfile,
 } from '@/lib/actions/users.server';
+import { isSessionInvalidError } from '@/lib/utils/auth-recovery';
 
 // ===== USER PROFILE HOOKS =====
 
@@ -20,8 +21,15 @@ export const useUserProfile = (
 ) => {
   const { isConnected } = useWebSocketStatus();
   return useQueryData(['userProfile'], async () => {
-    const response = await clinicApiClient.getProfile();
-    return response.data;
+    try {
+      const response = await clinicApiClient.getProfile();
+      return response.data;
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return null;
+      }
+      throw error;
+    }
   }, {
     // Use a long staleTime so multiple mount sites
     // (`DashboardLayout`, `BookAppointmentDialog`, profile pages) don't
@@ -32,6 +40,12 @@ export const useUserProfile = (
     gcTime: 10 * 60 * 1000,
     refetchInterval: isConnected ? false : 300_000,
     enabled: options?.enabled ?? true,
+    retry: (failureCount, error) => {
+      if (isSessionInvalidError(error)) {
+        return false;
+      }
+      return failureCount < 2;
+    },
   });
 };
 
@@ -437,21 +451,29 @@ export const useSetProfileComplete = () => {
  */
 export const useUsersByRole = (role: string) => {
   return useQueryData(['users', 'role', role], async () => {
-    const normalizedRole = role.trim().toUpperCase();
-    const endpointMap: Record<string, string> = {
-      PATIENT: API_ENDPOINTS.USERS.GET_BY_ROLE.PATIENT,
-      DOCTOR: API_ENDPOINTS.USERS.GET_BY_ROLE.DOCTORS,
-      ASSISTANT_DOCTOR: API_ENDPOINTS.USERS.GET_BY_ROLE.DOCTORS,
-      RECEPTIONIST: API_ENDPOINTS.USERS.GET_BY_ROLE.RECEPTIONISTS,
-      CLINIC_ADMIN: API_ENDPOINTS.USERS.GET_BY_ROLE.CLINIC_ADMINS,
-    };
-    const endpoint = endpointMap[normalizedRole];
-    if (endpoint) {
-      return (await clinicApiClient.get(endpoint)).data as Record<string, unknown>[];
+    try {
+      const normalizedRole = role.trim().toUpperCase();
+      const endpointMap: Record<string, string> = {
+        PATIENT: API_ENDPOINTS.USERS.GET_BY_ROLE.PATIENT,
+        DOCTOR: API_ENDPOINTS.USERS.GET_BY_ROLE.DOCTORS,
+        ASSISTANT_DOCTOR: API_ENDPOINTS.USERS.GET_BY_ROLE.DOCTORS,
+        RECEPTIONIST: API_ENDPOINTS.USERS.GET_BY_ROLE.RECEPTIONISTS,
+        CLINIC_ADMIN: API_ENDPOINTS.USERS.GET_BY_ROLE.CLINIC_ADMINS,
+      };
+      const endpoint = endpointMap[normalizedRole];
+      if (endpoint) {
+        return (await clinicApiClient.get(endpoint)).data as Record<string, unknown>[];
+      }
+      return (await clinicApiClient.get(API_ENDPOINTS.USERS.SEARCH, { q: '', roles: role })).data as Record<string, unknown>[];
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return [];
+      }
+      throw error;
     }
-    return (await clinicApiClient.get(API_ENDPOINTS.USERS.SEARCH, { q: '', roles: role })).data as Record<string, unknown>[];
   }, {
     enabled: !!role,
+    retry: (failureCount, error) => !isSessionInvalidError(error) && failureCount < 2,
   });
 };
 
@@ -460,9 +482,17 @@ export const useUsersByRole = (role: string) => {
  */
 export const useUsersByClinic = (clinicId: string) => {
   return useQueryData(['users', 'clinic', clinicId], async () => {
-    return (await clinicApiClient.get(API_ENDPOINTS.USERS.GET_BY_CLINIC(clinicId))).data as Record<string, unknown>[];
+    try {
+      return (await clinicApiClient.get(API_ENDPOINTS.USERS.GET_BY_CLINIC(clinicId))).data as Record<string, unknown>[];
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return [];
+      }
+      throw error;
+    }
   }, {
     enabled: !!clinicId,
+    retry: (failureCount, error) => !isSessionInvalidError(error) && failureCount < 2,
   });
 };
 
@@ -500,7 +530,16 @@ export const useSearchUsers = () => {
  */
 export const useUserStats = () => {
   return useQueryData(['userStats'], async () => {
-    return (await clinicApiClient.get(API_ENDPOINTS.USERS.STATS)).data as Record<string, unknown>;
+    try {
+      return (await clinicApiClient.get(API_ENDPOINTS.USERS.STATS)).data as Record<string, unknown>;
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return null;
+      }
+      throw error;
+    }
+  }, {
+    retry: (failureCount, error) => !isSessionInvalidError(error) && failureCount < 2,
   });
 };
 
@@ -590,9 +629,17 @@ export const useToggleUserVerification = () => {
  */
 export const useUserActivityLogs = (userId: string, limit: number = 50) => {
   return useQueryData(['userActivityLogs', userId], async () => {
-    return (await clinicApiClient.get(API_ENDPOINTS.USERS.ACTIVITY_LOGS(userId), { limit })).data as Record<string, unknown>[];
+    try {
+      return (await clinicApiClient.get(API_ENDPOINTS.USERS.ACTIVITY_LOGS(userId), { limit })).data as Record<string, unknown>[];
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return [];
+      }
+      throw error;
+    }
   }, {
     enabled: !!userId,
+    retry: (failureCount, error) => !isSessionInvalidError(error) && failureCount < 2,
   });
 };
 
@@ -601,9 +648,17 @@ export const useUserActivityLogs = (userId: string, limit: number = 50) => {
  */
 export const useUserSessions = (userId: string) => {
   return useQueryData(['userSessions', userId], async () => {
-    return (await clinicApiClient.get(API_ENDPOINTS.USERS.SESSIONS.GET_ALL, { userId })).data as Record<string, unknown>[];
+    try {
+      return (await clinicApiClient.get(API_ENDPOINTS.USERS.SESSIONS.GET_ALL, { userId })).data as Record<string, unknown>[];
+    } catch (error) {
+      if (isSessionInvalidError(error)) {
+        return [];
+      }
+      throw error;
+    }
   }, {
     enabled: !!userId,
+    retry: (failureCount, error) => !isSessionInvalidError(error) && failureCount < 2,
   });
 };
 

@@ -761,7 +761,7 @@ export default function ReceptionistDashboard() {
             {doctorBacklog.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 {appointmentsError
-                  ? `Error loading appointments: ${appointmentsError.message}`
+                  ? `Error loading appointments: ${appointmentsError instanceof Error ? appointmentsError.message : String(appointmentsError)}`
                   : isPending
                     ? " "
                     : "No doctor backlog for today."}

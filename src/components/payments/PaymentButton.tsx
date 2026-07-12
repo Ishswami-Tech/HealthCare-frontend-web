@@ -19,6 +19,7 @@ import {
   isPaymentProviderEnabled,
   type PaymentProvider,
 } from "@/lib/payments/providers";
+import { formatAmountFromMinorUnits } from "@/lib/utils";
 import { getClinicId } from "@/lib/utils/token-manager";
 import { syncAppointmentInCache } from "@/lib/utils/appointment-cache";
 import { clinicApiClient } from "@/lib/api/client";
@@ -365,8 +366,15 @@ export function PaymentButton({
     }
 
     ensureBridgePreconnect(bridgeLaunchUrl);
-    window.location.assign(bridgeLaunchUrl);
-    return true;
+    try {
+      setIsProcessing(false);
+      window.location.assign(bridgeLaunchUrl);
+      return true;
+    } catch (error) {
+      console.warn("[PaymentButton] Bridge navigation failed", error);
+      setIsProcessing(false);
+      return false;
+    }
   };
 
   const buildBridgePayload = (
@@ -1021,7 +1029,7 @@ export function PaymentButton({
           Processing…
         </>
       ) : (
-        children || `Pay ₹${amount.toLocaleString("en-IN")}`
+        children || `Pay ₹${formatAmountFromMinorUnits(amount)}`
       )}
     </Button>
   );

@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { PaymentButton } from "@/components/payments/PaymentButton";
 import { PaymentDisclosure } from "@/components/payments/PaymentDisclosure";
+import { formatAmountFromMinorUnits } from "@/lib/utils";
 
 interface PaymentFormProps {
   invoiceId?: string;
@@ -32,7 +33,7 @@ export function PaymentForm({
         <CardHeader>
           <CardTitle>Payment Details</CardTitle>
           <CardDescription>
-          Complete your payment of Rs {amount.toLocaleString()} using the live payment gateway.
+          Complete your payment of Rs {formatAmountFromMinorUnits(amount)} using the live payment gateway.
           </CardDescription>
         </CardHeader>
       <CardContent>
@@ -59,7 +60,7 @@ export function PaymentForm({
               onSuccess={() => onSuccess?.()}
               {...(invoiceId ? { invoiceId } : {})}
             >
-              Pay Rs {amount.toLocaleString()}
+              Pay Rs {formatAmountFromMinorUnits(amount)}
             </PaymentButton>
           </div>
         </div>

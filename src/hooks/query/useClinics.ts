@@ -10,6 +10,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { Permission } from '@/types/rbac.types';
 import { APP_CONFIG } from '@/lib/config/config';
 import { normalizeClinicId } from '@/lib/utils/clinic-id';
+import { isSessionInvalidError } from '@/lib/utils/auth-recovery';
 import {
   CreateClinicData,
   UpdateClinicData,
@@ -76,6 +77,14 @@ const useClinicQueryScope = () => {
   return sessionId || userId || 'guest';
 };
 
+const clinicQueryRetry = (failureCount: number, error: unknown) => {
+  if (isSessionInvalidError(error)) {
+    return false;
+  }
+
+  return failureCount < 2;
+};
+
 // ===== CLINIC CRUD HOOKS =====
 
 /**
@@ -107,11 +116,19 @@ export const useClinics = (options?: { enabled?: boolean }) => {
   return useQueryData(
     ['clinics'],
     async () => {
-      return await getClinics();
+      try {
+        return await getClinics();
+      } catch (error) {
+        if (isSessionInvalidError(error)) {
+          return [];
+        }
+        throw error;
+      }
     },
     {
       enabled: options?.enabled ?? true,
       refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 300_000,
+      retry: clinicQueryRetry,
     }
   );
 };
@@ -128,15 +145,23 @@ export const useClinic = (clinicId?: string) => {
   return useQueryData<ClinicWithRelations>(
     ['clinic', id],
     async () => {
-      const result = await getClinicById(id);
-      if (!result) {
-        throw new Error('Failed to fetch clinic');
+      try {
+        const result = await getClinicById(id);
+        if (!result) {
+          throw new Error('Failed to fetch clinic');
+        }
+        return result as ClinicWithRelations;
+      } catch (error) {
+        if (isSessionInvalidError(error)) {
+          return null as unknown as ClinicWithRelations;
+        }
+        throw error;
       }
-      return result as ClinicWithRelations;
     },
     {
       enabled: !!id,
       refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 300_000,
+      retry: clinicQueryRetry,
     }
   );
 };
@@ -149,15 +174,23 @@ export const useClinicByAppName = (appName: string) => {
   return useQueryData<ClinicWithRelations>(
     ['clinicByAppName', appName],
     async () => {
-      const result = await getClinicByAppName(appName);
-      if (!result) {
-        throw new Error('Failed to fetch clinic');
+      try {
+        const result = await getClinicByAppName(appName);
+        if (!result) {
+          throw new Error('Failed to fetch clinic');
+        }
+        return result as ClinicWithRelations;
+      } catch (error) {
+        if (isSessionInvalidError(error)) {
+          return null as unknown as ClinicWithRelations;
+        }
+        throw error;
       }
-      return result as ClinicWithRelations;
     },
     {
       enabled: !!appName,
       refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 900_000,
+      retry: clinicQueryRetry,
     }
   );
 };
@@ -174,15 +207,23 @@ export const useMyClinic = () => {
   return useQueryData<ClinicWithRelations>(
     ['myClinic', authScope],
     async () => {
-      const result = await getMyClinic();
-      if (!result) {
-        throw new Error('Failed to fetch clinic');
+      try {
+        const result = await getMyClinic();
+        if (!result) {
+          throw new Error('Failed to fetch clinic');
+        }
+        return result as ClinicWithRelations;
+      } catch (error) {
+        if (isSessionInvalidError(error)) {
+          return null as unknown as ClinicWithRelations;
+        }
+        throw error;
       }
-      return result as ClinicWithRelations;
     },
     {
       enabled: !!session?.user?.id && !isPending,
       refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 120_000,
+      retry: clinicQueryRetry,
     }
   );
 };
@@ -272,26 +313,34 @@ export const useClinicLocations = (
   return useQueryData<ClinicLocation[]>(
     ['clinicLocations', clinicId, authScope, options?.includeInactive ? 'all' : 'active'],
     async () => {
-      const result = await getClinicLocations(clinicId, options?.includeInactive ?? false);
-      if (!result) {
-        throw new Error('Failed to fetch clinic locations');
+      try {
+        const result = await getClinicLocations(clinicId, options?.includeInactive ?? false);
+        if (!result) {
+          throw new Error('Failed to fetch clinic locations');
+        }
+        if (Array.isArray(result)) {
+          return result;
+        }
+        const wrappedResult = result as {
+          locations?: ClinicLocation[];
+          data?: ClinicLocation[];
+        };
+        return (
+          wrappedResult.locations ||
+          wrappedResult.data ||
+          []
+        );
+      } catch (error) {
+        if (isSessionInvalidError(error)) {
+          return [];
+        }
+        throw error;
       }
-      if (Array.isArray(result)) {
-        return result;
-      }
-      const wrappedResult = result as {
-        locations?: ClinicLocation[];
-        data?: ClinicLocation[];
-      };
-      return (
-        wrappedResult.locations ||
-        wrappedResult.data ||
-        []
-      );
     },
     {
       enabled: !!clinicId && (options?.enabled ?? true),
       refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 300_000,
+      retry: clinicQueryRetry,
     }
   );
 };
@@ -304,15 +353,23 @@ export const useClinicLocation = (clinicId: string, locationId: string) => {
   return useQueryData<ClinicLocation>(
     ['clinicLocation', clinicId, locationId],
     async () => {
-      const result = await getClinicLocation(clinicId, locationId);
-      if (!result) {
-        throw new Error('Failed to fetch clinic location');
+      try {
+        const result = await getClinicLocation(clinicId, locationId);
+        if (!result) {
+          throw new Error('Failed to fetch clinic location');
+        }
+        return result;
+      } catch (error) {
+        if (isSessionInvalidError(error)) {
+          return null as unknown as ClinicLocation;
+        }
+        throw error;
       }
-      return result;
     },
     {
       enabled: !!clinicId && !!locationId,
       refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 300_000,
+      retry: clinicQueryRetry,
     }
   );
 };
@@ -437,12 +494,20 @@ export const useClinicDoctors = (clinicId: string) => {
   return useQueryData<ClinicUser[]>(
     ['clinicDoctors', clinicId, authScope],
     async () => {
-      const result = await getClinicDoctors(clinicId);
-      return Array.isArray(result) ? result : [];
+      try {
+        const result = await getClinicDoctors(clinicId);
+        return Array.isArray(result) ? result : [];
+      } catch (error) {
+        if (isSessionInvalidError(error)) {
+          return [];
+        }
+        throw error;
+      }
     },
     {
       enabled: !!clinicId,
       refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 300_000,
+      retry: clinicQueryRetry,
     }
   );
 };
@@ -461,11 +526,19 @@ export const useClinicPatients = (clinicId: string, params?: {
   return useQueryData<ClinicPatientResult | ClinicUser[]>(
     ['clinicPatients', clinicId, queryPage, queryLimit],
     async () => {
-      return await getClinicPatients(clinicId, { page: queryPage, limit: queryLimit });
+      try {
+        return await getClinicPatients(clinicId, { page: queryPage, limit: queryLimit });
+      } catch (error) {
+        if (isSessionInvalidError(error)) {
+          return [];
+        }
+        throw error;
+      }
     },
     {
       enabled: !!clinicId,
       refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 180_000,
+      retry: clinicQueryRetry,
     }
   );
 };
@@ -499,11 +572,19 @@ export const useClinicUsersByRole = (clinicId: string, role: string) => {
   return useQueryData<ClinicUser[]>(
     ['clinicUsersByRole', clinicId, role],
     async () => {
-      return await getClinicUsers(clinicId, role);
+      try {
+        return await getClinicUsers(clinicId, role);
+      } catch (error) {
+        if (isSessionInvalidError(error)) {
+          return [];
+        }
+        throw error;
+      }
     },
     {
       enabled: !!clinicId && !!role,
       refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 300_000,
+      retry: clinicQueryRetry,
     }
   );
 };
@@ -557,16 +638,24 @@ export const useClinicStats = (clinicId: string) => {
   return useQueryData<ClinicStats>(
     ['clinicStats', clinicId],
     async () => {
-      const result = await getClinicStats(clinicId);
-      if (!result) {
-        throw new Error('Failed to fetch clinic stats');
+      try {
+        const result = await getClinicStats(clinicId);
+        if (!result) {
+          throw new Error('Failed to fetch clinic stats');
+        }
+        return result;
+      } catch (error) {
+        if (isSessionInvalidError(error)) {
+          return null as unknown as ClinicStats;
+        }
+        throw error;
       }
-      return result;
     },
     {
       enabled: !!clinicId,
       refetchInterval: isAuthRefreshing || isConnected ? false : 300_000,
       placeholderData: keepPreviousData,
+      retry: clinicQueryRetry,
     }
   );
 };
@@ -579,11 +668,19 @@ export const useClinicOperatingHours = (clinicId: string) => {
   return useQueryData<any[]>(
     ['clinicOperatingHours', clinicId],
     async () => {
-      return await getClinicOperatingHours(clinicId);
+      try {
+        return await getClinicOperatingHours(clinicId);
+      } catch (error) {
+        if (isSessionInvalidError(error)) {
+          return [];
+        }
+        throw error;
+      }
     },
     {
       enabled: !!clinicId,
       refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 900_000,
+      retry: clinicQueryRetry,
     }
   );
 };
@@ -596,15 +693,23 @@ export const useClinicSettings = (clinicId: string) => {
   return useQueryData<ClinicSettings>(
     ['clinicSettings', clinicId],
     async () => {
-      const result = await getClinicSettings(clinicId);
-      if (!result) {
-        throw new Error('Failed to fetch clinic settings');
+      try {
+        const result = await getClinicSettings(clinicId);
+        if (!result) {
+          throw new Error('Failed to fetch clinic settings');
+        }
+        return result;
+      } catch (error) {
+        if (isSessionInvalidError(error)) {
+          return null as unknown as ClinicSettings;
+        }
+        throw error;
       }
-      return result;
     },
     {
       enabled: !!clinicId,
       refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 900_000,
+      retry: clinicQueryRetry,
     }
   );
 };
@@ -641,16 +746,23 @@ export const useActiveLocations = (clinicId: string, options?: {
   return useQueryData<ClinicLocation[]>(
     ['activeLocations', clinicId, authScope],
     async () => {
-      const result = await getClinicLocations(clinicId, false);
-      if (!result) {
-        throw new Error('Failed to fetch active locations');
+      try {
+        const result = await getClinicLocations(clinicId, false);
+        if (!result) {
+          throw new Error('Failed to fetch active locations');
+        }
+        const locations = Array.isArray(result)
+          ? result
+          : ((result as { locations?: ClinicLocation[]; data?: ClinicLocation[] })?.locations ||
+              (result as { locations?: ClinicLocation[]; data?: ClinicLocation[] })?.data ||
+              []);
+        return locations.filter((location) => location?.isActive !== false);
+      } catch (error) {
+        if (isSessionInvalidError(error)) {
+          return [];
+        }
+        throw error;
       }
-      const locations = Array.isArray(result)
-        ? result
-        : ((result as { locations?: ClinicLocation[]; data?: ClinicLocation[] })?.locations ||
-            (result as { locations?: ClinicLocation[]; data?: ClinicLocation[] })?.data ||
-            []);
-      return locations.filter((location) => location?.isActive !== false);
     },
     {
       enabled: !!clinicId && (options?.enabled ?? true),
@@ -659,6 +771,7 @@ export const useActiveLocations = (clinicId: string, options?: {
       refetchOnWindowFocus: false,
       refetchOnMount: true,
       refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 300_000,
+      retry: clinicQueryRetry,
     }
   );
 };
@@ -691,11 +804,19 @@ export const useHasClinicPermission = (clinicId: string) => {
   return useQueryData<boolean>(
     ['hasClinicPermission', clinicId],
     async () => {
-      return await checkClinicPermission(clinicId);
+      try {
+        return await checkClinicPermission(clinicId);
+      } catch (error) {
+        if (isSessionInvalidError(error)) {
+          return false;
+        }
+        throw error;
+      }
     },
     {
       enabled: !!clinicId,
       refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 300_000,
+      retry: clinicQueryRetry,
     }
   );
 };
@@ -798,14 +919,21 @@ export const useCurrentClinic = () => {
   return useQueryData(
     ['current-clinic', clinicId, authScope],
     async () => {
-      if (!clinicId) {
-        throw new Error('No clinic ID available');
+      try {
+        if (!clinicId) {
+          throw new Error('No clinic ID available');
+        }
+        const result = await getClinicById(clinicId);
+        if (!result) {
+          throw new Error('Failed to fetch clinic');
+        }
+        return result;
+      } catch (error) {
+        if (isSessionInvalidError(error)) {
+          return null;
+        }
+        throw error;
       }
-      const result = await getClinicById(clinicId);
-      if (!result) {
-        throw new Error('Failed to fetch clinic');
-      }
-      return result;
     },
     {
       enabled: !!clinicId,
@@ -815,6 +943,7 @@ export const useCurrentClinic = () => {
       // the admin dashboard doesn't flash the "Waking up the clinic dashboard"
       // skeleton on every focus / reconnect / scope change.
       placeholderData: keepPreviousData,
+      retry: clinicQueryRetry,
     }
   );
 };

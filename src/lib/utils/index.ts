@@ -161,6 +161,7 @@ export * from './theme-utils';
 export * from './audit';
 export * from './logger';
 export * from './performance';
+export * from './currency';
 
 // ============================================================================
 // OBJECT UTILITIES

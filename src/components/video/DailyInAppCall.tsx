@@ -1337,6 +1337,7 @@ function GridLayout({
   const total = (activeSessionId ? 1 : 0) + secondaryIds.length;
   const forceSpotlight = layout === "spotlight";
   const forceTiled = layout === "tiled";
+  const useTiledAutoLayout = layout === "auto" && total >= 3;
 
   if (total <= 1) {
     return (
@@ -1358,8 +1359,9 @@ function GridLayout({
     );
   }
 
-  // Tiled: equal grid for everyone
-  if (forceTiled) {
+  // Tiled: equal grid for everyone. Also use this automatically for
+  // consultations with 3+ participants so every counterpart remains visible.
+  if (forceTiled || useTiledAutoLayout) {
     const all = activeSessionId
       ? [activeSessionId, ...secondaryIds]
       : secondaryIds;
@@ -1412,7 +1414,8 @@ function GridLayout({
     );
   }
 
-  // Spotlight (forced or 3+ auto): active speaker large + right strip
+  // Spotlight remains available as an explicit choice for 2-person or
+  // speaker-focused calls.
   return (
     <div className="flex flex-1 gap-1.5 sm:gap-3 min-h-0 overflow-hidden">
       <div className="flex-1 min-w-0 min-h-0">
