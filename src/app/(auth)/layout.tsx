@@ -11,7 +11,7 @@
  */
 
 import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useUserProfile } from "@/hooks/query/useUsers";
 import { ROUTES, getDashboardByRole } from "@/lib/config/routes";
@@ -24,6 +24,7 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   const { replace } = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
 
   // Check if user came with error params (like session_expired) - these indicate
@@ -39,7 +40,6 @@ export default function AuthLayout({
   });
 
   useEffect(() => {
-    // Wait for BOTH auth and profile to settle
     if (authPending || profilePending) return;
     const role = (userProfile as { role?: string })?.role;
     if (!isAuthenticated || !role) return;
@@ -53,8 +53,13 @@ export default function AuthLayout({
         ? ROUTES.PROFILE_COMPLETION
         : getDashboardByRole(role);
 
+    if (!nextPath) return;
+
+    // Skip redirect on auth pages — each page manages its own navigation flow.
+    if (pathname?.startsWith('/auth/login')) return;
+
     replace(nextPath);
-  }, [authPending, profilePending, isAuthenticated, userProfile, replace]);
+  }, [isAuthenticated, profilePending, authPending, userProfile, replace, pathname]);
 
   return (
     <div className="min-h-screen flex">

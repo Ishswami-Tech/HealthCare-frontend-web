@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { load } from "@cashfreepayments/cashfree-js";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
@@ -508,7 +508,7 @@ export function PaymentButton({
     );
   };
 
-  const warmUpPaymentResources = () => {
+  const warmUpPaymentResources = useCallback(() => {
     if (disabled) {
       return;
     }
@@ -523,7 +523,8 @@ export function PaymentButton({
     } else if (effectiveProvider === "razorpay") {
       preloadRazorpayScript();
     }
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [disabled, effectiveProvider, paymentBridgeUrl]);
 
   const verifyPayment = async (
     usedProvider: PaymentProvider,
@@ -1006,13 +1007,13 @@ export function PaymentButton({
   }, [warmUpPaymentResources]);
 
   useEffect(() => {
-    if (!autoStart || disabled || hasAutoStartedRef.current || isProcessing) {
+    if (!appointmentId || !autoStart || disabled || hasAutoStartedRef.current) {
       return;
     }
-
     hasAutoStartedRef.current = true;
     void handlePaymentRef.current();
-  }, [autoStart, disabled, isProcessing]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, disabled, appointmentId]);
 
   return (
     <Button

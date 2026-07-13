@@ -1,9 +1,34 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle2, Loader2 } from "lucide-react";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { getDashboardByRole } from "@/lib/config/routes";
 
 export function LoginSuccessRedirectCard() {
+  const router = useRouter();
+  const { session } = useAuth();
+
+  const role = session?.user?.role;
+  const redirectUrl = role ? getDashboardByRole(role) : "/dashboard";
+
+  // Lock body scroll during redirect
+  useEffect(() => {
+    const original = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = original; };
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      router.replace(redirectUrl);
+    }, 800);
+
+    return () => window.clearTimeout(timer);
+  }, [redirectUrl, router]);
+
   return (
     <div className="mx-auto w-full max-w-[380px]">
       <Card className="overflow-hidden rounded-lg border-0 bg-white shadow-lg dark:bg-slate-900">

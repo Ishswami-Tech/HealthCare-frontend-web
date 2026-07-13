@@ -56,7 +56,7 @@ export function LoadingSpinner({
 }: LoadingSpinnerProps) {
   const content = (
     <div className={cn("flex items-center gap-2", className)}>
-      <Loader2Icon className={cn(SPINNER_SIZES[size], SPINNER_COLORS[color])} />
+      <Loader2Icon className={cn(SPINNER_SIZES[size], SPINNER_COLORS[color], "animate-spin")} />
       {text && <span className="text-sm text-muted-foreground">{text}</span>}
     </div>
   );
@@ -81,7 +81,7 @@ export interface InlineLoaderProps {
  * InlineLoader - Compact spinner for buttons/inputs
  */
 export function InlineLoader({ size = "sm", className }: InlineLoaderProps) {
-  return <Loader2Icon className={cn(size === "sm" ? "size-4" : "size-5", className)} />;
+  return <Loader2Icon className={cn(size === "sm" ? "size-4" : "size-5", "animate-spin", className)} />;
 }
 
 // ============================================================================
@@ -319,7 +319,7 @@ export function LoadingButton({
     <Button disabled={loading || disabled} {...props}>
       {loading ? (
         <>
-          <Loader2Icon className="size-4 mr-2" />
+          <Loader2Icon className="size-4 mr-2 animate-spin" />
           {loadingText || children}
         </>
       ) : (

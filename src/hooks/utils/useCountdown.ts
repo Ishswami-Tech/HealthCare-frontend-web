@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 interface CountdownResult {
   /** Total milliseconds remaining (0 once expired). */
@@ -40,19 +40,24 @@ export function useCountdown(
     return Number.isFinite(parsed) ? parsed : null;
   }, [targetIso]);
 
+  const targetMsRef = useRef(targetMs);
+  targetMsRef.current = targetMs;
+
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     if (targetMs === null) return;
-    // If the window has already closed, no need to schedule an interval.
-    if (targetMs <= now) return;
 
     const id = setInterval(() => {
-      setNow(Date.now());
+      const currentNow = Date.now();
+      setNow(currentNow);
+      if (targetMsRef.current !== null && targetMsRef.current <= currentNow) {
+        clearInterval(id);
+      }
     }, 1000);
 
     return () => clearInterval(id);
-  }, [targetMs, now]);
+  }, [targetMs]);
 
   return useMemo<CountdownResult>(() => {
     if (targetMs === null) {

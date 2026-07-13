@@ -25,6 +25,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PaymentButton } from "@/components/payments/PaymentButton";
+import { PaymentCountdown } from "@/components/appointments/PaymentCountdown";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -2195,6 +2196,8 @@ interface BookAppointmentStep6Props {
   patientCheckInRoute: string;
   postBookingRoute: string;
   postBookingLabel: string;
+  paymentExpiresAt?: string | null;
+  paymentWindowMinutes?: number | null;
 }
 
 function BookAppointmentStep6({
@@ -2213,6 +2216,8 @@ function BookAppointmentStep6({
   patientCheckInRoute,
   postBookingRoute,
   postBookingLabel,
+  paymentExpiresAt,
+  paymentWindowMinutes,
 }: BookAppointmentStep6Props) {
   const isVideoMode = consultationMode === "VIDEO";
 
@@ -2259,6 +2264,14 @@ function BookAppointmentStep6({
               ? `Video hours: ${clinicVideoCallWindow.start} - ${clinicVideoCallWindow.end}`
               : "Video hours are configured at the clinic level."}
           </div>
+          {requiresVideoPayment && !videoPaymentCompleted && paymentExpiresAt && (
+            <PaymentCountdown
+              paymentExpiresAt={paymentExpiresAt}
+              paymentWindowMinutes={paymentWindowMinutes}
+              className="mt-2 w-full"
+              showCompletePaymentCta={false}
+            />
+          )}
         </div>
       ) : (
         <div className="flex flex-col gap-3 p-4 rounded-2xl border bg-card w-full max-w-sm">
@@ -2703,6 +2716,8 @@ export function BookAppointmentDialog({
     [],
   );
   const [internalOpen, setInternalOpen] = useState(() => defaultOpen);
+  const [bookedPaymentExpiresAt, setBookedPaymentExpiresAt] = useState<string | null>(null);
+  const [bookedPaymentWindowMinutes, setBookedPaymentWindowMinutes] = useState<number | null>(null);
   const isControlledOpen = typeof open === "boolean";
   const dialogOpen = isControlledOpen ? open : internalOpen;
   const [bookingFlow, dispatchBookingFlow] = useReducer(
@@ -2859,6 +2874,8 @@ export function BookAppointmentDialog({
       allergies: "",
       currentMedications: "",
     });
+    setBookedPaymentExpiresAt(null);
+    setBookedPaymentWindowMinutes(null);
   }, [createBookingFlowState]);
   const isPrivilegedScheduler = [
     "RECEPTIONIST",
@@ -4257,6 +4274,23 @@ export function BookAppointmentDialog({
           setRequiresVideoPayment(true);
           setVideoPaymentCompleted(false);
           setAcceptedVideoPaymentPolicy(true);
+          
+          const record = createdAppointment as Record<string, any>;
+          const meta = (record?.metadata && typeof record.metadata === 'object')
+            ? record.metadata as Record<string, any>
+            : {};
+          const windowMinutes = typeof meta['paymentWindowMinutes'] === 'number'
+            ? (meta['paymentWindowMinutes'] as number)
+            : null;
+          const startedAt = meta['paymentWindowStartedAt'];
+          if (startedAt && windowMinutes) {
+            const startedMs = Date.parse(startedAt as string);
+            if (Number.isFinite(startedMs)) {
+              setBookedPaymentExpiresAt(new Date(startedMs + windowMinutes * 60_000).toISOString());
+              setBookedPaymentWindowMinutes(windowMinutes);
+            }
+          }
+          
           showInfoToast(
             "Appointment created. Complete payment in in the confirm screen to finish booking.",
           );
@@ -4787,6 +4821,8 @@ export function BookAppointmentDialog({
               patientCheckInRoute={patientCheckInRoute}
               postBookingRoute={postBookingRoute}
               postBookingLabel={postBookingLabel}
+              paymentExpiresAt={bookedPaymentExpiresAt}
+              paymentWindowMinutes={bookedPaymentWindowMinutes}
             />
           </AppointmentStepWrapper>
         );
