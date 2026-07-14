@@ -36,7 +36,7 @@ const ComprehensiveCTA = () => {
 
   // Call phone number for consultation
   const handleBookConsultation = () => {
-    window.location.href = "tel:9860370961";
+    window.location.href = "/drdeshmukh";
   };
 
   const handleFreeConsultation = () => {

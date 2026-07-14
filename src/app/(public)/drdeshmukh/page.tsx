@@ -158,6 +158,7 @@ const services: ServiceItem[] = [
     badge: "Book Now",
     previewKind: "app",
   },
+
   {
     id: "soup",
     title: "Charabi Bhasma Soup",
@@ -237,6 +238,16 @@ const services: ServiceItem[] = [
     accent: "bg-red-500",
     badge: "Watch now",
     previewKind: "video",
+  },
+  {
+    id: "call-clinic",
+    title: "Need Help?",
+    description: "Call Dr. Deshmukh's clinic directly for assistance or to book an appointment.",
+    href: "tel:9860370961",
+    icon: Phone,
+    accent: "bg-slate-700",
+    badge: "Help",
+    previewKind: "app",
   },
 ];
 

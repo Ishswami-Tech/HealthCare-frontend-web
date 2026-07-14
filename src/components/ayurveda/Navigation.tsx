@@ -667,7 +667,7 @@ const Navigation = () => {
                 type="button"
                 size="sm"
                 className="hidden lg:flex bg-linear-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs sm:text-sm px-3 sm:px-4 shadow-lg"
-                onClick={() => (window.location.href = "tel:9860370961")}
+                onClick={() => (window.location.href = "/drdeshmukh")}
               >
                 <Phone className="size-3 mr-1" />
                 {t("navigation.bookConsultation")}
@@ -678,7 +678,7 @@ const Navigation = () => {
                 type="button"
                 size="sm"
                 className="lg:hidden bg-linear-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs px-3 py-2 h-8 shadow-lg touch-manipulation"
-                onClick={() => (window.location.href = "tel:9860370961")}
+                onClick={() => (window.location.href = "/drdeshmukh")}
               >
                 <Phone className="size-3 mr-1" />
                 <span className="hidden sm:inline">
@@ -821,7 +821,7 @@ const Navigation = () => {
                         variant="outline"
                         onClick={() => {
                           setIsMobileMenuOpen(false);
-                          window.location.href = "tel:9860370961";
+                          window.location.href = "/drdeshmukh";
                         }}
                         className="border-orange-300 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 h-12 text-base touch-manipulation mt-3 w-full"
                       >
