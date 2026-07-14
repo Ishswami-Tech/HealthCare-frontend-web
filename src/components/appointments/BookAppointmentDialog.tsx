@@ -111,6 +111,7 @@ import {
   Loader2,
   UserPlus,
   AlertTriangle,
+  RefreshCw,
   Stethoscope,
   CalendarIcon,
   Sun,
@@ -1356,6 +1357,7 @@ interface BookAppointmentStep2Props {
   setSelectedSlot: React.Dispatch<React.SetStateAction<string>>;
   goNext: () => void;
   goBack: () => void;
+  onHardRefresh: () => void;
 }
 
 function BookAppointmentStep2({
@@ -1369,6 +1371,7 @@ function BookAppointmentStep2({
   setSelectedSlot,
   goNext,
   goBack,
+  onHardRefresh,
 }: BookAppointmentStep2Props) {
   return (
     <div className="flex flex-col gap-3">
@@ -1393,16 +1396,27 @@ function BookAppointmentStep2({
                   : "Please select a location to see available doctors."}
               </p>
               <p className="text-xs text-amber-800/80 dark:text-amber-200/80">
-                Try another location or contact the clinic for help.
+                If doctors should be available, the list may be stale. Hard refresh to reload.
               </p>
-              <Button
-                type="button"
-                variant="outline"
-                className="mt-2 h-9 rounded-lg"
-                onClick={goBack}
-              >
-                Back
-              </Button>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="default"
+                  className="h-9 rounded-lg"
+                  onClick={onHardRefresh}
+                >
+                  <RefreshCw className="mr-1 size-4" />
+                  Hard refresh
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-9 rounded-lg"
+                  onClick={goBack}
+                >
+                  Back
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -2954,20 +2968,39 @@ export function BookAppointmentDialog({
     dialogOpen &&
     !!activeClinicId &&
     (consultationMode === "VIDEO" || !!resolvedLocationId);
+  const doctorsFilters = useMemo(
+    () =>
+      consultationMode === "VIDEO" ? undefined : { locationId: resolvedLocationId },
+    [consultationMode, resolvedLocationId],
+  );
   const {
     data: doctorsData,
     isPending: doctorsLoading,
     isFetched: doctorsFetched,
     error: doctorsError,
+    refetch: refetchDoctors,
   } = useDoctors(
     activeClinicId,
-    consultationMode === "VIDEO"
-      ? undefined
-      : {
-          locationId: resolvedLocationId,
-        },
+    doctorsFilters,
     { enabled: shouldLoadDoctors },
   );
+
+  const handleHardRefreshDoctors = useCallback(() => {
+    // Hard refresh: clear all relevant React Query caches (doctors,
+    // clinicDoctors, doctorAvailability, etc.) so the booking dialog
+    // refetches fresh from the backend. Avoids a full page reload that
+    // would discard in-flight selections and unsaved input.
+    try {
+      queryClient.removeQueries({ queryKey: ['doctors'] });
+      queryClient.removeQueries({ queryKey: ['clinicDoctors'] });
+      queryClient.removeQueries({ queryKey: ['doctorAvailability'] });
+      queryClient.removeQueries({ queryKey: ['doctorSchedule'] });
+      queryClient.invalidateQueries({ queryKey: ['doctors', activeClinicId] });
+      queryClient.invalidateQueries({ queryKey: ['clinicDoctors', activeClinicId] });
+    } catch (err) {
+      logger.warn('Hard refresh: cache clear failed', { error: err });
+    }
+  }, [queryClient, activeClinicId]);
   // Only RECEPTIONIST needs the full patient list to select a patient.
   // Patients book for themselves‚ calling this admin endpoint as a PATIENT
   // returns 403 Forbidden. Pass an empty clinicId to disable the query.
@@ -3328,20 +3361,20 @@ export function BookAppointmentDialog({
   }
 
   const doctorsList: any[] = useMemo(() => {
-    // The GET /doctors API returns User records with a nested `doctor` relation:
-    // { id: userId, name, doctor: { id: doctorId, specialization, ... } }
-    // We need to normalize this so `d.id` = the Doctor entity ID (not User ID)
-    const normalize = (users: any[]) =>
-      users.map((u) => ({
-        ...u,
-        // Expose the Doctor entity's id as the primary id for availability/booking
-        id: u.doctor?.id || u.id,
-        userId: u.id, // Keep user id separately
-        name: u.name || u.doctor?.user?.name || `Dr. ${u.id?.slice(0, 6)}`,
-        specialization: u.doctor?.specialization || u.specialization || "",
-        image:
-          u.profilePicture || u.doctor?.user?.profilePicture || u.image || "",
-      }));
+    // Backend returns [{ doctor: { id, user: { id, name, email } } }]
+    const normalize = (raw: any[]) =>
+      raw.map((u: any) => {
+        const doctor = u.doctor || u;
+        const user = doctor.user || u;
+        return {
+          ...doctor,
+          id: doctor.id || u.id,
+          userId: user.id || u.userId,
+          name: user.name || doctor.name || `Dr. ${(doctor.id || u.id || '').slice(0, 6)}`,
+          specialization: doctor.specialization || "",
+          image: user.profilePicture || doctor.profilePicture || u.profilePicture || "",
+        };
+      });
 
     if (Array.isArray(doctorsData)) return normalize(doctorsData);
     if (Array.isArray((doctorsData as any)?.data?.doctors))
@@ -4728,6 +4761,7 @@ export function BookAppointmentDialog({
               setSelectedSlot={setSelectedSlot}
               goNext={goNext}
               goBack={goBack}
+              onHardRefresh={handleHardRefreshDoctors}
             />
           </AppointmentStepWrapper>
         );

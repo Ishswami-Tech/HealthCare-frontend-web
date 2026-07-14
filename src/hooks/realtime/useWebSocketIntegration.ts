@@ -1150,6 +1150,43 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         })
       );
 
+      // ✅ Doctor clinic assignment changes (e.g., doctor added/removed from
+      // a clinic via the DoctorClinic join table). Drives realtime refresh
+      // of the booking dialog's doctor list.
+      const doctorClinicEvents = [
+        'doctor.clinic.changed',
+        'doctor.clinic.assigned',
+        'doctor.clinic.removed',
+      ] as const;
+
+      const invalidateDoctorClinicQueryFamilies = (qc: QueryClient) => {
+        void qc.invalidateQueries({ queryKey: ['doctors'], exact: false });
+        void qc.invalidateQueries({ queryKey: ['clinicDoctors'], exact: false });
+        void qc.invalidateQueries({ queryKey: ['doctorAvailability'], exact: false });
+        void qc.invalidateQueries({ queryKey: ['doctorSchedule'], exact: false });
+        void qc.invalidateQueries({ queryKey: ['doctorAppointments'], exact: false });
+        void qc.invalidateQueries({ queryKey: ['doctorPatients'], exact: false });
+        void qc.invalidateQueries({ queryKey: ['doctor'], exact: false });
+      };
+
+      const unsubscribeDoctorClinicEvents = doctorClinicEvents.map((event) =>
+        subscribe(event, (rawData: unknown) => {
+          const data = rawData as { clinicId?: string; userId?: string; action?: string };
+          if (data.clinicId && clinicId && data.clinicId !== clinicId) {
+            return;
+          }
+
+          logger.info(`Realtime doctor-clinic event: ${event}`, {
+            clinicId: data.clinicId,
+            userId: data.userId,
+            action: data.action,
+          });
+
+          invalidateDoctorClinicQueryFamilies(queryClient);
+          invalidateDashboardQueryFamilies(queryClient);
+        })
+      );
+
       const ehrLifecycleEvents = [
         'ehr.prescription.created',
         'ehr.medical_history.created',
@@ -1212,6 +1249,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         ...unsubscribePaymentLifecycleEvents,
         ...unsubscribeUserLifecycleEvents,
         ...unsubscribeClinicLifecycleEvents,
+        ...unsubscribeDoctorClinicEvents,
         ...unsubscribeEhrLifecycleEvents
       );
     }

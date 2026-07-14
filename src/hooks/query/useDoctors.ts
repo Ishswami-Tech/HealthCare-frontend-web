@@ -50,8 +50,33 @@ export const useDoctors = (clinicId: string, filters?: {
   return useQueryData(['doctors', clinicId, authScope, filters], async () => {
     try {
       console.log('[useDoctors] Fetching doctors for clinicId:', clinicId, 'filters:', filters);
-      const result = await clinicApiClient.get(API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId), filters);
-      const doctors = Array.isArray(result.data) ? result.data : [];
+      const result = await clinicApiClient.get(
+        API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId),
+        filters,
+      );
+      let doctors: any[] = Array.isArray(result.data) ? result.data : [];
+
+      // ✅ Fallback: if the cached response returned an empty list, retry
+      // once with cache-bust headers to recover from a stale empty cache
+      // (e.g., doctor was added after the cache was first populated).
+      if (doctors.length === 0) {
+        try {
+          const busted = await clinicApiClient.get(
+            API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId),
+            { ...(filters || {}), bust: '1' },
+            { headers: { 'X-Cache-Bust': '1' } } as RequestInit,
+          );
+          const retryDoctors = Array.isArray(busted.data) ? busted.data : [];
+          if (retryDoctors.length > 0) {
+            console.log('[useDoctors] Cache-bust retry recovered doctors:', retryDoctors.length);
+            doctors = retryDoctors;
+          }
+        } catch (bustError) {
+          // Swallow bust errors - we still return the original empty array.
+          console.warn('[useDoctors] Cache-bust retry failed:', bustError);
+        }
+      }
+
       console.log('[useDoctors] Received doctors:', doctors.length, 'doctors');
       return doctors;
     } catch (error) {
