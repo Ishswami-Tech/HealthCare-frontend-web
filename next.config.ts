@@ -1,33 +1,40 @@
-import type { NextConfig } from 'next';
-import { buildConnectSrcSources, buildOriginConnectSrc } from './src/lib/config/csp';
+import type { NextConfig } from "next";
+import {
+  buildConnectSrcSources,
+  buildOriginConnectSrc,
+} from "./src/lib/config/csp";
 
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = process.env.NODE_ENV === "production";
 const appUrl = process.env.NEXT_PUBLIC_APP_URL;
 const appOrigin = (() => {
-  if (!appUrl) return '';
+  if (!appUrl) return "";
   try {
     return new URL(appUrl).host;
   } catch {
-    return '';
+    return "";
   }
 })();
 
 const configuredServerActionOrigins = (
-  process.env.NEXT_SERVER_ACTION_ALLOWED_ORIGINS || ''
+  process.env.NEXT_SERVER_ACTION_ALLOWED_ORIGINS || ""
 )
-  .split(',')
-  .map(origin => origin.trim())
+  .split(",")
+  .map((origin) => origin.trim())
   .filter(Boolean);
 
-const serverActionOrigins = [...new Set([appOrigin, 'localhost:3000', ...configuredServerActionOrigins])];
+const serverActionOrigins = [
+  ...new Set([appOrigin, "localhost:3000", ...configuredServerActionOrigins]),
+];
 const connectSrc = Array.from(
   new Set([
     ...buildConnectSrcSources(undefined),
     ...buildOriginConnectSrc(process.env.NEXT_PUBLIC_APP_URL),
-    ...buildOriginConnectSrc(process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL),
+    ...buildOriginConnectSrc(
+      process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL,
+    ),
     ...buildOriginConnectSrc(process.env.NEXT_PUBLIC_WEBSOCKET_URL),
-  ])
-).join(' ');
+  ]),
+).join(" ");
 
 const nextConfig: NextConfig = {
   /* =====================================================
@@ -35,23 +42,22 @@ const nextConfig: NextConfig = {
    * ===================================================== */
   reactStrictMode: true,
   compress: true,
-  output: 'standalone',
+  output: "standalone",
 
   /* =====================================================
    * Turbopack (disabled for Tailwind CSS v4 compatibility)
    * ===================================================== */
-  turbopack: {
-  },
+  turbopack: {},
 
   /* =====================================================
    * Experimental (safe + useful)
    * ===================================================== */
   experimental: {
     optimizePackageImports: [
-      '@tanstack/react-query',
-      'lucide-react',
-      'date-fns',
-      'sonner',
+      "@tanstack/react-query",
+      "lucide-react",
+      "date-fns",
+      "sonner",
     ],
     serverActions: {
       allowedOrigins: serverActionOrigins,
@@ -63,17 +69,17 @@ const nextConfig: NextConfig = {
    * ===================================================== */
   images: {
     remotePatterns: [
-      { protocol: 'https', hostname: 'storage.googleapis.com' },
-      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
-      { protocol: 'https', hostname: 'platform-lookaside.fbsbx.com' },
-      { protocol: 'https', hostname: 'graph.facebook.com' },
-      { protocol: 'https', hostname: 'api.Viddhakarma.in' },
-      { protocol: 'https', hostname: 'backend-service-v1.Viddhakarma.in' },
-      { protocol: 'https', hostname: 'Viddhakarma.in' },
-      { protocol: 'https', hostname: 'images.unsplash.com' },
-      { protocol: 'https', hostname: 'ui-avatars.com' },
-      { protocol: 'https', hostname: 'flagcdn.com' },
-      { protocol: 'http', hostname: 'localhost' },
+      { protocol: "https", hostname: "storage.googleapis.com" },
+      { protocol: "https", hostname: "lh3.googleusercontent.com" },
+      { protocol: "https", hostname: "platform-lookaside.fbsbx.com" },
+      { protocol: "https", hostname: "graph.facebook.com" },
+      { protocol: "https", hostname: "api.Viddhakarma.in" },
+      { protocol: "https", hostname: "backend-service-v1.Viddhakarma.in" },
+      { protocol: "https", hostname: "Viddhakarma.in" },
+      { protocol: "https", hostname: "images.unsplash.com" },
+      { protocol: "https", hostname: "ui-avatars.com" },
+      { protocol: "https", hostname: "flagcdn.com" },
+      { protocol: "http", hostname: "localhost" },
     ],
   },
 
@@ -93,24 +99,27 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: '/(.*)',
+        source: "/(.*)",
         headers: [
-          { key: 'X-Frame-Options', value: 'DENY' },
-          { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           {
-            key: 'Permissions-Policy',
-            value: 'camera=(self), microphone=(self), geolocation=()',
+            key: "Permissions-Policy",
+            value: "camera=(self), microphone=(self), geolocation=()",
           },
           {
-            key: 'Strict-Transport-Security',
-            value: 'max-age=31536000; includeSubDomains',
+            key: "Strict-Transport-Security",
+            value: "max-age=31536000; includeSubDomains",
           },
           {
-            key: 'Content-Security-Policy',
+            key: "Content-Security-Policy",
             value: `connect-src ${connectSrc}; form-action 'self' https://*.cashfree.com https://sandbox.cashfree.com https://api.cashfree.com https://payments.cashfree.com https://payments-test.cashfree.com;`,
           },
-        ].filter((header) => header.key !== 'Strict-Transport-Security' || isProduction),
+        ].filter(
+          (header) =>
+            header.key !== "Strict-Transport-Security" || isProduction,
+        ),
       },
     ];
   },
@@ -119,6 +128,18 @@ const nextConfig: NextConfig = {
    * API Rewrite (proxy only, no CORS)
    * ===================================================== */
   async rewrites() {
+    const apiBaseUrl =
+      process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL;
+    if (apiBaseUrl) {
+      // Remove trailing slash if present
+      const cleanApiBaseUrl = apiBaseUrl.replace(/\/$/, "");
+      return [
+        {
+          source: "/api/:path*",
+          destination: `${cleanApiBaseUrl}/api/:path*`,
+        },
+      ];
+    }
     return [];
   },
 

@@ -22,6 +22,8 @@ const THIRD_PARTY_CONNECT_SRC = [
   "https://payments-test.cashfree.com",
   "https://sdk.cashfree.com",
   "https://checkout.razorpay.com",
+  "https://payments.zoho.com",
+  "https://static.zohocdn.com",
   "https://*.googleapis.com",
 ];
 
@@ -31,7 +33,8 @@ export function normalizeOrigin(input: string | undefined): string {
   }
 
   const trimmed = input.trim();
-  const isLocalhostLike = /^(localhost|127\.0\.0\.1|\[::1\]|::1)(:\d+)?(\/.*)?$/i.test(trimmed);
+  const isLocalhostLike =
+    /^(localhost|127\.0\.0\.1|\[::1\]|::1)(:\d+)?(\/.*)?$/i.test(trimmed);
 
   try {
     const normalized = /^[a-z]+:\/\//i.test(trimmed)
@@ -68,7 +71,7 @@ export function buildConnectSrcSources(input: string | undefined): string[] {
       ...buildOriginConnectSrc(input),
       ...DAILY_CONNECT_SRC,
       ...THIRD_PARTY_CONNECT_SRC,
-    ])
+    ]),
   );
 }
 

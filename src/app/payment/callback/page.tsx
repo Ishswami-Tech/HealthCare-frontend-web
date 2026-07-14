@@ -16,6 +16,7 @@ const ALLOWED_PROVIDERS = new Set([
   "cashfree",
   "razorpay",
   "phonepe",
+  "zoho",
   "easebuzz",
   "paytm",
   "payu",
@@ -44,7 +45,10 @@ function normalizeBaseUrl(rawUrl: string, fallback: string): string {
   return value || fallback;
 }
 
-function callbackReducer(state: CallbackState, action: CallbackAction): CallbackState {
+function callbackReducer(
+  state: CallbackState,
+  action: CallbackAction,
+): CallbackState {
   switch (action.type) {
     case "FAILED":
       return {
@@ -77,10 +81,13 @@ function PaymentCallbackPageContent() {
   const { replace } = useRouter();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
-  const [{ state, message, secondsLeft }, dispatch] = useReducer(callbackReducer, initialCallbackState);
+  const [{ state, message, secondsLeft }, dispatch] = useReducer(
+    callbackReducer,
+    initialCallbackState,
+  );
   const getSearchParam = useMemo(
     () => searchParams.get.bind(searchParams),
-    [searchParams]
+    [searchParams],
   );
 
   const params = useMemo(() => {
@@ -89,17 +96,34 @@ function PaymentCallbackPageContent() {
       getSearchParam("order_id") ||
       getSearchParam("cf_order_id") ||
       "";
-    const paymentId =
-      getSearchParam("paymentId") ||
-      getSearchParam("payment_id") ||
-      orderId;
     const rawProvider = (getSearchParam("provider") || "").toLowerCase();
-    const provider = ALLOWED_PROVIDERS.has(rawProvider) ? rawProvider : undefined;
+    const paymentId =
+      rawProvider === "zoho"
+        ? getSearchParam("payments_session_id") ||
+          getSearchParam("payment_session_id") ||
+          getSearchParam("payment_id") ||
+          orderId
+        : getSearchParam("paymentId") ||
+          getSearchParam("payment_id") ||
+          orderId;
+    const provider = ALLOWED_PROVIDERS.has(rawProvider)
+      ? rawProvider
+      : undefined;
     const clinicId = getSearchParam("clinicId") || "";
     const appointmentId = getSearchParam("appointmentId") || "";
-    const appointmentType = (getSearchParam("appointmentType") || "").toUpperCase();
+    const appointmentType = (
+      getSearchParam("appointmentType") || ""
+    ).toUpperCase();
     const handoffToken = getSearchParam("handoff_token") || "";
-    return { orderId, paymentId, provider, clinicId, appointmentId, appointmentType, handoffToken };
+    return {
+      orderId,
+      paymentId,
+      provider,
+      clinicId,
+      appointmentId,
+      appointmentType,
+      handoffToken,
+    };
   }, [getSearchParam]);
 
   const redirectPath = useMemo(() => {
@@ -115,12 +139,18 @@ function PaymentCallbackPageContent() {
         const isHandoff = Boolean(params.handoffToken);
         if (!isHandoff) {
           if (!params.orderId) {
-            dispatch({ type: "FAILED", message: "Missing order ID in callback URL." });
+            dispatch({
+              type: "FAILED",
+              message: "Missing order ID in callback URL.",
+            });
             return;
           }
 
           if (!params.clinicId) {
-            dispatch({ type: "FAILED", message: "Missing clinic context for payment verification." });
+            dispatch({
+              type: "FAILED",
+              message: "Missing clinic context for payment verification.",
+            });
             return;
           }
         }
@@ -153,10 +183,12 @@ function PaymentCallbackPageContent() {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
-                  ...(params.clinicId ? { "X-Clinic-ID": params.clinicId } : {}),
+                  ...(params.clinicId
+                    ? { "X-Clinic-ID": params.clinicId }
+                    : {}),
                 },
                 body: JSON.stringify({ orderId: params.orderId }),
-              }
+              },
             )
           : await clinicApiClient.publicRequest<Record<string, unknown>>(
               `${API_ENDPOINTS.BILLING.PAYMENTS.CALLBACK}?${queryParams.toString()}`,
@@ -167,16 +199,22 @@ function PaymentCallbackPageContent() {
                   "X-Clinic-ID": params.clinicId,
                 },
                 body: JSON.stringify({ orderId: params.orderId }),
-              }
+              },
             );
 
         if (!response.success) {
-          throw new Error(response.error || response.message || "Payment verification failed");
+          throw new Error(
+            response.error || response.message || "Payment verification failed",
+          );
         }
 
         const appointmentSnapshot =
-          ((response as any).appointment as Record<string, unknown> | undefined) ??
-          ((response.data as { appointment?: Record<string, unknown> } | undefined)?.appointment) ??
+          ((response as any).appointment as
+            Record<string, unknown> | undefined) ??
+          (
+            response.data as
+              { appointment?: Record<string, unknown> } | undefined
+          )?.appointment ??
           (params.appointmentId
             ? {
                 id: params.appointmentId,
@@ -204,20 +242,50 @@ function PaymentCallbackPageContent() {
         }
 
         void Promise.all([
-          queryClient.invalidateQueries({ queryKey: ["myAppointments"], exact: false }),
-          queryClient.invalidateQueries({ queryKey: ["appointments"], exact: false }),
-          queryClient.invalidateQueries({ queryKey: ["video-appointments"], exact: false }),
-          queryClient.invalidateQueries({ queryKey: ["video-appointment"], exact: false }),
+          queryClient.invalidateQueries({
+            queryKey: ["myAppointments"],
+            exact: false,
+          }),
+          queryClient.invalidateQueries({
+            queryKey: ["appointments"],
+            exact: false,
+          }),
+          queryClient.invalidateQueries({
+            queryKey: ["video-appointments"],
+            exact: false,
+          }),
+          queryClient.invalidateQueries({
+            queryKey: ["video-appointment"],
+            exact: false,
+          }),
           queryClient.invalidateQueries({
             queryKey: getAppointmentStatsQueryKey(params.clinicId || undefined),
             exact: false,
           }),
-          queryClient.invalidateQueries({ queryKey: ["userUpcomingAppointments"], exact: false }),
-          queryClient.invalidateQueries({ queryKey: ["invoices"], exact: false }),
-          queryClient.invalidateQueries({ queryKey: ["payments"], exact: false }),
-          queryClient.invalidateQueries({ queryKey: ["subscriptions"], exact: false }),
-          queryClient.invalidateQueries({ queryKey: ["active-subscription"], exact: false }),
-          queryClient.invalidateQueries({ queryKey: ["billing-analytics"], exact: false }),
+          queryClient.invalidateQueries({
+            queryKey: ["userUpcomingAppointments"],
+            exact: false,
+          }),
+          queryClient.invalidateQueries({
+            queryKey: ["invoices"],
+            exact: false,
+          }),
+          queryClient.invalidateQueries({
+            queryKey: ["payments"],
+            exact: false,
+          }),
+          queryClient.invalidateQueries({
+            queryKey: ["subscriptions"],
+            exact: false,
+          }),
+          queryClient.invalidateQueries({
+            queryKey: ["active-subscription"],
+            exact: false,
+          }),
+          queryClient.invalidateQueries({
+            queryKey: ["billing-analytics"],
+            exact: false,
+          }),
         ]).catch(() => undefined);
 
         dispatch({
@@ -229,7 +297,7 @@ function PaymentCallbackPageContent() {
         if (isHandoff) {
           const appBaseUrl = normalizeBaseUrl(
             process.env.NEXT_PUBLIC_APP_URL || "",
-            "https://www.viddhakarma.com"
+            "https://www.viddhakarma.com",
           );
           const targetUrl = new URL(`${appBaseUrl}${redirectPath}`);
           targetUrl.searchParams.set("paymentVerified", "1");
@@ -250,7 +318,10 @@ function PaymentCallbackPageContent() {
         }
         dispatch({
           type: "FAILED",
-          message: error instanceof Error ? error.message : "Unable to verify payment.",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Unable to verify payment.",
         });
       }
     };
@@ -300,12 +371,10 @@ function PaymentCallbackPageContent() {
         {state === "failed" && (
           <div className="flex flex-col gap-y-3">
             <p className="text-sm text-red-600">
-              The payment could not be verified. Please review the error above and try again.
+              The payment could not be verified. Please review the error above
+              and try again.
             </p>
-            <Button
-              className="w-full"
-              onClick={() => replace(redirectPath)}
-            >
+            <Button className="w-full" onClick={() => replace(redirectPath)}>
               Go back
             </Button>
           </div>
@@ -313,13 +382,16 @@ function PaymentCallbackPageContent() {
         {state === "success" && (
           <div className="flex flex-col gap-y-3">
             <p className="text-sm font-medium text-primary">
-              Payment is confirmed. You will be redirected in {secondsLeft ?? 0} seconds.
+              Payment is confirmed. You will be redirected in {secondsLeft ?? 0}{" "}
+              seconds.
             </p>
-            <Button
-              className="w-full"
-              onClick={() => replace(redirectPath)}
-            >
-              Go to {params.appointmentType === "VIDEO_CALL" ? "video appointments" : params.appointmentId ? "appointments" : "billing"}
+            <Button className="w-full" onClick={() => replace(redirectPath)}>
+              Go to{" "}
+              {params.appointmentType === "VIDEO_CALL"
+                ? "video appointments"
+                : params.appointmentId
+                  ? "appointments"
+                  : "billing"}
             </Button>
           </div>
         )}
@@ -335,5 +407,3 @@ export default function PaymentCallbackPage() {
     </Suspense>
   );
 }
-
-
