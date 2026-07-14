@@ -538,6 +538,7 @@ export function VideoAppointmentMeetSession({
   }, [blockedReason, appointment?.startTime]);
 
   const sessionStateLabel = React.useMemo(() => {
+    if (!blockedReason) return "Ready to join";
     const normalized = blockedReason.toLowerCase();
     if (normalized.includes("join opens")) {
       return "Waiting for your visit";
@@ -692,19 +693,13 @@ export function VideoAppointmentMeetSession({
         if (videoRef.current) {
           const video = videoRef.current;
           video.srcObject = stream;
-          video.load();
           video.muted = true;
           video.playsInline = true;
-          const startPlayback = () => {
-            void video.play().catch(() => undefined);
+          video.onloadedmetadata = () => {
+            void video.play().catch((e) => console.warn("[VIDEO] Auto-play failed on loadedmetadata", e));
           };
-          if (video.readyState >= 2) {
-            startPlayback();
-          } else {
-            video.addEventListener("loadedmetadata", startPlayback, {
-              once: true,
-            });
-          }
+          // Try to play immediately in case metadata is already available
+          void video.play().catch(() => {});
         }
         setVideoDevices(nextVideoDevices);
         setAudioDevices(nextAudioDevices);
@@ -730,19 +725,15 @@ export function VideoAppointmentMeetSession({
   );
 
   React.useEffect(() => {
-    const previewHandedOff = previewHandedOffRef.current;
-    const currentMediaStream = mediaStreamRef.current;
-    const currentVideoElement = videoRef.current;
     void loadPreviewStream("", "", true, true);
 
     return () => {
-      if (previewHandedOff) {
+      if (previewHandedOffRef.current) {
         return;
       }
-
-      currentMediaStream?.getTracks().forEach((track) => track.stop());
-      if (currentVideoElement) {
-        currentVideoElement.srcObject = null;
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
       }
     };
   }, [loadPreviewStream]);
