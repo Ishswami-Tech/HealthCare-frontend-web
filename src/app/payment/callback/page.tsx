@@ -6,8 +6,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@/hooks/core";
+import { useAuth } from "@/hooks/auth/useAuth";
 import { getAppointmentStatsQueryKey } from "@/lib/query/appointment-query-keys";
 import { API_ENDPOINTS } from "@/lib/config/config";
+import { Role } from "@/types/auth.types";
 import { clinicApiClient } from "@/lib/api/client";
 import { syncAppointmentInCache } from "@/lib/utils/appointment-cache";
 
@@ -77,7 +79,36 @@ function callbackReducer(
   }
 }
 
+function getRoleAppointmentRoute(role?: string | null): string {
+  const normalized = String(role || "").toUpperCase();
+  if (normalized === Role.DOCTOR || normalized === Role.ASSISTANT_DOCTOR) {
+    return "/doctor/appointments";
+  }
+  if (normalized === Role.RECEPTIONIST) {
+    return "/receptionist/appointments";
+  }
+  if (normalized === Role.CLINIC_ADMIN || normalized === Role.SUPER_ADMIN) {
+    return "/appointments";
+  }
+  return "/patient/appointments";
+}
+
+function getRolePaymentsRoute(role?: string | null): string {
+  const normalized = String(role || "").toUpperCase();
+  if (normalized === Role.DOCTOR || normalized === Role.ASSISTANT_DOCTOR) {
+    return "/doctor/appointments";
+  }
+  if (normalized === Role.CLINIC_ADMIN || normalized === Role.SUPER_ADMIN || normalized === Role.FINANCE_BILLING) {
+    return "/billing";
+  }
+  if (normalized === Role.RECEPTIONIST) {
+    return "/receptionist/appointments";
+  }
+  return "/patient/payments?tab=payments";
+}
+
 function PaymentCallbackPageContent() {
+  const { user } = useAuth();
   const { replace } = useRouter();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
@@ -128,10 +159,10 @@ function PaymentCallbackPageContent() {
 
   const redirectPath = useMemo(() => {
     if (params.appointmentType === "VIDEO_CALL" || params.appointmentId) {
-      return "/patient/appointments";
+      return getRoleAppointmentRoute(user?.role);
     }
-    return "/patient/payments?tab=payments";
-  }, [params.appointmentId, params.appointmentType]);
+    return getRolePaymentsRoute(user?.role);
+  }, [user?.role, params.appointmentId, params.appointmentType]);
 
   useEffect(() => {
     const verify = async () => {
