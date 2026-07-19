@@ -52,6 +52,10 @@ export function DoctorDashboardConsultationCard({
   onToggleSkipMedicine,
   onCompleteWithoutMedicine,
 }: DoctorDashboardConsultationCardProps) {
+  // COMMENTED: In-person consultation disabled while only video appointments are supported.
+  // Uncomment the JSX below to re-enable the in-person consultation card.
+  return null;
+  /*
   return (
     <Card className="overflow-hidden border-l-2 border-l-emerald-500 shadow-sm">
       <CardHeader className="border-b border-border bg-muted/40 px-4 py-3 dark:bg-muted/20">
@@ -204,4 +208,5 @@ export function DoctorDashboardConsultationCard({
       </CardContent>
     </Card>
   );
+  */
 }
