@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import { ChangePasswordForm } from '@/components/settings/ChangePasswordForm';
+import { NotificationPreferences } from '@/components/notifications/NotificationPreferences';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export const metadata: Metadata = {
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
 export default function SettingsPage() {
   return (
     <div className="container max-w-4xl py-8">
-      <div className="gap-y-6">
+      <div className="flex flex-col gap-y-6">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
           <p className="text-muted-foreground mt-2">
@@ -30,6 +31,8 @@ export default function SettingsPage() {
               <ChangePasswordForm />
             </CardContent>
           </Card>
+
+          <NotificationPreferences />
         </div>
       </div>
     </div>

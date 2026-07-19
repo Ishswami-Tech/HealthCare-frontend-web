@@ -26,16 +26,15 @@ export const useUserNotificationPreferences = (userId: string) => {
 export const useCreateNotificationPreferences = () => {
   return useMutationOperation(
     async (data: {
-      email?: boolean;
-      sms?: boolean;
-      push?: boolean;
-      whatsapp?: boolean;
-      types?: {
-        appointments?: boolean;
-        prescriptions?: boolean;
-        reminders?: boolean;
-        marketing?: boolean;
-      };
+      emailEnabled?: boolean;
+      smsEnabled?: boolean;
+      pushEnabled?: boolean;
+      whatsappEnabled?: boolean;
+      socketEnabled?: boolean;
+      appointmentEnabled?: boolean;
+      ehrEnabled?: boolean;
+      billingEnabled?: boolean;
+      systemEnabled?: boolean;
     }) => {
       return await clinicApiClient.post(API_ENDPOINTS.NOTIFICATION_PREFERENCES.BASE, data);
     },
@@ -52,16 +51,15 @@ export const useUpdateNotificationPreferences = () => {
   return useMutationOperation(
     async (data: {
       userId?: string;
-      email?: boolean;
-      sms?: boolean;
-      push?: boolean;
-      whatsapp?: boolean;
-      types?: {
-        appointments?: boolean;
-        prescriptions?: boolean;
-        reminders?: boolean;
-        marketing?: boolean;
-      };
+      emailEnabled?: boolean;
+      smsEnabled?: boolean;
+      pushEnabled?: boolean;
+      whatsappEnabled?: boolean;
+      socketEnabled?: boolean;
+      appointmentEnabled?: boolean;
+      ehrEnabled?: boolean;
+      billingEnabled?: boolean;
+      systemEnabled?: boolean;
     }) => {
       const { userId, ...payload } = data;
       const endpoint = userId
@@ -82,7 +80,7 @@ export const useDeleteNotificationPreferences = () => {
   return useMutationOperation(
     async (userId?: string) => {
       const endpoint = userId
-        ? API_ENDPOINTS.NOTIFICATION_PREFERENCES.DELETE(userId)
+        ? API_ENDPOINTS.NOTIFICATION_PREFERENCES.UPDATE(userId)
         : API_ENDPOINTS.NOTIFICATION_PREFERENCES.BASE;
       return await clinicApiClient.delete(endpoint);
     },

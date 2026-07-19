@@ -8,68 +8,53 @@ import { Button } from '@/components/ui/button';
 import { useNotificationPreferences, useUpdateNotificationPreferences } from '@/hooks/query';
 import { Loader2, Bell, Save } from 'lucide-react';
 
-interface NotificationPreferencesProps {
-  userId?: string;
-  onSave?: () => void;
-}
-
 interface NotificationPreferencesData {
-  email?: boolean;
-  sms?: boolean;
-  push?: boolean;
-  whatsapp?: boolean;
-  types?: {
-    appointments?: boolean;
-    prescriptions?: boolean;
-    reminders?: boolean;
-    marketing?: boolean;
-  };
+  emailEnabled?: boolean;
+  smsEnabled?: boolean;
+  pushEnabled?: boolean;
+  whatsappEnabled?: boolean;
+  socketEnabled?: boolean;
+  appointmentEnabled?: boolean;
+  ehrEnabled?: boolean;
+  billingEnabled?: boolean;
+  systemEnabled?: boolean;
 }
 
-export function NotificationPreferences({ userId, onSave }: NotificationPreferencesProps) {
+export function NotificationPreferences({ userId, onSave }: { userId?: string; onSave?: () => void }) {
   const { data: preferences, isPending: isLoading } = useNotificationPreferences();
   const preferencesData = preferences as NotificationPreferencesData | undefined;
   const { mutate: updatePreferences, isPending: isSaving } = useUpdateNotificationPreferences();
-  
+
   const [settings, setSettings] = useState({
-    email: false,
-    sms: false,
-    push: false,
-    whatsapp: false,
-    types: {
-      appointments: false,
-      prescriptions: false,
-      reminders: false,
-      marketing: false,
-    },
+    emailEnabled: false,
+    smsEnabled: false,
+    pushEnabled: false,
+    whatsappEnabled: false,
+    socketEnabled: false,
+    appointmentEnabled: false,
+    ehrEnabled: false,
+    billingEnabled: false,
+    systemEnabled: false,
   });
 
   useEffect(() => {
     if (preferencesData) {
       setSettings({
-        email: preferencesData.email ?? false,
-        sms: preferencesData.sms ?? false,
-        push: preferencesData.push ?? false,
-        whatsapp: preferencesData.whatsapp ?? false,
-        types: {
-          appointments: preferencesData.types?.appointments ?? false,
-          prescriptions: preferencesData.types?.prescriptions ?? false,
-          reminders: preferencesData.types?.reminders ?? false,
-          marketing: preferencesData.types?.marketing ?? false,
-        },
+        emailEnabled: preferencesData.emailEnabled ?? false,
+        smsEnabled: preferencesData.smsEnabled ?? false,
+        pushEnabled: preferencesData.pushEnabled ?? false,
+        whatsappEnabled: preferencesData.whatsappEnabled ?? false,
+        socketEnabled: preferencesData.socketEnabled ?? false,
+        appointmentEnabled: preferencesData.appointmentEnabled ?? false,
+        ehrEnabled: preferencesData.ehrEnabled ?? false,
+        billingEnabled: preferencesData.billingEnabled ?? false,
+        systemEnabled: preferencesData.systemEnabled ?? false,
       });
     }
   }, [preferencesData]);
 
-  const handleToggle = (key: 'email' | 'sms' | 'push' | 'whatsapp', value: boolean) => {
+  const handleToggle = (key: keyof typeof settings, value: boolean) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const handleTypeToggle = (key: 'appointments' | 'prescriptions' | 'reminders' | 'marketing', value: boolean) => {
-    setSettings((prev) => ({
-      ...prev,
-      types: { ...prev.types, [key]: value },
-    }));
   };
 
   const handleSave = () => {
@@ -106,20 +91,20 @@ export function NotificationPreferences({ userId, onSave }: NotificationPreferen
           Manage how you receive notifications
         </CardDescription>
       </CardHeader>
-      <CardContent className="gap-y-6">
+      <CardContent className="flex flex-col gap-y-6">
         {/* Channel Preferences */}
-        <div className="gap-y-4">
+        <div className="flex flex-col gap-y-4">
           <h4 className="font-semibold">Notification Channels</h4>
-          
-          <div className="gap-y-3">
+
+          <div className="flex flex-col gap-y-3">
             <div className="flex items-center justify-between">
               <div>
                 <Label>Email Notifications</Label>
                 <p className="text-sm text-muted-foreground">Receive notifications via email</p>
               </div>
               <Switch
-                checked={settings.email}
-                onCheckedChange={(checked) => handleToggle('email', checked)}
+                checked={settings.emailEnabled}
+                onCheckedChange={(checked) => handleToggle('emailEnabled', checked)}
               />
             </div>
 
@@ -129,8 +114,8 @@ export function NotificationPreferences({ userId, onSave }: NotificationPreferen
                 <p className="text-sm text-muted-foreground">Receive notifications via SMS</p>
               </div>
               <Switch
-                checked={settings.sms}
-                onCheckedChange={(checked) => handleToggle('sms', checked)}
+                checked={settings.smsEnabled}
+                onCheckedChange={(checked) => handleToggle('smsEnabled', checked)}
               />
             </div>
 
@@ -140,8 +125,8 @@ export function NotificationPreferences({ userId, onSave }: NotificationPreferen
                 <p className="text-sm text-muted-foreground">Receive push notifications</p>
               </div>
               <Switch
-                checked={settings.push}
-                onCheckedChange={(checked) => handleToggle('push', checked)}
+                checked={settings.pushEnabled}
+                onCheckedChange={(checked) => handleToggle('pushEnabled', checked)}
               />
             </div>
 
@@ -151,59 +136,59 @@ export function NotificationPreferences({ userId, onSave }: NotificationPreferen
                 <p className="text-sm text-muted-foreground">Receive notifications via WhatsApp</p>
               </div>
               <Switch
-                checked={settings.whatsapp}
-                onCheckedChange={(checked) => handleToggle('whatsapp', checked)}
+                checked={settings.whatsappEnabled}
+                onCheckedChange={(checked) => handleToggle('whatsappEnabled', checked)}
               />
             </div>
           </div>
         </div>
 
         {/* Category Preferences */}
-        <div className="gap-y-4">
-          <h4 className="font-semibold">Notification Types</h4>
-          
-          <div className="gap-y-3">
+        <div className="flex flex-col gap-y-4">
+          <h4 className="font-semibold">Notification Categories</h4>
+
+          <div className="flex flex-col gap-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <Label>Appointment Notifications</Label>
-                <p className="text-sm text-muted-foreground">Get notified about appointments</p>
+                <Label>Appointments</Label>
+                <p className="text-sm text-muted-foreground">Appointment confirmations, reminders, and changes</p>
               </div>
               <Switch
-                checked={settings.types.appointments}
-                onCheckedChange={(checked) => handleTypeToggle('appointments', checked)}
+                checked={settings.appointmentEnabled}
+                onCheckedChange={(checked) => handleToggle('appointmentEnabled', checked)}
               />
             </div>
 
             <div className="flex items-center justify-between">
               <div>
-                <Label>Prescription Notifications</Label>
-                <p className="text-sm text-muted-foreground">Get notified about prescriptions</p>
+                <Label>Medical Records (EHR)</Label>
+                <p className="text-sm text-muted-foreground">Prescriptions, lab reports, and medical notes</p>
               </div>
               <Switch
-                checked={settings.types.prescriptions}
-                onCheckedChange={(checked) => handleTypeToggle('prescriptions', checked)}
+                checked={settings.ehrEnabled}
+                onCheckedChange={(checked) => handleToggle('ehrEnabled', checked)}
               />
             </div>
 
             <div className="flex items-center justify-between">
               <div>
-                <Label>Reminder Notifications</Label>
-                <p className="text-sm text-muted-foreground">Get medication and appointment reminders</p>
+                <Label>Billing & Payments</Label>
+                <p className="text-sm text-muted-foreground">Invoices, receipts, and payment updates</p>
               </div>
               <Switch
-                checked={settings.types.reminders}
-                onCheckedChange={(checked) => handleTypeToggle('reminders', checked)}
+                checked={settings.billingEnabled}
+                onCheckedChange={(checked) => handleToggle('billingEnabled', checked)}
               />
             </div>
 
             <div className="flex items-center justify-between">
               <div>
-                <Label>Marketing Notifications</Label>
-                <p className="text-sm text-muted-foreground">Receive promotional and marketing updates</p>
+                <Label>System</Label>
+                <p className="text-sm text-muted-foreground">Security alerts, account updates, and system notifications</p>
               </div>
               <Switch
-                checked={settings.types.marketing}
-                onCheckedChange={(checked) => handleTypeToggle('marketing', checked)}
+                checked={settings.systemEnabled}
+                onCheckedChange={(checked) => handleToggle('systemEnabled', checked)}
               />
             </div>
           </div>
