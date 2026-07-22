@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useQueryData } from '../core/useQueryData';
 import { useMutationOperation } from '../core/useMutationOperation';
 import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
@@ -43,13 +43,16 @@ export const useDoctors = (clinicId: string, filters?: {
   enabled?: boolean;
 }) => {
   const { isConnected } = useWebSocketStatus();
-  const authScope = useDoctorQueryScope();
+  const previousAuthScopeRef = useRef<string>('');
 
-  console.log('[useDoctors] Hook called with clinicId:', clinicId, 'filters:', filters, 'enabled:', !!clinicId && (options?.enabled ?? true));
+  // Build a stable query key: do NOT include authScope because it changes
+  // from 'guest' to the real userId when the session finishes loading,
+  // which would fragment the cache and cause React Query to serve a stale
+  // empty result without refetching.
+  const queryKey = useMemo(() => ['doctors', clinicId, filters], [clinicId, filters]);
 
-  return useQueryData(['doctors', clinicId, authScope, filters], async () => {
+  return useQueryData(queryKey, async () => {
     try {
-      console.log('[useDoctors] Fetching doctors for clinicId:', clinicId, 'filters:', filters);
       const result = await clinicApiClient.get(
         API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId),
         filters,
@@ -87,6 +90,10 @@ export const useDoctors = (clinicId: string, filters?: {
     }
   }, {
     enabled: !!clinicId && (options?.enabled ?? true),
+    refetchOnMount: true,
+    refetchOnWindowFocus: isConnected ? false : true,
+    staleTime: 0,
+    gcTime: 120_000,
     refetchInterval: isConnected ? false : 120_000,
     retry: doctorQueryRetry,
   });
