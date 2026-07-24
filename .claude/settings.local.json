@@ -14,5 +14,12 @@
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enabledMcpjsonServers": [
+    "shadcn",
+    "context7",
+    "postgres",
+    "backend-logger",
+    "contabo-ssh"
+  ]
 }

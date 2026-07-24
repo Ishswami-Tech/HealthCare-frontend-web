@@ -18,7 +18,7 @@ import {
   DashboardPageShell as PatientPageShell,
 } from "@/components/dashboard/DashboardPageShell";
 import { theme } from "@/lib/utils/theme-utils";
-import { Leaf, Droplets, Waves, Wind, Heart, Sun, Stethoscope, QrCode, BookOpen } from "lucide-react";
+import { Leaf, Droplets, Waves, Wind, Heart, Sun, Stethoscope, QrCode, BookOpen, Loader2 } from "lucide-react";
 import { normalizeAppointmentStatus } from "@/lib/utils/appointmentUtils";
 
 interface TreatmentCategory {
@@ -104,6 +104,7 @@ function PatientAppointmentsContent() {
   const showAppointmentsSkeleton =
     isPendingAppointments && !hasCachedAppointments && !hasAppointmentsLoadedForSession();
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
+  const isBookingDialogOpening = shouldOpenBooking && !isBookingDialogOpen;
   const openQrGate = usePatientUiStore((state) => state.openQrGate);
   const hasInPersonAppointment = useMemo(() => {
     const appointments = Array.isArray((appointmentsData as any)?.appointments)
@@ -182,6 +183,13 @@ function PatientAppointmentsContent() {
           {...(queryClinicName ? { clinicName: queryClinicName } : {})}
           onBooked={() => setIsBookingDialogOpen(false)}
         />
+
+        {isBookingDialogOpening && (
+          <div className="mb-4 flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">
+            <Loader2 className="size-4 animate-spin text-primary" />
+            <p className="text-sm font-medium text-muted-foreground">Opening booking dialog…</p>
+          </div>
+        )}
 
         {/* Queue/check-in UI hidden intentionally. */}
         {/* <div id="patient-queue-status" className="animate-in fade-in slide-in-from-top-4 duration-500">

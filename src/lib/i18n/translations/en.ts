@@ -403,6 +403,83 @@ export const en: TranslationKeys = {
       }
     }
   },
+  drDeshmukhPage: {
+    heroText: 'Dr. Chandrakumar Deshmukh\nViddhakarma and agnikarma specialist pune Gold medal Infertility- Arthritis - autism- CP रजयपल भरत सरकर परसकत , वदयरतन, सशरतरतन ,वर वदय',
+    linksTitle: 'Links',
+    linksHint: 'Tap a row to open or use the three dots to share.',
+    shareButtonLabel: 'Share',
+    copiedLabel: 'Copied',
+    sharePreview: 'Share preview',
+    closeDialog: 'Close dialog',
+    openHere: 'Open here',
+    copyLink: 'Copy link',
+    shareLink: 'Share link',
+    shareOnFacebook: 'Share on Facebook',
+    shareOnWhatsApp: 'Share on WhatsApp',
+    shareOnLinkedIn: 'Share on LinkedIn',
+    footerTagline: 'Authentic Ayurvedic healing and patient support.',
+    shareDialogTitlePrefix: 'Share',
+    moreActionsAriaPrefix: 'More actions for',
+    socialLinks: {
+      instagram: 'Instagram',
+      email: 'Email',
+      youtube: 'YouTube',
+      whatsapp: 'WhatsApp',
+      phone: 'Phone',
+    },
+    services: {
+      videoAppointments: {
+        title: 'Book Video Consultation',
+        description: 'Schedule an online video consultation with Dr. Deshmukh on the web.',
+        badge: 'Book Now',
+      },
+      soup: {
+        title: 'Charabi Bhasma Soup',
+        description: 'Open the product page for details and ordering.',
+        badge: 'Rs 2,500',
+      },
+      android: {
+        title: 'Appointment - Android',
+        description: 'Open the Android app listing.',
+        badge: 'Book now',
+      },
+      apple: {
+        title: 'Appointment - Apple',
+        description: 'Open the iPhone app listing.',
+        badge: 'Book now',
+      },
+      chinchwad: {
+        title: 'Chinchwad Clinic',
+        description: 'Vishal market, near manakarnika aushadhalaya, bhaji mandai, Chinchwad, Pimpri-Chinchwad.',
+        badge: 'Open maps',
+      },
+      nanapeth: {
+        title: 'Nanapeth Clinic',
+        description: '102, RAMPRASAD CHAMBERS, 368/1, Jawaharlal Nehru Rd, KIRAD HOSPITAL, SHRADDHA MEDICALS, New Nana Peth, Pune.',
+        badge: 'Open maps',
+      },
+      youtube: {
+        title: 'Dr Chandrakumar Deshmukh - YouTube',
+        description: 'Open the main YouTube channel.',
+        badge: 'Watch now',
+      },
+      viddhakarma: {
+        title: 'Viddhakarma As it is',
+        description: 'Open the Viddhakarma playlist.',
+        badge: 'Watch now',
+      },
+      autism: {
+        title: 'Autism concepts',
+        description: 'Open the Autism concepts playlist.',
+        badge: 'Watch now',
+      },
+      callClinic: {
+        title: 'Need Help?',
+        description: 'Call Dr. Deshmukh\'s clinic directly for assistance or to book an appointment.',
+        badge: 'Help',
+      },
+    },
+  },
   trustBuilding: {
     title: 'Trust & Transparency',
     subtitle: 'Frequently Asked Questions',

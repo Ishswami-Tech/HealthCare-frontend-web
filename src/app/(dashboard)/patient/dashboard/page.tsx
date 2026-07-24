@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +46,7 @@ import {
   Leaf,
   Stethoscope,
   BookOpen,
+  Loader2,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -66,6 +67,7 @@ export default function PatientDashboard() {
   const { t } = useTranslation();
   const openQrGate = usePatientUiStore((state) => state.openQrGate);
   const { data: userProfile } = useUserProfile();
+  const [isBookingAppointmentLoading, setIsBookingAppointmentLoading] = useState(false);
 
   // Enable real-time WebSocket sync
   useWebSocketQuerySync();
@@ -537,10 +539,18 @@ export default function PatientDashboard() {
                 </Button>
                 <Button
                   className="h-9 gap-2 rounded-xl border border-red-500 bg-red-600 px-3 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(220,38,38,0.22)] transition-all hover:-translate-y-0.5 hover:border-red-600 hover:bg-red-700 hover:shadow-[0_12px_28px_rgba(220,38,38,0.28)] sm:h-10 sm:px-4 active:scale-95 focus-visible:ring-2 focus-visible:ring-red-300 dark:border-red-700 dark:bg-red-600 dark:shadow-[0_8px_20px_rgba(239,68,68,0.15)] dark:hover:bg-red-500"
-                  onClick={() => push("/patient/appointments?openBooking=1")}
+                  disabled={isBookingAppointmentLoading}
+                  onClick={() => {
+                    setIsBookingAppointmentLoading(true);
+                    push("/patient/appointments?openBooking=1");
+                  }}
                 >
-                  <BookOpen className="size-4" />
-                  Book Video Appointment
+                  {isBookingAppointmentLoading ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <BookOpen className="size-4" />
+                  )}
+                  {isBookingAppointmentLoading ? "Opening…" : "Book Video Appointment"}
                 </Button>
               </div>
             }

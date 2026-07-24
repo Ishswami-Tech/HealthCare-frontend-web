@@ -1591,7 +1591,83 @@ export const mr: TranslationKeys = {
       category: 'विषबाधा दूर करणे'
     }
   },
-  trustBuilding: {
+  drDeshmukhPage: {
+    heroText: 'डॉ. चंद्रकुमार देशमुख\nViddhakarma and agnikarma specialist pune Gold medal Infertility- Arthritis - autism- CP रजयपल भरत सरकर परसकत , वदयरतन, सशरतरतन ,वर वदय',
+    linksTitle: 'लिंक्स',
+    linksHint: 'उघडण्यासाठी रांगेवर टॅप करा किंवा शेअर करण्यासाठी तीन ठिपक्यांचा वापर करा.',
+    shareButtonLabel: 'शेअर',
+    copiedLabel: 'कॉपी झाले',
+    sharePreview: 'शेअर पूर्वावलोकन',
+    closeDialog: 'डायलॉग बंद करा',
+    openHere: 'इथे उघडा',
+    copyLink: 'लिंक कॉपी करा',
+    shareLink: 'लिंक शेअर करा',
+    shareOnFacebook: 'Facebook वर शेअर करा',
+    shareOnWhatsApp: 'WhatsApp वर शेअर करा',
+    shareOnLinkedIn: 'LinkedIn वर शेअर करा',
+    footerTagline: 'अस्सल आयुर्वेदिक उपचार आणि रुग्णांना साथ.',
+    shareDialogTitlePrefix: 'शेअर',
+    moreActionsAriaPrefix: 'साठी अधिक पर्याय',
+    socialLinks: {
+      instagram: 'Instagram',
+      email: 'ईमेल',
+      youtube: 'YouTube',
+      whatsapp: 'WhatsApp',
+      phone: 'फोन',
+    },
+    services: {
+      videoAppointments: {
+        title: 'व्हिडिओ सल्लामसलत बुक करा',
+        description: 'वेबवर डॉ. देशमुख यांच्यासोबत ऑनलाइन व्हिडिओ सल्लामसलत ठरवा.',
+        badge: 'आत्ताच बुक करा',
+      },
+      soup: {
+        title: 'चरबी भस्म सूप',
+        description: 'तपशील आणि ऑर्डरसाठी उत्पादन पृष्ठ उघडा.',
+        badge: 'Rs 2,500',
+      },
+      android: {
+        title: 'अपॉइंटमेंट - Android',
+        description: 'Android अॅप लिस्टिंग उघडा.',
+        badge: 'बुक करा',
+      },
+      apple: {
+        title: 'अपॉइंटमेंट - Apple',
+        description: 'iPhone अॅप लिस्टिंग उघडा.',
+        badge: 'बुक करा',
+      },
+      chinchwad: {
+        title: 'चिंचवड क्लिनिक',
+        description: 'विशाल मार्केट, मनकर्णिका औषधालय जवळ, भाजी मंडई, चिंचवड, पिंपरी-चिंचवड.',
+        badge: 'नकाशा उघडा',
+      },
+      nanapeth: {
+        title: 'नानापेठ क्लिनिक',
+        description: '102, रामप्रसाद चेंबर्स, 368/1, जवाहरलाल नेहरू रोड, किराड हॉस्पिटल, श्रद्धा मेडिकल्स, न्यू नाना पेठ, पुणे.',
+        badge: 'नकाशा उघडा',
+      },
+      youtube: {
+        title: 'डॉ. चंद्रकुमार देशमुख - YouTube',
+        description: 'मुख्य YouTube चॅनेल उघडा.',
+        badge: 'आत्ताच पाहा',
+      },
+      viddhakarma: {
+        title: 'विड्धकर्म As it is',
+        description: 'विड्धकर्म प्लेलिस्ट उघडा.',
+        badge: 'आत्ताच पाहा',
+      },
+      autism: {
+        title: 'ऑटिझम संकल्पना',
+        description: 'ऑटिझम संकल्पनांची प्लेलिस्ट उघडा.',
+        badge: 'आत्ताच पाहा',
+      },
+      callClinic: {
+        title: 'मदत हवी?',
+        description: 'सहाय्यासाठी किंवा अपॉइंटमेंटसाठी थेट डॉ. देशमुख यांच्या क्लिनिकला कॉल करा.',
+        badge: 'मदत',
+      },
+    },
+  },  trustBuilding: {
     title: 'विश्वास आणि पारदर्शकता',
     subtitle: 'आमच्या उपचार आणि हमीबद्दल तुम्हाला माहित असणे आवश्यक आहे',
     description: 'आमच्या उपचार आणि हमीबद्दल तुम्हाला माहित असणे आवश्यक आहे',

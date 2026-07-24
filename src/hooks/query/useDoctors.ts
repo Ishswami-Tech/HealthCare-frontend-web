@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQueryData } from '../core/useQueryData';
 import { useMutationOperation } from '../core/useMutationOperation';
 import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import { TOAST_IDS } from '../utils/use-toast';
+import { CACHE_TIMES, GC_TIMES } from './config';
 import { useAuth } from '@/hooks/auth/useAuth';
 import { clinicApiClient } from '@/lib/api/client';
 import { API_ENDPOINTS } from '@/lib/config/config';
@@ -42,14 +43,30 @@ export const useDoctors = (clinicId: string, filters?: {
 }, options?: {
   enabled?: boolean;
 }) => {
-  const { isConnected } = useWebSocketStatus();
-  const previousAuthScopeRef = useRef<string>('');
+  const queryKey = useMemo(
+    () => [
+      'doctors',
+      clinicId,
+      filters?.search?.trim() || '',
+      filters?.specialization?.trim() || '',
+      typeof filters?.isActive === 'boolean' ? String(filters.isActive) : 'any',
+      typeof filters?.limit === 'number' ? filters.limit : 'all',
+      typeof filters?.offset === 'number' ? filters.offset : 0,
+      filters?.locationId?.trim() || '',
+    ],
+    [
+      clinicId,
+      filters?.isActive,
+      filters?.limit,
+      filters?.locationId,
+      filters?.offset,
+      filters?.search,
+      filters?.specialization,
+    ]
+  );
 
-  // Build a stable query key: do NOT include authScope because it changes
-  // from 'guest' to the real userId when the session finishes loading,
-  // which would fragment the cache and cause React Query to serve a stale
-  // empty result without refetching.
-  const queryKey = useMemo(() => ['doctors', clinicId, filters], [clinicId, filters]);
+  // Build a stable query key from primitive values so fresh object literals
+  // do not fragment the cache or trigger unnecessary refetches.
 
   return useQueryData(queryKey, async () => {
     try {
@@ -90,11 +107,12 @@ export const useDoctors = (clinicId: string, filters?: {
     }
   }, {
     enabled: !!clinicId && (options?.enabled ?? true),
-    refetchOnMount: true,
-    refetchOnWindowFocus: isConnected ? false : true,
-    staleTime: 0,
-    gcTime: 120_000,
-    refetchInterval: isConnected ? false : 120_000,
+    staleTime: CACHE_TIMES.STATIC,
+    gcTime: GC_TIMES.STATIC,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+    refetchInterval: false,
     retry: doctorQueryRetry,
   });
 };
@@ -103,8 +121,6 @@ export const useDoctors = (clinicId: string, filters?: {
  * Hook to get doctor by ID
  */
 export const useDoctor = (doctorId: string) => {
-  const { isConnected } = useWebSocketStatus();
-
   return useQueryData(['doctor', doctorId], async () => {
     try {
       return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.GET_BY_ID(doctorId));
@@ -116,7 +132,12 @@ export const useDoctor = (doctorId: string) => {
     }
   }, {
     enabled: !!doctorId,
-    refetchInterval: isConnected ? false : 120_000,
+    staleTime: CACHE_TIMES.STATIC,
+    gcTime: GC_TIMES.STATIC,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+    refetchInterval: false,
     retry: doctorQueryRetry,
   });
 };
@@ -678,4 +699,3 @@ export const useCurrentDoctorEntityId = (clinicId?: string) => {
     isResolvingDoctorId: Boolean(clinicId) && clinicDoctors.isPending && !doctorId,
   };
 };
-
