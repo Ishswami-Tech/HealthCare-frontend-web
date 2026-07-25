@@ -3017,13 +3017,14 @@ export function BookAppointmentDialog({
     // refetches fresh from the backend. Avoids a full page reload that
     // would discard in-flight selections and unsaved input.
     try {
+      clinicApiClient.clearRequestCache();
       queryClient.removeQueries({ queryKey: ['doctors'] });
       queryClient.removeQueries({ queryKey: ['clinicDoctors'] });
       queryClient.removeQueries({ queryKey: ['doctorAvailability'] });
       queryClient.removeQueries({ queryKey: ['doctorSchedule'] });
       queryClient.invalidateQueries({ queryKey: ['doctors', activeClinicId] });
       queryClient.invalidateQueries({ queryKey: ['clinicDoctors', activeClinicId] });
-      await refetchDoctors();
+      await refetchDoctors({ cancelRefetch: true });
     } catch (err) {
       logger.warn('Hard refresh: cache clear failed', { error: err });
     } finally {
@@ -4689,10 +4690,9 @@ export function BookAppointmentDialog({
       return;
     }
 
-    setPendingStepNavigation("backward");
-    setStepDirection("backward");
-    setStep(1);
-  }, [activeSteps, currentStepIndex, goToStep, setStep, setStepDirection]);
+    setPendingStepNavigation(null);
+    handleOpenChange(false);
+  }, [activeSteps, currentStepIndex, goToStep, handleOpenChange]);
 
   useEffect(() => {
     setPendingStepNavigation(null);
