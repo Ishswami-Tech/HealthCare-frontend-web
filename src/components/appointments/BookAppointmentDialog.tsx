@@ -1349,6 +1349,7 @@ const RenderStep2Service = BookAppointmentStep2Service;
 interface BookAppointmentStep2Props {
   doctorsLoading: boolean;
   doctorsFetched: boolean;
+  doctorsRefreshing: boolean;
   doctorsList: any[];
   selectedLocationId: string;
   selectedDoctorId: string;
@@ -1363,6 +1364,7 @@ interface BookAppointmentStep2Props {
 function BookAppointmentStep2({
   doctorsLoading,
   doctorsFetched,
+  doctorsRefreshing,
   doctorsList,
   selectedLocationId,
   selectedDoctorId,
@@ -1398,15 +1400,26 @@ function BookAppointmentStep2({
               <p className="text-xs text-amber-800/80 dark:text-amber-200/80">
                 If doctors should be available, the list may be stale. Hard refresh to reload.
               </p>
+              {doctorsRefreshing && (
+                <div className="mt-1 flex items-center gap-2 text-xs font-medium text-amber-800 dark:text-amber-200">
+                  <Loader2 className="size-4 animate-spin" />
+                  Refreshing doctors from the server...
+                </div>
+              )}
               <div className="mt-2 flex flex-wrap gap-2">
                 <Button
                   type="button"
                   variant="default"
                   className="h-9 rounded-lg"
                   onClick={onHardRefresh}
+                  disabled={doctorsRefreshing}
                 >
-                  <RefreshCw className="mr-1 size-4" />
-                  Hard refresh
+                  {doctorsRefreshing ? (
+                    <Loader2 className="mr-1 size-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-1 size-4" />
+                  )}
+                  {doctorsRefreshing ? "Refreshing..." : "Hard refresh"}
                 </Button>
                 <Button
                   type="button"
@@ -2976,6 +2989,7 @@ export function BookAppointmentDialog({
   const {
     data: doctorsData,
     isPending: doctorsLoading,
+    isFetching: doctorsFetching,
     isFetched: doctorsFetched,
     error: doctorsError,
     refetch: refetchDoctors,
@@ -2984,8 +2998,20 @@ export function BookAppointmentDialog({
     doctorsFilters,
     { enabled: shouldLoadDoctors },
   );
+  const [isHardRefreshingDoctors, setIsHardRefreshingDoctors] =
+    useState(false);
+  const [pendingStepNavigation, setPendingStepNavigation] = useState<
+    "forward" | "backward" | null
+  >(null);
+  const doctorsRefreshing =
+    doctorsLoading || doctorsFetching || isHardRefreshingDoctors;
 
-  const handleHardRefreshDoctors = useCallback(() => {
+  const handleHardRefreshDoctors = useCallback(async () => {
+    if (isHardRefreshingDoctors) {
+      return;
+    }
+
+    setIsHardRefreshingDoctors(true);
     // Hard refresh: clear all relevant React Query caches (doctors,
     // clinicDoctors, doctorAvailability, etc.) so the booking dialog
     // refetches fresh from the backend. Avoids a full page reload that
@@ -2997,10 +3023,13 @@ export function BookAppointmentDialog({
       queryClient.removeQueries({ queryKey: ['doctorSchedule'] });
       queryClient.invalidateQueries({ queryKey: ['doctors', activeClinicId] });
       queryClient.invalidateQueries({ queryKey: ['clinicDoctors', activeClinicId] });
+      await refetchDoctors();
     } catch (err) {
       logger.warn('Hard refresh: cache clear failed', { error: err });
+    } finally {
+      setIsHardRefreshingDoctors(false);
     }
-  }, [queryClient, activeClinicId]);
+  }, [activeClinicId, isHardRefreshingDoctors, queryClient, refetchDoctors]);
   // Only RECEPTIONIST needs the full patient list to select a patient.
   // Patients book for themselves‚ calling this admin endpoint as a PATIENT
   // returns 403 Forbidden. Pass an empty clinicId to disable the query.
@@ -4645,14 +4674,29 @@ export function BookAppointmentDialog({
   ]);
 
   const goNext = useCallback(() => {
-    setStepDirection("forward");
-    setStep((s) => Math.min(s + 1, activeSteps.length || 1));
-  }, [activeSteps.length, setStep, setStepDirection]);
+    const nextStepId = activeSteps[currentStepIndex + 1];
+    if (nextStepId) {
+      setPendingStepNavigation("forward");
+      goToStep(nextStepId);
+    }
+  }, [activeSteps, currentStepIndex, goToStep]);
 
   const goBack = useCallback(() => {
+    const previousStepId = activeSteps[currentStepIndex - 1];
+    if (previousStepId) {
+      setPendingStepNavigation("backward");
+      goToStep(previousStepId);
+      return;
+    }
+
+    setPendingStepNavigation("backward");
     setStepDirection("backward");
-    setStep((s) => Math.max(s - 1, 1));
-  }, [setStep, setStepDirection]);
+    setStep(1);
+  }, [activeSteps, currentStepIndex, goToStep, setStep, setStepDirection]);
+
+  useEffect(() => {
+    setPendingStepNavigation(null);
+  }, [currentStepId]);
 
   //  QR data‚
   // const qrData = useMemo(() => {
@@ -4753,6 +4797,7 @@ export function BookAppointmentDialog({
             <RenderStep2
               doctorsLoading={doctorsLoading}
               doctorsFetched={doctorsFetched}
+              doctorsRefreshing={doctorsFetching || isHardRefreshingDoctors}
               doctorsList={doctorsList}
               selectedLocationId={resolvedLocationId}
               selectedDoctorId={resolvedDoctorId}
@@ -4945,8 +4990,14 @@ export function BookAppointmentDialog({
               variant="outline"
               onClick={step > 1 ? goBack : () => handleOpenChange(false)}
               className="h-11 w-full px-6 rounded-xl border-border/50 transition-all active:scale-95 gap-2 sm:w-auto"
+              disabled={pendingStepNavigation === "backward"}
             >
-              <ChevronLeft className="size-4" /> {step > 1 ? "Back" : "Cancel"}
+              {pendingStepNavigation === "backward" ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <ChevronLeft className="size-4" />
+              )}
+              {step > 1 ? "Back" : "Cancel"}
             </Button>
             <div className="hidden flex-1 sm:block" />
 
@@ -4956,7 +5007,13 @@ export function BookAppointmentDialog({
                 disabled={!canNext}
                 className="h-11 w-full px-8 rounded-xl font-semibold bg-primary hover:bg-primary/90 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2 sm:w-auto"
               >
-                Continue <ArrowRight className="size-4" />
+                {pendingStepNavigation === "forward" ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <>
+                    Continue <ArrowRight className="size-4" />
+                  </>
+                )}
               </Button>
             ) : (
               (() => {

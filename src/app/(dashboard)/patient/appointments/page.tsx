@@ -103,7 +103,7 @@ function PatientAppointmentsContent() {
   }, [appointmentsData]);
   const showAppointmentsSkeleton =
     isPendingAppointments && !hasCachedAppointments && !hasAppointmentsLoadedForSession();
-  const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
+  const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(shouldOpenBooking);
   const isBookingDialogOpening = shouldOpenBooking && !isBookingDialogOpen;
   const openQrGate = usePatientUiStore((state) => state.openQrGate);
   const hasInPersonAppointment = useMemo(() => {
