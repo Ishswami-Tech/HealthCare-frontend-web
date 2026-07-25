@@ -70,11 +70,21 @@ export const useDoctors = (clinicId: string, filters?: {
 
   return useQueryData(queryKey, async () => {
     try {
-      const result = await clinicApiClient.get(
-        API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId),
-        filters,
-      );
-      let doctors: any[] = Array.isArray(result.data) ? result.data : [];
+      const queryDoctors = async (params?: typeof filters) => {
+        const result = await clinicApiClient.get(
+          API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId),
+          params,
+        );
+        return Array.isArray(result.data) ? result.data : [];
+      };
+
+      const hasLocationOnlyFilter =
+        !!filters?.locationId?.trim() &&
+        !filters?.search?.trim() &&
+        !filters?.specialization?.trim() &&
+        typeof filters?.isActive === 'undefined';
+
+      let doctors = await queryDoctors(filters);
 
       // ✅ Fallback: if the cached response returned an empty list, retry
       // once with cache-bust headers to recover from a stale empty cache
@@ -94,6 +104,27 @@ export const useDoctors = (clinicId: string, filters?: {
         } catch (bustError) {
           // Swallow bust errors - we still return the original empty array.
           console.warn('[useDoctors] Cache-bust retry failed:', bustError);
+        }
+      }
+
+      // When a location-scoped lookup comes back empty, fall back to the
+      // clinic-wide doctor list. This prevents a stale or incomplete mobile
+      // location context from hiding the only available doctor in clinics
+      // that effectively operate with a single static provider.
+      if (doctors.length === 0 && hasLocationOnlyFilter) {
+        try {
+          const fallbackFilters = { ...filters };
+          delete (fallbackFilters as { locationId?: string }).locationId;
+          const fallbackDoctors = await queryDoctors(fallbackFilters);
+          if (fallbackDoctors.length > 0) {
+            console.log(
+              '[useDoctors] Location fallback recovered clinic-wide doctors:',
+              fallbackDoctors.length,
+            );
+            doctors = fallbackDoctors;
+          }
+        } catch (fallbackError) {
+          console.warn('[useDoctors] Location fallback failed:', fallbackError);
         }
       }
 

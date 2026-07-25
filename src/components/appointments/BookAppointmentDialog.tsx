@@ -3466,12 +3466,6 @@ export function BookAppointmentDialog({
   const appointmentQueryScope =
     session?.session_id?.trim() || session?.user?.id?.trim() || "guest";
 
-  const availabilityRefetchIntervalMs =
-    consultationMode === "VIDEO"
-      ? 5000
-      : step >= 3 && !isConnected
-        ? 10000
-        : undefined;
   const availabilityQueryKey = useMemo(
     () => [
       "doctorAvailability",
@@ -3511,9 +3505,6 @@ export function BookAppointmentDialog({
     consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON",
     {
       enabled: shouldLoadAvailability,
-      ...(availabilityRefetchIntervalMs
-        ? { refetchIntervalMs: availabilityRefetchIntervalMs }
-        : {}),
     },
   );
 

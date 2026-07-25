@@ -1505,6 +1505,10 @@ export const useDoctorAvailability = (
   }
   ) => {
     const authScope = useAppointmentQueryScope();
+    const { isConnected: socketConnected } = useWebSocketStatus();
+    const refetchInterval =
+      options?.refetchIntervalMs ?? (socketConnected ? false : 30_000);
+    const usePollingFallback = refetchInterval !== false;
     
   return useQueryData(
       ['doctorAvailability', clinicId, doctorId, date, locationId, appointmentType, authScope],
@@ -1518,11 +1522,11 @@ export const useDoctorAvailability = (
     },
     {
       enabled: !!doctorId && !!date && (options?.enabled ?? true), // Enabled for everyone, including guests
-      staleTime: options?.refetchIntervalMs ? 0 : 30 * 1000, // Video availability refreshes more aggressively
+      staleTime: usePollingFallback ? 0 : 30 * 1000,
       gcTime: 2 * 60 * 1000, // 2 minutes garbage collection
       refetchOnMount: true, // Always re-fetch when dialog opens
       refetchOnWindowFocus: false, // Don't refetch on tab switch
-      refetchInterval: options?.refetchIntervalMs ?? false,
+      refetchInterval,
       retry: appointmentQueryRetry,
       // Keep the previous slot list visible while a new date/doctor is
       // loading — without this, the slot-picker dialog flashes an empty
