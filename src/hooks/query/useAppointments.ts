@@ -24,6 +24,7 @@ import { getClinicId } from '@/lib/utils/token-manager';
 import { syncAppointmentInCache } from '@/lib/utils/appointment-cache';
 import { API_ENDPOINTS } from '@/lib/config/config';
 import { isSessionInvalidError } from '@/lib/utils/auth-recovery';
+import { getMyAppointments as getMyAppointmentsServerAction } from '@/lib/actions/appointments.server';
 
 const useAppointmentQueryScope = () => {
   const sessionId = useAuthStore((state) => state.session?.session_id?.trim() || '');
@@ -1430,26 +1431,20 @@ export const useMyAppointments = (filters?: {
 }) => {
   const { hasPermission } = useRBAC();
   const { session } = useAuth();
-  const currentClinicId = useCurrentClinicId();
   const { connectionStatus } = useWebSocketStatus();
   const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
   const userId = session?.user?.id;
   const userRole = session?.user?.role;
 
-  const hasSocketFailed =
-    connectionStatus === 'error' || connectionStatus === 'disconnected';
+  const hasSocketFailed = connectionStatus !== 'connected';
 
   const query = useQueryData(
     ['myAppointments', userId, userRole, filters],
     async (): Promise<any> => {
-      // ✅ REST path — avoids the server-action POST storm this hook used to
-      // trigger on every poll/refetch/reconnect. The backend
-      // `/appointments/my-appointments` endpoint scopes results to the
-      // authenticated session via the access token; we no longer need to
-      // resolve clinicId client-side for the patient view.
-      const clinicId = filters?.clinicId || currentClinicId;
-      const result = await clinicApiClient.getMyAppointments({
-        ...(clinicId ? { clinicId } : {}),
+      // ✅ Server-action path — this reads the session cookie on the server,
+      // which is more resilient than the client token store on WebKit/iPhone.
+      const result = await getMyAppointmentsServerAction({
+        ...(filters?.clinicId ? { clinicId: filters.clinicId } : {}),
         ...(filters?.status ? { status: Array.isArray(filters.status) ? filters.status.join(',') : filters.status } : {}),
         ...(filters?.date ? { date: filters.date } : {}),
         ...(filters?.startDate ? { startDate: filters.startDate } : {}),
@@ -1458,7 +1453,7 @@ export const useMyAppointments = (filters?: {
         ...(filters?.limit ? { limit: filters.limit } : {}),
       });
       if (!result.success) {
-        throw new Error(result.error || result.message || 'Failed to fetch appointments');
+        throw new Error(result.error || 'Failed to fetch appointments');
       }
       const successfulResult = result as any;
       const appointments = extractAppointments(successfulResult.appointments ?? successfulResult.data);
@@ -1475,11 +1470,11 @@ export const useMyAppointments = (filters?: {
     },
     {
       enabled: (options?.enabled ?? true) && !!userId && hasPermission(Permission.VIEW_APPOINTMENTS),
-      staleTime: 2 * 60 * 1000, // reuse recent appointment data across patient pages
-      gcTime: 10 * 60 * 1000,
-      refetchOnMount: false,
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
+      staleTime: 0,
+      gcTime: 5 * 60 * 1000,
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
       refetchInterval: hasSocketFailed && !isAuthRefreshing ? 2 * 60_000 : false,
       retry: appointmentQueryRetry,
       // Keep previous patient-appointment list visible during background
@@ -2194,8 +2189,9 @@ export async function prefetchMyAppointments(
     await queryClient.prefetchQuery({
       queryKey: queryKey as unknown as readonly unknown[],
       queryFn: async () => {
-        // ✅ REST path — same rationale as the live hooks above.
-        const response = await clinicApiClient.getMyAppointments({
+        // ✅ Server-action path — same rationale as the live hook above.
+        const response = await getMyAppointmentsServerAction({
+          ...(resolvedFilters?.clinicId ? { clinicId: resolvedFilters.clinicId } : {}),
           ...(filters?.status ? { status: Array.isArray(filters.status) ? filters.status.join(',') : filters.status } : {}),
           ...(filters?.date ? { date: filters.date } : {}),
           ...(filters?.startDate ? { startDate: filters.startDate } : {}),
@@ -2204,7 +2200,7 @@ export async function prefetchMyAppointments(
           ...(filters?.limit ? { limit: filters.limit } : {}),
         });
         if (!response.success) {
-          throw new Error(response.error || response.message || 'Failed to fetch appointments');
+          throw new Error(response.error || 'Failed to fetch appointments');
         }
         const successfulResult = response as any;
         const appointments = extractAppointments(

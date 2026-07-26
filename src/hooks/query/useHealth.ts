@@ -133,9 +133,10 @@ export const useDetailedHealthStatus = () => {
   const lastUpdate = useHealthStore((state) => state.lastUpdate);
   const error = useHealthStore((state) => state.error);
 
-  // Strategy: Try Socket.IO first, fallback to REST polling if Socket.IO fails
-  // Only enable REST API if Socket.IO connection has failed or is disconnected
-  const shouldUseRestFallback = connectionStatus === 'disconnected' || connectionStatus === 'error';
+  // Strategy: Try Socket.IO first, fallback to REST polling if Socket.IO is not
+  // actually connected yet. This covers iOS/WebKit cases where the socket can
+  // stay stuck in "connecting" while the page still needs live health data.
+  const shouldUseRestFallback = connectionStatus !== 'connected';
   
   const queryResult = useQueryData<DetailedHealthStatus>(
     ['detailedHealthStatus'],

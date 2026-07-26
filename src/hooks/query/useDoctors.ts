@@ -100,6 +100,8 @@ export const useDoctors = (clinicId: string, filters?: {
 }, options?: {
   enabled?: boolean;
 }) => {
+  const { connectionStatus } = useWebSocketStatus();
+  const shouldPoll = connectionStatus !== 'connected';
   const queryKey = useMemo(
     () => [
       'doctors',
@@ -199,12 +201,12 @@ export const useDoctors = (clinicId: string, filters?: {
     }
   }, {
     enabled: !!clinicId && (options?.enabled ?? true),
-    staleTime: CACHE_TIMES.STATIC,
+    staleTime: 0,
     gcTime: GC_TIMES.STATIC,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
     refetchOnReconnect: true,
-    refetchInterval: false,
+    refetchInterval: shouldPoll ? 60_000 : false,
     retry: doctorQueryRetry,
   });
 };
@@ -224,10 +226,10 @@ export const useDoctor = (doctorId: string) => {
     }
   }, {
     enabled: !!doctorId,
-    staleTime: CACHE_TIMES.STATIC,
+    staleTime: 0,
     gcTime: GC_TIMES.STATIC,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     refetchInterval: false,
     retry: doctorQueryRetry,
