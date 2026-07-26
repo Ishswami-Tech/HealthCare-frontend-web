@@ -74,6 +74,7 @@ export const useDoctors = (clinicId: string, filters?: {
         const result = await clinicApiClient.get(
           API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId),
           params,
+          { clinicId } as RequestInit & { clinicId?: string },
         );
         return Array.isArray(result.data) ? result.data : [];
       };
@@ -94,7 +95,10 @@ export const useDoctors = (clinicId: string, filters?: {
           const busted = await clinicApiClient.get(
             API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId),
             { ...(filters || {}), bust: '1' },
-            { headers: { 'X-Cache-Bust': '1' } } as RequestInit,
+            {
+              clinicId,
+              headers: { 'X-Cache-Bust': '1' },
+            } as RequestInit & { clinicId?: string },
           );
           const retryDoctors = Array.isArray(busted.data) ? busted.data : [];
           if (retryDoctors.length > 0) {

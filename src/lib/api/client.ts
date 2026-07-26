@@ -1223,6 +1223,7 @@ export class ClinicApiClient extends ApiClient {
   }
 
   async getDoctorAvailability(
+    clinicId: string,
     doctorId: string,
     date: string,
     locationId?: string,
@@ -1232,7 +1233,7 @@ export class ClinicApiClient extends ApiClient {
     if (locationId) params.locationId = locationId;
     if (appointmentType) params.type = appointmentType;
     const url = `${API_ENDPOINTS.APPOINTMENTS.DOCTOR_AVAILABILITY(doctorId)}?${new URLSearchParams(params)}`;
-    return this.publicRequest(url, { method: 'GET' });
+    return this.publicRequest(url, { method: 'GET', clinicId, requireClinicId: true });
   }
 
   async getUserUpcomingAppointments(userId: string) {

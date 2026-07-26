@@ -1513,7 +1513,13 @@ export const useDoctorAvailability = (
   return useQueryData(
       ['doctorAvailability', clinicId, doctorId, date, locationId, appointmentType, authScope],
       async (): Promise<any> => {
-        const response = await clinicApiClient.getDoctorAvailability(doctorId, date, locationId, appointmentType);
+        const response = await clinicApiClient.getDoctorAvailability(
+          clinicId,
+          doctorId,
+          date,
+          locationId,
+          appointmentType,
+        );
       if (!response.success) {
         throw new Error(response.error || 'Failed to fetch doctor availability');
       }

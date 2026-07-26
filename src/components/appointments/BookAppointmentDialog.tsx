@@ -1351,6 +1351,7 @@ interface BookAppointmentStep2Props {
   doctorsFetched: boolean;
   doctorsRefreshing: boolean;
   doctorsList: any[];
+  consultationMode: "VIDEO" | "IN_PERSON";
   selectedLocationId: string;
   selectedDoctorId: string;
   setSelectedDoctorId: React.Dispatch<React.SetStateAction<string>>;
@@ -1366,6 +1367,7 @@ function BookAppointmentStep2({
   doctorsFetched,
   doctorsRefreshing,
   doctorsList,
+  consultationMode,
   selectedLocationId,
   selectedDoctorId,
   setSelectedDoctorId,
@@ -1395,7 +1397,9 @@ function BookAppointmentStep2({
               <p className="text-xs text-amber-800/90 dark:text-amber-200/90">
                 {selectedLocationId
                   ? "This location does not currently have any bookable doctors for the selected mode."
-                  : "Please select a location to see available doctors."}
+                  : consultationMode === "VIDEO"
+                    ? "No doctors are currently available for video appointments."
+                    : "No doctors are currently available for this clinic."}
               </p>
               <p className="text-xs text-amber-800/80 dark:text-amber-200/80">
                 If doctors should be available, the list may be stale. Hard refresh to reload.
@@ -2977,13 +2981,12 @@ export function BookAppointmentDialog({
     return locations[0]?.id || "";
   }, [dialogOpen, consultationMode, locations, selectedLocationId]);
   const resolvedLocationId = selectedLocationId || autoSelectedLocationId;
-  const shouldLoadDoctors =
-    dialogOpen &&
-    !!activeClinicId &&
-    (consultationMode === "VIDEO" || !!resolvedLocationId);
+  const shouldLoadDoctors = dialogOpen && !!activeClinicId;
   const doctorsFilters = useMemo(
     () =>
-      consultationMode === "VIDEO" ? undefined : { locationId: resolvedLocationId },
+      consultationMode === "VIDEO" || !resolvedLocationId
+        ? undefined
+        : { locationId: resolvedLocationId },
     [consultationMode, resolvedLocationId],
   );
   const {
@@ -3487,11 +3490,7 @@ export function BookAppointmentDialog({
   );
 
   const shouldLoadAvailability =
-    dialogOpen &&
-    !!activeClinicId &&
-    !!resolvedDoctorId &&
-    !!dateString &&
-    (consultationMode === "VIDEO" || !!resolvedLocationId);
+    dialogOpen && !!activeClinicId && !!resolvedDoctorId && !!dateString;
   const {
     data: availability,
     isPending: availabilityLoading,
@@ -4790,6 +4789,7 @@ export function BookAppointmentDialog({
               doctorsFetched={doctorsFetched}
               doctorsRefreshing={doctorsFetching || isHardRefreshingDoctors}
               doctorsList={doctorsList}
+              consultationMode={consultationMode}
               selectedLocationId={resolvedLocationId}
               selectedDoctorId={resolvedDoctorId}
               setSelectedDoctorId={setSelectedDoctorId}
