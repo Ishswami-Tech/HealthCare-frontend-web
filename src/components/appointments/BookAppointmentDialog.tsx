@@ -2545,12 +2545,14 @@ export function BookAppointmentDialog({
   const clinicFallbackId = APP_CONFIG.CLINIC.ID?.trim() || "";
   const sessionClinicId = session?.user?.clinicId || "";
   const safeContextClinicId = contextClinicId || "";
+  const myClinicId = myClinic?.id?.trim() || "";
 
   const authClinicId =
     clinicId ||
     sessionClinicId ||
     safeContextClinicId ||
     currentClinicId ||
+    myClinicId ||
     clinicFallbackId;  // Always allow fallback to default clinic for all roles
   const resolvedClinicId = authClinicId;
   const hasExplicitClinicId = !!resolvedClinicId;
@@ -2563,6 +2565,7 @@ export function BookAppointmentDialog({
     sessionClinicId,
     safeContextClinicId,
     currentClinicId,
+    myClinicId,
     clinicFallbackId,
     authClinicId,
     resolvedClinicId,

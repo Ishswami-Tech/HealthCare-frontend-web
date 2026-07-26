@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { useMyAppointments, hasAppointmentsLoadedForSession } from "@/hooks/query/useAppointments";
-import { useAuth } from "@/hooks/auth/useAuth";
+import { useCurrentClinicId, useMyClinic } from "@/hooks/query/useClinics";
 import { PatientQueueCard } from "@/components/dashboard/PatientQueueCard";
 import AppointmentManager from "@/components/appointments/AppointmentManager";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
@@ -67,7 +67,6 @@ const TREATMENT_CATEGORIES: TreatmentCategory[] = [
 
 function PatientAppointmentsContent() {
   const { push } = useRouter();
-  const { session } = useAuth();
   useWebSocketQuerySync();
   const searchParams = useSearchParams();
   const getSearchParam = useMemo(() => searchParams.get.bind(searchParams), [searchParams]);
@@ -78,12 +77,16 @@ function PatientAppointmentsContent() {
   const shouldOpenBooking = getSearchParam("openBooking") === "1";
   const defaultConsultationMode =
     bookingMode?.toUpperCase() === "VIDEO" ? "VIDEO" : undefined;
+  const { data: myClinic } = useMyClinic();
+  const currentClinicId = useCurrentClinicId();
+  const resolvedClinicId = queryClinicId || myClinic?.id || currentClinicId || undefined;
+  const myAppointmentsFilters = resolvedClinicId ? { clinicId: resolvedClinicId } : undefined;
   const {
     data: appointmentsData,
     isPending: isPendingAppointments,
     isFetching: isFetchingAppointments,
     refetch: refetchAppointments,
-  } = useMyAppointments();
+  } = useMyAppointments(myAppointmentsFilters);
 
   // Show a loading skeleton only on the very first fetch of the session.
   // Once the cache has any appointments (initial load, dashboard prefetch, or
@@ -174,6 +177,7 @@ function PatientAppointmentsContent() {
           onOpenChange={setIsBookingDialogOpen}
           hideTrigger
           {...(defaultConsultationMode ? { initialConsultationMode: defaultConsultationMode } : {})}
+          {...(resolvedClinicId ? { clinicId: resolvedClinicId } : {})}
           {...(queryLocationId ? { locationId: queryLocationId } : {})}
           {...(queryClinicName ? { clinicName: queryClinicName } : {})}
           onBooked={() => setIsBookingDialogOpen(false)}
@@ -199,12 +203,13 @@ function PatientAppointmentsContent() {
             hideBookButton
             autoOpenBookDialog={shouldOpenBooking}
             appointmentsData={appointmentsData}
-            isAppointmentsPending={showAppointmentsSkeleton}
+          isAppointmentsPending={showAppointmentsSkeleton}
           isAppointmentsFetching={isFetchingAppointments}
           onRefreshAppointments={async () => {
             await refetchAppointments();
           }}
           {...(defaultConsultationMode ? { defaultConsultationMode } : {})}
+          {...(resolvedClinicId ? { clinicId: resolvedClinicId } : {})}
         />
         </div>
 
