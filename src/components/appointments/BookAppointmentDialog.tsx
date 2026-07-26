@@ -280,7 +280,7 @@ function getConsultationVisual(
   );
 }
 
-//  Slot grouping helper‚
+// Slot grouping helper
 
 function groupSlotsByPeriod(slots: string[]) {
   const morning: string[] = [];
@@ -319,7 +319,7 @@ const STEP_LABELS: Record<WizardStepId, string> = {
   confirm: "Confirm",
   success: "Done",
 };
-/** Each appointment slot is 3 minutes‚ 20 bookable slots per hour. */
+/** Each appointment slot is 3 minutes. 20 bookable slots per hour. */
 const IN_PERSON_APPOINTMENT_SLOT_DURATION_MINUTES = 3;
 const VIDEO_APPOINTMENT_SLOT_DURATION_MINUTES = 15;
 const VIDEO_CONSULTATION_TREATMENT_TYPE: TreatmentType = "GENERAL_CONSULTATION";
@@ -1350,8 +1350,9 @@ interface BookAppointmentStep2Props {
   doctorsLoading: boolean;
   doctorsFetched: boolean;
   doctorsRefreshing: boolean;
+  doctorsErrorMessage?: string;
   doctorsList: any[];
-  consultationMode: "VIDEO" | "IN_PERSON";
+  consultationMode: "IN_PERSON" | "VIDEO";
   selectedLocationId: string;
   selectedDoctorId: string;
   setSelectedDoctorId: React.Dispatch<React.SetStateAction<string>>;
@@ -1366,6 +1367,7 @@ function BookAppointmentStep2({
   doctorsLoading,
   doctorsFetched,
   doctorsRefreshing,
+  doctorsErrorMessage,
   doctorsList,
   consultationMode,
   selectedLocationId,
@@ -1387,6 +1389,54 @@ function BookAppointmentStep2({
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-16 rounded-xl bg-muted animate-pulse" />
           ))}
+        </div>
+      ) : doctorsErrorMessage && doctorsList.length === 0 ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50/80 p-4 text-sm text-red-900 dark:border-red-900 dark:bg-red-950/30 dark:text-red-100">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 size-5 shrink-0" />
+            <div className="flex flex-col gap-y-1">
+              <p className="font-semibold">Unable to load doctors</p>
+              <p className="text-xs text-red-800/90 dark:text-red-200/90">
+                The server did not return a usable doctor list. This is usually a temporary network, auth, or cache issue.
+              </p>
+              <p className="text-xs text-red-800/80 dark:text-red-200/80">
+                {doctorsErrorMessage}
+              </p>
+              <p className="text-xs text-red-800/80 dark:text-red-200/80">
+                Hard refresh clears the local cache and retries the clinic API.
+              </p>
+              {doctorsRefreshing && (
+                <div className="mt-1 flex items-center gap-2 text-xs font-medium text-red-800 dark:text-red-200">
+                  <Loader2 className="size-4 animate-spin" />
+                  Refreshing doctors from the server...
+                </div>
+              )}
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="default"
+                  className="h-9 rounded-lg"
+                  onClick={onHardRefresh}
+                  disabled={doctorsRefreshing}
+                >
+                  {doctorsRefreshing ? (
+                    <Loader2 className="mr-1 size-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-1 size-4" />
+                  )}
+                  {doctorsRefreshing ? "Refreshing..." : "Hard refresh"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-9 rounded-lg"
+                  onClick={goBack}
+                >
+                  Back
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       ) : doctorsList.length === 0 ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
@@ -1497,7 +1547,6 @@ function BookAppointmentStep2({
     </div>
   );
 }
-
 interface BookAppointmentStep3Props {
   selectedDate: Date | undefined;
   setSelectedDate: React.Dispatch<React.SetStateAction<Date | undefined>>;
@@ -2059,7 +2108,7 @@ function BookAppointmentStep5({
               Video visit fee
             </p>
             <p className="text-lg font-bold text-foreground">
-              ₹{videoPaymentAmount.toFixed(0)}
+              Rs. {videoPaymentAmount.toFixed(0)}
             </p>
           </div>
           <p className="text-xs text-emerald-700 dark:text-emerald-300">
@@ -2163,10 +2212,10 @@ function BookAppointmentStep5({
             }`}
           >
             {isSubscriptionGateLoading
-              ? "Weâ€žÂ¢re checking your plan before booking this in-person appointment."
+              ? "We're checking your plan before booking this in-person appointment."
               : needsSubscriptionPlan
                 ? "You need an active plan for this clinic to continue."
-                : "Weâ€žÂ¢ll verify your plan before confirming this appointment."}
+                : "We'll verify your plan before confirming this appointment."}
           </p>
         </div>
       )}
@@ -2366,7 +2415,7 @@ function BookAppointmentStep6({
   );
 }
 
-//  Component‚â‚
+// Component
 
 /**
  * Helper to get Today in IST (India Standard Time)
@@ -2871,7 +2920,7 @@ export function BookAppointmentDialog({
     },
     [],
   );
-  //‚â‚ Selections‚â‚
+  // Selections
   const [newPatient, setNewPatient] = useState({
     firstName: "",
     lastName: "",
@@ -2936,7 +2985,7 @@ export function BookAppointmentDialog({
     return String(record.appointmentId || record.id || "");
   }, []);
 
-  //  Queries‚
+  // Queries
   const {
     data: activeLocations = [],
     isPending: locationsLoading,
@@ -3035,7 +3084,7 @@ export function BookAppointmentDialog({
     }
   }, [activeClinicId, isHardRefreshingDoctors, queryClient, refetchDoctors]);
   // Only RECEPTIONIST needs the full patient list to select a patient.
-  // Patients book for themselves‚ calling this admin endpoint as a PATIENT
+  // Patients book for themselves calling this admin endpoint as a PATIENT
   // returns 403 Forbidden. Pass an empty clinicId to disable the query.
   const { data: patientsData = [] } = usePatients(
     isPrivilegedScheduler ? activeClinicId : "",
@@ -3048,7 +3097,7 @@ export function BookAppointmentDialog({
   // re-fire a server-action POST every time the parent re-renders.
   // Reading from the cache is fine because the dialog uses the profile
   // only for an authoritative `profileComplete` check on the patient
-  // record — the same key is already warmed by `DashboardLayout`.
+  // record - the same key is already warmed by `DashboardLayout`.
   const { data: currentPatientProfile } = useUserProfile(
     dialogOpen ? undefined : { enabled: false }
   );
@@ -3322,7 +3371,7 @@ export function BookAppointmentDialog({
     shouldLoadSubscriptions,
   );
 
-  //  Derived‚
+  // Derived
   const modeAppointmentType: AppointmentType =
     consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON";
   const visibleServices = useMemo(() => {
@@ -3428,6 +3477,17 @@ export function BookAppointmentDialog({
     });
   }
 
+  const doctorsErrorMessage = useMemo(() => {
+    if (!doctorsError || doctorsLoading || !doctorsFetched) {
+      return "";
+    }
+
+    if (isProfileCompletionError(doctorsError)) {
+      return "";
+    }
+
+    return doctorsError instanceof Error ? doctorsError.message : String(doctorsError);
+  }, [doctorsError, doctorsFetched, doctorsLoading]);
   const autoSelectedDoctorId = useMemo(() => {
     if (
       !dialogOpen ||
@@ -3452,6 +3512,7 @@ export function BookAppointmentDialog({
       doctorsLoading,
       doctorsFetched,
       doctorsError: doctorsError instanceof Error ? doctorsError.message : String(doctorsError),
+      doctorsErrorMessage,
       shouldLoadDoctors,
       dialogOpen,
       activeClinicId,
@@ -4098,7 +4159,7 @@ export function BookAppointmentDialog({
   );
   const selectedSlotLabel = useMemo(() => {
     if (!activeSelectedSlot) return "";
-    return `${activeSelectedSlot} · ${appointmentDurationMinutes} min`;
+    return `${activeSelectedSlot} - ${appointmentDurationMinutes} min`;
   }, [activeSelectedSlot, appointmentDurationMinutes]);
   const liveSyncMode =
     connectionStatus === "connected"
@@ -4126,7 +4187,7 @@ export function BookAppointmentDialog({
         : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300";
   const showLiveSyncBanner = APP_CONFIG.ENVIRONMENT === "development";
 
-  //  Book appointment‚â‚
+  // Book appointment
   const handleBook = useCallback(async () => {
     const selectedSlot = activeSelectedSlot;
     const appointmentDoctorId = resolvedDoctorId;
@@ -4396,7 +4457,7 @@ export function BookAppointmentDialog({
             coverage?.message ||
             coverage?.reason ||
             (requiresPayment
-              ? `Subscription coverage unavailable. Additional payment required: ₹${coverage?.paymentAmount || 0}`
+              ? `Subscription coverage unavailable. Additional payment required: Rs. ${coverage?.paymentAmount || 0}`
               : "Subscription quota exhausted or inactive.");
           redirectToSubscriptionResolution(
             reason,
@@ -4629,7 +4690,7 @@ export function BookAppointmentDialog({
     activeSteps.length,
   ]);
 
-  //  Navigation‚
+  // Navigation
   const canNext = useMemo(() => {
     if (currentStepId === "mode") {
       return (
@@ -4688,7 +4749,7 @@ export function BookAppointmentDialog({
     setPendingStepNavigation(null);
   }, [currentStepId]);
 
-  //  QR data‚
+  // QR data
   // const qrData = useMemo(() => {
   // return JSON.stringify({
   // appointmentId: bookedAppointmentId,
@@ -4709,7 +4770,7 @@ export function BookAppointmentDialog({
 
   // Step 4: Slot
 
-  //  Main render‚
+  // Main render
 
   const stepContent = (() => {
     switch (currentStepId) {
@@ -4788,6 +4849,7 @@ export function BookAppointmentDialog({
               doctorsLoading={doctorsLoading}
               doctorsFetched={doctorsFetched}
               doctorsRefreshing={doctorsFetching || isHardRefreshingDoctors}
+              doctorsErrorMessage={doctorsErrorMessage}
               doctorsList={doctorsList}
               consultationMode={consultationMode}
               selectedLocationId={resolvedLocationId}
@@ -4941,7 +5003,7 @@ export function BookAppointmentDialog({
             </DialogDescription>
           </DialogHeader>
 
-          {/* Step bar‚ hide on success screen */}
+          {/* Step bar hide on success screen */}
           {!isSuccessStep && (
             <div className="mt-2 overflow-x-auto pb-1 sm:mt-3">
               <BookAppointmentStepBar
@@ -4974,7 +5036,7 @@ export function BookAppointmentDialog({
           </LazyMotion>
         </div>
 
-        {/* Footer‚ hide on success screen */}
+        {/* Footer hide on success screen */}
         {!isSuccessStep && (
           <div className="px-3 sm:px-6 py-3 sm:py-4 border-t bg-background flex flex-col-reverse gap-2.5 sm:flex-row sm:items-center sm:gap-4 shrink-0">
             <Button
@@ -5027,7 +5089,7 @@ export function BookAppointmentDialog({
                   ? "Payment in progress"
                   : consultationMode === "VIDEO"
                     ? shouldCollectVideoPayment
-                      ? `Create appointment and pay ₹${videoPaymentAmount.toFixed(0)}`
+                      ? `Create appointment and pay Rs. ${videoPaymentAmount.toFixed(0)}`
                       : "Book Video Appointment"
                     : needsSubscriptionPlan
                       ? "Choose plan to continue"
