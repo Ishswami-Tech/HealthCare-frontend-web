@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import type { ComponentType } from "react";
@@ -78,22 +78,18 @@ function PatientAppointmentsContent() {
   const shouldOpenBooking = getSearchParam("openBooking") === "1";
   const defaultConsultationMode =
     bookingMode?.toUpperCase() === "VIDEO" ? "VIDEO" : undefined;
-  const sessionClinicId = session?.user?.clinicId || "";
-  const resolvedClinicId = queryClinicId || sessionClinicId || undefined;
   const {
     data: appointmentsData,
     isPending: isPendingAppointments,
     isFetching: isFetchingAppointments,
     refetch: refetchAppointments,
-  } = useMyAppointments(
-    resolvedClinicId ? { clinicId: resolvedClinicId } : undefined
-  );
+  } = useMyAppointments();
 
   // Show a loading skeleton only on the very first fetch of the session.
   // Once the cache has any appointments (initial load, dashboard prefetch, or
   // sidebar hover-warm), `placeholderData: keepPreviousData` keeps the list
   // visible across refetches, filter changes, and remounts. Background
-  // `isFetching` does NOT count as loading here — otherwise the list would
+  // `isFetching` does NOT count as loading here â€” otherwise the list would
   // flash a skeleton on every window focus or reconnect.
   const hasCachedAppointments = useMemo(() => {
     if (!appointmentsData) return false;
@@ -178,7 +174,6 @@ function PatientAppointmentsContent() {
           onOpenChange={setIsBookingDialogOpen}
           hideTrigger
           {...(defaultConsultationMode ? { initialConsultationMode: defaultConsultationMode } : {})}
-          {...(resolvedClinicId ? { clinicId: resolvedClinicId } : {})}
           {...(queryLocationId ? { locationId: queryLocationId } : {})}
           {...(queryClinicName ? { clinicName: queryClinicName } : {})}
           onBooked={() => setIsBookingDialogOpen(false)}
@@ -187,7 +182,7 @@ function PatientAppointmentsContent() {
         {isBookingDialogOpening && (
           <div className="mb-4 flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">
             <Loader2 className="size-4 animate-spin text-primary" />
-            <p className="text-sm font-medium text-muted-foreground">Opening booking dialog…</p>
+            <p className="text-sm font-medium text-muted-foreground">Opening booking dialogâ€¦</p>
           </div>
         )}
 
@@ -205,13 +200,12 @@ function PatientAppointmentsContent() {
             autoOpenBookDialog={shouldOpenBooking}
             appointmentsData={appointmentsData}
             isAppointmentsPending={showAppointmentsSkeleton}
-            isAppointmentsFetching={isFetchingAppointments}
-            onRefreshAppointments={async () => {
-              await refetchAppointments();
-            }}
-            {...(defaultConsultationMode ? { defaultConsultationMode } : {})}
-            {...(resolvedClinicId ? { clinicId: resolvedClinicId } : {})}
-          />
+          isAppointmentsFetching={isFetchingAppointments}
+          onRefreshAppointments={async () => {
+            await refetchAppointments();
+          }}
+          {...(defaultConsultationMode ? { defaultConsultationMode } : {})}
+        />
         </div>
 
         <Card className="border border-border bg-card shadow-sm">
