@@ -1430,6 +1430,7 @@ export const useMyAppointments = (filters?: {
 }) => {
   const { hasPermission } = useRBAC();
   const { session } = useAuth();
+  const currentClinicId = useCurrentClinicId();
   const { connectionStatus } = useWebSocketStatus();
   const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
   const userId = session?.user?.id;
@@ -1446,7 +1447,9 @@ export const useMyAppointments = (filters?: {
       // `/appointments/my-appointments` endpoint scopes results to the
       // authenticated session via the access token; we no longer need to
       // resolve clinicId client-side for the patient view.
+      const clinicId = filters?.clinicId || currentClinicId;
       const result = await clinicApiClient.getMyAppointments({
+        ...(clinicId ? { clinicId } : {}),
         ...(filters?.status ? { status: Array.isArray(filters.status) ? filters.status.join(',') : filters.status } : {}),
         ...(filters?.date ? { date: filters.date } : {}),
         ...(filters?.startDate ? { startDate: filters.startDate } : {}),

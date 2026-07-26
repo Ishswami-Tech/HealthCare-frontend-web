@@ -559,6 +559,7 @@ export class ApiClient {
       const duration = Date.now() - startTime;
       trackApiCall(url, config.method || 'GET', response.status, duration, undefined, undefined, undefined);
       logger.debug('API Request Success', { url, status: response.status, duration });
+      logger.debug('API Response Received', { url, status: response.status, duration, requestId: response.headers.get('X-Request-ID') });
 
       return result;
     } catch (error) {

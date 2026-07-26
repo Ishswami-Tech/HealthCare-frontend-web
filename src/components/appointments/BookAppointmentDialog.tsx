@@ -3055,9 +3055,30 @@ export function BookAppointmentDialog({
   const [pendingStepNavigation, setPendingStepNavigation] = useState<
     "forward" | "backward" | null
   >(null);
+  const doctorAutoRefreshRef = useRef(false);
   const doctorsRefreshing =
     doctorsLoading || doctorsFetching || isHardRefreshingDoctors;
 
+  useEffect(() => {
+    if (!dialogOpen) {
+      doctorAutoRefreshRef.current = false;
+      return;
+    }
+
+    if (doctorsLoading || doctorsFetching || isHardRefreshingDoctors) {
+      return;
+    }
+
+    if (doctorAutoRefreshRef.current) {
+      return;
+    }
+
+    if (doctorsFetched && Array.isArray(doctorsData) && doctorsData.length === 0) {
+      doctorAutoRefreshRef.current = true;
+      queryClient.invalidateQueries({ queryKey: ["doctors", activeClinicId] });
+      void refetchDoctors({ cancelRefetch: true });
+    }
+  }, [activeClinicId, dialogOpen, doctorsData, doctorsFetched, doctorsFetching, doctorsLoading, isHardRefreshingDoctors, queryClient, refetchDoctors]);
   const handleHardRefreshDoctors = useCallback(async () => {
     if (isHardRefreshingDoctors) {
       return;
@@ -3573,6 +3594,15 @@ export function BookAppointmentDialog({
     availabilityLoading &&
     !availability &&
     !availabilityError;
+
+  useEffect(() => {
+    if (!dialogOpen || !resolvedDoctorId || !dateString) {
+      return;
+    }
+
+    queryClient.invalidateQueries({ queryKey: availabilityQueryKey, exact: true });
+    void refetchAvailability({ cancelRefetch: true });
+  }, [availabilityQueryKey, dateString, dialogOpen, queryClient, refetchAvailability, resolvedDoctorId]);
   const patientsList: any[] = useMemo(() => {
     const rawPatients = Array.isArray(patientsData)
       ? patientsData
