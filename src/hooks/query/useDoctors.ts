@@ -28,6 +28,63 @@ const doctorQueryRetry = (failureCount: number, error: unknown) => {
   return failureCount < 2;
 };
 
+const normalizeDoctorRows = (payload: unknown): any[] => {
+  const extractRows = (value: unknown): unknown[] => {
+    if (Array.isArray(value)) {
+      return value;
+    }
+
+    if (!value || typeof value !== "object") {
+      return [];
+    }
+
+    const record = value as {
+      doctor?: unknown;
+      doctors?: unknown;
+      data?: unknown;
+      items?: unknown;
+      results?: unknown;
+    };
+
+    if (Array.isArray(record.doctors)) return record.doctors;
+    if (Array.isArray(record.items)) return record.items;
+    if (Array.isArray(record.results)) return record.results;
+    if (Array.isArray(record.data)) return record.data;
+    if (record.doctor && typeof record.doctor === "object") return [record.doctor];
+
+    if (record.data && typeof record.data === "object") {
+      const nested = record.data as {
+        doctor?: unknown;
+        doctors?: unknown;
+        data?: unknown;
+        items?: unknown;
+        results?: unknown;
+      };
+      if (Array.isArray(nested.doctors)) return nested.doctors;
+      if (Array.isArray(nested.items)) return nested.items;
+      if (Array.isArray(nested.results)) return nested.results;
+      if (Array.isArray(nested.data)) return nested.data;
+      if (nested.doctor && typeof nested.doctor === "object") return [nested.doctor];
+    }
+
+    return [];
+  };
+
+  const rows = extractRows(payload);
+
+  return rows.map((row: any) => {
+    const doctor = row?.doctor ?? row;
+    const user = doctor?.user ?? row?.user ?? {};
+    return {
+      ...doctor,
+      id: doctor?.id ?? row?.id ?? "",
+      userId: user?.id ?? row?.userId ?? "",
+      name: user?.name ?? doctor?.name ?? `Dr. ${(doctor?.id ?? row?.id ?? "").slice(0, 6)}`,
+      specialization: doctor?.specialization ?? "",
+      image: user?.profilePicture ?? doctor?.profilePicture ?? row?.profilePicture ?? "",
+    };
+  });
+};
 // ===== DOCTORS QUERY HOOKS =====
 
 /**
@@ -68,25 +125,6 @@ export const useDoctors = (clinicId: string, filters?: {
   // Build a stable query key from primitive values so fresh object literals
   // do not fragment the cache or trigger unnecessary refetches.
 
-  const normalizeDoctorRows = (rows: unknown): any[] => {
-    if (!Array.isArray(rows)) {
-      return [];
-    }
-
-    return rows.map((row: any) => {
-      const doctor = row?.doctor ?? row;
-      const user = doctor?.user ?? row?.user ?? {};
-      return {
-        ...doctor,
-        id: doctor?.id ?? row?.id ?? "",
-        userId: user?.id ?? row?.userId ?? "",
-        name: user?.name ?? doctor?.name ?? `Dr. ${(doctor?.id ?? row?.id ?? "").slice(0, 6)}`,
-        specialization: doctor?.specialization ?? "",
-        image: user?.profilePicture ?? doctor?.profilePicture ?? row?.profilePicture ?? "",
-      };
-    });
-  };
-
   return useQueryData(queryKey, async () => {
     try {
       const queryDoctors = async (params?: typeof filters) => {
@@ -95,7 +133,7 @@ export const useDoctors = (clinicId: string, filters?: {
           params,
           { clinicId } as RequestInit & { clinicId?: string },
         );
-        return normalizeDoctorRows(result.data);
+        return normalizeDoctorRows(result);
       };
 
       const hasLocationOnlyFilter =
@@ -106,7 +144,7 @@ export const useDoctors = (clinicId: string, filters?: {
 
       let doctors = await queryDoctors(filters);
 
-      // ✅ Fallback: if the cached response returned an empty list, retry
+      // Ã¢Å“â€¦ Fallback: if the cached response returned an empty list, retry
       // once with cache-bust headers to recover from a stale empty cache
       // (e.g., doctor was added after the cache was first populated).
       if (doctors.length === 0) {
@@ -119,7 +157,7 @@ export const useDoctors = (clinicId: string, filters?: {
               headers: { 'X-Cache-Bust': '1' },
             } as RequestInit & { clinicId?: string },
           );
-          const retryDoctors = normalizeDoctorRows(busted.data);
+          const retryDoctors = normalizeDoctorRows(busted);
           if (retryDoctors.length > 0) {
             console.log('[useDoctors] Cache-bust retry recovered doctors:', retryDoctors.length);
             doctors = retryDoctors;
@@ -732,7 +770,7 @@ export const useCurrentDoctorEntityId = (clinicId?: string) => {
     async () => {
       if (!clinicId) return [];
       const result = await clinicApiClient.get(API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId));
-      return Array.isArray(result.data) ? result.data : [];
+      return normalizeDoctorRows(result);
     },
     { enabled: !!clinicId }
   );
