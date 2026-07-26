@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/auth/useAuth';
 import { clinicApiClient } from '@/lib/api/client';
 import { API_ENDPOINTS } from '@/lib/config/config';
 import { getDoctors as getDoctorsServerAction } from '@/lib/actions/doctors.server';
+import { resolveDisplayNameAndInitials } from '@/lib/utils/display-name';
 import { usePatientStore } from '@/stores';
 import { useAuthStore } from '@/stores/auth.store';
 import { useCurrentClinicId } from './useClinics';
@@ -76,11 +77,18 @@ const normalizeDoctorRows = (payload: unknown): any[] => {
   return rows.map((row: any) => {
     const doctor = row?.doctor ?? row;
     const user = doctor?.user ?? row?.user ?? {};
+    const resolvedDoctorName = resolveDisplayNameAndInitials({
+      firstName: doctor?.firstName ?? row?.firstName ?? user?.firstName,
+      lastName: doctor?.lastName ?? row?.lastName ?? user?.lastName,
+      name: user?.name ?? doctor?.name ?? row?.name,
+      email: user?.email ?? doctor?.email ?? row?.email,
+      role: 'DOCTOR',
+    }).displayName;
     return {
       ...doctor,
       id: doctor?.id ?? row?.id ?? "",
       userId: user?.id ?? row?.userId ?? "",
-      name: user?.name ?? doctor?.name ?? `Dr. ${(doctor?.id ?? row?.id ?? "").slice(0, 6)}`,
+      name: resolvedDoctorName === 'User' ? 'Doctor' : resolvedDoctorName,
       specialization: doctor?.specialization ?? "",
       image: user?.profilePicture ?? doctor?.profilePicture ?? row?.profilePicture ?? "",
     };

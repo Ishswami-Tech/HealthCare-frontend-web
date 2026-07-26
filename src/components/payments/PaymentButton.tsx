@@ -22,7 +22,10 @@ import {
 import { formatAmountFromMinorUnits } from "@/lib/utils";
 import { getClinicId } from "@/lib/utils/token-manager";
 import { syncAppointmentInCache } from "@/lib/utils/appointment-cache";
-import { clinicApiClient } from "@/lib/api/client";
+import {
+  createPaymentIntent as createPaymentIntentServerAction,
+  verifyPaymentCallback as verifyPaymentCallbackServerAction,
+} from "@/lib/actions/billing.server";
 
 const BILLING_QUERY_KEYS = [
   ["invoices"],
@@ -330,32 +333,27 @@ export function PaymentButton({
   const getPaymentIntent = async (
     requestedProvider: PaymentProvider,
   ): Promise<PaymentIntentResponse> => {
-    const providerQuery = `?provider=${requestedProvider}`;
     if (subscriptionId) {
-      return await clinicApiClient.request<PaymentIntentResponse>(
-        `${API_ENDPOINTS.BILLING.SUBSCRIPTIONS.BASE}/${subscriptionId}/process-payment${providerQuery}`,
-        { method: "POST" },
-      );
+      return (await createPaymentIntentServerAction({
+        provider: requestedProvider,
+        subscriptionId,
+      })) as PaymentIntentResponse;
     } else if (appointmentId) {
-      return await clinicApiClient.request<PaymentIntentResponse>(
-        `${API_ENDPOINTS.BILLING.APPOINTMENT_PAYMENTS.PROCESS_PAYMENT(appointmentId)}${providerQuery}`,
-        {
-          method: "POST",
-          ...(appointmentType
-            ? { body: JSON.stringify({ appointmentType }) }
-            : {}),
-        },
-      );
+      return (await createPaymentIntentServerAction({
+        provider: requestedProvider,
+        appointmentId,
+        ...(appointmentType ? { appointmentType } : {}),
+      })) as PaymentIntentResponse;
     } else if (invoiceId) {
-      return await clinicApiClient.request<PaymentIntentResponse>(
-        `${API_ENDPOINTS.BILLING.INVOICES.PROCESS_PAYMENT(invoiceId)}${providerQuery}`,
-        { method: "POST" },
-      );
+      return (await createPaymentIntentServerAction({
+        provider: requestedProvider,
+        invoiceId,
+      })) as PaymentIntentResponse;
     } else if (prescriptionId) {
-      return await clinicApiClient.request<PaymentIntentResponse>(
-        `${API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.PROCESS_PAYMENT(prescriptionId)}${providerQuery}`,
-        { method: "POST" },
-      );
+      return (await createPaymentIntentServerAction({
+        provider: requestedProvider,
+        prescriptionId,
+      })) as PaymentIntentResponse;
     } else {
       throw new Error(
         "Either invoiceId, appointmentId, subscriptionId, or prescriptionId is required",
@@ -586,27 +584,15 @@ export function PaymentButton({
       clinicId: string;
     },
   ) => {
-    const queryParams = new URLSearchParams({
+    const verifyResponse = await verifyPaymentCallbackServerAction({
       clinicId: params.clinicId,
       paymentId: params.paymentId || params.orderId,
       orderId: params.orderId,
       provider: usedProvider,
     });
-    const verifyResponse = await clinicApiClient.publicRequest<
-      Record<string, unknown>
-    >(`${API_ENDPOINTS.BILLING.PAYMENTS.CALLBACK}?${queryParams.toString()}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Clinic-ID": params.clinicId,
-      },
-      body: JSON.stringify({ orderId: params.orderId }),
-    });
     if (!verifyResponse.success) {
       throw new Error(
-        verifyResponse.error ||
-          (verifyResponse as any).message ||
-          "Payment verification failed",
+        verifyResponse.error || verifyResponse.message || "Payment verification failed",
       );
     }
     return verifyResponse;

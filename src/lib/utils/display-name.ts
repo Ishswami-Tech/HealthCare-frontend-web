@@ -9,6 +9,7 @@ function isGenericIdentityToken(value: string): boolean {
     "patient",
     "user",
     "doctor",
+    "other",
     "member",
     "account",
     "guest",

@@ -90,6 +90,7 @@ import { ROUTES } from "@/lib/config/routes";
 import { theme } from "@/lib/utils/theme-utils";
 import { cn } from "@/lib/utils";
 import { formatISODateInIST } from "@/lib/utils/date-time";
+import { resolveDisplayNameAndInitials } from "@/lib/utils/display-name";
 import { format } from "date-fns";
 import { AppointmentStepWrapper } from "@/components/appointments/AppointmentStepWrapper";
 import { syncAppointmentInCache } from "@/lib/utils/appointment-cache";
@@ -3478,11 +3479,18 @@ export function BookAppointmentDialog({
       raw.map((u: any) => {
         const doctor = u.doctor || u;
         const user = doctor.user || u;
+        const resolvedDoctorName = resolveDisplayNameAndInitials({
+          firstName: doctor.firstName || user.firstName,
+          lastName: doctor.lastName || user.lastName,
+          name: user.name || doctor.name,
+          email: user.email || doctor.email,
+          role: "DOCTOR",
+        }).displayName;
         return {
           ...doctor,
           id: doctor.id || u.id,
           userId: user.id || u.userId,
-          name: user.name || doctor.name || `Dr. ${(doctor.id || u.id || '').slice(0, 6)}`,
+          name: resolvedDoctorName === "User" ? `Doctor` : resolvedDoctorName,
           specialization: doctor.specialization || "",
           image: user.profilePicture || doctor.profilePicture || u.profilePicture || "",
         };
