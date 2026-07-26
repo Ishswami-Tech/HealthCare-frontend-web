@@ -40,6 +40,15 @@ const BILLING_QUERY_KEYS = [
   ["patientDashboardSummary"],
 ] as const;
 
+const IN_APP_PAYMENT_PROVIDERS: PaymentProvider[] = ["cashfree", "razorpay"];
+const REDIRECT_PAYMENT_PROVIDERS: PaymentProvider[] = [
+  "phonepe",
+  "zoho",
+  "easebuzz",
+  "paytm",
+  "payu",
+];
+
 // Fast timeouts for better UX
 const CASHFREE_LOAD_TIMEOUT_MS = 8000;
 const CASHFREE_CHECKOUT_TIMEOUT_MS = 10000;
@@ -317,13 +326,25 @@ export function PaymentButton({
       addAttempt(provider);
     }
 
-    for (const candidate of ENABLED_PAYMENT_PROVIDERS) {
-      if (candidate !== "cashfree") {
+    for (const candidate of IN_APP_PAYMENT_PROVIDERS) {
+      if (candidate !== provider) {
         addAttempt(candidate);
       }
     }
 
-    if (!attempts.length || !attempts.includes("cashfree")) {
+    for (const candidate of REDIRECT_PAYMENT_PROVIDERS) {
+      if (candidate !== provider) {
+        addAttempt(candidate);
+      }
+    }
+
+    for (const candidate of ENABLED_PAYMENT_PROVIDERS) {
+      if (candidate !== provider) {
+        addAttempt(candidate);
+      }
+    }
+
+    if (!attempts.length) {
       addAttempt("cashfree");
     }
 
@@ -727,13 +748,6 @@ export function PaymentButton({
       throw new Error("Clinic context is required for payment verification");
     }
 
-    if (
-      launchPaymentBridge(buildBridgePayload(resolvedClinicId, paymentIntent))
-    ) {
-      setIsProcessing(false);
-      return;
-    }
-
     console.info("[PaymentButton] Cashfree checkout diagnostics", {
       usedProvider,
       cashfreeMode,
@@ -837,12 +851,6 @@ export function PaymentButton({
     usedProvider: PaymentProvider,
     resolvedClinicId: string,
   ) => {
-    if (
-      launchPaymentBridge(buildBridgePayload(resolvedClinicId, paymentIntent))
-    ) {
-      return;
-    }
-
     const metadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
     const providerResponse =
       (paymentIntent?.providerResponse as Record<string, unknown>) || {};

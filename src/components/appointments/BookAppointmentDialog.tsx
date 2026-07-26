@@ -1568,14 +1568,21 @@ function BookAppointmentStep3({
       <p className="text-sm text-muted-foreground">
         Pick your preferred appointment date
       </p>
-      <div className="flex justify-center w-full max-w-sm mx-auto">
+      <div className="flex justify-center w-full max-w-sm mx-auto book-dialog-calendar-container">
+        <style dangerouslySetInnerHTML={{ __html: `
+          .book-dialog-calendar-container .rdp-week,
+          .book-dialog-calendar-container .rdp-weekdays {
+            display: grid !important;
+            grid-template-columns: repeat(7, 1fr) !important;
+            width: 100% !important;
+          }
+          .book-dialog-calendar-container .rdp-day_button {
+            height: var(--cell-size) !important;
+            width: var(--cell-size) !important;
+            aspect-ratio: auto !important;
+          }
+        `}} />
         <Calendar
-          classNames={{
-            week: "grid grid-cols-7 w-full mt-3",
-            weekdays: "grid grid-cols-7 w-full gap-x-1",
-            weekday: "text-muted-foreground/70 dark:text-muted-foreground/60 rounded-md font-medium text-xs uppercase tracking-widest select-none text-center flex items-center justify-center",
-            day: "relative p-0 text-center [&:last-child[data-selected=true]_button]:rounded-r-full group/day select-none h-full"
-          }}
           mode="single"
           selected={selectedDate}
           onSelect={(d) => {

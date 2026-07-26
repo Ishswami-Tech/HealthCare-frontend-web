@@ -164,6 +164,14 @@ function PaymentCallbackPageContent() {
     return getRolePaymentsRoute(user?.role);
   }, [user?.role, params.appointmentId, params.appointmentType]);
 
+  const hardRedirect = (url: string) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.location.replace(url);
+  };
+
   useEffect(() => {
     const verify = async () => {
       try {
@@ -341,7 +349,7 @@ function PaymentCallbackPageContent() {
           if (params.provider) {
             targetUrl.searchParams.set("provider", params.provider);
           }
-          replace(targetUrl.toString());
+          hardRedirect(targetUrl.toString());
         }
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
@@ -373,7 +381,7 @@ function PaymentCallbackPageContent() {
     }
 
     if (secondsLeft <= 0) {
-      replace(redirectPath);
+      hardRedirect(redirectPath);
       return;
     }
 
@@ -405,7 +413,7 @@ function PaymentCallbackPageContent() {
               The payment could not be verified. Please review the error above
               and try again.
             </p>
-            <Button className="w-full" onClick={() => replace(redirectPath)}>
+            <Button className="w-full" onClick={() => hardRedirect(redirectPath)}>
               Go back
             </Button>
           </div>
@@ -416,7 +424,7 @@ function PaymentCallbackPageContent() {
               Payment is confirmed. You will be redirected in {secondsLeft ?? 0}{" "}
               seconds.
             </p>
-            <Button className="w-full" onClick={() => replace(redirectPath)}>
+            <Button className="w-full" onClick={() => hardRedirect(redirectPath)}>
               Go to{" "}
               {params.appointmentType === "VIDEO_CALL"
                 ? "video appointments"
