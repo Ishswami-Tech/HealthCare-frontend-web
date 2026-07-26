@@ -1,6 +1,8 @@
 import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { getServerSession } from "@/lib/actions/auth.server";
+import { getUserProfile } from "@/lib/actions/users.server";
+import { fetchPatientDashboardSummary } from "@/lib/actions/patient-dashboard.server";
 import { clinicApiClient } from "@/lib/api/client";
 import { queryClientConfig } from "@/hooks/query/config";
 import { getAppointmentQueryKey } from "@/lib/query/appointment-query-keys";
@@ -30,7 +32,7 @@ async function buildDashboardHydrationState() {
     const tasks: Promise<unknown>[] = [
       queryClient.prefetchQuery({
         queryKey: ["userProfile"],
-        queryFn: async () => (await clinicApiClient.getProfile()).data,
+        queryFn: async () => await getUserProfile(),
         staleTime: 5 * 60 * 1000,
       }),
       queryClient.prefetchQuery({
@@ -44,7 +46,10 @@ async function buildDashboardHydrationState() {
       tasks.push(
         queryClient.prefetchQuery({
           queryKey: ["patientDashboardSummary", user.id, clinicId],
-          queryFn: async () => (await clinicApiClient.getPatientDashboardSummary()).data,
+          queryFn: async () => {
+            const result = await fetchPatientDashboardSummary();
+            return result.success ? result.data : null;
+          },
           staleTime: 60 * 1000,
         })
       );

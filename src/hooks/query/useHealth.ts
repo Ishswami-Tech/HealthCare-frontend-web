@@ -1,8 +1,8 @@
 import { useQueryData } from '../core/useQueryData';
-import { clinicApiClient } from '@/lib/api/client';
 import { useHealthRealtime } from '../realtime/useHealthRealtime';
 import { useHealthStore } from '@/stores';
 import { useEffect } from 'react';
+import { getDetailedHealthStatus as getDetailedHealthStatusServerAction } from '@/lib/actions/health.server';
 
 // Detailed health check response type matching backend structure
 export interface DetailedHealthStatus {
@@ -141,8 +141,7 @@ export const useDetailedHealthStatus = () => {
   const queryResult = useQueryData<DetailedHealthStatus>(
     ['detailedHealthStatus'],
     async () => {
-      const result = await clinicApiClient.getDetailedHealth();
-      return (result.data ?? result) as DetailedHealthStatus;
+      return await getDetailedHealthStatusServerAction();
     },
     { 
       // Only use REST polling as fallback when Socket.IO fails

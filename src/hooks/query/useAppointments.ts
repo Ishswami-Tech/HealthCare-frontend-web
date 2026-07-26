@@ -27,6 +27,7 @@ import { isSessionInvalidError } from '@/lib/utils/auth-recovery';
 import {
   getMyAppointments as getMyAppointmentsServerAction,
   getAppointmentServiceCatalog as getAppointmentServiceCatalogServerAction,
+  getDoctorAvailability as getDoctorAvailabilityServerAction,
 } from '@/lib/actions/appointments.server';
 
 const useAppointmentQueryScope = () => {
@@ -1513,18 +1514,17 @@ export const useDoctorAvailability = (
   return useQueryData(
       ['doctorAvailability', clinicId, doctorId, date, locationId, appointmentType, authScope],
       async (): Promise<any> => {
-        const response = await clinicApiClient.getDoctorAvailability(
+        const response = await getDoctorAvailabilityServerAction(
           clinicId,
           doctorId,
           date,
           locationId,
           appointmentType,
         );
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to fetch doctor availability');
-      }
-      const responseRecord = response as any;
-      return responseRecord.availability ?? responseRecord.data?.availability ?? responseRecord.data as any;
+        if (!response.success) {
+          throw new Error(response.error || 'Failed to fetch doctor availability');
+        }
+        return response.availability as any;
     },
     {
       enabled: !!doctorId && !!date && (options?.enabled ?? true), // Enabled for everyone, including guests

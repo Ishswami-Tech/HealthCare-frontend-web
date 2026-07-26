@@ -75,7 +75,7 @@ import {
 import { useWebSocketContext } from "@/app/providers/WebSocketProvider";
 import { useRBAC } from "@/hooks/utils/useRBAC";
 import { getAppointmentStatsQueryKey } from "@/lib/query/appointment-query-keys";
-import { updateUserProfile } from "@/lib/actions/users.server";
+import { getUserProfile, updateUserProfile } from "@/lib/actions/users.server";
 import { clinicApiClient } from "@/lib/api/client";
 import {
   dismissToast,
@@ -1569,6 +1569,12 @@ function BookAppointmentStep3({
       </p>
       <div className="flex justify-center w-full max-w-sm mx-auto">
         <Calendar
+          classNames={{
+            week: "grid grid-cols-7 w-full mt-3",
+            weekdays: "grid grid-cols-7 w-full gap-x-1",
+            weekday: "text-muted-foreground/70 dark:text-muted-foreground/60 rounded-md font-medium text-xs uppercase tracking-widest select-none text-center flex items-center justify-center",
+            day: "relative p-0 text-center [&:last-child[data-selected=true]_button]:rounded-r-full group/day select-none h-full"
+          }}
           mode="single"
           selected={selectedDate}
           onSelect={(d) => {
@@ -4306,10 +4312,7 @@ export function BookAppointmentDialog({
           cachedProfile ||
           ((await queryClient.fetchQuery({
             queryKey: ["userProfile"],
-            queryFn: async () => {
-              const response = await clinicApiClient.getProfile();
-              return response.data;
-            },
+            queryFn: async () => await getUserProfile(),
           })) as Record<string, unknown> | undefined);
 
         bookingPatientId =
