@@ -68,6 +68,25 @@ export const useDoctors = (clinicId: string, filters?: {
   // Build a stable query key from primitive values so fresh object literals
   // do not fragment the cache or trigger unnecessary refetches.
 
+  const normalizeDoctorRows = (rows: unknown): any[] => {
+    if (!Array.isArray(rows)) {
+      return [];
+    }
+
+    return rows.map((row: any) => {
+      const doctor = row?.doctor ?? row;
+      const user = doctor?.user ?? row?.user ?? {};
+      return {
+        ...doctor,
+        id: doctor?.id ?? row?.id ?? "",
+        userId: user?.id ?? row?.userId ?? "",
+        name: user?.name ?? doctor?.name ?? `Dr. ${(doctor?.id ?? row?.id ?? "").slice(0, 6)}`,
+        specialization: doctor?.specialization ?? "",
+        image: user?.profilePicture ?? doctor?.profilePicture ?? row?.profilePicture ?? "",
+      };
+    });
+  };
+
   return useQueryData(queryKey, async () => {
     try {
       const queryDoctors = async (params?: typeof filters) => {
@@ -76,7 +95,7 @@ export const useDoctors = (clinicId: string, filters?: {
           params,
           { clinicId } as RequestInit & { clinicId?: string },
         );
-        return Array.isArray(result.data) ? result.data : [];
+        return normalizeDoctorRows(result.data);
       };
 
       const hasLocationOnlyFilter =
@@ -100,7 +119,7 @@ export const useDoctors = (clinicId: string, filters?: {
               headers: { 'X-Cache-Bust': '1' },
             } as RequestInit & { clinicId?: string },
           );
-          const retryDoctors = Array.isArray(busted.data) ? busted.data : [];
+          const retryDoctors = normalizeDoctorRows(busted.data);
           if (retryDoctors.length > 0) {
             console.log('[useDoctors] Cache-bust retry recovered doctors:', retryDoctors.length);
             doctors = retryDoctors;
@@ -709,10 +728,11 @@ export const useCurrentDoctorEntityId = (clinicId?: string) => {
   const authenticatedUserId = session?.user?.id || '';
   const authenticatedEmail = session?.user?.email?.toLowerCase() || '';
   const clinicDoctors = useQueryData(
-    ['clinicDoctors', clinicId],
+    ["clinicDoctors", clinicId],
     async () => {
       if (!clinicId) return [];
-      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId));
+      const result = await clinicApiClient.get(API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId));
+      return Array.isArray(result.data) ? result.data : [];
     },
     { enabled: !!clinicId }
   );
@@ -720,13 +740,14 @@ export const useCurrentDoctorEntityId = (clinicId?: string) => {
   const doctorId = useMemo(() => {
     const doctors: any[] = Array.isArray(clinicDoctors.data) ? (clinicDoctors.data as any[]) : [];
     const matchedDoctor = doctors.find((doctor: any) => {
-      const doctorUserId = doctor.userId || doctor.user?.id || '';
-      const doctorEmail = doctor.user?.email?.toLowerCase() || '';
+      const doctorUserId = doctor.userId || doctor.user?.id || doctor.doctor?.userId || doctor.doctor?.user?.id || '';
+      const doctorEmail = doctor.user?.email?.toLowerCase() || doctor.doctor?.user?.email?.toLowerCase() || '';
       return doctorUserId === authenticatedUserId || (authenticatedEmail && doctorEmail === authenticatedEmail);
     });
 
-    return matchedDoctor?.id || '';
+    return matchedDoctor?.id || matchedDoctor?.doctor?.id || '';
   }, [authenticatedEmail, authenticatedUserId, clinicDoctors.data]);
+
 
   return {
     doctorId,
