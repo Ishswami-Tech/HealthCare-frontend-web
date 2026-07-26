@@ -9,6 +9,7 @@ import { CACHE_TIMES, GC_TIMES } from './config';
 import { useAuth } from '@/hooks/auth/useAuth';
 import { clinicApiClient } from '@/lib/api/client';
 import { API_ENDPOINTS } from '@/lib/config/config';
+import { getDoctors as getDoctorsServerAction } from '@/lib/actions/doctors.server';
 import { usePatientStore } from '@/stores';
 import { useAuthStore } from '@/stores/auth.store';
 import { useCurrentClinicId } from './useClinics';
@@ -130,12 +131,9 @@ export const useDoctors = (clinicId: string, filters?: {
   return useQueryData(queryKey, async () => {
     try {
       const queryDoctors = async (params?: typeof filters) => {
-        const result = await clinicApiClient.get(
-          API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId),
-          params,
-          { clinicId } as RequestInit & { clinicId?: string },
+        return normalizeDoctorRows(
+          await getDoctorsServerAction(clinicId, params)
         );
-        return normalizeDoctorRows(result);
       };
 
       const hasLocationOnlyFilter =
@@ -145,30 +143,6 @@ export const useDoctors = (clinicId: string, filters?: {
         typeof filters?.isActive === 'undefined';
 
       let doctors = await queryDoctors(filters);
-
-      // Ã¢Å“â€¦ Fallback: if the cached response returned an empty list, retry
-      // once with cache-bust headers to recover from a stale empty cache
-      // (e.g., doctor was added after the cache was first populated).
-      if (doctors.length === 0) {
-        try {
-          const busted = await clinicApiClient.get(
-            API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId),
-            { ...(filters || {}), bust: '1' },
-            {
-              clinicId,
-              headers: { 'X-Cache-Bust': '1' },
-            } as RequestInit & { clinicId?: string },
-          );
-          const retryDoctors = normalizeDoctorRows(busted);
-          if (retryDoctors.length > 0) {
-            console.log('[useDoctors] Cache-bust retry recovered doctors:', retryDoctors.length);
-            doctors = retryDoctors;
-          }
-        } catch (bustError) {
-          // Swallow bust errors - we still return the original empty array.
-          console.warn('[useDoctors] Cache-bust retry failed:', bustError);
-        }
-      }
 
       // When a location-scoped lookup comes back empty, fall back to the
       // clinic-wide doctor list. This prevents a stale or incomplete mobile
@@ -795,3 +769,4 @@ export const useCurrentDoctorEntityId = (clinicId?: string) => {
     isResolvingDoctorId: Boolean(clinicId) && clinicDoctors.isPending && !doctorId,
   };
 };
+

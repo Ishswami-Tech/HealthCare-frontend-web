@@ -4032,15 +4032,15 @@ export function BookAppointmentDialog({
   const validateLatestAvailability = useCallback(async (selectedSlot?: string) => {
     const cachedAvailability = queryClient.getQueryData(availabilityQueryKey);
     const cachedSlots = extractAvailabilitySlots(cachedAvailability);
-
-    if (selectedSlot && cachedSlots.includes(selectedSlot)) {
+    try {
+      const refreshed = await refetchAvailability({ cancelRefetch: true });
+      const freshSlots = extractAvailabilitySlots(
+        refreshed?.data ?? queryClient.getQueryData(availabilityQueryKey),
+      );
+      return freshSlots.length > 0 ? freshSlots : cachedSlots;
+    } catch (_error) {
       return cachedSlots;
     }
-
-    const refreshed = await refetchAvailability({ cancelRefetch: true });
-    return extractAvailabilitySlots(
-      refreshed?.data ?? queryClient.getQueryData(availabilityQueryKey),
-    );
   }, [
     availabilityQueryKey,
     extractAvailabilitySlots,
@@ -4500,23 +4500,24 @@ export function BookAppointmentDialog({
         }
       }
 
-      const appointmentDate = new Date(selectedDate);
-      const [hours, minutes] = selectedSlot.split(":").map(Number);
-      appointmentDate.setHours(hours ?? 0, minutes ?? 0, 0, 0);
-
       let apptId = "";
       if (
         finalAppointmentType === "IN_PERSON" &&
         userRole === "PATIENT" &&
         activeSubscription?.id
       ) {
+        const selectedDateKey = formatDateIST(selectedDate);
+        const selectedTimeValue = selectedSlot.length === 5 ? `${selectedSlot}:00` : selectedSlot;
+        const appointmentDateIso = new Date(
+          `${selectedDateKey}T${selectedTimeValue}+05:30`,
+        ).toISOString();
         const atomicResult = await createSubscriptionAppointment({
           subscriptionId: activeSubscription.id,
           patientId: bookingPatientId,
           doctorId: appointmentDoctorId,
           clinicId: activeClinicId,
           locationId: appointmentLocationId,
-          appointmentDate: appointmentDate.toISOString(),
+          appointmentDate: appointmentDateIso,
           duration: appointmentDurationMinutes,
           treatmentType: selectedService.treatmentType,
           priority: urgency.toUpperCase(),
@@ -4556,7 +4557,7 @@ export function BookAppointmentDialog({
         const payload = {
           doctorId: appointmentDoctorId,
           locationId: appointmentLocationId,
-          date: formatDateIST(appointmentDate),
+          date: formatDateIST(selectedDate),
           time: selectedSlot,
           type: finalAppointmentType,
           treatmentType: selectedService.treatmentType,
@@ -4569,7 +4570,7 @@ export function BookAppointmentDialog({
         logger.info("[BookAppointmentDialog] Creating appointment", {
           clinicId: activeClinicId,
           doctorId: resolvedDoctorId,
-          date: formatDateIST(appointmentDate),
+          date: formatDateIST(selectedDate),
           slot: selectedSlot,
           patientId: bookingPatientId,
         });

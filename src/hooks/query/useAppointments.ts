@@ -24,7 +24,10 @@ import { getClinicId } from '@/lib/utils/token-manager';
 import { syncAppointmentInCache } from '@/lib/utils/appointment-cache';
 import { API_ENDPOINTS } from '@/lib/config/config';
 import { isSessionInvalidError } from '@/lib/utils/auth-recovery';
-import { getMyAppointments as getMyAppointmentsServerAction } from '@/lib/actions/appointments.server';
+import {
+  getMyAppointments as getMyAppointmentsServerAction,
+  getAppointmentServiceCatalog as getAppointmentServiceCatalogServerAction,
+} from '@/lib/actions/appointments.server';
 
 const useAppointmentQueryScope = () => {
   const sessionId = useAuthStore((state) => state.session?.session_id?.trim() || '');
@@ -487,12 +490,11 @@ export const useAppointmentServices = (enabled: boolean = true) => {
   return useQueryData(
     ['appointment-services'],
     async () => {
-      const result = await clinicApiClient.get(API_ENDPOINTS.APPOINTMENTS.SERVICES);
+      const result = await getAppointmentServiceCatalogServerAction();
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch appointment services');
       }
-      const response = result as any;
-      const services = response.services ?? response.data?.services ?? response.data ?? [];
+      const services = result.services ?? [];
       return (Array.isArray(services) ? services : []).filter(
         (service): service is AppointmentServiceDefinition => !!service?.active
       );
