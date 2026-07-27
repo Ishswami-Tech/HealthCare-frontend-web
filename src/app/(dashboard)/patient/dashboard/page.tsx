@@ -678,7 +678,10 @@ export default function PatientDashboard() {
                                 </div>
                               </div>
 
-                              {appointment.isOnline && videoSessionDecision?.canJoin ? (
+                              {appointment.isOnline &&
+                              String(appointment.status || "").toUpperCase() === "CONFIRMED" &&
+                              getAppointmentViewState(appointment).paymentCompleted &&
+                              videoSessionDecision?.canJoin ? (
                                 <div className="flex justify-end">
                                   <Button
                                     size="sm"

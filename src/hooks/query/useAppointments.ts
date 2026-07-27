@@ -551,9 +551,15 @@ export const useAppointment = (appointmentId: string) => {
 export const useCreateAppointment = (clinicId?: string) => {
   const { toast } = useToast();
   const { hasPermission } = useRBAC();
-  const toAppointmentDateIso = useCallback((date: string, time: string) => {
-    return new Date(`${date}T${time}:00+05:30`).toISOString();
+  const sanitizeDateKey = useCallback((value: string) => {
+    return String(value || "")
+      .replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu, "")
+      .trim();
   }, []);
+  const toAppointmentDateIso = useCallback((date: string, time: string) => {
+    const normalizedDate = sanitizeDateKey(date);
+    return new Date(`${normalizedDate}T${time}:00+05:30`).toISOString();
+  }, [sanitizeDateKey]);
   
   // Memoize mutation function
   const mutationFn = useCallback(async (data: CreateAppointmentData) => {

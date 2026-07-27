@@ -41,7 +41,10 @@ const IST_UTC_OFFSET = '+05:30';
 
 function toIstAppointmentIso(date: string, time: string): string {
   // Normalize incoming date/time to IST first, then store as UTC ISO for backend consistency.
-  return new Date(`${date}T${time}:00${IST_UTC_OFFSET}`).toISOString();
+  const normalizedDate = String(date || '')
+    .replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu, '')
+    .trim();
+  return new Date(`${normalizedDate}T${time}:00${IST_UTC_OFFSET}`).toISOString();
 }
 
 function normalizeAppointment(raw: Appointment | (Appointment & { appointmentDate?: string })) {

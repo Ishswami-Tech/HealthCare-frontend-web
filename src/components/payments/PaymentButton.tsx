@@ -414,7 +414,9 @@ export function PaymentButton({
     if (!bridgeBase.pathname || bridgeBase.pathname === "/") {
       bridgeBase.pathname = "/payments/start";
     }
-    bridgeBase.searchParams.set("payload", encodeBridgePayload(payload));
+    const encodedPayload = encodeBridgePayload(payload);
+    bridgeBase.searchParams.set("payload", encodedPayload);
+    bridgeBase.hash = `payload=${encodedPayload}`;
     return bridgeBase.toString();
   };
 

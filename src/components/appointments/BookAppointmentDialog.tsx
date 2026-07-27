@@ -324,12 +324,6 @@ const STEP_LABELS: Record<WizardStepId, string> = {
 const IN_PERSON_APPOINTMENT_SLOT_DURATION_MINUTES = 3;
 const VIDEO_APPOINTMENT_SLOT_DURATION_MINUTES = 15;
 const VIDEO_CONSULTATION_TREATMENT_TYPE: TreatmentType = "GENERAL_CONSULTATION";
-const IST_DATE_FORMATTER = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "Asia/Kolkata",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
 
 interface BookAppointmentStepBarProps {
   activeSteps: readonly WizardStepId[];
@@ -2437,7 +2431,7 @@ function BookAppointmentStep6({
  */
 const getTodayIST = () => {
   const now = new Date();
-  const [year, month, day] = IST_DATE_FORMATTER.format(now)
+  const [year, month, day] = formatISODateInIST(now)
     .split("-")
     .map(Number);
   return new Date(
@@ -2447,7 +2441,7 @@ const getTodayIST = () => {
   );
 };
 
-const formatDateIST = (date: Date) => IST_DATE_FORMATTER.format(date);
+const formatDateIST = (date: Date) => formatISODateInIST(date);
 
 const isSubscriptionCurrent = (
   subscription?: {
