@@ -515,7 +515,9 @@ export class ApiClient {
       method: 'GET',
       headers: headers as HeadersInit,
       credentials: this.withCredentials ? 'include' : 'omit',
-      keepalive: true, // Optimize for connection reuse (10M users)
+      // Do NOT set fetch keepalive:true on normal API calls.
+      // keepalive is only for unload beacons and has a 64KiB inflight quota;
+      // on iOS Safari it commonly surfaces as TypeError: "Load failed".
       cache: 'default', // Use browser cache for GET requests
       ...options,
     };
@@ -603,7 +605,13 @@ export class ApiClient {
         throw new TimeoutError(ERROR_MESSAGES.TIMEOUT_ERROR);
       }
 
-      if (error instanceof TypeError && (error as Error).message.includes('fetch')) {
+      // Chrome: "Failed to fetch" | Safari/iOS: "Load failed" | Firefox: "NetworkError..."
+      if (
+        error instanceof TypeError &&
+        /fetch|load failed|networkerror|network request failed/i.test(
+          (error as Error).message || ''
+        )
+      ) {
         throw new NetworkError(ERROR_MESSAGES.NETWORK_ERROR);
       }
       
