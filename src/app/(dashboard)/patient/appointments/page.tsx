@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { useMyAppointments, hasAppointmentsLoadedForSession } from "@/hooks/query/useAppointments";
-import { useCurrentClinicId, useMyClinic } from "@/hooks/query/useClinics";
+import { useCurrentClinicId } from "@/hooks/query/useClinics";
+import { APP_CONFIG } from "@/lib/config/config";
 import { PatientQueueCard } from "@/components/dashboard/PatientQueueCard";
 import AppointmentManager from "@/components/appointments/AppointmentManager";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
@@ -77,9 +78,12 @@ function PatientAppointmentsContent() {
   const shouldOpenBooking = getSearchParam("openBooking") === "1";
   const defaultConsultationMode =
     bookingMode?.toUpperCase() === "VIDEO" ? "VIDEO" : undefined;
-  const { data: myClinic } = useMyClinic();
   const currentClinicId = useCurrentClinicId();
-  const resolvedClinicId = queryClinicId || myClinic?.id || currentClinicId || undefined;
+  const resolvedClinicId =
+    queryClinicId ||
+    currentClinicId ||
+    APP_CONFIG.CLINIC.ID?.trim() ||
+    undefined;
   const myAppointmentsFilters = resolvedClinicId ? { clinicId: resolvedClinicId } : undefined;
   const {
     data: appointmentsData,

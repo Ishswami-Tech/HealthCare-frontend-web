@@ -2555,7 +2555,9 @@ export function BookAppointmentDialog({
   const patientCheckInRoute = "/patient/check-in";
   const { clinicId: contextClinicId } = useClinicContext();
   const currentClinicId = useCurrentClinicId();
-  const { data: myClinic } = useMyClinic();
+  const { data: myClinic } = useMyClinic({
+    enabled: userRole !== Role.PATIENT,
+  });
   const clinicFallbackId = APP_CONFIG.CLINIC.ID?.trim() || "";
   const sessionClinicId = session?.user?.clinicId || "";
   const safeContextClinicId = contextClinicId || "";
