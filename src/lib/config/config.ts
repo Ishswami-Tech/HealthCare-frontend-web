@@ -482,6 +482,7 @@ export const API_ENDPOINTS = {
   QUEUE: {
     BASE: '/queue',
     GET: '/queue',
+    DASHBOARD: '/queue/dashboard',
     FILTERS: '/queue/filters',
     GET_BY_TYPE: (queueType: string) => `/queue/${queueType}`,
     STATS: '/queue/stats',

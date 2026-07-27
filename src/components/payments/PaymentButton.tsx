@@ -431,7 +431,6 @@ export function PaymentButton({
 
     ensureBridgePreconnect(bridgeLaunchUrl);
     try {
-      setIsProcessing(false);
       window.location.assign(bridgeLaunchUrl);
 
       return true;

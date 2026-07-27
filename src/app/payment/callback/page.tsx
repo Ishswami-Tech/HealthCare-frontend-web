@@ -29,7 +29,7 @@ type CallbackState = {
 };
 
 type CallbackAction =
-  | { type: "FAILED"; message: string }
+  | { type: "FAILED"; message: string; secondsLeft?: number }
   | { type: "SUCCESS"; message: string; secondsLeft: number }
   | { type: "TICK" }
   | { type: "RESET_SECONDS" };
@@ -69,7 +69,7 @@ function callbackReducer(
       return {
         state: "failed",
         message: action.message,
-        secondsLeft: null,
+        secondsLeft: action.secondsLeft ?? 5,
       };
     case "SUCCESS":
       return {
@@ -341,7 +341,7 @@ function PaymentCallbackPageContent() {
   }, [invalidPayloadMessage, params, queryClient]);
 
   useEffect(() => {
-    if (state !== "success") {
+    if (state !== "success" && state !== "failed") {
       if (secondsLeft !== null) {
         dispatch({ type: "RESET_SECONDS" });
       }
@@ -383,10 +383,10 @@ function PaymentCallbackPageContent() {
           <div className="flex flex-col gap-y-3">
             <p className="text-sm text-red-600">
               {invalidPayloadDetails ||
-                "The payment could not be verified. Please review the error above and try again."}
+                `Payment failed or could not be verified. Redirecting to appointments within ${secondsLeft ?? 5} seconds.`}
             </p>
             <Button className="w-full" onClick={() => hardRedirect(redirectPath)}>
-              Go back
+              Go to appointments now
             </Button>
           </div>
         )}

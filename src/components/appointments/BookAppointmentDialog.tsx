@@ -1562,7 +1562,7 @@ function BookAppointmentStep3({
       <p className="text-sm text-muted-foreground">
         Pick your preferred appointment date
       </p>
-      <div className="flex justify-center w-full max-w-sm mx-auto book-dialog-calendar-container">
+      <div className="book-dialog-calendar-container flex w-full max-w-full justify-center overflow-x-auto px-1 sm:px-0">
         <style dangerouslySetInnerHTML={{ __html: `
           .book-dialog-calendar-container .rdp-week,
           .book-dialog-calendar-container .rdp-weekdays {
@@ -1574,6 +1574,15 @@ function BookAppointmentStep3({
             height: var(--cell-size) !important;
             width: var(--cell-size) !important;
             aspect-ratio: auto !important;
+          }
+          @supports (-webkit-touch-callout: none) {
+            .book-dialog-calendar-container {
+              -webkit-overflow-scrolling: touch;
+            }
+            .book-dialog-calendar-container .rdp-root,
+            .book-dialog-calendar-container .rdp {
+              min-width: 19rem !important;
+            }
           }
         `}} />
         <Calendar
@@ -1590,7 +1599,7 @@ function BookAppointmentStep3({
             const todayIST = getTodayIST();
             return date < todayIST || isClinicClosedDate(date);
           }}
-          className="border border-border/50 shadow-sm p-2 sm:p-3 mx-auto max-w-[280px] sm:max-w-xs [--cell-size:--spacing(8)] sm:[--cell-size:--spacing(9)] text-sm [&_.rdp-caption_label]:text-sm [&_.rdp-button]:text-sm"
+          className="border border-border/50 shadow-sm p-2 sm:p-3 mx-auto w-full max-w-[20rem] sm:max-w-xs [--cell-size:--spacing(8)] sm:[--cell-size:--spacing(9)] text-sm [&_.rdp-caption_label]:text-sm [&_.rdp-button]:text-sm"
         />
       </div>
       {selectedDate && (
@@ -4645,9 +4654,9 @@ export function BookAppointmentDialog({
       const lowerErrorMessage = errorMessage.toLowerCase();
       const isPaymentValidationFailure =
         shouldCollectVideoPayment &&
-        (lowerErrorMessage.includes("validation failed") ||
-          lowerErrorMessage.includes("please check your input and try again") ||
-          lowerErrorMessage.includes("payment payload") ||
+        (lowerErrorMessage.includes("invalid payment payload") ||
+          lowerErrorMessage.includes("payment payload could not be validated") ||
+          (lowerErrorMessage.includes("payment") && lowerErrorMessage.includes("validation failed")) ||
           lowerErrorMessage.includes("payment link"));
       const shouldRedirectToSubscription =
         userRole === "PATIENT" &&
