@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,7 @@ import type { BillingPlan, Invoice, Subscription } from "@/types/billing.types";
 interface PatientBillingContentProps {
   clinicId: string;
   userId: string;
+  initialTab?: string;
   invoices: Invoice[];
   invoicesPending: boolean;
   payments: any[];
@@ -182,6 +183,7 @@ function getInvoiceDateLabel(invoice: { status: string; dueDate?: string; paidDa
 export function PatientBillingContent({
   clinicId,
   userId,
+  initialTab,
   invoices,
   invoicesPending,
   payments,
@@ -212,6 +214,16 @@ export function PatientBillingContent({
   onCreateSubscription,
 }: PatientBillingContentProps) {
   const typedSubscriptions = subscriptions as Subscription[];
+  const normalizeTab = (value?: string) => {
+    const tab = (value || "").toLowerCase();
+    return ["plans", "invoices", "payments", "subscriptions"].includes(tab) ? tab : "payments";
+  };
+  const [activeTab, setActiveTab] = useState(() => normalizeTab(initialTab));
+
+  useEffect(() => {
+    setActiveTab(normalizeTab(initialTab));
+  }, [initialTab]);
+
   const plans = clinicPlans.length > 0 ? clinicPlans : fallbackPlans;
   const activePlans = plans.filter((plan) => plan.isActive);
   const plansPending = clinicId ? clinicPlansPending : fallbackPlansPending;
@@ -347,7 +359,7 @@ export function PatientBillingContent({
         <Card className="col-span-2 sm:col-span-1"><CardContent className="flex flex-row items-center justify-start gap-3 p-3 sm:p-4 text-left"><div className="rounded-full bg-blue-100 p-2 sm:p-3 dark:bg-blue-950/40"><Wallet className="size-5 text-blue-600 dark:text-blue-300" /></div><div><p className="text-xs sm:text-sm text-muted-foreground">Active Subscriptions</p><p className="text-xl sm:text-2xl font-bold">{activeSubscriptionCount}</p></div></CardContent></Card>
       </div>
 
-      <Tabs defaultValue="plans" className="flex flex-col gap-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col gap-y-4">
         <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
           <TabsList className="inline-flex w-max min-w-full sm:flex sm:w-full">
             <TabsTrigger id="patient-billing-plans-trigger" value="plans">Plans</TabsTrigger>

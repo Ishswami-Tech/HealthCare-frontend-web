@@ -239,7 +239,10 @@ function PaymentCallbackPageContent() {
 
   const invalidPayloadMessage =
     params.paymentError === "invalid_payload" ||
-    (Boolean(rawPayload) && !params.handoffToken && !bridgePayload)
+    (Boolean(rawPayload) &&
+      !params.handoffToken &&
+      !bridgePayload &&
+      !(params.orderId && params.clinicId))
       ? "Invalid payment payload. Please reopen the payment link."
       : "";
   const invalidPayloadDetails =

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { useAppointment } from "@/hooks/query/useAppointments";
 import { useVideoAppointment } from "@/hooks/query/useVideoAppointments";
+import { useCurrentClinicId } from "@/hooks/query/useClinics";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
   formatDateTimeInIST,
@@ -235,6 +236,7 @@ export function VideoAppointmentMeetSession({
 }: VideoAppointmentMeetSessionProps) {
   const { replace } = useRouter();
   const { session } = useAuth();
+  const clinicId = useCurrentClinicId();
   const effectiveViewerRole = session?.user?.role || viewerRole || "";
   const resolvedAppointmentId = appointmentId.trim();
   const {
@@ -380,6 +382,19 @@ export function VideoAppointmentMeetSession({
 
     return appointmentConsultationSource || appointmentRecordSource;
   }, [appointmentConsultationSource, appointmentRecordSource]);
+  const resolvedClinicId = React.useMemo(
+    () =>
+      String(
+        (appointmentDetailsSource as { clinicId?: unknown } | null | undefined)
+          ?.clinicId ||
+          (appointmentRecordSource as { clinicId?: unknown } | null | undefined)
+            ?.clinicId ||
+          clinicId ||
+          session?.user?.clinicId ||
+          "",
+      ).trim(),
+    [appointmentDetailsSource, appointmentRecordSource, clinicId, session?.user?.clinicId],
+  );
   const appointment = React.useMemo(
     () =>
       appointmentDetailsSource
@@ -514,8 +529,8 @@ export function VideoAppointmentMeetSession({
 
       const now = new Date().getTime();
       const startTime = new Date(appointment.startTime).getTime();
-      // Join opens 10 minutes before the appointment
-      const joinOpenTime = startTime - 10 * 60 * 1000;
+      // Join opens 20 minutes before the appointment
+      const joinOpenTime = startTime - 20 * 60 * 1000;
       const timeUntilJoinOpens = joinOpenTime - now;
 
       if (timeUntilJoinOpens <= 0) {
@@ -814,7 +829,7 @@ export function VideoAppointmentMeetSession({
             "Participant",
           email: session?.user?.email || "",
         },
-      });
+      }, resolvedClinicId || undefined);
 
       const resolvedAccess: VideoRoomAccess = {
         provider: resolveVideoProvider(
@@ -1129,7 +1144,7 @@ export function VideoAppointmentMeetSession({
           <div className="mt-3 inline-flex max-w-full items-start gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-left">
             <Shield className="mt-0.5 size-4 shrink-0 text-emerald-300" />
             <p className="text-[12px] leading-5 text-emerald-50/90">
-              Join opens 10 minutes before your visit and stays open for 3 hours
+              Join opens 20 minutes before your visit and stays open for 5 hours
               after start.
             </p>
           </div>

@@ -25,7 +25,7 @@ export async function generateVideoToken(data: {
     email: string;
     avatar?: string;
   };
-}) {
+}, clinicId?: string) {
   const session = await getServerSession();
   if (!session?.user?.id) {
     throw new Error('Unauthorized: Authentication required');
@@ -34,6 +34,7 @@ export async function generateVideoToken(data: {
   const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.TOKEN, {
     method: 'POST',
     body: JSON.stringify(data),
+    ...(clinicId ? { clinicId } : {}),
   });
   return response;
 }
@@ -47,7 +48,7 @@ export async function startVideoConsultation(data: {
   appointmentId: string;
   userId: string;
   userRole: 'patient' | 'doctor' | 'receptionist' | 'clinic_admin';
-}) {
+}, clinicId?: string) {
   const session = await getServerSession();
   if (!session?.user?.id) {
     throw new Error('Unauthorized: Authentication required');
@@ -56,6 +57,7 @@ export async function startVideoConsultation(data: {
   const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.CONSULTATION.START, {
     method: 'POST',
     body: JSON.stringify(data),
+    ...(clinicId ? { clinicId } : {}),
   });
   return response;
 }
@@ -69,7 +71,7 @@ export async function endVideoConsultation(data: {
   userRole: 'patient' | 'doctor' | 'receptionist' | 'clinic_admin';
   endReason?: string;
   meetingNotes?: string;
-}) {
+}, clinicId?: string) {
   const session = await getServerSession();
   if (!session?.user?.id) {
     throw new Error('Unauthorized: Authentication required');
@@ -84,6 +86,7 @@ export async function endVideoConsultation(data: {
   const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.CONSULTATION.END, {
     method: 'POST',
     body: JSON.stringify(payload),
+    ...(clinicId ? { clinicId } : {}),
   });
   return response;
 }
@@ -91,7 +94,7 @@ export async function endVideoConsultation(data: {
 /**
  * Get consultation status
  */
-export async function getConsultationStatus(appointmentId: string) {
+export async function getConsultationStatus(appointmentId: string, clinicId?: string) {
   try {
     const session = await getServerSession();
     if (!session?.user?.id) {
@@ -99,7 +102,10 @@ export async function getConsultationStatus(appointmentId: string) {
     }
     const { data: response } = await authenticatedApi(
       API_ENDPOINTS.VIDEO.CONSULTATION.STATUS(appointmentId),
-      { cache: 'no-store' }
+      {
+        cache: 'no-store',
+        ...(clinicId ? { clinicId } : {}),
+      }
     );
     return response;
   } catch (error) {
@@ -112,7 +118,11 @@ export async function getConsultationStatus(appointmentId: string) {
 
     if (
       isApiError(error) &&
-      (error.statusCode === 403 || error.code === 'FORBIDDEN' || error.code === 'AUTH_INSUFFICIENT_PERMISSIONS')
+      (error.statusCode === 401 ||
+        error.statusCode === 403 ||
+        error.code === 'FORBIDDEN' ||
+        error.code === 'AUTH_INSUFFICIENT_PERMISSIONS' ||
+        error.code === 'AUTH_TOKEN_INVALID')
     ) {
       return null;
     }
@@ -319,11 +329,14 @@ export async function updateGlobalVideoProviderSetting(provider: VideoProviderTy
 // ==========================================
 
 // Helper to get consultationId from appointmentId
-async function getConsultationId(appointmentId: string): Promise<string> {
+async function getConsultationId(appointmentId: string, clinicId?: string): Promise<string> {
   try {
     const { data: response } = await authenticatedApi(
       API_ENDPOINTS.VIDEO.CONSULTATION.STATUS(appointmentId),
-      { cache: 'no-store' }
+      {
+        cache: 'no-store',
+        ...(clinicId ? { clinicId } : {}),
+      }
     );
     // The status response should contain the consultation/session ID
     if (response && typeof response === 'object' && 'id' in response) {
