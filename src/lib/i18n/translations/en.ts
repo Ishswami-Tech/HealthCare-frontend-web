@@ -1310,9 +1310,7 @@ export const en: TranslationKeys = {
       emailAddresses: {
         title: "Email Addresses",
         details: [
-          "drchandrakumardeshmukh@gmail.com",
-          "info@viddhakarma.com",
-          "emergency@drchandrakumardeshmukh.com"
+          "drchandrakumardeshmukh@gmail.com"
         ]
       },
       location: {
@@ -1326,9 +1324,7 @@ export const en: TranslationKeys = {
       workingHours: {
         title: "Working Hours",
         details: [
-          "Monday - Friday: 11:45 AM - 11:30 PM",
-          "Saturday: 9:00 AM - 8:00 PM",
-          "Sunday: 9:00 AM - 6:00 PM"
+          "Monday - Friday: 11:45 AM - 11:30 PM"
         ]
       }
     },

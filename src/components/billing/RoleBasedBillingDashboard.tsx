@@ -380,11 +380,9 @@ export function RoleBasedBillingDashboard({
   };
 
   const showLedgerTab = isAdmin;
-  // Patients see: plans, subscriptions, payments (invoices only if they have any)
-  const patientHasInvoices = isPatient && invoices.length > 0;
   const patientTabs = useMemo(
-    () => ["plans", "subscriptions", "payments", ...(patientHasInvoices ? ["invoices"] : [])],
-    [patientHasInvoices]
+    () => ["plans", "subscriptions", "payments", "invoices"],
+    []
   );
   const staffTabs = useMemo(
     () => ["overview", "invoices", "payments", ...(showLedgerTab ? ["ledger"] : [])],

@@ -1248,9 +1248,7 @@ export const hi: TranslationKeys = {
       emailAddresses: {
         title: "ईमेल पते",
         details: [
-          "drchandrakumardeshmukh@gmail.com",
-          "info@viddhakarma.com",
-          "emergency@drchandrakumardeshmukh.com"
+          "drchandrakumardeshmukh@gmail.com"
         ]
       },
       location: {
@@ -1264,9 +1262,7 @@ export const hi: TranslationKeys = {
       workingHours: {
         title: "कार्य समय",
         details: [
-          "सोमवार - शुक्रवार: सुबह 11:45 - रात 11:30",
-          "शनिवार: सुबह 9:00 - रात 8:00",
-          "रविवार: सुबह 9:00 - शाम 6:00"
+          "सोमवार - शुक्रवार: सुबह 11:45 - रात 11:30"
         ]
       }
     },

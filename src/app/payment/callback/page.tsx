@@ -45,6 +45,30 @@ function normalizeBaseUrl(rawUrl: string, fallback: string): string {
   return value || fallback;
 }
 
+function decodeBase64UrlJson(rawValue: string): Record<string, unknown> | null {
+  const trimmed = rawValue.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const normalized = trimmed.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+
+  try {
+    const decoded =
+      typeof window === "undefined"
+        ? Buffer.from(padded, "base64").toString("utf-8")
+        : atob(padded);
+    const parsed = JSON.parse(decoded) as unknown;
+    if (!parsed || typeof parsed !== "object") {
+      return null;
+    }
+    return parsed as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
 function normalizePaymentStatus(value: unknown): string {
   return String(value || "").trim().toLowerCase();
 }
@@ -104,6 +128,26 @@ function PaymentCallbackPageContent() {
     [searchParams],
   );
 
+  const bridgePayload = useMemo(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    const searchPayload = searchParams.get("payload") || "";
+    const hashPayload = new URLSearchParams(
+      window.location.hash.startsWith("#")
+        ? window.location.hash.slice(1)
+        : window.location.hash,
+    ).get("payload");
+    const rawPayload = searchPayload || hashPayload || "";
+
+    if (!rawPayload) {
+      return null;
+    }
+
+    return decodeBase64UrlJson(rawPayload);
+  }, [searchParams]);
+
   const params = useMemo(() => {
     const orderId =
       getSearchParam("orderId") ||
@@ -130,20 +174,72 @@ function PaymentCallbackPageContent() {
     ).toUpperCase();
     const handoffToken = getSearchParam("handoff_token") || "";
     const paymentError = getSearchParam("paymentError") || "";
+    const payloadClinicId =
+      typeof bridgePayload?.clinicId === "string"
+        ? bridgePayload.clinicId
+        : typeof bridgePayload?.clinic_id === "string"
+          ? bridgePayload.clinic_id
+          : "";
+    const payloadAppointmentId =
+      typeof bridgePayload?.appointmentId === "string"
+        ? bridgePayload.appointmentId
+        : typeof bridgePayload?.appointment_id === "string"
+          ? bridgePayload.appointment_id
+          : "";
+    const payloadAppointmentType =
+      typeof bridgePayload?.appointmentType === "string"
+        ? bridgePayload.appointmentType
+        : typeof bridgePayload?.appointment_type === "string"
+          ? bridgePayload.appointment_type
+          : "";
+    const payloadProvider =
+      typeof bridgePayload?.provider === "string"
+        ? bridgePayload.provider
+        : typeof bridgePayload?.paymentProvider === "string"
+          ? bridgePayload.paymentProvider
+          : "";
+    const payloadHandoffToken =
+      typeof bridgePayload?.handoffToken === "string"
+        ? bridgePayload.handoffToken
+        : typeof bridgePayload?.handoff_token === "string"
+          ? bridgePayload.handoff_token
+          : "";
+    const payloadPaymentId =
+      typeof bridgePayload?.paymentId === "string"
+        ? bridgePayload.paymentId
+        : typeof bridgePayload?.payment_id === "string"
+          ? bridgePayload.payment_id
+          : "";
     return {
-      orderId,
-      paymentId,
-      provider,
-      clinicId,
-      appointmentId,
-      appointmentType,
-      handoffToken,
-      paymentError,
+      orderId: orderId || (typeof bridgePayload?.orderId === "string" ? bridgePayload.orderId : ""),
+      paymentId: paymentId || payloadPaymentId,
+      provider: provider || (ALLOWED_PROVIDERS.has(String(payloadProvider).toLowerCase()) ? (String(payloadProvider).toLowerCase() as PaymentProvider) : undefined),
+      clinicId: clinicId || payloadClinicId,
+      appointmentId: appointmentId || payloadAppointmentId,
+      appointmentType: appointmentType || payloadAppointmentType,
+      handoffToken: handoffToken || payloadHandoffToken,
+      paymentError: paymentError || (typeof bridgePayload?.paymentError === "string" ? bridgePayload.paymentError : ""),
     };
-  }, [getSearchParam]);
+  }, [bridgePayload, getSearchParam]);
+
+  const rawPayload = useMemo(() => {
+    if (typeof window === "undefined") {
+      return "";
+    }
+    return (
+      searchParams.get("payload") ||
+      new URLSearchParams(
+        window.location.hash.startsWith("#")
+          ? window.location.hash.slice(1)
+          : window.location.hash,
+      ).get("payload") ||
+      ""
+    );
+  }, [searchParams]);
 
   const invalidPayloadMessage =
-    params.paymentError === "invalid_payload" || (!params.handoffToken && Boolean(getSearchParam("payload")))
+    params.paymentError === "invalid_payload" ||
+    (Boolean(rawPayload) && !params.handoffToken && !bridgePayload)
       ? "Invalid payment payload. Please reopen the payment link."
       : "";
   const invalidPayloadDetails =
@@ -382,11 +478,12 @@ function PaymentCallbackPageContent() {
         {state === "failed" && (
           <div className="flex flex-col gap-y-3">
             <p className="text-sm text-red-600">
-              {invalidPayloadDetails ||
-                `Payment failed or could not be verified. Redirecting to appointments within ${secondsLeft ?? 5} seconds.`}
+              {invalidPayloadDetails
+                ? `${invalidPayloadDetails} Redirecting to ${redirectPath.includes("/appointments") ? "appointments" : "billing"} within ${secondsLeft ?? 5} seconds.`
+                : `Payment failed or could not be verified. Redirecting to ${redirectPath.includes("/appointments") ? "appointments" : "billing"} within ${secondsLeft ?? 5} seconds.`}
             </p>
             <Button className="w-full" onClick={() => hardRedirect(redirectPath)}>
-              Go to appointments now
+              Go to {redirectPath.includes("/appointments") ? "appointments" : "billing"} now
             </Button>
           </div>
         )}

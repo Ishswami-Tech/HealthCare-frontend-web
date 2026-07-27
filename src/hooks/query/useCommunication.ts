@@ -497,8 +497,8 @@ export const useSubmitContactForm = () => {
     },
     {
       toastId: TOAST_IDS.CONTACT.SUBMIT,
-      loadingMessage: 'Submitting form...',
-      successMessage: 'Form submitted successfully',
+      loadingMessage: 'Preparing message...',
+      successMessage: 'Message draft opened successfully',
     }
   );
 };
@@ -514,8 +514,8 @@ export const useSubmitConsultationBooking = () => {
     },
     {
       toastId: TOAST_IDS.APPOINTMENT.BOOKING,
-      loadingMessage: 'Booking consultation...',
-      successMessage: 'Consultation booked successfully',
+      loadingMessage: 'Preparing consultation message...',
+      successMessage: 'Consultation draft opened successfully',
     }
   );
 };
