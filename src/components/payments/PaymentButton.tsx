@@ -53,7 +53,6 @@ const REDIRECT_PAYMENT_PROVIDERS: PaymentProvider[] = [
 const CASHFREE_LOAD_TIMEOUT_MS = 8000;
 const CASHFREE_CHECKOUT_TIMEOUT_MS = 10000;
 const RAZORPAY_SCRIPT_ID = "razorpay-checkout-script";
-const BRIDGE_NAVIGATION_TIMEOUT_MS = 2500;
 
 declare global {
   interface Window {
@@ -433,27 +432,7 @@ export function PaymentButton({
     ensureBridgePreconnect(bridgeLaunchUrl);
     try {
       setIsProcessing(false);
-      const anchor = document.createElement("a");
-      anchor.href = bridgeLaunchUrl;
-      anchor.target = "_self";
-      anchor.rel = "noopener noreferrer";
-      anchor.style.display = "none";
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-
-      const currentUrl = window.location.href;
-      window.setTimeout(() => {
-        if (window.location.href !== currentUrl) {
-          return;
-        }
-
-        setIsProcessing(false);
-        showErrorToast(
-          "Payment page did not open on this device. Please check your connection and try again.",
-          { id: TOAST_IDS.PAYMENT.ERROR },
-        );
-      }, BRIDGE_NAVIGATION_TIMEOUT_MS);
+      window.location.assign(bridgeLaunchUrl);
 
       return true;
     } catch (error) {
