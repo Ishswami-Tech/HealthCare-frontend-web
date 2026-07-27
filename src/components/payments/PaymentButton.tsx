@@ -430,10 +430,23 @@ export function PaymentButton({
     ensureBridgePreconnect(bridgeLaunchUrl);
     try {
       setIsProcessing(false);
-      window.location.assign(bridgeLaunchUrl);
+      const anchor = document.createElement("a");
+      anchor.href = bridgeLaunchUrl;
+      anchor.target = "_self";
+      anchor.rel = "noopener noreferrer";
+      anchor.style.display = "none";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
       return true;
     } catch (error) {
       console.warn("[PaymentButton] Bridge navigation failed", error);
+      try {
+        window.location.assign(bridgeLaunchUrl);
+        return true;
+      } catch (fallbackError) {
+        console.warn("[PaymentButton] Bridge fallback navigation failed", fallbackError);
+      }
       setIsProcessing(false);
       return false;
     }
