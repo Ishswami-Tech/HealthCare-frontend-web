@@ -992,10 +992,11 @@ export async function createPaymentIntent(
 }
 
 export async function verifyPaymentCallback(params: {
-  clinicId: string;
+  clinicId?: string;
   orderId: string;
   paymentId?: string;
   provider?: PaymentProvider;
+  handoffToken?: string;
 }): Promise<{
   success: boolean;
   message?: string;
@@ -1005,16 +1006,27 @@ export async function verifyPaymentCallback(params: {
   appointment?: unknown;
 }> {
   try {
-    const session = await getServerSession();
-    if (!session?.user?.id) {
-      throw new Error('Unauthorized: Authentication required');
+    const queryParams = new URLSearchParams();
+    if (params.handoffToken) {
+      queryParams.set('handoff_token', params.handoffToken);
+      if (params.orderId) queryParams.set('order_id', params.orderId);
+      if (params.paymentId) queryParams.set('payment_id', params.paymentId);
+      if (params.provider) queryParams.set('provider', params.provider);
+    } else {
+      if (!params.clinicId) {
+        throw new Error('Clinic ID is required for payment verification');
+      }
+      queryParams.set('clinicId', params.clinicId);
+      queryParams.set('paymentId', params.paymentId || params.orderId);
+      queryParams.set('orderId', params.orderId);
+      if (params.provider) {
+        queryParams.set('provider', params.provider);
+      }
     }
-    const queryParams = new URLSearchParams({
-      clinicId: params.clinicId,
-      paymentId: params.paymentId || params.orderId,
-      orderId: params.orderId,
-      ...(params.provider ? { provider: params.provider } : {}),
-    });
+
+    const endpoint = params.handoffToken
+      ? `${API_ENDPOINTS.BILLING.PAYMENTS.CALLBACK}/handoff?${queryParams.toString()}`
+      : `${API_ENDPOINTS.BILLING.PAYMENTS.CALLBACK}?${queryParams.toString()}`;
 
     const { data } = await publicApi<{
       success?: boolean;
@@ -1022,11 +1034,11 @@ export async function verifyPaymentCallback(params: {
       payment?: unknown;
       invoice?: unknown;
       appointment?: unknown;
-    }>(`${API_ENDPOINTS.BILLING.PAYMENTS.CALLBACK}?${queryParams.toString()}`, {
+    }>(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Clinic-ID': params.clinicId,
+        ...(params.clinicId ? { 'X-Clinic-ID': params.clinicId } : {}),
       },
       body: JSON.stringify({ orderId: params.orderId }),
     });
