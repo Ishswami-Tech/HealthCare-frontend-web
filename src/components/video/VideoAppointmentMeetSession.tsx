@@ -495,7 +495,13 @@ export function VideoAppointmentMeetSession({
               : `${viewerRoleLabel} appointment`;
   const blockedReason = videoSessionDecision.blockedReason || "";
   const [countdownTime, setCountdownTime] = React.useState<string | null>(null);
-  const appointmentLoadFailed = !isPending && !appointment && !error && !permissionError;
+  const hasAppointmentRecord = Boolean(appointmentRecordSource);
+  const appointmentLoadFailed =
+    !isPending &&
+    !hasAppointmentRecord &&
+    !appointment &&
+    !error &&
+    !permissionError;
 
   // Calculate countdown timer for "join opens"
   React.useEffect(() => {
