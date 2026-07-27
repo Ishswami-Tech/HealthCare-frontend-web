@@ -20,11 +20,11 @@ import { TOAST_IDS, useToast } from '../utils/use-toast';
 import { sanitizeErrorMessage } from '@/lib/utils/error-handler';
 import { useAuth } from '../auth/useAuth';
 import { Role } from '@/types/auth.types';
-import { getClinicId } from '@/lib/utils/token-manager';
 import { syncAppointmentInCache } from '@/lib/utils/appointment-cache';
 import { API_ENDPOINTS } from '@/lib/config/config';
 import { isSessionInvalidError } from '@/lib/utils/auth-recovery';
 import {
+  createAppointment as createAppointmentServerAction,
   getMyAppointments as getMyAppointmentsServerAction,
   getAppointmentServiceCatalog as getAppointmentServiceCatalogServerAction,
   getDoctorAvailability as getDoctorAvailabilityServerAction,
@@ -551,15 +551,6 @@ export const useAppointment = (appointmentId: string) => {
 export const useCreateAppointment = (clinicId?: string) => {
   const { toast } = useToast();
   const { hasPermission } = useRBAC();
-  const sanitizeDateKey = useCallback((value: string) => {
-    return String(value || "")
-      .replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu, "")
-      .trim();
-  }, []);
-  const toAppointmentDateIso = useCallback((date: string, time: string) => {
-    const normalizedDate = sanitizeDateKey(date);
-    return new Date(`${normalizedDate}T${time}:00+05:30`).toISOString();
-  }, [sanitizeDateKey]);
   
   // Memoize mutation function
   const mutationFn = useCallback(async (data: CreateAppointmentData) => {
@@ -568,52 +559,25 @@ export const useCreateAppointment = (clinicId?: string) => {
     }
 
     const { date, time, ...rest } = data;
-    const resolvedClinicId = (await getClinicId()) || clinicId;
-    if (!resolvedClinicId) {
-      throw new Error('No authenticated clinic available for appointment creation');
-    }
-    const result = await clinicApiClient.createAppointment({
+    const result = await createAppointmentServerAction({
       ...rest,
-      appointmentDate: toAppointmentDateIso(date, time),
+      date,
+      time,
     });
     if (!result.success) {
-      const resultRecord = result.data as unknown as Record<string, unknown> | undefined;
-      const backendMessage =
-        typeof resultRecord?.message === 'string'
-          ? String(resultRecord.message)
-          : '';
-      const backendDetails =
-        typeof resultRecord?.details === 'string'
-          ? String(resultRecord.details)
-          : '';
       throw new Error(
-        backendMessage ||
-          backendDetails ||
           result.error ||
           'Failed to create appointment'
       );
     }
 
-    const responseData = result.data as Record<string, unknown> | undefined;
-    if (!responseData) {
-      throw new Error('No appointment returned');
-    }
-
-    if (responseData.success === false) {
-      throw new Error(
-        typeof responseData.message === 'string'
-          ? responseData.message
-          : 'Failed to create appointment'
-      );
-    }
-
-    const appointment = (responseData.data || responseData) as Appointment;
+    const appointment = result.appointment as Appointment | undefined;
     if (!appointment || typeof appointment !== 'object') {
       throw new Error('No appointment returned');
     }
 
     return appointment;
-  }, [clinicId, hasPermission, toAppointmentDateIso]);
+  }, [hasPermission]);
   
   // Use optimistic mutation hook
   const queryClient = useQueryClient();
