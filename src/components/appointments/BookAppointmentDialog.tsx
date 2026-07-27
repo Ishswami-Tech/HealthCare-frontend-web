@@ -46,6 +46,7 @@ import { Calendar } from "@/components/ui/calendar";
 
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useQueryClient } from "@/hooks/core";
+import { useIsMobile } from "@/hooks/utils";
 import { useDoctors } from "@/hooks/query/useDoctors";
 import {
   usePatients,
@@ -1558,11 +1559,11 @@ function BookAppointmentStep3({
   isClinicClosedDate,
 }: BookAppointmentStep3Props) {
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex h-full min-h-0 flex-1 flex-col justify-between gap-3">
       <p className="text-sm text-muted-foreground">
         Pick your preferred appointment date
       </p>
-      <div className="book-dialog-calendar-container flex w-full max-w-full justify-center overflow-x-auto px-1 sm:px-0">
+      <div className="book-dialog-calendar-container flex flex-1 min-h-0 w-full max-w-full items-center justify-center px-1 sm:px-0">
         <style dangerouslySetInnerHTML={{ __html: `
           .book-dialog-calendar-container .rdp-week,
           .book-dialog-calendar-container .rdp-weekdays {
@@ -1574,15 +1575,6 @@ function BookAppointmentStep3({
             height: var(--cell-size) !important;
             width: var(--cell-size) !important;
             aspect-ratio: auto !important;
-          }
-          @supports (-webkit-touch-callout: none) {
-            .book-dialog-calendar-container {
-              -webkit-overflow-scrolling: touch;
-            }
-            .book-dialog-calendar-container .rdp-root,
-            .book-dialog-calendar-container .rdp {
-              min-width: 19rem !important;
-            }
           }
         `}} />
         <Calendar
@@ -1599,7 +1591,7 @@ function BookAppointmentStep3({
             const todayIST = getTodayIST();
             return date < todayIST || isClinicClosedDate(date);
           }}
-          className="border border-border/50 shadow-sm p-2 sm:p-3 mx-auto w-full max-w-[20rem] sm:max-w-xs [--cell-size:--spacing(8)] sm:[--cell-size:--spacing(9)] text-sm [&_.rdp-caption_label]:text-sm [&_.rdp-button]:text-sm"
+          className="h-full min-h-[24rem] border border-border/50 shadow-sm p-2 sm:p-3 mx-auto w-full max-w-none sm:max-w-[22rem] [--cell-size:--spacing(7)] sm:[--cell-size:--spacing(9)] text-sm [&_.rdp-caption_label]:text-sm [&_.rdp-button]:text-sm"
         />
       </div>
       {selectedDate && (
@@ -3077,6 +3069,7 @@ export function BookAppointmentDialog({
   const [pendingStepNavigation, setPendingStepNavigation] = useState<
     "forward" | "backward" | null
   >(null);
+  const isMobile = useIsMobile();
   const doctorAutoRefreshRef = useRef(false);
   const doctorsRefreshing =
     doctorsLoading || doctorsFetching || isHardRefreshingDoctors;
@@ -5086,7 +5079,12 @@ export function BookAppointmentDialog({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-3 sm:py-4">
+        <div
+          className={cn(
+            "flex-1 px-3 sm:px-5 py-3 sm:py-4",
+            currentStepId === "date" && isMobile ? "overflow-hidden" : "overflow-y-auto",
+          )}
+        >
           <LazyMotion features={domAnimation}>
             <AnimatePresence mode="wait" initial={false}>
               <m.div
@@ -5098,7 +5096,7 @@ export function BookAppointmentDialog({
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: stepDirection === "forward" ? -20 : 20 }}
                 transition={{ duration: 0.22, ease: "easeOut" }}
-                className="h-full"
+                className="h-full min-h-0"
               >
                 {stepContent}
               </m.div>
