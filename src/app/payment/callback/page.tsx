@@ -129,6 +129,7 @@ function PaymentCallbackPageContent() {
       getSearchParam("appointmentType") || ""
     ).toUpperCase();
     const handoffToken = getSearchParam("handoff_token") || "";
+    const paymentError = getSearchParam("paymentError") || "";
     return {
       orderId,
       paymentId,
@@ -137,8 +138,18 @@ function PaymentCallbackPageContent() {
       appointmentId,
       appointmentType,
       handoffToken,
+      paymentError,
     };
   }, [getSearchParam]);
+
+  const invalidPayloadMessage =
+    params.paymentError === "invalid_payload" || (!params.handoffToken && Boolean(getSearchParam("payload")))
+      ? "Invalid payment payload. Please reopen the payment link."
+      : "";
+  const invalidPayloadDetails =
+    invalidPayloadMessage
+      ? "The payment payload could not be decoded from the URL."
+      : "";
 
   const redirectPath = useMemo(() => {
     if (params.appointmentType === "VIDEO_CALL" || params.appointmentId) {
@@ -158,6 +169,14 @@ function PaymentCallbackPageContent() {
   useEffect(() => {
     const verify = async () => {
       try {
+        if (invalidPayloadMessage) {
+          dispatch({
+            type: "FAILED",
+            message: invalidPayloadMessage,
+          });
+          return;
+        }
+
         const isHandoff = Boolean(params.handoffToken);
         if (!isHandoff) {
           if (!params.orderId) {
@@ -319,7 +338,7 @@ function PaymentCallbackPageContent() {
     };
 
     verify();
-  }, [params, queryClient]);
+  }, [invalidPayloadMessage, params, queryClient]);
 
   useEffect(() => {
     if (state !== "success") {
@@ -363,8 +382,8 @@ function PaymentCallbackPageContent() {
         {state === "failed" && (
           <div className="flex flex-col gap-y-3">
             <p className="text-sm text-red-600">
-              The payment could not be verified. Please review the error above
-              and try again.
+              {invalidPayloadDetails ||
+                "The payment could not be verified. Please review the error above and try again."}
             </p>
             <Button className="w-full" onClick={() => hardRedirect(redirectPath)}>
               Go back

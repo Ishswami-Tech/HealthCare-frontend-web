@@ -1514,6 +1514,9 @@ export const useDoctorAvailability = (
   return useQueryData(
       ['doctorAvailability', clinicId, doctorId, date, locationId, appointmentType, authScope],
       async (): Promise<any> => {
+        if (!clinicId) {
+          throw new Error('Clinic context is required for doctor availability');
+        }
         const response = await getDoctorAvailabilityServerAction(
           clinicId,
           doctorId,
@@ -1527,7 +1530,7 @@ export const useDoctorAvailability = (
         return response.availability as any;
     },
     {
-      enabled: !!doctorId && !!date && (options?.enabled ?? true), // Enabled for everyone, including guests
+      enabled: !!clinicId && !!doctorId && !!date && (options?.enabled ?? true), // Require clinic context to avoid missing X-Clinic-ID
       staleTime: usePollingFallback ? 0 : 30 * 1000,
       gcTime: 2 * 60 * 1000, // 2 minutes garbage collection
       refetchOnMount: true, // Always re-fetch when dialog opens

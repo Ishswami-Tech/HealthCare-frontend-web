@@ -4649,6 +4649,12 @@ export function BookAppointmentDialog({
           ? err.message
           : "Failed to book appointment. Please try again.";
       const lowerErrorMessage = errorMessage.toLowerCase();
+      const isPaymentValidationFailure =
+        shouldCollectVideoPayment &&
+        (lowerErrorMessage.includes("validation failed") ||
+          lowerErrorMessage.includes("please check your input and try again") ||
+          lowerErrorMessage.includes("payment payload") ||
+          lowerErrorMessage.includes("payment link"));
       const shouldRedirectToSubscription =
         userRole === "PATIENT" &&
         consultationMode === "IN_PERSON" &&
@@ -4690,6 +4696,13 @@ export function BookAppointmentDialog({
       }
 
       dismissToast("subscription-coverage-check");
+
+      if (isPaymentValidationFailure) {
+        showErrorToast(
+          "Payment link could not be validated. Please reopen the payment link.",
+        );
+        return;
+      }
 
       if (lowerErrorMessage.includes("time slot is no longer available")) {
         queryClient.invalidateQueries({
