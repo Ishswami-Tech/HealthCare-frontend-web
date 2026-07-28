@@ -48,18 +48,21 @@ export default function PatientBillingPage() {
   const {
     data: invoices = [],
     isPending: invoicesPending,
+    error: invoicesError,
     refetch: refetchInvoices,
-  } = useInvoices(userId);
+  } = useInvoices(userId, clinicId);
   const {
     data: payments = [],
     isPending: paymentsPending,
+    error: paymentsError,
     refetch: refetchPayments,
-  } = usePayments(userId);
+  } = usePayments(userId, clinicId);
   const {
     data: subscriptions = [],
     isPending: subscriptionsPending,
+    error: subscriptionsError,
     refetch: refetchSubscriptions,
-  } = useSubscriptions(userId);
+  } = useSubscriptions(userId, clinicId);
   const { data: backendActiveSubscription, refetch: refetchActiveSubscription } = useActiveSubscription(
     userId,
     clinicId,
@@ -216,7 +219,17 @@ export default function PatientBillingPage() {
       pendingSubscriptionPayment={pendingSubscriptionPayment}
       showSubscriptionHistory={showSubscriptionHistory}
       subscribeError={subscribeError}
+      loadError={
+        invoicesError instanceof Error
+          ? invoicesError.message
+          : paymentsError instanceof Error
+            ? paymentsError.message
+            : subscriptionsError instanceof Error
+              ? subscriptionsError.message
+              : ""
+      }
       createSubscriptionPending={createSubscriptionMutation.isPending}
+      onRefetchAllBillingData={() => void refreshAndRefetchBillingData()}
       onOpenPlansTab={() => document.getElementById("patient-billing-plans-trigger")?.click()}
       onSetPlanToConfirm={setPlanToConfirm}
       onSetPendingSubscriptionPayment={setPendingSubscriptionPayment}

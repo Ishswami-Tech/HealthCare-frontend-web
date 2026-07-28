@@ -37,7 +37,9 @@ interface PatientBillingContentProps {
   pendingSubscriptionPayment: { subscriptionId: string; planName: string; amount: number } | null;
   showSubscriptionHistory: boolean;
   subscribeError: string;
+  loadError: string;
   createSubscriptionPending: boolean;
+  onRefetchAllBillingData: () => void;
   onOpenPlansTab: () => void;
   onSetPlanToConfirm: (plan: BillingPlan | null) => void;
   onSetPendingSubscriptionPayment: (value: { subscriptionId: string; planName: string; amount: number } | null) => void;
@@ -180,6 +182,16 @@ function getInvoiceDateLabel(invoice: { status: string; dueDate?: string; paidDa
   return `Issued: ${issuedAt ? formatDate(issuedAt) : "--"} · ${statusLabel}`;
 }
 
+function getInvoiceDateLabelSafe(invoice: { status: string; dueDate?: string; paidDate?: string; paidAt?: string; invoiceDate?: string; createdAt?: string; updatedAt?: string }) {
+  const issuedAt = invoice.invoiceDate || invoice.createdAt;
+  const paidTime = invoice.paidDate || invoice.paidAt || invoice.updatedAt;
+  const statusLabel =
+    invoice.status === "PAID"
+      ? `Paid: ${paidTime ? formatDate(paidTime) : "--"}`
+      : `Due: ${invoice.dueDate ? formatDate(invoice.dueDate) : "--"}`;
+  return `Issued: ${issuedAt ? formatDate(issuedAt) : "--"} - ${statusLabel}`;
+}
+
 export function PatientBillingContent({
   clinicId,
   userId,
@@ -199,7 +211,9 @@ export function PatientBillingContent({
   pendingSubscriptionPayment,
   showSubscriptionHistory,
   subscribeError,
+  loadError,
   createSubscriptionPending,
+  onRefetchAllBillingData,
   onOpenPlansTab,
   onSetPlanToConfirm,
   onSetPendingSubscriptionPayment,
@@ -262,7 +276,7 @@ export function PatientBillingContent({
       cell: ({ row }) => (
         <div className="flex flex-col">
           <span className="font-semibold text-foreground">{row.original.invoiceNumber || `#${row.original.id.slice(-8).toUpperCase()}`}</span>
-          <span className="text-xs text-muted-foreground">{getInvoiceDateLabel(row.original)}</span>
+          <span className="text-xs text-muted-foreground">{getInvoiceDateLabelSafe(row.original)}</span>
         </div>
       ),
     },
@@ -352,6 +366,20 @@ export function PatientBillingContent({
         title="My payments"
         description="Review invoices, payments, and subscription plans in one place."
       />
+
+      {loadError && (
+        <Card className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="font-semibold">We could not refresh your billing data.</p>
+              <p className="text-sm text-amber-800/80 dark:text-amber-200/80">{loadError}</p>
+            </div>
+            <Button variant="outline" onClick={onRefetchAllBillingData} className="shrink-0">
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         <Card><CardContent className="flex flex-row items-center gap-3 p-3 sm:p-4 text-left"><div className="rounded-full bg-amber-100 p-2 sm:p-3 dark:bg-amber-950/40"><FileText className="size-5 text-amber-600 dark:text-amber-300" /></div><div><p className="text-xs sm:text-sm text-muted-foreground">Open Invoices</p><p className="text-xl sm:text-2xl font-bold">{openInvoices.length}</p></div></CardContent></Card>

@@ -69,12 +69,12 @@ function BillingPageContent() {
     data: userSubscriptions = [],
     isPending: userSubscriptionsPending,
     refetch: refetchUserSubscriptions,
-  } = useSubscriptions(userId, isPatientRole);
+  } = useSubscriptions(userId, clinicId, isPatientRole);
   const {
     data: userInvoices = [],
     isPending: userInvoicesPending,
     refetch: refetchUserInvoices,
-  } = useInvoices(userId);
+  } = useInvoices(userId, clinicId);
   const {
     data: clinicInvoices = [],
     isPending: clinicInvoicesPending,
@@ -84,7 +84,7 @@ function BillingPageContent() {
     data: userPayments = [],
     isPending: userPaymentsPending,
     refetch: refetchUserPayments,
-  } = usePayments(userId);
+  } = usePayments(userId, clinicId);
   const {
     data: clinicPayments = [],
     isPending: clinicPaymentsPending,

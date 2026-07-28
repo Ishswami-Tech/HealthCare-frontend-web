@@ -1559,11 +1559,11 @@ function BookAppointmentStep3({
   isClinicClosedDate,
 }: BookAppointmentStep3Props) {
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col justify-between gap-3">
+    <div className="flex h-full min-h-0 flex-1 flex-col justify-start gap-3">
       <p className="text-sm text-muted-foreground">
         Pick your preferred appointment date
       </p>
-      <div className="book-dialog-calendar-container flex flex-1 min-h-0 w-full max-w-full items-center justify-center px-1 sm:px-0">
+      <div className="book-dialog-calendar-container flex flex-1 min-h-0 w-full max-w-full items-start justify-start px-1 sm:px-0">
         <style dangerouslySetInnerHTML={{ __html: `
           .book-dialog-calendar-container .rdp-week,
           .book-dialog-calendar-container .rdp-weekdays {
@@ -1591,7 +1591,7 @@ function BookAppointmentStep3({
             const todayIST = getTodayIST();
             return date < todayIST || isClinicClosedDate(date);
           }}
-          className="h-full min-h-[24rem] border border-border/50 shadow-sm p-2 sm:p-3 mx-auto w-full max-w-none sm:max-w-[22rem] [--cell-size:--spacing(7)] sm:[--cell-size:--spacing(9)] text-sm [&_.rdp-caption_label]:text-sm [&_.rdp-button]:text-sm"
+          className="border border-border/50 shadow-sm p-2 sm:p-3 mx-auto w-full max-w-[22rem] [--cell-size:1.875rem] sm:[--cell-size:2.25rem] text-sm [&_.rdp-caption_label]:text-sm [&_.rdp-button]:text-sm"
         />
       </div>
       {selectedDate && (
@@ -3396,6 +3396,7 @@ export function BookAppointmentDialog({
     dialogOpen && !!targetPatientId && consultationMode === "IN_PERSON";
   const { data: subscriptionsData = [] } = useSubscriptions(
     targetPatientId,
+    activeClinicId,
     shouldLoadSubscriptions,
   );
   const {
