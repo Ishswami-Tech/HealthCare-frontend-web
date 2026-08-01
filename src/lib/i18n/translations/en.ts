@@ -404,7 +404,7 @@ export const en: TranslationKeys = {
     }
   },
   drDeshmukhPage: {
-    heroText: 'Dr. Chandrakumar Deshmukh\nAyurvedacharya | Viddhakarma, Agnikarma, Panchakarma & Nadi Pariksha Specialist\n\n🏅 Honored by the Governor of India | 🇳🇵 Honored by the Government of Nepal | 🥇 BAMS, DYND (Gold Medalist) | 🌍 World Record Holder in Viddhakarma | 👨‍⚕️ Vaidyaratna • Sushrutaratna • Wari Vaidya | 🎤 350+ Lectures Across India & Abroad | 🎓 320+ National & International Workshops | 🌎 Trusted by Patients from 22+ Countries | ❤️ 500,000+ Successful Treatments | 👨‍🎓 Trained 5,000+ Ayurvedic Doctors',
+    heroText: 'Ayurvedacharya | Viddhakarma, Agnikarma, Panchakarma & Nadi Pariksha Specialist\n\n🏅 Honored by the Governor of India | 🇳🇵 Honored by the Government of Nepal | 🥇 BAMS, DYND (Gold Medalist) | 🌍 World Record Holder in Viddhakarma | 👨‍⚕️ Vaidyaratna • Sushrutaratna • Wari Vaidya | 🎤 350+ Lectures Across India & Abroad | 🎓 320+ National & International Workshops | 🌎 Trusted by Patients from 22+ Countries | ❤️ 500,000+ Successful Treatments | 👨‍🎓 Trained 5,000+ Ayurvedic Doctors',
     linksTitle: 'Links',
     linksHint: 'Tap a row to open or use the three dots to share.',
     shareButtonLabel: 'Share',
