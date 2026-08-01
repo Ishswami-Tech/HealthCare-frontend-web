@@ -4344,6 +4344,49 @@ export function BookAppointmentDialog({
       const finalAppointmentType: AppointmentType =
         consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON";
       const selectedDateString = formatDateIST(selectedDate);
+
+      // Client-side validation: past dates (supplements server-side guard)
+      if (!selectedDate) {
+        showErrorToast("Please select an appointment date.");
+        return;
+      }
+
+      const todayIST = getTodayIST();
+      if (selectedDate < todayIST) {
+        showErrorToast(
+          "Cannot book an appointment in the past. Please select today or a future date.",
+        );
+        return;
+      }
+
+      const dayOfWeek = selectedDate.getDay();
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        showErrorToast(
+          "Appointments cannot be booked on weekends. Please select a weekday.",
+        );
+        return;
+      }
+
+      // If today, verify the selected slot time hasn't passed yet
+      if (
+        selectedDate.getTime() === todayIST.getTime() &&
+        selectedSlot
+      ) {
+        const nowInIST = new Date(
+          new Date().getTime() + 5.5 * 60 * 60 * 1000,
+        );
+        const [slotH, slotM] = selectedSlot.split(":").map(Number);
+        const slotMinutes = (slotH ?? 0) * 60 + (slotM ?? 0);
+        const nowMinutes =
+          nowInIST.getUTCHours() * 60 + nowInIST.getUTCMinutes();
+        if (slotMinutes < nowMinutes) {
+          showErrorToast(
+            "This time slot has already passed. Please select a later time.",
+          );
+          return;
+        }
+      }
+
       if (!selectedSlot) {
         showErrorToast(
           finalAppointmentType === "VIDEO_CALL"
