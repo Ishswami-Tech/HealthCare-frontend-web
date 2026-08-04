@@ -63,12 +63,11 @@ export const useDoctors = (clinicId: string, filters?: {
       // once with cache-bust headers to recover from a stale empty cache
       // (e.g., doctor was added after the cache was first populated).
       if (doctors.length === 0) {
-        try {
-          const busted = await clinicApiClient.get(
-            API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId),
-            { ...(filters || {}), bust: '1' },
-            { headers: { 'X-Cache-Bust': '1' } } as RequestInit,
-          );
+  try {
+    const busted = await clinicApiClient.get(
+      API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId),
+      { ...(filters || {}), bust: '1' }
+    );
           const retryDoctors = Array.isArray(busted.data) ? busted.data : [];
           if (retryDoctors.length > 0) {
             console.log('[useDoctors] Cache-bust retry recovered doctors:', retryDoctors.length);
