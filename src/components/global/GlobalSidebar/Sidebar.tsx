@@ -122,10 +122,10 @@ const Logo = memo(function Logo() {
     <Link
       href="/"
       prefetch={false}
-      className="flex items-center gap-2 py-2"
+      className="group flex items-center gap-2.5 py-2"
     >
-      <div className="size-8 bg-primary rounded-lg flex items-center justify-center shrink-0">
-        <span className="text-primary-foreground font-bold text-xl">I</span>
+      <div className="size-9 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 flex items-center justify-center shrink-0 shadow-md shadow-emerald-600/20 ring-1 ring-emerald-600/20 transition-transform duration-300 group-hover:scale-105">
+        <span className="text-primary-foreground font-bold text-lg">I</span>
       </div>
       <m.span
         initial={{ opacity: 0 }}
@@ -145,10 +145,10 @@ const LogoIcon = memo(function LogoIcon() {
     <Link
       href="/"
       prefetch={false}
-      className="flex items-center justify-center py-2"
+      className="group flex items-center justify-center py-2"
     >
-      <div className="size-8 bg-primary rounded-lg flex items-center justify-center shrink-0">
-        <span className="text-primary-foreground font-bold text-xl">I</span>
+      <div className="size-9 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 flex items-center justify-center shrink-0 shadow-md shadow-emerald-600/20 ring-1 ring-emerald-600/20 transition-transform duration-300 group-hover:scale-105">
+        <span className="text-primary-foreground font-bold text-lg">I</span>
       </div>
     </Link>
   );
@@ -228,8 +228,8 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
   const displayRole = (normalizedRole || "USER")
     .replace(/_/g, " ");
   const isProfileActive = isSidebarLinkActive(pathname, new URLSearchParams(searchParams.toString()), profileRoute);
-  const activeNavClass =
-    "!bg-emerald-50 !text-emerald-700 font-semibold shadow-sm ring-1 ring-emerald-200 border border-emerald-200 dark:!bg-emerald-900/25 dark:!text-emerald-200 dark:ring-emerald-700/40 dark:border-emerald-700/40";
+const activeNavClass =
+    "!bg-gradient-to-r !from-emerald-50 !to-teal-50 !text-emerald-700 font-semibold shadow-sm ring-1 ring-emerald-200 border border-emerald-200 dark:!from-emerald-900/30 dark:!to-teal-900/20 dark:!text-emerald-200 dark:ring-emerald-700/40 dark:border-emerald-700/40";
 
   const firstLetter = user.name?.charAt(0).toUpperCase() || "U";
 

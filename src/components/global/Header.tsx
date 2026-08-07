@@ -83,10 +83,12 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
 
   return (
     <LazyMotion features={domAnimation}>
-      <header className={cn(
-        "sticky top-0 z-40 w-full transition-all duration-200 border-b border-border/10 bg-background/80 backdrop-blur-md",
+<header className={cn(
+        "sticky top-0 z-40 w-full transition-all duration-200 border-b border-border/10 bg-background/80 backdrop-blur-md shadow-sm shadow-emerald-500/5",
         className
       )}>
+      {/* Emerald gradient accent line */}
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
       <div className="flex h-12 md:h-14 items-center px-3 md:px-5 gap-3 max-w-6xl mx-auto">
         {/* Left side content (title, breadcrumbs, etc) */}
         <div className="flex-1 flex items-center min-w-0">

@@ -84,51 +84,51 @@ const Footer = () => {
               {t("footer.description")}
             </p>
 
-            {/* Trust Badges */}
-            <div className="gap-y-2 mb-6">
-              <Badge className="bg-primary text-primary-foreground border-primary">
+{/* Trust Badges */}
+            <div className="flex flex-wrap gap-2 mb-6">
+              <Badge className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-transparent shadow-sm shadow-emerald-600/20">
                 <CheckCircle className="size-3 mr-1" />
                 {t("stats.certifications.governmentCertified.title")}
               </Badge>
-              <Badge className="bg-primary text-primary-foreground border-primary">
+              <Badge className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-transparent shadow-sm shadow-emerald-600/20">
                 <Award className="size-3 mr-1" />
                 {t("stats.certifications.iso9001.title")}
               </Badge>
-              <Badge className="bg-primary text-primary-foreground border-primary">
+              <Badge className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700/40">
                 <Star className="size-3 mr-1" />
                 {t("stats.patientRating")}
               </Badge>
             </div>
 
             {/* Social Links */}
-            <div className="flex gap-x-4">
+            <div className="flex gap-x-3">
               <Button
                 size="sm"
                 variant="outline"
-                className="rounded-full size-10 p-0 border-border text-muted-foreground hover:text-foreground hover:border-primary"
+                className="group rounded-full size-10 p-0 border-border text-muted-foreground hover:text-foreground hover:border-primary hover:bg-emerald-50/60 dark:hover:bg-emerald-900/20 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
               >
-                <Facebook className="size-4" />
+                <Facebook className="size-4 transition-transform duration-300 group-hover:scale-110" />
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                className="rounded-full size-10 p-0 border-border text-muted-foreground hover:text-foreground hover:border-primary"
+                className="group rounded-full size-10 p-0 border-border text-muted-foreground hover:text-foreground hover:border-primary hover:bg-emerald-50/60 dark:hover:bg-emerald-900/20 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
               >
-                <Instagram className="size-4" />
+                <Instagram className="size-4 transition-transform duration-300 group-hover:scale-110" />
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                className="rounded-full size-10 p-0 border-border text-muted-foreground hover:text-foreground hover:border-primary"
+                className="group rounded-full size-10 p-0 border-border text-muted-foreground hover:text-foreground hover:border-primary hover:bg-emerald-50/60 dark:hover:bg-emerald-900/20 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
               >
-                <Youtube className="size-4" />
+                <Youtube className="size-4 transition-transform duration-300 group-hover:scale-110" />
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                className="rounded-full size-10 p-0 border-border text-muted-foreground hover:text-foreground hover:border-primary"
+                className="group rounded-full size-10 p-0 border-border text-muted-foreground hover:text-foreground hover:border-primary hover:bg-emerald-50/60 dark:hover:bg-emerald-900/20 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
               >
-                <Twitter className="size-4" />
+                <Twitter className="size-4 transition-transform duration-300 group-hover:scale-110" />
               </Button>
             </div>
           </div>

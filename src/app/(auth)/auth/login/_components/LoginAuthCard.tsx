@@ -198,7 +198,7 @@ export function LoginAuthCard({
                     className={cn(
                       "flex flex-1 items-center justify-center gap-3 rounded-lg border p-2 transition-all duration-300 ease-out",
                       otpMethod === "phone"
-                        ? "border-purple-500 bg-purple-50 shadow-sm dark:bg-slate-900"
+                        ? "border-teal-500 bg-teal-50 shadow-sm dark:bg-slate-900"
                         : "border-transparent bg-transparent text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800",
                     )}
                   >
@@ -206,7 +206,7 @@ export function LoginAuthCard({
                       className={cn(
                         "flex size-8 items-center justify-center rounded-full transition-colors",
                         otpMethod === "phone"
-                          ? "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300"
+                          ? "bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300"
                           : "bg-gray-200 text-gray-500 dark:bg-slate-700 dark:text-gray-400",
                       )}
                     >
@@ -216,7 +216,7 @@ export function LoginAuthCard({
                       className={cn(
                         "text-sm font-bold",
                         otpMethod === "phone"
-                          ? "text-purple-800 dark:text-purple-300"
+                          ? "text-teal-800 dark:text-teal-300"
                           : "font-medium text-gray-500",
                       )}
                     >
@@ -230,10 +230,10 @@ export function LoginAuthCard({
                       otpForm.setValue("identifier", getCachedIdentifier("email"));
                       otpForm.clearErrors("identifier");
                     }}
-                    className={cn(
+className={cn(
                       "flex flex-1 items-center justify-center gap-3 rounded-lg border p-2 transition-all duration-300 ease-out",
                       otpMethod === "email"
-                        ? "border-blue-500 bg-blue-50 shadow-sm dark:bg-slate-900"
+                        ? "border-emerald-500 bg-emerald-50 shadow-sm dark:bg-slate-900"
                         : "border-transparent bg-transparent text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800",
                     )}
                   >
@@ -241,7 +241,7 @@ export function LoginAuthCard({
                       className={cn(
                         "flex size-8 items-center justify-center rounded-full transition-colors",
                         otpMethod === "email"
-                          ? "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
+                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"
                           : "bg-gray-200 text-gray-500 dark:bg-slate-700 dark:text-gray-400",
                       )}
                     >
@@ -251,7 +251,7 @@ export function LoginAuthCard({
                       className={cn(
                         "text-sm font-bold",
                         otpMethod === "email"
-                          ? "text-blue-800 dark:text-blue-300"
+                          ? "text-emerald-800 dark:text-emerald-300"
                           : "font-medium text-gray-500",
                       )}
                     >
