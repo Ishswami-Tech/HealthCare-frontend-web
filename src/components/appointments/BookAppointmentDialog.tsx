@@ -5239,11 +5239,11 @@ export function BookAppointmentDialog({
 
         {/* Footer hide on success screen */}
         {!isSuccessStep && (
-          <div className="px-3 sm:px-6 py-3 sm:py-4 border-t bg-background flex flex-col-reverse gap-2.5 sm:flex-row sm:items-center sm:gap-4 shrink-0">
+          <div className="px-3 sm:px-6 py-3 sm:py-4 border-t bg-background flex flex-row gap-2.5 items-center sm:gap-4 shrink-0">
             <Button
               variant="outline"
               onClick={step > 1 ? goBack : () => handleOpenChange(false)}
-              className="h-11 w-full px-6 rounded-xl border-border/50 transition-all active:scale-95 gap-2 sm:w-auto"
+              className="h-11 flex-auto px-6 rounded-xl border-border/50 transition-all active:scale-95 gap-2 sm:flex-none sm:w-auto"
               disabled={pendingStepNavigation === "backward"}
             >
               {pendingStepNavigation === "backward" ? (
@@ -5259,7 +5259,7 @@ export function BookAppointmentDialog({
               <Button
                 onClick={goNext}
                 disabled={!canNext}
-                className="h-11 w-full px-8 rounded-xl font-semibold bg-primary hover:bg-primary/90 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2 sm:w-auto"
+                className="h-11 flex-auto px-8 rounded-xl font-semibold bg-primary hover:bg-primary/90 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2 sm:flex-none sm:w-auto"
               >
                 {pendingStepNavigation === "forward" ? (
                   <Loader2 className="size-4 animate-spin" />
@@ -5300,7 +5300,7 @@ export function BookAppointmentDialog({
                   <Button
                     onClick={handleBook}
                     disabled={isVideoConfirmDisabled}
-                    className="h-11 w-full px-8 rounded-xl font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2 sm:w-auto"
+                    className="min-h-11 h-auto py-2 whitespace-normal leading-tight flex-auto px-4 sm:px-8 rounded-xl font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2 sm:flex-none sm:w-auto"
                   >
                     {(
                       consultationMode === "VIDEO"
