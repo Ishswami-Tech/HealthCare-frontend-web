@@ -41,8 +41,11 @@ export function TableSkeleton({ columns, rows = 3, className, showPagination = t
     <div className={cn("rounded-2xl border border-border bg-muted/20 shadow-none", className)}>
       <div className="border-b border-border px-4 py-3">
         <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }}>
-          {columns.map((column) => (
-            <div key={column} className="text-sm font-semibold text-foreground">
+          {columns.map((column, columnIndex) => (
+            <div
+              key={`header-${columnIndex}-${column || "col"}`}
+              className="text-sm font-semibold text-foreground"
+            >
               {column}
             </div>
           ))}
@@ -52,14 +55,17 @@ export function TableSkeleton({ columns, rows = 3, className, showPagination = t
         <div className="space-y-3">
           {Array.from({ length: rows }).map((_, rowIndex) => (
             <div
-              key={rowIndex}
+              key={`row-${rowIndex}`}
               className="grid gap-3"
               style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }}
             >
               {columns.map((column, columnIndex) => {
                 const isStatusColumn = /status|state|type|payment/i.test(column);
                 return (
-                  <div key={`${rowIndex}-${column}`} className="flex min-h-8 items-center">
+                  <div
+                    key={`cell-${rowIndex}-${columnIndex}`}
+                    className="flex min-h-8 items-center"
+                  >
                     <div
                       className={cn(
                         "h-4 rounded bg-muted animate-pulse",
@@ -140,18 +146,7 @@ export function DashboardPageSkeleton() {
           </Card>
         ))}
       </div>
-      <div className="rounded-2xl border border-border bg-muted/20 shadow-none">
-        <div className="border-b border-border px-4 py-3">
-          <div className="grid grid-cols-4 gap-3">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="h-4 rounded bg-muted animate-pulse" />
-            ))}
-          </div>
-        </div>
-        <div className="px-4 py-3">
-          <TableSkeleton columns={["", "", "", ""]} rows={3} showPagination={false} />
-        </div>
-      </div>
+      <TableSkeleton columns={["", "", "", ""]} rows={3} />
     </div>
   );
 }
