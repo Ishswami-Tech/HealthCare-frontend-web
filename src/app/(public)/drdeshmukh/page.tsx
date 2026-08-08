@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ElementType, type ReactNode, type SVGProps } from "react";
+import { useMemo, useState, type ElementType, type ReactNode, type SVGProps } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -26,6 +26,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { useTranslation } from "@/lib/i18n/context";
 
 type ServiceItem = {
   id: string;
@@ -134,8 +135,6 @@ function SnapchatIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
 
 const doctor = {
   name: "Dr. Chandrakumar Deshmukh",
-  heroText:
-    "Viddhakarma and agnikarma specialist pune Gold medal Infertility- Arthritis - autism- CP रजयपल भरत सरकर परसकत , वदयरतन, सशरतरतन ,वर वदय",
   phone: "+91 9860370961",
   location: "Pune, India",
   photo: "/drdeshmukh.webp",
@@ -147,109 +146,112 @@ const doctor = {
   },
 };
 
-const services: ServiceItem[] = [
-  {
-    id: "video-appointments",
-    title: "Book Video Consultation",
-    description: "Schedule an online video consultation with Dr. Deshmukh on the web.",
-    href: "/patient/appointments?openBooking=1&mode=VIDEO",
-    icon: Video,
-    accent: "bg-orange-500",
-    badge: "Book Now",
-    previewKind: "app",
-  },
+function buildDrDeshmukhServices(t: (path: string) => string): ServiceItem[] {
+  const doctorName = t("team.teamMembers.drDeshmukh.name");
 
-  {
-    id: "soup",
-    title: "Charabi Bhasma Soup",
-    description: "Open the product page for details and ordering.",
-    href: "https://www.charabibhasma.com/product-page/charabi-bhasma-soup",
-    icon: Flame,
-    accent: "bg-amber-500",
-    badge: "Rs 2,500",
-    previewKind: "order",
-  },
-  {
-    id: "android",
-    title: "Appointment - Android",
-    description: "Open the Android app listing.",
-    href: "https://play.google.com/store/apps/details?id=com.syntagihealthcare.chandrakumardeshmukh&pcampaignid=web_share",
-    icon: CalendarDays,
-    accent: "bg-orange-500",
-    badge: "Book now",
-    previewKind: "app",
-  },
-  {
-    id: "apple",
-    title: "Appointment - Apple",
-    description: "Open the iPhone app listing.",
-    href: "https://apps.apple.com/in/app/syntagi-consult-doctor-online/id1479574621",
-    icon: CalendarDays,
-    accent: "bg-orange-500",
-    badge: "Book now",
-    previewKind: "app",
-  },
-  {
-    id: "chinchwad",
-    title: "Chinchwad Clinic",
-    description: "Vishal market, near manakarnika aushadhalaya, bhaji mandai, Chinchwad, Pimpri-Chinchwad.",
-    href: "https://maps.app.goo.gl/vUpHxgJ46WuhxacR8",
-    icon: MapPin,
-    accent: "bg-sky-500",
-    badge: "Open maps",
-    previewKind: "map",
-  },
-  {
-    id: "nanapeth",
-    title: "Nanapeth Clinic",
-    description: "102, RAMPRASAD CHAMBERS, 368/1, Jawaharlal Nehru Rd, KIRAD HOSPITAL, SHRADDHA MEDICALS, New Nana Peth, Pune.",
-    href: "https://maps.app.goo.gl/h32bZgQhb8r8YewX7",
-    icon: MapPin,
-    accent: "bg-sky-500",
-    badge: "Open maps",
-    previewKind: "map",
-  },
-  {
-    id: "youtube",
-    title: "Dr Chandrakumar Deshmukh - YouTube",
-    description: "Open the main YouTube channel.",
-    href: "http://www.youtube.com/@viddhakarma",
-    icon: Youtube,
-    accent: "bg-red-500",
-    badge: "Watch now",
-    previewKind: "video",
-  },
-  {
-    id: "viddhakarma",
-    title: "Viddhakarma As it is",
-    description: "Open the Viddhakarma playlist.",
-    href: "https://youtube.com/playlist?list=PL3ZA4ZyCkM0t_96X_VPMUTw1sKF6C3vRT&si=zaWUgJEqyujuGMWd",
-    icon: Youtube,
-    accent: "bg-red-500",
-    badge: "Watch now",
-    previewKind: "video",
-  },
-  {
-    id: "autism",
-    title: "Autism concepts",
-    description: "Open the Autism concepts playlist.",
-    href: "https://youtube.com/playlist?list=PL3ZA4ZyCkM0tjWUVGrEYr3XJFLHU063l3&si=ghHxiTW9Bzw2WMDj",
-    icon: Youtube,
-    accent: "bg-red-500",
-    badge: "Watch now",
-    previewKind: "video",
-  },
-  {
-    id: "call-clinic",
-    title: "Need Help?",
-    description: "Call Dr. Deshmukh's clinic directly for assistance or to book an appointment.",
-    href: "tel:9860370961",
-    icon: Phone,
-    accent: "bg-slate-700",
-    badge: "Help",
-    previewKind: "app",
-  },
-];
+  return [
+    {
+      id: "video-appointments",
+      title: t("drDeshmukhPage.services.videoAppointments.title"),
+      description: t("drDeshmukhPage.services.videoAppointments.description"),
+      href: "/patient/appointments?openBooking=1&mode=VIDEO",
+      icon: Video,
+      accent: "bg-orange-500",
+      badge: t("drDeshmukhPage.services.videoAppointments.badge"),
+      previewKind: "app",
+    },
+    {
+      id: "soup",
+      title: t("drDeshmukhPage.services.soup.title"),
+      description: t("drDeshmukhPage.services.soup.description"),
+      href: "https://www.charabibhasma.com/product-page/charabi-bhasma-soup",
+      icon: Flame,
+      accent: "bg-amber-500",
+      badge: t("drDeshmukhPage.services.soup.badge"),
+      previewKind: "order",
+    },
+    {
+      id: "android",
+      title: t("drDeshmukhPage.services.android.title"),
+      description: t("drDeshmukhPage.services.android.description"),
+      href: "https://play.google.com/store/apps/details?id=com.syntagihealthcare.chandrakumardeshmukh&pcampaignid=web_share",
+      icon: CalendarDays,
+      accent: "bg-orange-500",
+      badge: t("drDeshmukhPage.services.android.badge"),
+      previewKind: "app",
+    },
+    {
+      id: "apple",
+      title: t("drDeshmukhPage.services.apple.title"),
+      description: t("drDeshmukhPage.services.apple.description"),
+      href: "https://apps.apple.com/in/app/syntagi-consult-doctor-online/id1479574621",
+      icon: CalendarDays,
+      accent: "bg-orange-500",
+      badge: t("drDeshmukhPage.services.apple.badge"),
+      previewKind: "app",
+    },
+    {
+      id: "chinchwad",
+      title: t("drDeshmukhPage.services.chinchwad.title"),
+      description: t("drDeshmukhPage.services.chinchwad.description"),
+      href: "https://maps.app.goo.gl/vUpHxgJ46WuhxacR8",
+      icon: MapPin,
+      accent: "bg-sky-500",
+      badge: t("drDeshmukhPage.services.chinchwad.badge"),
+      previewKind: "map",
+    },
+    {
+      id: "nanapeth",
+      title: t("drDeshmukhPage.services.nanapeth.title"),
+      description: t("drDeshmukhPage.services.nanapeth.description"),
+      href: "https://maps.app.goo.gl/h32bZgQhb8r8YewX7",
+      icon: MapPin,
+      accent: "bg-sky-500",
+      badge: t("drDeshmukhPage.services.nanapeth.badge"),
+      previewKind: "map",
+    },
+    {
+      id: "youtube",
+      title: `${doctorName} - YouTube`,
+      description: t("drDeshmukhPage.services.youtube.description"),
+      href: "http://www.youtube.com/@viddhakarma",
+      icon: Youtube,
+      accent: "bg-red-500",
+      badge: t("drDeshmukhPage.services.youtube.badge"),
+      previewKind: "video",
+    },
+    {
+      id: "viddhakarma",
+      title: t("drDeshmukhPage.services.viddhakarma.title"),
+      description: t("drDeshmukhPage.services.viddhakarma.description"),
+      href: "https://youtube.com/playlist?list=PL3ZA4ZyCkM0t_96X_VPMUTw1sKF6C3vRT&si=zaWUgJEqyujuGMWd",
+      icon: Youtube,
+      accent: "bg-red-500",
+      badge: t("drDeshmukhPage.services.viddhakarma.badge"),
+      previewKind: "video",
+    },
+    {
+      id: "autism",
+      title: t("drDeshmukhPage.services.autism.title"),
+      description: t("drDeshmukhPage.services.autism.description"),
+      href: "https://youtube.com/playlist?list=PL3ZA4ZyCkM0tjWUVGrEYr3XJFLHU063l3&si=ghHxiTW9Bzw2WMDj",
+      icon: Youtube,
+      accent: "bg-red-500",
+      badge: t("drDeshmukhPage.services.autism.badge"),
+      previewKind: "video",
+    },
+    {
+      id: "call-clinic",
+      title: t("drDeshmukhPage.services.callClinic.title"),
+      description: t("drDeshmukhPage.services.callClinic.description"),
+      href: "tel:9860370961",
+      icon: Phone,
+      accent: "bg-slate-700",
+      badge: t("drDeshmukhPage.services.callClinic.badge"),
+      previewKind: "app",
+    },
+  ];
+}
 
 function resolveHref(href: string) {
   if (typeof window === "undefined") {
@@ -323,8 +325,8 @@ function getFallbackThumbnail(service: ServiceItem) {
   return createThumbnailDataUri(service.title, service.previewKind);
 }
 
-function getShareText(service: ServiceItem) {
-  return [doctor.name, service.title, service.description, resolveHref(service.href)].join("\n");
+function getShareText(service: ServiceItem, doctorName: string) {
+  return [doctorName, service.title, service.description, resolveHref(service.href)].join("\n");
 }
 
 function ServiceLink({
@@ -359,10 +361,13 @@ function ServiceLink({
 }
 
 export default function DrDeshmukhPage() {
+  const { t } = useTranslation();
+  const doctorName = t("team.teamMembers.drDeshmukh.name");
   const [pageCopied, setPageCopied] = useState(false);
   const [activeServiceId, setActiveServiceId] = useState<string | null>(null);
   const [copiedTarget, setCopiedTarget] = useState<string | null>(null);
 
+  const services = useMemo(() => buildDrDeshmukhServices(t), [t]);
   const activeService = services.find((service) => service.id === activeServiceId) ?? null;
 
   const { data: previews = {} } = useQuery({
@@ -415,7 +420,7 @@ export default function DrDeshmukhPage() {
       try {
         await navigator.share({
           title: service.title,
-          text: getShareText(service),
+          text: getShareText(service, doctorName),
           url,
         });
         return;
@@ -429,12 +434,12 @@ export default function DrDeshmukhPage() {
 
   const handleSharePage = async () => {
     const shareUrl = window.location.href;
-    const shareText = `${doctor.name} - appointments, treatments, and verified links`;
+    const shareText = `${doctorName} - ${t("drDeshmukhPage.footerTagline")}`;
 
     if (navigator.share) {
       try {
         await navigator.share({
-          title: doctor.name,
+          title: doctorName,
           text: shareText,
           url: shareUrl,
         });
@@ -457,7 +462,7 @@ export default function DrDeshmukhPage() {
             <div className="shrink-0 overflow-hidden rounded-xl border border-slate-200">
               <Image
                 src={doctor.photo}
-                alt={doctor.name}
+                alt={doctorName}
                 width={36}
                 height={36}
                 className="size-9 object-cover"
@@ -465,7 +470,7 @@ export default function DrDeshmukhPage() {
               />
             </div>
             <div className="min-w-0">
-              <h1 className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{doctor.name}</h1>
+              <h1 className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{doctorName}</h1>
             </div>
           </div>
 
@@ -478,7 +483,7 @@ export default function DrDeshmukhPage() {
             {pageCopied ? (
               <>
                 <Check className="size-4" />
-                Copied
+                {t("drDeshmukhPage.copiedLabel")}
               </>
             ) : (
               <>
@@ -496,7 +501,7 @@ export default function DrDeshmukhPage() {
             <div className="relative mx-auto mt-4 h-[150px] w-[150px] overflow-hidden rounded-full bg-slate-100 ring-4 ring-white/90 shadow-lg dark:bg-slate-800 dark:ring-slate-900 md:my-4 md:ml-4 md:mt-0 md:h-40 md:w-40 md:mr-2">
               <Image
                 src={doctor.photo}
-                alt={doctor.name}
+                alt={doctorName}
                 fill
                 className="object-cover"
                 priority
@@ -507,20 +512,20 @@ export default function DrDeshmukhPage() {
             <div className="flex flex-col gap-y-3 px-4 pb-4 pt-1 text-center md:px-6 md:py-5 md:pl-2 md:text-left">
               <div className="flex flex-col gap-y-1">
                 <h2 className="text-lg font-semibold leading-tight text-slate-900 dark:text-slate-100 sm:text-2xl">
-                  {doctor.name}
+                  {doctorName}
                 </h2>
                 <p className="mx-auto max-w-xl text-sm leading-relaxed text-slate-600 dark:text-slate-300 md:mx-0 sm:text-base">
-                  {doctor.heroText}
+                  {t("drDeshmukhPage.heroText")}
                 </p>
               </div>
 
               <div className="flex flex-wrap items-center justify-center gap-3 md:justify-start">
                 {[
-                  { label: "Instagram", href: doctor.socialLinks.instagram, icon: InstagramIcon, bg: "bg-pink-500" },
-                  { label: "Email", href: doctor.socialLinks.email, icon: Mail, bg: "bg-slate-700" },
-                  { label: "YouTube", href: doctor.socialLinks.youtube, icon: Youtube, bg: "bg-red-500" },
-                  { label: "WhatsApp", href: doctor.socialLinks.whatsapp, icon: WhatsAppIcon, bg: "bg-emerald-500" },
-                  { label: "Phone", href: `tel:${doctor.phone}`, icon: Phone, bg: "bg-slate-700" },
+                  { label: t("drDeshmukhPage.socialLinks.instagram"), href: doctor.socialLinks.instagram, icon: InstagramIcon, bg: "bg-pink-500" },
+                  { label: t("drDeshmukhPage.socialLinks.email"), href: doctor.socialLinks.email, icon: Mail, bg: "bg-slate-700" },
+                  { label: t("drDeshmukhPage.socialLinks.youtube"), href: doctor.socialLinks.youtube, icon: Youtube, bg: "bg-red-500" },
+                  { label: t("drDeshmukhPage.socialLinks.whatsapp"), href: doctor.socialLinks.whatsapp, icon: WhatsAppIcon, bg: "bg-emerald-500" },
+                  { label: t("drDeshmukhPage.socialLinks.phone"), href: `tel:${doctor.phone}`, icon: Phone, bg: "bg-slate-700" },
                 ].map((link) => {
                   const Icon = link.icon;
                   return (
@@ -528,7 +533,7 @@ export default function DrDeshmukhPage() {
                       key={link.label}
                       href={link.href}
                       className={`flex size-10 items-center justify-center rounded-full ${
-                        link.label === "Instagram"
+                        link.label === t("drDeshmukhPage.socialLinks.instagram")
                           ? "bg-gradient-to-br from-fuchsia-500 via-pink-500 to-rose-500"
                           : link.bg
                       } text-white shadow-sm transition-transform hover:scale-105 sm:h-11 sm:w-11`}
@@ -545,9 +550,9 @@ export default function DrDeshmukhPage() {
 
         <section className="mt-5 flex flex-col gap-y-2">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="text-base font-semibold text-sky-700 dark:text-sky-300 sm:text-lg">Links</h3>
+            <h3 className="text-base font-semibold text-sky-700 dark:text-sky-300 sm:text-lg">{t("drDeshmukhPage.linksTitle")}</h3>
             <p className="hidden rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700 dark:bg-sky-500/15 dark:text-sky-300 sm:block">
-              Tap a row to open or use the three dots to share.
+              {t("drDeshmukhPage.linksHint")}
             </p>
           </div>
 
@@ -614,7 +619,7 @@ export default function DrDeshmukhPage() {
                     variant="ghost"
                     size="icon-sm"
                     className="shrink-0 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-                    aria-label={`More actions for ${service.title}`}
+                    aria-label={`${t("drDeshmukhPage.moreActionsAriaPrefix")} ${service.title}`}
                     onClick={() => setActiveServiceId(service.id)}
                   >
                     <MoreVertical className="size-5" />
@@ -637,17 +642,19 @@ export default function DrDeshmukhPage() {
       <DialogContent
         showCloseButton={false}
         className="max-h-[calc(100vh-1rem)] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] gap-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl dark:border-slate-800 dark:bg-slate-950 sm:max-w-lg"
-      >
+        >
         {activeService ? (
           <>
-            <DialogTitle className="sr-only">Share - {activeService.title}</DialogTitle>
+            <DialogTitle className="sr-only">
+              {t("drDeshmukhPage.shareDialogTitlePrefix")} - {activeService.title}
+            </DialogTitle>
 
             <div className="relative border-b border-slate-100 bg-white p-4 pr-14 dark:border-slate-800 dark:bg-slate-950">
               <DialogClose asChild>
                 <button
                   type="button"
                   className="absolute right-3 top-3 inline-flex size-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
-                  aria-label="Close dialog"
+                  aria-label={t("drDeshmukhPage.closeDialog")}
                 >
                   <X className="size-4" />
                 </button>
@@ -712,7 +719,7 @@ export default function DrDeshmukhPage() {
                     size="icon-sm"
                     className="shrink-0 rounded-full text-slate-500 hover:bg-white hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                     onClick={() => handleCopy(resolveHref(activeService.href), `service:${activeService.id}`)}
-                    aria-label="Copy link"
+                    aria-label={t("drDeshmukhPage.copyLink")}
                   >
                     {copiedTarget === `service:${activeService.id}` ? (
                       <Check className="size-4 text-emerald-600" />
@@ -728,8 +735,8 @@ export default function DrDeshmukhPage() {
                   type="button"
                   onClick={() => handleShareLink(activeService)}
                   className="flex size-8 flex-none items-center justify-center rounded-full bg-slate-900 text-white shadow-sm transition-transform hover:scale-105 dark:bg-slate-100 dark:text-slate-900"
-                  aria-label="Share link"
-                  title="Share link"
+                  aria-label={t("drDeshmukhPage.shareLink")}
+                  title={t("drDeshmukhPage.shareLink")}
                 >
                   {copiedTarget === `share:${activeService.id}` ? (
                     <Check className="size-3.5 text-emerald-600" />
@@ -743,8 +750,8 @@ export default function DrDeshmukhPage() {
                   type="button"
                   onClick={() => handleCopy(resolveHref(activeService.href), `service:${activeService.id}`)}
                   className="flex size-8 flex-none items-center justify-center rounded-full bg-sky-500 text-white shadow-sm transition-transform hover:scale-105 dark:bg-sky-400 dark:text-white"
-                  aria-label="Copy link"
-                  title="Copy link"
+                  aria-label={t("drDeshmukhPage.copyLink")}
+                  title={t("drDeshmukhPage.copyLink")}
                 >
                   {copiedTarget === `service:${activeService.id}` ? (
                     <Check className="size-3.5 text-emerald-600" />
@@ -758,8 +765,8 @@ export default function DrDeshmukhPage() {
                   type="button"
                   onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(resolveHref(activeService.href))}`, "_blank", "noreferrer")}
                   className="flex size-8 flex-none items-center justify-center rounded-full bg-[#1877F2] text-white shadow-sm transition-transform hover:scale-105"
-                  aria-label="Share on Facebook"
-                  title="Share on Facebook"
+                  aria-label={t("drDeshmukhPage.shareOnFacebook")}
+                  title={t("drDeshmukhPage.shareOnFacebook")}
                 >
                   <FacebookIcon className="size-3.5" />
                   <span className="sr-only">Share on Facebook</span>
@@ -768,20 +775,20 @@ export default function DrDeshmukhPage() {
                 <ServiceLink
                   href={doctor.socialLinks.instagram}
                   className="flex size-8 flex-none items-center justify-center rounded-full bg-gradient-to-br from-fuchsia-500 via-pink-500 to-rose-500 text-white shadow-sm transition-transform hover:scale-105"
-                  aria-label="Instagram"
-                  title="Instagram"
+                  aria-label={t("drDeshmukhPage.socialLinks.instagram")}
+                  title={t("drDeshmukhPage.socialLinks.instagram")}
                 >
                   <InstagramIcon className="size-3.5" />
                   <span className="sr-only">Instagram</span>
                 </ServiceLink>
 
                 <a
-                  href={`https://wa.me/?text=${encodeURIComponent(getShareText(activeService))}`}
+                  href={`https://wa.me/?text=${encodeURIComponent(getShareText(activeService, doctorName))}`}
                   target="_blank"
                   rel="noreferrer"
                   className="flex size-8 flex-none items-center justify-center rounded-full bg-[#25D366] text-white shadow-sm transition-transform hover:scale-105"
-                  aria-label="Share on WhatsApp"
-                  title="Share on WhatsApp"
+                  aria-label={t("drDeshmukhPage.shareOnWhatsApp")}
+                  title={t("drDeshmukhPage.shareOnWhatsApp")}
                 >
                   <WhatsAppIcon className="size-3.5" />
                   <span className="sr-only">Share on WhatsApp</span>
@@ -790,8 +797,8 @@ export default function DrDeshmukhPage() {
                 <ServiceLink
                   href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(resolveHref(activeService.href))}`}
                   className="flex size-8 flex-none items-center justify-center rounded-full bg-[#0A66C2] text-white shadow-sm transition-transform hover:scale-105"
-                  aria-label="Share on LinkedIn"
-                  title="Share on LinkedIn"
+                  aria-label={t("drDeshmukhPage.shareOnLinkedIn")}
+                  title={t("drDeshmukhPage.shareOnLinkedIn")}
                 >
                   <LinkedInIcon className="size-3.5" />
                   <span className="sr-only">Share on LinkedIn</span>
@@ -799,21 +806,21 @@ export default function DrDeshmukhPage() {
                 <ServiceLink
                   href={activeService.href}
                   className="flex h-8 flex-none items-center justify-center gap-1 rounded-full bg-emerald-500 px-2.5 text-[10px] font-semibold text-white shadow-sm transition-transform hover:scale-[1.01]"
-                  aria-label="Open here"
-                  title="Open here"
+                  aria-label={t("drDeshmukhPage.openHere")}
+                  title={t("drDeshmukhPage.openHere")}
                 >
                   <ExternalLink className="size-2.5" />
-                  <span>Open here</span>
+                  <span>{t("drDeshmukhPage.openHere")}</span>
                 </ServiceLink>
               </div>
 
               <div className="pb-1">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
                   <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                    Share preview
+                    {t("drDeshmukhPage.sharePreview")}
                   </p>
                   <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-700 dark:text-slate-200">
-                    {getShareText(activeService)}
+                      {getShareText(activeService, doctorName)}
                   </p>
                 </div>
               </div>
@@ -825,7 +832,7 @@ export default function DrDeshmukhPage() {
 
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-2xl flex-col gap-1 px-4 py-4 text-center text-xs text-slate-500 sm:px-6">
-          <p>Authentic Ayurvedic healing and patient support.</p>
+          <p>{t("drDeshmukhPage.footerTagline")}</p>
           <p>{doctor.location}</p>
         </div>
       </footer>

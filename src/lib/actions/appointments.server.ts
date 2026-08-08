@@ -41,7 +41,10 @@ const IST_UTC_OFFSET = '+05:30';
 
 function toIstAppointmentIso(date: string, time: string): string {
   // Normalize incoming date/time to IST first, then store as UTC ISO for backend consistency.
-  return new Date(`${date}T${time}:00${IST_UTC_OFFSET}`).toISOString();
+  const normalizedDate = String(date || '')
+    .replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu, '')
+    .trim();
+  return new Date(`${normalizedDate}T${time}:00${IST_UTC_OFFSET}`).toISOString();
 }
 
 function normalizeAppointment(raw: Appointment | (Appointment & { appointmentDate?: string })) {
@@ -554,6 +557,16 @@ export async function getAppointments(filters?: AppointmentFilters & { omitClini
   try {
     const session = await getServerSession();
     const { omitClinicId, ...restFilters } = filters || {};
+    const requestContext = {
+      clinicId: restFilters.clinicId || session?.user?.clinicId || APP_CONFIG.CLINIC.ID,
+      status: restFilters.status,
+      date: restFilters.date,
+      startDate: restFilters.startDate,
+      endDate: restFilters.endDate,
+      page: restFilters.page,
+      limit: restFilters.limit,
+    };
+    logger.debug('getAppointments request', requestContext);
     const queryParams = new URLSearchParams(restFilters as any).toString();
     const endpoint = queryParams ? `${API_ENDPOINTS.APPOINTMENTS.GET_ALL}?${queryParams}` : API_ENDPOINTS.APPOINTMENTS.GET_ALL;
     const resolvedClinicId = session?.user?.clinicId || restFilters.clinicId || APP_CONFIG.CLINIC.ID;
@@ -589,6 +602,7 @@ export async function getAppointments(filters?: AppointmentFilters & { omitClini
       (!Array.isArray(payload) && payload?.pagination) ||
       data.pagination ||
       data.meta;
+    logger.debug('getAppointments response', { appointmentsCount: appointments.length, hasMeta: !!meta });
     return { success: true, appointments, meta };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -625,6 +639,16 @@ export async function getMyAppointments(filters?: any) {
     const sessionUser = session?.user as
       | { clinicId?: string; primaryClinicId?: string }
       | undefined;
+    const requestContext = {
+      clinicId: filters?.clinicId || sessionUser?.clinicId || sessionUser?.primaryClinicId || APP_CONFIG.CLINIC.ID,
+      status: filters?.status,
+      date: filters?.date,
+      startDate: filters?.startDate,
+      endDate: filters?.endDate,
+      page: filters?.page,
+      limit: filters?.limit,
+    };
+    logger.debug('getMyAppointments request', requestContext);
     // Use the authoritative session clinicId — the cookie is always current after login/profile completion.
     // Only use filters.clinicId as a fallback when session doesn't have clinicId.
     const resolvedClinicId =
@@ -691,6 +715,7 @@ export async function getMyAppointments(filters?: any) {
       (!Array.isArray(payload) && payload?.pagination) ||
       data.pagination ||
       data.meta;
+    logger.debug('getMyAppointments response', { appointmentsCount: appointments.length, hasMeta: !!meta });
     return { success: true, appointments, meta };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);

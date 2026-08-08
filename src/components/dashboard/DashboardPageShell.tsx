@@ -29,7 +29,7 @@ interface DashboardPageHeaderProps {
 
 export function DashboardPageShell({ children, className }: DashboardPageShellProps) {
   return (
-    <div className={cn("flex flex-col gap-y-3 text-foreground sm:gap-y-4", className)}>
+    <div className={cn("flex flex-col gap-y-4 text-foreground sm:gap-y-5", className)}>
       {children}
     </div>
   );
@@ -44,22 +44,26 @@ export function DashboardPageHeader({
   actionsSlot,
 }: DashboardPageHeaderProps) {
   return (
-    <div className="relative overflow-hidden rounded-xl border border-border bg-card shadow-sm sm:rounded-xl">
-      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400" />
+    <div className="group relative overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg hover:shadow-primary/5 sm:rounded-2xl">
+      {/* Gradient accent bar */}
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-400" />
 
-      <div className="relative px-3 pb-4 pt-5 sm:px-6 sm:pb-5 sm:pt-6">
+      {/* Soft corner glow */}
+      <div className="pointer-events-none absolute -right-10 -top-10 size-32 rounded-full bg-emerald-500/5 blur-3xl transition-opacity duration-300 group-hover:bg-emerald-500/10" />
+
+      <div className="relative px-4 pb-5 pt-6 sm:px-6 sm:pb-6 sm:pt-7">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-          <div className="flex min-w-0 flex-col gap-y-1">
+          <div className="flex min-w-0 flex-col gap-y-1.5">
             <span className="inline-block text-[9px] font-extrabold uppercase tracking-[0.25em] text-primary sm:text-[11px]">
               {eyebrow}
             </span>
-            <h1 className="text-[1.2rem] font-semibold leading-[1.15] tracking-tight text-foreground sm:text-[1.5rem] lg:text-[1.8rem]">
+            <h1 className="text-[1.25rem] font-bold leading-[1.15] tracking-tight text-foreground sm:text-[1.5rem] lg:text-[1.8rem]">
               {title}
             </h1>
             <p className="max-w-xl text-[13px] leading-[1.5] text-muted-foreground sm:text-sm sm:leading-relaxed" suppressHydrationWarning>
               {description}
             </p>
-            {meta ? <div className="flex flex-wrap items-center gap-2 pt-1">{meta}</div> : null}
+            {meta ? <div className="flex flex-wrap items-center gap-2 pt-2">{meta}</div> : null}
           </div>
 
           {actions.length > 0 || actionsSlot ? (
@@ -79,7 +83,7 @@ export function DashboardPageHeader({
                       asChild
                       variant={action.variant ?? "outline"}
                       disabled={action.disabled}
-                      className="h-9 w-full rounded-lg px-4 text-sm font-semibold sm:h-10 sm:w-auto"
+                      className="h-9 w-full rounded-lg px-4 text-sm font-semibold shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md sm:h-10 sm:w-auto"
                     >
                       <a href={action.href}>{content}</a>
                     </Button>
@@ -92,7 +96,7 @@ export function DashboardPageHeader({
                     variant={action.variant ?? "outline"}
                     onClick={action.onClick}
                     disabled={action.disabled}
-                    className="h-9 w-full rounded-lg px-4 text-sm font-semibold sm:h-10 sm:w-auto"
+                    className="h-9 w-full rounded-lg px-4 text-sm font-semibold shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md sm:h-10 sm:w-auto"
                   >
                     {content}
                   </Button>
@@ -106,4 +110,3 @@ export function DashboardPageHeader({
     </div>
   );
 }
-

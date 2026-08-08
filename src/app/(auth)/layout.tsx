@@ -63,13 +63,20 @@ export default function AuthLayout({
 
   return (
     <div className="min-h-screen flex">
-      {/* Left side - Decorative */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-indigo-600 to-blue-500">
-        <div className="absolute inset-0 bg-gray-950 opacity-10" />
+{/* Left side - Decorative */}
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-emerald-700 via-emerald-600 to-teal-600">
+        {/* Decorative orbs */}
+        <div className="absolute -left-16 -top-16 size-64 rounded-full bg-white/10 blur-3xl" />
+        <div className="absolute -bottom-20 -right-10 size-80 rounded-full bg-teal-300/20 blur-3xl" />
+        <div className="absolute right-16 top-1/4 size-24 rounded-full bg-emerald-300/20 blur-2xl animate-pulse-soft" />
+        <div className="absolute inset-0 bg-gray-950 opacity-0" />
         <div className="relative z-10 flex flex-col justify-center px-12 xl:px-16 text-white">
-          <h1 className="text-3xl xl:text-4xl font-semibold mb-6">Welcome to Dr Chandrakumar Deshmukh</h1>
-          <p className="text-lg xl:text-xl">
-            Your comprehensive healthcare management solution. Connect withdoctors, manage appointments, and access your medical recordssecurely.
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest backdrop-blur-sm">
+            Authentic Ayurvedic Healing
+          </div>
+          <h1 className="text-3xl xl:text-4xl font-bold tracking-tight mb-6">Welcome to Dr Chandrakumar Deshmukh</h1>
+          <p className="text-lg xl:text-xl leading-relaxed">
+            Your comprehensive healthcare management solution. Connect with doctors, manage appointments, and access your medical records securely.
           </p>
           <div className="mt-12 flex flex-col gap-y-8">
             <div className="flex items-start gap-x-4">

@@ -491,7 +491,7 @@ function AppointmentCard({
                   data-appointment-pay={getEffectiveAppointmentId(apt)}
                 >
                   <CreditCard className="mr-2 size-4" />
-                  Pay & Confirm
+                  Pay & Confirm via PhonePe
                 </PaymentButton>
               </div>
             </div>
@@ -608,7 +608,7 @@ function AppointmentCard({
                         className="h-10 w-full justify-center"
                       >
                         <CreditCard className="mr-2 size-4" />
-                        Complete Payment
+                        Complete Payment via PhonePe
                       </PaymentButton>
                     )}
                   </>

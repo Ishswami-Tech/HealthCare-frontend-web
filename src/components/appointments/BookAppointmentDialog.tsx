@@ -46,6 +46,7 @@ import { Calendar } from "@/components/ui/calendar";
 
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useQueryClient } from "@/hooks/core";
+import { useIsMobile } from "@/hooks/utils";
 import { useDoctors } from "@/hooks/query/useDoctors";
 import {
   usePatients,
@@ -75,7 +76,7 @@ import {
 import { useWebSocketContext } from "@/app/providers/WebSocketProvider";
 import { useRBAC } from "@/hooks/utils/useRBAC";
 import { getAppointmentStatsQueryKey } from "@/lib/query/appointment-query-keys";
-import { updateUserProfile } from "@/lib/actions/users.server";
+import { getUserProfile, updateUserProfile } from "@/lib/actions/users.server";
 import { clinicApiClient } from "@/lib/api/client";
 import {
   dismissToast,
@@ -90,6 +91,7 @@ import { ROUTES } from "@/lib/config/routes";
 import { theme } from "@/lib/utils/theme-utils";
 import { cn } from "@/lib/utils";
 import { formatISODateInIST } from "@/lib/utils/date-time";
+import { resolveDisplayNameAndInitials } from "@/lib/utils/display-name";
 import { format } from "date-fns";
 import { AppointmentStepWrapper } from "@/components/appointments/AppointmentStepWrapper";
 import { syncAppointmentInCache } from "@/lib/utils/appointment-cache";
@@ -280,7 +282,7 @@ function getConsultationVisual(
   );
 }
 
-//  Slot grouping helper‚
+// Slot grouping helper
 
 function groupSlotsByPeriod(slots: string[]) {
   const morning: string[] = [];
@@ -319,16 +321,10 @@ const STEP_LABELS: Record<WizardStepId, string> = {
   confirm: "Confirm",
   success: "Done",
 };
-/** Each appointment slot is 3 minutes‚ 20 bookable slots per hour. */
+/** Each appointment slot is 3 minutes. 20 bookable slots per hour. */
 const IN_PERSON_APPOINTMENT_SLOT_DURATION_MINUTES = 3;
 const VIDEO_APPOINTMENT_SLOT_DURATION_MINUTES = 15;
 const VIDEO_CONSULTATION_TREATMENT_TYPE: TreatmentType = "GENERAL_CONSULTATION";
-const IST_DATE_FORMATTER = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "Asia/Kolkata",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
 
 interface BookAppointmentStepBarProps {
   activeSteps: readonly WizardStepId[];
@@ -1349,7 +1345,10 @@ const RenderStep2Service = BookAppointmentStep2Service;
 interface BookAppointmentStep2Props {
   doctorsLoading: boolean;
   doctorsFetched: boolean;
+  doctorsRefreshing: boolean;
+  doctorsErrorMessage?: string;
   doctorsList: any[];
+  consultationMode: "IN_PERSON" | "VIDEO";
   selectedLocationId: string;
   selectedDoctorId: string;
   setSelectedDoctorId: React.Dispatch<React.SetStateAction<string>>;
@@ -1363,7 +1362,10 @@ interface BookAppointmentStep2Props {
 function BookAppointmentStep2({
   doctorsLoading,
   doctorsFetched,
+  doctorsRefreshing,
+  doctorsErrorMessage,
   doctorsList,
+  consultationMode,
   selectedLocationId,
   selectedDoctorId,
   setSelectedDoctorId,
@@ -1384,6 +1386,54 @@ function BookAppointmentStep2({
             <div key={i} className="h-16 rounded-xl bg-muted animate-pulse" />
           ))}
         </div>
+      ) : doctorsErrorMessage && doctorsList.length === 0 ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50/80 p-4 text-sm text-red-900 dark:border-red-900 dark:bg-red-950/30 dark:text-red-100">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 size-5 shrink-0" />
+            <div className="flex flex-col gap-y-1">
+              <p className="font-semibold">Unable to load doctors</p>
+              <p className="text-xs text-red-800/90 dark:text-red-200/90">
+                The server did not return a usable doctor list. This is usually a temporary network, auth, or cache issue.
+              </p>
+              <p className="text-xs text-red-800/80 dark:text-red-200/80">
+                {doctorsErrorMessage}
+              </p>
+              <p className="text-xs text-red-800/80 dark:text-red-200/80">
+                Hard refresh clears the local cache and retries the clinic API.
+              </p>
+              {doctorsRefreshing && (
+                <div className="mt-1 flex items-center gap-2 text-xs font-medium text-red-800 dark:text-red-200">
+                  <Loader2 className="size-4 animate-spin" />
+                  Refreshing doctors from the server...
+                </div>
+              )}
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="default"
+                  className="h-9 rounded-lg"
+                  onClick={onHardRefresh}
+                  disabled={doctorsRefreshing}
+                >
+                  {doctorsRefreshing ? (
+                    <Loader2 className="mr-1 size-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-1 size-4" />
+                  )}
+                  {doctorsRefreshing ? "Refreshing..." : "Hard refresh"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-9 rounded-lg"
+                  onClick={goBack}
+                >
+                  Back
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
       ) : doctorsList.length === 0 ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
           <div className="flex items-start gap-3">
@@ -1393,20 +1443,33 @@ function BookAppointmentStep2({
               <p className="text-xs text-amber-800/90 dark:text-amber-200/90">
                 {selectedLocationId
                   ? "This location does not currently have any bookable doctors for the selected mode."
-                  : "Please select a location to see available doctors."}
+                  : consultationMode === "VIDEO"
+                    ? "No doctors are currently available for video appointments."
+                    : "No doctors are currently available for this clinic."}
               </p>
               <p className="text-xs text-amber-800/80 dark:text-amber-200/80">
                 If doctors should be available, the list may be stale. Hard refresh to reload.
               </p>
+              {doctorsRefreshing && (
+                <div className="mt-1 flex items-center gap-2 text-xs font-medium text-amber-800 dark:text-amber-200">
+                  <Loader2 className="size-4 animate-spin" />
+                  Refreshing doctors from the server...
+                </div>
+              )}
               <div className="mt-2 flex flex-wrap gap-2">
                 <Button
                   type="button"
                   variant="default"
                   className="h-9 rounded-lg"
                   onClick={onHardRefresh}
+                  disabled={doctorsRefreshing}
                 >
-                  <RefreshCw className="mr-1 size-4" />
-                  Hard refresh
+                  {doctorsRefreshing ? (
+                    <Loader2 className="mr-1 size-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-1 size-4" />
+                  )}
+                  {doctorsRefreshing ? "Refreshing..." : "Hard refresh"}
                 </Button>
                 <Button
                   type="button"
@@ -1480,7 +1543,6 @@ function BookAppointmentStep2({
     </div>
   );
 }
-
 interface BookAppointmentStep3Props {
   selectedDate: Date | undefined;
   setSelectedDate: React.Dispatch<React.SetStateAction<Date | undefined>>;
@@ -1497,11 +1559,24 @@ function BookAppointmentStep3({
   isClinicClosedDate,
 }: BookAppointmentStep3Props) {
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex h-full min-h-0 flex-1 flex-col justify-start gap-3">
       <p className="text-sm text-muted-foreground">
         Pick your preferred appointment date
       </p>
-      <div className="flex justify-center w-full max-w-sm mx-auto">
+      <div className="book-dialog-calendar-container flex flex-1 min-h-0 w-full max-w-full items-start justify-start px-1 sm:px-0">
+        <style dangerouslySetInnerHTML={{ __html: `
+          .book-dialog-calendar-container .rdp-week,
+          .book-dialog-calendar-container .rdp-weekdays {
+            display: grid !important;
+            grid-template-columns: repeat(7, 1fr) !important;
+            width: 100% !important;
+          }
+          .book-dialog-calendar-container .rdp-day_button {
+            height: var(--cell-size) !important;
+            width: var(--cell-size) !important;
+            aspect-ratio: auto !important;
+          }
+        `}} />
         <Calendar
           mode="single"
           selected={selectedDate}
@@ -1516,7 +1591,7 @@ function BookAppointmentStep3({
             const todayIST = getTodayIST();
             return date < todayIST || isClinicClosedDate(date);
           }}
-          className="border border-border/50 shadow-sm p-2 sm:p-3 mx-auto max-w-[280px] sm:max-w-xs [--cell-size:--spacing(8)] sm:[--cell-size:--spacing(9)] text-sm [&_.rdp-caption_label]:text-sm [&_.rdp-button]:text-sm"
+          className="border border-border/50 shadow-sm p-2 sm:p-3 mx-auto w-full max-w-[22rem] [--cell-size:1.875rem] sm:[--cell-size:2.25rem] text-sm [&_.rdp-caption_label]:text-sm [&_.rdp-button]:text-sm"
         />
       </div>
       {selectedDate && (
@@ -2042,7 +2117,7 @@ function BookAppointmentStep5({
               Video visit fee
             </p>
             <p className="text-lg font-bold text-foreground">
-              ₹{videoPaymentAmount.toFixed(0)}
+              Rs. {videoPaymentAmount.toFixed(0)}
             </p>
           </div>
           <p className="text-xs text-emerald-700 dark:text-emerald-300">
@@ -2146,10 +2221,10 @@ function BookAppointmentStep5({
             }`}
           >
             {isSubscriptionGateLoading
-              ? "Weâ€žÂ¢re checking your plan before booking this in-person appointment."
+              ? "We're checking your plan before booking this in-person appointment."
               : needsSubscriptionPlan
                 ? "You need an active plan for this clinic to continue."
-                : "Weâ€žÂ¢ll verify your plan before confirming this appointment."}
+                : "We'll verify your plan before confirming this appointment."}
           </p>
         </div>
       )}
@@ -2349,7 +2424,7 @@ function BookAppointmentStep6({
   );
 }
 
-//  Component‚â‚
+// Component
 
 /**
  * Helper to get Today in IST (India Standard Time)
@@ -2357,7 +2432,7 @@ function BookAppointmentStep6({
  */
 const getTodayIST = () => {
   const now = new Date();
-  const [year, month, day] = IST_DATE_FORMATTER.format(now)
+  const [year, month, day] = formatISODateInIST(now)
     .split("-")
     .map(Number);
   return new Date(
@@ -2367,7 +2442,7 @@ const getTodayIST = () => {
   );
 };
 
-const formatDateIST = (date: Date) => IST_DATE_FORMATTER.format(date);
+const formatDateIST = (date: Date) => formatISODateInIST(date);
 
 const isSubscriptionCurrent = (
   subscription?: {
@@ -2475,16 +2550,20 @@ export function BookAppointmentDialog({
   const patientCheckInRoute = "/patient/check-in";
   const { clinicId: contextClinicId } = useClinicContext();
   const currentClinicId = useCurrentClinicId();
-  const { data: myClinic } = useMyClinic();
+  const { data: myClinic } = useMyClinic({
+    enabled: userRole !== Role.PATIENT,
+  });
   const clinicFallbackId = APP_CONFIG.CLINIC.ID?.trim() || "";
   const sessionClinicId = session?.user?.clinicId || "";
   const safeContextClinicId = contextClinicId || "";
+  const myClinicId = myClinic?.id?.trim() || "";
 
   const authClinicId =
     clinicId ||
     sessionClinicId ||
     safeContextClinicId ||
     currentClinicId ||
+    myClinicId ||
     clinicFallbackId;  // Always allow fallback to default clinic for all roles
   const resolvedClinicId = authClinicId;
   const hasExplicitClinicId = !!resolvedClinicId;
@@ -2497,6 +2576,7 @@ export function BookAppointmentDialog({
     sessionClinicId,
     safeContextClinicId,
     currentClinicId,
+    myClinicId,
     clinicFallbackId,
     authClinicId,
     resolvedClinicId,
@@ -2854,7 +2934,7 @@ export function BookAppointmentDialog({
     },
     [],
   );
-  //‚â‚ Selections‚â‚
+  // Selections
   const [newPatient, setNewPatient] = useState({
     firstName: "",
     lastName: "",
@@ -2919,7 +2999,7 @@ export function BookAppointmentDialog({
     return String(record.appointmentId || record.id || "");
   }, []);
 
-  //  Queries‚
+  // Queries
   const {
     data: activeLocations = [],
     isPending: locationsLoading,
@@ -2964,18 +3044,18 @@ export function BookAppointmentDialog({
     return locations[0]?.id || "";
   }, [dialogOpen, consultationMode, locations, selectedLocationId]);
   const resolvedLocationId = selectedLocationId || autoSelectedLocationId;
-  const shouldLoadDoctors =
-    dialogOpen &&
-    !!activeClinicId &&
-    (consultationMode === "VIDEO" || !!resolvedLocationId);
+  const shouldLoadDoctors = dialogOpen && !!activeClinicId;
   const doctorsFilters = useMemo(
     () =>
-      consultationMode === "VIDEO" ? undefined : { locationId: resolvedLocationId },
+      consultationMode === "VIDEO" || !resolvedLocationId
+        ? undefined
+        : { locationId: resolvedLocationId },
     [consultationMode, resolvedLocationId],
   );
   const {
     data: doctorsData,
     isPending: doctorsLoading,
+    isFetching: doctorsFetching,
     isFetched: doctorsFetched,
     error: doctorsError,
     refetch: refetchDoctors,
@@ -2984,25 +3064,63 @@ export function BookAppointmentDialog({
     doctorsFilters,
     { enabled: shouldLoadDoctors },
   );
+  const [isHardRefreshingDoctors, setIsHardRefreshingDoctors] =
+    useState(false);
+  const [pendingStepNavigation, setPendingStepNavigation] = useState<
+    "forward" | "backward" | null
+  >(null);
+  const isMobile = useIsMobile();
+  const doctorAutoRefreshRef = useRef(false);
+  const doctorsRefreshing =
+    doctorsLoading || doctorsFetching || isHardRefreshingDoctors;
 
-  const handleHardRefreshDoctors = useCallback(() => {
+  useEffect(() => {
+    if (!dialogOpen) {
+      doctorAutoRefreshRef.current = false;
+      return;
+    }
+
+    if (doctorsLoading || doctorsFetching || isHardRefreshingDoctors) {
+      return;
+    }
+
+    if (doctorAutoRefreshRef.current) {
+      return;
+    }
+
+    if (doctorsFetched && Array.isArray(doctorsData) && doctorsData.length === 0) {
+      doctorAutoRefreshRef.current = true;
+      queryClient.invalidateQueries({ queryKey: ["doctors", activeClinicId] });
+      void refetchDoctors({ cancelRefetch: true });
+    }
+  }, [activeClinicId, dialogOpen, doctorsData, doctorsFetched, doctorsFetching, doctorsLoading, isHardRefreshingDoctors, queryClient, refetchDoctors]);
+  const handleHardRefreshDoctors = useCallback(async () => {
+    if (isHardRefreshingDoctors) {
+      return;
+    }
+
+    setIsHardRefreshingDoctors(true);
     // Hard refresh: clear all relevant React Query caches (doctors,
     // clinicDoctors, doctorAvailability, etc.) so the booking dialog
     // refetches fresh from the backend. Avoids a full page reload that
     // would discard in-flight selections and unsaved input.
     try {
+      clinicApiClient.clearRequestCache();
       queryClient.removeQueries({ queryKey: ['doctors'] });
       queryClient.removeQueries({ queryKey: ['clinicDoctors'] });
       queryClient.removeQueries({ queryKey: ['doctorAvailability'] });
       queryClient.removeQueries({ queryKey: ['doctorSchedule'] });
       queryClient.invalidateQueries({ queryKey: ['doctors', activeClinicId] });
       queryClient.invalidateQueries({ queryKey: ['clinicDoctors', activeClinicId] });
+      await refetchDoctors({ cancelRefetch: true });
     } catch (err) {
       logger.warn('Hard refresh: cache clear failed', { error: err });
+    } finally {
+      setIsHardRefreshingDoctors(false);
     }
-  }, [queryClient, activeClinicId]);
+  }, [activeClinicId, isHardRefreshingDoctors, queryClient, refetchDoctors]);
   // Only RECEPTIONIST needs the full patient list to select a patient.
-  // Patients book for themselves‚ calling this admin endpoint as a PATIENT
+  // Patients book for themselves calling this admin endpoint as a PATIENT
   // returns 403 Forbidden. Pass an empty clinicId to disable the query.
   const { data: patientsData = [] } = usePatients(
     isPrivilegedScheduler ? activeClinicId : "",
@@ -3015,7 +3133,7 @@ export function BookAppointmentDialog({
   // re-fire a server-action POST every time the parent re-renders.
   // Reading from the cache is fine because the dialog uses the profile
   // only for an authoritative `profileComplete` check on the patient
-  // record — the same key is already warmed by `DashboardLayout`.
+  // record - the same key is already warmed by `DashboardLayout`.
   const { data: currentPatientProfile } = useUserProfile(
     dialogOpen ? undefined : { enabled: false }
   );
@@ -3278,6 +3396,7 @@ export function BookAppointmentDialog({
     dialogOpen && !!targetPatientId && consultationMode === "IN_PERSON";
   const { data: subscriptionsData = [] } = useSubscriptions(
     targetPatientId,
+    activeClinicId,
     shouldLoadSubscriptions,
   );
   const {
@@ -3289,7 +3408,7 @@ export function BookAppointmentDialog({
     shouldLoadSubscriptions,
   );
 
-  //  Derived‚
+  // Derived
   const modeAppointmentType: AppointmentType =
     consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON";
   const visibleServices = useMemo(() => {
@@ -3366,11 +3485,18 @@ export function BookAppointmentDialog({
       raw.map((u: any) => {
         const doctor = u.doctor || u;
         const user = doctor.user || u;
+        const resolvedDoctorName = resolveDisplayNameAndInitials({
+          firstName: doctor.firstName || user.firstName,
+          lastName: doctor.lastName || user.lastName,
+          name: user.name || doctor.name,
+          email: user.email || doctor.email,
+          role: "DOCTOR",
+        }).displayName;
         return {
           ...doctor,
           id: doctor.id || u.id,
           userId: user.id || u.userId,
-          name: user.name || doctor.name || `Dr. ${(doctor.id || u.id || '').slice(0, 6)}`,
+          name: resolvedDoctorName === "User" ? `Doctor` : resolvedDoctorName,
           specialization: doctor.specialization || "",
           image: user.profilePicture || doctor.profilePicture || u.profilePicture || "",
         };
@@ -3395,6 +3521,17 @@ export function BookAppointmentDialog({
     });
   }
 
+  const doctorsErrorMessage = useMemo(() => {
+    if (!doctorsError || doctorsLoading || !doctorsFetched) {
+      return "";
+    }
+
+    if (isProfileCompletionError(doctorsError)) {
+      return "";
+    }
+
+    return doctorsError instanceof Error ? doctorsError.message : String(doctorsError);
+  }, [doctorsError, doctorsFetched, doctorsLoading]);
   const autoSelectedDoctorId = useMemo(() => {
     if (
       !dialogOpen ||
@@ -3419,6 +3556,7 @@ export function BookAppointmentDialog({
       doctorsLoading,
       doctorsFetched,
       doctorsError: doctorsError instanceof Error ? doctorsError.message : String(doctorsError),
+      doctorsErrorMessage,
       shouldLoadDoctors,
       dialogOpen,
       activeClinicId,
@@ -3436,12 +3574,6 @@ export function BookAppointmentDialog({
   const appointmentQueryScope =
     session?.session_id?.trim() || session?.user?.id?.trim() || "guest";
 
-  const availabilityRefetchIntervalMs =
-    consultationMode === "VIDEO"
-      ? 5000
-      : step >= 3 && !isConnected
-        ? 10000
-        : undefined;
   const availabilityQueryKey = useMemo(
     () => [
       "doctorAvailability",
@@ -3463,11 +3595,7 @@ export function BookAppointmentDialog({
   );
 
   const shouldLoadAvailability =
-    dialogOpen &&
-    !!activeClinicId &&
-    !!resolvedDoctorId &&
-    !!dateString &&
-    (consultationMode === "VIDEO" || !!resolvedLocationId);
+    dialogOpen && !!activeClinicId && !!resolvedDoctorId && !!dateString;
   const {
     data: availability,
     isPending: availabilityLoading,
@@ -3481,9 +3609,6 @@ export function BookAppointmentDialog({
     consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON",
     {
       enabled: shouldLoadAvailability,
-      ...(availabilityRefetchIntervalMs
-        ? { refetchIntervalMs: availabilityRefetchIntervalMs }
-        : {}),
     },
   );
 
@@ -3492,6 +3617,15 @@ export function BookAppointmentDialog({
     availabilityLoading &&
     !availability &&
     !availabilityError;
+
+  useEffect(() => {
+    if (!dialogOpen || !resolvedDoctorId || !dateString) {
+      return;
+    }
+
+    queryClient.invalidateQueries({ queryKey: availabilityQueryKey, exact: true });
+    void refetchAvailability({ cancelRefetch: true });
+  }, [availabilityQueryKey, dateString, dialogOpen, queryClient, refetchAvailability, resolvedDoctorId]);
   const patientsList: any[] = useMemo(() => {
     const rawPatients = Array.isArray(patientsData)
       ? patientsData
@@ -3918,15 +4052,15 @@ export function BookAppointmentDialog({
   const validateLatestAvailability = useCallback(async (selectedSlot?: string) => {
     const cachedAvailability = queryClient.getQueryData(availabilityQueryKey);
     const cachedSlots = extractAvailabilitySlots(cachedAvailability);
-
-    if (selectedSlot && cachedSlots.includes(selectedSlot)) {
+    try {
+      const refreshed = await refetchAvailability({ cancelRefetch: true });
+      const freshSlots = extractAvailabilitySlots(
+        refreshed?.data ?? queryClient.getQueryData(availabilityQueryKey),
+      );
+      return freshSlots.length > 0 ? freshSlots : cachedSlots;
+    } catch (_error) {
       return cachedSlots;
     }
-
-    const refreshed = await refetchAvailability({ cancelRefetch: true });
-    return extractAvailabilitySlots(
-      refreshed?.data ?? queryClient.getQueryData(availabilityQueryKey),
-    );
   }, [
     availabilityQueryKey,
     extractAvailabilitySlots,
@@ -4078,7 +4212,7 @@ export function BookAppointmentDialog({
   );
   const selectedSlotLabel = useMemo(() => {
     if (!activeSelectedSlot) return "";
-    return `${activeSelectedSlot} · ${appointmentDurationMinutes} min`;
+    return `${activeSelectedSlot} - ${appointmentDurationMinutes} min`;
   }, [activeSelectedSlot, appointmentDurationMinutes]);
   const liveSyncMode =
     connectionStatus === "connected"
@@ -4106,7 +4240,7 @@ export function BookAppointmentDialog({
         : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300";
   const showLiveSyncBanner = APP_CONFIG.ENVIRONMENT === "development";
 
-  //  Book appointment‚â‚
+  // Book appointment
   const handleBook = useCallback(async () => {
     const selectedSlot = activeSelectedSlot;
     const appointmentDoctorId = resolvedDoctorId;
@@ -4192,10 +4326,7 @@ export function BookAppointmentDialog({
           cachedProfile ||
           ((await queryClient.fetchQuery({
             queryKey: ["userProfile"],
-            queryFn: async () => {
-              const response = await clinicApiClient.getProfile();
-              return response.data;
-            },
+            queryFn: async () => await getUserProfile(),
           })) as Record<string, unknown> | undefined);
 
         bookingPatientId =
@@ -4213,6 +4344,49 @@ export function BookAppointmentDialog({
       const finalAppointmentType: AppointmentType =
         consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON";
       const selectedDateString = formatDateIST(selectedDate);
+
+      // Client-side validation: past dates (supplements server-side guard)
+      if (!selectedDate) {
+        showErrorToast("Please select an appointment date.");
+        return;
+      }
+
+      const todayIST = getTodayIST();
+      if (selectedDate < todayIST) {
+        showErrorToast(
+          "Cannot book an appointment in the past. Please select today or a future date.",
+        );
+        return;
+      }
+
+      const dayOfWeek = selectedDate.getDay();
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        showErrorToast(
+          "Appointments cannot be booked on weekends. Please select a weekday.",
+        );
+        return;
+      }
+
+      // If today, verify the selected slot time hasn't passed yet
+      if (
+        selectedDate.getTime() === todayIST.getTime() &&
+        selectedSlot
+      ) {
+        const nowInIST = new Date(
+          new Date().getTime() + 5.5 * 60 * 60 * 1000,
+        );
+        const [slotH, slotM] = selectedSlot.split(":").map(Number);
+        const slotMinutes = (slotH ?? 0) * 60 + (slotM ?? 0);
+        const nowMinutes =
+          nowInIST.getUTCHours() * 60 + nowInIST.getUTCMinutes();
+        if (slotMinutes < nowMinutes) {
+          showErrorToast(
+            "This time slot has already passed. Please select a later time.",
+          );
+          return;
+        }
+      }
+
       if (!selectedSlot) {
         showErrorToast(
           finalAppointmentType === "VIDEO_CALL"
@@ -4376,7 +4550,7 @@ export function BookAppointmentDialog({
             coverage?.message ||
             coverage?.reason ||
             (requiresPayment
-              ? `Subscription coverage unavailable. Additional payment required: ₹${coverage?.paymentAmount || 0}`
+              ? `Subscription coverage unavailable. Additional payment required: Rs. ${coverage?.paymentAmount || 0}`
               : "Subscription quota exhausted or inactive.");
           redirectToSubscriptionResolution(
             reason,
@@ -4386,23 +4560,24 @@ export function BookAppointmentDialog({
         }
       }
 
-      const appointmentDate = new Date(selectedDate);
-      const [hours, minutes] = selectedSlot.split(":").map(Number);
-      appointmentDate.setHours(hours ?? 0, minutes ?? 0, 0, 0);
-
       let apptId = "";
       if (
         finalAppointmentType === "IN_PERSON" &&
         userRole === "PATIENT" &&
         activeSubscription?.id
       ) {
+        const selectedDateKey = formatDateIST(selectedDate);
+        const selectedTimeValue = selectedSlot.length === 5 ? `${selectedSlot}:00` : selectedSlot;
+        const appointmentDateIso = new Date(
+          `${selectedDateKey}T${selectedTimeValue}+05:30`,
+        ).toISOString();
         const atomicResult = await createSubscriptionAppointment({
           subscriptionId: activeSubscription.id,
           patientId: bookingPatientId,
           doctorId: appointmentDoctorId,
           clinicId: activeClinicId,
           locationId: appointmentLocationId,
-          appointmentDate: appointmentDate.toISOString(),
+          appointmentDate: appointmentDateIso,
           duration: appointmentDurationMinutes,
           treatmentType: selectedService.treatmentType,
           priority: urgency.toUpperCase(),
@@ -4442,7 +4617,7 @@ export function BookAppointmentDialog({
         const payload = {
           doctorId: appointmentDoctorId,
           locationId: appointmentLocationId,
-          date: formatDateIST(appointmentDate),
+          date: formatDateIST(selectedDate),
           time: selectedSlot,
           type: finalAppointmentType,
           treatmentType: selectedService.treatmentType,
@@ -4455,7 +4630,7 @@ export function BookAppointmentDialog({
         logger.info("[BookAppointmentDialog] Creating appointment", {
           clinicId: activeClinicId,
           doctorId: resolvedDoctorId,
-          date: formatDateIST(appointmentDate),
+          date: formatDateIST(selectedDate),
           slot: selectedSlot,
           patientId: bookingPatientId,
         });
@@ -4514,6 +4689,12 @@ export function BookAppointmentDialog({
           ? err.message
           : "Failed to book appointment. Please try again.";
       const lowerErrorMessage = errorMessage.toLowerCase();
+      const isPaymentValidationFailure =
+        shouldCollectVideoPayment &&
+        (lowerErrorMessage.includes("invalid payment payload") ||
+          lowerErrorMessage.includes("payment payload could not be validated") ||
+          (lowerErrorMessage.includes("payment") && lowerErrorMessage.includes("validation failed")) ||
+          lowerErrorMessage.includes("payment link"));
       const shouldRedirectToSubscription =
         userRole === "PATIENT" &&
         consultationMode === "IN_PERSON" &&
@@ -4555,6 +4736,13 @@ export function BookAppointmentDialog({
       }
 
       dismissToast("subscription-coverage-check");
+
+      if (isPaymentValidationFailure) {
+        showErrorToast(
+          "Payment link could not be validated. Please reopen the payment link.",
+        );
+        return;
+      }
 
       if (lowerErrorMessage.includes("time slot is no longer available")) {
         queryClient.invalidateQueries({
@@ -4609,7 +4797,7 @@ export function BookAppointmentDialog({
     activeSteps.length,
   ]);
 
-  //  Navigation‚
+  // Navigation
   const canNext = useMemo(() => {
     if (currentStepId === "mode") {
       return (
@@ -4645,16 +4833,30 @@ export function BookAppointmentDialog({
   ]);
 
   const goNext = useCallback(() => {
-    setStepDirection("forward");
-    setStep((s) => Math.min(s + 1, activeSteps.length || 1));
-  }, [activeSteps.length, setStep, setStepDirection]);
+    const nextStepId = activeSteps[currentStepIndex + 1];
+    if (nextStepId) {
+      setPendingStepNavigation("forward");
+      goToStep(nextStepId);
+    }
+  }, [activeSteps, currentStepIndex, goToStep]);
 
   const goBack = useCallback(() => {
-    setStepDirection("backward");
-    setStep((s) => Math.max(s - 1, 1));
-  }, [setStep, setStepDirection]);
+    const previousStepId = activeSteps[currentStepIndex - 1];
+    if (previousStepId) {
+      setPendingStepNavigation("backward");
+      goToStep(previousStepId);
+      return;
+    }
 
-  //  QR data‚
+    setPendingStepNavigation(null);
+    handleOpenChange(false);
+  }, [activeSteps, currentStepIndex, goToStep, handleOpenChange]);
+
+  useEffect(() => {
+    setPendingStepNavigation(null);
+  }, [currentStepId]);
+
+  // QR data
   // const qrData = useMemo(() => {
   // return JSON.stringify({
   // appointmentId: bookedAppointmentId,
@@ -4675,7 +4877,7 @@ export function BookAppointmentDialog({
 
   // Step 4: Slot
 
-  //  Main render‚
+  // Main render
 
   const stepContent = (() => {
     switch (currentStepId) {
@@ -4753,7 +4955,10 @@ export function BookAppointmentDialog({
             <RenderStep2
               doctorsLoading={doctorsLoading}
               doctorsFetched={doctorsFetched}
+              doctorsRefreshing={doctorsFetching || isHardRefreshingDoctors}
+              doctorsErrorMessage={doctorsErrorMessage}
               doctorsList={doctorsList}
+              consultationMode={consultationMode}
               selectedLocationId={resolvedLocationId}
               selectedDoctorId={resolvedDoctorId}
               setSelectedDoctorId={setSelectedDoctorId}
@@ -4905,7 +5110,7 @@ export function BookAppointmentDialog({
             </DialogDescription>
           </DialogHeader>
 
-          {/* Step bar‚ hide on success screen */}
+          {/* Step bar hide on success screen */}
           {!isSuccessStep && (
             <div className="mt-2 overflow-x-auto pb-1 sm:mt-3">
               <BookAppointmentStepBar
@@ -4918,7 +5123,12 @@ export function BookAppointmentDialog({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-3 sm:py-4">
+        <div
+          className={cn(
+            "flex-1 px-3 sm:px-5 py-3 sm:py-4",
+            currentStepId === "date" && isMobile ? "overflow-hidden" : "overflow-y-auto",
+          )}
+        >
           <LazyMotion features={domAnimation}>
             <AnimatePresence mode="wait" initial={false}>
               <m.div
@@ -4930,7 +5140,7 @@ export function BookAppointmentDialog({
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: stepDirection === "forward" ? -20 : 20 }}
                 transition={{ duration: 0.22, ease: "easeOut" }}
-                className="h-full"
+                className="h-full min-h-0"
               >
                 {stepContent}
               </m.div>
@@ -4938,15 +5148,21 @@ export function BookAppointmentDialog({
           </LazyMotion>
         </div>
 
-        {/* Footer‚ hide on success screen */}
+        {/* Footer hide on success screen */}
         {!isSuccessStep && (
           <div className="px-3 sm:px-6 py-3 sm:py-4 border-t bg-background flex flex-col-reverse gap-2.5 sm:flex-row sm:items-center sm:gap-4 shrink-0">
             <Button
               variant="outline"
               onClick={step > 1 ? goBack : () => handleOpenChange(false)}
               className="h-11 w-full px-6 rounded-xl border-border/50 transition-all active:scale-95 gap-2 sm:w-auto"
+              disabled={pendingStepNavigation === "backward"}
             >
-              <ChevronLeft className="size-4" /> {step > 1 ? "Back" : "Cancel"}
+              {pendingStepNavigation === "backward" ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <ChevronLeft className="size-4" />
+              )}
+              {step > 1 ? "Back" : "Cancel"}
             </Button>
             <div className="hidden flex-1 sm:block" />
 
@@ -4956,7 +5172,13 @@ export function BookAppointmentDialog({
                 disabled={!canNext}
                 className="h-11 w-full px-8 rounded-xl font-semibold bg-primary hover:bg-primary/90 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2 sm:w-auto"
               >
-                Continue <ArrowRight className="size-4" />
+                {pendingStepNavigation === "forward" ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <>
+                    Continue <ArrowRight className="size-4" />
+                  </>
+                )}
               </Button>
             ) : (
               (() => {
@@ -4979,7 +5201,7 @@ export function BookAppointmentDialog({
                   ? "Payment in progress"
                   : consultationMode === "VIDEO"
                     ? shouldCollectVideoPayment
-                      ? `Create appointment and pay ₹${videoPaymentAmount.toFixed(0)}`
+                      ? `Create appointment and pay Rs. ${videoPaymentAmount.toFixed(0)}`
                       : "Book Video Appointment"
                     : needsSubscriptionPlan
                       ? "Choose plan to continue"

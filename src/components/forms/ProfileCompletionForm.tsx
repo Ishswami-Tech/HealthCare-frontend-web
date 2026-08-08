@@ -649,6 +649,7 @@ function ProfileCompletionFormContent({
   const updateProfileMutation = useUpdateUserProfile();
   const setProfileCompleteMutation = useSetProfileComplete();
   const updatingProfile = updateProfileMutation.isPending;
+  const dirtyFields = form.formState.dirtyFields;
 
   const syncCompletedProfileState = useCallback(
     (profileData: Record<string, unknown>) => {
@@ -982,11 +983,13 @@ function ProfileCompletionFormContent({
       // For phone OTP login, use the verified phone from session
       // For email OTP / Google login, include verified email from session
       // For other login methods, include fields as filled in the form
+      const emailWasEdited = Boolean(dirtyFields.email);
+      const phoneWasEdited = Boolean(dirtyFields.phone);
       let resolvedPhone: string | undefined;
       if (isPhoneOtpLogin) {
         // Phone is already verified by backend, use session phone
         resolvedPhone = formatPhoneNumber(sessionUser?.phone) || undefined;
-      } else if (data.phone?.trim() && isPhoneVerified) {
+      } else if (data.phone?.trim() && isPhoneVerified && phoneWasEdited) {
         // For other login methods, include phone only if user has verified it
         resolvedPhone = formatPhoneNumber(data.phone);
       }
@@ -996,7 +999,9 @@ function ProfileCompletionFormContent({
       // profile-completion DTO for account notifications.
       const resolvedEmail =
         isPhoneOtpLogin
-          ? data.email?.trim() || undefined
+          ? emailWasEdited
+            ? data.email?.trim() || undefined
+            : undefined
           : isEmailOtpLogin || isGoogleLogin
             ? sessionUser?.email
             : data.email?.trim() || undefined;

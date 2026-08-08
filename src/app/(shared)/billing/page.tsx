@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo } from "react";
+import { Suspense, useCallback, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { Role } from "@/types/auth.types";
 import { Permission } from "@/types/rbac.types";
@@ -69,12 +69,12 @@ function BillingPageContent() {
     data: userSubscriptions = [],
     isPending: userSubscriptionsPending,
     refetch: refetchUserSubscriptions,
-  } = useSubscriptions(userId, isPatientRole);
+  } = useSubscriptions(userId, clinicId, isPatientRole);
   const {
     data: userInvoices = [],
     isPending: userInvoicesPending,
     refetch: refetchUserInvoices,
-  } = useInvoices(userId);
+  } = useInvoices(userId, clinicId);
   const {
     data: clinicInvoices = [],
     isPending: clinicInvoicesPending,
@@ -84,7 +84,7 @@ function BillingPageContent() {
     data: userPayments = [],
     isPending: userPaymentsPending,
     refetch: refetchUserPayments,
-  } = usePayments(userId);
+  } = usePayments(userId, clinicId);
   const {
     data: clinicPayments = [],
     isPending: clinicPaymentsPending,
@@ -109,7 +109,7 @@ function BillingPageContent() {
         ? clinicInvoicesPending || clinicPaymentsPending
         : hasUserId && (userSubscriptionsPending || userInvoicesPending || userPaymentsPending));
 
-  const handleRefetchAll = () => {
+  const handleRefetchAll = useCallback(() => {
     void refetchClinicPlans();
     void refetchFallbackPlans();
     if (isAdminRole) {
@@ -124,7 +124,51 @@ function BillingPageContent() {
       void refetchUserInvoices();
       void refetchUserPayments();
     }
-  };
+  }, [
+    isAdminRole,
+    hasUserId,
+    refetchClinicInvoices,
+    refetchClinicPayments,
+    refetchClinicPlans,
+    refetchFallbackPlans,
+    refetchLedger,
+    refetchUserInvoices,
+    refetchUserPayments,
+    refetchUserSubscriptions,
+    usesClinicBillingData,
+  ]);
+
+  useEffect(() => {
+    if (!session?.user?.id && !clinicId) {
+      return;
+    }
+
+    const refreshBillingData = () => {
+      handleRefetchAll();
+    };
+
+    refreshBillingData();
+
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        refreshBillingData();
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshBillingData();
+      }
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [clinicId, handleRefetchAll, session?.user?.id]);
 
   // Only block the page while auth session is not available yet.
   // For billing queries, render UI immediately and let sections refresh progressively.

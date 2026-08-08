@@ -22,7 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Phone, Menu } from "lucide-react";
+import { Phone, Menu, Sparkles, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Sheet,
@@ -69,14 +69,14 @@ const MobileTreatmentLink = ({
     href={subItem.href}
     prefetch={false}
     className={cn(
-      "block text-sm text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 py-2 px-3 rounded-lg transition-all duration-200 border border-transparent hover:border-orange-200 dark:hover:border-orange-800",
+      "block text-sm text-gray-700 dark:text-gray-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50/70 dark:hover:bg-emerald-900/20 py-2 px-3 rounded-lg transition-all duration-200 border border-transparent hover:border-emerald-200 dark:hover:border-emerald-800",
       pathname === subItem.href &&
-        "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800"
+        "text-emerald-600 dark:text-emerald-400 bg-emerald-50/70 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800"
     )}
     onClick={onSelect}
   >
     <span className="flex items-center gap-x-2">
-      <span className="size-1.5 rounded-full bg-orange-400" />
+      <span className="size-1.5 rounded-full bg-emerald-500" />
       <span>{subItem.name}</span>
     </span>
   </Link>
@@ -112,10 +112,10 @@ const MobileNavMenuItem = ({
         type="button"
         onClick={onToggleTreatmentsDropdown}
         className={cn(
-          "w-full text-left text-gray-800 dark:text-gray-200 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 font-semibold py-4 px-5 rounded-xl flex items-center justify-between transition-all duration-200 touch-manipulation min-h-[52px] border border-transparent hover:border-orange-200 dark:hover:border-orange-800 text-base",
+          "w-full text-left text-gray-800 dark:text-gray-200 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50/70 dark:hover:bg-emerald-900/20 font-semibold py-4 px-5 rounded-xl flex items-center justify-between transition-all duration-200 touch-manipulation min-h-[52px] border border-transparent hover:border-emerald-200 dark:hover:border-emerald-800 text-base",
           (pathname === item.href ||
             item.subItems?.some((subItem) => pathname === subItem.href)) &&
-            "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800"
+            "text-emerald-600 dark:text-emerald-400 bg-emerald-50/70 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800"
         )}
       >
         <span>{item.name}</span>
@@ -141,9 +141,9 @@ const MobileNavMenuItem = ({
       href={item.href}
       prefetch={false}
       className={cn(
-        "text-gray-800 dark:text-gray-200 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 font-semibold py-4 px-5 rounded-xl flex items-center transition-all duration-200 touch-manipulation min-h-[52px] border border-transparent hover:border-orange-200 dark:hover:border-orange-800 text-base",
+        "text-gray-800 dark:text-gray-200 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50/70 dark:hover:bg-emerald-900/20 font-semibold py-4 px-5 rounded-xl flex items-center transition-all duration-200 touch-manipulation min-h-[52px] border border-transparent hover:border-emerald-200 dark:hover:border-emerald-800 text-base",
         pathname === item.href &&
-          "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800"
+          "text-emerald-600 dark:text-emerald-400 bg-emerald-50/70 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800"
       )}
       onClick={onSelect}
     >
@@ -299,20 +299,20 @@ const Navigation = () => {
   return (
     <>
       {/* Top Trust Bar */}
-      <div className="bg-linear-to-r from-orange-600 to-red-600 dark:from-orange-700 dark:to-red-700 text-white py-2 px-4 relative z-40">
+      <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 dark:from-emerald-700 dark:via-teal-800 dark:to-emerald-800 text-white py-2 px-4 relative z-40">
         <div className="container mx-auto max-w-7xl flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs md:text-sm gap-2 sm:gap-0">
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             <Badge
               variant="secondary"
-              className="bg-white/20 text-white border-white/30 text-xs"
+              className="bg-white/20 text-white border-white/30 text-xs backdrop-blur-sm"
             >
-              <div className="size-2 bg-destructive rounded-full animate-pulse mr-1"></div>
+              <div className="size-2 bg-white/90 rounded-full animate-pulse mr-1"></div>
               {t("navigation.livePatients")}
             </Badge>
-            <span className="hidden sm:inline text-xs">
+            <span className="hidden sm:inline text-xs text-white/90">
               {t("navigation.livesTransformed")}
             </span>
-            <span className="hidden lg:inline text-xs">
+            <span className="hidden lg:inline text-xs text-white/90">
               {t("navigation.rating")}
             </span>
           </div>
@@ -329,7 +329,7 @@ const Navigation = () => {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="flex items-center gap-x-1 sm:gap-x-2 h-7 sm:h-8 px-2 sm:px-3 hover:bg-white/20 dark:hover:bg-gray-700/50 transition-colors duration-200 z-50 relative"
+                  className="flex items-center gap-x-1 sm:gap-x-2 h-7 sm:h-8 px-2 sm:px-3 hover:bg-white/20 dark:hover:bg-white/10 transition-colors duration-200 z-50 relative text-white"
                 >
                   <Globe className="size-3 sm:w-4 sm:h-4" />
                   <span className="text-xs font-semibold">
@@ -390,8 +390,8 @@ const Navigation = () => {
         className={cn(
           "sticky top-0 z-50 transition-all duration-300",
           isScrolled
-            ? "backdrop-blur-md shadow-lg border-b border-border"
-            : "backdrop-blur-sm"
+            ? "backdrop-blur-xl bg-background/80 shadow-lg border-b border-border"
+            : "backdrop-blur-sm bg-background/60"
         )}
         initial={{ y: -100 }}
         animate={{ y: 0 }}
@@ -401,17 +401,17 @@ const Navigation = () => {
         {/* Background Elements - Same as Hero */}
         <div className="absolute inset-0 z-0">
           {/* Base Background */}
-          <div className="absolute inset-0 bg-background" />
+          <div className="absolute inset-0 bg-background/90" />
 
           {/* Elegant Gradient Overlay */}
-          <div className="absolute inset-0 bg-linear-to-br from-background via-background/95 to-muted/20 dark:from-background dark:via-background/95 dark:to-muted/30" />
+          <div className="absolute inset-0 bg-gradient-to-br from-background via-background/95 to-muted/20 dark:from-background dark:via-background/95 dark:to-muted/30" />
 
           {/* Secondary Gradient for Depth */}
-          <div className="absolute inset-0 bg-linear-to-tr from-transparent via-primary/3 to-secondary/8 dark:via-primary/5 dark:to-secondary/12" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-primary/3 to-teal-300/8 dark:via-primary/5 dark:to-emerald-900/12" />
 
           {/* Subtle Geometric Pattern */}
           <div className="absolute inset-0 opacity-[0.01] dark:opacity-[0.04]">
-            <div className="w-full h-full bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23000000%22%20fill-opacity%3D%220.1%22%3E%3Cpath%20d%3D%22M30%2030c0-8.284-6.716-15-15-15s-15%206.716-15%2015%206.716%2015%2015%2015%2015-6.716%2015-15zm0%200c0%208.284%206.716%2015%2015%2015s15-6.716%2015-15-6.716-15-15-15-15%206.716-15%2015z%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')]" />
+            <div className="w-full h-full bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23059669%22%20fill-opacity%3D%220.1%22%3E%3Cpath%20d%3D%22M30%2030c0-8.284-6.716-15-15-15s-15%206.716-15%2015%206.716%2015%2015%2015%2015-6.716%2015-15zm0%200c0%208.284%206.716%2015%2015%2015s15-6.716%2015-15-6.716-15-15-15-15%206.716-15%2015z%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')]" />
           </div>
         </div>
 
@@ -445,7 +445,7 @@ const Navigation = () => {
                     <h1 className="font-playfair text-base sm:text-lg lg:text-lg font-semibold text-gray-900 dark:text-white leading-tight truncate">
                       {t("navigation.clinicName")}
                     </h1>
-                    <p className="text-[10px] sm:text-xs lg:text-xs text-orange-600 dark:text-orange-400 -mt-1 truncate">
+                    <p className="text-[10px] sm:text-xs lg:text-xs text-emerald-600 dark:text-emerald-400 -mt-1 truncate">
                       {t("navigation.clinicSubtitle")}
                     </p>
                   </div>
@@ -468,19 +468,19 @@ const Navigation = () => {
                 >
                   {item.hasDropdown ? (
                     <div
-                      className="relative rounded-lg transition-all duration-200 hover:bg-orange-50/50 dark:hover:bg-orange-900/10 px-2 py-1"
+                      className="relative rounded-lg transition-all duration-200 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 px-2 py-1"
                       onMouseEnter={handleMouseEnter}
                       onMouseLeave={handleMouseLeave}
                     >
                       <button
                         type="button"
                         className={cn(
-                          "text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 font-medium transition-colors duration-200 relative group text-sm lg:text-sm xl:text-sm whitespace-nowrap flex items-center gap-x-1 text-left w-full",
+                          "text-gray-700 dark:text-gray-300 hover:text-emerald-600 dark:hover:text-emerald-400 font-medium transition-colors duration-200 relative group text-sm lg:text-sm xl:text-sm whitespace-nowrap flex items-center gap-x-1 text-left w-full",
                           (pathname === item.href ||
                             item.subItems?.some(
                               (subItem) => pathname === subItem.href
                             )) &&
-                            "text-orange-600 dark:text-orange-400"
+                            "text-emerald-600 dark:text-emerald-400"
                         )}
                         onClick={() => push(item.href)}
                         onKeyDown={(e) => {
@@ -508,7 +508,7 @@ const Navigation = () => {
                           <ChevronRight className="size-3" />
                         </m.div>
                         <m.span
-                          className="absolute -bottom-1 left-0 h-0.5 bg-orange-600 dark:bg-orange-400"
+                          className="absolute -bottom-1 left-0 h-0.5 bg-emerald-600 dark:bg-emerald-400"
                           initial={{ width: 0 }}
                           whileHover={{ width: "100%" }}
                           animate={{
@@ -538,7 +538,7 @@ const Navigation = () => {
                               duration: 0.2,
                               ease: [0.0, 0.0, 0.2, 1],
                             }}
-                            className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden z-50"
+                            className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50"
                             onMouseEnter={handleMouseEnter}
                             onMouseLeave={handleMouseLeave}
                           >
@@ -557,13 +557,13 @@ const Navigation = () => {
                                   href={subItem.href}
                                   prefetch={false}
                                   className={cn(
-                                    "block px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:text-orange-600 dark:hover:text-orange-400 transition-colors duration-200 border-b border-gray-100 dark:border-gray-700 last:border-b-0",
+                                    "block px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors duration-200 border-b border-gray-100 dark:border-gray-700 last:border-b-0",
                                     pathname === subItem.href &&
-                                      "bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400"
+                                      "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400"
                                   )}
                                 >
                                   <div className="flex items-center gap-x-2">
-                                    <div className="size-2 bg-orange-400 rounded-full"></div>
+                                    <div className="size-2 bg-emerald-500 rounded-full"></div>
                                     <span>{subItem.name}</span>
                                   </div>
                                 </Link>
@@ -578,14 +578,14 @@ const Navigation = () => {
                       href={item.href}
                       prefetch={false}
                       className={cn(
-                        "text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 font-medium transition-colors duration-200 relative group text-sm lg:text-sm xl:text-sm whitespace-nowrap",
+                        "text-gray-700 dark:text-gray-300 hover:text-emerald-600 dark:hover:text-emerald-400 font-medium transition-colors duration-200 relative group text-sm lg:text-sm xl:text-sm whitespace-nowrap",
                         pathname === item.href &&
-                          "text-orange-600 dark:text-orange-400"
+                          "text-emerald-600 dark:text-emerald-400"
                       )}
                     >
                       {item.name}
                       <m.span
-                        className="absolute -bottom-1 left-0 h-0.5 bg-orange-600 dark:bg-orange-400"
+                        className="absolute -bottom-1 left-0 h-0.5 bg-emerald-600 dark:bg-emerald-400"
                         initial={{ width: 0 }}
                         whileHover={{ width: "100%" }}
                         animate={{ width: pathname === item.href ? "100%" : 0 }}
@@ -638,7 +638,7 @@ const Navigation = () => {
                         size="sm"
                         variant="ghost"
                         onClick={handleLogin}
-                        className="text-orange-600 hover:bg-orange-50 text-xs sm:text-sm px-2 sm:px-3 touch-manipulation"
+                        className="text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-xs sm:text-sm px-2 sm:px-3 touch-manipulation"
                       >
                         <span className="hidden sm:inline">Login</span>
                         <span className="sm:hidden">Login</span>
@@ -647,7 +647,7 @@ const Navigation = () => {
                         type="button"
                         size="sm"
                         onClick={handleRegister}
-                        className="bg-linear-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs sm:text-sm px-2 sm:px-3 touch-manipulation"
+                        className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs sm:text-sm px-2 sm:px-3 touch-manipulation shadow-sm"
                       >
                         <span className="hidden sm:inline">Get Started</span>
                         <span className="sm:hidden">Start</span>
@@ -666,7 +666,7 @@ const Navigation = () => {
               <Button
                 type="button"
                 size="sm"
-                className="hidden lg:flex bg-linear-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs sm:text-sm px-3 sm:px-4 shadow-lg"
+                className="hidden lg:flex bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs sm:text-sm px-3 sm:px-4 shadow-lg"
                 onClick={() => (window.location.href = "/drdeshmukh")}
               >
                 <Phone className="size-3 mr-1" />
@@ -677,7 +677,7 @@ const Navigation = () => {
               <Button
                 type="button"
                 size="sm"
-                className="lg:hidden bg-linear-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs px-3 py-2 h-8 shadow-lg touch-manipulation"
+                className="lg:hidden bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs px-3 py-2 h-8 shadow-lg touch-manipulation"
                 onClick={() => (window.location.href = "/drdeshmukh")}
               >
                 <Phone className="size-3 mr-1" />
@@ -694,7 +694,7 @@ const Navigation = () => {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="lg:hidden size-10 p-0 touch-manipulation hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                    className="lg:hidden size-10 p-0 touch-manipulation hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
                     aria-label="Toggle mobile menu"
                   >
                     <Menu className="size-4 text-gray-700 dark:text-gray-300" />
@@ -705,8 +705,8 @@ const Navigation = () => {
                   side="left"
                   className="w-[min(22rem,calc(100vw-1rem))] max-w-none gap-0 p-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700"
                 >
-                  <SheetHeader className="shrink-0 p-6 pr-12 border-b border-gray-200 dark:border-gray-700 bg-linear-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20">
-                    <SheetTitle className="text-left text-lg font-bold text-orange-600 dark:text-orange-400 leading-tight tracking-wide flex items-center gap-x-3 min-w-0">
+                  <SheetHeader className="shrink-0 p-6 pr-12 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20">
+                    <SheetTitle className="text-left text-lg font-bold text-emerald-600 dark:text-emerald-400 leading-tight tracking-wide flex items-center gap-x-3 min-w-0">
                       <div className="relative size-9 flex items-center justify-center overflow-hidden shrink-0 rounded-xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
                         <Image
                           src="/assets/logo/logowithoutbackground.png"
@@ -760,9 +760,9 @@ const Navigation = () => {
                     <div className="shrink-0 p-6 pt-5 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                       {isAuthenticated && session ? (
                         <div className="flex flex-col gap-y-4">
-                          <div className="flex items-center gap-x-2 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
-                            <User className="size-4 text-orange-600" />
-                            <span className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                          <div className="flex items-center gap-x-2 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
+                            <User className="size-4 text-emerald-600" />
+                            <span className="text-sm font-medium text-emerald-800 dark:text-emerald-200">
                               {session.user.firstName || "User"}
                             </span>
                           </div>
@@ -772,7 +772,7 @@ const Navigation = () => {
                               setIsMobileMenuOpen(false);
                               handleDashboardNavigation();
                             }}
-                            className="bg-linear-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white h-12 text-base touch-manipulation shadow-md"
+                            className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white h-12 text-base touch-manipulation shadow-md"
                           >
                             <User className="size-4 mr-2" />
                             Dashboard
@@ -799,7 +799,7 @@ const Navigation = () => {
                               handleLogin();
                             }}
                             variant="outline"
-                            className="border-orange-300 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 h-12 text-base touch-manipulation"
+                            className="border-emerald-300 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 h-12 text-base touch-manipulation"
                           >
                             Login
                           </Button>
@@ -809,7 +809,7 @@ const Navigation = () => {
                               setIsMobileMenuOpen(false);
                               handleRegister();
                             }}
-                            className="bg-linear-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white h-12 text-base touch-manipulation shadow-md"
+                            className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white h-12 text-base touch-manipulation shadow-md"
                           >
                             Get Started
                           </Button>
@@ -823,7 +823,7 @@ const Navigation = () => {
                           setIsMobileMenuOpen(false);
                           window.location.href = "/drdeshmukh";
                         }}
-                        className="border-orange-300 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 h-12 text-base touch-manipulation mt-3 w-full"
+                        className="border-emerald-300 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 h-12 text-base touch-manipulation mt-3 w-full"
                       >
                         <Phone className="size-4 mr-2" />
                         {t("navigation.bookConsultation")}
@@ -842,6 +842,3 @@ const Navigation = () => {
 };
 
 export default Navigation;
-
-
-

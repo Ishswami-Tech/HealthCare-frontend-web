@@ -2,6 +2,7 @@
 import { nowIso } from '@/lib/utils/date-time';
 
 import React, { useState, Suspense } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslation } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,7 +48,8 @@ import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-t
 import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 
 export default function ContactPage() {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const router = useRouter();
   const clinicName = APP_CONFIG.CLINIC.APP_NAME;
   const submitContactFormMutation = useSubmitContactForm();
   const submitConsultationBookingMutation = useSubmitConsultationBooking();
@@ -172,7 +174,7 @@ export default function ContactPage() {
   };
 
   const handleBookConsultation = () => {
-    setIsBookingDialogOpen(true);
+    router.push("/drdeshmukh");
   };
 
   const handleBookingSubmit = async (e: React.FormEvent) => {
@@ -246,14 +248,16 @@ export default function ContactPage() {
   };
 
   const handleWhatsAppSupport = () => {
-    // Extract phone number from translation (first phone number)
-    const firstPhoneNumber =
-      t("contact.contactInfo.phoneNumbers.details.0") || "9860370961";
-    const firstPhone = firstPhoneNumber.replace(/\D/g, "") || "9860370961";
-    const whatsappNumber = firstPhone.startsWith("91")
-      ? firstPhone
-      : `91${firstPhone}`;
-    const whatsappUrl = `https://wa.me/${whatsappNumber}`;
+    const whatsappPhone = t("clinic.whatsapp") || "9860370961";
+    const cleanPhoneNumber = whatsappPhone.replace(/[\s\-\(\)]/g, "");
+    const defaultMessage =
+      language === "hi"
+        ? "नमस्ते! मैं श्री विश्वमूर्ति आयुर्वेदालय में अपॉइंटमेंट बुक करना चाहता हूँ। कृपया उपलब्ध समय बताएं।"
+        : language === "mr"
+          ? "नमस्कार! मला श्री विश्वमूर्ती आयुर्वेदालयात भेटीची वेळ बुक करायची आहे. कृपया उपलब्ध वेळा सांगा."
+          : `Hello! I would like to book an appointment at ${clinicName}. Please let me know the available slots.`;
+    const encodedMessage = encodeURIComponent(defaultMessage);
+    const whatsappUrl = `https://wa.me/${cleanPhoneNumber}?text=${encodedMessage}`;
     window.open(whatsappUrl, "_blank");
   };
 

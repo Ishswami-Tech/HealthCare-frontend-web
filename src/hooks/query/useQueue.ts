@@ -24,6 +24,40 @@ const queueQueryRetry = (failureCount: number, error: unknown) => {
   return failureCount < 2;
 };
 
+export type QueueDashboardJobSummary = {
+  id: string;
+  name: string;
+  state: string;
+  timestamp: string | null;
+  attemptsMade: number;
+  priority: number | null;
+  progress: number | string | null;
+  dataPreview: Record<string, unknown>;
+};
+
+export type QueueDashboardQueueSummary = {
+  queueName: string;
+  health: Record<string, unknown>;
+  metrics: Record<string, unknown>;
+  jobs: QueueDashboardJobSummary[];
+};
+
+export type QueueDashboardSummary = {
+  clinicId?: string;
+  generatedAt?: string;
+  requestedQueueName?: string | null;
+  totals: {
+    queues: number;
+    jobs: number;
+    waiting: number;
+    active: number;
+    delayed: number;
+    failed: number;
+    completed: number;
+  };
+  queues: QueueDashboardQueueSummary[];
+};
+
 /**
  * Hook to get queue data for a clinic or global queue view.
  * clinicId is optional so superadmins can load the shared queue surface
@@ -100,6 +134,42 @@ export const useQueueStats = (locationId?: string, options?: { enabled?: boolean
     placeholderData: keepPreviousData,
     retry: queueQueryRetry,
   });
+};
+
+/**
+ * Hook to get queue dashboard summary and background jobs
+ */
+export const useQueueDashboardSummary = (
+  clinicId?: string,
+  options?: { enabled?: boolean; limit?: number }
+) => {
+  const { isConnected } = useWebSocketStatus();
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
+  const normalizedClinicId = clinicId?.trim();
+  const limit = options?.limit ?? 5;
+
+  return useQueryData<QueueDashboardSummary | null>(
+    ['queue-dashboard', normalizedClinicId, limit],
+    async () => {
+      try {
+        const result = await clinicApiClient.get(API_ENDPOINTS.QUEUE.DASHBOARD, { limit });
+        return (result.data ?? result) as QueueDashboardSummary;
+      } catch (error) {
+        if (isSessionInvalidError(error)) {
+          return null;
+        }
+        throw error;
+      }
+    },
+    {
+      enabled: options?.enabled !== false && !!normalizedClinicId,
+      refetchInterval: isConnected || isAuthRefreshing ? false : 30000,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+      placeholderData: keepPreviousData,
+      retry: queueQueryRetry,
+    }
+  );
 };
 
 /**

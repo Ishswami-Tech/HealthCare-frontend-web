@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,7 @@ import type { BillingPlan, Invoice, Subscription } from "@/types/billing.types";
 interface PatientBillingContentProps {
   clinicId: string;
   userId: string;
+  initialTab?: string;
   invoices: Invoice[];
   invoicesPending: boolean;
   payments: any[];
@@ -36,7 +37,9 @@ interface PatientBillingContentProps {
   pendingSubscriptionPayment: { subscriptionId: string; planName: string; amount: number } | null;
   showSubscriptionHistory: boolean;
   subscribeError: string;
+  loadError: string;
   createSubscriptionPending: boolean;
+  onRefetchAllBillingData: () => void;
   onOpenPlansTab: () => void;
   onSetPlanToConfirm: (plan: BillingPlan | null) => void;
   onSetPendingSubscriptionPayment: (value: { subscriptionId: string; planName: string; amount: number } | null) => void;
@@ -179,9 +182,20 @@ function getInvoiceDateLabel(invoice: { status: string; dueDate?: string; paidDa
   return `Issued: ${issuedAt ? formatDate(issuedAt) : "--"} · ${statusLabel}`;
 }
 
+function getInvoiceDateLabelSafe(invoice: { status: string; dueDate?: string; paidDate?: string; paidAt?: string; invoiceDate?: string; createdAt?: string; updatedAt?: string }) {
+  const issuedAt = invoice.invoiceDate || invoice.createdAt;
+  const paidTime = invoice.paidDate || invoice.paidAt || invoice.updatedAt;
+  const statusLabel =
+    invoice.status === "PAID"
+      ? `Paid: ${paidTime ? formatDate(paidTime) : "--"}`
+      : `Due: ${invoice.dueDate ? formatDate(invoice.dueDate) : "--"}`;
+  return `Issued: ${issuedAt ? formatDate(issuedAt) : "--"} - ${statusLabel}`;
+}
+
 export function PatientBillingContent({
   clinicId,
   userId,
+  initialTab,
   invoices,
   invoicesPending,
   payments,
@@ -197,7 +211,9 @@ export function PatientBillingContent({
   pendingSubscriptionPayment,
   showSubscriptionHistory,
   subscribeError,
+  loadError,
   createSubscriptionPending,
+  onRefetchAllBillingData,
   onOpenPlansTab,
   onSetPlanToConfirm,
   onSetPendingSubscriptionPayment,
@@ -212,6 +228,16 @@ export function PatientBillingContent({
   onCreateSubscription,
 }: PatientBillingContentProps) {
   const typedSubscriptions = subscriptions as Subscription[];
+  const normalizeTab = (value?: string) => {
+    const tab = (value || "").toLowerCase();
+    return ["plans", "invoices", "payments", "subscriptions"].includes(tab) ? tab : "payments";
+  };
+  const [activeTab, setActiveTab] = useState(() => normalizeTab(initialTab));
+
+  useEffect(() => {
+    setActiveTab(normalizeTab(initialTab));
+  }, [initialTab]);
+
   const plans = clinicPlans.length > 0 ? clinicPlans : fallbackPlans;
   const activePlans = plans.filter((plan) => plan.isActive);
   const plansPending = clinicId ? clinicPlansPending : fallbackPlansPending;
@@ -250,7 +276,7 @@ export function PatientBillingContent({
       cell: ({ row }) => (
         <div className="flex flex-col">
           <span className="font-semibold text-foreground">{row.original.invoiceNumber || `#${row.original.id.slice(-8).toUpperCase()}`}</span>
-          <span className="text-xs text-muted-foreground">{getInvoiceDateLabel(row.original)}</span>
+          <span className="text-xs text-muted-foreground">{getInvoiceDateLabelSafe(row.original)}</span>
         </div>
       ),
     },
@@ -341,13 +367,27 @@ export function PatientBillingContent({
         description="Review invoices, payments, and subscription plans in one place."
       />
 
+      {loadError && (
+        <Card className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="font-semibold">We could not refresh your billing data.</p>
+              <p className="text-sm text-amber-800/80 dark:text-amber-200/80">{loadError}</p>
+            </div>
+            <Button variant="outline" onClick={onRefetchAllBillingData} className="shrink-0">
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         <Card><CardContent className="flex flex-row items-center gap-3 p-3 sm:p-4 text-left"><div className="rounded-full bg-amber-100 p-2 sm:p-3 dark:bg-amber-950/40"><FileText className="size-5 text-amber-600 dark:text-amber-300" /></div><div><p className="text-xs sm:text-sm text-muted-foreground">Open Invoices</p><p className="text-xl sm:text-2xl font-bold">{openInvoices.length}</p></div></CardContent></Card>
         <Card><CardContent className="flex flex-row items-center gap-3 p-3 sm:p-4 text-left"><div className="rounded-full bg-emerald-100 p-2 sm:p-3 dark:bg-emerald-950/40"><CreditCard className="size-5 text-emerald-600 dark:text-emerald-300" /></div><div><p className="text-xs sm:text-sm text-muted-foreground">Total Payments</p><p className="text-xl sm:text-2xl font-bold">{payments.length}</p></div></CardContent></Card>
         <Card className="col-span-2 sm:col-span-1"><CardContent className="flex flex-row items-center justify-start gap-3 p-3 sm:p-4 text-left"><div className="rounded-full bg-blue-100 p-2 sm:p-3 dark:bg-blue-950/40"><Wallet className="size-5 text-blue-600 dark:text-blue-300" /></div><div><p className="text-xs sm:text-sm text-muted-foreground">Active Subscriptions</p><p className="text-xl sm:text-2xl font-bold">{activeSubscriptionCount}</p></div></CardContent></Card>
       </div>
 
-      <Tabs defaultValue="plans" className="flex flex-col gap-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col gap-y-4">
         <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
           <TabsList className="inline-flex w-max min-w-full sm:flex sm:w-full">
             <TabsTrigger id="patient-billing-plans-trigger" value="plans">Plans</TabsTrigger>

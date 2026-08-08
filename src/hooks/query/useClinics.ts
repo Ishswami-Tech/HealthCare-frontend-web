@@ -199,7 +199,9 @@ export const useClinicByAppName = (appName: string) => {
  * Hook to get current user's clinic
  * Uses the new /my-clinic endpoint
  */
-export const useMyClinic = () => {
+export const useMyClinic = (options?: {
+  enabled?: boolean;
+}) => {
   const { session, isPending } = useAuth();
   const { isConnected } = useWebSocketStatus();
   const authScope = useClinicQueryScope();
@@ -221,7 +223,7 @@ export const useMyClinic = () => {
       }
     },
     {
-      enabled: !!session?.user?.id && !isPending,
+      enabled: (options?.enabled ?? true) && !!session?.user?.id && !isPending,
       refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 120_000,
       retry: clinicQueryRetry,
     }

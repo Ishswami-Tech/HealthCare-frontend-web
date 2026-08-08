@@ -515,7 +515,8 @@ export class ApiClient {
       method: 'GET',
       headers: headers as HeadersInit,
       credentials: this.withCredentials ? 'include' : 'omit',
-      keepalive: true, // Optimize for connection reuse (10M users)
+      // Do not use keepalive on normal requests.
+      // Safari/iOS often surfaces it as a hard "Load failed" network error.
       cache: 'default', // Use browser cache for GET requests
       ...options,
     };
@@ -559,6 +560,7 @@ export class ApiClient {
       const duration = Date.now() - startTime;
       trackApiCall(url, config.method || 'GET', response.status, duration, undefined, undefined, undefined);
       logger.debug('API Request Success', { url, status: response.status, duration });
+      logger.debug('API Response Received', { url, status: response.status, duration, requestId: response.headers.get('X-Request-ID') });
 
       return result;
     } catch (error) {
@@ -602,7 +604,12 @@ export class ApiClient {
         throw new TimeoutError(ERROR_MESSAGES.TIMEOUT_ERROR);
       }
 
-      if (error instanceof TypeError && (error as Error).message.includes('fetch')) {
+      if (
+        error instanceof TypeError &&
+        /fetch|load failed|networkerror|network request failed/i.test(
+          (error as Error).message || ''
+        )
+      ) {
         throw new NetworkError(ERROR_MESSAGES.NETWORK_ERROR);
       }
       
@@ -1223,6 +1230,7 @@ export class ClinicApiClient extends ApiClient {
   }
 
   async getDoctorAvailability(
+    clinicId: string,
     doctorId: string,
     date: string,
     locationId?: string,
@@ -1232,7 +1240,7 @@ export class ClinicApiClient extends ApiClient {
     if (locationId) params.locationId = locationId;
     if (appointmentType) params.type = appointmentType;
     const url = `${API_ENDPOINTS.APPOINTMENTS.DOCTOR_AVAILABILITY(doctorId)}?${new URLSearchParams(params)}`;
-    return this.publicRequest(url, { method: 'GET' });
+    return this.publicRequest(url, { method: 'GET', clinicId, requireClinicId: true });
   }
 
   async getUserUpcomingAppointments(userId: string) {

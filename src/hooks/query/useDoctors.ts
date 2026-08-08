@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQueryData } from '../core/useQueryData';
 import { useMutationOperation } from '../core/useMutationOperation';
 import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import { TOAST_IDS } from '../utils/use-toast';
+import { CACHE_TIMES, GC_TIMES } from './config';
 import { useAuth } from '@/hooks/auth/useAuth';
 import { clinicApiClient } from '@/lib/api/client';
 import { API_ENDPOINTS } from '@/lib/config/config';
+import { getDoctors as getDoctorsServerAction } from '@/lib/actions/doctors.server';
+import { resolveDisplayNameAndInitials } from '@/lib/utils/display-name';
 import { usePatientStore } from '@/stores';
 import { useAuthStore } from '@/stores/auth.store';
 import { useCurrentClinicId } from './useClinics';
@@ -27,6 +30,70 @@ const doctorQueryRetry = (failureCount: number, error: unknown) => {
   return failureCount < 2;
 };
 
+const normalizeDoctorRows = (payload: unknown): any[] => {
+  const extractRows = (value: unknown): unknown[] => {
+    if (Array.isArray(value)) {
+      return value;
+    }
+
+    if (!value || typeof value !== "object") {
+      return [];
+    }
+
+    const record = value as {
+      doctor?: unknown;
+      doctors?: unknown;
+      data?: unknown;
+      items?: unknown;
+      results?: unknown;
+    };
+
+    if (Array.isArray(record.doctors)) return record.doctors;
+    if (Array.isArray(record.items)) return record.items;
+    if (Array.isArray(record.results)) return record.results;
+    if (Array.isArray(record.data)) return record.data;
+    if (record.doctor && typeof record.doctor === "object") return [record.doctor];
+
+    if (record.data && typeof record.data === "object") {
+      const nested = record.data as {
+        doctor?: unknown;
+        doctors?: unknown;
+        data?: unknown;
+        items?: unknown;
+        results?: unknown;
+      };
+      if (Array.isArray(nested.doctors)) return nested.doctors;
+      if (Array.isArray(nested.items)) return nested.items;
+      if (Array.isArray(nested.results)) return nested.results;
+      if (Array.isArray(nested.data)) return nested.data;
+      if (nested.doctor && typeof nested.doctor === "object") return [nested.doctor];
+    }
+
+    return [];
+  };
+
+  const rows = extractRows(payload);
+
+  return rows.map((row: any) => {
+    const doctor = row?.doctor ?? row;
+    const user = doctor?.user ?? row?.user ?? {};
+    const resolvedDoctorName = resolveDisplayNameAndInitials({
+      firstName: doctor?.firstName ?? row?.firstName ?? user?.firstName,
+      lastName: doctor?.lastName ?? row?.lastName ?? user?.lastName,
+      name: user?.name ?? doctor?.name ?? row?.name,
+      email: user?.email ?? doctor?.email ?? row?.email,
+      role: 'DOCTOR',
+    }).displayName;
+    return {
+      ...doctor,
+      id: doctor?.id ?? row?.id ?? "",
+      userId: user?.id ?? row?.userId ?? "",
+      name: resolvedDoctorName === 'User' ? 'Doctor' : resolvedDoctorName,
+      specialization: doctor?.specialization ?? "",
+      image: user?.profilePicture ?? doctor?.profilePicture ?? row?.profilePicture ?? "",
+    };
+  });
+};
 // ===== DOCTORS QUERY HOOKS =====
 
 /**
@@ -42,40 +109,67 @@ export const useDoctors = (clinicId: string, filters?: {
 }, options?: {
   enabled?: boolean;
 }) => {
-  const { isConnected } = useWebSocketStatus();
-  const previousAuthScopeRef = useRef<string>('');
+  const { connectionStatus } = useWebSocketStatus();
+  const shouldPoll = connectionStatus !== 'connected';
+  const queryKey = useMemo(
+    () => [
+      'doctors',
+      clinicId,
+      filters?.search?.trim() || '',
+      filters?.specialization?.trim() || '',
+      typeof filters?.isActive === 'boolean' ? String(filters.isActive) : 'any',
+      typeof filters?.limit === 'number' ? filters.limit : 'all',
+      typeof filters?.offset === 'number' ? filters.offset : 0,
+      filters?.locationId?.trim() || '',
+    ],
+    [
+      clinicId,
+      filters?.isActive,
+      filters?.limit,
+      filters?.locationId,
+      filters?.offset,
+      filters?.search,
+      filters?.specialization,
+    ]
+  );
 
-  // Build a stable query key: do NOT include authScope because it changes
-  // from 'guest' to the real userId when the session finishes loading,
-  // which would fragment the cache and cause React Query to serve a stale
-  // empty result without refetching.
-  const queryKey = useMemo(() => ['doctors', clinicId, filters], [clinicId, filters]);
+  // Build a stable query key from primitive values so fresh object literals
+  // do not fragment the cache or trigger unnecessary refetches.
 
   return useQueryData(queryKey, async () => {
     try {
-      const result = await clinicApiClient.get(
-        API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId),
-        filters,
-      );
-      let doctors: any[] = Array.isArray(result.data) ? result.data : [];
+      const queryDoctors = async (params?: typeof filters) => {
+        return normalizeDoctorRows(
+          await getDoctorsServerAction(clinicId, params)
+        );
+      };
 
-      // ✅ Fallback: if the cached response returned an empty list, retry
-      // once with cache-bust headers to recover from a stale empty cache
-      // (e.g., doctor was added after the cache was first populated).
-      if (doctors.length === 0) {
-  try {
-    const busted = await clinicApiClient.get(
-      API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId),
-      { ...(filters || {}), bust: '1' }
-    );
-          const retryDoctors = Array.isArray(busted.data) ? busted.data : [];
-          if (retryDoctors.length > 0) {
-            console.log('[useDoctors] Cache-bust retry recovered doctors:', retryDoctors.length);
-            doctors = retryDoctors;
+      const hasLocationOnlyFilter =
+        !!filters?.locationId?.trim() &&
+        !filters?.search?.trim() &&
+        !filters?.specialization?.trim() &&
+        typeof filters?.isActive === 'undefined';
+
+      let doctors = await queryDoctors(filters);
+
+      // When a location-scoped lookup comes back empty, fall back to the
+      // clinic-wide doctor list. This prevents a stale or incomplete mobile
+      // location context from hiding the only available doctor in clinics
+      // that effectively operate with a single static provider.
+      if (doctors.length === 0 && hasLocationOnlyFilter) {
+        try {
+          const fallbackFilters = { ...filters };
+          delete (fallbackFilters as { locationId?: string }).locationId;
+          const fallbackDoctors = await queryDoctors(fallbackFilters);
+          if (fallbackDoctors.length > 0) {
+            console.log(
+              '[useDoctors] Location fallback recovered clinic-wide doctors:',
+              fallbackDoctors.length,
+            );
+            doctors = fallbackDoctors;
           }
-        } catch (bustError) {
-          // Swallow bust errors - we still return the original empty array.
-          console.warn('[useDoctors] Cache-bust retry failed:', bustError);
+        } catch (fallbackError) {
+          console.warn('[useDoctors] Location fallback failed:', fallbackError);
         }
       }
 
@@ -89,11 +183,12 @@ export const useDoctors = (clinicId: string, filters?: {
     }
   }, {
     enabled: !!clinicId && (options?.enabled ?? true),
-    refetchOnMount: true,
-    refetchOnWindowFocus: isConnected ? false : true,
     staleTime: 0,
-    gcTime: 120_000,
-    refetchInterval: isConnected ? false : 120_000,
+    gcTime: GC_TIMES.STATIC,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchInterval: shouldPoll ? 60_000 : false,
     retry: doctorQueryRetry,
   });
 };
@@ -102,8 +197,6 @@ export const useDoctors = (clinicId: string, filters?: {
  * Hook to get doctor by ID
  */
 export const useDoctor = (doctorId: string) => {
-  const { isConnected } = useWebSocketStatus();
-
   return useQueryData(['doctor', doctorId], async () => {
     try {
       return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.GET_BY_ID(doctorId));
@@ -115,7 +208,12 @@ export const useDoctor = (doctorId: string) => {
     }
   }, {
     enabled: !!doctorId,
-    refetchInterval: isConnected ? false : 120_000,
+    staleTime: 0,
+    gcTime: GC_TIMES.STATIC,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchInterval: false,
     retry: doctorQueryRetry,
   });
 };
@@ -652,10 +750,11 @@ export const useCurrentDoctorEntityId = (clinicId?: string) => {
   const authenticatedUserId = session?.user?.id || '';
   const authenticatedEmail = session?.user?.email?.toLowerCase() || '';
   const clinicDoctors = useQueryData(
-    ['clinicDoctors', clinicId],
+    ["clinicDoctors", clinicId],
     async () => {
       if (!clinicId) return [];
-      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId));
+      const result = await clinicApiClient.get(API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId));
+      return normalizeDoctorRows(result);
     },
     { enabled: !!clinicId }
   );
@@ -663,13 +762,14 @@ export const useCurrentDoctorEntityId = (clinicId?: string) => {
   const doctorId = useMemo(() => {
     const doctors: any[] = Array.isArray(clinicDoctors.data) ? (clinicDoctors.data as any[]) : [];
     const matchedDoctor = doctors.find((doctor: any) => {
-      const doctorUserId = doctor.userId || doctor.user?.id || '';
-      const doctorEmail = doctor.user?.email?.toLowerCase() || '';
+      const doctorUserId = doctor.userId || doctor.user?.id || doctor.doctor?.userId || doctor.doctor?.user?.id || '';
+      const doctorEmail = doctor.user?.email?.toLowerCase() || doctor.doctor?.user?.email?.toLowerCase() || '';
       return doctorUserId === authenticatedUserId || (authenticatedEmail && doctorEmail === authenticatedEmail);
     });
 
-    return matchedDoctor?.id || '';
+    return matchedDoctor?.id || matchedDoctor?.doctor?.id || '';
   }, [authenticatedEmail, authenticatedUserId, clinicDoctors.data]);
+
 
   return {
     doctorId,
@@ -677,4 +777,3 @@ export const useCurrentDoctorEntityId = (clinicId?: string) => {
     isResolvingDoctorId: Boolean(clinicId) && clinicDoctors.isPending && !doctorId,
   };
 };
-

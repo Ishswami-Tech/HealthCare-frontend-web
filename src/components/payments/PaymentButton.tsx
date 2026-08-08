@@ -22,7 +22,10 @@ import {
 import { formatAmountFromMinorUnits } from "@/lib/utils";
 import { getClinicId } from "@/lib/utils/token-manager";
 import { syncAppointmentInCache } from "@/lib/utils/appointment-cache";
-import { clinicApiClient } from "@/lib/api/client";
+import {
+  createPaymentIntent as createPaymentIntentServerAction,
+  verifyPaymentCallback as verifyPaymentCallbackServerAction,
+} from "@/lib/actions/billing.server";
 
 const BILLING_QUERY_KEYS = [
   ["invoices"],
@@ -36,6 +39,15 @@ const BILLING_QUERY_KEYS = [
   ["billing-analytics"],
   ["patientDashboardSummary"],
 ] as const;
+
+const IN_APP_PAYMENT_PROVIDERS: PaymentProvider[] = ["cashfree", "razorpay"];
+const REDIRECT_PAYMENT_PROVIDERS: PaymentProvider[] = [
+  "phonepe",
+  "zoho",
+  "easebuzz",
+  "paytm",
+  "payu",
+];
 
 // Fast timeouts for better UX
 const CASHFREE_LOAD_TIMEOUT_MS = 8000;
@@ -314,13 +326,25 @@ export function PaymentButton({
       addAttempt(provider);
     }
 
-    for (const candidate of ENABLED_PAYMENT_PROVIDERS) {
-      if (candidate !== "cashfree") {
+    for (const candidate of IN_APP_PAYMENT_PROVIDERS) {
+      if (candidate !== provider) {
         addAttempt(candidate);
       }
     }
 
-    if (!attempts.length || !attempts.includes("cashfree")) {
+    for (const candidate of REDIRECT_PAYMENT_PROVIDERS) {
+      if (candidate !== provider) {
+        addAttempt(candidate);
+      }
+    }
+
+    for (const candidate of ENABLED_PAYMENT_PROVIDERS) {
+      if (candidate !== provider) {
+        addAttempt(candidate);
+      }
+    }
+
+    if (!attempts.length) {
       addAttempt("cashfree");
     }
 
@@ -330,32 +354,27 @@ export function PaymentButton({
   const getPaymentIntent = async (
     requestedProvider: PaymentProvider,
   ): Promise<PaymentIntentResponse> => {
-    const providerQuery = `?provider=${requestedProvider}`;
     if (subscriptionId) {
-      return await clinicApiClient.request<PaymentIntentResponse>(
-        `${API_ENDPOINTS.BILLING.SUBSCRIPTIONS.BASE}/${subscriptionId}/process-payment${providerQuery}`,
-        { method: "POST" },
-      );
+      return (await createPaymentIntentServerAction({
+        provider: requestedProvider,
+        subscriptionId,
+      })) as PaymentIntentResponse;
     } else if (appointmentId) {
-      return await clinicApiClient.request<PaymentIntentResponse>(
-        `${API_ENDPOINTS.BILLING.APPOINTMENT_PAYMENTS.PROCESS_PAYMENT(appointmentId)}${providerQuery}`,
-        {
-          method: "POST",
-          ...(appointmentType
-            ? { body: JSON.stringify({ appointmentType }) }
-            : {}),
-        },
-      );
+      return (await createPaymentIntentServerAction({
+        provider: requestedProvider,
+        appointmentId,
+        ...(appointmentType ? { appointmentType } : {}),
+      })) as PaymentIntentResponse;
     } else if (invoiceId) {
-      return await clinicApiClient.request<PaymentIntentResponse>(
-        `${API_ENDPOINTS.BILLING.INVOICES.PROCESS_PAYMENT(invoiceId)}${providerQuery}`,
-        { method: "POST" },
-      );
+      return (await createPaymentIntentServerAction({
+        provider: requestedProvider,
+        invoiceId,
+      })) as PaymentIntentResponse;
     } else if (prescriptionId) {
-      return await clinicApiClient.request<PaymentIntentResponse>(
-        `${API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.PROCESS_PAYMENT(prescriptionId)}${providerQuery}`,
-        { method: "POST" },
-      );
+      return (await createPaymentIntentServerAction({
+        provider: requestedProvider,
+        prescriptionId,
+      })) as PaymentIntentResponse;
     } else {
       throw new Error(
         "Either invoiceId, appointmentId, subscriptionId, or prescriptionId is required",
@@ -394,7 +413,9 @@ export function PaymentButton({
     if (!bridgeBase.pathname || bridgeBase.pathname === "/") {
       bridgeBase.pathname = "/payments/start";
     }
-    bridgeBase.searchParams.set("payload", encodeBridgePayload(payload));
+    const encodedPayload = encodeBridgePayload(payload);
+    bridgeBase.searchParams.set("payload", encodedPayload);
+    bridgeBase.hash = `payload=${encodedPayload}`;
     return bridgeBase.toString();
   };
 
@@ -410,11 +431,17 @@ export function PaymentButton({
 
     ensureBridgePreconnect(bridgeLaunchUrl);
     try {
-      setIsProcessing(false);
       window.location.assign(bridgeLaunchUrl);
+
       return true;
     } catch (error) {
       console.warn("[PaymentButton] Bridge navigation failed", error);
+      try {
+        window.location.assign(bridgeLaunchUrl);
+        return true;
+      } catch (fallbackError) {
+        console.warn("[PaymentButton] Bridge fallback navigation failed", fallbackError);
+      }
       setIsProcessing(false);
       return false;
     }
@@ -586,27 +613,15 @@ export function PaymentButton({
       clinicId: string;
     },
   ) => {
-    const queryParams = new URLSearchParams({
+    const verifyResponse = await verifyPaymentCallbackServerAction({
       clinicId: params.clinicId,
       paymentId: params.paymentId || params.orderId,
       orderId: params.orderId,
       provider: usedProvider,
     });
-    const verifyResponse = await clinicApiClient.publicRequest<
-      Record<string, unknown>
-    >(`${API_ENDPOINTS.BILLING.PAYMENTS.CALLBACK}?${queryParams.toString()}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Clinic-ID": params.clinicId,
-      },
-      body: JSON.stringify({ orderId: params.orderId }),
-    });
     if (!verifyResponse.success) {
       throw new Error(
-        verifyResponse.error ||
-          (verifyResponse as any).message ||
-          "Payment verification failed",
+        verifyResponse.error || verifyResponse.message || "Payment verification failed",
       );
     }
     return verifyResponse;
@@ -741,13 +756,6 @@ export function PaymentButton({
       throw new Error("Clinic context is required for payment verification");
     }
 
-    if (
-      launchPaymentBridge(buildBridgePayload(resolvedClinicId, paymentIntent))
-    ) {
-      setIsProcessing(false);
-      return;
-    }
-
     console.info("[PaymentButton] Cashfree checkout diagnostics", {
       usedProvider,
       cashfreeMode,
@@ -851,12 +859,6 @@ export function PaymentButton({
     usedProvider: PaymentProvider,
     resolvedClinicId: string,
   ) => {
-    if (
-      launchPaymentBridge(buildBridgePayload(resolvedClinicId, paymentIntent))
-    ) {
-      return;
-    }
-
     const metadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
     const providerResponse =
       (paymentIntent?.providerResponse as Record<string, unknown>) || {};
