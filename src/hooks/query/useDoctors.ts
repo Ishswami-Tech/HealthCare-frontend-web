@@ -777,4 +777,3 @@ export const useCurrentDoctorEntityId = (clinicId?: string) => {
     isResolvingDoctorId: Boolean(clinicId) && clinicDoctors.isPending && !doctorId,
   };
 };
-
