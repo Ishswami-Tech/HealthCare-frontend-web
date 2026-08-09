@@ -511,8 +511,8 @@ function ProfileCompletionFormContent({
 
   const formatPhoneNumber = (phone: string | undefined | null) => {
     if (!phone) return "";
-    if (phone.startsWith("+")) return phone;
-    const cleaned = phone.replace(/[^\d+]/g, "");
+    const cleaned = phone.trim().replace(/[^\d+]/g, "");
+    if (!cleaned) return "";
     if (cleaned.startsWith("+")) return cleaned;
     if (cleaned.length === 10) return `+91${cleaned}`;
     return `+${cleaned}`;
@@ -925,6 +925,7 @@ function ProfileCompletionFormContent({
         type: "server",
         message:
           response?.error ||
+          response?.message ||
           "Profile was saved, but the server could not confirm completion. Please verify your name and phone number, then try again.",
       });
       isSubmittingRef.current = false;
@@ -984,14 +985,15 @@ function ProfileCompletionFormContent({
       // For email OTP / Google login, include verified email from session
       // For other login methods, include fields as filled in the form
       const emailWasEdited = Boolean(dirtyFields.email);
-      const phoneWasEdited = Boolean(dirtyFields.phone);
       let resolvedPhone: string | undefined;
       if (isPhoneOtpLogin) {
         // Phone is already verified by backend, use session phone
         resolvedPhone = formatPhoneNumber(sessionUser?.phone) || undefined;
-      } else if (data.phone?.trim() && isPhoneVerified && phoneWasEdited) {
-        // For other login methods, include phone only if user has verified it
+      } else if (data.phone?.trim() && isPhoneVerified) {
+        // Always send verified phone so backend completion can confirm against DB
         resolvedPhone = formatPhoneNumber(data.phone);
+      } else if (isPhoneVerified && sessionUser?.phone) {
+        resolvedPhone = formatPhoneNumber(sessionUser.phone) || undefined;
       }
 
       // Email is optional for phone OTP users and comes from the login/session
