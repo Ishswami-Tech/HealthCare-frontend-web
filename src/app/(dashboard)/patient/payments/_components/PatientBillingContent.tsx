@@ -86,6 +86,7 @@ function statusColor(status: string) {
     case "COMPLETED":
       return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900";
     case "OPEN":
+    case "DRAFT":
     case "TRIALING":
       return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-900";
     case "OVERDUE":
@@ -94,8 +95,8 @@ function statusColor(status: string) {
       return "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900";
     case "CANCELLED":
     case "VOID":
+    case "UNCOLLECTIBLE":
       return "bg-slate-100 text-slate-500 border-slate-200 line-through dark:bg-slate-900 dark:text-slate-400 dark:border-slate-800";
-    case "DRAFT":
     case "PAUSED":
     default:
       return "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800";
@@ -175,17 +176,24 @@ function formatSubscriptionStatus(status: string) {
 function formatInvoiceStatus(status: string) {
   if (!status) return "";
   const s = status.toUpperCase();
-  if (s === "OPEN") return "PENDING";
-  if (s === "PAID") return "DONE";
-  if (s === "VOID") return "VOIDED";
+  if (s === "OPEN" || s === "DRAFT") return "Pending";
+  if (s === "PAID") return "Paid";
+  if (s === "OVERDUE") return "Overdue";
+  if (s === "VOID") return "Voided";
+  if (s === "UNCOLLECTIBLE") return "Uncollectible";
   return s.replace(/_/g, " ");
+}
+
+function isPayableInvoiceStatus(status: string) {
+  const s = String(status || "").toUpperCase();
+  return s === "OPEN" || s === "DRAFT" || s === "OVERDUE";
 }
 
 function getInvoiceDateLabel(invoice: { status: string; dueDate?: string; paidDate?: string; paidAt?: string; invoiceDate?: string; createdAt?: string; updatedAt?: string }) {
   const issuedAt = invoice.invoiceDate || invoice.createdAt;
   const paidTime = invoice.paidDate || invoice.paidAt || invoice.updatedAt;
   const statusLabel =
-    invoice.status === "PAID"
+    String(invoice.status || "").toUpperCase() === "PAID"
       ? `Paid: ${paidTime ? formatDate(paidTime) : "--"}`
       : `Due: ${invoice.dueDate ? formatDate(invoice.dueDate) : "--"}`;
   return `Issued: ${issuedAt ? formatDate(issuedAt) : "--"} · ${statusLabel}`;
@@ -195,7 +203,7 @@ function getInvoiceDateLabelSafe(invoice: { status: string; dueDate?: string; pa
   const issuedAt = invoice.invoiceDate || invoice.createdAt;
   const paidTime = invoice.paidDate || invoice.paidAt || invoice.updatedAt;
   const statusLabel =
-    invoice.status === "PAID"
+    String(invoice.status || "").toUpperCase() === "PAID"
       ? `Paid: ${paidTime ? formatDate(paidTime) : "--"}`
       : `Due: ${invoice.dueDate ? formatDate(invoice.dueDate) : "--"}`;
   return `Issued: ${issuedAt ? formatDate(issuedAt) : "--"} - ${statusLabel}`;
@@ -275,7 +283,7 @@ export function PatientBillingContent({
   const plans = clinicPlans.length > 0 ? clinicPlans : fallbackPlans;
   const activePlans = plans.filter((plan) => plan.isActive);
   const plansPending = clinicId ? clinicPlansPending : fallbackPlansPending;
-  const openInvoices = invoices.filter((inv) => inv.status === "OPEN" || inv.status === "OVERDUE");
+  const openInvoices = invoices.filter((inv) => isPayableInvoiceStatus(inv.status));
   const mergedSubscriptions = useMemo(() => {
     if (!backendActiveSubscription) return typedSubscriptions;
     return typedSubscriptions.some((sub) => sub.id === backendActiveSubscription.id)
@@ -329,7 +337,7 @@ export function PatientBillingContent({
       header: "Actions",
       cell: ({ row }) => (
         <div className="flex flex-wrap items-center gap-2">
-          {(row.original.status === "OPEN" || row.original.status === "OVERDUE") && (
+          {isPayableInvoiceStatus(row.original.status) && (
             <PaymentButton invoiceId={row.original.id} amount={row.original.amount} provider="phonepe" className="w-full sm:w-auto" />
           )}
           <Button variant="outline" size="sm" className="h-8 gap-1.5" disabled={downloadingPdfId === row.original.id} onClick={() => void handleDownloadPdf(row.original.id)} title="Download invoice PDF">
