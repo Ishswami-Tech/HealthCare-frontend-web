@@ -12,8 +12,9 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { HashTabs } from "@/hooks/navigation/HashTabs";
 import { DataTable } from "@/components/ui/data-table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { formatDateInIST, formatDateTimeInIST } from "@/lib/utils/date-time";
 
@@ -335,7 +336,11 @@ export function PatientClinicalRecordView({
         ))}
       </div>
 
-      <Tabs defaultValue="overview" className="flex flex-col gap-y-4">
+      <HashTabs
+        tabs={["overview", "appointments", "history", "vitals", "reports", "medications"] as const}
+        defaultValue="overview"
+        className="flex flex-col gap-y-4"
+      >
         <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
           <TabsList className="inline-flex w-max min-w-full sm:flex sm:w-full">
           <TabsTrigger value="overview" className="gap-2">
@@ -493,7 +498,7 @@ export function PatientClinicalRecordView({
             </CardContent>
           </Card>
         </TabsContent>
-      </Tabs>
+      </HashTabs>
 
       <Card className="border-border/70 bg-card shadow-sm">
         <CardHeader className="pb-3">

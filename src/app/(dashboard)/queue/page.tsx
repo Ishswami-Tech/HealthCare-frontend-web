@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useHashTab } from "@/hooks/navigation/useHashTab";
 import { DataTable } from "@/components/ui/data-table";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import {
@@ -136,7 +137,6 @@ type QueueDisplayItem = CanonicalQueueEntry & {
 };
 
 type QueuePageState = {
-  activeQueue: string;
   activeTreatmentFilter: string;
   activeConsultationLane: string;
   activeTherapyLane: string;
@@ -150,7 +150,6 @@ type QueuePageState = {
 };
 
 type QueuePageAction =
-  | { type: "setActiveQueue"; value: string }
   | { type: "setActiveTreatmentFilter"; value: string }
   | { type: "setActiveConsultationLane"; value: string }
   | { type: "setActiveTherapyLane"; value: string }
@@ -163,7 +162,6 @@ type QueuePageAction =
   | { type: "setAssignDoctorError"; value: string };
 
 const initialQueuePageState: QueuePageState = {
-  activeQueue: "consultations",
   activeTreatmentFilter: "ALL",
   activeConsultationLane: "GENERAL_CONSULTATION",
   activeTherapyLane: "PROCEDURAL_CARE",
@@ -178,8 +176,6 @@ const initialQueuePageState: QueuePageState = {
 
 function queuePageReducer(state: QueuePageState, action: QueuePageAction): QueuePageState {
   switch (action.type) {
-    case "setActiveQueue":
-      return { ...state, activeQueue: action.value };
     case "setActiveTreatmentFilter":
       return { ...state, activeTreatmentFilter: action.value };
     case "setActiveConsultationLane":
@@ -469,9 +465,12 @@ export default function QueuePage() {
   const { session } = useAuth();
   const userRole = (session?.user?.role as Role) || Role.SUPER_ADMIN;
   const doctorId = session?.user?.id;
+  const { tab: activeQueue, setTab: setActiveQueue } = useHashTab({
+    tabs: ["consultations", "therapies"] as const,
+    defaultValue: "consultations",
+  });
   const [
     {
-      activeQueue,
       activeTreatmentFilter,
       activeConsultationLane,
       activeTherapyLane,
@@ -486,7 +485,6 @@ export default function QueuePage() {
     dispatch,
   ] = useReducer(queuePageReducer, initialQueuePageState);
 
-  const setActiveQueue = (value: string) => dispatch({ type: "setActiveQueue", value });
   const setActiveTreatmentFilter = (value: string) =>
     dispatch({ type: "setActiveTreatmentFilter", value });
   const setActiveConsultationLane = (value: string) =>

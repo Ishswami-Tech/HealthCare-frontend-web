@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import { useHashTab } from "@/hooks/navigation/useHashTab";
 import { Loader2, Save } from "lucide-react";
 import type {
   DoctorProfileAvailabilityDay,
@@ -37,15 +38,6 @@ const PROFILE_TABS = [
 ] as const;
 
 type ProfileTab = (typeof PROFILE_TABS)[number];
-
-function normalizeTabHash(hash: string | null | undefined): ProfileTab {
-  const raw = (hash || "").replace(/^#/, "").trim().toLowerCase();
-  if (raw === "availibility") return "availability"; // common misspelling
-  if ((PROFILE_TABS as readonly string[]).includes(raw)) {
-    return raw as ProfileTab;
-  }
-  return "personal";
-}
 
 function createInitialProfileData(
   user?: DoctorProfileUser,
@@ -181,9 +173,11 @@ export function DoctorProfileContent({
   const [profileData, setProfileData] = useState(() =>
     createInitialProfileData(user, userProfile),
   );
-  const [activeTab, setActiveTab] = useState<ProfileTab>(() =>
-    typeof window !== "undefined" ? normalizeTabHash(window.location.hash) : "personal",
-  );
+  const { tab: activeTab, setTab: handleTabChange } = useHashTab({
+    tabs: PROFILE_TABS,
+    defaultValue: "personal",
+    aliases: { availibility: "availability" },
+  });
   const profileSnapshotRef = useRef(
     String((userProfile as { updatedAt?: string } | null | undefined)?.updatedAt || ""),
   );
@@ -223,25 +217,6 @@ export function DoctorProfileContent({
       return incoming;
     });
   }, [user, userProfile, activeTab]);
-
-  // Sync tab <-> URL hash (#availability)
-  useEffect(() => {
-    const applyHash = () => {
-      setActiveTab(normalizeTabHash(window.location.hash));
-    };
-    applyHash();
-    window.addEventListener("hashchange", applyHash);
-    return () => window.removeEventListener("hashchange", applyHash);
-  }, []);
-
-  const handleTabChange = (value: string) => {
-    const nextTab = normalizeTabHash(value);
-    setActiveTab(nextTab);
-    const nextHash = `#${nextTab}`;
-    if (window.location.hash !== nextHash) {
-      window.history.replaceState(null, "", nextHash);
-    }
-  };
 
   const stats: DoctorProfileStats = useMemo(
     () => ({
@@ -318,11 +293,7 @@ export function DoctorProfileContent({
       setProfileData(nextForm);
 
       // Keep current tab after save (do not jump to personal)
-      setActiveTab(tabBeforeSave);
-      const nextHash = `#${tabBeforeSave}`;
-      if (window.location.hash !== nextHash) {
-        window.history.replaceState(null, "", nextHash);
-      }
+      handleTabChange(tabBeforeSave);
 
       showSuccessToast(options?.successMessage || "Profile saved successfully", {
         id: TOAST_IDS.GLOBAL.SUCCESS,

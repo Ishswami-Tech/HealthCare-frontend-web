@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { HashTabs } from "@/hooks/navigation/HashTabs";
 import { Save } from "lucide-react";
 import { ReceptionistProfileOverviewCard } from "./ReceptionistProfileOverviewCard";
 import { ReceptionistProfilePersonalTab } from "./ReceptionistProfilePersonalTab";
@@ -122,7 +123,11 @@ export default function ReceptionistProfileContent() {
 
       <ReceptionistProfileOverviewCard profileData={profileData} />
 
-      <Tabs defaultValue="personal" className="flex flex-col gap-y-4">
+      <HashTabs
+        tabs={["personal", "work", "performance", "preferences", "security"] as const}
+        defaultValue="personal"
+        className="flex flex-col gap-y-4"
+      >
         <div className="-mx-4 overflow-x-auto px-4 pb-2 scrollbar-hide sm:mx-0 sm:px-0">
           <TabsList className="inline-flex w-max min-w-full sm:grid sm:w-full sm:grid-cols-5">
             <TabsTrigger className="px-3 text-[11px] sm:text-sm" value="personal">
@@ -177,7 +182,7 @@ export default function ReceptionistProfileContent() {
             setConfirmPassword={setConfirmPassword}
           />
         </TabsContent>
-      </Tabs>
+      </HashTabs>
     </div>
   );
 }

@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { ServerPagination } from "@/components/ui/pagination";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { HashTabs } from "@/hooks/navigation/HashTabs";
 
 
 import {
@@ -482,7 +483,11 @@ export default function EHRSystem() {
               </Card>
             </div>
 
-            <Tabs defaultValue="overview" className="gap-y-6">
+            <HashTabs
+              tabs={["overview", "patients", "alerts", "analytics", "settings"] as const}
+              defaultValue="overview"
+              className="gap-y-6"
+            >
               <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="patients">Patient Records</TabsTrigger>
@@ -959,7 +964,7 @@ export default function EHRSystem() {
                   </CardContent>
                 </Card>
               </TabsContent>
-            </Tabs>
+            </HashTabs>
           </div>
       
     </MedicalRecordsRouteProtection>

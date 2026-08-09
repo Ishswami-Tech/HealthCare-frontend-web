@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,11 +12,14 @@ import { DataTable } from "@/components/ui/data-table";
 import { PaymentHistory } from "@/components/billing/PaymentHistory";
 import { PaymentButton } from "@/components/payments";
 import { DashboardPageHeader, DashboardPageShell as PatientPageShell } from "@/components/dashboard/DashboardPageShell";
+import { useHashTab } from "@/hooks/navigation/useHashTab";
 import { Check, CheckCircle2, CreditCard, Download, FileText, Wallet, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/loading";
 import { TableSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import type { BillingPlan, Invoice, Subscription } from "@/types/billing.types";
+
+const PATIENT_BILLING_TABS = ["plans", "invoices", "payments", "subscriptions"] as const;
 
 interface PatientBillingContentProps {
   clinicId: string;
@@ -245,11 +248,14 @@ export function PatientBillingContent({
   onCreateSubscription,
 }: PatientBillingContentProps) {
   const typedSubscriptions = subscriptions as Subscription[];
-  const normalizeTab = (value?: string) => {
-    const tab = (value || "").toLowerCase();
-    return ["plans", "invoices", "payments", "subscriptions"].includes(tab) ? tab : "payments";
-  };
-  const [activeTab, setActiveTab] = useState(() => normalizeTab(initialTab));
+  const { tab: activeTab, setTab: setActiveTab } = useHashTab({
+    tabs: PATIENT_BILLING_TABS,
+    defaultValue: PATIENT_BILLING_TABS.includes(
+      String(initialTab || "").toLowerCase() as (typeof PATIENT_BILLING_TABS)[number],
+    )
+      ? (String(initialTab).toLowerCase() as (typeof PATIENT_BILLING_TABS)[number])
+      : "payments",
+  });
   const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
 
   const handleDownloadPdf = async (invoiceId: string) => {
@@ -275,10 +281,6 @@ export function PatientBillingContent({
       setDownloadingPdfId(null);
     }
   };
-
-  useEffect(() => {
-    setActiveTab(normalizeTab(initialTab));
-  }, [initialTab]);
 
   const plans = clinicPlans.length > 0 ? clinicPlans : fallbackPlans;
   const activePlans = plans.filter((plan) => plan.isActive);
@@ -336,15 +338,21 @@ export function PatientBillingContent({
       id: "actions",
       header: "Actions",
       cell: ({ row }) => (
-        <div className="flex flex-wrap items-center gap-2">
-          {isPayableInvoiceStatus(row.original.status) && (
-            <PaymentButton invoiceId={row.original.id} amount={row.original.amount} provider="phonepe" className="w-full sm:w-auto" />
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5"
+          disabled={downloadingPdfId === row.original.id}
+          onClick={() => void handleDownloadPdf(row.original.id)}
+          title="Download invoice PDF"
+        >
+          {downloadingPdfId === row.original.id ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <Download className="size-3.5" />
           )}
-          <Button variant="outline" size="sm" className="h-8 gap-1.5" disabled={downloadingPdfId === row.original.id} onClick={() => void handleDownloadPdf(row.original.id)} title="Download invoice PDF">
-            {downloadingPdfId === row.original.id ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
-            PDF
-          </Button>
-        </div>
+          PDF
+        </Button>
       ),
     },
   ];

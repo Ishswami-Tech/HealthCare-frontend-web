@@ -10,7 +10,8 @@ import {
   DashboardPageHeader as PatientPageHeader, DashboardPageShell as PatientPageShell, } from "@/components/dashboard/DashboardPageShell";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { HashTabs } from "@/hooks/navigation/HashTabs";
 import { EmptyState, ErrorState, LoadingSpinner } from "@/components/ui/loading";
 import { PaymentButton } from "@/components/payments/PaymentButton";
 import { useAuth } from "@/hooks/auth/useAuth";
@@ -310,7 +311,12 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
         />
       )}
 
-      <Tabs defaultValue="prescriptions" className="flex flex-col gap-y-6">
+      <HashTabs
+        tabs={["prescriptions", "plan", "pharmacy", "history"] as const}
+        defaultValue="prescriptions"
+        namespace="medicines"
+        className="flex flex-col gap-y-6"
+      >
         <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
           <TabsList className="inline-flex w-max min-w-full sm:flex sm:w-full">
             <TabsTrigger value="prescriptions">Current Prescriptions</TabsTrigger>
@@ -670,7 +676,7 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
           </Card>
         </TabsContent>
 
-        <TabsContent value="history">
+        <TabsContent value="history" className="flex flex-col gap-y-4">
           <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -727,7 +733,7 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
             </CardContent>
           </Card>
         </TabsContent>
-      </Tabs>
+      </HashTabs>
     </>
   );
 
