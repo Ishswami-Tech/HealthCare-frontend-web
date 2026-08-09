@@ -172,6 +172,15 @@ function formatSubscriptionStatus(status: string) {
   return status.replace(/_/g, " ");
 }
 
+function formatInvoiceStatus(status: string) {
+  if (!status) return "";
+  const s = status.toUpperCase();
+  if (s === "OPEN") return "PENDING";
+  if (s === "PAID") return "DONE";
+  if (s === "VOID") return "VOIDED";
+  return s.replace(/_/g, " ");
+}
+
 function getInvoiceDateLabel(invoice: { status: string; dueDate?: string; paidDate?: string; paidAt?: string; invoiceDate?: string; createdAt?: string; updatedAt?: string }) {
   const issuedAt = invoice.invoiceDate || invoice.createdAt;
   const paidTime = invoice.paidDate || invoice.paidAt || invoice.updatedAt;
@@ -242,10 +251,18 @@ export function PatientBillingContent({
       if (!response.ok) throw new Error("Failed to download PDF");
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      window.open(url, "_blank");
+      
+      // Use an anchor tag click to bypass popup blockers after async fetch
+      const link = document.createElement("a");
+      link.href = url;
+      link.target = "_blank";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
       setTimeout(() => window.URL.revokeObjectURL(url), 60000);
     } catch (error) {
-      console.error(error);
+      console.error("PDF Download error:", error);
     } finally {
       setDownloadingPdfId(null);
     }
@@ -305,7 +322,7 @@ export function PatientBillingContent({
     {
       accessorKey: "status",
       header: "Status",
-      cell: ({ row }) => <Badge variant="outline" className={`font-medium ${statusColor(row.original.status)}`}>{formatSubscriptionStatus(row.original.status)}</Badge>,
+      cell: ({ row }) => <Badge variant="outline" className={`font-medium ${statusColor(row.original.status)}`}>{formatInvoiceStatus(row.original.status)}</Badge>,
     },
     {
       id: "actions",

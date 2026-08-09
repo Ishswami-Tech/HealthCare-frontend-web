@@ -288,6 +288,16 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                     if (isLogout) {
                       e.preventDefault();
                       onLogoutClick();
+                      handleLinkClick();
+                      return;
+                    }
+                    if (
+                      link.href &&
+                      !link.href.startsWith("#") &&
+                      !link.href.startsWith("http")
+                    ) {
+                      e.preventDefault();
+                      push(link.href);
                     }
                     handleLinkClick();
                   }}
@@ -298,21 +308,16 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                         <Icon className="size-4" />
                       </span>
                       {open && (
-                      <m.span
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -10 }}
-                        transition={{ duration: 0.2 }}
-                        className="truncate whitespace-pre"
-                      >
+                      <span className="truncate whitespace-pre">
                         {link.title}
-                      </m.span>
+                      </span>
                       )}
                     </button>
                   ) : (
                     <Link
                       href={link.href}
-                      prefetch={false}
+                      prefetch
+                      scroll={false}
                       onMouseEnter={
                         isAppointmentsHref(link.href)
                           ? () => handleAppointmentsHover(link.href)
@@ -335,15 +340,9 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                         <Icon className="size-4" />
                       </span>
                       {open && (
-                      <m.span
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -10 }}
-                        transition={{ duration: 0.2 }}
-                        className="truncate whitespace-pre"
-                      >
+                      <span className="truncate whitespace-pre">
                         {link.title}
-                      </m.span>
+                      </span>
                       )}
                     </Link>
                   )}
@@ -367,11 +366,18 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                   : "hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-200",
                 !open && "mx-auto justify-center"
               )}
-              onClick={handleLinkClick}
+              onClick={(e) => {
+                if (profileRoute && !profileRoute.startsWith("http")) {
+                  e.preventDefault();
+                  push(profileRoute);
+                }
+                handleLinkClick();
+              }}
             >
               <Link
                 href={profileRoute}
-                prefetch={false}
+                prefetch
+                scroll={false}
                 className={cn("relative flex h-full items-center gap-3 w-full", !open && "justify-center")}
               >
                 {isProfileActive && (
@@ -423,6 +429,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
 export default function Sidebar({ links, user, children }: SidebarProps) {
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const { logout, logoutAsync } = useAuth();
+  const { push } = useRouter();
   const { startLoading, stopLoading } = useGlobalLoading();
   const { t } = useTranslation();
 

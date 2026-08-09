@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Menu } from "lucide-react";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useTranslation } from "@/lib/i18n/context";
@@ -44,6 +44,7 @@ export function MobileBottomBar({ links }: MobileBottomBarProps) {
   const { t } = useTranslation();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { push } = useRouter();
   const { setOpenMobile } = useSidebar();
 
   const translatedLinks = useMemo(() => translateSidebarLinks(links, t), [links, t]);
@@ -74,7 +75,14 @@ export function MobileBottomBar({ links }: MobileBottomBarProps) {
               <Link
                 key={link.href}
                 href={link.href}
-                prefetch={false}
+                prefetch
+                scroll={false}
+                onClick={(e) => {
+                  if (!link.href.startsWith("#") && !link.href.startsWith("http")) {
+                    e.preventDefault();
+                    push(link.href);
+                  }
+                }}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-2 min-h-11 text-[10px] font-medium transition-colors",
