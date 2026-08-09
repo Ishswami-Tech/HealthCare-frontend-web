@@ -42,7 +42,7 @@ const nextConfig: NextConfig = {
    * ===================================================== */
   reactStrictMode: true,
   compress: true,
-  output: "standalone",
+  ...(process.env.VERCEL ? {} : { output: "standalone" }),
 
   /* =====================================================
    * Turbopack (disabled for Tailwind CSS v4 compatibility)
