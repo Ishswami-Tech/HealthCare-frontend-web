@@ -43,7 +43,7 @@ import { ROUTES } from "@/lib/config/routes";
 import { useTranslation } from "@/lib/i18n/context";
 import { translateSidebarLinks } from "@/lib/utils/index";
 import { Button } from "@/components/ui/button";
-import { LogOut, Menu } from "lucide-react";
+import { LogOut, Menu, ChevronLeft, ChevronRight } from "lucide-react";
 import { useLayoutStore } from "@/stores/layout.store";
 import { LazyMotion, domAnimation, m } from "framer-motion";
 import { MobileBottomBar } from "@/components/global/GlobalSidebar/MobileBottomBar";
@@ -171,6 +171,8 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
   const searchParams = useSearchParams();
   const { push } = useRouter();
   const [avatarError, setAvatarError] = useState(false);
+  const isSidebarCollapsed = useLayoutStore((state) => state.isSidebarCollapsed);
+  const setSidebarCollapsed = useLayoutStore((state) => state.setSidebarCollapsed);
 
   const { hasPermission } = useRBAC();
   const { session } = useAuth();
@@ -229,7 +231,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
     .replace(/_/g, " ");
   const isProfileActive = isSidebarLinkActive(pathname, new URLSearchParams(searchParams.toString()), profileRoute);
   const activeNavClass =
-    "!bg-emerald-50 !text-emerald-700 font-semibold shadow-sm ring-1 ring-emerald-200 border border-emerald-200 dark:!bg-emerald-900/25 dark:!text-emerald-200 dark:ring-emerald-700/40 dark:border-emerald-700/40";
+    "!bg-emerald-500/10 !text-emerald-700 font-semibold dark:!bg-emerald-500/15 dark:!text-emerald-400";
 
   const firstLetter = user.name?.charAt(0).toUpperCase() || "U";
 
@@ -242,11 +244,22 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
   return (
     <>
       {/* Header with Logo */}
-      <SidebarHeader className={cn("py-4 px-4 transition-all duration-300", !open && "px-2")}>
-        <div className="flex items-center">
-          <div className={cn("flex-1 flex items-center", open ? "justify-start" : "justify-center")}>
-            {open ? <Logo /> : <LogoIcon />}
-          </div>
+      {/* Header with Logo */}
+      <SidebarHeader className={cn("py-4 transition-all duration-300", open ? "px-4" : "px-2")}>
+        <div className={cn("flex items-center", open ? "justify-between" : "justify-center w-full")}>
+          {open && (
+            <div className="flex-1 flex items-center justify-start overflow-hidden">
+              <Logo />
+            </div>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSidebarCollapsed(!isSidebarCollapsed)}
+            className={cn("hidden lg:flex text-muted-foreground hover:text-foreground hover:bg-muted shrink-0", open ? "h-8 w-8 ml-2" : "h-10 w-10")}
+          >
+            <Menu className={cn(open ? "h-5 w-5" : "h-6 w-6")} />
+          </Button>
         </div>
       </SidebarHeader>
 
@@ -265,7 +278,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                   isActive={isActive}
                   tooltip={link.title}
                   className={cn(
-                    "relative h-11 px-3 text-sm transition-all duration-200 overflow-hidden hover:-translate-y-0.5 hover:shadow-sm sm:h-10",
+                    "relative h-11 px-3 text-sm transition-all duration-200 overflow-hidden sm:h-10",
                     isActive
                       ? activeNavClass
                       : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-200",
@@ -314,7 +327,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                     >
                       {isActive && (
                         <span
-                          className="absolute -top-1 left-1/2 size-2 -translate-x-1/2 rounded-full bg-primary"
+                          className="absolute left-0 top-1/2 h-[60%] w-[3px] -translate-y-1/2 rounded-r-full bg-emerald-600 dark:bg-emerald-500"
                           aria-hidden="true"
                         />
                       )}
@@ -348,7 +361,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
               <SidebarMenuButton 
                 asChild 
               className={cn(
-                "relative h-11 p-2 transition-all duration-200 overflow-hidden hover:-translate-y-0.5 hover:shadow-sm sm:h-auto",
+                "relative h-11 p-2 transition-all duration-200 overflow-hidden sm:h-auto",
                 isProfileActive
                   ? activeNavClass
                   : "hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-200",
@@ -362,7 +375,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                 className={cn("relative flex h-full items-center gap-3 w-full", !open && "justify-center")}
               >
                 {isProfileActive && (
-                  <span className="absolute -top-1 left-1/2 size-2 -translate-x-1/2 rounded-full bg-primary" aria-hidden="true" />
+                  <span className="absolute left-0 top-1/2 h-[60%] w-[3px] -translate-y-1/2 rounded-r-full bg-emerald-600 dark:bg-emerald-500" aria-hidden="true" />
                 )}
                 {!avatarError && user.avatarUrl ? (
                   <NextImage
@@ -454,8 +467,6 @@ export default function Sidebar({ links, user, children }: SidebarProps) {
               className={cn(
                 "border-none bg-neutral-100 dark:bg-neutral-900 text-sidebar-foreground transition-all duration-300 ease-in-out"
               )}
-              onMouseEnter={() => setOpen(true)}
-              onMouseLeave={() => setOpen(false)}
             >
               <Suspense fallback={null}>
                 <SidebarInner

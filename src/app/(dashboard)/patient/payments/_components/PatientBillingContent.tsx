@@ -12,7 +12,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { PaymentHistory } from "@/components/billing/PaymentHistory";
 import { PaymentButton } from "@/components/payments";
 import { DashboardPageHeader, DashboardPageShell as PatientPageShell } from "@/components/dashboard/DashboardPageShell";
-import { Check, CheckCircle2, CreditCard, Download, FileText, Wallet } from "lucide-react";
+import { Check, CheckCircle2, CreditCard, Download, FileText, Wallet, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/loading";
 import { TableSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { formatDateInIST } from "@/lib/utils/date-time";
@@ -233,6 +233,23 @@ export function PatientBillingContent({
     return ["plans", "invoices", "payments", "subscriptions"].includes(tab) ? tab : "payments";
   };
   const [activeTab, setActiveTab] = useState(() => normalizeTab(initialTab));
+  const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
+
+  const handleDownloadPdf = async (invoiceId: string) => {
+    try {
+      setDownloadingPdfId(invoiceId);
+      const response = await fetch(`/api/v1/billing/invoices/${invoiceId}/download`);
+      if (!response.ok) throw new Error("Failed to download PDF");
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setDownloadingPdfId(null);
+    }
+  };
 
   useEffect(() => {
     setActiveTab(normalizeTab(initialTab));
@@ -298,8 +315,8 @@ export function PatientBillingContent({
           {(row.original.status === "OPEN" || row.original.status === "OVERDUE") && (
             <PaymentButton invoiceId={row.original.id} amount={row.original.amount} provider="phonepe" className="w-full sm:w-auto" />
           )}
-          <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => window.open(`/api/billing/invoices/${row.original.id}/download`, "_blank", "noopener,noreferrer")} title="Download invoice PDF">
-            <Download className="size-3.5" />
+          <Button variant="outline" size="sm" className="h-8 gap-1.5" disabled={downloadingPdfId === row.original.id} onClick={() => void handleDownloadPdf(row.original.id)} title="Download invoice PDF">
+            {downloadingPdfId === row.original.id ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
             PDF
           </Button>
         </div>
@@ -382,9 +399,9 @@ export function PatientBillingContent({
       )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
-        <Card><CardContent className="flex flex-row items-center gap-3 p-3 sm:p-4 text-left"><div className="rounded-full bg-amber-100 p-2 sm:p-3 dark:bg-amber-950/40"><FileText className="size-5 text-amber-600 dark:text-amber-300" /></div><div><p className="text-xs sm:text-sm text-muted-foreground">Open Invoices</p><p className="text-xl sm:text-2xl font-bold">{openInvoices.length}</p></div></CardContent></Card>
-        <Card><CardContent className="flex flex-row items-center gap-3 p-3 sm:p-4 text-left"><div className="rounded-full bg-emerald-100 p-2 sm:p-3 dark:bg-emerald-950/40"><CreditCard className="size-5 text-emerald-600 dark:text-emerald-300" /></div><div><p className="text-xs sm:text-sm text-muted-foreground">Total Payments</p><p className="text-xl sm:text-2xl font-bold">{payments.length}</p></div></CardContent></Card>
-        <Card className="col-span-2 sm:col-span-1"><CardContent className="flex flex-row items-center justify-start gap-3 p-3 sm:p-4 text-left"><div className="rounded-full bg-blue-100 p-2 sm:p-3 dark:bg-blue-950/40"><Wallet className="size-5 text-blue-600 dark:text-blue-300" /></div><div><p className="text-xs sm:text-sm text-muted-foreground">Active Subscriptions</p><p className="text-xl sm:text-2xl font-bold">{activeSubscriptionCount}</p></div></CardContent></Card>
+        <Card><CardContent className="flex flex-row items-center gap-3 p-3 sm:p-4 text-left"><div className="rounded-full bg-amber-100 p-2 sm:p-3 dark:bg-amber-950/40"><FileText className="size-5 text-amber-600 dark:text-amber-300" /></div><div className="flex-1"><p className="text-xs sm:text-sm text-muted-foreground">Open Invoices</p>{invoicesPending ? <Skeleton className="h-7 w-12 mt-1" /> : <p className="text-xl sm:text-2xl font-bold">{openInvoices.length}</p>}</div></CardContent></Card>
+        <Card><CardContent className="flex flex-row items-center gap-3 p-3 sm:p-4 text-left"><div className="rounded-full bg-emerald-100 p-2 sm:p-3 dark:bg-emerald-950/40"><CreditCard className="size-5 text-emerald-600 dark:text-emerald-300" /></div><div className="flex-1"><p className="text-xs sm:text-sm text-muted-foreground">Total Payments</p>{paymentsPending ? <Skeleton className="h-7 w-12 mt-1" /> : <p className="text-xl sm:text-2xl font-bold">{payments.length}</p>}</div></CardContent></Card>
+        <Card className="col-span-2 sm:col-span-1"><CardContent className="flex flex-row items-center justify-start gap-3 p-3 sm:p-4 text-left"><div className="rounded-full bg-blue-100 p-2 sm:p-3 dark:bg-blue-950/40"><Wallet className="size-5 text-blue-600 dark:text-blue-300" /></div><div className="flex-1"><p className="text-xs sm:text-sm text-muted-foreground">Active Subscriptions</p>{subscriptionsPending ? <Skeleton className="h-7 w-12 mt-1" /> : <p className="text-xl sm:text-2xl font-bold">{activeSubscriptionCount}</p>}</div></CardContent></Card>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col gap-y-4">

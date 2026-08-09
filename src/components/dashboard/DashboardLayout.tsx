@@ -68,6 +68,10 @@ export function DashboardLayout({
   const storeSession = useAuthStore((state) => state.session);
   const effectiveSession = session ?? storeSession;
   const [authBootstrapTimedOut, setAuthBootstrapTimedOut] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   const { back, push, replace } = useRouter();
   const { user } = effectiveSession || {};
   const { data: currentUserProfile, isPending: isUserProfilePending } = useUserProfile({
@@ -235,8 +239,8 @@ export function DashboardLayout({
     });
   }, [resolvedPageTitle, setDashboardMeta, userDisplayData]);
 
-  if (!user && !effectiveSession) {
-    if ((!isPending || authBootstrapTimedOut) && redirectTarget) {
+  if (!isMounted || (!user && !effectiveSession)) {
+    if (isMounted && (!isPending || authBootstrapTimedOut) && redirectTarget) {
       return <RouteRedirect target={redirectTarget} />;
     }
 
