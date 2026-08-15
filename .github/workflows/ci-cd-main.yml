@@ -40,28 +40,28 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
-          cache-dependency-path: healthcarefrontend-web/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        working-directory: healthcarefrontend-web
+        working-directory: .
         run: npm ci
 
       - name: Lint
-        working-directory: healthcarefrontend-web
+        working-directory: .
         run: npm run lint
 
       - name: Type check
-        working-directory: healthcarefrontend-web
+        working-directory: .
         run: npm run type-check
 
       - name: Contract check
-        working-directory: healthcarefrontend-web
+        working-directory: .
         run: npm run contract:check
 
       - name: Build
-        working-directory: healthcarefrontend-web
+        working-directory: .
         run: npm run build
 
   deploy:
@@ -74,11 +74,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Resolve deployment target
         id: target
