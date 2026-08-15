@@ -14,7 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { HashTabs } from "@/hooks/navigation/HashTabs";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinics, useUpdateClinic } from "@/hooks/query/useClinics";
 import {
@@ -520,7 +521,11 @@ export default function SuperAdminSettings() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="general" className="flex flex-col gap-y-6">
+      <HashTabs
+        tabs={["general", "security", "notifications", "appearance"] as const}
+        defaultValue="general"
+        className="flex flex-col gap-y-6"
+      >
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
           <TabsTrigger value="general" className="flex items-center gap-2">
             <Globe className="size-4" />
@@ -742,7 +747,7 @@ export default function SuperAdminSettings() {
             </CardContent>
           </Card>
         </TabsContent>
-      </Tabs>
+      </HashTabs>
     </div>
   );
 }

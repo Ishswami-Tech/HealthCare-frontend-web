@@ -7,11 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
+import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { HashTabs } from "@/hooks/navigation/HashTabs";
 import {
   DashboardPageHeader as PatientPageHeader,
   DashboardPageShell as PatientPageShell,
 } from "@/components/dashboard/DashboardPageShell";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -260,7 +261,12 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
         />
       )}
 
-          <Tabs defaultValue="history" className="flex flex-col gap-y-6">
+          <HashTabs
+            tabs={["history", "prescriptions", "reports", "vitals", "allergies", "diet"] as const}
+            defaultValue="history"
+            namespace="records"
+            className="flex flex-col gap-y-6"
+          >
             <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
               <TabsList className="inline-flex w-max min-w-full sm:flex sm:w-full">
                 <TabsTrigger value="history">History</TabsTrigger>
@@ -776,7 +782,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                 </Card>
               </div>
             </TabsContent>
-          </Tabs>
+          </HashTabs>
 
           {/* Quick Upload Section */}
           <Card>

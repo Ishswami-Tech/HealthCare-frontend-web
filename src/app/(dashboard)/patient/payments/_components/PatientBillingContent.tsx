@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,11 +12,14 @@ import { DataTable } from "@/components/ui/data-table";
 import { PaymentHistory } from "@/components/billing/PaymentHistory";
 import { PaymentButton } from "@/components/payments";
 import { DashboardPageHeader, DashboardPageShell as PatientPageShell } from "@/components/dashboard/DashboardPageShell";
-import { Check, CheckCircle2, CreditCard, Download, FileText, Wallet } from "lucide-react";
+import { useHashTab } from "@/hooks/navigation/useHashTab";
+import { Check, CheckCircle2, CreditCard, Download, FileText, Wallet, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/loading";
 import { TableSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import type { BillingPlan, Invoice, Subscription } from "@/types/billing.types";
+
+const PATIENT_BILLING_TABS = ["plans", "invoices", "payments", "subscriptions"] as const;
 
 interface PatientBillingContentProps {
   clinicId: string;
@@ -86,6 +89,7 @@ function statusColor(status: string) {
     case "COMPLETED":
       return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900";
     case "OPEN":
+    case "DRAFT":
     case "TRIALING":
       return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-900";
     case "OVERDUE":
@@ -94,8 +98,8 @@ function statusColor(status: string) {
       return "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900";
     case "CANCELLED":
     case "VOID":
+    case "UNCOLLECTIBLE":
       return "bg-slate-100 text-slate-500 border-slate-200 line-through dark:bg-slate-900 dark:text-slate-400 dark:border-slate-800";
-    case "DRAFT":
     case "PAUSED":
     default:
       return "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800";
@@ -172,11 +176,27 @@ function formatSubscriptionStatus(status: string) {
   return status.replace(/_/g, " ");
 }
 
+function formatInvoiceStatus(status: string) {
+  if (!status) return "";
+  const s = status.toUpperCase();
+  if (s === "OPEN" || s === "DRAFT") return "Pending";
+  if (s === "PAID") return "Paid";
+  if (s === "OVERDUE") return "Overdue";
+  if (s === "VOID") return "Voided";
+  if (s === "UNCOLLECTIBLE") return "Uncollectible";
+  return s.replace(/_/g, " ");
+}
+
+function isPayableInvoiceStatus(status: string) {
+  const s = String(status || "").toUpperCase();
+  return s === "OPEN" || s === "DRAFT" || s === "OVERDUE";
+}
+
 function getInvoiceDateLabel(invoice: { status: string; dueDate?: string; paidDate?: string; paidAt?: string; invoiceDate?: string; createdAt?: string; updatedAt?: string }) {
   const issuedAt = invoice.invoiceDate || invoice.createdAt;
   const paidTime = invoice.paidDate || invoice.paidAt || invoice.updatedAt;
   const statusLabel =
-    invoice.status === "PAID"
+    String(invoice.status || "").toUpperCase() === "PAID"
       ? `Paid: ${paidTime ? formatDate(paidTime) : "--"}`
       : `Due: ${invoice.dueDate ? formatDate(invoice.dueDate) : "--"}`;
   return `Issued: ${issuedAt ? formatDate(issuedAt) : "--"} · ${statusLabel}`;
@@ -186,7 +206,7 @@ function getInvoiceDateLabelSafe(invoice: { status: string; dueDate?: string; pa
   const issuedAt = invoice.invoiceDate || invoice.createdAt;
   const paidTime = invoice.paidDate || invoice.paidAt || invoice.updatedAt;
   const statusLabel =
-    invoice.status === "PAID"
+    String(invoice.status || "").toUpperCase() === "PAID"
       ? `Paid: ${paidTime ? formatDate(paidTime) : "--"}`
       : `Due: ${invoice.dueDate ? formatDate(invoice.dueDate) : "--"}`;
   return `Issued: ${issuedAt ? formatDate(issuedAt) : "--"} - ${statusLabel}`;
@@ -228,20 +248,44 @@ export function PatientBillingContent({
   onCreateSubscription,
 }: PatientBillingContentProps) {
   const typedSubscriptions = subscriptions as Subscription[];
-  const normalizeTab = (value?: string) => {
-    const tab = (value || "").toLowerCase();
-    return ["plans", "invoices", "payments", "subscriptions"].includes(tab) ? tab : "payments";
-  };
-  const [activeTab, setActiveTab] = useState(() => normalizeTab(initialTab));
+  const { tab: activeTab, setTab: setActiveTab } = useHashTab({
+    tabs: PATIENT_BILLING_TABS,
+    defaultValue: PATIENT_BILLING_TABS.includes(
+      String(initialTab || "").toLowerCase() as (typeof PATIENT_BILLING_TABS)[number],
+    )
+      ? (String(initialTab).toLowerCase() as (typeof PATIENT_BILLING_TABS)[number])
+      : "payments",
+  });
+  const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
 
-  useEffect(() => {
-    setActiveTab(normalizeTab(initialTab));
-  }, [initialTab]);
+  const handleDownloadPdf = async (invoiceId: string) => {
+    try {
+      setDownloadingPdfId(invoiceId);
+      const response = await fetch(`/api/v1/billing/invoices/${invoiceId}/download`);
+      if (!response.ok) throw new Error("Failed to download PDF");
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      
+      // Use an anchor tag click to bypass popup blockers after async fetch
+      const link = document.createElement("a");
+      link.href = url;
+      link.target = "_blank";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+    } catch (error) {
+      console.error("PDF Download error:", error);
+    } finally {
+      setDownloadingPdfId(null);
+    }
+  };
 
   const plans = clinicPlans.length > 0 ? clinicPlans : fallbackPlans;
   const activePlans = plans.filter((plan) => plan.isActive);
   const plansPending = clinicId ? clinicPlansPending : fallbackPlansPending;
-  const openInvoices = invoices.filter((inv) => inv.status === "OPEN" || inv.status === "OVERDUE");
+  const openInvoices = invoices.filter((inv) => isPayableInvoiceStatus(inv.status));
   const mergedSubscriptions = useMemo(() => {
     if (!backendActiveSubscription) return typedSubscriptions;
     return typedSubscriptions.some((sub) => sub.id === backendActiveSubscription.id)
@@ -288,21 +332,27 @@ export function PatientBillingContent({
     {
       accessorKey: "status",
       header: "Status",
-      cell: ({ row }) => <Badge variant="outline" className={`font-medium ${statusColor(row.original.status)}`}>{formatSubscriptionStatus(row.original.status)}</Badge>,
+      cell: ({ row }) => <Badge variant="outline" className={`font-medium ${statusColor(row.original.status)}`}>{formatInvoiceStatus(row.original.status)}</Badge>,
     },
     {
       id: "actions",
       header: "Actions",
       cell: ({ row }) => (
-        <div className="flex flex-wrap items-center gap-2">
-          {(row.original.status === "OPEN" || row.original.status === "OVERDUE") && (
-            <PaymentButton invoiceId={row.original.id} amount={row.original.amount} provider="phonepe" className="w-full sm:w-auto" />
-          )}
-          <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => window.open(`/api/billing/invoices/${row.original.id}/download`, "_blank", "noopener,noreferrer")} title="Download invoice PDF">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5"
+          disabled={downloadingPdfId === row.original.id}
+          onClick={() => void handleDownloadPdf(row.original.id)}
+          title="Download invoice PDF"
+        >
+          {downloadingPdfId === row.original.id ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
             <Download className="size-3.5" />
-            PDF
-          </Button>
-        </div>
+          )}
+          PDF
+        </Button>
       ),
     },
   ];
@@ -382,9 +432,9 @@ export function PatientBillingContent({
       )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
-        <Card><CardContent className="flex flex-row items-center gap-3 p-3 sm:p-4 text-left"><div className="rounded-full bg-amber-100 p-2 sm:p-3 dark:bg-amber-950/40"><FileText className="size-5 text-amber-600 dark:text-amber-300" /></div><div><p className="text-xs sm:text-sm text-muted-foreground">Open Invoices</p><p className="text-xl sm:text-2xl font-bold">{openInvoices.length}</p></div></CardContent></Card>
-        <Card><CardContent className="flex flex-row items-center gap-3 p-3 sm:p-4 text-left"><div className="rounded-full bg-emerald-100 p-2 sm:p-3 dark:bg-emerald-950/40"><CreditCard className="size-5 text-emerald-600 dark:text-emerald-300" /></div><div><p className="text-xs sm:text-sm text-muted-foreground">Total Payments</p><p className="text-xl sm:text-2xl font-bold">{payments.length}</p></div></CardContent></Card>
-        <Card className="col-span-2 sm:col-span-1"><CardContent className="flex flex-row items-center justify-start gap-3 p-3 sm:p-4 text-left"><div className="rounded-full bg-blue-100 p-2 sm:p-3 dark:bg-blue-950/40"><Wallet className="size-5 text-blue-600 dark:text-blue-300" /></div><div><p className="text-xs sm:text-sm text-muted-foreground">Active Subscriptions</p><p className="text-xl sm:text-2xl font-bold">{activeSubscriptionCount}</p></div></CardContent></Card>
+        <Card><CardContent className="flex flex-row items-center gap-3 p-3 sm:p-4 text-left"><div className="rounded-full bg-amber-100 p-2 sm:p-3 dark:bg-amber-950/40"><FileText className="size-5 text-amber-600 dark:text-amber-300" /></div><div className="flex-1"><p className="text-xs sm:text-sm text-muted-foreground">Open Invoices</p>{invoicesPending ? <Skeleton className="h-7 w-12 mt-1" /> : <p className="text-xl sm:text-2xl font-bold">{openInvoices.length}</p>}</div></CardContent></Card>
+        <Card><CardContent className="flex flex-row items-center gap-3 p-3 sm:p-4 text-left"><div className="rounded-full bg-emerald-100 p-2 sm:p-3 dark:bg-emerald-950/40"><CreditCard className="size-5 text-emerald-600 dark:text-emerald-300" /></div><div className="flex-1"><p className="text-xs sm:text-sm text-muted-foreground">Total Payments</p>{paymentsPending ? <Skeleton className="h-7 w-12 mt-1" /> : <p className="text-xl sm:text-2xl font-bold">{payments.length}</p>}</div></CardContent></Card>
+        <Card className="col-span-2 sm:col-span-1"><CardContent className="flex flex-row items-center justify-start gap-3 p-3 sm:p-4 text-left"><div className="rounded-full bg-blue-100 p-2 sm:p-3 dark:bg-blue-950/40"><Wallet className="size-5 text-blue-600 dark:text-blue-300" /></div><div className="flex-1"><p className="text-xs sm:text-sm text-muted-foreground">Active Subscriptions</p>{subscriptionsPending ? <Skeleton className="h-7 w-12 mt-1" /> : <p className="text-xl sm:text-2xl font-bold">{activeSubscriptionCount}</p>}</div></CardContent></Card>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col gap-y-4">

@@ -42,7 +42,8 @@ import { useCurrentTimestamp } from "@/hooks/utils/useClientDate";
 import { Textarea } from "@/components/ui/textarea";
 import { PaymentButton } from "@/components/payments/PaymentButton";
 import { formatAmountFromMinorUnits } from "@/lib/utils";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useHashTab } from "@/hooks/navigation/useHashTab";
 import { ServerPagination } from "@/components/ui/pagination";
 import {
   Video,
@@ -679,7 +680,6 @@ export function VideoAppointmentsList({
     rescheduleDate: string;
     rescheduleTime: string;
     actionReason: string;
-    filterStatus: string;
   };
 
   const [uiState, setUiState] = useState<VideoAppointmentsUiState>({
@@ -693,7 +693,6 @@ export function VideoAppointmentsList({
     rescheduleDate: "",
     rescheduleTime: "",
     actionReason: "",
-    filterStatus: isDoctorRole ? "all" : "scheduled",
   });
   const {
     searchTerm,
@@ -706,8 +705,11 @@ export function VideoAppointmentsList({
     rescheduleDate,
     rescheduleTime,
     actionReason,
-    filterStatus,
   } = uiState;
+  const { tab: filterStatus, setTab: setFilterStatus } = useHashTab({
+    tabs: ["all", "scheduled", "in-progress", "completed", "cancelled"] as const,
+    defaultValue: isDoctorRole ? "all" : "scheduled",
+  });
   const patchUiState = (patch: Partial<VideoAppointmentsUiState>) =>
     setUiState((current) => ({ ...current, ...patch }));
   const setSearchTerm = (value: string) => patchUiState({ searchTerm: value });
@@ -724,7 +726,6 @@ export function VideoAppointmentsList({
   const setRescheduleDate = (value: string) => patchUiState({ rescheduleDate: value });
   const setRescheduleTime = (value: string) => patchUiState({ rescheduleTime: value });
   const setActionReason = (value: string) => patchUiState({ actionReason: value });
-  const setFilterStatus = (value: string) => patchUiState({ filterStatus: value });
   const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: "", end: "" });
 
   const resolvedControls: VideoAppointmentControls = controls ?? EMPTY_VIDEO_APPOINTMENT_CONTROLS;
