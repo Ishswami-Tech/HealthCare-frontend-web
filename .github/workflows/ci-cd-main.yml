@@ -22,7 +22,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  NODE_ENV: production
   CI: true
   COOLIFY_SUCCESS_TAG: coolify-prod-last-success
 
