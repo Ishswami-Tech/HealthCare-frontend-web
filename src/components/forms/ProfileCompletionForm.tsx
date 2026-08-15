@@ -778,6 +778,7 @@ function ProfileCompletionFormContent({
     const response = result as {
       success?: boolean;
       error?: string;
+      message?: string;
       profileComplete?: boolean;
       validationErrors?: Array<{
         field: string;
