@@ -1,9 +1,6 @@
-name: Frontend CI/CD
+name: Frontend Deploy
 
 on:
-  pull_request:
-    branches:
-      - main
   push:
     branches:
       - main
@@ -26,9 +23,35 @@ env:
   COOLIFY_SUCCESS_TAG: coolify-prod-last-success
 
 jobs:
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        working-directory: .
+        run: npm ci
+
+      - name: Vulnerability scan
+        working-directory: .
+        run: npm run security:audit
+
   validate:
     name: Validate
     runs-on: ubuntu-latest
+    needs: security-audit
 
     steps:
       - name: Checkout
@@ -64,7 +87,7 @@ jobs:
         run: npm run build
 
   deploy:
-    name: Deploy to Coolify
+    name: Deploy To Server
     runs-on: ubuntu-latest
     needs: validate
     if: github.event_name != 'pull_request'
@@ -195,6 +218,8 @@ jobs:
         run: |
           set -euo pipefail
 
+          sleep 30
+
           timeout_seconds=1800
           interval_seconds=15
           elapsed=0
@@ -245,6 +270,8 @@ jobs:
             --request POST \
             --header "Authorization: Bearer ${COOLIFY_API_TOKEN}" \
             "${COOLIFY_API_URL}/applications/${COOLIFY_APP_UUID}/start?instant_deploy=true&force=true" >/dev/null
+
+          sleep 30
 
           timeout_seconds=1800
           interval_seconds=15
