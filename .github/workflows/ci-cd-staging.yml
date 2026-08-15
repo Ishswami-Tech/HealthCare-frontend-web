@@ -1,0 +1,390 @@
+name: Frontend Staging Deploy
+
+on:
+  push:
+    branches:
+      - staging
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: Commit SHA to deploy or roll back to
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: healthcarefrontend-staging
+  cancel-in-progress: false
+
+env:
+  CI: true
+  COOLIFY_SUCCESS_TAG: coolify-staging-last-success
+
+jobs:
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        working-directory: .
+        run: npm ci
+
+      - name: Vulnerability scan
+        working-directory: .
+        run: npm run security:audit
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    needs: security-audit
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        working-directory: .
+        run: npm ci
+
+      - name: Lint
+        working-directory: .
+        run: npm run lint
+
+  type-check:
+    name: Type Check
+    runs-on: ubuntu-latest
+    needs: security-audit
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        working-directory: .
+        run: npm ci
+
+      - name: Type check
+        working-directory: .
+        run: npm run type-check
+
+  contract-check:
+    name: Contract Check
+    runs-on: ubuntu-latest
+    needs: security-audit
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        working-directory: .
+        run: npm ci
+
+      - name: Contract check
+        working-directory: .
+        run: npm run contract:check
+
+  deploy:
+    name: Deploy To Staging Server
+    runs-on: ubuntu-latest
+    needs:
+      - lint
+      - type-check
+      - contract-check
+    if: github.event_name != 'pull_request'
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Resolve deployment target
+        id: target
+        shell: bash
+        env:
+          TARGET_SHA: ${{ github.event.inputs.target_sha }}
+          COOLIFY_API_URL: ${{ secrets.COOLIFY_STAGING_API_URL }}
+          COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_STAGING_API_TOKEN }}
+          COOLIFY_APP_UUID: ${{ secrets.COOLIFY_STAGING_APP_UUID }}
+          COOLIFY_HEALTHCHECK_URL: ${{ secrets.COOLIFY_STAGING_HEALTHCHECK_URL }}
+        run: |
+          set -euo pipefail
+
+          target_sha="${TARGET_SHA:-}"
+          if [[ -z "${target_sha}" ]]; then
+            target_sha="${GITHUB_SHA}"
+          fi
+
+          if [[ -z "${COOLIFY_API_URL}" || -z "${COOLIFY_API_TOKEN}" || -z "${COOLIFY_APP_UUID}" || -z "${COOLIFY_HEALTHCHECK_URL}" ]]; then
+            echo "Missing one or more Coolify staging secrets." >&2
+            exit 1
+          fi
+
+          echo "target_sha=${target_sha}" >> "${GITHUB_OUTPUT}"
+          echo "coolify_api_url=${COOLIFY_API_URL}" >> "${GITHUB_OUTPUT}"
+          echo "coolify_api_token=${COOLIFY_API_TOKEN}" >> "${GITHUB_OUTPUT}"
+          echo "coolify_app_uuid=${COOLIFY_APP_UUID}" >> "${GITHUB_OUTPUT}"
+          echo "healthcheck_url=${COOLIFY_HEALTHCHECK_URL}" >> "${GITHUB_OUTPUT}"
+
+      - name: Load last successful release tag
+        id: release_tag
+        shell: bash
+        env:
+          SUCCESS_TAG: ${{ env.COOLIFY_SUCCESS_TAG }}
+        run: |
+          set -euo pipefail
+
+          git fetch --tags --force --prune
+
+          if git rev-parse --verify --quiet "refs/tags/${SUCCESS_TAG}" >/dev/null; then
+            success_sha="$(git rev-parse "refs/tags/${SUCCESS_TAG}^{commit}")"
+            echo "success_sha=${success_sha}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "success_sha=" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Read current Coolify deployment
+        id: current
+        shell: bash
+        env:
+          COOLIFY_API_URL: ${{ steps.target.outputs.coolify_api_url }}
+          COOLIFY_API_TOKEN: ${{ steps.target.outputs.coolify_api_token }}
+          COOLIFY_APP_UUID: ${{ steps.target.outputs.coolify_app_uuid }}
+        run: |
+          set -euo pipefail
+
+          response="$(curl --fail --silent --show-error \
+            --header "Authorization: Bearer ${COOLIFY_API_TOKEN}" \
+            "${COOLIFY_API_URL}/applications/${COOLIFY_APP_UUID}")"
+
+          current_sha="$(printf '%s' "${response}" | jq -r '.git_commit_sha // empty')"
+          current_branch="$(printf '%s' "${response}" | jq -r '.git_branch // empty')"
+
+          if [[ -z "${current_sha}" ]]; then
+            echo "Could not read current deployed commit SHA from Coolify staging." >&2
+            exit 1
+          fi
+
+          {
+            echo "current_sha=${current_sha}"
+            echo "current_branch=${current_branch}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Update Coolify target commit
+        shell: bash
+        env:
+          COOLIFY_API_URL: ${{ steps.target.outputs.coolify_api_url }}
+          COOLIFY_API_TOKEN: ${{ steps.target.outputs.coolify_api_token }}
+          COOLIFY_APP_UUID: ${{ steps.target.outputs.coolify_app_uuid }}
+          TARGET_SHA: ${{ steps.target.outputs.target_sha }}
+        run: |
+          set -euo pipefail
+
+          payload="$(jq -n --arg sha "${TARGET_SHA}" '{git_commit_sha: $sha}')"
+
+          curl --fail --silent --show-error \
+            --request PATCH \
+            --header "Authorization: Bearer ${COOLIFY_API_TOKEN}" \
+            --header "Content-Type: application/json" \
+            --data "${payload}" \
+            "${COOLIFY_API_URL}/applications/${COOLIFY_APP_UUID}" >/dev/null
+
+      - name: Start deployment
+        shell: bash
+        env:
+          COOLIFY_API_URL: ${{ steps.target.outputs.coolify_api_url }}
+          COOLIFY_API_TOKEN: ${{ steps.target.outputs.coolify_api_token }}
+          COOLIFY_APP_UUID: ${{ steps.target.outputs.coolify_app_uuid }}
+        run: |
+          set -euo pipefail
+
+          curl --fail --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer ${COOLIFY_API_TOKEN}" \
+            "${COOLIFY_API_URL}/applications/${COOLIFY_APP_UUID}/start?instant_deploy=true&force=true" >/dev/null
+
+      - name: Wait for health check
+        id: health
+        continue-on-error: true
+        shell: bash
+        env:
+          HEALTHCHECK_URL: ${{ steps.target.outputs.healthcheck_url }}
+        run: |
+          set -euo pipefail
+
+          sleep 30
+
+          timeout_seconds=1800
+          interval_seconds=15
+          elapsed=0
+          last_status=0
+          last_body_file="$(mktemp)"
+
+          until last_status="$(curl --silent --show-error --output "${last_body_file}" --write-out '%{http_code}' "${HEALTHCHECK_URL}")" && [[ "${last_status}" == "200" ]]; do
+            if (( elapsed >= timeout_seconds )); then
+              echo "Deployment did not become healthy within ${timeout_seconds} seconds." >&2
+              if [[ -s "${last_body_file}" ]]; then
+                echo "Last healthcheck response:" >&2
+                sed -n '1,120p' "${last_body_file}" >&2
+              fi
+              echo "healthy=false" >> "${GITHUB_OUTPUT}"
+              exit 1
+            fi
+
+            echo "Health check returned HTTP ${last_status}; waiting..." >&2
+            sleep "${interval_seconds}"
+            elapsed=$((elapsed + interval_seconds))
+          done
+
+          echo "healthy=true" >> "${GITHUB_OUTPUT}"
+
+      - name: Roll back on failure
+        if: always() && (failure() || steps.health.outputs.healthy == 'false')
+        shell: bash
+        env:
+          COOLIFY_API_URL: ${{ steps.target.outputs.coolify_api_url }}
+          COOLIFY_API_TOKEN: ${{ steps.target.outputs.coolify_api_token }}
+          COOLIFY_APP_UUID: ${{ steps.target.outputs.coolify_app_uuid }}
+          ROLLBACK_SHA: ${{ steps.release_tag.outputs.success_sha }}
+          HEALTHCHECK_URL: ${{ steps.target.outputs.healthcheck_url }}
+        run: |
+          set -euo pipefail
+
+          rollback_sha="${ROLLBACK_SHA:-}"
+          if [[ -z "${rollback_sha}" ]]; then
+            echo "No previous successful staging deployment tag found. Cannot roll back automatically." >&2
+            exit 1
+          fi
+
+          echo "Rolling back Coolify staging deployment to ${rollback_sha}"
+
+          payload="$(jq -n --arg sha "${rollback_sha}" '{git_commit_sha: $sha}')"
+
+          curl --fail --silent --show-error \
+            --request PATCH \
+            --header "Authorization: Bearer ${COOLIFY_API_TOKEN}" \
+            --header "Content-Type: application/json" \
+            --data "${payload}" \
+            "${COOLIFY_API_URL}/applications/${COOLIFY_APP_UUID}" >/dev/null
+
+          curl --fail --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer ${COOLIFY_API_TOKEN}" \
+            "${COOLIFY_API_URL}/applications/${COOLIFY_APP_UUID}/start?instant_deploy=true&force=true" >/dev/null
+
+          sleep 30
+
+          timeout_seconds=1800
+          interval_seconds=15
+          elapsed=0
+
+          until curl --fail --silent --show-error "${HEALTHCHECK_URL}" >/dev/null; do
+            if (( elapsed >= timeout_seconds )); then
+              echo "Rollback did not become healthy within ${timeout_seconds} seconds." >&2
+              exit 1
+            fi
+
+            sleep "${interval_seconds}"
+            elapsed=$((elapsed + interval_seconds))
+          done
+
+      - name: Collect Coolify logs
+        if: always() && (failure() || steps.health.outputs.healthy == 'false')
+        shell: bash
+        env:
+          COOLIFY_API_URL: ${{ steps.target.outputs.coolify_api_url }}
+          COOLIFY_API_TOKEN: ${{ steps.target.outputs.coolify_api_token }}
+          COOLIFY_APP_UUID: ${{ steps.target.outputs.coolify_app_uuid }}
+        run: |
+          set -euo pipefail
+
+          response="$(curl --fail --silent --show-error \
+            --header "Authorization: Bearer ${COOLIFY_API_TOKEN}" \
+            "${COOLIFY_API_URL}/applications/${COOLIFY_APP_UUID}/logs?lines=200")"
+
+          logs="$(printf '%s' "${response}" | jq -r '.logs // empty')"
+
+          if [[ -z "${logs}" ]]; then
+            echo "Coolify returned no staging application logs." >&2
+            exit 0
+          fi
+
+          echo "Latest Coolify staging application logs:"
+          printf '%s\n' "${logs}" | tail -n 200
+
+      - name: Promote successful release tag
+        if: success() && github.event_name != 'pull_request'
+        shell: bash
+        env:
+          TARGET_SHA: ${{ steps.target.outputs.target_sha }}
+          SUCCESS_TAG: ${{ env.COOLIFY_SUCCESS_TAG }}
+        run: |
+          set -euo pipefail
+
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+
+          git tag -f "${SUCCESS_TAG}" "${TARGET_SHA}"
+          git push origin -f "refs/tags/${SUCCESS_TAG}"
+
+      - name: Fail unhealthy release
+        if: always() && steps.health.outputs.healthy == 'false'
+        shell: bash
+        run: |
+          echo "Staging deployment was unhealthy and has been rolled back." >&2
+          exit 1
+
+      - name: Summary
+        if: success()
+        shell: bash
+        run: |
+          echo "Staging deploy completed successfully."
