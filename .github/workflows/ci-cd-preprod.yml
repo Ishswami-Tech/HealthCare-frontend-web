@@ -152,8 +152,8 @@ jobs:
         shell: bash
         env:
           TARGET_SHA: ${{ github.event.inputs.target_sha }}
-          COOLIFY_API_URL: ${{ secrets.COOLIFY_PREPROD_API_URL }}
-          COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_PREPROD_API_TOKEN }}
+          COOLIFY_API_URL: ${{ secrets.COOLIFY_API_URL }}
+          COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
           COOLIFY_APP_UUID: ${{ secrets.COOLIFY_PREPROD_APP_UUID }}
           COOLIFY_HEALTHCHECK_URL: ${{ secrets.COOLIFY_PREPROD_HEALTHCHECK_URL }}
         run: |
