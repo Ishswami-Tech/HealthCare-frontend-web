@@ -303,6 +303,7 @@ For coding standards and best practices, see [Development Standards](docs/DEVELO
 - **Output**: `standalone` (Docker-ready)
 - **Environment**: Requires `NEXT_PUBLIC_` variables.
 - **Validation**: Strict Type Checking enabled for builds.
+- **Mainline Coolify CI/CD**: see [Coolify Mainline CI/CD](docs/COOLIFY_BRANCH_DEPLOYMENT.md).
 
 ---
 
