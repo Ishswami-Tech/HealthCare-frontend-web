@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { HashTabs } from "@/hooks/navigation/HashTabs";
 
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
@@ -508,7 +509,11 @@ export default function PharmacySystem() {
             </Card>
           </div>
 
-      <Tabs defaultValue="inventory" className="flex flex-col gap-y-6">
+      <HashTabs
+        tabs={["inventory", "orders", "pharmacies", "analytics", "settings"] as const}
+        defaultValue="inventory"
+        className="flex flex-col gap-y-6"
+      >
             <TabsList className="grid w-full grid-cols-1 gap-2 md:grid-cols-3 lg:grid-cols-5">
               <TabsTrigger value="inventory">Medicine Inventory</TabsTrigger>
               <TabsTrigger value="orders">Orders</TabsTrigger>
@@ -982,7 +987,7 @@ export default function PharmacySystem() {
                 </CardContent>
               </Card>
             </TabsContent>
-          </Tabs>
+          </HashTabs>
         </div>
     
   );

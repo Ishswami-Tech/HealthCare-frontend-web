@@ -128,7 +128,8 @@ export default function PatientBillingPage() {
     refetchPayments,
     refetchSubscriptions,
     refreshSession,
-    session,
+    session?.user?.id,
+    session?.user?.clinicId,
   ]);
 
   useEffect(() => {

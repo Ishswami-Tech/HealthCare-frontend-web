@@ -6,7 +6,8 @@ import { Role } from "@/types/auth.types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { HashTabs } from "@/hooks/navigation/HashTabs";
 import {
   Select,
   SelectContent,
@@ -391,7 +392,11 @@ export default function AnalyticsDashboard() {
                 </Card>
               </div>
 
-              <Tabs defaultValue="overview" className="flex flex-col gap-y-6">
+              <HashTabs
+                tabs={["overview", "performance", "patients", "treatments", "digital", "reports"] as const}
+                defaultValue="overview"
+                className="flex flex-col gap-y-6"
+              >
                 <TabsList className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3 xl:grid-cols-6">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="performance">Performance</TabsTrigger>
@@ -1164,7 +1169,7 @@ export default function AnalyticsDashboard() {
                     </CardContent>
                   </Card>
                 </TabsContent>
-              </Tabs>
+              </HashTabs>
             </>
           )}
         </div>

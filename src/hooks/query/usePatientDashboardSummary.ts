@@ -66,7 +66,8 @@ export const usePatientDashboardSummary = (
         if (
           result.code === "UNAUTHENTICATED" ||
           result.code === "CLINIC_CONTEXT_REQUIRED" ||
-          result.code === "PROFILE_INCOMPLETE"
+          result.code === "PROFILE_INCOMPLETE" ||
+          result.code === "FORBIDDEN"
         ) {
           return null;
         }
@@ -84,6 +85,7 @@ export const usePatientDashboardSummary = (
       enabled:
         (options.enabled ?? true) &&
         !!userId &&
+        String(session?.user?.role || "").toUpperCase() === "PATIENT" &&
         hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 60 * 1000,
       gcTime: 10 * 60 * 1000,
@@ -93,7 +95,11 @@ export const usePatientDashboardSummary = (
       refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
       retry: (failureCount, error: Error) => {
         const message = error.message || "";
-        if (message.includes("Access denied") || message.includes("Not authenticated")) {
+        if (
+          message.includes("Access denied") ||
+          message.includes("Not authenticated") ||
+          message.includes("Forbidden")
+        ) {
           return false;
         }
         return failureCount < 2;
@@ -123,23 +129,24 @@ export const prefetchPatientDashboardSummary = async (
       queryFn: async () => {
         const result = await fetchPatientDashboardSummary();
         if (!result.success) {
-          if (
-            result.code === "UNAUTHENTICATED" ||
-            result.code === "CLINIC_CONTEXT_REQUIRED" ||
-            result.code === "PROFILE_INCOMPLETE"
-          ) {
-            return null;
-          }
-          throw new Error(result.error || "Failed to fetch dashboard summary");
+        if (
+          result.code === "UNAUTHENTICATED" ||
+          result.code === "CLINIC_CONTEXT_REQUIRED" ||
+          result.code === "PROFILE_INCOMPLETE" ||
+          result.code === "FORBIDDEN"
+        ) {
+          return null;
         }
+        throw new Error(result.error || "Failed to fetch dashboard summary");
+      }
 
-        const sessionKey =
-          state.session?.session_id || `${String(userId)}|${String(clinicId)}`;
-        markDashboardSummaryLoadedOnce(sessionKey);
-        return result.data;
-      },
-      staleTime: 60 * 1000,
-    });
+      const sessionKey =
+        state.session?.session_id || `${String(userId)}|${String(clinicId)}`;
+      markDashboardSummaryLoadedOnce(sessionKey);
+      return result.data;
+    },
+    staleTime: 60 * 1000,
+  });
   } catch {
     // Best-effort: never let prefetch failures bubble up to the layout.
   }
@@ -149,12 +156,15 @@ export const usePrefetchPatientDashboardSummary = (): void => {
   const queryClient = useQueryClient();
   const session = useAuthStore((state) => state.session);
   const userId = session?.user?.id;
+  const userRole = String(session?.user?.role || "").toUpperCase();
   const clinicId =
     (session?.user as { clinicId?: string; primaryClinicId?: string } | undefined)?.clinicId ||
     (session?.user as { primaryClinicId?: string } | undefined)?.primaryClinicId;
 
   useEffect(() => {
+    // Patient-only endpoint — never prefetch for staff roles (causes 403 noise).
+    if (userRole !== "PATIENT") return;
     if (!userId || !clinicId) return;
     void prefetchPatientDashboardSummary(queryClient, { userId, clinicId });
-  }, [queryClient, userId, clinicId]);
+  }, [queryClient, userId, clinicId, userRole]);
 };

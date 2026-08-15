@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { HashTabs } from "@/hooks/navigation/HashTabs";
 import { 
   Select,
   SelectContent,
@@ -373,7 +374,11 @@ export default function PatientProfile() {
             </Card>
           )}
 
-          <Tabs defaultValue="personal" className="flex flex-col gap-y-4">
+          <HashTabs
+            tabs={["personal", "ayurveda", "medical", "lifestyle", "documents", "preferences"] as const}
+            defaultValue="personal"
+            className="flex flex-col gap-y-4"
+          >
             <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
               <TabsList>
                 <TabsTrigger value="personal">Personal</TabsTrigger>
@@ -840,7 +845,7 @@ export default function PatientProfile() {
               </div>
               )}
             </TabsContent>
-          </Tabs>
+          </HashTabs>
       </PatientPageShell>
   );
 }

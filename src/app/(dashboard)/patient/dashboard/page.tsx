@@ -348,7 +348,7 @@ export default function PatientDashboard() {
       : [];
     const openInvoices = billingInvoices.filter((invoice: any) => {
       const status = String(invoice?.status || "").toUpperCase();
-      return status === "OPEN" || status === "OVERDUE";
+      return status === "OPEN" || status === "DRAFT" || status === "OVERDUE";
     });
     const outstandingAmount = openInvoices.reduce(
       (total: number, invoice: any) => total + Number(invoice?.amount || 0),
