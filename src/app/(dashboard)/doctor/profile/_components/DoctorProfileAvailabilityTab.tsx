@@ -1,51 +1,28 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Clock, Loader2, Save } from "lucide-react";
+import { Clock } from "lucide-react";
 import type { DoctorProfileFormState } from "./doctor-profile.types";
 
 interface DoctorProfileAvailabilityTabProps {
   profileData: DoctorProfileFormState;
   updateAvailability: (day: string, field: string, value: unknown) => void;
-  onSave: () => void | Promise<void>;
-  isSaving?: boolean;
 }
 
 export function DoctorProfileAvailabilityTab({
   profileData,
   updateAvailability,
-  onSave,
-  isSaving = false,
 }: DoctorProfileAvailabilityTabProps) {
   return (
     <Card>
-      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="size-5" />
-            Weekly Availability
-          </CardTitle>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Set your available days and hours, then click Save Changes.
-          </p>
-        </div>
-        <Button
-          type="button"
-          className="flex items-center gap-2"
-          onClick={() => void onSave()}
-          disabled={isSaving}
-        >
-          {isSaving ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Save className="size-4" />
-          )}
-          Save Changes
-        </Button>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Clock className="size-5" />
+          Weekly Availability
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex flex-col gap-y-4">

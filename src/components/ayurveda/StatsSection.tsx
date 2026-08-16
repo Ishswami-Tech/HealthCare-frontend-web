@@ -100,12 +100,12 @@ const StatsSection = () => {
             const IconComponent = stat.icon;
 
             return (
-              <StaggerItem key={stat.label}>
-                <HoverAnimation type="lift">
-                  <Card className="text-center hover:shadow-lg transition-all duration-300 border-0 bg-card glass card-hover">
-                    <CardContent className="p-6">
+              <StaggerItem key={stat.label} className="h-full">
+                <HoverAnimation type="lift" className="h-full">
+                  <Card className="text-center hover:shadow-lg transition-all duration-300 border-0 bg-card glass card-hover h-full">
+                    <CardContent className="p-6 h-full flex flex-col items-center">
                       <div
-                        className={`size-16 bg-gradient-to-r ${stat.color} rounded-full flex items-center justify-center mx-auto mb-4 interactive`}
+                        className={`size-16 bg-gradient-to-r ${stat.color} rounded-full flex items-center justify-center mx-auto mb-4 interactive shrink-0`}
                       >
                         <IconComponent className="size-8 text-white" />
                       </div>
@@ -164,9 +164,9 @@ const StatsSection = () => {
             const IconComponent = cert.icon;
 
             return (
-              <StaggerItem key={cert.title}>
-                <HoverAnimation type="lift">
-                  <div className="text-center p-6 rounded-lg bg-card border border-border hover:border-primary/20 hover:shadow-md transition-all duration-300 glass card-hover">
+              <StaggerItem key={cert.title} className="h-full">
+                <HoverAnimation type="lift" className="h-full">
+                  <div className="text-center p-6 rounded-lg bg-card border border-border hover:border-primary/20 hover:shadow-md transition-all duration-300 glass card-hover h-full flex flex-col items-center">
                     <div
                       className={`size-12 bg-gradient-to-r ${
                         index === 0
@@ -176,7 +176,7 @@ const StatsSection = () => {
                           : index === 2
                           ? "from-orange-500 to-red-700"
                           : "from-slate-600 to-gray-800"
-                      } rounded-full flex items-center justify-center mx-auto mb-4 interactive`}
+                      } rounded-full flex items-center justify-center mx-auto mb-4 interactive shrink-0`}
                     >
                       <IconComponent className="size-6 text-white" />
                     </div>

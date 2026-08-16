@@ -58,7 +58,7 @@ type ClinicAdminSettingsState = {
 
 const DAYS: ClinicOperatingDayKey[] = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
 const DAY_LABEL: Record<ClinicOperatingDayKey, string> = { monday:"Monday", tuesday:"Tuesday", wednesday:"Wednesday", thursday:"Thursday", friday:"Friday", saturday:"Saturday", sunday:"Sunday" };
-const defaultSessions = (): Record<ClinicOperatingDayKey, ClinicOperatingSession[]> => ({ monday:[{start:"11:00",end:"14:00"},{start:"16:00",end:"20:00"}], tuesday:[{start:"11:00",end:"14:00"},{start:"16:00",end:"20:00"}], wednesday:[{start:"11:00",end:"14:00"},{start:"16:00",end:"20:00"}], thursday:[{start:"11:00",end:"14:00"},{start:"16:00",end:"20:00"}], friday:[{start:"11:00",end:"14:00"},{start:"16:00",end:"20:00"}], saturday:[], sunday:[] });
+const defaultSessions = (): Record<ClinicOperatingDayKey, ClinicOperatingSession[]> => ({ monday:[{start:"11:00",end:"14:00"},{start:"16:00",end:"20:00"}], tuesday:[{start:"11:00",end:"14:00"},{start:"16:00",end:"20:00"}], wednesday:[{start:"11:00",end:"14:00"},{start:"16:00",end:"20:00"}], thursday:[{start:"11:00",end:"14:00"},{start:"16:00",end:"20:00"}], friday:[{start:"11:00",end:"14:00"},{start:"16:00",end:"20:00"}], saturday:[{start:"11:00",end:"14:00"}], sunday:[] });
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const toNumber = (v: unknown, fb: number) => Number.isFinite(Number(v)) ? Number(v) : fb;
 const normalizeTime = (v: unknown, fb: string) => typeof v === "string" && /^([01]\d|2[0-3]):([0-5]\d)$/.test(v.trim()) ? v.trim() : fb;

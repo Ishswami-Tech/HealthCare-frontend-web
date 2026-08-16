@@ -3,8 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { HashTabs } from "@/hooks/navigation/HashTabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Clock,
   User,
@@ -374,12 +373,16 @@ const TherapyQueue = ({
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 
+import { useState } from "react";
+
 export default function TherapyQueuePanel({
   queues,
   onStatusChange,
   onPriorityChange,
   className,
 }: TherapyQueuePanelProps) {
+  const [activeTab, setActiveTab] = useState("agnikarma");
+
   return (
     <Card className={className}>
       <CardHeader>
@@ -389,9 +392,9 @@ export default function TherapyQueuePanel({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <HashTabs
-          tabs={["agnikarma", "panchakarma", "shirodhara", "viddhakarma"] as const}
-          defaultValue="agnikarma"
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
           className="gap-y-6"
         >
           <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
@@ -440,7 +443,7 @@ export default function TherapyQueuePanel({
               onPriorityChange={onPriorityChange}
             />
           </TabsContent>
-        </HashTabs>
+        </Tabs>
       </CardContent>
     </Card>
   );

@@ -7,8 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { HashTabs } from "@/hooks/navigation/HashTabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
@@ -494,11 +493,7 @@ export function ClinicAdminScheduleContent({
         scheduleConflicts={scheduleConflicts}
       />
 
-      <HashTabs
-        tabs={["doctor-schedules", "holidays", "conflicts"] as const}
-        defaultValue="doctor-schedules"
-        className="flex flex-col gap-y-3"
-      >
+      <Tabs defaultValue="doctor-schedules" className="flex flex-col gap-y-3">
         <TabsList className="grid h-auto w-full grid-cols-1 gap-1 rounded-xl border border-border bg-card p-1 sm:grid-cols-3">
           <TabsTrigger value="doctor-schedules" className="flex h-10 items-center gap-2 rounded-lg">
             <Stethoscope className="size-4" />
@@ -537,7 +532,7 @@ export function ClinicAdminScheduleContent({
         <TabsContent value="conflicts" className="flex flex-col gap-y-3">
           <ConflictsTab scheduleConflicts={scheduleConflicts} />
         </TabsContent>
-      </HashTabs>
+      </Tabs>
     </DashboardPageShell>
   );
 }
