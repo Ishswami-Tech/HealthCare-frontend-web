@@ -611,6 +611,27 @@ function AppointmentCard({
                         Complete Payment via PhonePe
                       </PaymentButton>
                     )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-10 w-full justify-center"
+                      onClick={() => onReschedule(apt)}
+                      disabled={reschedulingAppointment}
+                    >
+                      Reschedule
+                    </Button>
+                    {viewState.paymentCompleted ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-10 w-full justify-center border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-950/50"
+                        onClick={() => onCancelAppointment(apt.id)}
+                        disabled={cancellingAppointment}
+                      >
+                      <X className="mr-2 size-4" />
+                      Cancel Appointment
+                    </Button>
                   </>
                 ) : (
                   <>
