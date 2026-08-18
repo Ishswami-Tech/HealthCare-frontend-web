@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, {
   Suspense,
@@ -925,7 +925,6 @@ function ProfileCompletionFormContent({
         type: "server",
         message:
           response?.error ||
-          response?.message ||
           "Profile was saved, but the server could not confirm completion. Please verify your name and phone number, then try again.",
       });
       isSubmittingRef.current = false;
