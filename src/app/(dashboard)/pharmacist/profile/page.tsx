@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { HashTabs } from "@/hooks/navigation/HashTabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/loading";
@@ -133,7 +134,7 @@ export default function PharmacistProfile() {
 
         {/* Settings Tabs */}
         <div className="md:col-span-8">
-          <Tabs defaultValue="personal" className="w-full">
+          <HashTabs tabs={["personal", "security"] as const} defaultValue="personal" className="w-full">
             <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2">
               <TabsTrigger value="personal">Personal Info</TabsTrigger>
               <TabsTrigger value="security">Security</TabsTrigger>
@@ -324,7 +325,7 @@ export default function PharmacistProfile() {
                 </CardContent>
               </Card>
             </TabsContent>
-          </Tabs>
+          </HashTabs>
         </div>
       </div>
     </div>
