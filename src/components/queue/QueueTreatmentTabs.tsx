@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useHashTab } from "@/hooks/navigation/useHashTab";
 import {
   getQueuePatientDisplayName,
   getQueueStatusLabel,
@@ -220,7 +221,10 @@ export function QueueTreatmentTabs({
     [procedureQueueFilters, queueEntries]
   );
 
-  const [activeQueue, setActiveQueue] = useState<"consultations" | "procedures">("consultations");
+  const { tab: activeQueue, setTab: setActiveQueue } = useHashTab({
+    tabs: ["consultations", "procedures"] as const,
+    defaultValue: "consultations",
+  });
   const [activeConsultationLaneOverride, setActiveConsultationLaneOverride] = useState<string | null>(null);
   const [activeTherapyLaneOverride, setActiveTherapyLaneOverride] = useState<string | null>(null);
   const defaultConsultationLane = useMemo(
@@ -318,7 +322,7 @@ export function QueueTreatmentTabs({
       </CardHeader>
 
       <CardContent className="gap-y-4 p-4">
-        <Tabs value={activeQueue} onValueChange={(value) => setActiveQueue(value as "consultations" | "procedures")} className="gap-y-4">
+        <Tabs value={activeQueue} onValueChange={setActiveQueue} className="gap-y-4">
           <TabsList className="grid h-auto grid-cols-2 gap-2 bg-transparent p-0">
             <TabsTrigger
               value="consultations"

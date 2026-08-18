@@ -365,7 +365,9 @@ export function LoginAuthCard({
                       disabled={isFormDisabled || isRequestingOTP}
                     >
                       {isRequestingOTP
-                        ? "Sending WhatsApp code..."
+                        ? otpMethod === "phone"
+                          ? "Sending WhatsApp code..."
+                          : "Sending email code..."
                         : "Resend OTP"}
                     </Button>
                   </div>
@@ -397,11 +399,11 @@ export function LoginAuthCard({
                   {isRequestingOTP ? (
                     <>
                       <Loader2 className="mr-2 size-4 animate-spin" />
-                      Sending WhatsApp code...
+                      {otpMethod === "phone" ? "Sending WhatsApp code..." : "Sending email code..."}
                     </>
                   ) : (
                     <span className="flex items-center">
-                      Request WhatsApp OTP
+                      {otpMethod === "phone" ? "Request WhatsApp OTP" : "Request Email OTP"}
                       <ArrowRight className="ml-2 size-4 transition-transform duration-300 group-hover:translate-x-1" />
                     </span>
                   )}
