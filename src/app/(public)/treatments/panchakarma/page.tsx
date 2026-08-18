@@ -471,7 +471,7 @@ export default function PanchakarmaPage() {
                 </p>
               </div>
 
-              <div className="gap-y-4 sm:gap-y-6">
+              <div className="flex flex-col gap-y-4 sm:gap-y-6">
                 {phases.map((phase, index) => (
                   <Card
                     key={phase.name}
@@ -749,15 +749,13 @@ export default function PanchakarmaPage() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button
                   size="lg"
-                  variant="secondary"
-                  className="bg-white text-blue-600 hover:bg-blue-50 dark:bg-white/90 dark:text-blue-600 dark:hover:bg-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300"
+                  className="bg-white text-blue-600 hover:bg-blue-600 hover:text-white border border-transparent hover:border-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
                 >
                   {t("panchakarma.cta.bookProgram")}
                 </Button>
                 <Button
                   size="lg"
-                  variant="outline"
-                  className="border-white text-white hover:bg-white/10 dark:border-white/80 dark:text-white/90 dark:hover:bg-white/20 text-lg px-10 py-4 interactive"
+                  className="bg-white text-blue-600 hover:bg-blue-600 hover:text-white border border-transparent hover:border-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
                 >
                   {t("panchakarma.cta.freeConsultation")}
                 </Button>

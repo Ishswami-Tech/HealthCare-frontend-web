@@ -392,7 +392,7 @@ export default function AboutPage() {
 
                     return (
                       <div
-                      key={value.title}
+                        key={value.title}
                         className="animate-fade-in-up"
                         style={{ animationDelay: `${index * 150}ms` }}
                       >
@@ -546,7 +546,7 @@ export default function AboutPage() {
                     <Button
                       size="lg"
                       variant="outline"
-                      className="border-2 border-white text-white hover:bg-white hover:text-orange-600 text-base px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 font-semibold"
+                      className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-orange-600 text-base px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 font-semibold"
                     >
                       Free Health Assessment
                     </Button>

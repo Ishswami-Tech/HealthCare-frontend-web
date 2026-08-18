@@ -352,7 +352,7 @@ export default function ViddhaKarmaPage() {
                 </p>
               </div>
 
-              <div className="gap-y-8">
+              <div className="flex flex-col gap-y-6 sm:gap-y-8">
                 {processSteps.map((step) => {
                   const IconComponent = step.icon;
 
@@ -761,15 +761,13 @@ export default function ViddhaKarmaPage() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button
                   size="lg"
-                  variant="secondary"
-                  className="bg-white text-purple-600 hover:bg-purple-50 dark:bg-white/90 dark:text-purple-600 dark:hover:bg-white text-lg px-10 py-4"
+                  className="bg-white text-purple-600 hover:bg-purple-600 hover:text-white border border-transparent hover:border-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
                 >
                   {t("viddhakarma.cta.bookConsultation")}
                 </Button>
                 <Button
                   size="lg"
-                  variant="outline"
-                  className="border-white text-white hover:bg-white/10 dark:border-white/80 dark:text-white/90 dark:hover:bg-white/20 text-lg px-10 py-4"
+                  className="bg-white text-purple-600 hover:bg-purple-600 hover:text-white border border-transparent hover:border-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
                 >
                   {t("viddhakarma.cta.freeAssessment")}
                 </Button>

@@ -85,7 +85,7 @@ const Footer = () => {
             </p>
 
             {/* Trust Badges */}
-            <div className="gap-y-2 mb-6">
+            <div className="flex flex-wrap gap-2 mb-6">
               <Badge className="bg-primary text-primary-foreground border-primary">
                 <CheckCircle className="size-3 mr-1" />
                 {t("stats.certifications.governmentCertified.title")}
@@ -138,7 +138,7 @@ const Footer = () => {
             <h4 className="font-semibold text-lg mb-6 text-primary">
               {t("footer.quickLinks.title")}
             </h4>
-            <ul className="gap-y-3">
+            <ul className="space-y-3">
               {quickLinks.map((link) => (
                 <li key={link.name}>
                   <Link
@@ -155,7 +155,7 @@ const Footer = () => {
             <h4 className="font-semibold text-lg mb-4 mt-8 text-orange-400">
               {t("footer.services.title")}
             </h4>
-            <ul className="gap-y-3">
+            <ul className="space-y-3">
               {treatments.map((treatment) => (
                 <li key={treatment.name}>
                   <Link
@@ -175,7 +175,7 @@ const Footer = () => {
             <h4 className="font-semibold text-lg mb-6 text-primary">
               {t("footer.conditions.title")}
             </h4>
-            <ul className="gap-y-3">
+            <ul className="space-y-3">
               {conditions.map((condition) => (
                 <li
                   key={condition}
@@ -194,7 +194,7 @@ const Footer = () => {
               {t("footer.contact.title")}
             </h4>
 
-            <div className="gap-y-4">
+            <div className="space-y-4">
               <div className="flex items-start gap-x-3">
                 <MapPin className="size-5 text-primary shrink-0 mt-1" />
                 <div>

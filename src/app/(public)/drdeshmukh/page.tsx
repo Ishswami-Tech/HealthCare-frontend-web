@@ -532,11 +532,10 @@ export default function DrDeshmukhPage() {
                     <ServiceLink
                       key={link.label}
                       href={link.href}
-                      className={`flex size-10 items-center justify-center rounded-full ${
-                        link.label === t("drDeshmukhPage.socialLinks.instagram")
-                          ? "bg-gradient-to-br from-fuchsia-500 via-pink-500 to-rose-500"
-                          : link.bg
-                      } text-white shadow-sm transition-transform hover:scale-105 sm:h-11 sm:w-11`}
+                      className={`flex size-10 items-center justify-center rounded-full ${link.label === t("drDeshmukhPage.socialLinks.instagram")
+                        ? "bg-gradient-to-br from-fuchsia-500 via-pink-500 to-rose-500"
+                        : link.bg
+                        } text-white shadow-sm transition-transform hover:scale-105 sm:h-11 sm:w-11`}
                       aria-label={link.label}
                     >
                       <Icon className="size-5" />
@@ -639,198 +638,197 @@ export default function DrDeshmukhPage() {
           }
         }}
       >
-      <DialogContent
-        showCloseButton={false}
-        className="max-h-[calc(100vh-1rem)] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] gap-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl dark:border-slate-800 dark:bg-slate-950 sm:max-w-lg"
+        <DialogContent
+          showCloseButton={false}
+          className="max-h-[calc(100vh-1rem)] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] gap-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl dark:border-slate-800 dark:bg-slate-950 sm:max-w-lg"
         >
-        {activeService ? (
-          <>
-            <DialogTitle className="sr-only">
-              {t("drDeshmukhPage.shareDialogTitlePrefix")} - {activeService.title}
-            </DialogTitle>
+          {activeService ? (
+            <>
+              <DialogTitle className="sr-only">
+                {t("drDeshmukhPage.shareDialogTitlePrefix")} - {activeService.title}
+              </DialogTitle>
 
-            <div className="relative border-b border-slate-100 bg-white p-4 pr-14 dark:border-slate-800 dark:bg-slate-950">
-              <DialogClose asChild>
-                <button
-                  type="button"
-                  className="absolute right-3 top-3 inline-flex size-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
-                  aria-label={t("drDeshmukhPage.closeDialog")}
-                >
-                  <X className="size-4" />
-                </button>
-              </DialogClose>
+              <div className="relative border-b border-slate-100 bg-white p-4 pr-14 dark:border-slate-800 dark:bg-slate-950">
+                <DialogClose asChild>
+                  <button
+                    type="button"
+                    className="absolute right-3 top-3 inline-flex size-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                    aria-label={t("drDeshmukhPage.closeDialog")}
+                  >
+                    <X className="size-4" />
+                  </button>
+                </DialogClose>
 
-              <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-                <div
-                  className={`flex h-28 w-full shrink-0 items-center justify-center overflow-hidden rounded-2xl shadow-sm sm:h-20 sm:w-20 sm:max-w-20 ${
-                    activeService.previewKind === "map"
+                <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+                  <div
+                    className={`flex h-28 w-full shrink-0 items-center justify-center overflow-hidden rounded-2xl shadow-sm sm:h-20 sm:w-20 sm:max-w-20 ${activeService.previewKind === "map"
                       ? "border-2 border-sky-300 ring-2 ring-sky-200/70 dark:border-sky-500 dark:ring-sky-500/30"
                       : previews[activeService.id]?.image
                         ? "border-2 border-sky-300 ring-2 ring-sky-200/70 dark:border-sky-500 dark:ring-sky-500/30"
                         : "bg-slate-100 ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700"
-                  }`}
-                >
-                  {activeService.previewKind === "map" || previews[activeService.id]?.image ? (
-                    <Image
-                      src={activeService.previewKind === "map" ? getFallbackThumbnail(activeService) : previews[activeService.id]?.image || getFallbackThumbnail(activeService)}
-                      alt={activeService.title}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 640px) 100vw, 20rem"
-                    />
-                  ) : (
-                    <div
-                      className={`flex h-full w-full items-center justify-center ${getServiceAccentClass(services.findIndex((service) => service.id === activeService.id))}`}
-                      aria-hidden="true"
-                    >
-                      <activeService.icon className="size-5" />
-                    </div>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold leading-snug text-slate-900 dark:text-slate-100">
-                    {activeService.previewKind === "map"
-                      ? activeService.title
-                      : previews[activeService.id]?.title || activeService.title}
-                  </p>
-                  {activeService.previewKind !== "map" && previews[activeService.id]?.siteName ? (
-                    <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
-                      {previews[activeService.id]?.siteName}
+                      }`}
+                  >
+                    {activeService.previewKind === "map" || previews[activeService.id]?.image ? (
+                      <Image
+                        src={activeService.previewKind === "map" ? getFallbackThumbnail(activeService) : previews[activeService.id]?.image || getFallbackThumbnail(activeService)}
+                        alt={activeService.title}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 640px) 100vw, 20rem"
+                      />
+                    ) : (
+                      <div
+                        className={`flex h-full w-full items-center justify-center ${getServiceAccentClass(services.findIndex((service) => service.id === activeService.id))}`}
+                        aria-hidden="true"
+                      >
+                        <activeService.icon className="size-5" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold leading-snug text-slate-900 dark:text-slate-100">
+                      {activeService.previewKind === "map"
+                        ? activeService.title
+                        : previews[activeService.id]?.title || activeService.title}
                     </p>
-                  ) : null}
-                  <p className="mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                    {activeService.previewKind === "map"
-                      ? activeService.description
-                      : previews[activeService.id]?.description || activeService.description}
-                  </p>
+                    {activeService.previewKind !== "map" && previews[activeService.id]?.siteName ? (
+                      <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+                        {previews[activeService.id]?.siteName}
+                      </p>
+                    ) : null}
+                    <p className="mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                      {activeService.previewKind === "map"
+                        ? activeService.description
+                        : previews[activeService.id]?.description || activeService.description}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="flex max-h-[calc(100vh-13rem)] flex-col gap-y-4 overflow-y-auto p-4">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
-                <div className="flex items-center gap-2">
-                  <p className="min-w-0 flex-1 truncate text-xs text-slate-500 dark:text-slate-400">
-                    {resolveHref(activeService.href)}
-                  </p>
-                  <Button
+              <div className="flex max-h-[calc(100vh-13rem)] flex-col gap-y-4 overflow-y-auto p-4">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
+                  <div className="flex items-center gap-2">
+                    <p className="min-w-0 flex-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                      {resolveHref(activeService.href)}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="shrink-0 rounded-full text-slate-500 hover:bg-white hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                      onClick={() => handleCopy(resolveHref(activeService.href), `service:${activeService.id}`)}
+                      aria-label={t("drDeshmukhPage.copyLink")}
+                    >
+                      {copiedTarget === `service:${activeService.id}` ? (
+                        <Check className="size-4 text-emerald-600" />
+                      ) : (
+                        <Copy className="size-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-1">
+                  <button
                     type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    className="shrink-0 rounded-full text-slate-500 hover:bg-white hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                    onClick={() => handleShareLink(activeService)}
+                    className="flex size-8 flex-none items-center justify-center rounded-full bg-slate-900 text-white shadow-sm transition-transform hover:scale-105 dark:bg-slate-100 dark:text-slate-900"
+                    aria-label={t("drDeshmukhPage.shareLink")}
+                    title={t("drDeshmukhPage.shareLink")}
+                  >
+                    {copiedTarget === `share:${activeService.id}` ? (
+                      <Check className="size-3.5 text-emerald-600" />
+                    ) : (
+                      <Share2 className="size-3.5" />
+                    )}
+                    <span className="sr-only">Share link</span>
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => handleCopy(resolveHref(activeService.href), `service:${activeService.id}`)}
+                    className="flex size-8 flex-none items-center justify-center rounded-full bg-sky-500 text-white shadow-sm transition-transform hover:scale-105 dark:bg-sky-400 dark:text-white"
                     aria-label={t("drDeshmukhPage.copyLink")}
+                    title={t("drDeshmukhPage.copyLink")}
                   >
                     {copiedTarget === `service:${activeService.id}` ? (
-                      <Check className="size-4 text-emerald-600" />
+                      <Check className="size-3.5 text-emerald-600" />
                     ) : (
-                      <Copy className="size-4" />
+                      <Copy className="size-3.5 text-white" />
                     )}
-                  </Button>
+                    <span className="sr-only">Copy link</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(resolveHref(activeService.href))}`, "_blank", "noreferrer")}
+                    className="flex size-8 flex-none items-center justify-center rounded-full bg-[#1877F2] text-white shadow-sm transition-transform hover:scale-105"
+                    aria-label={t("drDeshmukhPage.shareOnFacebook")}
+                    title={t("drDeshmukhPage.shareOnFacebook")}
+                  >
+                    <FacebookIcon className="size-3.5" />
+                    <span className="sr-only">Share on Facebook</span>
+                  </button>
+
+                  <ServiceLink
+                    href={doctor.socialLinks.instagram}
+                    className="flex size-8 flex-none items-center justify-center rounded-full bg-gradient-to-br from-fuchsia-500 via-pink-500 to-rose-500 text-white shadow-sm transition-transform hover:scale-105"
+                    aria-label={t("drDeshmukhPage.socialLinks.instagram")}
+                    title={t("drDeshmukhPage.socialLinks.instagram")}
+                  >
+                    <InstagramIcon className="size-3.5" />
+                    <span className="sr-only">Instagram</span>
+                  </ServiceLink>
+
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(getShareText(activeService, doctorName))}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex size-8 flex-none items-center justify-center rounded-full bg-[#25D366] text-white shadow-sm transition-transform hover:scale-105"
+                    aria-label={t("drDeshmukhPage.shareOnWhatsApp")}
+                    title={t("drDeshmukhPage.shareOnWhatsApp")}
+                  >
+                    <WhatsAppIcon className="size-3.5" />
+                    <span className="sr-only">Share on WhatsApp</span>
+                  </a>
+
+                  <ServiceLink
+                    href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(resolveHref(activeService.href))}`}
+                    className="flex size-8 flex-none items-center justify-center rounded-full bg-[#0A66C2] text-white shadow-sm transition-transform hover:scale-105"
+                    aria-label={t("drDeshmukhPage.shareOnLinkedIn")}
+                    title={t("drDeshmukhPage.shareOnLinkedIn")}
+                  >
+                    <LinkedInIcon className="size-3.5" />
+                    <span className="sr-only">Share on LinkedIn</span>
+                  </ServiceLink>
+                  <ServiceLink
+                    href={activeService.href}
+                    className="flex h-8 flex-none items-center justify-center gap-1 rounded-full bg-emerald-500 px-2.5 text-[10px] font-semibold text-white shadow-sm transition-transform hover:scale-[1.01]"
+                    aria-label={t("drDeshmukhPage.openHere")}
+                    title={t("drDeshmukhPage.openHere")}
+                  >
+                    <ExternalLink className="size-2.5" />
+                    <span>{t("drDeshmukhPage.openHere")}</span>
+                  </ServiceLink>
                 </div>
-              </div>
 
-              <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-1">
-                <button
-                  type="button"
-                  onClick={() => handleShareLink(activeService)}
-                  className="flex size-8 flex-none items-center justify-center rounded-full bg-slate-900 text-white shadow-sm transition-transform hover:scale-105 dark:bg-slate-100 dark:text-slate-900"
-                  aria-label={t("drDeshmukhPage.shareLink")}
-                  title={t("drDeshmukhPage.shareLink")}
-                >
-                  {copiedTarget === `share:${activeService.id}` ? (
-                    <Check className="size-3.5 text-emerald-600" />
-                  ) : (
-                    <Share2 className="size-3.5" />
-                  )}
-                  <span className="sr-only">Share link</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleCopy(resolveHref(activeService.href), `service:${activeService.id}`)}
-                  className="flex size-8 flex-none items-center justify-center rounded-full bg-sky-500 text-white shadow-sm transition-transform hover:scale-105 dark:bg-sky-400 dark:text-white"
-                  aria-label={t("drDeshmukhPage.copyLink")}
-                  title={t("drDeshmukhPage.copyLink")}
-                >
-                  {copiedTarget === `service:${activeService.id}` ? (
-                    <Check className="size-3.5 text-emerald-600" />
-                  ) : (
-                    <Copy className="size-3.5 text-white" />
-                  )}
-                  <span className="sr-only">Copy link</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(resolveHref(activeService.href))}`, "_blank", "noreferrer")}
-                  className="flex size-8 flex-none items-center justify-center rounded-full bg-[#1877F2] text-white shadow-sm transition-transform hover:scale-105"
-                  aria-label={t("drDeshmukhPage.shareOnFacebook")}
-                  title={t("drDeshmukhPage.shareOnFacebook")}
-                >
-                  <FacebookIcon className="size-3.5" />
-                  <span className="sr-only">Share on Facebook</span>
-                </button>
-
-                <ServiceLink
-                  href={doctor.socialLinks.instagram}
-                  className="flex size-8 flex-none items-center justify-center rounded-full bg-gradient-to-br from-fuchsia-500 via-pink-500 to-rose-500 text-white shadow-sm transition-transform hover:scale-105"
-                  aria-label={t("drDeshmukhPage.socialLinks.instagram")}
-                  title={t("drDeshmukhPage.socialLinks.instagram")}
-                >
-                  <InstagramIcon className="size-3.5" />
-                  <span className="sr-only">Instagram</span>
-                </ServiceLink>
-
-                <a
-                  href={`https://wa.me/?text=${encodeURIComponent(getShareText(activeService, doctorName))}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex size-8 flex-none items-center justify-center rounded-full bg-[#25D366] text-white shadow-sm transition-transform hover:scale-105"
-                  aria-label={t("drDeshmukhPage.shareOnWhatsApp")}
-                  title={t("drDeshmukhPage.shareOnWhatsApp")}
-                >
-                  <WhatsAppIcon className="size-3.5" />
-                  <span className="sr-only">Share on WhatsApp</span>
-                </a>
-
-                <ServiceLink
-                  href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(resolveHref(activeService.href))}`}
-                  className="flex size-8 flex-none items-center justify-center rounded-full bg-[#0A66C2] text-white shadow-sm transition-transform hover:scale-105"
-                  aria-label={t("drDeshmukhPage.shareOnLinkedIn")}
-                  title={t("drDeshmukhPage.shareOnLinkedIn")}
-                >
-                  <LinkedInIcon className="size-3.5" />
-                  <span className="sr-only">Share on LinkedIn</span>
-                </ServiceLink>
-                <ServiceLink
-                  href={activeService.href}
-                  className="flex h-8 flex-none items-center justify-center gap-1 rounded-full bg-emerald-500 px-2.5 text-[10px] font-semibold text-white shadow-sm transition-transform hover:scale-[1.01]"
-                  aria-label={t("drDeshmukhPage.openHere")}
-                  title={t("drDeshmukhPage.openHere")}
-                >
-                  <ExternalLink className="size-2.5" />
-                  <span>{t("drDeshmukhPage.openHere")}</span>
-                </ServiceLink>
-              </div>
-
-              <div className="pb-1">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                    {t("drDeshmukhPage.sharePreview")}
-                  </p>
-                  <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-700 dark:text-slate-200">
+                <div className="pb-1">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
+                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
+                      {t("drDeshmukhPage.sharePreview")}
+                    </p>
+                    <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-700 dark:text-slate-200">
                       {getShareText(activeService, doctorName)}
-                  </p>
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          </>
-        ) : null}
-      </DialogContent>
+            </>
+          ) : null}
+        </DialogContent>
       </Dialog>
 
-      <footer className="border-t border-slate-200 bg-white">
+      <footer className="bg-Black">
         <div className="mx-auto flex max-w-2xl flex-col gap-1 px-4 py-4 text-center text-xs text-slate-500 sm:px-6">
           <p>{t("drDeshmukhPage.footerTagline")}</p>
           <p>{doctor.location}</p>

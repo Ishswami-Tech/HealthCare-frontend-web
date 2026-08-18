@@ -503,16 +503,14 @@ const ComprehensiveCTA = () => {
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button
                   size="lg"
-                  variant="secondary"
-                  className="bg-background text-primary hover:bg-background/90 text-lg px-8 py-4"
+                  className="bg-white text-emerald-700 hover:bg-emerald-700 hover:text-white border border-transparent hover:border-white text-lg px-8 py-4 transition-all duration-300 font-semibold shadow-md hover:shadow-lg"
                   onClick={handleBookConsultation}
                 >
                   {isAuthenticated ? "Book Consultation" : "Get Started"}
                 </Button>
                 <Button
                   size="lg"
-                  variant="outline"
-                  className="border-primary-foreground text-primary-foreground hover:bg-primary-foreground/10 text-lg px-8 py-4"
+                  className="bg-white text-emerald-700 hover:bg-emerald-700 hover:text-white border border-transparent hover:border-white text-lg px-8 py-4 transition-all duration-300 font-semibold shadow-md hover:shadow-lg"
                   onClick={handleFreeConsultation}
                 >
                   {isAuthenticated ? "Book Free Consultation" : "Login"}

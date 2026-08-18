@@ -113,7 +113,7 @@ const TrustBuilding = () => {
   ];
 
   return (
-    <div className="gap-y-20">
+    <div className="flex flex-col gap-y-20">
       {/* FAQ Section */}
       <section className="py-20 bg-gradient-to-br from-background via-background/95 to-muted/20 dark:from-background dark:via-background/95 dark:to-muted/30">
         <div className="container mx-auto px-4">
@@ -131,7 +131,7 @@ const TrustBuilding = () => {
               </p>
             </div>
 
-            <div className="gap-y-4">
+            <div className="flex flex-col gap-y-4">
                   {faqs.map((faq, index) => {
                     const IconComponent = Shield; // Default icon
                     const isOpen = openFaq === index;
@@ -207,10 +207,10 @@ const TrustBuilding = () => {
               </p>
             </div>
 
-            <div className="overflow-x-auto">
-              <div className="min-w-full">
+            <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+              <div className="min-w-[680px]">
                 {/* Table Header */}
-                <div className="grid grid-cols-5 gap-4 p-4 bg-gradient-to-r from-primary to-primary/80 dark:from-primary dark:to-primary/90 text-primary-foreground rounded-t-lg font-semibold">
+                <div className="grid grid-cols-5 gap-3 sm:gap-4 p-3 sm:p-4 bg-gradient-to-r from-primary to-primary/80 dark:from-primary dark:to-primary/90 text-primary-foreground rounded-t-lg font-semibold text-xs sm:text-sm md:text-base">
                   <div>Condition</div>
                   <div className="text-center">Our Guarantee</div>
                   <div className="text-center">Timeframe</div>
@@ -219,14 +219,14 @@ const TrustBuilding = () => {
                 </div>
 
                 {/* Table Rows */}
-                <div className="gap-y-2">
+                <div className="flex flex-col gap-y-2">
                   {guarantees.map((item) => (
                     <Card
                       key={item.condition}
                       className="hover:shadow-md transition-shadow duration-300 rounded-none border-x border-b border-border bg-card/80 dark:bg-card/90 backdrop-blur-sm"
                     >
-                      <CardContent className="p-4">
-                        <div className="grid grid-cols-5 gap-4 items-center">
+                      <CardContent className="p-3 sm:p-4">
+                        <div className="grid grid-cols-5 gap-3 sm:gap-4 items-center text-xs sm:text-sm md:text-base">
                           <div className="font-semibold text-foreground">
                             {item.condition}
                           </div>
@@ -234,20 +234,20 @@ const TrustBuilding = () => {
                             {item.guarantee}
                           </div>
                           <div className="text-center">
-                            <Badge className="bg-primary/10 text-primary border-primary/20">
+                            <Badge className="bg-primary/10 text-primary border-primary/20 whitespace-nowrap text-xs">
                               {item.timeframe}
                             </Badge>
                           </div>
-                          <div className="text-center text-muted-foreground text-sm">
+                          <div className="text-center text-muted-foreground text-xs sm:text-sm">
                             {item.measurement}
                           </div>
                           <div className="text-center">
-                            <div className="flex items-center justify-center gap-x-2">
+                            <div className="flex items-center justify-center gap-x-1.5 sm:gap-x-2">
                               <Progress
                                 value={90} // Hardcoded success rate
-                                className="w-16 h-2"
+                                className="w-10 sm:w-16 h-2"
                               />
-                              <span className="font-bold text-primary">
+                              <span className="font-bold text-primary text-xs sm:text-sm">
                                 90%
                               </span>
                             </div>
@@ -326,9 +326,9 @@ const TrustBuilding = () => {
                 return (
                   <Card
                     key={cert.name}
-                    className="text-center hover:shadow-lg transition-all duration-300 border border-border/50 bg-card/80 dark:bg-card/90 backdrop-blur-sm"
+                    className="text-center hover:shadow-lg transition-all duration-300 border border-border/50 bg-card/80 dark:bg-card/90 backdrop-blur-sm h-full"
                   >
-                    <CardContent className="p-8">
+                    <CardContent className="p-8 h-full flex flex-col items-center">
                       <div
                         className={`size-16 bg-gradient-to-r ${
                           index === 0
@@ -338,7 +338,7 @@ const TrustBuilding = () => {
                             : index === 2
                             ? "from-orange-600 to-amber-800 dark:from-orange-500 dark:to-amber-700"
                             : "from-slate-700 to-zinc-900 dark:from-slate-600 dark:to-zinc-800"
-                        } rounded-full flex items-center justify-center mx-auto mb-6`}
+                        } rounded-full flex items-center justify-center mx-auto mb-6 shrink-0`}
                       >
                         <IconComponent className="size-8 text-white" />
                       </div>
