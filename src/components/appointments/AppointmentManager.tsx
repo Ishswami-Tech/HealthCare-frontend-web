@@ -189,11 +189,12 @@ interface AppointmentCardProps {
   expandedCard: string | null;
   checkInRoute: string;
   cancellingAppointment: boolean;
+  reschedulingAppointment: boolean;
   onCancelAppointment: (id: string) => void;
+  onReschedule: (apt: AppointmentWithRelations) => void;
   handleJoinVideo: (appointment: any) => void;
   onExpand: (id: string | null) => void;
   onSelect: (apt: AppointmentWithRelations | null) => void;
-  onReschedule: (apt: AppointmentWithRelations) => void;
   onBookNew: (apt: AppointmentWithRelations | any) => void;
   viewerRole?: string;
 }
@@ -286,11 +287,12 @@ function AppointmentCard({
   expandedCard,
   checkInRoute,
   cancellingAppointment,
+  reschedulingAppointment,
   onCancelAppointment,
+  onReschedule,
   handleJoinVideo,
   onExpand,
   onSelect,
-  onReschedule,
   onBookNew,
   viewerRole,
 }: AppointmentCardProps) {
@@ -621,14 +623,13 @@ function AppointmentCard({
                     >
                       Reschedule
                     </Button>
-                    {viewState.paymentCompleted ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="h-10 w-full justify-center border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-950/50"
-                        onClick={() => onCancelAppointment(apt.id)}
-                        disabled={cancellingAppointment}
-                      >
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-10 w-full justify-center border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-950/50"
+                      onClick={() => onCancelAppointment(apt.id)}
+                      disabled={cancellingAppointment}
+                    >
                       <X className="mr-2 size-4" />
                       Cancel Appointment
                     </Button>
@@ -1493,6 +1494,7 @@ export default function AppointmentManager({
                   expandedCard={expandedCard}
                   checkInRoute={checkInRoute}
                   cancellingAppointment={cancellingAppointment}
+                  reschedulingAppointment={reschedulingAppointment}
                   onCancelAppointment={handleCancelAppointment}
                   handleJoinVideo={handleJoinVideo}
                   onExpand={setExpandedCard}
