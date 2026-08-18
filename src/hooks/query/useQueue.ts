@@ -100,8 +100,8 @@ export const useQueue = (clinicId?: string, filters?: {
     }
   }, {
     enabled: enabled !== false,
-    // Websocket invalidation provides instant updates; polling ensures fallback freshness if events are missed.
-    refetchInterval: isAuthRefreshing ? false : 30000,
+    // Websocket invalidation owns freshness when connected; polling becomes fallback only.
+    refetchInterval: isConnected || isAuthRefreshing ? false : 30000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     placeholderData: keepPreviousData,
@@ -128,7 +128,7 @@ export const useQueueStats = (locationId?: string, options?: { enabled?: boolean
     }
   }, {
     enabled: !!locationId && options?.enabled !== false,
-    refetchInterval: isAuthRefreshing ? false : 60000,
+    refetchInterval: isConnected || isAuthRefreshing ? false : 60000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     placeholderData: keepPreviousData,

@@ -10,7 +10,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { useActiveSessions, useRevokeSession } from '@/hooks/query/useSessions';
 
 interface Session {
-  sessionId: string;
+  id: string;
   deviceInfo: string;
   ipAddress: string;
   lastActivity: string;
@@ -46,7 +46,7 @@ export function ActiveSessionsList() {
         <CardContent className="py-12">
           <div className="flex flex-col items-center justify-center gap-y-4">
             <Loader2 className="size-8 animate-spin text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Loading sessions...</p>
+            <p className="text-sm text-muted-foreground">Loading sessions…</p>
           </div>
         </CardContent>
       </Card>
@@ -81,7 +81,7 @@ export function ActiveSessionsList() {
   return (
     <div className="gap-y-4">
       {sessions.map((session) => (
-        <Card key={session.sessionId}>
+        <Card key={session.id}>
           <CardHeader>
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-x-4">
@@ -96,7 +96,7 @@ export function ActiveSessionsList() {
                     )}
                   </div>
                   <CardDescription suppressHydrationWarning>
-                    IP: {session.ipAddress} • Last active{' '}
+                    IP: {session.ipAddress}€¢ Last active{' '}
                     {formatDistanceToNow(new Date(session.lastActivity), { addSuffix: true })}
                   </CardDescription>
                 </div>
@@ -105,13 +105,13 @@ export function ActiveSessionsList() {
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={() => handleRevoke(session.sessionId)}
-                  disabled={revokingId === session.sessionId}
+                  onClick={() => handleRevoke(session.id)}
+                  disabled={revokingId === session.id}
                 >
-                  {revokingId === session.sessionId ? (
+                  {revokingId === session.id ? (
                     <>
                       <Loader2 className="mr-2 size-4 animate-spin" />
-                      Revoking...
+                      Revoking…
                     </>
                   ) : (
                     'Sign Out'
