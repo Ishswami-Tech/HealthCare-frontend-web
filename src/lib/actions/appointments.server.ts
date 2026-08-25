@@ -36,6 +36,7 @@ import {
   rescheduleAppointmentSchema,
   rejectVideoProposalSchema
 } from '@/lib/schema/appointments.schema';
+import { z } from 'zod';
 
 const IST_UTC_OFFSET = '+05:30';
 
@@ -1304,6 +1305,57 @@ export async function getUserUpcomingAppointments(filters?: { clinicId?: string 
   } catch (error) {
     logger.error('Failed to get upcoming appointments', error instanceof Error ? error : new Error(String(error)));
     return { success: false, error: 'Failed to fetch upcoming appointments' };
+  }
+}
+
+// ===== DOCTOR DAILY SUMMARY =====
+
+const triggerSummarySchema = z.object({
+  dateKey: z.string().optional(),
+});
+
+type TriggerSummaryResponse = {
+  success: boolean;
+  skipped?: boolean;
+  reason?: string;
+  todayKey: string;
+  enqueuedCount: number;
+  skipCount: number;
+  totalDoctors: number;
+  message?: string;
+};
+
+/**
+ * Manually trigger doctor daily appointment summary.
+ * Requires SUPER_ADMIN or CLINIC_ADMIN role (enforced by backend).
+ */
+export async function triggerDoctorDailySummary(input: { dateKey?: string }): Promise<TriggerSummaryResponse> {
+  try {
+    const parsed = triggerSummarySchema.parse(input);
+
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      return { success: false, todayKey: '', enqueuedCount: 0, skipCount: 0, totalDoctors: 0, message: 'Unauthorized' };
+    }
+
+    const response = await authenticatedApi<TriggerSummaryResponse>(
+      API_ENDPOINTS.APPOINTMENTS.SUMMARY_TRIGGER,
+      {
+        method: 'POST',
+        body: JSON.stringify(parsed),
+      }
+    );
+
+    if (response.status >= 200 && response.status < 300) {
+      revalidatePath('/dashboard');
+      return response.data as TriggerSummaryResponse;
+    }
+
+    return { success: false, todayKey: '', enqueuedCount: 0, skipCount: 0, totalDoctors: 0, message: 'Failed to trigger summary' };
+  } catch (error) {
+    const message = isApiError(error) ? error.message : 'Something went wrong';
+    logger.error('Failed to trigger doctor daily summary', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, todayKey: '', enqueuedCount: 0, skipCount: 0, totalDoctors: 0, message };
   }
 }
 
