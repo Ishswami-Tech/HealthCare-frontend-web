@@ -583,7 +583,7 @@ export default function TreatmentsPage() {
                   <Button
                     size="lg"
                     variant="outline"
-                    className="border-white text-white hover:bg-white/10 text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 interactive w-full sm:w-auto"
+                    className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-primary text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 interactive w-full sm:w-auto transition-all duration-300"
                   >
                     {t("common.learnMore")}
                   </Button>
