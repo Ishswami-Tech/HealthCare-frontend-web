@@ -184,11 +184,11 @@ export default function ClinicAdminDashboard() {
       const result = await triggerDoctorDailySummary({});
       if (result.success) {
         if (result.skipped) {
-          showInfoToast(result.reason || 'Skipped', `todayKey: ${result.todayKey}`);
+          showInfoToast(result.reason || 'Skipped', { description: `todayKey: ${result.todayKey}` });
         } else {
           showSuccessToast(
             'Summary queued',
-            `${result.enqueuedCount} doctors · ${result.skipCount} skipped · ${result.totalDoctors} total`
+            { description: `${result.enqueuedCount} doctors · ${result.skipCount} skipped · ${result.totalDoctors} total` }
           );
         }
       } else {

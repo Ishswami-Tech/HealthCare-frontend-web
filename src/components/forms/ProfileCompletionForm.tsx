@@ -167,6 +167,7 @@ interface OtpModalProps {
 
 function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
   const { session } = useAuth();
+  const router = useRouter();
   const [otp, setOtp] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -197,7 +198,7 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
       setOtp("");
     } catch (error) {
       if (error instanceof Error && error.message.includes("expired")) {
-        window.location.href = "/auth/login";
+        router.push("/auth/login");
       } else {
         setErrorMessage(
           error instanceof Error ? error.message : "Failed to resend OTP"
@@ -244,7 +245,7 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
           errorMsg.includes("expired") ||
           errorMsg.includes("session")
         ) {
-          window.location.href = "/auth/login";
+          router.push("/auth/login");
         } else if (
           errorMsg.includes("otp_not_found") ||
           errorMsg.includes("otp_expired") ||
@@ -751,7 +752,7 @@ function ProfileCompletionFormContent({
         errorLower.includes("expired") ||
         errorLower.includes("unauthorized")
       ) {
-        window.location.href = "/auth/login";
+        router.push("/auth/login");
       } else if (errorLower.includes("rate limit")) {
         form.setError("phone", {
           type: "server",
@@ -915,7 +916,7 @@ function ProfileCompletionFormContent({
       });
 
       // Now navigate with cookie properly set
-      window.location.replace(finalRedirect);
+      router.replace(finalRedirect);
     } else {
       logger.warn('[ProfileCompletionForm] Backend did not confirm profile completion:', {
         responseProfileComplete: response?.profileComplete,
