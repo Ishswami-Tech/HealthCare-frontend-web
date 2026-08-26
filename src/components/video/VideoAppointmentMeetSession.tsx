@@ -529,8 +529,8 @@ export function VideoAppointmentMeetSession({
 
       const now = new Date().getTime();
       const startTime = new Date(appointment.startTime).getTime();
-      // Join opens 20 minutes before the appointment
-      const joinOpenTime = startTime - 20 * 60 * 1000;
+      // Join opens 15 minutes before the appointment
+      const joinOpenTime = startTime - 15 * 60 * 1000;
       const timeUntilJoinOpens = joinOpenTime - now;
 
       if (timeUntilJoinOpens <= 0) {

@@ -458,6 +458,7 @@ export const API_ENDPOINTS = {
     RESCHEDULE: (id: string) => `/appointments/${id}/reschedule`,
     DOCTOR_AVAILABILITY: (doctorId: string) => `/appointments/doctor/${doctorId}/availability`,
     UPDATE_AVAILABILITY: (doctorId: string) => `/appointments/doctor/${doctorId}/availability`,
+    SUMMARY_TRIGGER: '/appointments/summary/trigger',
     // Deprecated compatibility alias for queue callers that still reference
     // APPOINTMENTS.QUEUE. All queue flows now resolve to the standalone /queue/* API.
     QUEUE: {

@@ -42,6 +42,8 @@ import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard"
 import { formatDateTimeInIST } from "@/lib/utils/date-time";
 import { ClinicAdminSnapshotPanel } from "./_components/ClinicAdminSnapshotPanel";
 import { ClinicQueueBacklogPanel } from "./_components/ClinicQueueBacklogPanel";
+import { triggerDoctorDailySummary } from "@/lib/actions/appointments.server";
+import { showErrorToast, showInfoToast, showSuccessToast } from "@/hooks/utils/use-toast";
 import {
   Settings,
   Clock,
@@ -55,6 +57,7 @@ import {
   RefreshCcw,
   MapPin,
   Users,
+  MessageSquare,
 } from "lucide-react";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -173,6 +176,30 @@ export default function ClinicAdminDashboard() {
   }, [queueItems]);
 
   const [activeQueueLane, setActiveQueueLane] = useState("");
+  const [isTriggeringSummary, setIsTriggeringSummary] = useState(false);
+
+  const handleTriggerDailySummary = async () => {
+    setIsTriggeringSummary(true);
+    try {
+      const result = await triggerDoctorDailySummary({});
+      if (result.success) {
+        if (result.skipped) {
+          showInfoToast(result.reason || 'Skipped', `todayKey: ${result.todayKey}`);
+        } else {
+          showSuccessToast(
+            'Summary queued',
+            `${result.enqueuedCount} doctors · ${result.skipCount} skipped · ${result.totalDoctors} total`
+          );
+        }
+      } else {
+        showErrorToast(result.message || 'Failed to trigger summary');
+      }
+    } catch {
+      showErrorToast('Something went wrong while triggering the summary');
+    } finally {
+      setIsTriggeringSummary(false);
+    }
+  };
   const resolvedActiveQueueLane = useMemo(() => {
     if (!queueSections.length) {
       return "";
@@ -612,6 +639,16 @@ export default function ClinicAdminDashboard() {
                 <Activity className="size-4" />
                 Queue
               </Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleTriggerDailySummary}
+              disabled={isTriggeringSummary}
+              className="h-9 items-center gap-2 border-border bg-card px-4 font-semibold text-foreground shadow-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <MessageSquare className="size-4" />
+              {isTriggeringSummary ? "Sending..." : "Trigger Doctor Summaries"}
             </Button>
           </div>
         }
