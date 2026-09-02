@@ -66,12 +66,12 @@ function ResetPasswordPageContent() {
 
   if (!safeToken) {
     return (
-      <Card className="w-full max-w-md mx-auto shadow-lg px-4 sm:px-0">
+      <Card className="w-full max-w-md mx-auto shadow-lg px-4 sm:px-0 border border-[#e2e5df] bg-white/95 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-[0_18px_45px_rgba(0,0,0,.5)] transition-colors">
         <CardHeader className="px-4 sm:px-6">
-          <h2 className="text-xl sm:text-2xl font-semibold text-center">
+          <h2 className="text-xl sm:text-2xl font-semibold text-center text-[#075735] dark:text-emerald-400">
             Invalid Reset Link
           </h2>
-          <p className="text-xs sm:text-sm text-gray-600 text-center mt-2">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 text-center mt-2">
             The password reset link is invalid or has expired.
           </p>
         </CardHeader>
@@ -80,7 +80,7 @@ function ResetPasswordPageContent() {
             <Link
               href={ROUTES.FORGOT_PASSWORD}
               prefetch={false}
-              className="text-blue-600 hover:underline transition-colors text-xs sm:text-sm"
+              className="text-[#08743e] hover:underline transition-colors text-xs sm:text-sm dark:text-emerald-400 font-medium"
             >
               Request a new reset link
             </Link>
@@ -94,12 +94,12 @@ function ResetPasswordPageContent() {
   // This prevents race conditions and ensures consistent behavior
 
   return (
-    <Card className="w-full max-w-md mx-auto shadow-lg px-4 sm:px-0">
+    <Card className="w-full max-w-md mx-auto shadow-lg px-4 sm:px-0 border border-[#e2e5df] bg-white/95 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-[0_18px_45px_rgba(0,0,0,.5)] transition-colors">
       <CardHeader className="px-4 sm:px-6">
-        <h2 className="text-xl sm:text-2xl font-semibold text-center">
+        <h2 className="text-xl sm:text-2xl font-semibold text-center text-[#075735] dark:text-emerald-400">
           Reset Password
         </h2>
-        <p className="text-xs sm:text-sm text-gray-600 text-center mt-2">
+        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 text-center mt-2">
           Enter your new password below
         </p>
       </CardHeader>
@@ -115,6 +115,7 @@ function ResetPasswordPageContent() {
                     <Input
                       type="password"
                       placeholder="New Password"
+                      className="dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-100"
                       {...field}
                     />
                   </FormControl>
@@ -132,6 +133,7 @@ function ResetPasswordPageContent() {
                     <Input
                       type="password"
                       placeholder="Confirm New Password"
+                      className="dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-100"
                       {...field}
                     />
                   </FormControl>
@@ -142,7 +144,7 @@ function ResetPasswordPageContent() {
 
             <Button
               type="submit"
-              className="w-full"
+              className="w-full bg-[#08743e] hover:bg-[#075f35] text-white dark:bg-emerald-600 dark:hover:bg-emerald-500"
               disabled={isResettingPassword}
             >
               {isResettingPassword ? (
@@ -158,12 +160,12 @@ function ResetPasswordPageContent() {
         </Form>
       </CardContent>
       <CardFooter className="px-4 sm:px-6 pb-4 sm:pb-6">
-        <div className="w-full text-center text-xs sm:text-sm text-gray-600">
+        <div className="w-full text-center text-xs sm:text-sm text-slate-500 dark:text-slate-400">
           Remember your password?{" "}
           <Link
             href={ROUTES.LOGIN}
             prefetch={false}
-            className="text-blue-600 hover:underline transition-colors"
+            className="text-[#08743e] hover:underline transition-colors dark:text-emerald-400 font-medium"
           >
             Sign in
           </Link>

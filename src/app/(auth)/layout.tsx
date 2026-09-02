@@ -18,6 +18,9 @@ import { ROUTES, getDashboardByRole } from "@/lib/config/routes";
 import { StatusFooter } from "@/components/status/StatusFooter";
 import { resolveAuthoritativeProfileCompleteFromCandidates } from "@/lib/config/profile";
 
+import { AuthLeftPanel } from "@/components/auth/AuthLeftPanel";
+import { CompactThemeSwitcher } from "@/components/theme/compact-theme-switcher";
+
 export default function AuthLayout({
   children,
 }: {
@@ -62,66 +65,20 @@ export default function AuthLayout({
   }, [isAuthenticated, profilePending, authPending, userProfile, replace, pathname]);
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left side - Decorative */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-indigo-600 to-blue-500">
-        <div className="absolute inset-0 bg-gray-950 opacity-10" />
-        <div className="relative z-10 flex flex-col justify-center px-12 xl:px-16 text-white">
-          <h1 className="text-3xl xl:text-4xl font-semibold mb-6">Welcome to Dr Chandrakumar Deshmukh</h1>
-          <p className="text-lg xl:text-xl">
-            Your comprehensive healthcare management solution. Connect withdoctors, manage appointments, and access your medical recordssecurely.
-          </p>
-          <div className="mt-12 flex flex-col gap-y-8">
-            <div className="flex items-start gap-x-4">
-              <div className="flex-shrink-0">
-                <div className="size-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-semibold">✓</span>
-                </div>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold">Secure & Private</h3>
-                <p className="text-blue-100">
-                  Your health data is protected with enterprise-grade security
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-x-4">
-              <div className="flex-shrink-0">
-                <div className="size-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-semibold">✓</span>
-                </div>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold">24/7 Access</h3>
-                <p className="text-blue-100">
-                  Access your health information anytime, anywhere
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-x-4">
-              <div className="flex-shrink-0">
-                <div className="size-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-semibold">✓</span>
-                </div>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold">Expert Care</h3>
-                <p className="text-blue-100">
-                  Connect with qualified healthcare professionals
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+    <div className="relative flex h-screen min-h-0 overflow-hidden bg-[#fbfaf5] dark:bg-[#0c1310] transition-colors duration-300">
+      {/* Theme switcher toggle */}
+      <div className="absolute right-4 top-4 z-50">
+        <CompactThemeSwitcher className="border border-slate-200/80 bg-white/80 shadow-xs backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/80" />
       </div>
 
+      {/* Left side - Ayurvedic Hero Panel with Dark Mode */}
+      <AuthLeftPanel />
+
       {/* Right side - Auth forms */}
-      <div className="flex-1 flex flex-col justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-20 xl:px-24">
-        <div className="mx-auto w-full max-w-sm lg:w-96 flex-1 flex flex-col justify-center">{children}</div>
-        <StatusFooter />
+      <div className="flex h-screen min-h-0 flex-1 flex-col justify-center overflow-hidden bg-[#fbfaf5] dark:bg-[#0c1310] px-4 py-3 sm:px-6 lg:px-[2vw] transition-colors duration-300">
+        <div className="mx-auto flex min-h-0 w-full max-w-[480px] flex-1 flex-col justify-center lg:-translate-x-[8px] [@media(max-height:900px)]:scale-[.95] [@media(max-height:800px)]:scale-[.88] [@media(max-height:720px)]:scale-[.80] origin-center transition-transform duration-200">{children}</div>
+        <StatusFooter className="justify-center py-1.5 shrink-0" />
       </div>
     </div>
   );
 }
-
-

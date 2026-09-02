@@ -329,7 +329,7 @@ export default function PanchakarmaPage() {
                       <p className="text-muted-foreground leading-relaxed mb-4">
                         {t("panchakarma.benefits.detoxification.description")}
                       </p>
-                      <ul className="gap-y-2">
+                      <ul className="flex flex-col gap-y-2">
                         {[
                           t("panchakarma.benefits.detoxification.benefit1"),
                           t("panchakarma.benefits.detoxification.benefit2"),
@@ -350,7 +350,7 @@ export default function PanchakarmaPage() {
                   </div>
                 </div>
 
-                <div className="gap-y-6">
+                <div className="flex flex-col gap-y-6">
                   <div className="flex items-start gap-x-4">
                     <div className="size-10 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center flex-shrink-0">
                       <Heart className="size-5 text-white" />
@@ -693,7 +693,7 @@ export default function PanchakarmaPage() {
                 </p>
               </div>
 
-              <div className="gap-y-4">
+              <div className="flex flex-col gap-y-4 sm:gap-y-5">
                 {[
                   {
                     question: t("panchakarma.faq.question1.question"),

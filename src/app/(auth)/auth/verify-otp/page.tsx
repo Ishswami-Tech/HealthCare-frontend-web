@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Suspense, useEffect, useCallback, useRef, useMemo, useReducer } from "react";
 import { useRouter as useRouterAlias, useSearchParams } from "next/navigation";
@@ -269,17 +269,17 @@ function VerifyOTPPageContent() {
   // Redirecting overlay
   if (successPhase === "redirecting") {
     return (
-      <Card className="w-full max-w-md mx-auto border-border/60 bg-card px-4 shadow-lg sm:px-0">
+      <Card className="w-full max-w-md mx-auto border border-[#e2e5df] bg-white/95 backdrop-blur-xl px-4 shadow-lg sm:px-0 dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-[0_18px_45px_rgba(0,0,0,.5)] transition-colors">
         <CardContent className="flex flex-col items-center justify-center py-16 gap-5">
           <div className="relative flex items-center justify-center">
-            <div className="size-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-              <CheckCircle2 className="size-8 text-green-600 dark:text-green-400" />
+            <div className="size-16 rounded-full bg-emerald-100 dark:bg-emerald-950/80 dark:border dark:border-emerald-800/50 flex items-center justify-center">
+              <CheckCircle2 className="size-8 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <Loader2 className="absolute size-20 animate-spin text-green-500/40" />
+            <Loader2 className="absolute size-20 animate-spin text-emerald-500/40" />
           </div>
           <div className="flex flex-col gap-y-1 text-center">
-            <p className="font-semibold text-gray-900 dark:text-gray-100">Successfully signed in!</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Redirecting</p>
+            <p className="font-semibold text-slate-900 dark:text-slate-100">Successfully signed in!</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Redirecting…</p>
           </div>
         </CardContent>
       </Card>
@@ -287,14 +287,14 @@ function VerifyOTPPageContent() {
   }
 
   return (
-    <Card className="w-full max-w-md mx-auto border-border/60 bg-card px-4 shadow-lg sm:px-0">
+    <Card className="w-full max-w-md mx-auto border border-[#e2e5df] bg-white/95 backdrop-blur-xl px-4 shadow-lg sm:px-0 dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-[0_18px_45px_rgba(0,0,0,.5)] transition-colors">
       <CardHeader className="px-4 sm:px-6">
-        <h2 className="text-xl sm:text-2xl font-semibold text-center">
+        <h2 className="text-xl sm:text-2xl font-semibold text-center text-[#075735] dark:text-emerald-400">
           Verify OTP
         </h2>
-        <p className="text-xs sm:text-sm text-muted-foreground text-center mt-2 break-words">
+        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 text-center mt-2 break-words">
           Enter the 6-digit code sent to{" "}
-          <span className="font-medium">{email}</span>
+          <span className="font-medium text-slate-800 dark:text-slate-200">{email}</span>
         </p>
         {isPhoneFlow ? (
           <p className="mt-2 text-center text-xs font-medium text-emerald-600 dark:text-emerald-400">
@@ -313,11 +313,11 @@ function VerifyOTPPageContent() {
           </div>
         )}
         {successPhase === "alert" && (
-          <div className="mb-4 flex items-center gap-3 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 animate-in fade-in slide-in-from-top-2 duration-300">
-            <CheckCircle2 className="size-5 text-green-600 dark:text-green-400 shrink-0" />
+          <div className="mb-4 flex items-center gap-3 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 animate-in fade-in slide-in-from-top-2 duration-300">
+            <CheckCircle2 className="size-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <div>
-              <p className="text-sm font-semibold text-green-800 dark:text-green-300">OTP verified!</p>
-              <p className="text-xs text-green-600 dark:text-green-400">Redirecting to the next step</p>
+              <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">OTP verified!</p>
+              <p className="text-xs text-emerald-600 dark:text-emerald-400">Redirecting to the next step</p>
             </div>
           </div>
         )}
@@ -356,7 +356,7 @@ function VerifyOTPPageContent() {
             <div className="flex flex-col gap-y-4">
               <Button
                 type="submit"
-                className="w-full"
+                className="w-full bg-[#08743e] hover:bg-[#075f35] text-white dark:bg-emerald-600 dark:hover:bg-emerald-500"
                 disabled={isVerifyingOTP || (otpValue || "").length !== 6 || successPhase !== "none"}
               >
                 {isVerifyingOTP ? (
