@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { AuthBrandLogo } from "@/components/auth/AuthLeftPanel";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Form,
   FormControl,
@@ -140,11 +139,11 @@ export function LoginAuthCard({
   }, [isFormDisabled, isVerifyingOTP, otpValue, showOTPInput, submitOtpOnce]);
 
   return (
-    <div className="relative mx-auto w-full max-w-[480px]">
+    <div className="relative mx-auto w-full max-w-[588px]">
       {/* Dynamic Background Glow */}
-      <Card className="relative overflow-hidden rounded-[30px] border border-[#e2e5df] bg-white/95 shadow-[0_18px_45px_rgba(35,66,48,.12)] backdrop-blur-xl transition-colors dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-[0_18px_45px_rgba(0,0,0,.5)]">
+      <Card className="relative overflow-hidden rounded-[28px] border border-[#e0ad54] bg-[#fffcf5]/86 py-0 shadow-[0_18px_45px_rgba(112,73,12,.14)] backdrop-blur-xl transition-colors lg:rounded-[26px] lg:bg-[#fffcf5]/94 lg:py-6 dark:border-slate-800 dark:bg-slate-900/88 dark:shadow-[0_18px_45px_rgba(0,0,0,.5)]">
 
-        <CardHeader className="px-8 pb-3 pt-5">
+        <CardHeader className={cn("px-8 pb-3 pt-6", !showOTPInput && "hidden lg:block")}>
           {showOTPInput && (
             <Button
               variant="ghost"
@@ -159,11 +158,11 @@ export function LoginAuthCard({
 
           <div className="space-y-1.5 text-center">
             {/* Brand Shield Icon */}
-            <div className="mx-auto mb-1 flex size-[68px] items-center justify-center rounded-full border border-emerald-200/60 bg-[#edf3e4]/80 p-1 shadow-xs dark:border-emerald-800/50 dark:bg-emerald-950/80">
+            <div className="mx-auto mb-1 flex size-[68px] items-center justify-center rounded-full border border-[#e7bd70] bg-[#fffaf0]/90 p-1 shadow-xs dark:border-emerald-800/50 dark:bg-emerald-950/80">
               <AuthBrandLogo className="size-[56px]" imgClassName="size-full rounded-full" />
             </div>
 
-            <h2 className="font-serif text-[32px] font-bold tracking-tight text-[#075735] dark:text-emerald-400">
+            <h2 className="font-serif text-[34px] font-bold tracking-tight text-[#075735] dark:text-emerald-400">
               {showOTPInput ? "Verify Code" : "Welcome"}
             </h2>
             <p className="mx-auto max-w-[310px] text-[15px] leading-relaxed text-[#263248] dark:text-slate-300">
@@ -187,7 +186,7 @@ export function LoginAuthCard({
           </div>
         </CardHeader>
 
-        <CardContent className="px-8 pb-7 pt-2">
+        <CardContent className="px-[18px] pb-2 pt-3.5 sm:px-6 lg:px-8 lg:pb-7 lg:pt-3">
           {sessionExpired && !isRestoringSession && (
             <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50/90 p-3 text-xs font-medium text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300">
               Session expired. Please sign in again.
@@ -209,6 +208,7 @@ export function LoginAuthCard({
           {!showOTPInput && (
             <SocialLogin
               showDivider={true}
+              className="gap-1.5 lg:gap-3 [&_button]:h-10 lg:[&_button]:h-[50px]"
               clinicId={defaultClinicId}
               isLoading={isSocialLoading}
               onSuccess={onSocialSuccess}
@@ -217,9 +217,9 @@ export function LoginAuthCard({
           )}
 
           <Form {...otpForm}>
-            <form onSubmit={submitOtpOnce} className="mt-2 space-y-3.5">
+            <form onSubmit={submitOtpOnce} className="mt-0 space-y-2.5 lg:mt-2 lg:space-y-3.5">
               {!showOTPInput && (
-                <div className="grid grid-cols-2 gap-1 rounded-xl border border-[#e5e7e4] bg-[#f7f7f6] p-1 dark:border-slate-800 dark:bg-slate-950/60 transition-colors">
+                <div className="grid grid-cols-2 gap-3 dark:border-slate-800 dark:bg-slate-950/60 transition-colors">
                   <button
                     type="button"
                     onClick={() => {
@@ -228,10 +228,10 @@ export function LoginAuthCard({
                       otpForm.clearErrors("identifier");
                     }}
                     className={cn(
-                      "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all duration-200",
+                      "flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-semibold transition-all duration-200 lg:py-3",
                       otpMethod === "phone"
-                        ? "border border-[#3b9a65] bg-white text-[#087241] shadow-sm dark:border-emerald-600/70 dark:bg-emerald-950/90 dark:text-emerald-300 dark:shadow-sm"
-                        : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200",
+                        ? "border-[#0c6b45] bg-[#fffdf8] text-[#075735] shadow-sm dark:border-emerald-600/70 dark:bg-emerald-950/90 dark:text-emerald-300 dark:shadow-sm"
+                        : "border-[#eeddbd] bg-[#fbf1dc] text-slate-600 hover:text-slate-800 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400 dark:hover:text-slate-200",
                     )}
                   >
                     <div
@@ -254,10 +254,10 @@ export function LoginAuthCard({
                       otpForm.clearErrors("identifier");
                     }}
                     className={cn(
-                      "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all duration-200",
+                      "flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-semibold transition-all duration-200 lg:py-3",
                       otpMethod === "email"
-                        ? "border border-[#3b9a65] bg-white text-[#087241] shadow-sm dark:border-emerald-600/70 dark:bg-emerald-950/90 dark:text-emerald-300 dark:shadow-sm"
-                        : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200",
+                        ? "border-[#0c6b45] bg-[#fffdf8] text-[#075735] shadow-sm dark:border-emerald-600/70 dark:bg-emerald-950/90 dark:text-emerald-300 dark:shadow-sm"
+                        : "border-[#eeddbd] bg-[#fbf1dc] text-slate-600 hover:text-slate-800 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400 dark:hover:text-slate-200",
                     )}
                   >
                     <div
@@ -285,7 +285,7 @@ export function LoginAuthCard({
                         {otpMethod === "phone" ? (
                           <div
                             className={cn(
-                              "overflow-hidden rounded-xl border border-slate-200/90 bg-slate-50/70 p-0.5 transition-all duration-200",
+                              "overflow-hidden rounded-xl border border-[#eadfc9] bg-white/90 p-0.5 transition-all duration-200",
                               "dark:border-slate-700/80 dark:bg-slate-950/60",
                               "focus-within:border-[#08743e] focus-within:ring-2 focus-within:ring-[#08743e]/20 focus-within:bg-white dark:focus-within:bg-slate-900 dark:focus-within:border-emerald-500 dark:focus-within:ring-emerald-500/30",
                               "shadow-2xs",
@@ -301,13 +301,13 @@ export function LoginAuthCard({
                                 onPhoneChange(value);
                                 field.onChange(value);
                               }}
-                              className="border-none bg-transparent shadow-none focus-within:ring-0 [&_input]:border-none [&_input]:bg-transparent [&_input]:text-sm [&_input]:shadow-none [&_input]:text-slate-900 dark:[&_input]:text-slate-100"
+                              className="border-none bg-transparent shadow-none focus-within:ring-0 max-lg:[&_button]:h-10 max-lg:[&_.PhoneInputInput]:h-10 [&_input]:border-none [&_input]:bg-transparent [&_input]:text-sm [&_input]:shadow-none [&_input]:text-slate-900 dark:[&_input]:text-slate-100"
                             />
                           </div>
                         ) : (
                           <div
                             className={cn(
-                              "overflow-hidden rounded-xl border border-slate-200/90 bg-slate-50/70 transition-all duration-200",
+                              "overflow-hidden rounded-xl border border-[#eadfc9] bg-white/90 transition-all duration-200",
                               "dark:border-slate-700/80 dark:bg-slate-950/60",
                               "focus-within:border-[#08743e] focus-within:ring-2 focus-within:ring-[#08743e]/20 focus-within:bg-white dark:focus-within:bg-slate-900 dark:focus-within:border-emerald-500 dark:focus-within:ring-emerald-500/30",
                               "shadow-2xs",
@@ -334,7 +334,7 @@ export function LoginAuthCard({
                 />
 
                 {otpMethod === "phone" && !showOTPInput ? (
-                  <div className="flex items-center gap-3 rounded-xl border border-transparent bg-[#eef3e7] p-3 text-xs text-[#075735] dark:border-emerald-900/40 dark:bg-emerald-950/60 dark:text-emerald-300">
+                  <div className="flex items-center gap-3 rounded-xl border border-transparent bg-[#f3f3df] p-0.5 text-xs text-[#075735] lg:p-3 dark:border-emerald-900/40 dark:bg-emerald-950/60 dark:text-emerald-300">
                     <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#12b949] text-white">
                       <WhatsAppIcon className="size-3" />
                     </div>
@@ -404,7 +404,7 @@ export function LoginAuthCard({
               {!showOTPInput ? (
                 <Button
                   type="button"
-                  className="group relative h-[52px] w-full overflow-hidden rounded-xl bg-[#08743e] text-[18px] font-semibold text-white shadow-md shadow-[#0d7040]/20 transition-all hover:bg-[#075f35] hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:shadow-emerald-950/50"
+                  className="group relative -mt-2 h-10 w-full overflow-hidden rounded-xl bg-[#075735] text-[16px] font-semibold text-white shadow-md shadow-[#0d7040]/20 transition-all hover:bg-[#06452b] hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50 lg:mt-0 lg:h-[52px] lg:text-[18px] dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:shadow-emerald-950/50"
                   onClick={() => {
                     const id = otpForm.getValues("identifier");
                     if (!id) {
@@ -447,39 +447,14 @@ export function LoginAuthCard({
                 </Button>
               )}
 
-              {!showOTPInput && (
-                <FormField
-                  control={otpForm.control}
-                  name="rememberMe"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center gap-2 pt-0.5">
-                      <FormControl>
-                        <Checkbox
-                          id="rememberMe"
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          disabled={isFormDisabled}
-                          className="size-4 rounded border-slate-300 text-[#08743e] transition-all data-[state=checked]:border-[#08743e] data-[state=checked]:bg-[#08743e] focus:ring-emerald-500/20 dark:border-slate-600 dark:data-[state=checked]:bg-emerald-500 dark:data-[state=checked]:border-emerald-500"
-                        />
-                      </FormControl>
-                      <label
-                        htmlFor="rememberMe"
-                        className="cursor-pointer select-none text-xs font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
-                      >
-                        Remember me for 30 days
-                      </label>
-                    </FormItem>
-                  )}
-                />
-              )}
             </form>
           </Form>
 
-          <div className="mt-4.5 border-t border-slate-200 pt-4 text-center dark:border-slate-800">
+          <div className="mt-3 border-t border-slate-200 pt-3 text-center lg:mt-4.5 lg:pt-4 dark:border-slate-800">
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
               New user?{" "}
               <span className="font-semibold text-[#08743e] dark:text-emerald-400">
-                Create an account
+                We&apos;ll create an account for you
               </span>
             </p>
           </div>
@@ -490,9 +465,9 @@ export function LoginAuthCard({
       <div className="mt-4 text-center">
         <a
           href="tel:+917218378311"
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-5 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:border-[#71a889] hover:text-[#075735] dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-300 dark:hover:border-emerald-700 dark:hover:text-emerald-300"
+          className="inline-flex items-center gap-2 rounded-full border border-[#ead8b5] bg-[#fffcf5]/95 px-5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-[#d49a35] hover:text-[#075735] dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-300 dark:hover:border-emerald-700 dark:hover:text-emerald-300"
         >
-          <div className="flex size-4.5 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
+          <div className="flex size-4.5 items-center justify-center rounded-full bg-amber-50 text-[#d38700] dark:bg-emerald-950 dark:text-emerald-400">
             <Phone className="size-2.5" />
           </div>
           <span>Need help?&nbsp; Call us</span>

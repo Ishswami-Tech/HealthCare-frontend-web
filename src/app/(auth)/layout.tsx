@@ -10,7 +10,8 @@
  * show the login form immediately without the loading state.
  */
 
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
+import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useUserProfile } from "@/hooks/query/useUsers";
@@ -19,7 +20,6 @@ import { StatusFooter } from "@/components/status/StatusFooter";
 import { resolveAuthoritativeProfileCompleteFromCandidates } from "@/lib/config/profile";
 
 import { AuthLeftPanel } from "@/components/auth/AuthLeftPanel";
-import { CompactThemeSwitcher } from "@/components/theme/compact-theme-switcher";
 
 export default function AuthLayout({
   children,
@@ -29,6 +29,24 @@ export default function AuthLayout({
   const { replace } = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const hadDarkTheme = root.classList.contains("dark");
+    const hadLightTheme = root.classList.contains("light");
+    const previousColorScheme = root.style.colorScheme;
+
+    root.classList.remove("dark");
+    root.classList.add("light");
+    root.style.colorScheme = "light";
+
+    return () => {
+      root.classList.remove("light", "dark");
+      if (hadLightTheme) root.classList.add("light");
+      if (hadDarkTheme) root.classList.add("dark");
+      root.style.colorScheme = previousColorScheme;
+    };
+  }, []);
 
   // Check if user came with error params (like session_expired) - these indicate
   // intentional navigation to login, not needing session restoration
@@ -65,19 +83,34 @@ export default function AuthLayout({
   }, [isAuthenticated, profilePending, authPending, userProfile, replace, pathname]);
 
   return (
-    <div className="relative flex h-screen min-h-0 overflow-hidden bg-[#fbfaf5] dark:bg-[#0c1310] transition-colors duration-300">
-      {/* Theme switcher toggle */}
-      <div className="absolute right-4 top-4 z-50">
-        <CompactThemeSwitcher className="border border-slate-200/80 bg-white/80 shadow-xs backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/80" />
-      </div>
+    <div className="auth-page-scroll relative h-dvh min-h-0 w-full overflow-hidden bg-[#fff9ed] transition-colors duration-300 lg:flex lg:h-screen">
+      {/* Full-canvas scenery contains no person; the doctor is rendered only by AuthLeftPanel. */}
+      <Image
+        src="/assets/auth-login-forest-continuation-light.png"
+        alt=""
+        fill
+        priority
+        aria-hidden="true"
+        className="hidden object-cover object-center lg:block"
+        sizes="100vw"
+      />
 
-      {/* Left side - Ayurvedic Hero Panel with Dark Mode */}
+      {/* The mobile hero and form share one continuous forest background. */}
+      <section
+        aria-label="Welcome to Dr. Chandrakumar Deshmukh Clinic"
+        className="relative h-[max(180px,calc(100dvh-421px))] max-h-[540px] shrink-0 lg:hidden"
+        role="img"
+      />
+
+      {/* Left side - Ayurvedic Hero Panel */}
       <AuthLeftPanel />
 
       {/* Right side - Auth forms */}
-      <div className="flex h-screen min-h-0 flex-1 flex-col justify-center overflow-hidden bg-[#fbfaf5] dark:bg-[#0c1310] px-4 py-3 sm:px-6 lg:px-[2vw] transition-colors duration-300">
-        <div className="mx-auto flex min-h-0 w-full max-w-[480px] flex-1 flex-col justify-center lg:-translate-x-[8px] [@media(max-height:900px)]:scale-[.95] [@media(max-height:800px)]:scale-[.88] [@media(max-height:720px)]:scale-[.80] origin-center transition-transform duration-200">{children}</div>
-        <StatusFooter className="justify-center py-1.5 shrink-0" />
+      <div className="auth-mobile-login-form relative z-20 mt-0 flex min-h-0 flex-1 flex-col justify-start overflow-visible px-5 pt-0 sm:px-6 lg:mt-0 lg:h-screen lg:justify-center lg:px-[1.65vw] lg:py-3">
+        <div className="auth-mobile-login-scale mx-auto flex min-h-0 w-full max-w-[588px] origin-top flex-col justify-center transition-transform duration-200 lg:w-[calc(100%+88px)] lg:flex-1 lg:origin-center lg:-translate-x-[7vw] [@media(max-height:900px)]:scale-[.95] [@media(max-height:800px)]:scale-[.88] [@media(max-height:720px)]:scale-[.80]">
+          {children}
+          <StatusFooter className="mt-3 shrink-0 justify-center py-0 lg:py-1" />
+        </div>
       </div>
     </div>
   );
