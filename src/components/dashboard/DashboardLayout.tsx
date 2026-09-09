@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useMemo, useRef, useState, createContext } from "react";
+import { use, useEffect, useMemo, useState, createContext } from "react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useRBAC,
@@ -68,23 +68,8 @@ export function DashboardLayout({
   const storeSession = useAuthStore((state) => state.session);
   const effectiveSession = session ?? storeSession;
   const [authBootstrapTimedOut, setAuthBootstrapTimedOut] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
-  // Keep last known user so soft navigations never blank the sidebar if auth
-  // state briefly flickers while React Query/session hooks settle.
-  const lastUserRef = useRef<NonNullable<typeof effectiveSession>["user"] | null>(null);
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
   const { back, push, replace } = useRouter();
-  const { user: sessionUser } = effectiveSession || {};
-  if (sessionUser) {
-    lastUserRef.current = sessionUser;
-  } else if (!isPending && !effectiveSession) {
-    lastUserRef.current = null;
-  }
-  // During auth settle / soft nav, reuse last user so the shell never blanks.
-  // Once auth is settled with no session, clear so logout can redirect.
-  const user = sessionUser ?? (isPending ? lastUserRef.current ?? undefined : undefined);
+  const { user } = effectiveSession || {};
   const { data: currentUserProfile, isPending: isUserProfilePending } = useUserProfile({
     enabled: !!user,
   });
@@ -250,11 +235,8 @@ export function DashboardLayout({
     });
   }, [resolvedPageTitle, setDashboardMeta, userDisplayData]);
 
-  // Auth bootstrap: never tear down the whole shell (sidebar + header) once we
-  // already have a session in memory. That flash made soft navigations look
-  // like full page refreshes.
-  if (!user) {
-    if (isMounted && (!isPending || authBootstrapTimedOut) && redirectTarget) {
+  if (!user && !effectiveSession) {
+    if ((!isPending || authBootstrapTimedOut) && redirectTarget) {
       return <RouteRedirect target={redirectTarget} />;
     }
 

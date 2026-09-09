@@ -11,7 +11,6 @@ import {
   updateUserProfile,
 } from '@/lib/actions/users.server';
 import { isSessionInvalidError } from '@/lib/utils/auth-recovery';
-import { useQueryClient } from '@tanstack/react-query';
 
 // ===== USER PROFILE HOOKS =====
 
@@ -54,7 +53,6 @@ export const useUserProfile = (
  * Hook to update user profile
  */
 export const useUpdateUserProfile = () => {
-  const queryClient = useQueryClient();
   return useMutationOperation(
     async (profileData) => {
       return await updateUserProfile(profileData as Record<string, unknown>);
@@ -64,40 +62,7 @@ export const useUpdateUserProfile = () => {
       loadingMessage: 'Updating user profile...',
       successMessage: 'User profile updated successfully',
       showToast: false, // Let the caller handle success/error toasts based on response.success
-      invalidateQueries: [['userProfile'], ['user'], ['users'], ['doctorAvailability'], ['appointments']],
-      onSuccess: async (data) => {
-        const result = data as {
-          success?: boolean;
-          user?: Record<string, unknown>;
-          profileComplete?: boolean;
-        };
-        if (result?.success && result.user) {
-          // Immediately patch client cache so availability toggles stick without refresh
-          queryClient.setQueryData(['userProfile'], (previous: unknown) => {
-            const prev =
-              previous && typeof previous === 'object'
-                ? (previous as Record<string, unknown>)
-                : {};
-            return {
-              ...prev,
-              ...result.user,
-              availability:
-                result.user?.availability ??
-                prev.availability ??
-                prev.workingHours,
-              workingHours:
-                result.user?.availability ??
-                result.user?.workingHours ??
-                prev.workingHours,
-              updatedAt: result.user?.updatedAt || new Date().toISOString(),
-            };
-          });
-        }
-        await queryClient.invalidateQueries({
-          queryKey: ['doctorAvailability'],
-          exact: false,
-        });
-      },
+      invalidateQueries: [['userProfile'], ['user'], ['users']],
     }
   );
 };

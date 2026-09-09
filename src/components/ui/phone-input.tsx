@@ -77,9 +77,8 @@ function FlagImage({
       src={`https://flagcdn.com/w20/${code}.png`}
       width={20}
       height={15}
-      alt={`${country} flag`}
+      alt={country}
       className={authStyle ? "object-cover" : "rounded-sm object-cover"}
-      style={{ width: "auto", height: "auto" }}
       loading="lazy"
       unoptimized
       onError={(e) => {

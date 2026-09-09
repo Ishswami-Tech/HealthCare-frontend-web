@@ -16,8 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DataTable } from "@/components/ui/data-table";
-import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { HashTabs } from "@/hooks/navigation/HashTabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
@@ -1109,11 +1108,7 @@ export default function PharmacistPrescriptionsPage() {
         </CardContent>
       </Card>
 
-      <HashTabs
-        tabs={["active", "history", "audit"] as const}
-        defaultValue="active"
-        className="flex flex-col gap-y-6"
-      >
+      <Tabs defaultValue="active" className="flex flex-col gap-y-6">
         <TabsList>
           <TabsTrigger value="active">Active</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
@@ -1225,7 +1220,7 @@ export default function PharmacistPrescriptionsPage() {
             </CardContent>
           </Card>
         </TabsContent>
-      </HashTabs>
+      </Tabs>
 
       <Dialog
         open={Boolean(selectedPrescription)}

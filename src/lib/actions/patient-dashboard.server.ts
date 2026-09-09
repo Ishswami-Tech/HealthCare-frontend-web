@@ -23,7 +23,7 @@ import type { PatientDashboardSummaryResponse } from '@/types/patient-dashboard.
  */
 export async function fetchPatientDashboardSummary(): Promise<
   | { success: true; data: PatientDashboardSummaryResponse }
-  | { success: false; error: string; code?: 'UNAUTHENTICATED' | 'CLINIC_CONTEXT_REQUIRED' | 'PROFILE_INCOMPLETE' | 'FORBIDDEN' | 'NETWORK' | 'UNKNOWN' }
+  | { success: false; error: string; code?: 'UNAUTHENTICATED' | 'CLINIC_CONTEXT_REQUIRED' | 'PROFILE_INCOMPLETE' | 'NETWORK' | 'UNKNOWN' }
 > {
   try {
     const session = await getServerSession();
@@ -93,7 +93,7 @@ export async function fetchPatientDashboardSummary(): Promise<
       return {
         success: false,
         error: 'Access denied',
-        code: 'FORBIDDEN',
+        code: 'UNKNOWN',
       };
     }
 
