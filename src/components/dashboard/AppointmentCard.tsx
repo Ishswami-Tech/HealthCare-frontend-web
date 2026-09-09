@@ -238,7 +238,7 @@ function AppointmentCardComponent({
             </Button>
           )}
 
-          {normalizedStatus === "SCHEDULED" && onReschedule && (
+          {normalizedStatus === "CONFIRMED" && onReschedule && (
             <Button
               variant="outline"
               size="sm"
@@ -249,16 +249,6 @@ function AppointmentCardComponent({
             </Button>
           )}
 
-          {normalizedStatus === "SCHEDULED" && onCancel && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onCancel}
-              className="text-red-600 hover:text-red-700 hover:scale-105 transition-all"
-            >
-              {t("appointments.cancel")}
-            </Button>
-          )}
         </div>
       </CardContent>
     </Card>
@@ -333,4 +323,3 @@ export function AppointmentList({
     </div>
   );
 }
-
