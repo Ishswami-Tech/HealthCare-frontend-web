@@ -74,13 +74,18 @@ export interface DoctorReview {
 
 export interface SaveProfileMutation {
   isPending: boolean;
-  mutateAsync: (input: Record<string, unknown>) => Promise<{
-    success: boolean;
-    error?: string | null;
-    message?: string;
-    user?: Record<string, unknown>;
-    profileComplete?: boolean;
-  }>;
+  mutateAsync: (input: {
+    firstName: string;
+    lastName: string;
+    phone: string;
+    dateOfBirth: string;
+    gender?: string;
+    address: string;
+    city: string;
+    state: string;
+    country: string;
+    zipCode: string;
+  }) => Promise<{ success: boolean; error?: string | null }>;
 }
 
 export interface DoctorProfileUser {

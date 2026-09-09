@@ -6,7 +6,6 @@ import { REGEXP_ONLY_DIGITS } from "input-otp";
 import {
   InputOTP,
   InputOTPGroup,
-  InputOTPSeparator,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { cn } from "@/lib/utils";
@@ -36,7 +35,7 @@ export function OtpCodeInput({
   className,
   containerClassName,
   slotClassName,
-  separator = true,
+  separator = false,
   ...props
 }: OtpCodeInputProps) {
   const slots = React.useMemo(() => {
@@ -46,17 +45,12 @@ export function OtpCodeInput({
         index={index}
         aria-invalid={invalid}
         className={cn(
-          "size-11 text-base font-semibold sm:h-12 sm:w-12 sm:text-lg",
           invalid && "border-destructive text-destructive focus-visible:border-destructive",
           slotClassName
         )}
       />
     ));
   }, [invalid, maxLength, slotClassName]);
-
-  const shouldSplit = separator && maxLength === 6;
-  const leftSlots = shouldSplit ? slots.slice(0, 3) : slots;
-  const rightSlots = shouldSplit ? slots.slice(3) : null;
 
   return (
     <InputOTP
@@ -69,24 +63,12 @@ export function OtpCodeInput({
       id={props.id}
       name={props.name}
       pattern={REGEXP_ONLY_DIGITS}
-      className={cn("justify-center text-foreground dark:text-slate-100", invalid && "text-destructive", className)}
-      containerClassName={cn("flex items-center justify-center gap-2 bg-transparent", containerClassName)}
+      className={cn("justify-center text-slate-900 dark:text-white", invalid && "text-destructive", className)}
+      containerClassName={cn("flex items-center justify-center gap-2 sm:gap-2.5 bg-transparent", containerClassName)}
     >
-      {shouldSplit ? (
-        <>
-          <InputOTPGroup className="gap-0">{leftSlots}</InputOTPGroup>
-          <InputOTPSeparator
-            className={cn(
-              "shrink-0",
-              invalid ? "text-destructive" : "text-muted-foreground dark:text-slate-400"
-            )}
-          />
-          <InputOTPGroup className="gap-0">{rightSlots}</InputOTPGroup>
-        </>
-      ) : (
-        <InputOTPGroup className="gap-0">{slots}</InputOTPGroup>
-      )}
+      <InputOTPGroup className="gap-2 sm:gap-2.5 flex items-center justify-center">{slots}</InputOTPGroup>
     </InputOTP>
   );
 }
+
 

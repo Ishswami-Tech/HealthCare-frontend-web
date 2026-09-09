@@ -255,7 +255,7 @@ export default function AboutPage() {
               <div className="max-w-8xl mx-auto">
                 <div className="grid lg:grid-cols-2 gap-16 lg:gap-20 items-center">
                   {/* Story Content */}
-                  <div className="gap-y-10">
+                  <div className="flex flex-col gap-y-6 sm:gap-y-8">
                     <div className="animate-fade-in-left">
                       <div className="relative inline-block">
                         <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-2xl blur-xl"></div>
@@ -265,7 +265,7 @@ export default function AboutPage() {
                       </div>
                     </div>
 
-                    <div className="gap-y-8 text-muted-foreground leading-relaxed animate-fade-in-left delay-200">
+                    <div className="flex flex-col gap-y-4 sm:gap-y-5 text-muted-foreground leading-relaxed animate-fade-in-left delay-200">
                       <div className="group relative">
                         <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl blur-lg group-hover:blur-xl transition-all duration-500"></div>
                         <div className="relative p-6 rounded-2xl bg-gradient-to-br from-card/60 to-muted/40 dark:from-card/70 dark:to-muted/50 border border-border/30 dark:border-border/40 glass hover:shadow-lg dark:hover:shadow-xl transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1">
@@ -459,7 +459,7 @@ export default function AboutPage() {
                   <div className="absolute left-12 top-0 bottom-0 w-1 bg-gradient-to-b from-primary via-secondary to-accent opacity-40 dark:opacity-60 rounded-full"></div>
                   <div className="absolute left-12 top-0 bottom-0 w-1 bg-gradient-to-b from-primary/20 via-secondary/20 to-accent/20 blur-sm"></div>
 
-                  <div className="gap-y-12">
+                  <div className="flex flex-col gap-y-8 sm:gap-y-10">
                     {milestones.map((milestone, index) => (
                       <div
                         key={milestone.year}
