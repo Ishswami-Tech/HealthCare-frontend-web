@@ -30,6 +30,7 @@ type CallbackState = {
 
 type CallbackAction =
   | { type: "FAILED"; message: string; secondsLeft?: number }
+  | { type: "PENDING"; message: string }
   | { type: "SUCCESS"; message: string; secondsLeft: number }
   | { type: "TICK" }
   | { type: "RESET_SECONDS" };
@@ -70,18 +71,16 @@ function decodeBase64UrlJson(rawValue: string): Record<string, unknown> | null {
 }
 
 function normalizePaymentStatus(value: unknown): string {
-  return String(value || "").trim().toLowerCase();
+  return String(value || "")
+    .trim()
+    .toLowerCase();
 }
 
 function isVerifiedPaymentStatus(value: unknown): boolean {
   const status = normalizePaymentStatus(value);
-  return [
-    "completed",
-    "confirmed",
-    "paid",
-    "success",
-    "succeeded",
-  ].includes(status);
+  return ["completed", "confirmed", "paid", "success", "succeeded"].includes(
+    status,
+  );
 }
 
 function callbackReducer(
@@ -89,6 +88,12 @@ function callbackReducer(
   action: CallbackAction,
 ): CallbackState {
   switch (action.type) {
+    case "PENDING":
+      return {
+        state: "loading",
+        message: action.message,
+        secondsLeft: null,
+      };
     case "FAILED":
       return {
         state: "failed",
@@ -211,14 +216,26 @@ function PaymentCallbackPageContent() {
           ? bridgePayload.payment_id
           : "";
     return {
-      orderId: orderId || (typeof bridgePayload?.orderId === "string" ? bridgePayload.orderId : ""),
+      orderId:
+        orderId ||
+        (typeof bridgePayload?.orderId === "string"
+          ? bridgePayload.orderId
+          : ""),
       paymentId: paymentId || payloadPaymentId,
-      provider: provider || (ALLOWED_PROVIDERS.has(String(payloadProvider).toLowerCase()) ? (String(payloadProvider).toLowerCase() as PaymentProvider) : undefined),
+      provider:
+        provider ||
+        (ALLOWED_PROVIDERS.has(String(payloadProvider).toLowerCase())
+          ? (String(payloadProvider).toLowerCase() as PaymentProvider)
+          : undefined),
       clinicId: clinicId || payloadClinicId,
       appointmentId: appointmentId || payloadAppointmentId,
       appointmentType: appointmentType || payloadAppointmentType,
       handoffToken: handoffToken || payloadHandoffToken,
-      paymentError: paymentError || (typeof bridgePayload?.paymentError === "string" ? bridgePayload.paymentError : ""),
+      paymentError:
+        paymentError ||
+        (typeof bridgePayload?.paymentError === "string"
+          ? bridgePayload.paymentError
+          : ""),
     };
   }, [bridgePayload, getSearchParam]);
 
@@ -245,10 +262,9 @@ function PaymentCallbackPageContent() {
       !(params.orderId && params.clinicId))
       ? "Invalid payment payload. Please reopen the payment link."
       : "";
-  const invalidPayloadDetails =
-    invalidPayloadMessage
-      ? "The payment payload could not be decoded from the URL."
-      : "";
+  const invalidPayloadDetails = invalidPayloadMessage
+    ? "The payment payload could not be decoded from the URL."
+    : "";
 
   const redirectPath = useMemo(() => {
     if (params.appointmentType === "VIDEO_CALL" || params.appointmentId) {
@@ -295,32 +311,71 @@ function PaymentCallbackPageContent() {
           }
         }
 
-        const response = await verifyPaymentCallbackServerAction({
+        const deadline = Date.now() + 15 * 60 * 1000;
+        let useHandoffToken = isHandoff;
+        let verificationParams = {
           clinicId: isHandoff ? params.clinicId || undefined : params.clinicId,
           orderId: params.orderId,
           paymentId: params.paymentId || undefined,
           provider: params.provider,
           ...(isHandoff ? { handoffToken: params.handoffToken } : {}),
-        });
+        };
+        let response =
+          await verifyPaymentCallbackServerAction(verificationParams);
 
-        if (!response.success) {
-          throw new Error(
-            response.error || response.message || "Payment verification failed",
-          );
-        }
+        while (true) {
+          if (cancelled) return;
+          if (!response.success) {
+            throw new Error(
+              response.error ||
+                response.message ||
+                "Payment verification failed",
+            );
+          }
 
-        const responsePayment =
-          (response.payment as Record<string, unknown> | undefined) || null;
-        const verifiedStatus =
-          responsePayment?.["status"] ||
-          responsePayment?.["paymentStatus"] ||
-          undefined;
+          const responsePayment =
+            (response.payment as Record<string, unknown> | undefined) || null;
+          const verifiedStatus =
+            responsePayment?.["status"] ||
+            responsePayment?.["paymentStatus"] ||
+            undefined;
 
-        if (!isVerifiedPaymentStatus(verifiedStatus)) {
-          const statusLabel = verifiedStatus ? String(verifiedStatus) : "pending";
-          throw new Error(
-            `Payment is not verified yet. Current status: ${statusLabel}.`,
-          );
+          if (isVerifiedPaymentStatus(verifiedStatus)) break;
+
+          if (Date.now() >= deadline) {
+            throw new Error(
+              "Payment confirmation timed out. Check your appointments before trying again.",
+            );
+          }
+
+          // Handoff tokens are single-use. After the first handoff request,
+          // continue polling through the normal callback endpoint.
+          if (useHandoffToken) {
+            if (!response.clinicId || !response.orderId) {
+              throw new Error("Payment confirmation is still pending.");
+            }
+            verificationParams = {
+              clinicId: response.clinicId,
+              orderId: response.orderId,
+              paymentId: response.paymentId || undefined,
+              provider:
+                (response.provider as PaymentProvider | undefined) ||
+                params.provider,
+            };
+            useHandoffToken = false;
+          }
+
+          const statusLabel = verifiedStatus
+            ? String(verifiedStatus)
+            : "pending";
+          dispatch({
+            type: "PENDING",
+            message: `Waiting for payment confirmation (${statusLabel})...`,
+          });
+          await new Promise((resolve) => window.setTimeout(resolve, 3000));
+          if (cancelled) return;
+          response =
+            await verifyPaymentCallbackServerAction(verificationParams);
         }
 
         const appointmentSnapshot =
@@ -436,7 +491,11 @@ function PaymentCallbackPageContent() {
       }
     };
 
+    let cancelled = false;
     verify();
+    return () => {
+      cancelled = true;
+    };
   }, [invalidPayloadMessage, params, queryClient]);
 
   useEffect(() => {
@@ -485,8 +544,15 @@ function PaymentCallbackPageContent() {
                 ? `${invalidPayloadDetails} Redirecting to ${redirectPath.includes("/appointments") ? "appointments" : "billing"} within ${secondsLeft ?? 5} seconds.`
                 : `Payment failed or could not be verified. Redirecting to ${redirectPath.includes("/appointments") ? "appointments" : "billing"} within ${secondsLeft ?? 5} seconds.`}
             </p>
-            <Button className="w-full" onClick={() => hardRedirect(redirectPath)}>
-              Go to {redirectPath.includes("/appointments") ? "appointments" : "billing"} now
+            <Button
+              className="w-full"
+              onClick={() => hardRedirect(redirectPath)}
+            >
+              Go to{" "}
+              {redirectPath.includes("/appointments")
+                ? "appointments"
+                : "billing"}{" "}
+              now
             </Button>
           </div>
         )}
@@ -496,7 +562,10 @@ function PaymentCallbackPageContent() {
               Payment is confirmed. You will be redirected in {secondsLeft ?? 0}{" "}
               seconds.
             </p>
-            <Button className="w-full" onClick={() => hardRedirect(redirectPath)}>
+            <Button
+              className="w-full"
+              onClick={() => hardRedirect(redirectPath)}
+            >
               Go to{" "}
               {params.appointmentType === "VIDEO_CALL"
                 ? "video appointments"

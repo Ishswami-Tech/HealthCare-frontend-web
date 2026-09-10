@@ -13,8 +13,7 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { useMyAppointments } from "@/hooks/query/useAppointments";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
-import { formatDateInIST } from "@/lib/utils/date-time";
-import { useCurrentDate } from "@/hooks/utils/useClientDate";
+import { formatDateInIST, formatDateKeyInIST } from "@/lib/utils/date-time";
 import {
   Calendar,
   Users,
@@ -45,21 +44,21 @@ export default function EnhancedDoctorDashboard() {
   const { data: appointments } = useMyAppointments();
 
   const allAppointments: any[] = appointments?.appointments || [];
-  const todayStr = useCurrentDate();
+  const todayStr = formatDateKeyInIST(new Date());
 
   // Stats derived entirely from real data
   const stats = {
     todayAppointments: allAppointments.filter((apt: any) =>
-      new Date(apt.date).toDateString() === todayStr
+      formatDateKeyInIST(apt.date) === todayStr
     ).length,
     checkedInPatients: allAppointments.filter((apt: any) => Boolean(apt.checkedInAt) || apt.status === "IN_PROGRESS").length,
     completedToday: allAppointments.filter((apt: any) =>
-      new Date(apt.date).toDateString() === todayStr && apt.status === "COMPLETED"
+      formatDateKeyInIST(apt.date) === todayStr && apt.status === "COMPLETED"
     ).length,
     totalPatients: new Set(allAppointments.map((apt: any) => apt.patientId)).size,
     nextAppointment: allAppointments
       .filter((apt: any) =>
-        new Date(apt.date).toDateString() === todayStr &&
+        formatDateKeyInIST(apt.date) === todayStr &&
         ["SCHEDULED", "CONFIRMED"].includes(apt.status)
       )
       .reduce((earliest: any, current: any) => {
@@ -88,7 +87,7 @@ export default function EnhancedDoctorDashboard() {
     .filter((apt: any) => {
       const status = apt.status as string;
       return (
-        new Date(apt.date).toDateString() === todayStr &&
+        formatDateKeyInIST(apt.date) === todayStr &&
         (Boolean(apt.checkedInAt) || status === "IN_PROGRESS")
       );
     })
@@ -477,5 +476,4 @@ const User = ({ className, ...props }: React.SVGProps<SVGSVGElement>) => (
     <circle cx="12" cy="7" r="4" />
   </svg>
 );
-
 

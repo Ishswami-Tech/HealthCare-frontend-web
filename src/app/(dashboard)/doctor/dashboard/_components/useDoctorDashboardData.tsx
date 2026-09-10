@@ -387,6 +387,8 @@ export function useDoctorDashboardData() {
     onOpenEhr: (patientId: string) => push(`/doctor/patients/${patientId}`),
     onNavigateAppointments: () => push("/doctor/appointments"),
     onNavigatePatients: () => push("/doctor/patients"),
+    onNavigateDailySummary: () => push("/doctor/daily-summary"),
+    onNavigateNoShow: () => push("/doctor/no-show"),
     onOpenQueue: () => push("/queue"),
     onClosePrescriptionModal: () =>
       dispatch({
