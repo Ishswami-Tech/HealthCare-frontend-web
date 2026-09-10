@@ -11,7 +11,6 @@
  */
 
 import { useEffect, useLayoutEffect } from "react";
-import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useUserProfile } from "@/hooks/query/useUsers";
@@ -83,22 +82,17 @@ export default function AuthLayout({
   }, [isAuthenticated, profilePending, authPending, userProfile, replace, pathname]);
 
   return (
-    <div className="auth-page-scroll relative h-dvh min-h-0 w-full overflow-hidden bg-[#fff9ed] transition-colors duration-300 lg:flex lg:h-screen">
+    <div className="auth-page-scroll relative h-dvh min-h-0 w-full overflow-x-hidden overflow-y-auto bg-[#fff9ed] transition-colors duration-300 lg:flex lg:h-screen lg:overflow-hidden">
       {/* Full-canvas scenery contains no person; the doctor is rendered only by AuthLeftPanel. */}
-      <Image
-        src="/assets/auth-login-forest-continuation-light.png"
-        alt=""
-        fill
-        priority
+      <div
         aria-hidden="true"
-        className="hidden object-cover object-center lg:block"
-        sizes="100vw"
+        className="auth-desktop-scenery pointer-events-none absolute inset-0 hidden lg:block"
       />
 
       {/* The mobile hero and form share one continuous forest background. */}
       <section
         aria-label="Welcome to Dr. Chandrakumar Deshmukh Clinic"
-        className="relative h-[max(180px,calc(100dvh-421px))] max-h-[540px] shrink-0 lg:hidden"
+        className="auth-mobile-hero relative h-[max(180px,calc(100dvh-421px))] max-h-[540px] shrink-0 lg:hidden"
         role="img"
       />
 
