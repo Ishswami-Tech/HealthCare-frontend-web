@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatDateInIST } from "@/lib/utils/date-time";
 
 import { proposeVideoAppointment, confirmVideoSlot } from "@/lib/actions/appointments.server";
 import {
@@ -85,7 +86,7 @@ export function VideoSlotProposalDialog({
 
   const isValidDate = (value: string) => {
     if (!value) return false;
-    const parsed = new Date(`${value}T00:00:00`);
+    const parsed = new Date(`${value}T00:00:00+05:30`);
     return !Number.isNaN(parsed.getTime());
   };
 
@@ -182,9 +183,9 @@ export function VideoSlotProposalDialog({
 
   const formatDateLabel = (dateStr: string) => {
     if (!dateStr) return "Pick date";
-    const parsed = new Date(`${dateStr}T00:00:00`);
+    const parsed = new Date(`${dateStr}T00:00:00+05:30`);
     if (Number.isNaN(parsed.getTime())) return "Invalid date";
-    return parsed.toLocaleDateString("en-IN", {
+    return formatDateInIST(parsed, {
       weekday: "short",
       day: "numeric",
       month: "short",
