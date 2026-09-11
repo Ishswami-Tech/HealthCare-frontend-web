@@ -1,5 +1,5 @@
 "use client";
-import { nowIso } from '@/lib/utils/date-time';
+import { nowIso, formatDateKeyInIST, parseIstDateTime } from '@/lib/utils/date-time';
 
 // ✅ Appointments Hooks - Backend Integration
 // This file provides hooks that integrate with the backend appointments system
@@ -1766,12 +1766,12 @@ export const useAppointmentStats = () => {
 
       const result = response as any;
       const appointments = extractAppointments(result.appointments ?? result.data);
-      const today = new Date().toDateString();
+      const today = formatDateKeyInIST(new Date());
 
       return {
         totalAppointments: appointments.length,
         todayAppointments: appointments.filter((apt: any) =>
-          new Date(apt.date).toDateString() === today
+          formatDateKeyInIST(apt.date) === today
         ).length,
         completedAppointments: appointments.filter((apt: any) =>
           apt.status === 'COMPLETED'
@@ -1924,8 +1924,10 @@ export const useCanCancelAppointment = (appointmentId: string) => {
       }
       
       const now = new Date();
-      const appointmentDate = new Date(`${appointment.date} ${appointment.time}`);
-      const hoursDifference = (appointmentDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+      const appointmentDate = parseIstDateTime(appointment.date, appointment.time);
+      const hoursDifference = appointmentDate
+        ? (appointmentDate.getTime() - now.getTime()) / (1000 * 60 * 60)
+        : Number.NEGATIVE_INFINITY;
       
       // Can cancel if appointment is more than 2 hours away and not already completed/cancelled
       const canCancel = hoursDifference > 2 && 

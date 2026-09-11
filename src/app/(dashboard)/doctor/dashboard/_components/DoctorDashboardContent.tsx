@@ -76,6 +76,8 @@ export default function DoctorDashboardContent() {
         <DoctorDashboardSidebar
           onNavigateAppointments={data.onNavigateAppointments}
           onNavigatePatients={data.onNavigatePatients}
+          onNavigateDailySummary={data.onNavigateAppointments}
+          onNavigateNoShow={data.onNavigateAppointments}
         />
       </div>
 

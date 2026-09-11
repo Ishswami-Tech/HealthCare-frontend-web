@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, {
   Suspense,
@@ -167,6 +167,7 @@ interface OtpModalProps {
 
 function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
   const { session } = useAuth();
+  const router = useRouter();
   const [otp, setOtp] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -197,7 +198,7 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
       setOtp("");
     } catch (error) {
       if (error instanceof Error && error.message.includes("expired")) {
-        window.location.href = "/auth/login";
+        router.push("/auth/login");
       } else {
         setErrorMessage(
           error instanceof Error ? error.message : "Failed to resend OTP"
@@ -244,7 +245,7 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
           errorMsg.includes("expired") ||
           errorMsg.includes("session")
         ) {
-          window.location.href = "/auth/login";
+          router.push("/auth/login");
         } else if (
           errorMsg.includes("otp_not_found") ||
           errorMsg.includes("otp_expired") ||
@@ -511,8 +512,8 @@ function ProfileCompletionFormContent({
 
   const formatPhoneNumber = (phone: string | undefined | null) => {
     if (!phone) return "";
-    const cleaned = phone.trim().replace(/[^\d+]/g, "");
-    if (!cleaned) return "";
+    if (phone.startsWith("+")) return phone;
+    const cleaned = phone.replace(/[^\d+]/g, "");
     if (cleaned.startsWith("+")) return cleaned;
     if (cleaned.length === 10) return `+91${cleaned}`;
     return `+${cleaned}`;
@@ -751,7 +752,7 @@ function ProfileCompletionFormContent({
         errorLower.includes("expired") ||
         errorLower.includes("unauthorized")
       ) {
-        window.location.href = "/auth/login";
+        router.push("/auth/login");
       } else if (errorLower.includes("rate limit")) {
         form.setError("phone", {
           type: "server",
@@ -914,7 +915,7 @@ function ProfileCompletionFormContent({
       });
 
       // Now navigate with cookie properly set
-      window.location.replace(finalRedirect);
+      router.replace(finalRedirect);
     } else {
       logger.warn('[ProfileCompletionForm] Backend did not confirm profile completion:', {
         responseProfileComplete: response?.profileComplete,
@@ -984,15 +985,14 @@ function ProfileCompletionFormContent({
       // For email OTP / Google login, include verified email from session
       // For other login methods, include fields as filled in the form
       const emailWasEdited = Boolean(dirtyFields.email);
+      const phoneWasEdited = Boolean(dirtyFields.phone);
       let resolvedPhone: string | undefined;
       if (isPhoneOtpLogin) {
         // Phone is already verified by backend, use session phone
         resolvedPhone = formatPhoneNumber(sessionUser?.phone) || undefined;
-      } else if (data.phone?.trim() && isPhoneVerified) {
-        // Always send verified phone so backend completion can confirm against DB
+      } else if (data.phone?.trim() && isPhoneVerified && phoneWasEdited) {
+        // For other login methods, include phone only if user has verified it
         resolvedPhone = formatPhoneNumber(data.phone);
-      } else if (isPhoneVerified && sessionUser?.phone) {
-        resolvedPhone = formatPhoneNumber(sessionUser.phone) || undefined;
       }
 
       // Email is optional for phone OTP users and comes from the login/session

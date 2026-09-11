@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Clock, AlertTriangle } from "lucide-react";
+import { IST_TIMEZONE } from "@/lib/utils/date-time";
 
 interface AppointmentExpiryCountdownProps {
   /**
@@ -69,7 +70,7 @@ export function AppointmentExpiryCountdown({
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
-      timeZone: "Asia/Kolkata",
+      timeZone: IST_TIMEZONE,
     });
   }, [expiry]);
 

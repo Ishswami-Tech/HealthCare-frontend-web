@@ -21,7 +21,6 @@ import { Input } from "@/components/ui/input";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useHashTab } from "@/hooks/navigation/useHashTab";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import {
@@ -40,7 +39,7 @@ import {
   parseReceptionistAppointmentDateTime,
 } from "@/lib/utils/appointmentUtils";
 import { getAppointmentViewState } from "@/lib/utils/appointmentUtils";
-import { formatDateInIST, formatISODateInIST, formatTimeInIST } from "@/lib/utils/date-time";
+import { formatDateInIST, formatISODateInIST, formatTimeInIST, IST_TIMEZONE } from "@/lib/utils/date-time";
 
 
 interface AppointmentListItem {
@@ -128,7 +127,7 @@ interface CheckInHistoryItem {
 
 const getTodayDateInIst = () =>
   new Date().toLocaleDateString("en-CA", {
-    timeZone: "Asia/Kolkata",
+    timeZone: IST_TIMEZONE,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -196,6 +195,7 @@ const getCheckInHistoryAppointments = (data: unknown): CheckInHistoryItem[] => {
 
 type ReceptionistCheckInState = {
   searchTerm: string;
+  activeTab: "upcoming" | "history";
   selectedDates: Date[];
   checkingInId: string | null;
   confirmedAppointmentIds: string[];
@@ -203,12 +203,14 @@ type ReceptionistCheckInState = {
 
 type ReceptionistCheckInAction =
   | { type: "setSearchTerm"; value: string }
+  | { type: "setActiveTab"; value: "upcoming" | "history" }
   | { type: "setSelectedDates"; value: Date[] }
   | { type: "setCheckingInId"; value: string | null }
   | { type: "addConfirmedAppointmentId"; value: string };
 
 const initialReceptionistCheckInState: ReceptionistCheckInState = {
   searchTerm: "",
+  activeTab: "upcoming",
   selectedDates: [],
   checkingInId: null,
   confirmedAppointmentIds: [],
@@ -221,6 +223,8 @@ function receptionistCheckInReducer(
   switch (action.type) {
     case "setSearchTerm":
       return { ...state, searchTerm: action.value };
+    case "setActiveTab":
+      return { ...state, activeTab: action.value };
     case "setSelectedDates":
       return { ...state, selectedDates: action.value };
     case "setCheckingInId":
@@ -242,13 +246,10 @@ export default function ReceptionistCheckInPage() {
   const { session } = useAuth();
   useWebSocketQuerySync();
   const { clinicId } = useClinicContext();
-  const { tab: activeTab, setTab: setActiveTab } = useHashTab({
-    tabs: ["upcoming", "history"] as const,
-    defaultValue: "upcoming",
-  });
   const [
     {
       searchTerm,
+      activeTab,
       selectedDates,
       checkingInId,
       confirmedAppointmentIds,
@@ -258,6 +259,10 @@ export default function ReceptionistCheckInPage() {
 
   const setSearchTerm = useCallback((value: string) => {
     dispatch({ type: "setSearchTerm", value });
+  }, []);
+
+  const setActiveTab = useCallback((value: "upcoming" | "history") => {
+    dispatch({ type: "setActiveTab", value });
   }, []);
 
   const setSelectedDates = useCallback((value: Date[]) => {
@@ -764,7 +769,7 @@ export default function ReceptionistCheckInPage() {
 
           <Tabs
             value={activeTab}
-            onValueChange={setActiveTab}
+            onValueChange={(value) => setActiveTab(value as "upcoming" | "history")}
             className="flex flex-col gap-y-3"
           >
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

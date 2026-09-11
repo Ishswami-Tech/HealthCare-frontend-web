@@ -1,16 +1,18 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { DashboardPageHeader as PatientPageHeader, DashboardPageShell as PatientPageShell } from "@/components/dashboard/DashboardPageShell";
-import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { HashTabs } from "@/hooks/navigation/HashTabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import PatientMedicalRecords from "@/components/patient/PatientMedicalRecordsContent";
 import PatientPrescriptions from "@/components/patient/PatientPrescriptionsContent";
 
-const HEALTH_TABS = ["records", "medicines"] as const;
-
 function PatientHealthPageContent() {
+  const searchParams = useSearchParams();
+  const getSearchParam = useMemo(() => searchParams.get.bind(searchParams), [searchParams]);
+  const initialTab = getSearchParam("tab") === "medicines" ? "medicines" : "records";
+
   return (
     <PatientPageShell className="mx-auto max-w-7xl">
       <PatientPageHeader
@@ -19,11 +21,7 @@ function PatientHealthPageContent() {
         description="Your records and medicines in one place."
       />
 
-      <HashTabs
-        tabs={HEALTH_TABS}
-        defaultValue="records"
-        className="flex flex-col gap-y-4"
-      >
+      <Tabs defaultValue={initialTab} className="flex flex-col gap-y-4">
         <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
           <TabsList className="inline-flex w-max min-w-full sm:flex sm:w-full">
             <TabsTrigger value="records">Records</TabsTrigger>
@@ -38,7 +36,7 @@ function PatientHealthPageContent() {
         <TabsContent value="medicines" className="flex flex-col gap-y-4">
           <PatientPrescriptions embedded />
         </TabsContent>
-      </HashTabs>
+      </Tabs>
     </PatientPageShell>
   );
 }
