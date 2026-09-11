@@ -403,6 +403,83 @@ export const en: TranslationKeys = {
       }
     }
   },
+  drDeshmukhPage: {
+    heroText: 'Ayurvedacharya | Viddhakarma, Agnikarma, Panchakarma & Nadi Pariksha Specialist\n\n🏅 Honored by the Governor of India | 🇳🇵 Honored by the Government of Nepal | 🥇 BAMS, DYND (Gold Medalist) | 🌍 World Record Holder in Viddhakarma | 👨‍⚕️ Vaidyaratna • Sushrutaratna • Wari Vaidya | 🎤 350+ Lectures Across India & Abroad | 🎓 320+ National & International Workshops | 🌎 Trusted by Patients from 22+ Countries | ❤️ 500,000+ Successful Treatments | 👨‍🎓 Trained 5,000+ Ayurvedic Doctors',
+    linksTitle: 'Links',
+    linksHint: 'Tap a row to open or use the three dots to share.',
+    shareButtonLabel: 'Share',
+    copiedLabel: 'Copied',
+    sharePreview: 'Share preview',
+    closeDialog: 'Close dialog',
+    openHere: 'Open here',
+    copyLink: 'Copy link',
+    shareLink: 'Share link',
+    shareOnFacebook: 'Share on Facebook',
+    shareOnWhatsApp: 'Share on WhatsApp',
+    shareOnLinkedIn: 'Share on LinkedIn',
+    footerTagline: 'Authentic Ayurvedic healing and patient support.',
+    shareDialogTitlePrefix: 'Share',
+    moreActionsAriaPrefix: 'More actions for',
+    socialLinks: {
+      instagram: 'Instagram',
+      email: 'Email',
+      youtube: 'YouTube',
+      whatsapp: 'WhatsApp',
+      phone: 'Phone',
+    },
+    services: {
+      videoAppointments: {
+        title: 'Book Video Consultation',
+        description: 'Schedule an online video consultation with Dr. Deshmukh on the web.',
+        badge: 'Book Now',
+      },
+      soup: {
+        title: 'Charabi Bhasma Soup',
+        description: 'Open the product page for details and ordering.',
+        badge: 'Rs 2,500',
+      },
+      android: {
+        title: 'Appointment - Android',
+        description: 'Open the Android app listing.',
+        badge: 'Book now',
+      },
+      apple: {
+        title: 'Appointment - Apple',
+        description: 'Open the iPhone app listing.',
+        badge: 'Book now',
+      },
+      chinchwad: {
+        title: 'Chinchwad Clinic',
+        description: 'Vishal market, near manakarnika aushadhalaya, bhaji mandai, Chinchwad, Pimpri-Chinchwad.',
+        badge: 'Open maps',
+      },
+      nanapeth: {
+        title: 'Nanapeth Clinic',
+        description: '102, RAMPRASAD CHAMBERS, 368/1, Jawaharlal Nehru Rd, KIRAD HOSPITAL, SHRADDHA MEDICALS, New Nana Peth, Pune.',
+        badge: 'Open maps',
+      },
+      youtube: {
+        title: 'Dr Chandrakumar Deshmukh - YouTube',
+        description: 'Open the main YouTube channel.',
+        badge: 'Watch now',
+      },
+      viddhakarma: {
+        title: 'Viddhakarma As it is',
+        description: 'Open the Viddhakarma playlist.',
+        badge: 'Watch now',
+      },
+      autism: {
+        title: 'Autism concepts',
+        description: 'Open the Autism concepts playlist.',
+        badge: 'Watch now',
+      },
+      callClinic: {
+        title: 'Need Help?',
+        description: 'Call Dr. Deshmukh\'s clinic directly for assistance or to book an appointment.',
+        badge: 'Help',
+      },
+    },
+  },
   trustBuilding: {
     title: 'Trust & Transparency',
     subtitle: 'Frequently Asked Questions',
@@ -1233,9 +1310,7 @@ export const en: TranslationKeys = {
       emailAddresses: {
         title: "Email Addresses",
         details: [
-          "drchandrakumardeshmukh@gmail.com",
-          "info@viddhakarma.com",
-          "emergency@drchandrakumardeshmukh.com"
+          "drchandrakumardeshmukh@gmail.com"
         ]
       },
       location: {
@@ -1249,9 +1324,7 @@ export const en: TranslationKeys = {
       workingHours: {
         title: "Working Hours",
         details: [
-          "Monday - Friday: 11:45 AM - 11:30 PM",
-          "Saturday: 9:00 AM - 8:00 PM",
-          "Sunday: 9:00 AM - 6:00 PM"
+          "Monday - Friday: 11:45 AM - 11:30 PM"
         ]
       }
     },

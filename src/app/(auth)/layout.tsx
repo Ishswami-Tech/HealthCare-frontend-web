@@ -10,13 +10,15 @@
  * show the login form immediately without the loading state.
  */
 
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useUserProfile } from "@/hooks/query/useUsers";
 import { ROUTES, getDashboardByRole } from "@/lib/config/routes";
 import { StatusFooter } from "@/components/status/StatusFooter";
 import { resolveAuthoritativeProfileCompleteFromCandidates } from "@/lib/config/profile";
+
+import { AuthLeftPanel } from "@/components/auth/AuthLeftPanel";
 
 export default function AuthLayout({
   children,
@@ -26,6 +28,24 @@ export default function AuthLayout({
   const { replace } = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const hadDarkTheme = root.classList.contains("dark");
+    const hadLightTheme = root.classList.contains("light");
+    const previousColorScheme = root.style.colorScheme;
+
+    root.classList.remove("dark");
+    root.classList.add("light");
+    root.style.colorScheme = "light";
+
+    return () => {
+      root.classList.remove("light", "dark");
+      if (hadLightTheme) root.classList.add("light");
+      if (hadDarkTheme) root.classList.add("dark");
+      root.style.colorScheme = previousColorScheme;
+    };
+  }, []);
 
   // Check if user came with error params (like session_expired) - these indicate
   // intentional navigation to login, not needing session restoration
@@ -62,66 +82,30 @@ export default function AuthLayout({
   }, [isAuthenticated, profilePending, authPending, userProfile, replace, pathname]);
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left side - Decorative */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-indigo-600 to-blue-500">
-        <div className="absolute inset-0 bg-gray-950 opacity-10" />
-        <div className="relative z-10 flex flex-col justify-center px-12 xl:px-16 text-white">
-          <h1 className="text-3xl xl:text-4xl font-semibold mb-6">Welcome to Dr Chandrakumar Deshmukh</h1>
-          <p className="text-lg xl:text-xl">
-            Your comprehensive healthcare management solution. Connect withdoctors, manage appointments, and access your medical recordssecurely.
-          </p>
-          <div className="mt-12 flex flex-col gap-y-8">
-            <div className="flex items-start gap-x-4">
-              <div className="flex-shrink-0">
-                <div className="size-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-semibold">✓</span>
-                </div>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold">Secure & Private</h3>
-                <p className="text-blue-100">
-                  Your health data is protected with enterprise-grade security
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-x-4">
-              <div className="flex-shrink-0">
-                <div className="size-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-semibold">✓</span>
-                </div>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold">24/7 Access</h3>
-                <p className="text-blue-100">
-                  Access your health information anytime, anywhere
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-x-4">
-              <div className="flex-shrink-0">
-                <div className="size-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-semibold">✓</span>
-                </div>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold">Expert Care</h3>
-                <p className="text-blue-100">
-                  Connect with qualified healthcare professionals
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className="auth-page-scroll relative h-dvh min-h-0 w-full overflow-x-hidden overflow-y-auto bg-[#fff9ed] transition-colors duration-300 lg:flex lg:h-screen lg:overflow-hidden">
+      {/* Full-canvas scenery contains no person; the doctor is rendered only by AuthLeftPanel. */}
+      <div
+        aria-hidden="true"
+        className="auth-desktop-scenery pointer-events-none absolute inset-0 hidden lg:block"
+      />
+
+      {/* The mobile hero and form share one continuous forest background. */}
+      <section
+        aria-label="Welcome to Dr. Chandrakumar Deshmukh Clinic"
+        className="auth-mobile-hero relative h-[max(180px,calc(100dvh-421px))] max-h-[540px] shrink-0 lg:hidden"
+        role="img"
+      />
+
+      {/* Left side - Ayurvedic Hero Panel */}
+      <AuthLeftPanel />
 
       {/* Right side - Auth forms */}
-      <div className="flex-1 flex flex-col justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-20 xl:px-24">
-        <div className="mx-auto w-full max-w-sm lg:w-96 flex-1 flex flex-col justify-center">{children}</div>
-        <StatusFooter />
+      <div className="auth-mobile-login-form relative z-20 mt-0 flex min-h-0 flex-1 flex-col justify-start overflow-visible px-5 pt-0 sm:px-6 lg:mt-0 lg:h-screen lg:justify-center lg:px-[1.65vw] lg:py-3">
+        <div className="auth-mobile-login-scale mx-auto flex min-h-0 w-full max-w-[588px] origin-top flex-col justify-center transition-transform duration-200 lg:w-[calc(100%+88px)] lg:flex-1 lg:origin-center lg:-translate-x-[7vw] [@media(max-height:900px)]:scale-[.95] [@media(max-height:800px)]:scale-[.88] [@media(max-height:720px)]:scale-[.80]">
+          {children}
+          <StatusFooter className="mt-3 shrink-0 justify-center py-0 lg:py-1" />
+        </div>
       </div>
     </div>
   );
 }
-
-

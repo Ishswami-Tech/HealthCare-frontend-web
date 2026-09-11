@@ -1,0 +1,1675 @@
+"use client";
+
+import { useEffect, useMemo, useReducer, useCallback, type ReactElement } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useHashTab } from "@/hooks/navigation/useHashTab";
+import { DataTable } from "@/components/ui/data-table";
+import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useQueuePermissions } from "@/hooks/utils/useRBAC";
+import { QueueProtectedComponent, ProtectedComponent } from "@/components/rbac";
+import {
+  usePauseQueue,
+  useQueue,
+  useQueueFilters,
+  useTransferQueueEntry,
+} from "@/hooks/query/useQueue";
+import { useDoctors } from "@/hooks/query/useDoctors";
+import { useReassignAppointmentDoctor } from "@/hooks/query/useAppointments";
+import { useClinicContext, useActiveLocations } from "@/hooks/query/useClinics";
+import { Role } from "@/types/auth.types";
+import { QueueCategory, type CanonicalQueueEntry } from "@/types/queue.types";
+import {
+  getQueueStatusLabel,
+  getQueuePatientDisplayName,
+  getQueuePositionLabel,
+  hasQueuePatientIdentity,
+  normalizeQueueEntry,
+  getQueueStatusColor,
+  resolveQueueDisplayLabel,
+} from "@/lib/queue/queue-adapter";
+import { formatISODateInIST } from "@/lib/utils/date-time";
+import { Permission } from "@/types/rbac.types";
+import {
+  useRealTimeQueueStatus,
+  useWebSocketQuerySync,
+} from "@/hooks/realtime/useRealTimeQueries";
+import { useQueueWebSocketIntegration } from "@/hooks/realtime/useWebSocketIntegration";
+import { LoadingSpinner, Skeleton } from "@/components/ui/loading";
+import { DashboardPageSkeleton, StatCardSkeleton, TableSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
+import {
+  useOptimisticUpdateQueueStatus,
+  useOptimisticCallNextPatient,
+} from "@/hooks/utils/useOptimisticQueue";
+import { bulkCancelQueueEntries } from "@/lib/actions/queue.server";
+import type { QueueFilterOption } from "@/types/api.types";
+
+import {
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  Play,
+  Pause,
+  SkipForward,
+  UserCheck,
+  Stethoscope,
+  Users,
+  Timer,
+  Activity,
+  ArrowRightLeft,
+  ChevronDown,
+  Loader2,
+} from "lucide-react";
+
+// ─── Logical queue options the receptionist can move patients between ─────────
+// Queue status constants - must match backend enum values
+const QUEUE_STATUS = {
+  WAITING: 'WAITING',
+  CONFIRMED: 'CONFIRMED',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COMPLETED: 'COMPLETED',
+} as const;
+
+const TERMINAL_QUEUE_STATUSES = new Set(['COMPLETED', 'CANCELLED', 'NO_SHOW', 'EXPIRED']);
+const CONSULTATION_QUEUE_FILTERS = [
+  { value: "GENERAL_CONSULTATION", label: "General Consultation" },
+  { value: "FOLLOW_UP", label: "Follow Up" },
+  { value: "SPECIAL_CASE", label: "Special Case" },
+  { value: "DIAGNOSTIC", label: "Diagnostic" },
+  { value: "SENIOR_CITIZEN", label: "Senior Citizen" },
+] as const;
+
+const CONSULTATION_QUEUE_FILTER_KEYS = new Set(
+  CONSULTATION_QUEUE_FILTERS.map((filter) => normalizeQueueToken(filter.value))
+);
+
+const QUEUE_HEADER_META = (
+  <div className="flex items-center gap-2 rounded-full border border-emerald-200/60 bg-emerald-50/80 px-3 py-1.5 text-emerald-700 shadow-sm backdrop-blur-sm">
+    <div className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+    <span className="text-[11px] font-bold tracking-wide uppercase">Live Sync</span>
+  </div>
+);
+
+type QueueDisplayItem = CanonicalQueueEntry & {
+  id: string;
+  type?: string;
+  queueType?: string;
+  queueLane?: string;
+  displayLabel?: string;
+  appointmentTime?: string;
+  checkedInAt?: string;
+  confirmedAt?: string;
+  updatedAt?: string;
+  estimatedWait?: string | number;
+  estimatedDuration?: string | number;
+  tokenNumber?: string | number;
+  serviceType?: string;
+  waitTime?: string | number;
+};
+
+type QueuePageState = {
+  activeTreatmentFilter: string;
+  activeConsultationLane: string;
+  activeTherapyLane: string;
+  isCleaningUp: boolean;
+  selectedQueueActionItem: QueueDisplayItem | null;
+  transferringQueueItem: QueueDisplayItem | null;
+  transferringId: string | null;
+  assigningQueueItem: QueueDisplayItem | null;
+  selectedDoctorId: string;
+  assignDoctorError: string;
+};
+
+type QueuePageAction =
+  | { type: "setActiveTreatmentFilter"; value: string }
+  | { type: "setActiveConsultationLane"; value: string }
+  | { type: "setActiveTherapyLane"; value: string }
+  | { type: "setIsCleaningUp"; value: boolean }
+  | { type: "setSelectedQueueActionItem"; value: QueueDisplayItem | null }
+  | { type: "setTransferringQueueItem"; value: QueueDisplayItem | null }
+  | { type: "setTransferringId"; value: string | null }
+  | { type: "setAssigningQueueItem"; value: QueueDisplayItem | null }
+  | { type: "setSelectedDoctorId"; value: string }
+  | { type: "setAssignDoctorError"; value: string };
+
+const initialQueuePageState: QueuePageState = {
+  activeTreatmentFilter: "ALL",
+  activeConsultationLane: "GENERAL_CONSULTATION",
+  activeTherapyLane: "PROCEDURAL_CARE",
+  isCleaningUp: false,
+  selectedQueueActionItem: null,
+  transferringQueueItem: null,
+  transferringId: null,
+  assigningQueueItem: null,
+  selectedDoctorId: "",
+  assignDoctorError: "",
+};
+
+function queuePageReducer(state: QueuePageState, action: QueuePageAction): QueuePageState {
+  switch (action.type) {
+    case "setActiveTreatmentFilter":
+      return { ...state, activeTreatmentFilter: action.value };
+    case "setActiveConsultationLane":
+      return { ...state, activeConsultationLane: action.value };
+    case "setActiveTherapyLane":
+      return { ...state, activeTherapyLane: action.value };
+    case "setIsCleaningUp":
+      return { ...state, isCleaningUp: action.value };
+    case "setSelectedQueueActionItem":
+      return { ...state, selectedQueueActionItem: action.value };
+    case "setTransferringQueueItem":
+      return { ...state, transferringQueueItem: action.value };
+    case "setTransferringId":
+      return { ...state, transferringId: action.value };
+    case "setAssigningQueueItem":
+      return { ...state, assigningQueueItem: action.value };
+    case "setSelectedDoctorId":
+      return { ...state, selectedDoctorId: action.value };
+    case "setAssignDoctorError":
+      return { ...state, assignDoctorError: action.value };
+    default:
+      return state;
+  }
+}
+
+async function pollQueueSync(
+  refetchQueue: () => Promise<unknown>,
+  maxAttempts: number,
+  delayMs: number,
+  isSynced: (entries: QueueDisplayItem[]) => boolean
+): Promise<boolean> {
+  const response = await refetchQueue();
+  const currentEntries = extractQueueDisplayItems((response as { data?: unknown })?.data);
+
+  if (isSynced(currentEntries)) {
+    return true;
+  }
+
+  if (maxAttempts <= 1) {
+    return false;
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
+  return pollQueueSync(refetchQueue, maxAttempts - 1, delayMs, isSynced);
+}
+
+function QueueMobileCard({
+  item,
+  onOpenActions,
+}: {
+  item: QueueDisplayItem;
+  onOpenActions: (item: QueueDisplayItem) => void;
+}) {
+  const waitValue = item.estimatedWaitTime || item.waitTime;
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-foreground">
+            {getQueuePatientDisplayName(item)}
+          </div>
+          <div className="mt-1 truncate text-[11px] text-muted-foreground">
+            {item.doctorName || "Assigned doctor pending"}
+          </div>
+        </div>
+        <Badge className={`${getQueueStatusColor(item.status)} shrink-0 border px-2 py-0.5 text-[10px] font-semibold`}>
+          {getQueueStatusLabel(item)}
+        </Badge>
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        <Badge variant="outline" className="max-w-[96px] truncate border-emerald-200 bg-emerald-50 text-[10px] text-emerald-700">
+          {resolveQueueDisplayLabel(item)}
+        </Badge>
+        <Badge variant="outline" className="border-border/70 text-[10px] text-muted-foreground">
+          {getQueuePositionLabel({ position: item.position || 0 })}
+        </Badge>
+        <Badge variant="outline" className="border-border/70 text-[10px] text-muted-foreground">
+          {waitValue ? `Wait ${waitValue}m` : "Wait -"}
+        </Badge>
+      </div>
+
+      <div className="mt-3 flex justify-center">
+        <Button
+          size="sm"
+          className="h-8 min-w-[120px] border-emerald-200 bg-emerald-600 px-3 text-[11px] text-white shadow-sm hover:bg-emerald-700"
+          onClick={() => onOpenActions(item)}
+        >
+          Actions
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function QueueMobileList({
+  items,
+  emptyMessage,
+  onOpenActions,
+}: {
+  items: QueueDisplayItem[];
+  emptyMessage: string;
+  onOpenActions: (item: QueueDisplayItem) => void;
+}) {
+  if (!items.length) {
+    return (
+      <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 px-3 py-4 text-sm text-muted-foreground md:hidden">
+        {emptyMessage}
+      </div>
+    );
+  }
+
+  return (
+    <div className="gap-y-2 md:hidden">
+      {items.map((item) => (
+        <QueueMobileCard key={item.id} item={item} onOpenActions={onOpenActions} />
+      ))}
+    </div>
+  );
+}
+
+function normalizeQueueToken(value?: string | null): string {
+  const token = String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "_")
+    .replace(/-/g, "_");
+  if (token === "THERAPY" || token === "SURGERY" || token === "THERAPY_PROCEDURE") {
+    return "PROCEDURAL_CARE";
+  }
+  if (token === "LAB_TEST" || token === "IMAGING" || token === "VACCINATION") {
+    return "DIAGNOSTIC_PREVENTIVE";
+  }
+  if (token === "GERIATRIC_CARE" || token === "SENIOR_CITIZEN_CARE") {
+    return "SENIOR_CITIZEN";
+  }
+  if (
+    token === "DOSHA_ANALYSIS" ||
+    token === "VIRECHANA" ||
+    token === "ABHYANGA" ||
+    token === "SWEDANA" ||
+    token === "BASTI" ||
+    token === "NASYA" ||
+    token === "RAKTAMOKSHANA"
+  ) {
+    return "AYURVEDIC_PROCEDURES";
+  }
+  return token;
+}
+
+function normalizeQueueDisplayItem(raw: any): QueueDisplayItem {
+  const entry = normalizeQueueEntry(raw);
+
+  return {
+    ...entry,
+    id: entry.entryId || raw?.id || "",
+    type: raw?.type,
+    queueType: raw?.queueType,
+    queueLane: raw?.queueLane,
+    appointmentTime: raw?.appointmentTime || raw?.time || raw?.startedAt || "",
+    checkedInAt: raw?.checkedInAt,
+    confirmedAt: raw?.confirmedAt,
+    updatedAt: raw?.updatedAt,
+    estimatedWait: raw?.estimatedWait,
+    estimatedDuration: raw?.estimatedDuration,
+    tokenNumber: raw?.tokenNumber,
+    serviceType: raw?.serviceType,
+    waitTime: raw?.waitTime,
+  };
+}
+
+function hasQueueTaxonomy(entry: Pick<
+  QueueDisplayItem,
+  "queueCategory" | "queueType" | "queueLane" | "serviceBucket" | "treatmentType" | "displayLabel" | "serviceType"
+>): boolean {
+  return Boolean(
+    entry.queueCategory ||
+      entry.queueType ||
+      entry.queueLane ||
+      entry.serviceBucket ||
+      entry.treatmentType ||
+      entry.displayLabel ||
+      entry.serviceType
+  );
+}
+
+function isAnalyticsQueueEntry(entry: QueueDisplayItem): boolean {
+  const tokens = [
+    entry.queueCategory,
+    entry.queueType,
+    entry.queueLane,
+    entry.serviceBucket,
+    entry.treatmentType,
+    entry.displayLabel,
+    entry.serviceType,
+    resolveQueueDisplayLabel(entry),
+  ]
+    .filter(Boolean)
+    .map((token) => normalizeQueueToken(token));
+
+  return tokens.some((token) => token.includes("ANALYTICS"));
+}
+
+function getQueueDisplayLabel(entry: QueueDisplayItem): string {
+  return hasQueueTaxonomy(entry) ? resolveQueueDisplayLabel(entry) : "Uncategorized";
+}
+
+function extractQueueDisplayItems(queueData: unknown): QueueDisplayItem[] {
+  const qData = queueData as Record<string, unknown> | unknown[] | null | undefined;
+  let raw: any[] = [];
+
+  if (Array.isArray(qData)) {
+    raw = qData;
+  } else if (qData && typeof qData === "object") {
+    if (Array.isArray((qData as Record<string, unknown>).data)) {
+      raw = (qData as Record<string, unknown>).data as any[];
+    } else if (Array.isArray((qData as Record<string, unknown>).queue)) {
+      raw = (qData as Record<string, unknown>).queue as any[];
+    } else if (Array.isArray((qData as Record<string, unknown>).items)) {
+      raw = (qData as Record<string, unknown>).items as any[];
+    } else {
+      for (const key of Object.keys(qData as Record<string, unknown>)) {
+        const candidate = (qData as Record<string, unknown>)[key];
+        if (Array.isArray(candidate)) {
+          raw = candidate as any[];
+          break;
+        }
+      }
+    }
+  }
+
+  return raw.map((item: any) => normalizeQueueDisplayItem(item));
+}
+
+function matchesQueueSection(item: QueueDisplayItem, section: string): boolean {
+  const normalizedSection = normalizeQueueToken(section);
+  const tokens = [
+    item.queueCategory,
+    item.queueType,
+    item.queueLane,
+    item.serviceBucket,
+    item.treatmentType,
+    item.displayLabel,
+    item.serviceType,
+    getQueueDisplayLabel(item),
+  ].map(normalizeQueueToken);
+
+  const taxonomyPresent = hasQueueTaxonomy(item);
+
+  if (normalizedSection === "CONSULTATION" || normalizedSection === "CONSULTATIONS") {
+    return (
+      tokens.some((token) => token.includes("CONSULTATION") || token === normalizeQueueToken(QueueCategory.DOCTOR_CONSULTATION))
+    );
+  }
+
+  if (normalizedSection === "UNCATEGORIZED" || normalizedSection === "UNCLASSIFIED") {
+    return !taxonomyPresent || isAnalyticsQueueEntry(item);
+  }
+
+  if (normalizedSection === "THERAPY" || normalizedSection === "THERAPIES") {
+      return tokens.some(
+        (token) =>
+          token.includes("PROCEDURAL_CARE") ||
+          token.includes("THERAPY") ||
+          token.includes("SURGERY") ||
+        token.includes("AGNIKARMA") ||
+        token.includes("PANCHAKARMA") ||
+        token.includes("SHIRODHARA") ||
+        token.includes("VIDDHAKARMA") ||
+        token.includes("NASYA") ||
+        token.includes("BASTI") ||
+          token.includes("AYURVEDIC_PROCEDURES") ||
+          token === normalizeQueueToken(QueueCategory.THERAPY_PROCEDURE)
+      );
+  }
+
+  // Fallback match: if section name is contained in any of the tokens
+  return tokens.some((token) => 
+    token === normalizedSection || 
+    token.includes(normalizedSection) ||
+    normalizedSection.includes(token) && token.length > 3
+  );
+}
+
+export default function QueuePage() {
+  const { session } = useAuth();
+  const userRole = (session?.user?.role as Role) || Role.SUPER_ADMIN;
+  const doctorId = session?.user?.id;
+  const { tab: activeQueue, setTab: setActiveQueue } = useHashTab({
+    tabs: ["consultations", "therapies"] as const,
+    defaultValue: "consultations",
+  });
+  const [
+    {
+      activeTreatmentFilter,
+      activeConsultationLane,
+      activeTherapyLane,
+      isCleaningUp,
+      selectedQueueActionItem,
+      transferringQueueItem,
+      transferringId,
+      assigningQueueItem,
+      selectedDoctorId,
+      assignDoctorError,
+    },
+    dispatch,
+  ] = useReducer(queuePageReducer, initialQueuePageState);
+
+  const setActiveTreatmentFilter = (value: string) =>
+    dispatch({ type: "setActiveTreatmentFilter", value });
+  const setActiveConsultationLane = (value: string) =>
+    dispatch({ type: "setActiveConsultationLane", value });
+  const setActiveTherapyLane = (value: string) =>
+    dispatch({ type: "setActiveTherapyLane", value });
+  const setIsCleaningUp = (value: boolean) => dispatch({ type: "setIsCleaningUp", value });
+  const setSelectedQueueActionItem = (value: QueueDisplayItem | null) =>
+    dispatch({ type: "setSelectedQueueActionItem", value });
+  const setTransferringQueueItem = (value: QueueDisplayItem | null) =>
+    dispatch({ type: "setTransferringQueueItem", value });
+  const setTransferringId = (value: string | null) =>
+    dispatch({ type: "setTransferringId", value });
+  const setAssigningQueueItem = (value: QueueDisplayItem | null) =>
+    dispatch({ type: "setAssigningQueueItem", value });
+  const setSelectedDoctorId = (value: string) =>
+    dispatch({ type: "setSelectedDoctorId", value });
+  const setAssignDoctorError = (value: string) =>
+    dispatch({ type: "setAssignDoctorError", value });
+
+  // Enable real-time WebSocket sync
+  useWebSocketQuerySync();
+
+  // RBAC permissions
+  const queuePermissions = useQueuePermissions();
+  const { data: queueFilterCatalog = [] } = useQueueFilters({ enabled: queuePermissions.canViewQueue });
+
+  // Clinic context
+  const { clinicId } = useClinicContext();
+  const { data: locations = [] } = useActiveLocations(clinicId || "");
+  const locationId = locations[0]?.id || "";
+  const queueClinicId = clinicId || undefined;
+  const {
+    subscribeToQueue: subscribeClinicQueue,
+    unsubscribeFromQueue: unsubscribeClinicQueue,
+  } = useQueueWebSocketIntegration("healthcare-queue");
+
+  const queueFilters: {
+    enabled: boolean;
+    doctorId?: string;
+  } = {
+    enabled: queuePermissions.canViewQueue,
+  };
+
+  // Fetch queue data with proper permissions - now strictly bound to today
+  const {
+    data: queueData,
+    isPending: isLoading,
+    error,
+    refetch: refetchQueue,
+  } = useQueue(
+    queueClinicId,
+    queueFilters
+  );
+
+  const { data: queueStats } = useRealTimeQueueStatus(undefined, locationId || undefined);
+  const { data: doctorsData } = useDoctors(clinicId || "", { limit: 200 });
+
+  useEffect(() => {
+    if (!clinicId) return;
+
+    subscribeClinicQueue({
+      clinicId,
+      ...(locationId ? { locationId } : {}),
+    });
+
+    return () => {
+      unsubscribeClinicQueue();
+    };
+  }, [clinicId, locationId, subscribeClinicQueue, unsubscribeClinicQueue]);
+
+  const assignableDoctors = useMemo(() => {
+    const normalize = (users: any[]) =>
+      users.reduce<
+        Array<{
+          id: string;
+          name: string;
+          role: string;
+        }>
+      >((acc, user) => {
+        const role = String(user.role || user.doctor?.user?.role || "").toUpperCase();
+        const id = user.doctor?.id || user.id;
+        if (!id || (role !== "DOCTOR" && role !== "ASSISTANT_DOCTOR")) {
+          return acc;
+        }
+
+        acc.push({
+          id: String(id),
+          name:
+            user.name ||
+            user.doctor?.user?.name ||
+            `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
+            "Unknown Doctor",
+          role,
+        });
+        return acc;
+      }, []);
+
+    if (Array.isArray(doctorsData)) return normalize(doctorsData);
+    if (Array.isArray((doctorsData as any)?.data?.doctors)) return normalize((doctorsData as any).data.doctors);
+    return normalize((doctorsData as any)?.doctors || []);
+  }, [doctorsData]);
+
+
+  const rawQueueEntries = useMemo(() => extractQueueDisplayItems(queueData), [queueData]);
+
+  const queueEntries = rawQueueEntries.filter(
+    (item) =>
+      hasQueuePatientIdentity(item) &&
+      !TERMINAL_QUEUE_STATUSES.has(String(item.status || '').toUpperCase())
+  );
+
+  const treatmentQueueFilters = useMemo<QueueFilterOption[]>(() => {
+    const treatmentGroup = queueFilterCatalog.find(
+      (group) => normalizeQueueToken(group.key) === "TREATMENTS"
+    );
+    return treatmentGroup?.filters ?? [];
+  }, [queueFilterCatalog]);
+  const treatmentTypeBarFilters = useMemo<QueueFilterOption[]>(() => {
+    const options = treatmentQueueFilters.filter((option) => normalizeQueueToken(option.value));
+    return [
+      {
+        value: "ALL",
+        label: "All types",
+        description: "Show every queue treatment type.",
+      },
+      ...options,
+    ];
+  }, [treatmentQueueFilters]);
+
+  const queueTransferOptions = useMemo<QueueFilterOption[]>(() => treatmentQueueFilters, [treatmentQueueFilters]);
+  const procedureQueueFilters = useMemo<QueueFilterOption[]>(
+    () => [
+      ...treatmentQueueFilters.filter((filter) => !CONSULTATION_QUEUE_FILTER_KEYS.has(normalizeQueueToken(filter.value))),
+      {
+        value: "UNCATEGORIZED",
+        label: "Uncategorized",
+        description: "Queue entries without a treatment type or service label.",
+      },
+    ],
+    [treatmentQueueFilters]
+  );
+  const consultationQueueFilters = useMemo<QueueFilterOption[]>(
+    () =>
+      CONSULTATION_QUEUE_FILTERS.map((filter) => ({
+        value: filter.value,
+        label: filter.label,
+        description: filter.label,
+      })),
+    []
+  );
+
+  const rawQueueById = useMemo(() => {
+    const index: Record<string, any> = {};
+    for (const item of rawQueueEntries) {
+      index[item.id] = item;
+    }
+    return index;
+  }, [rawQueueEntries]);
+
+  const resolvedActiveTreatmentFilter = useMemo(() => {
+    if (
+      treatmentTypeBarFilters.length > 0 &&
+      !treatmentTypeBarFilters.some((option) => normalizeQueueToken(option.value) === activeTreatmentFilter)
+    ) {
+      return "ALL";
+    }
+
+    return activeTreatmentFilter;
+  }, [activeTreatmentFilter, treatmentTypeBarFilters]);
+
+  const matchesTreatmentFilter = useCallback(
+    (item: QueueDisplayItem) => {
+      if (resolvedActiveTreatmentFilter === "ALL") return true;
+
+      const tokens = [
+        item.treatmentType,
+        item.queueCategory,
+        item.queueType,
+        item.queueLane,
+        item.serviceBucket,
+        item.displayLabel,
+        item.serviceType,
+      ]
+        .filter(Boolean)
+        .map((token) => normalizeQueueToken(token));
+
+      return tokens.includes(resolvedActiveTreatmentFilter);
+    },
+    [resolvedActiveTreatmentFilter]
+  );
+
+  const scopedQueueEntries = useMemo(() => {
+    return queueEntries.filter(matchesTreatmentFilter);
+  }, [queueEntries, matchesTreatmentFilter]);
+
+  const getTreatmentFilterCount = useCallback(
+    (filterValue: string) => {
+      const normalizedFilter = normalizeQueueToken(filterValue);
+      if (normalizedFilter === "ALL") {
+        return queueEntries.length;
+      }
+
+      return queueEntries.filter((item) => {
+        const tokens = [
+          item.treatmentType,
+          item.queueCategory,
+          item.queueType,
+          item.queueLane,
+          item.serviceBucket,
+          item.displayLabel,
+          item.serviceType,
+        ]
+          .filter(Boolean)
+          .map((token) => normalizeQueueToken(token));
+
+        return tokens.includes(normalizedFilter);
+      }).length;
+    },
+    [queueEntries]
+  );
+
+  // Identify stale entries (active items from past dates) present in raw data
+  const staleEntries = useMemo(() => {
+    const todayStr = formatISODateInIST(new Date());
+    return queueEntries.filter(item => {
+      if (!item.scheduledDate) return false;
+      return item.scheduledDate < todayStr && item.status !== QUEUE_STATUS.COMPLETED;
+    });
+  }, [queueEntries]);
+
+  const handleBulkCleanup = async () => {
+    if (staleEntries.length === 0) return;
+    
+    setIsCleaningUp(true);
+    try {
+      const ids = staleEntries.map(e => e.id);
+      await bulkCancelQueueEntries(ids);
+      await refetchQueue();
+      showSuccessToast(`Successfully cancelled ${ids.length} stale entries.`, { id: TOAST_IDS.GLOBAL.SUCCESS });
+    } catch (err) {
+      showErrorToast(err, { id: TOAST_IDS.GLOBAL.ERROR });
+    } finally {
+      setIsCleaningUp(false);
+    }
+  };
+
+
+
+  const queueStatsSummary = useMemo(() => {
+    const useApiQueueStats =
+      resolvedActiveTreatmentFilter === "ALL" &&
+      userRole !== Role.DOCTOR && userRole !== Role.ASSISTANT_DOCTOR;
+    const apiQueueStats = queueStats as any;
+    const totalInQueue = scopedQueueEntries.length;
+    const totalWaitMinutes = scopedQueueEntries.reduce((sum: number, item: QueueDisplayItem) => {
+      const rawWait = item.estimatedWaitTime ?? item.waitTime ?? 0;
+      const waitValue = typeof rawWait === 'number' ? rawWait : parseInt(String(rawWait), 10) || 0;
+      return sum + waitValue;
+    }, 0);
+    const inProgressCount = scopedQueueEntries.reduce(
+      (count: number, item: QueueDisplayItem) => count + (item.status === QUEUE_STATUS.IN_PROGRESS ? 1 : 0),
+      0
+    );
+    const completedTodayCount = scopedQueueEntries.reduce(
+      (count: number, item: QueueDisplayItem) => count + (item.status === QUEUE_STATUS.COMPLETED ? 1 : 0),
+      0
+    );
+
+    const averageWaitTime =
+      (useApiQueueStats && typeof apiQueueStats?.averageWaitTime === "number"
+        ? apiQueueStats.averageWaitTime
+        : undefined) ??
+      (totalInQueue > 0 ? Math.round(totalWaitMinutes / totalInQueue) : 0);
+
+    return {
+      totalInQueue:
+        useApiQueueStats && typeof apiQueueStats?.totalInQueue === "number"
+          ? apiQueueStats.totalInQueue
+          : totalInQueue,
+      averageWaitTime,
+      inProgress:
+        useApiQueueStats && typeof apiQueueStats?.inProgress === "number"
+          ? apiQueueStats.inProgress
+          : inProgressCount,
+      completedToday:
+        useApiQueueStats && typeof apiQueueStats?.completedToday === "number"
+          ? apiQueueStats.completedToday
+          : completedTodayCount,
+    };
+  }, [queueStats, scopedQueueEntries, resolvedActiveTreatmentFilter, userRole]);
+
+  const queueScopeLabel = useMemo(() => {
+    if (userRole === Role.SUPER_ADMIN) {
+      return queueClinicId ? "Reception Queue" : "All clinics";
+    }
+
+    if (userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR) {
+      return "Clinic Queue";
+    }
+
+    if (userRole === Role.CLINIC_ADMIN) {
+      return "Clinic Operations Queue";
+    }
+
+    if (userRole === Role.RECEPTIONIST) {
+      return "Reception Queue";
+    }
+
+    return "Live queue";
+  }, [queueClinicId, userRole]);
+
+  // Mutation hooks for queue actions with React 19 useOptimistic
+  const updateQueueStatusOptimistic = useOptimisticUpdateQueueStatus(clinicId);
+  const pauseQueueMutation = usePauseQueue();
+  const transferQueueEntryMutation = useTransferQueueEntry();
+  const reassignAppointmentMutation = useReassignAppointmentDoctor();
+
+  // Transfer patient between logical queues (receptionist/clinic-admin only)
+  const canTransfer =
+    userRole === Role.RECEPTIONIST ||
+    userRole === Role.CLINIC_ADMIN ||
+    userRole === Role.SUPER_ADMIN;
+  const canAssignDoctor = canTransfer;
+
+  const isUnassignedQueueItem = useCallback((item: QueueDisplayItem) => {
+    const doctorToken = String(item.doctorName || "").trim().toLowerCase();
+    const hasDoctorId = Boolean(item.assignedDoctorId || item.primaryDoctorId);
+    return !hasDoctorId || !doctorToken || doctorToken === "unassigned";
+  }, []);
+
+  const hasReliableAppointmentReference = useCallback((item: QueueDisplayItem) => {
+    const rawItem = rawQueueById[item.id];
+    const rawAppointmentId =
+      (typeof rawItem?.appointmentId === "string" && rawItem.appointmentId) ||
+      (typeof (rawItem?.appointment as Record<string, unknown> | undefined)?.id === "string"
+        ? String((rawItem?.appointment as Record<string, unknown>).id)
+        : "") ||
+      (typeof (rawItem?.metadata as Record<string, unknown> | undefined)?.appointmentId === "string"
+        ? String((rawItem?.metadata as Record<string, unknown>).appointmentId)
+        : "");
+
+    if (rawAppointmentId) return true;
+    if (!item.appointmentId) return false;
+    return item.appointmentId !== item.id;
+  }, [rawQueueById]);
+
+  const handleTransfer = useCallback(
+    async (entryId: string, targetQueue: string, treatmentType: string, label: string) => {
+      setTransferringId(entryId);
+      try {
+        await transferQueueEntryMutation.mutateAsync({ entryId, targetQueue, treatmentType });
+        const transferSynced = await pollQueueSync(refetchQueue, 8, 400, (entries) =>
+          entries.some((item) => {
+            if (item.id !== entryId) return false;
+
+            return (
+              normalizeQueueToken(item.queueCategory) === normalizeQueueToken(targetQueue) ||
+              matchesQueueSection(item, treatmentType)
+            );
+          })
+        );
+
+        if (!transferSynced) {
+          throw new Error("Transfer request was accepted but backend queue sync is still pending.");
+        }
+
+        setActiveQueue(treatmentType === "CONSULTATION" ? "consultations" : "therapies");
+        if (treatmentType !== "CONSULTATION") {
+          setActiveTherapyLane(normalizeQueueToken(treatmentType));
+        }
+        showSuccessToast(`Moved to ${label}`, { id: TOAST_IDS.GLOBAL.SUCCESS });
+      } catch (error) {
+        showErrorToast(error, { id: TOAST_IDS.GLOBAL.ERROR });
+      } finally {
+        setTransferringId(null);
+      }
+    },
+    [refetchQueue, transferQueueEntryMutation]
+  );
+
+  const openAssignDoctorDialog = useCallback((item: QueueDisplayItem) => {
+    setAssignDoctorError("");
+    setAssigningQueueItem(item);
+    const defaultDoctorId = String(item.assignedDoctorId || item.primaryDoctorId || "").trim();
+    setSelectedDoctorId(defaultDoctorId);
+  }, []);
+
+  const handleAssignDoctor = useCallback(async () => {
+    setAssignDoctorError("");
+    if (!assigningQueueItem?.appointmentId) {
+      setAssignDoctorError("No linked appointment found for this queue entry.");
+      return;
+    }
+    if (!selectedDoctorId) {
+      setAssignDoctorError("Please select a doctor to assign.");
+      return;
+    }
+
+    try {
+      await reassignAppointmentMutation.mutateAsync({
+        appointmentId: assigningQueueItem.appointmentId,
+        doctorId: selectedDoctorId,
+        reason: "Queue doctor assignment by reception",
+      });
+      const selectedDoctorIdValue = String(selectedDoctorId);
+      const reassignmentSynced = await pollQueueSync(refetchQueue, 8, 400, (entries) =>
+        entries.some((item) => {
+          if (item.id !== assigningQueueItem.id) return false;
+
+          return [
+            item.assignedDoctorId,
+            item.primaryDoctorId,
+            item.queueOwnerId,
+          ]
+            .filter(Boolean)
+            .some((value) => String(value) === selectedDoctorIdValue);
+        })
+      );
+
+      if (!reassignmentSynced) {
+        throw new Error("Reassignment request succeeded but backend queue sync is still pending.");
+      }
+
+      showSuccessToast("Doctor assigned successfully", { id: TOAST_IDS.GLOBAL.SUCCESS });
+      setAssigningQueueItem(null);
+      setSelectedDoctorId("");
+    } catch (error) {
+      setAssignDoctorError(sanitizeErrorMessage(error));
+      showErrorToast(error, {
+        id: TOAST_IDS.APPOINTMENT.REASSIGN,
+        duration: 5000,
+      });
+    }
+  }, [assigningQueueItem, selectedDoctorId, reassignAppointmentMutation, refetchQueue]);
+
+  // Handle queue actions with optimistic updates
+  const handleUpdateQueueStatus = (patientId: string, status: string) => {
+    updateQueueStatusOptimistic.mutation.mutate(
+      { patientId, status },
+      {
+        onSuccess: () => {
+          refetchQueue();
+        },
+      }
+    );
+  };
+
+  // Pause uses the dedicated backend endpoint, not a generic status update
+  const handlePauseQueue = useCallback(async (rowDoctorId: string) => {
+    try {
+      await pauseQueueMutation.mutateAsync({ doctorId: rowDoctorId });
+      await refetchQueue();
+      showSuccessToast("Queue paused", { id: TOAST_IDS.GLOBAL.SUCCESS });
+    } catch (error) {
+      showErrorToast(error, { id: TOAST_IDS.GLOBAL.ERROR });
+    }
+  }, [pauseQueueMutation, refetchQueue]);
+
+  // Real-time queue data from API - filter by queue section
+  const getQueueByType = useCallback(
+    (type: string) => {
+      return scopedQueueEntries.filter((item: QueueDisplayItem) => matchesQueueSection(item, type));
+    },
+    [scopedQueueEntries]
+  );
+
+  const consultationQueueSections = useMemo(
+    () =>
+      consultationQueueFilters.map((option) => ({
+        key: normalizeQueueToken(option.value),
+        title: option.label,
+        items: getQueueByType(option.value),
+      })),
+    [consultationQueueFilters, getQueueByType]
+  );
+
+  const resolvedActiveConsultationLane = useMemo(() => {
+    if (
+      consultationQueueSections.length > 0 &&
+      !consultationQueueSections.some((section) => section.key === activeConsultationLane)
+    ) {
+      return consultationQueueSections[0]?.key || "GENERAL_CONSULTATION";
+    }
+
+    return activeConsultationLane;
+  }, [activeConsultationLane, consultationQueueSections]);
+
+  const activeConsultationSection = useMemo(() => {
+    return (
+      consultationQueueSections.find((section) => section.key === resolvedActiveConsultationLane) ??
+      consultationQueueSections[0]
+    );
+  }, [consultationQueueSections, resolvedActiveConsultationLane]);
+  const selectedConsultationItems = activeConsultationSection?.items ?? [];
+
+  const procedureQueueSections = useMemo(
+    () =>
+      procedureQueueFilters.map((option) => ({
+        key: normalizeQueueToken(option.value),
+        title: option.label,
+        items: getQueueByType(option.value),
+      })),
+    [procedureQueueFilters, getQueueByType]
+  );
+
+  const activeQueueTabs = useMemo(
+    () =>
+      [
+        {
+          key: "consultations",
+          label: "Consultations",
+          count: consultationQueueSections.reduce((total, section) => total + section.items.length, 0),
+        },
+        {
+          key: "therapies",
+          label: "Procedures",
+          count: procedureQueueSections.reduce((total, section) => total + section.items.length, 0),
+        },
+      ],
+    [consultationQueueSections, procedureQueueSections]
+  );
+
+  const resolvedActiveQueue = useMemo(() => {
+    if (activeQueueTabs.length > 0 && !activeQueueTabs.some((tab) => tab.key === activeQueue)) {
+      return activeQueueTabs[0]?.key || "consultations";
+    }
+
+    return activeQueue;
+  }, [activeQueue, activeQueueTabs]);
+
+  const baseQueueColumns = useMemo<ColumnDef<QueueDisplayItem>[]>(
+    () => [
+      {
+        accessorKey: "patientName",
+        header: "Patient",
+        cell: ({ row }) => (
+          <span className="max-w-[160px] truncate text-sm font-medium text-foreground">
+            {getQueuePatientDisplayName(row.original)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "doctorName",
+        header: "Doctor",
+        cell: ({ row }) => (
+          <span className="max-w-[140px] truncate text-sm text-muted-foreground">
+            {row.original.doctorName || "Unassigned"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => (
+          <Badge
+            className={`${getStatusColor(
+              row.original.status
+            )} flex max-w-[84px] items-center justify-center gap-1 whitespace-nowrap border px-1.5 py-0.5 text-[10px] font-semibold`}
+          >
+            {getStatusIcon(row.original.status)}
+            {getQueueStatusLabel(row.original)}
+          </Badge>
+        ),
+      },
+      {
+        id: "waitTime",
+        header: "Wait Time",
+        cell: ({ row }) => {
+          const waitValue = row.original.estimatedWaitTime || row.original.waitTime;
+          if (!waitValue) return <span className="text-muted-foreground">-</span>;
+          return (
+            <span className="flex min-w-[44px] items-center gap-1 text-[10px] font-medium text-muted-foreground">
+              <Clock className="size-3" />
+              {waitValue}m
+            </span>
+          );
+        },
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <div className="flex min-w-0 flex-row flex-nowrap items-center justify-end gap-1.5 overflow-hidden">
+            <Button
+              size="sm"
+              className="h-8 shrink-0 whitespace-nowrap border-emerald-200 bg-emerald-600 px-2.5 text-[11px] text-white shadow-sm hover:bg-emerald-700"
+              onClick={() => setSelectedQueueActionItem(row.original)}
+            >
+              <span>Actions</span>
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    []
+  );
+
+  const laneColumns = useMemo<ColumnDef<QueueDisplayItem>[]>(
+    () => [
+      ...baseQueueColumns.slice(0, 2),
+      {
+        id: "category",
+        header: "Category",
+        cell: ({ row }) => (
+          <span className="max-w-[72px] truncate text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+            {getQueueDisplayLabel(row.original)}
+          </span>
+        ),
+      },
+      ...baseQueueColumns.slice(2),
+    ],
+    [baseQueueColumns]
+  );
+
+  const resolvedActiveTherapyLane = useMemo(() => {
+    if (
+      procedureQueueSections.length > 0 &&
+      !procedureQueueSections.some((section) => section.key === activeTherapyLane)
+    ) {
+      return procedureQueueSections[0]?.key || "PROCEDURAL_CARE";
+    }
+
+    return activeTherapyLane;
+  }, [activeTherapyLane, procedureQueueSections]);
+
+  const activeProcedureSection = useMemo(() => {
+    return (
+      procedureQueueSections.find((section) => section.key === resolvedActiveTherapyLane) ??
+      procedureQueueSections[0]
+    );
+  }, [procedureQueueSections, resolvedActiveTherapyLane]);
+  const selectedProcedureItems = activeProcedureSection?.items ?? [];
+
+  // Keep returns after all hooks to avoid hook-order mismatch.
+  if (isLoading) {
+    return (
+      <div className="p-6 gap-y-6 max-w-full overflow-hidden">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-3xl font-semibold">Queue Management</h1>
+            <p className="text-gray-600">Synchronizing live queue…</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <Skeleton className="h-[104px] w-full rounded-xl" />
+          <Skeleton className="h-[104px] w-full rounded-xl" />
+          <Skeleton className="h-[104px] w-full rounded-xl" />
+          <Skeleton className="h-[104px] w-full rounded-xl" />
+        </div>
+        <TableSkeleton columns={["Queue", "Patient", "Doctor", "Status", "Wait", "Actions"]} rows={4} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+      <div className="text-center">
+          <p className="text-red-600">Error loading queue: {error instanceof Error ? error.message : String(error)}</p>
+          <Button onClick={() => refetchQueue()} className="mt-4">
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  function getStatusColor(status: string) {
+    switch (status) {
+      case QUEUE_STATUS.WAITING:
+        return "bg-yellow-100 text-yellow-800";
+      case QUEUE_STATUS.IN_PROGRESS:
+        return "bg-blue-100 text-blue-800";
+      case QUEUE_STATUS.CONFIRMED:
+        return "bg-green-100 text-green-800";
+      case QUEUE_STATUS.COMPLETED:
+        return "bg-gray-100 text-gray-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  }
+
+  function getStatusIcon(status: string) {
+    switch (status) {
+      case QUEUE_STATUS.WAITING:
+        return <Clock className="size-4" />;
+      case QUEUE_STATUS.IN_PROGRESS:
+        return <Play className="size-4" />;
+      case QUEUE_STATUS.CONFIRMED:
+        return <UserCheck className="size-4" />;
+      case QUEUE_STATUS.COMPLETED:
+        return <CheckCircle className="size-4" />;
+      default:
+        return <AlertCircle className="size-4" />;
+    }
+  }
+
+  return (
+    <DashboardPageShell className="p-4 md:p-6">
+      <DashboardPageHeader
+        eyebrow="Dashboard"
+        title="Queue Management"
+        description={`${queuePermissions.canManageQueue ? "Monitor and manage patient queues" : "View patient queue status"} ${queueScopeLabel}`}
+        meta={QUEUE_HEADER_META}
+      />
+
+      {/* Stale Data Cleanup Banner */}
+      {staleEntries.length > 0 && (userRole === Role.RECEPTIONIST || userRole === Role.CLINIC_ADMIN) && (
+        <div className="mb-6 p-4 rounded-xl border border-amber-200/50 bg-amber-50/10 backdrop-blur-sm flex items-center justify-between animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-amber-500/20 text-amber-500">
+              <AlertCircle className="size-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-amber-200">Stale Queue Entries Detected</h3>
+              <p className="text-xs text-amber-400/80">
+                There are {staleEntries.length} items from previous days that are still marked as active.
+              </p>
+            </div>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleBulkCleanup}
+            disabled={isCleaningUp}
+            className="border-amber-500/50 bg-amber-50/10 text-amber-200 hover:bg-amber-500/20"
+          >
+            {isCleaningUp ? "Cleaning up…" : "Cancel All Stale Entries"}
+          </Button>
+        </div>
+      )}
+
+      <Card className="mb-5 border-border/60 bg-background/90 shadow-sm backdrop-blur-sm">
+        <CardHeader className="gap-y-2 px-4 pb-2 pt-4">
+          <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+            <Activity className="size-5" />
+            Treatment Type Filter
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Narrow the shared queue by backend treatment catalog, then continue using the consult and procedure lanes below.
+          </p>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2 px-4 pb-4 pt-0">
+          {treatmentTypeBarFilters.map((option) => {
+            const normalizedOption = normalizeQueueToken(option.value);
+            const isActive = normalizedOption === resolvedActiveTreatmentFilter;
+
+            return (
+              <Badge
+                key={option.value}
+                asChild
+                variant="outline"
+                className={`cursor-pointer gap-2 px-3 py-2 text-sm font-semibold shadow-sm transition ${
+                  isActive
+                    ? "border-emerald-500 bg-emerald-600 text-white ring-1 ring-emerald-300 dark:border-emerald-400 dark:bg-emerald-500 dark:text-white"
+                    : "border-border bg-background text-foreground hover:bg-muted/40"
+                }`}
+              >
+                <button type="button" onClick={() => setActiveTreatmentFilter(normalizedOption)}>
+                  <span className="truncate">{option.label}</span>
+                  <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
+                    {getTreatmentFilterCount(option.value)}
+                  </span>
+                </button>
+              </Badge>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      {/* Queue Statistics for authorized users */}
+      <ProtectedComponent
+        permission={Permission.MANAGE_QUEUE}
+        showFallback={false}
+      >
+        {queueStatsSummary ? (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">
+                      Total in Queue
+                    </p>
+                    <p className="text-2xl font-bold">
+                      {queueStatsSummary.totalInQueue}
+                    </p>
+                  </div>
+                  <Users className="size-8 text-blue-600" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">
+                      Average Wait
+                    </p>
+                    <p className="text-2xl font-bold text-yellow-600">
+                      {queueStatsSummary.averageWaitTime}m
+                    </p>
+                  </div>
+                  <Timer className="size-8 text-yellow-600" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">
+                      In Progress
+                    </p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {queueStatsSummary.inProgress}
+                    </p>
+                  </div>
+                  <Activity className="size-8 text-green-600" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">
+                      Completed Today
+                    </p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {queueStatsSummary.completedToday}
+                    </p>
+                  </div>
+                  <CheckCircle className="size-8 text-blue-600" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        ) : null}
+      </ProtectedComponent>
+
+      {/* Queue Tabs */}
+      <Tabs
+        value={resolvedActiveQueue}
+        onValueChange={setActiveQueue}
+        className="gap-y-5"
+      >
+        <TabsList className="flex h-auto flex-wrap gap-1.5 bg-transparent p-0">
+          {activeQueueTabs.map((tab) => (
+            <TabsTrigger
+              key={tab.key}
+              value={tab.key}
+              className="gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-sm font-medium data-[state=active]:bg-emerald-600 data-[state=active]:text-white"
+            >
+              <span>{tab.label}</span>
+              <Badge
+                variant="outline"
+                className="h-5 rounded-full border-transparent bg-muted/70 px-1.5 text-xs text-muted-foreground data-[state=active]:bg-white/20 data-[state=active]:text-white"
+              >
+                {tab.count}
+              </Badge>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
+        <TabsContent value="consultations" className="flex flex-col gap-y-4">
+          <Card className="border-border/60 bg-background/90 shadow-sm backdrop-blur-sm">
+            <CardHeader className="flex flex-col gap-3 px-4 pb-2 pt-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                  <Stethoscope className="size-5" />
+                  Consultation Queue Types
+                <Badge variant="secondary">
+                    {selectedConsultationItems.length}
+                  </Badge>
+                </CardTitle>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  General consultation lanes available for front-desk and queue routing.
+                </p>
+              </div>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-y-3 px-4 pb-4 pt-2">
+              <div className="flex flex-wrap gap-2">
+                {consultationQueueSections.map((section) => (
+                  <Badge
+                    key={section.key}
+                    asChild
+                    variant="outline"
+                    className={`cursor-pointer gap-2 px-3 py-2 text-sm font-semibold shadow-sm transition ${
+                      resolvedActiveConsultationLane === section.key
+                        ? "border-emerald-500 bg-emerald-600 text-white ring-1 ring-emerald-300 dark:border-emerald-400 dark:bg-emerald-500 dark:text-white"
+                        : "border-border bg-background text-foreground hover:bg-muted/40"
+                    }`}
+                  >
+                    <button type="button" onClick={() => setActiveConsultationLane(section.key)}>
+                      <span className="truncate">{section.title}</span>
+                      <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
+                        {section.items.length}
+                      </span>
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+              <QueueMobileList
+                items={selectedConsultationItems}
+                emptyMessage={`No patients in ${String(activeConsultationSection?.title || "selected").toLowerCase()} queue.`}
+                onOpenActions={setSelectedQueueActionItem}
+              />
+              <div className="hidden md:block">
+                <DataTable
+                  columns={laneColumns}
+                  data={selectedConsultationItems}
+                  pageSize={5}
+                  emptyMessage={`No patients in ${String(activeConsultationSection?.title || "selected").toLowerCase()} queue.`}
+                  compact
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="therapies" className="gap-y-6">
+          <Card className="border-border/60 bg-background/90 shadow-sm backdrop-blur-sm">
+            <CardHeader className="flex flex-col gap-3 px-4 pb-2 pt-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                  Treatment Queue Tabs
+                <Badge variant="secondary">
+                    {selectedProcedureItems.length}
+                  </Badge>
+                </CardTitle>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Current treatment lanes available for transfer and front-desk routing.
+                </p>
+              </div>
+            </CardHeader>
+            <CardContent className="gap-y-3 px-4 pb-4 pt-2">
+              <div className="flex flex-wrap gap-2">
+                {procedureQueueSections.map((section) => (
+                  <Badge
+                    key={section.key}
+                    asChild
+                    variant="outline"
+                    className={`cursor-pointer gap-2 px-3 py-2 text-sm font-semibold shadow-sm transition ${
+                      resolvedActiveTherapyLane === section.key
+                        ? "border-emerald-500 bg-emerald-600 text-white ring-1 ring-emerald-300 dark:border-emerald-400 dark:bg-emerald-500 dark:text-white"
+                        : "border-border bg-background text-foreground hover:bg-muted/40"
+                    }`}
+                  >
+                    <button type="button" onClick={() => setActiveTherapyLane(section.key)}>
+                      <span className="truncate">{section.title}</span>
+                      <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
+                        {section.items.length}
+                      </span>
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+              <QueueMobileList
+                items={selectedProcedureItems}
+                emptyMessage={`No patients in ${(activeProcedureSection?.title || "selected").toLowerCase()} queue.`}
+                onOpenActions={setSelectedQueueActionItem}
+              />
+              <div className="hidden md:block">
+                <DataTable
+                  columns={laneColumns}
+                  data={selectedProcedureItems}
+                  pageSize={5}
+                  emptyMessage={`No patients in ${(activeProcedureSection?.title || "selected").toLowerCase()} queue.`}
+                  compact
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+      </Tabs>
+
+      <Dialog
+        open={Boolean(selectedQueueActionItem)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedQueueActionItem(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="text-center sm:text-center">
+            <DialogTitle>Queue Actions</DialogTitle>
+            <DialogDescription>
+              Manage the selected patient from a compact action sheet.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedQueueActionItem ? (
+            <div className="gap-y-4">
+              <div className="rounded-xl border border-border bg-muted/20 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-foreground">
+                      {getQueuePatientDisplayName(selectedQueueActionItem)}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {selectedQueueActionItem.doctorName || "Assigned doctor pending"} · Queue #
+                      {selectedQueueActionItem.position || 0}
+                    </div>
+                  </div>
+                  <Badge className={`${getQueueStatusColor(selectedQueueActionItem.status)} border px-2 py-0.5 text-[10px] font-semibold`}>
+                    {getQueueStatusLabel(selectedQueueActionItem)}
+                  </Badge>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-[10px] text-emerald-700">
+                    {resolveQueueDisplayLabel(selectedQueueActionItem)}
+                  </Badge>
+                  <Badge variant="outline" className="border-border/70 text-[10px] text-muted-foreground">
+                    {getQueuePositionLabel({ position: selectedQueueActionItem.position || 0 })}
+                  </Badge>
+                </div>
+              </div>
+              <div className="grid gap-3">
+                <Button
+                  className="h-11 w-full justify-center gap-2"
+                  onClick={() => {
+                    setAssigningQueueItem(selectedQueueActionItem);
+                    setSelectedQueueActionItem(null);
+                  }}
+                  disabled={
+                    !selectedQueueActionItem.appointmentId || reassignAppointmentMutation.isPending
+                  }
+                >
+                  <Users className="size-4" />
+                  Assign Doctor
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-11 w-full justify-center gap-2"
+                  onClick={() => {
+                    setTransferringQueueItem(selectedQueueActionItem);
+                    setSelectedQueueActionItem(null);
+                  }}
+                  disabled={transferringId === selectedQueueActionItem.id}
+                >
+                  <ArrowRightLeft className="size-4" />
+                  Move to
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(transferringQueueItem)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setTransferringQueueItem(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="text-center sm:text-center">
+            <DialogTitle>Move To</DialogTitle>
+            <DialogDescription>
+              Choose the destination queue for the selected patient.
+            </DialogDescription>
+          </DialogHeader>
+          {transferringQueueItem ? (
+            <div className="gap-y-3">
+              <div className="rounded-xl border border-border bg-muted/20 p-3">
+                <div className="truncate text-center text-sm font-semibold text-foreground">
+                  {getQueuePatientDisplayName(transferringQueueItem)}
+                </div>
+                <div className="mt-1 text-center text-xs text-muted-foreground">
+                  {transferringQueueItem.doctorName || "Assigned doctor pending"} · Queue #
+                  {transferringQueueItem.position || 0}
+                </div>
+              </div>
+              <div className="grid gap-2">
+                {queueTransferOptions.reduce<ReactElement[]>(
+                  (options, opt) => {
+                    if (
+                      normalizeQueueToken(opt.value) ===
+                      normalizeQueueToken(transferringQueueItem.treatmentType)
+                    ) {
+                      return options;
+                    }
+
+                    options.push(
+                      <Button
+                        key={opt.value}
+                        variant="outline"
+                        className="h-10 w-full justify-center"
+                        onClick={() => {
+                          void handleTransfer(
+                            transferringQueueItem.id,
+                            opt.value,
+                            opt.value,
+                            opt.label,
+                          );
+                          setTransferringQueueItem(null);
+                        }}
+                      >
+                        {opt.label}
+                      </Button>,
+                    );
+                    return options;
+                  },
+                  [],
+                )}
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(assigningQueueItem)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setAssigningQueueItem(null);
+            setSelectedDoctorId("");
+            setAssignDoctorError("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="text-center sm:text-center">
+            <DialogTitle>Assign Doctor</DialogTitle>
+            <DialogDescription>
+              Assign a doctor to this active queue appointment.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="gap-y-3">
+            <p className="text-sm text-muted-foreground">
+              {assigningQueueItem?.patientName || "Patient"} is currently unassigned. Select a doctor.
+            </p>
+            {assignDoctorError ? (
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {assignDoctorError}
+              </div>
+            ) : null}
+            <Select value={selectedDoctorId} onValueChange={setSelectedDoctorId}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select doctor" />
+              </SelectTrigger>
+              <SelectContent>
+                {assignableDoctors.map((doctor) => (
+                  <SelectItem key={doctor.id} value={doctor.id}>
+                    {doctor.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAssigningQueueItem(null);
+                setSelectedDoctorId("");
+                setAssignDoctorError("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={() => void handleAssignDoctor()} disabled={reassignAppointmentMutation.isPending || !selectedDoctorId}>
+              {reassignAppointmentMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Assigning…
+                </>
+              ) : (
+                "Assign Doctor"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </DashboardPageShell>
+  );
+}
+
+
+
+
+
+

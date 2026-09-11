@@ -2,15 +2,13 @@
 
 import { Suspense } from "react";
 import { useEffect, useMemo, useReducer } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@/hooks/core";
-import { useAuth } from "@/hooks/auth/useAuth";
 import { getAppointmentStatsQueryKey } from "@/lib/query/appointment-query-keys";
-import { API_ENDPOINTS } from "@/lib/config/config";
-import { Role } from "@/types/auth.types";
-import { clinicApiClient } from "@/lib/api/client";
+import type { PaymentProvider } from "@/lib/payments/providers";
+import { verifyPaymentCallback as verifyPaymentCallbackServerAction } from "@/lib/actions/billing.server";
 import { syncAppointmentInCache } from "@/lib/utils/appointment-cache";
 
 type VerifyState = "loading" | "success" | "failed";
@@ -31,7 +29,8 @@ type CallbackState = {
 };
 
 type CallbackAction =
-  | { type: "FAILED"; message: string }
+  | { type: "FAILED"; message: string; secondsLeft?: number }
+  | { type: "PENDING"; message: string }
   | { type: "SUCCESS"; message: string; secondsLeft: number }
   | { type: "TICK" }
   | { type: "RESET_SECONDS" };
@@ -47,16 +46,59 @@ function normalizeBaseUrl(rawUrl: string, fallback: string): string {
   return value || fallback;
 }
 
+function decodeBase64UrlJson(rawValue: string): Record<string, unknown> | null {
+  const trimmed = rawValue.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const normalized = trimmed.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+
+  try {
+    const decoded =
+      typeof window === "undefined"
+        ? Buffer.from(padded, "base64").toString("utf-8")
+        : atob(padded);
+    const parsed = JSON.parse(decoded) as unknown;
+    if (!parsed || typeof parsed !== "object") {
+      return null;
+    }
+    return parsed as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function normalizePaymentStatus(value: unknown): string {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
+function isVerifiedPaymentStatus(value: unknown): boolean {
+  const status = normalizePaymentStatus(value);
+  return ["completed", "confirmed", "paid", "success", "succeeded"].includes(
+    status,
+  );
+}
+
 function callbackReducer(
   state: CallbackState,
   action: CallbackAction,
 ): CallbackState {
   switch (action.type) {
+    case "PENDING":
+      return {
+        state: "loading",
+        message: action.message,
+        secondsLeft: null,
+      };
     case "FAILED":
       return {
         state: "failed",
         message: action.message,
-        secondsLeft: null,
+        secondsLeft: action.secondsLeft ?? 5,
       };
     case "SUCCESS":
       return {
@@ -79,37 +121,7 @@ function callbackReducer(
   }
 }
 
-function getRoleAppointmentRoute(role?: string | null): string {
-  const normalized = String(role || "").toUpperCase();
-  if (normalized === Role.DOCTOR || normalized === Role.ASSISTANT_DOCTOR) {
-    return "/doctor/appointments";
-  }
-  if (normalized === Role.RECEPTIONIST) {
-    return "/receptionist/appointments";
-  }
-  if (normalized === Role.CLINIC_ADMIN || normalized === Role.SUPER_ADMIN) {
-    return "/appointments";
-  }
-  return "/patient/appointments";
-}
-
-function getRolePaymentsRoute(role?: string | null): string {
-  const normalized = String(role || "").toUpperCase();
-  if (normalized === Role.DOCTOR || normalized === Role.ASSISTANT_DOCTOR) {
-    return "/doctor/appointments";
-  }
-  if (normalized === Role.CLINIC_ADMIN || normalized === Role.SUPER_ADMIN || normalized === Role.FINANCE_BILLING) {
-    return "/billing";
-  }
-  if (normalized === Role.RECEPTIONIST) {
-    return "/receptionist/appointments";
-  }
-  return "/patient/payments?tab=payments";
-}
-
 function PaymentCallbackPageContent() {
-  const { user } = useAuth();
-  const { replace } = useRouter();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const [{ state, message, secondsLeft }, dispatch] = useReducer(
@@ -120,6 +132,26 @@ function PaymentCallbackPageContent() {
     () => searchParams.get.bind(searchParams),
     [searchParams],
   );
+
+  const bridgePayload = useMemo(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    const searchPayload = searchParams.get("payload") || "";
+    const hashPayload = new URLSearchParams(
+      window.location.hash.startsWith("#")
+        ? window.location.hash.slice(1)
+        : window.location.hash,
+    ).get("payload");
+    const rawPayload = searchPayload || hashPayload || "";
+
+    if (!rawPayload) {
+      return null;
+    }
+
+    return decodeBase64UrlJson(rawPayload);
+  }, [searchParams]);
 
   const params = useMemo(() => {
     const orderId =
@@ -138,7 +170,7 @@ function PaymentCallbackPageContent() {
           getSearchParam("payment_id") ||
           orderId;
     const provider = ALLOWED_PROVIDERS.has(rawProvider)
-      ? rawProvider
+      ? (rawProvider as PaymentProvider)
       : undefined;
     const clinicId = getSearchParam("clinicId") || "";
     const appointmentId = getSearchParam("appointmentId") || "";
@@ -146,27 +178,120 @@ function PaymentCallbackPageContent() {
       getSearchParam("appointmentType") || ""
     ).toUpperCase();
     const handoffToken = getSearchParam("handoff_token") || "";
+    const paymentError = getSearchParam("paymentError") || "";
+    const payloadClinicId =
+      typeof bridgePayload?.clinicId === "string"
+        ? bridgePayload.clinicId
+        : typeof bridgePayload?.clinic_id === "string"
+          ? bridgePayload.clinic_id
+          : "";
+    const payloadAppointmentId =
+      typeof bridgePayload?.appointmentId === "string"
+        ? bridgePayload.appointmentId
+        : typeof bridgePayload?.appointment_id === "string"
+          ? bridgePayload.appointment_id
+          : "";
+    const payloadAppointmentType =
+      typeof bridgePayload?.appointmentType === "string"
+        ? bridgePayload.appointmentType
+        : typeof bridgePayload?.appointment_type === "string"
+          ? bridgePayload.appointment_type
+          : "";
+    const payloadProvider =
+      typeof bridgePayload?.provider === "string"
+        ? bridgePayload.provider
+        : typeof bridgePayload?.paymentProvider === "string"
+          ? bridgePayload.paymentProvider
+          : "";
+    const payloadHandoffToken =
+      typeof bridgePayload?.handoffToken === "string"
+        ? bridgePayload.handoffToken
+        : typeof bridgePayload?.handoff_token === "string"
+          ? bridgePayload.handoff_token
+          : "";
+    const payloadPaymentId =
+      typeof bridgePayload?.paymentId === "string"
+        ? bridgePayload.paymentId
+        : typeof bridgePayload?.payment_id === "string"
+          ? bridgePayload.payment_id
+          : "";
     return {
-      orderId,
-      paymentId,
-      provider,
-      clinicId,
-      appointmentId,
-      appointmentType,
-      handoffToken,
+      orderId:
+        orderId ||
+        (typeof bridgePayload?.orderId === "string"
+          ? bridgePayload.orderId
+          : ""),
+      paymentId: paymentId || payloadPaymentId,
+      provider:
+        provider ||
+        (ALLOWED_PROVIDERS.has(String(payloadProvider).toLowerCase())
+          ? (String(payloadProvider).toLowerCase() as PaymentProvider)
+          : undefined),
+      clinicId: clinicId || payloadClinicId,
+      appointmentId: appointmentId || payloadAppointmentId,
+      appointmentType: appointmentType || payloadAppointmentType,
+      handoffToken: handoffToken || payloadHandoffToken,
+      paymentError:
+        paymentError ||
+        (typeof bridgePayload?.paymentError === "string"
+          ? bridgePayload.paymentError
+          : ""),
     };
-  }, [getSearchParam]);
+  }, [bridgePayload, getSearchParam]);
+
+  const rawPayload = useMemo(() => {
+    if (typeof window === "undefined") {
+      return "";
+    }
+    return (
+      searchParams.get("payload") ||
+      new URLSearchParams(
+        window.location.hash.startsWith("#")
+          ? window.location.hash.slice(1)
+          : window.location.hash,
+      ).get("payload") ||
+      ""
+    );
+  }, [searchParams]);
+
+  const invalidPayloadMessage =
+    params.paymentError === "invalid_payload" ||
+    (Boolean(rawPayload) &&
+      !params.handoffToken &&
+      !bridgePayload &&
+      !(params.orderId && params.clinicId))
+      ? "Invalid payment payload. Please reopen the payment link."
+      : "";
+  const invalidPayloadDetails = invalidPayloadMessage
+    ? "The payment payload could not be decoded from the URL."
+    : "";
 
   const redirectPath = useMemo(() => {
     if (params.appointmentType === "VIDEO_CALL" || params.appointmentId) {
-      return getRoleAppointmentRoute(user?.role);
+      return "/patient/appointments";
     }
-    return getRolePaymentsRoute(user?.role);
-  }, [user?.role, params.appointmentId, params.appointmentType]);
+    return "/patient/payments?tab=payments";
+  }, [params.appointmentId, params.appointmentType]);
+
+  const hardRedirect = (url: string) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.location.replace(url);
+  };
 
   useEffect(() => {
     const verify = async () => {
       try {
+        if (invalidPayloadMessage) {
+          dispatch({
+            type: "FAILED",
+            message: invalidPayloadMessage,
+          });
+          return;
+        }
+
         const isHandoff = Boolean(params.handoffToken);
         if (!isHandoff) {
           if (!params.orderId) {
@@ -186,66 +311,75 @@ function PaymentCallbackPageContent() {
           }
         }
 
-        const queryParams = new URLSearchParams();
-        if (isHandoff) {
-          queryParams.set("handoff_token", params.handoffToken);
-          if (params.orderId) {
-            queryParams.set("order_id", params.orderId);
-          }
-          if (params.paymentId) {
-            queryParams.set("payment_id", params.paymentId);
-          }
-          if (params.provider) {
-            queryParams.set("provider", params.provider);
-          }
-        } else {
-          queryParams.set("clinicId", params.clinicId);
-          queryParams.set("paymentId", params.paymentId || params.orderId);
-          queryParams.set("orderId", params.orderId);
-          if (params.provider) {
-            queryParams.set("provider", params.provider);
-          }
-        }
+        const deadline = Date.now() + 15 * 60 * 1000;
+        let useHandoffToken = isHandoff;
+        let verificationParams = {
+          clinicId: isHandoff ? params.clinicId || undefined : params.clinicId,
+          orderId: params.orderId,
+          paymentId: params.paymentId || undefined,
+          provider: params.provider,
+          ...(isHandoff ? { handoffToken: params.handoffToken } : {}),
+        };
+        let response =
+          await verifyPaymentCallbackServerAction(verificationParams);
 
-        const response = isHandoff
-          ? await clinicApiClient.publicRequest<Record<string, unknown>>(
-              `${API_ENDPOINTS.BILLING.PAYMENTS.CALLBACK}/handoff?${queryParams.toString()}`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  ...(params.clinicId
-                    ? { "X-Clinic-ID": params.clinicId }
-                    : {}),
-                },
-                body: JSON.stringify({ orderId: params.orderId }),
-              },
-            )
-          : await clinicApiClient.publicRequest<Record<string, unknown>>(
-              `${API_ENDPOINTS.BILLING.PAYMENTS.CALLBACK}?${queryParams.toString()}`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "X-Clinic-ID": params.clinicId,
-                },
-                body: JSON.stringify({ orderId: params.orderId }),
-              },
+        while (true) {
+          if (cancelled) return;
+          if (!response.success) {
+            throw new Error(
+              response.error ||
+                response.message ||
+                "Payment verification failed",
             );
+          }
 
-        if (!response.success) {
-          throw new Error(
-            response.error || response.message || "Payment verification failed",
-          );
+          const responsePayment =
+            (response.payment as Record<string, unknown> | undefined) || null;
+          const verifiedStatus =
+            responsePayment?.["status"] ||
+            responsePayment?.["paymentStatus"] ||
+            undefined;
+
+          if (isVerifiedPaymentStatus(verifiedStatus)) break;
+
+          if (Date.now() >= deadline) {
+            throw new Error(
+              "Payment confirmation timed out. Check your appointments before trying again.",
+            );
+          }
+
+          // Handoff tokens are single-use. After the first handoff request,
+          // continue polling through the normal callback endpoint.
+          if (useHandoffToken) {
+            if (!response.clinicId || !response.orderId) {
+              throw new Error("Payment confirmation is still pending.");
+            }
+            verificationParams = {
+              clinicId: response.clinicId,
+              orderId: response.orderId,
+              paymentId: response.paymentId || undefined,
+              provider:
+                (response.provider as PaymentProvider | undefined) ||
+                params.provider,
+            };
+            useHandoffToken = false;
+          }
+
+          const statusLabel = verifiedStatus
+            ? String(verifiedStatus)
+            : "pending";
+          dispatch({
+            type: "PENDING",
+            message: `Waiting for payment confirmation (${statusLabel})...`,
+          });
+          await new Promise((resolve) => window.setTimeout(resolve, 3000));
+          if (cancelled) return;
+          response =
+            await verifyPaymentCallbackServerAction(verificationParams);
         }
 
         const appointmentSnapshot =
-          ((response as any).appointment as
-            Record<string, unknown> | undefined) ??
-          (
-            response.data as
-              { appointment?: Record<string, unknown> } | undefined
-          )?.appointment ??
+          (response.appointment as Record<string, unknown> | undefined) ??
           (params.appointmentId
             ? {
                 id: params.appointmentId,
@@ -341,7 +475,7 @@ function PaymentCallbackPageContent() {
           if (params.provider) {
             targetUrl.searchParams.set("provider", params.provider);
           }
-          replace(targetUrl.toString());
+          hardRedirect(targetUrl.toString());
         }
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
@@ -357,11 +491,15 @@ function PaymentCallbackPageContent() {
       }
     };
 
+    let cancelled = false;
     verify();
-  }, [params, queryClient]);
+    return () => {
+      cancelled = true;
+    };
+  }, [invalidPayloadMessage, params, queryClient]);
 
   useEffect(() => {
-    if (state !== "success") {
+    if (state !== "success" && state !== "failed") {
       if (secondsLeft !== null) {
         dispatch({ type: "RESET_SECONDS" });
       }
@@ -373,7 +511,7 @@ function PaymentCallbackPageContent() {
     }
 
     if (secondsLeft <= 0) {
-      replace(redirectPath);
+      hardRedirect(redirectPath);
       return;
     }
 
@@ -382,7 +520,7 @@ function PaymentCallbackPageContent() {
     }, 1000);
 
     return () => window.clearTimeout(timer);
-  }, [replace, redirectPath, secondsLeft, state]);
+  }, [redirectPath, secondsLeft, state]);
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center px-4">
@@ -402,11 +540,19 @@ function PaymentCallbackPageContent() {
         {state === "failed" && (
           <div className="flex flex-col gap-y-3">
             <p className="text-sm text-red-600">
-              The payment could not be verified. Please review the error above
-              and try again.
+              {invalidPayloadDetails
+                ? `${invalidPayloadDetails} Redirecting to ${redirectPath.includes("/appointments") ? "appointments" : "billing"} within ${secondsLeft ?? 5} seconds.`
+                : `Payment failed or could not be verified. Redirecting to ${redirectPath.includes("/appointments") ? "appointments" : "billing"} within ${secondsLeft ?? 5} seconds.`}
             </p>
-            <Button className="w-full" onClick={() => replace(redirectPath)}>
-              Go back
+            <Button
+              className="w-full"
+              onClick={() => hardRedirect(redirectPath)}
+            >
+              Go to{" "}
+              {redirectPath.includes("/appointments")
+                ? "appointments"
+                : "billing"}{" "}
+              now
             </Button>
           </div>
         )}
@@ -416,7 +562,10 @@ function PaymentCallbackPageContent() {
               Payment is confirmed. You will be redirected in {secondsLeft ?? 0}{" "}
               seconds.
             </p>
-            <Button className="w-full" onClick={() => replace(redirectPath)}>
+            <Button
+              className="w-full"
+              onClick={() => hardRedirect(redirectPath)}
+            >
               Go to{" "}
               {params.appointmentType === "VIDEO_CALL"
                 ? "video appointments"

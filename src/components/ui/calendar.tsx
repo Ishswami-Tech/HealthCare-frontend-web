@@ -35,7 +35,7 @@ function Calendar({
     <DayPicker
       showOutsideDays={showOutsideDays}
       className={cn(
-        "bg-background dark:bg-neutral-950 group/calendar p-2 sm:p-3 [--cell-size:2.25rem] rounded-lg",
+        "bg-background dark:bg-neutral-950 group/calendar p-2 sm:p-3 [--cell-size:2rem] sm:[--cell-size:2.25rem] rounded-lg",
         String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
         String.raw`rtl:**:[.rdp-button\_previous>svg]:rotate-180`,
         className
@@ -48,10 +48,10 @@ function Calendar({
       classNames={{
         root: cn("w-full max-w-full sm:w-fit mx-auto", defaultClassNames.root),
         months: cn(
-          "flex gap-3 sm:gap-6 flex-col md:flex-row relative",
+          "flex gap-2 sm:gap-6 flex-col md:flex-row relative",
           defaultClassNames.months
         ),
-        month: cn("flex flex-col w-full gap-5", defaultClassNames.month),
+        month: cn("flex flex-col w-full gap-3 sm:gap-5", defaultClassNames.month),
         nav: cn(
           "flex items-center gap-1 w-full absolute top-0 inset-x-0 justify-between",
           defaultClassNames.nav
@@ -92,10 +92,10 @@ function Calendar({
         table: "w-full border-collapse border-spacing-0",
         weekdays: cn("flex", defaultClassNames.weekdays),
         weekday: cn(
-          "text-muted-foreground/70 dark:text-muted-foreground/60 rounded-md flex-1 font-medium text-xs uppercase tracking-widest select-none",
+          "text-muted-foreground/70 dark:text-muted-foreground/60 rounded-md flex-1 font-medium text-[10px] sm:text-xs uppercase tracking-widest select-none",
           defaultClassNames.weekday
         ),
-        week: cn("flex w-full mt-3", defaultClassNames.week),
+        week: cn("flex w-full mt-2 sm:mt-3", defaultClassNames.week),
         week_number_header: cn(
           "select-none w-(--cell-size)",
           defaultClassNames.week_number_header

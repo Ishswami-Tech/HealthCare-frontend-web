@@ -205,12 +205,57 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
       return undefined;
     };
 
+    const extractBackendErrorCode = (value: unknown): string | undefined => {
+      if (!value || typeof value !== 'object') return undefined;
+
+      const record = value as Record<string, unknown>;
+      const candidates = [
+        record.code,
+        record.errorCode,
+        record.backendCode,
+        (record.response as Record<string, unknown> | undefined)?.data &&
+          typeof (record.response as Record<string, unknown>).data === 'object'
+          ? ((record.response as Record<string, unknown>).data as Record<string, unknown>).code
+          : undefined,
+        (record.response as Record<string, unknown> | undefined)?.data &&
+          typeof (record.response as Record<string, unknown>).data === 'object'
+          ? ((record.response as Record<string, unknown>).data as Record<string, unknown>).errorCode
+          : undefined,
+      ];
+
+      for (const candidate of candidates) {
+        if (typeof candidate === 'string' && candidate.trim()) {
+          return candidate.trim();
+        }
+      }
+
+      return undefined;
+    };
+
     const validationErrors = extractValidationErrors(error);
+    const backendErrorCode = extractBackendErrorCode(error);
+    const duplicateField =
+      backendErrorCode === 'USER_EMAIL_ALREADY_EXISTS'
+        ? 'email'
+        : backendErrorCode === 'USER_PHONE_ALREADY_EXISTS'
+          ? 'phone'
+          : backendErrorCode === 'USER_ALREADY_EXISTS'
+            ? 'email'
+            : undefined;
+    const conflictValidationError =
+      duplicateField && errorMessage
+        ? [{
+            field: duplicateField,
+            constraints: { conflict: errorMessage },
+          }]
+        : [];
 
     return {
       success: false,
       error: errorMessage,
-      ...(validationErrors && validationErrors.length > 0 ? { validationErrors } : {}),
+      ...(validationErrors && validationErrors.length > 0 || conflictValidationError.length > 0
+        ? { validationErrors: [...(validationErrors || []), ...conflictValidationError] }
+        : {}),
     };
   }
 }

@@ -103,10 +103,10 @@
   --sidebar-accent-foreground: oklch(0.2 0 0);
   --sidebar-border: oklch(0.92 0 0);
   --sidebar-ring: oklch(0.62 0.16 150);
-  -sans: ui-sans-serif, system-ui, sans-serif;
+  --font-sans: ui-sans-serif, system-ui, sans-serif;
   --font-serif: ui-serif, Georgia, Cambria, Times New Roman, Times, serif;
   --font-mono:
-    ui-monospace, S--fontFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono,
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono,
     Courier New, monospace;
   --radius: 0.75rem;
 
@@ -1814,4 +1814,160 @@ html5-qrcode {
     line-height: 1.15;
   }
 }
+@media (max-width: 1023px) {
+  html:has(.auth-page-scroll),
+  body:has(.auth-page-scroll) {
+    background-color: #30471f;
+    scrollbar-width: none;
+  }
 
+  html:has(.auth-page-scroll)::-webkit-scrollbar,
+  body:has(.auth-page-scroll)::-webkit-scrollbar {
+    display: none;
+    width: 0;
+  }
+
+  .auth-page-scroll {
+    scrollbar-width: none;
+    background-color: #30471f;
+    background-image: url('/assets/auth-login-mobile-single-background-new-logo.webp');
+    background-position: center top;
+    background-repeat: no-repeat;
+    /* Bleed one pixel past each edge to avoid seams at fractional zoom levels. */
+    background-size: calc(100% + 2px) auto;
+  }
+
+  .auth-page-scroll::-webkit-scrollbar {
+    display: none;
+    width: 0;
+  }
+
+  .auth-mobile-login-form {
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+
+  /* Anchor both login steps to the same frame; only the card may overflow. */
+  .auth-page-scroll:has([data-auth-step]) {
+    overflow: hidden;
+  }
+
+  .auth-page-scroll:has([data-auth-step]) .auth-mobile-login-form {
+    position: absolute;
+    inset-inline: 0;
+    top: clamp(0px, calc(100dvh - 430px), 49dvh);
+    bottom: 0;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+
+  .auth-page-scroll:has([data-auth-step]) .auth-mobile-login-scale {
+    height: 100%;
+    justify-content: flex-start;
+    scale: 1;
+    transform: none;
+  }
+
+  [data-auth-step] {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+  }
+
+  [data-auth-step] > [data-slot="card"] {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-width: none;
+  }
+
+  [data-auth-step] > [data-slot="card"]::-webkit-scrollbar {
+    display: none;
+  }
+
+  [data-auth-step] > [data-slot="card"] > *,
+  [data-auth-step] > :last-child {
+    flex-shrink: 0;
+  }
+
+  [data-auth-step="otp"] [data-slot="card-header"] {
+    padding: 10px 18px 0;
+    gap: 0;
+  }
+
+  [data-auth-step="otp"] [data-slot="card-header"] > button {
+    top: 8px;
+    left: 8px;
+    height: 28px;
+  }
+
+  [data-auth-step="otp"] h2 {
+    padding-inline: 52px;
+    font-size: 20px;
+    line-height: 28px;
+  }
+
+  [data-auth-step="otp"] [data-slot="card-header"] p {
+    margin-top: 4px;
+    font-size: 11px;
+    line-height: 16px;
+  }
+
+  [data-auth-step="otp"] [data-slot="card-content"] {
+    padding-top: 8px;
+    padding-bottom: 12px;
+  }
+
+  [data-auth-step="otp"] form > * {
+    margin-block: 0 8px;
+  }
+
+  [data-auth-step="otp"] form > :last-child {
+    margin-bottom: 0;
+  }
+
+  [data-auth-step="otp"] button[type="submit"] {
+    height: 40px;
+  }
+
+  /* The signup hint is already shown before requesting the code. */
+  [data-auth-step="otp"] .auth-signup-hint {
+    display: none;
+  }
+
+}
+
+@media (max-width: 1023px) and (max-height: 900px) {
+  .auth-mobile-login-scale {
+    scale: 0.95;
+  }
+}
+
+@media (max-width: 1023px) and (max-height: 800px) {
+  .auth-mobile-login-scale {
+    scale: 0.88;
+  }
+}
+
+@media (max-width: 1023px) and (max-height: 720px) {
+  .auth-mobile-login-scale {
+    scale: 0.95;
+  }
+
+}
+
+/* Scope background URLs to the viewport and theme that actually displays them. */
+@media (min-width: 1024px) {
+  .auth-desktop-scenery {
+    background: url('/assets/auth-login-forest-continuation-light.webp') center / cover no-repeat;
+  }
+
+  .auth-desktop-hero {
+    background: url('/assets/auth-login-forest-hero-face-corrected.webp') 43% center / cover no-repeat;
+    mask-image: linear-gradient(to right, black 0%, black 92%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black 0%, black 92%, transparent 100%);
+  }
+
+  .dark .auth-desktop-hero {
+    background-image: url('/assets/auth-login-hero.webp');
+  }
+}

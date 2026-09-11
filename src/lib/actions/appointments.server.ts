@@ -14,15 +14,17 @@ import { isApiError } from '@/lib/utils/error-handler';
 import { API_ENDPOINTS, APP_CONFIG } from '@/lib/config/config';
 import { formatISODateInIST, formatTimeInIST } from '@/lib/utils/appointmentUtils';
 import { normalizeAppointment as normalizeAppointmentShared } from '@/lib/utils/appointmentUtils';
-import type { 
-  Appointment, 
-  CreateAppointmentData, 
-  UpdateAppointmentData, 
+import type {
+  Appointment,
+  CreateAppointmentData,
+  UpdateAppointmentData,
   AppointmentFilters,
   DoctorAvailability,
   AppointmentServiceDefinition,
   AppointmentReassignmentCandidate,
   AssistantDoctorCoverageAssignment,
+  FollowUpPlan,
+  RecurringAppointmentSeries,
 } from '@/types/appointment.types';
 
 // ===== SCHEMAS =====
@@ -36,12 +38,16 @@ import {
   rescheduleAppointmentSchema,
   rejectVideoProposalSchema
 } from '@/lib/schema/appointments.schema';
+import { z } from 'zod';
 
 const IST_UTC_OFFSET = '+05:30';
 
 function toIstAppointmentIso(date: string, time: string): string {
   // Normalize incoming date/time to IST first, then store as UTC ISO for backend consistency.
-  return new Date(`${date}T${time}:00${IST_UTC_OFFSET}`).toISOString();
+  const normalizedDate = String(date || '')
+    .replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu, '')
+    .trim();
+  return new Date(`${normalizedDate}T${time}:00${IST_UTC_OFFSET}`).toISOString();
 }
 
 function normalizeAppointment(raw: Appointment | (Appointment & { appointmentDate?: string })) {
@@ -554,6 +560,16 @@ export async function getAppointments(filters?: AppointmentFilters & { omitClini
   try {
     const session = await getServerSession();
     const { omitClinicId, ...restFilters } = filters || {};
+    const requestContext = {
+      clinicId: restFilters.clinicId || session?.user?.clinicId || APP_CONFIG.CLINIC.ID,
+      status: restFilters.status,
+      date: restFilters.date,
+      startDate: restFilters.startDate,
+      endDate: restFilters.endDate,
+      page: restFilters.page,
+      limit: restFilters.limit,
+    };
+    logger.debug('getAppointments request', requestContext);
     const queryParams = new URLSearchParams(restFilters as any).toString();
     const endpoint = queryParams ? `${API_ENDPOINTS.APPOINTMENTS.GET_ALL}?${queryParams}` : API_ENDPOINTS.APPOINTMENTS.GET_ALL;
     const resolvedClinicId = session?.user?.clinicId || restFilters.clinicId || APP_CONFIG.CLINIC.ID;
@@ -589,6 +605,7 @@ export async function getAppointments(filters?: AppointmentFilters & { omitClini
       (!Array.isArray(payload) && payload?.pagination) ||
       data.pagination ||
       data.meta;
+    logger.debug('getAppointments response', { appointmentsCount: appointments.length, hasMeta: !!meta });
     return { success: true, appointments, meta };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -625,12 +642,23 @@ export async function getMyAppointments(filters?: any) {
     const sessionUser = session?.user as
       | { clinicId?: string; primaryClinicId?: string }
       | undefined;
+    const requestContext = {
+      clinicId: filters?.clinicId || sessionUser?.clinicId || sessionUser?.primaryClinicId || APP_CONFIG.CLINIC.ID,
+      status: filters?.status,
+      date: filters?.date,
+      startDate: filters?.startDate,
+      endDate: filters?.endDate,
+      page: filters?.page,
+      limit: filters?.limit,
+    };
+    logger.debug('getMyAppointments request', requestContext);
     // Use the authoritative session clinicId — the cookie is always current after login/profile completion.
     // Only use filters.clinicId as a fallback when session doesn't have clinicId.
     const resolvedClinicId =
       sessionUser?.clinicId ||
       sessionUser?.primaryClinicId ||
-      filters?.clinicId;
+      filters?.clinicId ||
+      APP_CONFIG.CLINIC.ID;
 
     if (!resolvedClinicId) {
       return {
@@ -691,6 +719,7 @@ export async function getMyAppointments(filters?: any) {
       (!Array.isArray(payload) && payload?.pagination) ||
       data.pagination ||
       data.meta;
+    logger.debug('getMyAppointments response', { appointmentsCount: appointments.length, hasMeta: !!meta });
     return { success: true, appointments, meta };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1279,6 +1308,601 @@ export async function getUserUpcomingAppointments(filters?: { clinicId?: string 
   } catch (error) {
     logger.error('Failed to get upcoming appointments', error instanceof Error ? error : new Error(String(error)));
     return { success: false, error: 'Failed to fetch upcoming appointments' };
+  }
+}
+
+// ===== DOCTOR DAILY SUMMARY =====
+
+const triggerSummarySchema = z.object({
+  dateKey: z.string().optional(),
+});
+
+type TriggerSummaryResponse = {
+  success: boolean;
+  skipped?: boolean;
+  reason?: string;
+  todayKey: string;
+  enqueuedCount: number;
+  skipCount: number;
+  totalDoctors: number;
+  message?: string;
+};
+
+/**
+ * Manually trigger doctor daily appointment summary.
+ * Requires SUPER_ADMIN or CLINIC_ADMIN role (enforced by backend).
+ */
+export async function triggerDoctorDailySummary(input: { dateKey?: string }): Promise<TriggerSummaryResponse> {
+  try {
+    const parsed = triggerSummarySchema.parse(input);
+
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      return { success: false, todayKey: '', enqueuedCount: 0, skipCount: 0, totalDoctors: 0, message: 'Unauthorized' };
+    }
+
+    const response = await authenticatedApi<TriggerSummaryResponse>(
+      API_ENDPOINTS.APPOINTMENTS.SUMMARY_TRIGGER,
+      {
+        method: 'POST',
+        body: JSON.stringify(parsed),
+      }
+    );
+
+    if (response.status >= 200 && response.status < 300) {
+      revalidatePath('/dashboard');
+      return response.data as TriggerSummaryResponse;
+    }
+
+    return { success: false, todayKey: '', enqueuedCount: 0, skipCount: 0, totalDoctors: 0, message: 'Failed to trigger summary' };
+  } catch (error) {
+    const message = isApiError(error) ? error.message : 'Something went wrong';
+    logger.error('Failed to trigger doctor daily summary', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, todayKey: '', enqueuedCount: 0, skipCount: 0, totalDoctors: 0, message };
+  }
+}
+
+// ===== VIDEO APPOINTMENTS =====
+
+export async function proposeVideoAppointment(data: {
+  patientId: string;
+  doctorId: string;
+  clinicId?: string;
+  locationId?: string;
+  duration: number;
+  treatmentType?: string;
+  proposedSlots: Array<{ date: string; time: string }>;
+  notes?: string;
+}) {
+  try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
+    const payload = {
+      ...data,
+      clinicId: data.clinicId || session.user.clinicId || APP_CONFIG.CLINIC.ID,
+    };
+
+    const [{ data: appointment }, { ipAddress, userAgent }] = await Promise.all([
+      authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.VIDEO_PROPOSE, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+      getClientInfo(),
+    ]);
+
+    await auditLog({
+      userId: session.user.id,
+      action: 'VIDEO_APPOINTMENT_PROPOSED',
+      resource: 'APPOINTMENT',
+      resourceId: appointment?.id,
+      result: 'SUCCESS',
+      riskLevel: 'LOW',
+      ipAddress,
+      userAgent,
+      sessionId: session.session_id,
+      metadata: payload,
+    });
+
+    revalidatePath('/dashboard/appointments');
+    revalidateCache('appointments');
+
+    return { success: true, appointment: normalizeAppointment(appointment) };
+  } catch (error) {
+    logger.error('Failed to propose video appointment', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to propose video appointment' };
+  }
+}
+
+export async function confirmVideoSlot(
+  id: string,
+  data: { confirmedSlotIndex: number }
+) {
+  try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
+    const [{ data: appointment }, { ipAddress, userAgent }] = await Promise.all([
+      authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.VIDEO_CONFIRM_SLOT(id), {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+      getClientInfo(),
+    ]);
+
+    await auditLog({
+      userId: session.user.id,
+      action: 'VIDEO_APPOINTMENT_SLOT_CONFIRMED',
+      resource: 'APPOINTMENT',
+      resourceId: id,
+      result: 'SUCCESS',
+      riskLevel: 'LOW',
+      ipAddress,
+      userAgent,
+      sessionId: session.session_id,
+      metadata: data,
+    });
+
+    revalidatePath(`/dashboard/appointments/${id}`);
+    revalidateCache('appointments');
+
+    return { success: true, appointment: normalizeAppointment(appointment) };
+  } catch (error) {
+    logger.error('Failed to confirm video slot', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to confirm video slot' };
+  }
+}
+
+export async function confirmFinalVideoSlot(
+  id: string,
+  data: {
+    confirmedSlotIndex?: number;
+    date?: string;
+    time?: string;
+    reason?: string;
+  }
+) {
+  try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
+    const [{ data: appointment }, { ipAddress, userAgent }] = await Promise.all([
+      authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.VIDEO_CONFIRM_FINAL_SLOT(id), {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+      getClientInfo(),
+    ]);
+
+    await auditLog({
+      userId: session.user.id,
+      action: 'VIDEO_APPOINTMENT_FINAL_SLOT_CONFIRMED',
+      resource: 'APPOINTMENT',
+      resourceId: id,
+      result: 'SUCCESS',
+      riskLevel: 'LOW',
+      ipAddress,
+      userAgent,
+      sessionId: session.session_id,
+      metadata: data,
+    });
+
+    revalidatePath(`/dashboard/appointments/${id}`);
+    revalidateCache('appointments');
+
+    return { success: true, appointment: normalizeAppointment(appointment) };
+  } catch (error) {
+    logger.error('Failed to confirm final video slot', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to confirm final video slot' };
+  }
+}
+
+// ===== NO-SHOW =====
+
+export async function checkNoShow(data?: {
+  checkDaysBefore?: number;
+  checkStatuses?: string[];
+  sendPatientNotifications?: boolean;
+  clinicId?: string;
+}) {
+  try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
+    const payload = {
+      ...data,
+      clinicId: data?.clinicId || session.user.clinicId || APP_CONFIG.CLINIC.ID,
+    };
+
+    const result = await authenticatedApi<{
+      totalChecked: number;
+      cancelled: number;
+      failed: number;
+      details: Array<{
+        appointmentId: string;
+        patientId: string;
+        doctorId: string;
+        appointmentDate: string;
+        reason: string;
+      }>;
+    }>(API_ENDPOINTS.APPOINTMENTS.NO_SHOW_CHECK, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+
+    revalidateCache('appointments');
+    revalidateCache('queue');
+
+    return { success: true, ...result.data };
+  } catch (error) {
+    logger.error('Failed to check no-show', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to check no-show' };
+  }
+}
+
+// ===== FOLLOW-UP PLANS =====
+
+export async function getPatientFollowUpPlans(
+  patientId: string,
+  filters?: { status?: string; clinicId?: string }
+) {
+  try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
+    const queryParams = new URLSearchParams();
+    if (filters?.status) queryParams.append('status', filters.status);
+
+    const resolvedClinicId = filters?.clinicId || session.user.clinicId || APP_CONFIG.CLINIC.ID;
+    const queryString = queryParams.toString();
+    const endpoint = queryString
+      ? `${API_ENDPOINTS.APPOINTMENTS.PATIENT_FOLLOW_UP_PLANS(patientId)}?${queryString}`
+      : API_ENDPOINTS.APPOINTMENTS.PATIENT_FOLLOW_UP_PLANS(patientId);
+
+    const { data } = await authenticatedApi<FollowUpPlan[]>(endpoint, {
+      ...(resolvedClinicId ? { headers: { 'X-Clinic-ID': resolvedClinicId } } : {}),
+      cache: 'no-store',
+    });
+
+    return { success: true, data: Array.isArray(data) ? data : [] };
+  } catch (error) {
+    logger.error('Failed to get patient follow-up plans', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: 'Failed to fetch patient follow-up plans' };
+  }
+}
+
+export async function scheduleFollowUpFromPlan(
+  followUpPlanId: string,
+  data: { appointmentDate: string; doctorId?: string; locationId?: string }
+) {
+  try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
+    const [{ data: appointment }, { ipAddress, userAgent }] = await Promise.all([
+      authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.FOLLOW_UP_PLAN_SCHEDULE(followUpPlanId), {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+      getClientInfo(),
+    ]);
+
+    await auditLog({
+      userId: session.user.id,
+      action: 'FOLLOW_UP_APPOINTMENT_SCHEDULED',
+      resource: 'FOLLOW_UP_PLAN',
+      resourceId: followUpPlanId,
+      result: 'SUCCESS',
+      riskLevel: 'LOW',
+      ipAddress,
+      userAgent,
+      sessionId: session.session_id,
+      metadata: { followUpPlanId, ...data },
+    });
+
+    revalidatePath('/dashboard/appointments');
+    revalidateCache('appointments');
+
+    return { success: true, appointment: normalizeAppointment(appointment) };
+  } catch (error) {
+    logger.error('Failed to schedule follow-up from plan', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to schedule follow-up' };
+  }
+}
+
+export async function updateFollowUpPlan(
+  id: string,
+  data: {
+    followUpType?: string;
+    scheduledFor?: string;
+    daysAfter?: number;
+    priority?: string;
+    instructions?: string;
+    medications?: string[];
+    tests?: string[];
+    restrictions?: string[];
+    notes?: string;
+  }
+) {
+  try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
+    const [{ data: plan }, { ipAddress, userAgent }] = await Promise.all([
+      authenticatedApi<FollowUpPlan>(API_ENDPOINTS.APPOINTMENTS.FOLLOW_UP_PLAN_UPDATE(id), {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+      getClientInfo(),
+    ]);
+
+    await auditLog({
+      userId: session.user.id,
+      action: 'FOLLOW_UP_PLAN_UPDATED',
+      resource: 'FOLLOW_UP_PLAN',
+      resourceId: id,
+      result: 'SUCCESS',
+      riskLevel: 'LOW',
+      ipAddress,
+      userAgent,
+      sessionId: session.session_id,
+      metadata: data,
+    });
+
+    revalidatePath('/dashboard/appointments');
+    revalidateCache('appointments');
+
+    return { success: true, data: plan };
+  } catch (error) {
+    logger.error('Failed to update follow-up plan', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to update follow-up plan' };
+  }
+}
+
+export async function cancelFollowUpPlan(id: string) {
+  try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
+    const [{ data }, { ipAddress, userAgent }] = await Promise.all([
+      authenticatedApi<{ message: string }>(API_ENDPOINTS.APPOINTMENTS.FOLLOW_UP_PLAN_DELETE(id), {
+        method: 'DELETE',
+      }),
+      getClientInfo(),
+    ]);
+
+    await auditLog({
+      userId: session.user.id,
+      action: 'FOLLOW_UP_PLAN_CANCELLED',
+      resource: 'FOLLOW_UP_PLAN',
+      resourceId: id,
+      result: 'SUCCESS',
+      riskLevel: 'LOW',
+      ipAddress,
+      userAgent,
+      sessionId: session.session_id,
+    });
+
+    revalidatePath('/dashboard/appointments');
+    revalidateCache('appointments');
+
+    return { success: true, ...data };
+  } catch (error) {
+    logger.error('Failed to cancel follow-up plan', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to cancel follow-up plan' };
+  }
+}
+
+// ===== RECURRING SERIES =====
+
+export async function createRecurringSeries(data: {
+  templateId: string;
+  patientId: string;
+  startDate: string;
+  endDate?: string;
+  clinicId?: string;
+}) {
+  try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
+    const payload = {
+      ...data,
+      clinicId: data.clinicId || session.user.clinicId || APP_CONFIG.CLINIC.ID,
+    };
+
+    const [{ data: series }, { ipAddress, userAgent }] = await Promise.all([
+      authenticatedApi<RecurringAppointmentSeries>(API_ENDPOINTS.APPOINTMENTS.RECURRING_CREATE, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+      getClientInfo(),
+    ]);
+
+    await auditLog({
+      userId: session.user.id,
+      action: 'RECURRING_SERIES_CREATED',
+      resource: 'RECURRING_SERIES',
+      resourceId: series?.id,
+      result: 'SUCCESS',
+      riskLevel: 'LOW',
+      ipAddress,
+      userAgent,
+      sessionId: session.session_id,
+      metadata: payload,
+    });
+
+    revalidatePath('/dashboard/appointments');
+    revalidateCache('appointments');
+
+    return { success: true, data: series };
+  } catch (error) {
+    logger.error('Failed to create recurring series', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to create recurring series' };
+  }
+}
+
+export async function getRecurringSeries(id: string) {
+  try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
+    const { data } = await authenticatedApi<RecurringAppointmentSeries>(API_ENDPOINTS.APPOINTMENTS.RECURRING_GET(id), {
+      cache: 'no-store',
+    });
+
+    return { success: true, data };
+  } catch (error) {
+    logger.error('Failed to get recurring series', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: 'Failed to fetch recurring series' };
+  }
+}
+
+export async function updateRecurringSeries(
+  id: string,
+  data: {
+    templateId?: string;
+    startDate?: string;
+    endDate?: string;
+    status?: string;
+  }
+) {
+  try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
+    const [{ data: series }, { ipAddress, userAgent }] = await Promise.all([
+      authenticatedApi<RecurringAppointmentSeries>(API_ENDPOINTS.APPOINTMENTS.RECURRING_UPDATE(id), {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+      getClientInfo(),
+    ]);
+
+    await auditLog({
+      userId: session.user.id,
+      action: 'RECURRING_SERIES_UPDATED',
+      resource: 'RECURRING_SERIES',
+      resourceId: id,
+      result: 'SUCCESS',
+      riskLevel: 'LOW',
+      ipAddress,
+      userAgent,
+      sessionId: session.session_id,
+      metadata: data,
+    });
+
+    revalidatePath('/dashboard/appointments');
+    revalidateCache('appointments');
+
+    return { success: true, data: series };
+  } catch (error) {
+    logger.error('Failed to update recurring series', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to update recurring series' };
+  }
+}
+
+export async function cancelRecurringSeries(id: string) {
+  try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
+    const [{ data }, { ipAddress, userAgent }] = await Promise.all([
+      authenticatedApi<{ message: string }>(API_ENDPOINTS.APPOINTMENTS.RECURRING_DELETE(id), {
+        method: 'DELETE',
+      }),
+      getClientInfo(),
+    ]);
+
+    await auditLog({
+      userId: session.user.id,
+      action: 'RECURRING_SERIES_CANCELLED',
+      resource: 'RECURRING_SERIES',
+      resourceId: id,
+      result: 'SUCCESS',
+      riskLevel: 'LOW',
+      ipAddress,
+      userAgent,
+      sessionId: session.session_id,
+    });
+
+    revalidatePath('/dashboard/appointments');
+    revalidateCache('appointments');
+
+    return { success: true, ...data };
+  } catch (error) {
+    logger.error('Failed to cancel recurring series', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to cancel recurring series' };
+  }
+}
+
+// ===== ANALYTICS =====
+
+export async function getCheckInPatterns(filters: {
+  from: string;
+  to: string;
+  locationId?: string;
+  clinicId?: string;
+}) {
+  try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
+    const queryParams = new URLSearchParams({
+      from: filters.from,
+      to: filters.to,
+    });
+
+    if (filters.locationId) {
+      queryParams.append('locationId', filters.locationId);
+    }
+
+    const resolvedClinicId = filters.clinicId || session.user.clinicId || APP_CONFIG.CLINIC.ID;
+    const endpoint = `${API_ENDPOINTS.APPOINTMENTS.ANALYTICS_CHECK_IN_PATTERNS}?${queryParams.toString()}`;
+
+    const { data } = await authenticatedApi<unknown>(endpoint, {
+      ...(resolvedClinicId ? { headers: { 'X-Clinic-ID': resolvedClinicId } } : {}),
+      cache: 'no-store',
+    });
+
+    return { success: true, data };
+  } catch (error) {
+    logger.error('Failed to get check-in patterns', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: 'Failed to fetch check-in patterns' };
+  }
+}
+
+export async function getNoShowCorrelation(filters: {
+  from: string;
+  to: string;
+  locationId?: string;
+  clinicId?: string;
+}) {
+  try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
+    const queryParams = new URLSearchParams({
+      from: filters.from,
+      to: filters.to,
+    });
+
+    if (filters.locationId) {
+      queryParams.append('locationId', filters.locationId);
+    }
+
+    const resolvedClinicId = filters.clinicId || session.user.clinicId || APP_CONFIG.CLINIC.ID;
+    const endpoint = `${API_ENDPOINTS.APPOINTMENTS.ANALYTICS_NO_SHOW_CORRELATION}?${queryParams.toString()}`;
+
+    const { data } = await authenticatedApi<unknown>(endpoint, {
+      ...(resolvedClinicId ? { headers: { 'X-Clinic-ID': resolvedClinicId } } : {}),
+      cache: 'no-store',
+    });
+
+    return { success: true, data };
+  } catch (error) {
+    logger.error('Failed to get no-show correlation', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: 'Failed to fetch no-show correlation' };
   }
 }
 

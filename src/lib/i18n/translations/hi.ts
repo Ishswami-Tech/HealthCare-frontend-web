@@ -702,6 +702,83 @@ export const hi: TranslationKeys = {
       }
     }
   },
+  drDeshmukhPage: {
+    heroText: 'आयुर्वेदाचार्य | विद्धकर्म, अग्निकर्म, पंचकर्म एवं नाड़ी परीक्षण विशेषज्ञ\n\n🏅 राज्यपाल भारत सरकार पुरस्कार से सम्मानित | 🇳🇵 नेपाल सरकार द्वारा सम्मानित | 🥇 BAMS, DYND (गोल्ड मेडलिस्ट) | 🌍 विद्धकर्म में वर्ल्ड रिकॉर्ड होल्डर | 👨‍⚕️ वैद्यरत्न • सुश्रुतरत्न • वारी वैद्य | 🎤 भारत एवं विदेश में ३५०+ व्याख्यान | 🎓 ३२०+ राष्ट्रीय एवं अंतरराष्ट्रीय कार्यशालाएँ | 🌎 २२+ देशों के रोगियों का विश्वास | ❤️ ५ लाख+ सफल उपचार | 👨‍🎓 ५,०००+ आयुर्वेद चिकित्सकों को प्रशिक्षण',
+    linksTitle: 'लिंक',
+    linksHint: 'खोलने के लिए पंक्ति पर टैप करें या साझा करने के लिए तीन डॉट्स का उपयोग करें।',
+    shareButtonLabel: 'साझा करें',
+    copiedLabel: 'कॉपी हो गया',
+    sharePreview: 'शेयर पूर्वावलोकन',
+    closeDialog: 'डायलॉग बंद करें',
+    openHere: 'यहाँ खोलें',
+    copyLink: 'लिंक कॉपी करें',
+    shareLink: 'लिंक साझा करें',
+    shareOnFacebook: 'Facebook पर साझा करें',
+    shareOnWhatsApp: 'WhatsApp पर साझा करें',
+    shareOnLinkedIn: 'LinkedIn पर साझा करें',
+    footerTagline: 'प्रामाणिक आयुर्वेदिक उपचार और रोगी सहायता।',
+    shareDialogTitlePrefix: 'साझा करें',
+    moreActionsAriaPrefix: 'अधिक कार्रवाइयाँ',
+    socialLinks: {
+      instagram: 'Instagram',
+      email: 'ईमेल',
+      youtube: 'YouTube',
+      whatsapp: 'WhatsApp',
+      phone: 'फोन',
+    },
+    services: {
+      videoAppointments: {
+        title: 'वीडियो परामर्श बुक करें',
+        description: 'वेब पर डॉ. देशमुख के साथ ऑनलाइन वीडियो परामर्श शेड्यूल करें।',
+        badge: 'अभी बुक करें',
+      },
+      soup: {
+        title: 'चरबी भस्म सूप',
+        description: 'विवरण और ऑर्डर के लिए उत्पाद पेज खोलें।',
+        badge: 'Rs 2,500',
+      },
+      android: {
+        title: 'अपॉइंटमेंट - Android',
+        description: 'Android ऐप लिस्टिंग खोलें।',
+        badge: 'बुक करें',
+      },
+      apple: {
+        title: 'अपॉइंटमेंट - Apple',
+        description: 'iPhone ऐप लिस्टिंग खोलें।',
+        badge: 'बुक करें',
+      },
+      chinchwad: {
+        title: 'चिंचवड़ क्लिनिक',
+        description: 'विशाल मार्केट, मनकर्णिका औषधालय के पास, भाजी मंडई, चिंचवड़, पिंपरी-चिंचवड़।',
+        badge: 'मैप खोलें',
+      },
+      nanapeth: {
+        title: 'नानापेठ क्लिनिक',
+        description: '102, रामप्रसाद चेंबर्स, 368/1, जवाहरलाल नेहरू रोड, किराड हॉस्पिटल, श्रद्धा मेडिकल्स, न्यू नाना पेठ, पुणे।',
+        badge: 'मैप खोलें',
+      },
+      youtube: {
+        title: 'डॉ. चंद्रकुमार देशमुख - YouTube',
+        description: 'मुख्य YouTube चैनल खोलें।',
+        badge: 'अभी देखें',
+      },
+      viddhakarma: {
+        title: 'विड्धकर्म - As it is',
+        description: 'विड्धकर्म प्लेलिस्ट खोलें।',
+        badge: 'अभी देखें',
+      },
+      autism: {
+        title: 'ऑटिज़्म अवधारणाएँ',
+        description: 'ऑटिज़्म अवधारणाओं की प्लेलिस्ट खोलें।',
+        badge: 'अभी देखें',
+      },
+      callClinic: {
+        title: 'मदद चाहिए?',
+        description: 'सहायता या अपॉइंटमेंट के लिए सीधे डॉ. देशमुख के क्लिनिक पर कॉल करें।',
+        badge: 'सहायता',
+      },
+    },
+  },
   trustBuilding: {
     title: 'विश्वास और पारदर्शिता',
     subtitle: 'अक्सर पूछे जाने वाले प्रश्न',
@@ -1171,9 +1248,7 @@ export const hi: TranslationKeys = {
       emailAddresses: {
         title: "ईमेल पते",
         details: [
-          "drchandrakumardeshmukh@gmail.com",
-          "info@viddhakarma.com",
-          "emergency@drchandrakumardeshmukh.com"
+          "drchandrakumardeshmukh@gmail.com"
         ]
       },
       location: {
@@ -1187,9 +1262,7 @@ export const hi: TranslationKeys = {
       workingHours: {
         title: "कार्य समय",
         details: [
-          "सोमवार - शुक्रवार: सुबह 11:45 - रात 11:30",
-          "शनिवार: सुबह 9:00 - रात 8:00",
-          "रविवार: सुबह 9:00 - शाम 6:00"
+          "सोमवार - शुक्रवार: सुबह 11:45 - रात 11:30"
         ]
       }
     },

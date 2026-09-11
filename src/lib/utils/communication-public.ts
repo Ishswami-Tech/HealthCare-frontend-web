@@ -1,5 +1,14 @@
-import { API_ENDPOINTS, APP_CONFIG } from "@/lib/config/config";
-import { fetchWithAbort } from "@/lib/utils/fetch-with-abort";
+const CONTACT_RECIPIENT = "info@viddhakarma.com";
+
+function openMailDraft(subject: string, body: string) {
+  if (typeof window === "undefined") {
+    throw new Error("Contact actions are only available in the browser.");
+  }
+
+  const url = `mailto:${encodeURIComponent(CONTACT_RECIPIENT)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.location.href = url;
+  return { success: true, recipient: CONTACT_RECIPIENT, url };
+}
 
 export async function submitContactForm(data: {
   name: string;
@@ -9,43 +18,20 @@ export async function submitContactForm(data: {
   message: string;
   type?: "contact" | "consultation";
 }) {
-  const API_URL = APP_CONFIG.API.BASE_URL;
-  const CLINIC_ID = APP_CONFIG.CLINIC.ID;
+  const subject = `Contact Form Submission - ${data.type === "consultation" ? "Consultation Request" : "General Inquiry"}`;
+  const body = [
+    `Name: ${data.name}`,
+    `Email: ${data.email}`,
+    `Phone: ${data.phone}`,
+    data.condition ? `Health Condition: ${data.condition}` : null,
+    "",
+    "Message:",
+    data.message,
+  ]
+    .filter((line): line is string => line !== null)
+    .join("\n");
 
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-
-  if (CLINIC_ID) {
-    headers["X-Clinic-ID"] = CLINIC_ID;
-  }
-
-  const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.COMMUNICATION.SEND}`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      type: "email",
-      title: `Contact Form Submission - ${data.type === "consultation" ? "Consultation Request" : "General Inquiry"}`,
-      message: `
-        Name: ${data.name}
-        Email: ${data.email}
-        Phone: ${data.phone}
-        ${data.condition ? `Health Condition: ${data.condition}` : ""}
-        
-        Message:
-        ${data.message}
-      `,
-      category: data.type === "consultation" ? "consultation_request" : "contact_form",
-      priority: "normal",
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to submit form: ${response.statusText}`);
-  }
-
-  const result = await response.json();
-  return result.data || result;
+  return openMailDraft(subject, body);
 }
 
 export async function submitConsultationBooking(data: {
@@ -55,41 +41,18 @@ export async function submitConsultationBooking(data: {
   preferredTime?: string;
   reason?: string;
 }) {
-  const API_URL = APP_CONFIG.API.BASE_URL;
-  const CLINIC_ID = APP_CONFIG.CLINIC.ID;
+  const subject = "Consultation Booking Request";
+  const body = [
+    `Name: ${data.name}`,
+    `Phone: ${data.phone}`,
+    data.preferredDate ? `Preferred Date: ${data.preferredDate}` : null,
+    data.preferredTime ? `Preferred Time: ${data.preferredTime}` : null,
+    data.reason ? `Reason: ${data.reason}` : null,
+  ]
+    .filter((line): line is string => line !== null)
+    .join("\n");
 
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-
-  if (CLINIC_ID) {
-    headers["X-Clinic-ID"] = CLINIC_ID;
-  }
-
-  const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.COMMUNICATION.SEND}`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      type: "email",
-      title: "Consultation Booking Request",
-      message: `
-        Name: ${data.name}
-        Phone: ${data.phone}
-        ${data.preferredDate ? `Preferred Date: ${data.preferredDate}` : ""}
-        ${data.preferredTime ? `Preferred Time: ${data.preferredTime}` : ""}
-        ${data.reason ? `Reason: ${data.reason}` : ""}
-      `,
-      category: "consultation_booking",
-      priority: "high",
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to submit booking: ${response.statusText}`);
-  }
-
-  const result = await response.json();
-  return result.data || result;
+  return openMailDraft(subject, body);
 }
 
 export async function scheduleMessage(_messageData: {

@@ -1085,9 +1085,7 @@ export const mr: TranslationKeys = {
        emailAddresses: {
          title: "ईमेल पत्ते",
          details: [
-           "drchandrakumardeshmukh@gmail.com",
-           "info@viddhakarma.com",
-           "emergency@drchandrakumardeshmukh.com"
+           "drchandrakumardeshmukh@gmail.com"
          ]
        },
        location: {
@@ -1101,9 +1099,7 @@ export const mr: TranslationKeys = {
        workingHours: {
          title: "कार्य वेळ",
          details: [
-           "सोमवार - शुक्रवार: सकाळी 11:45 - रात्री 11:30",
-           "शनिवार: सकाळी 9:00 - रात्री 8:00",
-           "रविवार: सकाळी 9:00 - संध्याकाळी 6:00"
+           "सोमवार - शुक्रवार: सकाळी 11:45 - रात्री 11:30"
          ]
        }
      },
@@ -1591,7 +1587,83 @@ export const mr: TranslationKeys = {
       category: 'विषबाधा दूर करणे'
     }
   },
-  trustBuilding: {
+  drDeshmukhPage: {
+    heroText: 'आयुर्वेदाचार्य | विद्धकर्म, अग्निकर्म, पंचकर्म व नाडीपरीक्षा तज्ज्ञ\n\n🏅 राज्यपाल भारत सरकार पुरस्कारप्राप्त | 🇳🇵 नेपाळ सरकार पुरस्कारप्राप्त | 🥇 BAMS, DYND (गोल्ड मेडलिस्ट) | 🌍 विद्धकर्मातील वर्ल्ड रेकॉर्ड होल्डर | 👨‍⚕️ वैद्यरत्न • सुश्रुतरत्न • वारी वैद्य | 🎤 ३५०+ भारत व विदेशातील व्याख्याने | 🎓 ३२०+ राष्ट्रीय व आंतरराष्ट्रीय कार्यशाळा | 🌎 २२+ देशांतील रुग्णांचा विश्वास | ❤️ ५ लाख+ यशस्वी उपचार | 👨‍🎓 ५,०००+ आयुर्वेद चिकित्सकांना प्रशिक्षण',
+    linksTitle: 'लिंक्स',
+    linksHint: 'उघडण्यासाठी रांगेवर टॅप करा किंवा शेअर करण्यासाठी तीन ठिपक्यांचा वापर करा.',
+    shareButtonLabel: 'शेअर',
+    copiedLabel: 'कॉपी झाले',
+    sharePreview: 'शेअर पूर्वावलोकन',
+    closeDialog: 'डायलॉग बंद करा',
+    openHere: 'इथे उघडा',
+    copyLink: 'लिंक कॉपी करा',
+    shareLink: 'लिंक शेअर करा',
+    shareOnFacebook: 'Facebook वर शेअर करा',
+    shareOnWhatsApp: 'WhatsApp वर शेअर करा',
+    shareOnLinkedIn: 'LinkedIn वर शेअर करा',
+    footerTagline: 'अस्सल आयुर्वेदिक उपचार आणि रुग्णांना साथ.',
+    shareDialogTitlePrefix: 'शेअर',
+    moreActionsAriaPrefix: 'साठी अधिक पर्याय',
+    socialLinks: {
+      instagram: 'Instagram',
+      email: 'ईमेल',
+      youtube: 'YouTube',
+      whatsapp: 'WhatsApp',
+      phone: 'फोन',
+    },
+    services: {
+      videoAppointments: {
+        title: 'व्हिडिओ सल्लामसलत बुक करा',
+        description: 'वेबवर डॉ. देशमुख यांच्यासोबत ऑनलाइन व्हिडिओ सल्लामसलत ठरवा.',
+        badge: 'आत्ताच बुक करा',
+      },
+      soup: {
+        title: 'चरबी भस्म सूप',
+        description: 'तपशील आणि ऑर्डरसाठी उत्पादन पृष्ठ उघडा.',
+        badge: 'Rs 2,500',
+      },
+      android: {
+        title: 'अपॉइंटमेंट - Android',
+        description: 'Android अॅप लिस्टिंग उघडा.',
+        badge: 'बुक करा',
+      },
+      apple: {
+        title: 'अपॉइंटमेंट - Apple',
+        description: 'iPhone अॅप लिस्टिंग उघडा.',
+        badge: 'बुक करा',
+      },
+      chinchwad: {
+        title: 'चिंचवड क्लिनिक',
+        description: 'विशाल मार्केट, मनकर्णिका औषधालय जवळ, भाजी मंडई, चिंचवड, पिंपरी-चिंचवड.',
+        badge: 'नकाशा उघडा',
+      },
+      nanapeth: {
+        title: 'नानापेठ क्लिनिक',
+        description: '102, रामप्रसाद चेंबर्स, 368/1, जवाहरलाल नेहरू रोड, किराड हॉस्पिटल, श्रद्धा मेडिकल्स, न्यू नाना पेठ, पुणे.',
+        badge: 'नकाशा उघडा',
+      },
+      youtube: {
+        title: 'डॉ. चंद्रकुमार देशमुख - YouTube',
+        description: 'मुख्य YouTube चॅनेल उघडा.',
+        badge: 'आत्ताच पाहा',
+      },
+      viddhakarma: {
+        title: 'विड्धकर्म As it is',
+        description: 'विड्धकर्म प्लेलिस्ट उघडा.',
+        badge: 'आत्ताच पाहा',
+      },
+      autism: {
+        title: 'ऑटिझम संकल्पना',
+        description: 'ऑटिझम संकल्पनांची प्लेलिस्ट उघडा.',
+        badge: 'आत्ताच पाहा',
+      },
+      callClinic: {
+        title: 'मदत हवी?',
+        description: 'सहाय्यासाठी किंवा अपॉइंटमेंटसाठी थेट डॉ. देशमुख यांच्या क्लिनिकला कॉल करा.',
+        badge: 'मदत',
+      },
+    },
+  },  trustBuilding: {
     title: 'विश्वास आणि पारदर्शकता',
     subtitle: 'आमच्या उपचार आणि हमीबद्दल तुम्हाला माहित असणे आवश्यक आहे',
     description: 'आमच्या उपचार आणि हमीबद्दल तुम्हाला माहित असणे आवश्यक आहे',

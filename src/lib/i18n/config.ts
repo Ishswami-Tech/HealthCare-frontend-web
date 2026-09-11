@@ -469,6 +469,83 @@ export interface TranslationKeys {
       };
     };
   };
+  drDeshmukhPage: {
+    heroText: string;
+    linksTitle: string;
+    linksHint: string;
+    shareButtonLabel: string;
+    copiedLabel: string;
+    sharePreview: string;
+    closeDialog: string;
+    openHere: string;
+    copyLink: string;
+    shareLink: string;
+    shareOnFacebook: string;
+    shareOnWhatsApp: string;
+    shareOnLinkedIn: string;
+    footerTagline: string;
+    shareDialogTitlePrefix: string;
+    moreActionsAriaPrefix: string;
+    socialLinks: {
+      instagram: string;
+      email: string;
+      youtube: string;
+      whatsapp: string;
+      phone: string;
+    };
+    services: {
+      videoAppointments: {
+        title: string;
+        description: string;
+        badge: string;
+      };
+      soup: {
+        title: string;
+        description: string;
+        badge: string;
+      };
+      android: {
+        title: string;
+        description: string;
+        badge: string;
+      };
+      apple: {
+        title: string;
+        description: string;
+        badge: string;
+      };
+      chinchwad: {
+        title: string;
+        description: string;
+        badge: string;
+      };
+      nanapeth: {
+        title: string;
+        description: string;
+        badge: string;
+      };
+      youtube: {
+        title: string;
+        description: string;
+        badge: string;
+      };
+      viddhakarma: {
+        title: string;
+        description: string;
+        badge: string;
+      };
+      autism: {
+        title: string;
+        description: string;
+        badge: string;
+      };
+      callClinic: {
+        title: string;
+        description: string;
+        badge: string;
+      };
+    };
+  };
   trustBuilding: {
     title: string;
     subtitle: string;

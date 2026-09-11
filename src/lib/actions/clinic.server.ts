@@ -595,7 +595,7 @@ export async function getClinicDoctors(clinicId: string) {
     if (isProfileCompletionAccessError(error)) {
       throw new Error('PROFILE_INCOMPLETE');
     }
-    return [];
+    throw error instanceof Error ? error : new Error('Failed to get clinic doctors');
   }
 }
 

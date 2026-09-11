@@ -40,6 +40,10 @@ import {
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
 import { formatDateTimeInIST } from "@/lib/utils/date-time";
+import { ClinicAdminSnapshotPanel } from "./_components/ClinicAdminSnapshotPanel";
+import { ClinicQueueBacklogPanel } from "./_components/ClinicQueueBacklogPanel";
+import { triggerDoctorDailySummary } from "@/lib/actions/appointments.server";
+import { showErrorToast, showInfoToast, showSuccessToast } from "@/hooks/utils/use-toast";
 import {
   Settings,
   Clock,
@@ -53,6 +57,7 @@ import {
   RefreshCcw,
   MapPin,
   Users,
+  MessageSquare,
 } from "lucide-react";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -171,6 +176,30 @@ export default function ClinicAdminDashboard() {
   }, [queueItems]);
 
   const [activeQueueLane, setActiveQueueLane] = useState("");
+  const [isTriggeringSummary, setIsTriggeringSummary] = useState(false);
+
+  const handleTriggerDailySummary = async () => {
+    setIsTriggeringSummary(true);
+    try {
+      const result = await triggerDoctorDailySummary({});
+      if (result.success) {
+        if (result.skipped) {
+          showInfoToast(result.reason || 'Skipped', { description: `todayKey: ${result.todayKey}` });
+        } else {
+          showSuccessToast(
+            'Summary queued',
+            { description: `${result.enqueuedCount} doctors · ${result.skipCount} skipped · ${result.totalDoctors} total` }
+          );
+        }
+      } else {
+        showErrorToast(result.message || 'Failed to trigger summary');
+      }
+    } catch {
+      showErrorToast('Something went wrong while triggering the summary');
+    } finally {
+      setIsTriggeringSummary(false);
+    }
+  };
   const resolvedActiveQueueLane = useMemo(() => {
     if (!queueSections.length) {
       return "";
@@ -195,6 +224,94 @@ export default function ClinicAdminDashboard() {
   const todayKey = useMemo(
     () => formatDateTimeInIST(new Date(), { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA"),
     []
+  );
+
+  const clinicAppointments = useMemo(
+    () =>
+      appointments
+        .reduce(
+          (
+            accumulator: Array<{
+              raw: any;
+              dateTime: Date | null;
+              appointmentDate: string;
+              patientName: string;
+              checkedInAt: Date | null;
+              status: string;
+              locationId: string;
+              locationName: string;
+              doctorName: string;
+              doctorId: string;
+              paymentStatus: string;
+              dateLabel: string;
+              timeLabel: string;
+              appointmentType: string;
+            }>,
+            appointment: any
+          ) => {
+            const dateTime = getAppointmentDateTimeValue(appointment);
+            const appointmentDate = dateTime
+              ? formatDateTimeInIST(dateTime, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA")
+              : String(appointment?.date || appointment?.appointmentDate || "").split("T")[0] || "";
+
+            accumulator.push({
+              raw: appointment,
+              dateTime,
+              appointmentDate,
+              patientName: getAppointmentPatientName(appointment),
+              checkedInAt: appointment?.checkedInAt ? new Date(appointment.checkedInAt) : null,
+              status: String(appointment?.status || "").toUpperCase(),
+              locationId: String(appointment?.locationId || appointment?.location?.id || ""),
+              locationName: String(appointment?.location?.name || appointment?.locationName || ""),
+              doctorName: String(
+                appointment?.doctor?.name ||
+                  appointment?.doctor?.user?.name ||
+                  appointment?.doctorName ||
+                  appointment?.assignedDoctor?.name ||
+                  appointment?.assignedDoctor?.user?.name ||
+                  appointment?.assignedDoctorName ||
+                  `${appointment?.doctor?.firstName || appointment?.doctor?.user?.firstName || appointment?.assignedDoctor?.firstName || appointment?.assignedDoctor?.user?.firstName || ""} ${appointment?.doctor?.lastName || appointment?.doctor?.user?.lastName || appointment?.assignedDoctor?.lastName || appointment?.assignedDoctor?.user?.lastName || ""}`.trim() ||
+                  ""
+              ),
+              doctorId: String(
+                appointment?.doctorId ||
+                  appointment?.doctor?.id ||
+                  appointment?.assignedDoctorId ||
+                  appointment?.assignedDoctor?.id ||
+                  ""
+              ),
+              paymentStatus: getAppointmentPaymentDisplayState(appointment).paymentStatus,
+              dateLabel: getReceptionistAppointmentDateLabel(appointment),
+              timeLabel: getReceptionistAppointmentTimeLabel(appointment),
+              appointmentType: String(appointment?.type || appointment?.appointmentType || ""),
+            });
+
+            return accumulator;
+          },
+          [] as Array<{
+            raw: any;
+            dateTime: Date | null;
+            appointmentDate: string;
+            patientName: string;
+            checkedInAt: Date | null;
+            status: string;
+            locationId: string;
+            locationName: string;
+            doctorName: string;
+            doctorId: string;
+            paymentStatus: string;
+            dateLabel: string;
+            timeLabel: string;
+            appointmentType: string;
+          }>
+        )
+        .sort((a: any, b: any) => (a.dateTime?.getTime() || 0) - (b.dateTime?.getTime() || 0)),
+    [appointments]
+  );
+
+  const todayClinicAppointments = useMemo(
+    () => clinicAppointments.filter((appointment: any) => appointment.appointmentDate === todayKey),
+    [clinicAppointments, todayKey]
   );
 
   const inPersonAppointments = useMemo(
@@ -522,6 +639,16 @@ export default function ClinicAdminDashboard() {
                 <Activity className="size-4" />
                 Queue
               </Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleTriggerDailySummary}
+              disabled={isTriggeringSummary}
+              className="h-9 items-center gap-2 border-border bg-card px-4 font-semibold text-foreground shadow-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <MessageSquare className="size-4" />
+              {isTriggeringSummary ? "Sending..." : "Trigger Doctor Summaries"}
             </Button>
           </div>
         }
@@ -852,6 +979,13 @@ export default function ClinicAdminDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <ClinicAdminSnapshotPanel
+        doctorRosters={doctorRosters}
+        todayAppointments={todayClinicAppointments}
+      />
+
+      <ClinicQueueBacklogPanel clinicId={clinicId} />
 
       <div className="grid grid-cols-1 gap-6 text-foreground lg:grid-cols-12">
         <div className="gap-y-6 lg:col-span-8">

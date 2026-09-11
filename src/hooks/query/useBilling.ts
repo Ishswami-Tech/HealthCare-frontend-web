@@ -122,13 +122,21 @@ function sortPaymentsNewestFirst<T extends { createdAt?: string; updatedAt?: str
   return payments.toSorted((left, right) => getPaymentSortTimestamp(right) - getPaymentSortTimestamp(left));
 }
 
+function withClinicContext(clinicId?: string): RequestInit | undefined {
+  return clinicId ? ({ clinicId } as unknown as RequestInit) : undefined;
+}
+
 // ============ Billing Plans Hooks ============
 
 export function useBillingPlans(clinicId?: string, enabled: boolean = true) {
   return useQueryData<BillingPlan[]>(
     ['billing-plans', clinicId],
     async () => {
-      const result = await clinicApiClient.get(API_ENDPOINTS.BILLING.PLANS.GET_ALL, clinicId ? { clinicId } : undefined);
+      const result = await clinicApiClient.get(
+        API_ENDPOINTS.BILLING.PLANS.GET_ALL,
+        undefined,
+        withClinicContext(clinicId),
+      );
       return unwrapList<BillingPlan>(result.data, ['plans', 'data', 'items', 'results']);
     },
     {
@@ -136,6 +144,7 @@ export function useBillingPlans(clinicId?: string, enabled: boolean = true) {
       staleTime: 10 * 60 * 1000, // 10 minutes (optimized for 10M users)
       gcTime: 30 * 60 * 1000, // 30 minutes
       refetchOnWindowFocus: false,
+      refetchOnMount: "always",
     }
   );
 }
@@ -202,14 +211,18 @@ export function useDeleteBillingPlan() {
 
 // ============ Subscriptions Hooks ============
 
-export function useSubscriptions(userId: string, enabled: boolean = true) {
+export function useSubscriptions(userId: string, clinicId?: string, enabled: boolean = true) {
   const { isConnected } = useWebSocketStatus();
   const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
 
   return useQueryData<Subscription[]>(
-    ['subscriptions', userId],
+    ['subscriptions', userId, clinicId],
     async () => {
-      const result = await clinicApiClient.get(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.GET_USER_SUBSCRIPTIONS(userId));
+      const result = await clinicApiClient.get(
+        API_ENDPOINTS.BILLING.SUBSCRIPTIONS.GET_USER_SUBSCRIPTIONS(userId),
+        undefined,
+        withClinicContext(clinicId),
+      );
       return unwrapList<Subscription>(result.data, ['subscriptions', 'data', 'items', 'results']);
     },
     {
@@ -217,6 +230,7 @@ export function useSubscriptions(userId: string, enabled: boolean = true) {
       staleTime: 10 * 60 * 1000, // 10 minutes (optimized for 10M users)
       gcTime: 30 * 60 * 1000, // 30 minutes
       refetchOnWindowFocus: false,
+      refetchOnMount: "always",
       refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
   );
@@ -230,7 +244,11 @@ export function useClinicSubscriptions(enabled: boolean = true) {
   return useQueryData<Subscription[]>(
     ['clinic-subscriptions', clinicId],
     async () => {
-      const result = await clinicApiClient.get(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.GET_CLINIC_SUBSCRIPTIONS, clinicId ? { clinicId } : undefined);
+      const result = await clinicApiClient.get(
+        API_ENDPOINTS.BILLING.SUBSCRIPTIONS.GET_CLINIC_SUBSCRIPTIONS,
+        undefined,
+        withClinicContext(clinicId),
+      );
       return unwrapList<Subscription>(result.data, ['subscriptions', 'data', 'items', 'results']);
     },
     {
@@ -238,6 +256,7 @@ export function useClinicSubscriptions(enabled: boolean = true) {
       staleTime: 10 * 60 * 1000,
       gcTime: 30 * 60 * 1000,
       refetchOnWindowFocus: false,
+      refetchOnMount: "always",
       refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
   );
@@ -250,7 +269,11 @@ export function useActiveSubscription(userId: string, clinicId: string, enabled:
   return useQueryData<Subscription | null>(
     ['active-subscription', userId, clinicId],
     async () => {
-      const result = await clinicApiClient.get(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.GET_ACTIVE(userId), { clinicId });
+      const result = await clinicApiClient.get(
+        API_ENDPOINTS.BILLING.SUBSCRIPTIONS.GET_ACTIVE(userId),
+        { clinicId },
+        withClinicContext(clinicId),
+      );
       return (unwrapObject<Subscription>(result.data, ['subscription']) ?? (result.data as Subscription | null)) ?? null;
     },
     {
@@ -258,6 +281,7 @@ export function useActiveSubscription(userId: string, clinicId: string, enabled:
       staleTime: 5 * 60 * 1000, // 5 minutes (optimized for 10M users)
       gcTime: 15 * 60 * 1000, // 15 minutes
       refetchOnWindowFocus: false,
+      refetchOnMount: "always",
       refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
   );
@@ -311,14 +335,18 @@ export function useSubscriptionUsageStats(id: string) {
 
 // ============ Invoices Hooks ============
 
-export function useInvoices(userId: string) {
+export function useInvoices(userId: string, clinicId?: string) {
   const { isConnected } = useWebSocketStatus();
   const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
 
   return useQueryData<Invoice[]>(
-    ['invoices', userId],
+    ['invoices', userId, clinicId],
     async () => {
-      const result = await clinicApiClient.get(API_ENDPOINTS.BILLING.INVOICES.GET_USER_INVOICES(userId));
+      const result = await clinicApiClient.get(
+        API_ENDPOINTS.BILLING.INVOICES.GET_USER_INVOICES(userId),
+        undefined,
+        withClinicContext(clinicId),
+      );
       return sortInvoicesNewestFirst(unwrapList<Invoice>(result.data, ['invoices', 'data', 'items', 'results']));
     },
     {
@@ -326,6 +354,7 @@ export function useInvoices(userId: string) {
       staleTime: 10 * 60 * 1000, // 10 minutes (optimized for 10M users)
       gcTime: 30 * 60 * 1000, // 30 minutes
       refetchOnWindowFocus: false,
+      refetchOnMount: "always",
       refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
   );
@@ -339,7 +368,11 @@ export function useClinicInvoices(enabled: boolean = true) {
   return useQueryData<Invoice[]>(
     ['clinic-invoices', clinicId],
     async () => {
-      const result = await clinicApiClient.get(API_ENDPOINTS.BILLING.INVOICES.GET_CLINIC_INVOICES, clinicId ? { clinicId } : undefined);
+      const result = await clinicApiClient.get(
+        API_ENDPOINTS.BILLING.INVOICES.GET_CLINIC_INVOICES,
+        undefined,
+        withClinicContext(clinicId),
+      );
       return sortInvoicesNewestFirst(unwrapList<Invoice>(result.data, ['invoices', 'data', 'items', 'results']));
     },
     {
@@ -347,6 +380,7 @@ export function useClinicInvoices(enabled: boolean = true) {
       staleTime: 10 * 60 * 1000,
       gcTime: 30 * 60 * 1000,
       refetchOnWindowFocus: false,
+      refetchOnMount: "always",
       refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
   );
@@ -393,14 +427,18 @@ export function useMarkInvoiceAsPaid() {
 
 // ============ Payments Hooks ============
 
-export function usePayments(userId: string) {
+export function usePayments(userId: string, clinicId?: string) {
   const { isConnected } = useWebSocketStatus();
   const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
 
   return useQueryData<Payment[]>(
-    ['payments', userId],
+    ['payments', userId, clinicId],
     async () => {
-      const result = await clinicApiClient.get(API_ENDPOINTS.BILLING.PAYMENTS.GET_USER_PAYMENTS(userId));
+      const result = await clinicApiClient.get(
+        API_ENDPOINTS.BILLING.PAYMENTS.GET_USER_PAYMENTS(userId),
+        undefined,
+        withClinicContext(clinicId),
+      );
       return sortPaymentsNewestFirst(unwrapList<Payment>(result.data, ['payments', 'data', 'items', 'results']));
     },
     {
@@ -408,6 +446,7 @@ export function usePayments(userId: string) {
       staleTime: 10 * 60 * 1000, // 10 minutes (optimized for 10M users)
       gcTime: 30 * 60 * 1000, // 30 minutes
       refetchOnWindowFocus: false,
+      refetchOnMount: "always",
       refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
   );
@@ -428,7 +467,11 @@ export function useClinicPayments(filters?: {
   return useQueryData<Payment[]>(
     ['clinic-payments', clinicId, filters],
     async () => {
-      const result = await clinicApiClient.get(API_ENDPOINTS.BILLING.PAYMENTS.GET_CLINIC_PAYMENTS, { clinicId, ...filters });
+      const result = await clinicApiClient.get(
+        API_ENDPOINTS.BILLING.PAYMENTS.GET_CLINIC_PAYMENTS,
+        { ...filters },
+        withClinicContext(clinicId),
+      );
       return sortPaymentsNewestFirst(unwrapList<Payment>(result.data, ['payments', 'data', 'items', 'results']));
     },
     {
@@ -436,6 +479,7 @@ export function useClinicPayments(filters?: {
       staleTime: 2 * 60 * 1000,
       gcTime: 10 * 60 * 1000,
       refetchOnWindowFocus: false,
+      refetchOnMount: "always",
       refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
   );
@@ -449,13 +493,18 @@ export function useClinicLedger(filters?: {
   startDate?: string;
   endDate?: string;
 }, enabled: boolean = true) {
+  const clinicId = useCurrentClinicId();
   const { isConnected } = useWebSocketStatus();
   const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
 
   return useQueryData<ClinicLedgerResponse>(
-    ['clinic-ledger', filters],
+    ['clinic-ledger', clinicId, filters],
     async () => {
-      const result = await clinicApiClient.get(API_ENDPOINTS.BILLING.PAYMENTS.GET_LEDGER, filters);
+      const result = await clinicApiClient.get(
+        API_ENDPOINTS.BILLING.PAYMENTS.GET_LEDGER,
+        filters,
+        withClinicContext(clinicId),
+      );
       return (unwrapObject<ClinicLedgerResponse>(result.data, ['ledger']) ?? (result.data as ClinicLedgerResponse)) as ClinicLedgerResponse;
     },
     {
@@ -463,6 +512,7 @@ export function useClinicLedger(filters?: {
       staleTime: 2 * 60 * 1000,
       gcTime: 10 * 60 * 1000,
       refetchOnWindowFocus: false,
+      refetchOnMount: "always",
       refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
   );

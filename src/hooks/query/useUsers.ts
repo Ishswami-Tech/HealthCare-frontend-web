@@ -7,6 +7,7 @@ import { clinicApiClient } from '@/lib/api/client';
 import { API_ENDPOINTS } from '@/lib/config/config';
 import { setProfileComplete } from '@/lib/actions/auth.server';
 import {
+  getUserProfile,
   updateUserProfile,
 } from '@/lib/actions/users.server';
 import { isSessionInvalidError } from '@/lib/utils/auth-recovery';
@@ -22,8 +23,7 @@ export const useUserProfile = (
   const { isConnected } = useWebSocketStatus();
   return useQueryData(['userProfile'], async () => {
     try {
-      const response = await clinicApiClient.getProfile();
-      return response.data;
+      return await getUserProfile();
     } catch (error) {
       if (isSessionInvalidError(error)) {
         return null;
@@ -126,7 +126,7 @@ export const useDeleteUser = () => {
 export const useUsers = () => {
   const { session } = useAuth();
   const { isConnected } = useWebSocketStatus();
-  return useQueryData<Record<string, unknown>[]>(
+  return useQueryData<Record<string, unknown>[]>( 
     ['users'],
     async () => (await clinicApiClient.get(API_ENDPOINTS.USERS.GET_ALL)).data as Record<string, unknown>[],
     {

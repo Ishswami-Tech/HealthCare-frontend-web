@@ -10,6 +10,7 @@ import {
   getReceptionistAppointmentDateLabel,
   getReceptionistAppointmentTimeLabel,
 } from "@/lib/utils/appointmentUtils";
+import { resolveDisplayNameAndInitials } from "@/lib/utils/display-name";
 
 export interface TransformedAppointment {
   id: string;
@@ -133,11 +134,15 @@ export function doctorDashboardReducer(
 }
 
 export const getDisplayDoctorName = (name?: string | null) => {
-  const cleaned = String(name || "")
+  const resolvedName = resolveDisplayNameAndInitials({
+    name: name || undefined,
+    role: "DOCTOR",
+  }).displayName;
+  const cleaned = String(resolvedName || "")
     .replace(/^dr\.?\s+/i, "")
     .trim();
 
-  return cleaned || "Doctor";
+  return cleaned === "User" ? "Doctor" : cleaned || "Doctor";
 };
 
 export function normalizeQueueToken(value?: string | null): string {

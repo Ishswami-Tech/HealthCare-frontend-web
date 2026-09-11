@@ -458,6 +458,7 @@ export const API_ENDPOINTS = {
     RESCHEDULE: (id: string) => `/appointments/${id}/reschedule`,
     DOCTOR_AVAILABILITY: (doctorId: string) => `/appointments/doctor/${doctorId}/availability`,
     UPDATE_AVAILABILITY: (doctorId: string) => `/appointments/doctor/${doctorId}/availability`,
+    SUMMARY_TRIGGER: '/appointments/summary/trigger',
     // Deprecated compatibility alias for queue callers that still reference
     // APPOINTMENTS.QUEUE. All queue flows now resolve to the standalone /queue/* API.
     QUEUE: {
@@ -476,12 +477,27 @@ export const API_ENDPOINTS = {
     ANALYTICS: '/appointments/analytics/wait-times',
     UPCOMING: (userId: string) => `/appointments/user/${userId}/upcoming`,
     TEST_CONTEXT: '/appointments/test/context',
+    VIDEO_PROPOSE: '/appointments/video/propose',
+    VIDEO_CONFIRM_SLOT: (id: string) => `/appointments/${id}/video/confirm-slot`,
+    VIDEO_CONFIRM_FINAL_SLOT: (id: string) => `/appointments/${id}/video/confirm-final-slot`,
+    NO_SHOW_CHECK: '/appointments/noshow/check',
+    PATIENT_FOLLOW_UP_PLANS: (patientId: string) => `/appointments/patients/${patientId}/follow-up-plans`,
+    FOLLOW_UP_PLAN_SCHEDULE: (id: string) => `/appointments/follow-up-plans/${id}/schedule`,
+    FOLLOW_UP_PLAN_UPDATE: (id: string) => `/appointments/follow-up-plans/${id}`,
+    FOLLOW_UP_PLAN_DELETE: (id: string) => `/appointments/follow-up-plans/${id}`,
+    RECURRING_CREATE: '/appointments/recurring',
+    RECURRING_GET: (id: string) => `/appointments/series/${id}`,
+    RECURRING_UPDATE: (id: string) => `/appointments/series/${id}`,
+    RECURRING_DELETE: (id: string) => `/appointments/series/${id}`,
+    ANALYTICS_CHECK_IN_PATTERNS: '/appointments/analytics/check-in-patterns',
+    ANALYTICS_NO_SHOW_CORRELATION: '/appointments/analytics/no-show-correlation',
   },
   
   // Queue Endpoints (Standalone queue management)
   QUEUE: {
     BASE: '/queue',
     GET: '/queue',
+    DASHBOARD: '/queue/dashboard',
     FILTERS: '/queue/filters',
     GET_BY_TYPE: (queueType: string) => `/queue/${queueType}`,
     STATS: '/queue/stats',
@@ -552,6 +568,89 @@ export const API_ENDPOINTS = {
     SUPPLIERS: '/pharmacy/suppliers',
     AUDIT_BATCHES: '/pharmacy/audit/batches',
     EXPORT: (clinicId: string) => `/clinics/${clinicId}/pharmacy/export`,
+  },
+
+  // Ayurveda Endpoints
+  AYURVEDA: {
+    BASE: '/ayurveda',
+    PRAKRITI: {
+      ASSESSMENTS: '/ayurveda/prakriti/assessments',
+      CREATE: '/ayurveda/prakriti/assessments',
+      GET_BY_ID: (id: string) => `/ayurveda/prakriti/assessments/${id}`,
+      UPDATE: (id: string) => `/ayurveda/prakriti/assessments/${id}`,
+      GET_BY_PATIENT: (patientId: string) => `/ayurveda/prakriti/assessments?patientId=${patientId}`,
+    },
+    NADI: {
+      BASE: '/ayurveda/nadi-pariksha',
+      CREATE: '/ayurveda/nadi-pariksha',
+      GET_BY_PATIENT: (patientId: string) => `/ayurveda/nadi-pariksha?patientId=${patientId}`,
+    },
+    DIAGNOSIS: {
+      BASE: '/ayurveda/diagnoses',
+      CREATE: '/ayurveda/diagnoses',
+      GET_BY_ID: (id: string) => `/ayurveda/diagnoses/${id}`,
+      GET_BY_PATIENT: (patientId: string) => `/ayurveda/diagnoses?patientId=${patientId}`,
+    },
+    SAMPRAPTI: {
+      CREATE: (diagnosisId: string) => `/ayurveda/samprapti/${diagnosisId}/stage`,
+      GET_BY_DIAGNOSIS: (diagnosisId: string) => `/ayurveda/samprapti/${diagnosisId}/stages`,
+    },
+    DOSHA: {
+      BASE: '/ayurveda/dosha-imbalance',
+      CREATE: '/ayurveda/dosha-imbalance',
+      GET_BY_PATIENT: (patientId: string) => `/ayurveda/dosha-imbalance?patientId=${patientId}`,
+    },
+    TIMELINE: (patientId: string) => `/ayurveda/patients/${patientId}/timeline`,
+    PRESCRIPTION: {
+      CREATE: '/ayurveda/prescriptions',
+      GET_BY_PATIENT: (patientId: string) => `/ayurveda/prescriptions?patientId=${patientId}`,
+    },
+  },
+
+  // Diet Endpoints
+  DIET: {
+    BASE: '/diet',
+    PLANS: {
+      GENERATE: '/diet/plans/generate',
+      LIST: '/diet/plans',
+      GET_BY_ID: (id: string) => `/diet/plans/${id}`,
+      UPDATE: (id: string) => `/diet/plans/${id}`,
+      GET_BY_PATIENT: (patientId: string) => `/diet/plans?patientId=${patientId}`,
+    },
+    FOODS: {
+      LIST: '/diet/foods',
+      CREATE: '/diet/foods',
+      SEARCH: (query: string) => `/diet/foods/search?q=${encodeURIComponent(query)}`,
+    },
+    COMPATIBILITY_CHECK: '/diet/compatibility/check',
+  },
+
+  // IPD Endpoints
+  IPD: {
+    ADMISSIONS: {
+      BASE: '/ipd/admissions',
+      CREATE: '/ipd/admissions',
+      LIST: '/ipd/admissions',
+      GET_BY_ID: (id: string) => `/ipd/admissions/${id}`,
+      TRANSFER_BED: (id: string) => `/ipd/admissions/${id}/transfer-bed`,
+      DISCHARGE: (id: string) => `/ipd/admissions/${id}/discharge`,
+      DISCHARGE_SUMMARY: (id: string) => `/ipd/admissions/${id}/discharge-summary`,
+      ACTIVE: '/ipd/admissions/active',
+    },
+    BEDS: {
+      LIST: '/ipd/beds',
+      GET_BY_ID: (id: string) => `/ipd/beds/${id}`,
+      UPDATE_STATUS: (id: string) => `/ipd/beds/${id}/status`,
+      CREATE: '/ipd/beds',
+      UPDATE: (id: string) => `/ipd/beds/${id}`,
+      OCCUPANCY_STATS: '/ipd/occupancy-stats',
+    },
+    WARDS: {
+      LIST: '/ipd/wards',
+      CREATE: '/ipd/wards',
+      UPDATE: (id: string) => `/ipd/wards/${id}`,
+      STATISTICS: '/ipd/ward-statistics',
+    },
   },
   
   // Patients Endpoints

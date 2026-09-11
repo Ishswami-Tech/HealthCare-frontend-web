@@ -347,7 +347,7 @@ export default function AgnikarmaPage() {
                 </p>
               </div>
 
-              <div className="gap-y-8 sm:gap-y-10">
+              <div className="flex flex-col gap-y-6 sm:gap-y-8">
                 {processSteps.map((step) => {
                   const IconComponent = step.icon;
 
@@ -480,7 +480,7 @@ export default function AgnikarmaPage() {
               </div>
 
               {/* Mobile Card View */}
-              <div className="lg:hidden gap-y-4">
+              <div className="flex flex-col lg:hidden gap-y-4">
                 {conditionsData.map((item) => (
                   <Card
                     key={item.condition}
@@ -782,15 +782,13 @@ export default function AgnikarmaPage() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button
                   size="lg"
-                  variant="secondary"
-                  className="bg-white text-orange-600 hover:bg-orange-50 dark:bg-white/90 dark:text-orange-600 dark:hover:bg-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300"
+                  className="bg-white text-orange-600 hover:bg-orange-600 hover:text-white border border-transparent hover:border-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
                 >
                   {t("agnikarma.cta.bookSession")}
                 </Button>
                 <Button
                   size="lg"
-                  variant="outline"
-                  className="border-white text-white hover:bg-white/10 dark:border-white/80 dark:text-white/90 dark:hover:bg-white/20 text-lg px-10 py-4 interactive"
+                  className="bg-white text-orange-600 hover:bg-orange-600 hover:text-white border border-transparent hover:border-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
                 >
                   {t("agnikarma.cta.freeAssessment")}
                 </Button>

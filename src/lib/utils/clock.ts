@@ -28,7 +28,7 @@ export function getNextAvailableTime(currentTime: string, duration: number = 30)
   const [hours, minutes] = currentTime.split(':').map(Number);
   const nextTime = new Date();
   nextTime.setHours(hours || 0, (minutes || 0) + duration, 0, 0);
-  return nextTime.toTimeString().substring(0, 5);
+  return nextTime.toISOString().substring(11, 16);
 }
 
 export function calculateAppointmentDuration(startTime: string, endTime: string): number {

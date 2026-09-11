@@ -1,8 +1,8 @@
 import { useQueryData } from '../core/useQueryData';
-import { clinicApiClient } from '@/lib/api/client';
 import { useHealthRealtime } from '../realtime/useHealthRealtime';
 import { useHealthStore } from '@/stores';
 import { useEffect } from 'react';
+import { getDetailedHealthStatus as getDetailedHealthStatusServerAction } from '@/lib/actions/health.server';
 
 // Detailed health check response type matching backend structure
 export interface DetailedHealthStatus {
@@ -133,15 +133,15 @@ export const useDetailedHealthStatus = () => {
   const lastUpdate = useHealthStore((state) => state.lastUpdate);
   const error = useHealthStore((state) => state.error);
 
-  // Strategy: Try Socket.IO first, fallback to REST polling if Socket.IO fails
-  // Only enable REST API if Socket.IO connection has failed or is disconnected
-  const shouldUseRestFallback = connectionStatus === 'disconnected' || connectionStatus === 'error';
+  // Strategy: Try Socket.IO first, fallback to REST polling if Socket.IO is not
+  // actually connected yet. This covers iOS/WebKit cases where the socket can
+  // stay stuck in "connecting" while the page still needs live health data.
+  const shouldUseRestFallback = connectionStatus !== 'connected';
   
   const queryResult = useQueryData<DetailedHealthStatus>(
     ['detailedHealthStatus'],
     async () => {
-      const result = await clinicApiClient.getDetailedHealth();
-      return (result.data ?? result) as DetailedHealthStatus;
+      return await getDetailedHealthStatusServerAction();
     },
     { 
       // Only use REST polling as fallback when Socket.IO fails

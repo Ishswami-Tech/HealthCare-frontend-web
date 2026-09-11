@@ -1,7 +1,8 @@
-﻿"use client";
+"use client";
 import { nowIso } from '@/lib/utils/date-time';
 
 import React, { useState, Suspense } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslation } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,7 +48,8 @@ import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-t
 import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 
 export default function ContactPage() {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const router = useRouter();
   const clinicName = APP_CONFIG.CLINIC.APP_NAME;
   const submitContactFormMutation = useSubmitContactForm();
   const submitConsultationBookingMutation = useSubmitConsultationBooking();
@@ -172,7 +174,7 @@ export default function ContactPage() {
   };
 
   const handleBookConsultation = () => {
-    setIsBookingDialogOpen(true);
+    router.push("/drdeshmukh");
   };
 
   const handleBookingSubmit = async (e: React.FormEvent) => {
@@ -246,14 +248,16 @@ export default function ContactPage() {
   };
 
   const handleWhatsAppSupport = () => {
-    // Extract phone number from translation (first phone number)
-    const firstPhoneNumber =
-      t("contact.contactInfo.phoneNumbers.details.0") || "9860370961";
-    const firstPhone = firstPhoneNumber.replace(/\D/g, "") || "9860370961";
-    const whatsappNumber = firstPhone.startsWith("91")
-      ? firstPhone
-      : `91${firstPhone}`;
-    const whatsappUrl = `https://wa.me/${whatsappNumber}`;
+    const whatsappPhone = t("clinic.whatsapp") || "9860370961";
+    const cleanPhoneNumber = whatsappPhone.replace(/[\s\-\(\)]/g, "");
+    const defaultMessage =
+      language === "hi"
+        ? "नमस्ते! मैं श्री विश्वमूर्ति आयुर्वेदालय में अपॉइंटमेंट बुक करना चाहता हूँ। कृपया उपलब्ध समय बताएं।"
+        : language === "mr"
+          ? "नमस्कार! मला श्री विश्वमूर्ती आयुर्वेदालयात भेटीची वेळ बुक करायची आहे. कृपया उपलब्ध वेळा सांगा."
+          : `Hello! I would like to book an appointment at ${clinicName}. Please let me know the available slots.`;
+    const encodedMessage = encodeURIComponent(defaultMessage);
+    const whatsappUrl = `https://wa.me/${cleanPhoneNumber}?text=${encodedMessage}`;
     window.open(whatsappUrl, "_blank");
   };
 
@@ -478,11 +482,11 @@ export default function ContactPage() {
           <section className="relative py-8 sm:py-12 md:py-16 bg-linear-to-br from-background via-muted/20 to-secondary/5 dark:from-background dark:via-muted/30 dark:to-secondary/10 overflow-hidden">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="max-w-7xl mx-auto">
-                <div className="grid lg:grid-cols-2 gap-6 lg:gap-12">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-12 w-full min-w-0">
                   {/* Contact Form */}
-                  <div className="animate-fade-in-left">
-                    <Card className="bg-linear-to-br from-card/80 to-muted/20 dark:from-card/90 dark:to-muted/30 border-primary/20 dark:border-primary/30 shadow-lg dark:shadow-xl glass backdrop-blur-sm">
-                      <CardHeader className="p-4 pb-3">
+                  <div className="animate-fade-in-left w-full min-w-0 max-w-full">
+                    <Card className="w-full min-w-0 max-w-full overflow-hidden bg-linear-to-br from-card/80 to-muted/20 dark:from-card/90 dark:to-muted/30 border-primary/20 dark:border-primary/30 shadow-lg dark:shadow-xl glass backdrop-blur-sm">
+                      <CardHeader className="p-4 sm:p-6 pb-3 sm:pb-3">
                         <CardTitle className="text-xl font-playfair font-bold text-foreground gradient-text mb-2">
                           {t("contact.form.title")}
                         </CardTitle>
@@ -490,9 +494,9 @@ export default function ContactPage() {
                           {t("contact.form.subtitle")}
                         </p>
                       </CardHeader>
-                      <CardContent className="p-4 pt-0">
-                        <form onSubmit={handleSubmit} className="flex flex-col gap-y-3">
-                          <div className="grid md:grid-cols-2 gap-3">
+                      <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+                        <form onSubmit={handleSubmit} className="flex flex-col gap-y-3 w-full min-w-0">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full min-w-0">
                             <div className="flex flex-col gap-y-1">
                               <label className="block text-xs font-semibold text-foreground">
                                 {t("contact.form.fields.fullName")}
@@ -596,20 +600,20 @@ export default function ContactPage() {
                   </div>
 
                   {/* Contact Information */}
-                  <div className="flex flex-col gap-y-4 animate-fade-in-right">
+                  <div className="flex flex-col gap-y-4 animate-fade-in-right w-full min-w-0 max-w-full">
                     {contactInfo.map((info, index) => {
                       const IconComponent = info.icon;
 
                       return (
                         <div
                           key={info.title}
-                          className="animate-fade-in-up"
+                          className="animate-fade-in-up w-full min-w-0"
                           style={{ animationDelay: `${index * 150}ms` }}
                         >
-                          <Card className="group bg-linear-to-br from-card/80 to-muted/20 dark:from-card/90 dark:to-muted/30 border-primary/20 dark:border-primary/30 shadow-md glass backdrop-blur-sm hover:shadow-lg dark:hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+                          <Card className="group w-full min-w-0 max-w-full overflow-hidden bg-linear-to-br from-card/80 to-muted/20 dark:from-card/90 dark:to-muted/30 border-primary/20 dark:border-primary/30 shadow-md glass backdrop-blur-sm hover:shadow-lg dark:hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
                             <CardContent className="p-4">
                               <div className="flex items-start gap-x-4">
-                                <div className="relative">
+                                <div className="relative shrink-0">
                                   <div
                                     className={`size-10 bg-linear-to-r ${info.colorScheme.gradient} rounded-xl flex items-center justify-center shrink-0 shadow-md group-hover:shadow-lg transition-all duration-300 group-hover:scale-110`}
                                   >
@@ -617,7 +621,7 @@ export default function ContactPage() {
                                   </div>
                                   <div className="absolute inset-0 bg-linear-to-r from-primary/20 to-secondary/20 rounded-xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                                 </div>
-                                <div className="flex-1">
+                                <div className="flex-1 min-w-0">
                                   <h3 className="text-base font-semibold text-foreground mb-2 gradient-text">
                                     {info.title}
                                   </h3>
@@ -628,7 +632,7 @@ export default function ContactPage() {
                                     ).map((detail: string) => (
                                         <p
                                           key={detail}
-                                          className="text-muted-foreground leading-relaxed"
+                                          className="text-muted-foreground leading-relaxed break-words text-sm"
                                         >
                                           {detail}
                                         </p>
@@ -645,25 +649,25 @@ export default function ContactPage() {
 
                     {/* Emergency Notice */}
                     <div
-                      className="animate-fade-in-up"
+                      className="animate-fade-in-up w-full min-w-0"
                       style={{
                         animationDelay: `${contactInfo.length * 150}ms`,
                       }}
                     >
-                      <Card className="group bg-linear-to-br from-destructive/10 to-destructive/5 dark:from-destructive/20 dark:to-destructive/10 border-destructive/30 dark:border-destructive/40 shadow-md glass backdrop-blur-sm hover:shadow-lg dark:hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+                      <Card className="group w-full min-w-0 max-w-full overflow-hidden bg-linear-to-br from-destructive/10 to-destructive/5 dark:from-destructive/20 dark:to-destructive/10 border-destructive/30 dark:border-destructive/40 shadow-md glass backdrop-blur-sm hover:shadow-lg dark:hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
                         <CardContent className="p-4">
                           <div className="flex items-start gap-x-4">
-                            <div className="relative">
+                            <div className="relative shrink-0">
                               <div className="size-10 bg-linear-to-r from-destructive to-destructive/80 rounded-xl flex items-center justify-center shrink-0 shadow-md group-hover:shadow-lg transition-all duration-300 group-hover:scale-110">
                                 <Phone className="size-5 text-white" />
                               </div>
                               <div className="absolute inset-0 bg-linear-to-r from-destructive/30 to-destructive/20 rounded-xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                             </div>
-                            <div className="flex-1">
+                            <div className="flex-1 min-w-0">
                               <h3 className="text-base font-semibold text-destructive mb-2 gradient-text">
                                 {t("contact.emergency.title")}
                               </h3>
-                              <p className="text-destructive/80 mb-3 leading-relaxed">
+                              <p className="text-destructive/80 mb-3 leading-relaxed text-sm">
                                 {t("contact.emergency.description")}
                               </p>
                               <Button
@@ -699,12 +703,12 @@ export default function ContactPage() {
               </div>
 
               <div className="max-w-7xl mx-auto">
-                <div className="grid lg:grid-cols-2 gap-6 lg:gap-12 items-start">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-12 items-start w-full min-w-0">
                   {/* Map */}
-                  <div className="animate-fade-in-left">
-                    <div className="relative">
+                  <div className="animate-fade-in-left w-full min-w-0 max-w-full">
+                    <div className="relative w-full min-w-0">
                       <div className="absolute inset-0 bg-linear-to-r from-primary/10 to-secondary/10 dark:from-primary/20 dark:to-secondary/20 rounded-2xl blur-xl"></div>
-                      <div className="relative bg-linear-to-br from-card/80 to-muted/20 dark:from-card/90 dark:to-muted/30 border-primary/20 dark:border-primary/30 shadow-lg dark:shadow-xl glass backdrop-blur-sm rounded-2xl p-2">
+                      <div className="relative bg-linear-to-br from-card/80 to-muted/20 dark:from-card/90 dark:to-muted/30 border-primary/20 dark:border-primary/30 shadow-lg dark:shadow-xl glass backdrop-blur-sm rounded-2xl p-2 w-full min-w-0 overflow-hidden">
                         <Suspense fallback={<SectionSkeleton />}>
                           <GoogleMaps
                             address="Moraya Ganapati Mandir Road, Gandhi Peth, Chinchwad Gaon, Chinchwad, Pimpri-Chinchwad, Maharashtra, India"
@@ -723,10 +727,10 @@ export default function ContactPage() {
                   </div>
 
                   {/* Contact Info */}
-                  <div className="animate-fade-in-right">
-                    <div className="relative">
+                  <div className="animate-fade-in-right w-full min-w-0 max-w-full">
+                    <div className="relative w-full min-w-0">
                       <div className="absolute inset-0 bg-linear-to-r from-primary/10 to-secondary/10 dark:from-primary/20 dark:to-secondary/20 rounded-2xl blur-xl"></div>
-                      <div className="relative">
+                      <div className="relative w-full min-w-0 overflow-hidden">
                         <ClinicInfo
                           variant="card"
                           showDoctor={false}

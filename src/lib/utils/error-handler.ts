@@ -105,6 +105,12 @@ function getMessageForErrorCode(errorCode?: string): string {
       return ERROR_MESSAGES.FORBIDDEN;
     case 'CLINIC_ACCESS_DENIED':
       return 'You do not have access to this clinic.';
+    case 'USER_ALREADY_EXISTS':
+      return 'A user with this information already exists.';
+    case 'USER_EMAIL_ALREADY_EXISTS':
+      return 'An account with this email address already exists.';
+    case 'USER_PHONE_ALREADY_EXISTS':
+      return 'An account with this phone number already exists.';
     default:
       return '';
   }
@@ -177,7 +183,9 @@ export function getErrorMessageForStatus(
       }
       return ERROR_MESSAGES.SERVICE_UNAVAILABLE;
     case 409:
-      return ERROR_MESSAGES.EMAIL_ALREADY_EXISTS;
+      return backendMessage && !isTechnicalError(backendMessage)
+        ? backendMessage
+        : ERROR_MESSAGES.EMAIL_ALREADY_EXISTS;
     case 422:
       return ERROR_MESSAGES.VALIDATION_ERROR;
     case 429:

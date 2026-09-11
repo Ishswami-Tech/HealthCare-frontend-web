@@ -51,7 +51,7 @@ export interface NormalizedPatientAppointment {
 
 const IN_PERSON_DEFAULT_DURATION_MINUTES = 3;
 const VIDEO_DEFAULT_DURATION_MINUTES = 15;
-const VIDEO_JOIN_EARLY_WINDOW_MINUTES = 20;
+const VIDEO_JOIN_EARLY_WINDOW_MINUTES = 15;
 const VIDEO_JOIN_LATE_WINDOW_MINUTES = 300;
 
 const COMPLETED_PAYMENT_STATUSES = new Set(['COMPLETED', 'SUCCESS', 'PAID', 'CAPTURED']);
@@ -635,36 +635,35 @@ export function getAppointmentPaymentAmount(appointment: any): number {
   if (!appointment || typeof appointment !== 'object') return 0;
 
   const candidates: unknown[] = [
-    appointment?.videoConsultationFee,
-    appointment?.consultationFee,
-    appointment?.amount,
-    appointment?.price,
-    appointment?.fee,
-    appointment?.billing?.amount,
+    appointment?.payment?.amount,
+    appointment?.payment?.totalAmount,
     appointment?.billing?.totalAmount,
     appointment?.billing?.total,
+    appointment?.invoice?.totalAmount,
+    appointment?.invoice?.total,
+    appointment?.billing?.amount,
+    appointment?.invoice?.amount,
     appointment?.billing?.price,
     appointment?.billing?.fee,
     appointment?.billing?.videoConsultationFee,
     appointment?.billing?.consultationFee,
-    appointment?.invoice?.amount,
-    appointment?.invoice?.totalAmount,
-    appointment?.invoice?.total,
-    appointment?.invoice?.price,
-    appointment?.invoice?.fee,
-    appointment?.invoice?.videoConsultationFee,
-    appointment?.invoice?.consultationFee,
     appointment?.service?.videoConsultationFee,
     appointment?.service?.consultationFee,
     appointment?.service?.amount,
     appointment?.service?.price,
     appointment?.service?.fee,
+    appointment?.service?.totalAmount,
     appointment?.appointmentService?.videoConsultationFee,
     appointment?.appointmentService?.consultationFee,
     appointment?.appointmentService?.amount,
     appointment?.appointmentService?.price,
     appointment?.appointmentService?.fee,
-    appointment?.payment?.amount,
+    appointment?.appointmentService?.totalAmount,
+    appointment?.videoConsultationFee,
+    appointment?.consultationFee,
+    appointment?.amount,
+    appointment?.price,
+    appointment?.fee,
   ];
 
   for (const value of candidates) {
@@ -1006,7 +1005,7 @@ export function getAppointmentViewState(appointment: any): AppointmentViewState 
         ? (appointment.confirmationWindowMinutes as number)
         : null,
     showInDoctorWorkspace:
-      !isCancelledLike(status) && isDashboardVisibleStatus,
+      !isCancelledLike(status) && (isActiveLike(status) || status === 'EXPIRED'),
     showInPatientWorkspace:
       !isCancelledLike(status) && (isActiveLike(status) || status === 'PENDING'),
     showInReceptionWorkspace:
@@ -1220,7 +1219,7 @@ export function getVideoSessionDecision(appointment: any): VideoSessionDecision 
       action: 'blocked',
       label: status === 'IN_PROGRESS' ? 'Resume Video Call' : 'Join Session',
       blockedReason:
-        'Join opens 20 minutes before your visit and stays open for 5 hours after start.',
+        'Join opens 15 minutes before your visit and stays open for 5 hours after start.',
       shouldCallConsultationStart: false,
       canJoin: false,
     };

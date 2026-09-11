@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import type { ComponentType } from "react";
@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { useMyAppointments, hasAppointmentsLoadedForSession } from "@/hooks/query/useAppointments";
-import { useAuth } from "@/hooks/auth/useAuth";
+import { useCurrentClinicId } from "@/hooks/query/useClinics";
+import { APP_CONFIG } from "@/lib/config/config";
 import { PatientQueueCard } from "@/components/dashboard/PatientQueueCard";
 import AppointmentManager from "@/components/appointments/AppointmentManager";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
@@ -18,7 +19,7 @@ import {
   DashboardPageShell as PatientPageShell,
 } from "@/components/dashboard/DashboardPageShell";
 import { theme } from "@/lib/utils/theme-utils";
-import { Leaf, Droplets, Waves, Wind, Heart, Sun, Stethoscope, QrCode, BookOpen } from "lucide-react";
+import { Leaf, Droplets, Waves, Wind, Heart, Sun, Stethoscope, QrCode, BookOpen, Loader2 } from "lucide-react";
 import { normalizeAppointmentStatus } from "@/lib/utils/appointmentUtils";
 
 interface TreatmentCategory {
@@ -67,7 +68,6 @@ const TREATMENT_CATEGORIES: TreatmentCategory[] = [
 
 function PatientAppointmentsContent() {
   const { push } = useRouter();
-  const { session } = useAuth();
   useWebSocketQuerySync();
   const searchParams = useSearchParams();
   const getSearchParam = useMemo(() => searchParams.get.bind(searchParams), [searchParams]);
@@ -78,22 +78,25 @@ function PatientAppointmentsContent() {
   const shouldOpenBooking = getSearchParam("openBooking") === "1";
   const defaultConsultationMode =
     bookingMode?.toUpperCase() === "VIDEO" ? "VIDEO" : undefined;
-  const sessionClinicId = session?.user?.clinicId || "";
-  const resolvedClinicId = queryClinicId || sessionClinicId || undefined;
+  const currentClinicId = useCurrentClinicId();
+  const resolvedClinicId =
+    queryClinicId ||
+    currentClinicId ||
+    APP_CONFIG.CLINIC.ID?.trim() ||
+    undefined;
+  const myAppointmentsFilters = resolvedClinicId ? { clinicId: resolvedClinicId } : undefined;
   const {
     data: appointmentsData,
     isPending: isPendingAppointments,
     isFetching: isFetchingAppointments,
     refetch: refetchAppointments,
-  } = useMyAppointments(
-    resolvedClinicId ? { clinicId: resolvedClinicId } : undefined
-  );
+  } = useMyAppointments(myAppointmentsFilters);
 
   // Show a loading skeleton only on the very first fetch of the session.
   // Once the cache has any appointments (initial load, dashboard prefetch, or
   // sidebar hover-warm), `placeholderData: keepPreviousData` keeps the list
   // visible across refetches, filter changes, and remounts. Background
-  // `isFetching` does NOT count as loading here — otherwise the list would
+  // `isFetching` does NOT count as loading here â€” otherwise the list would
   // flash a skeleton on every window focus or reconnect.
   const hasCachedAppointments = useMemo(() => {
     if (!appointmentsData) return false;
@@ -103,7 +106,8 @@ function PatientAppointmentsContent() {
   }, [appointmentsData]);
   const showAppointmentsSkeleton =
     isPendingAppointments && !hasCachedAppointments && !hasAppointmentsLoadedForSession();
-  const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
+  const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(shouldOpenBooking);
+  const isBookingDialogOpening = shouldOpenBooking && !isBookingDialogOpen;
   const openQrGate = usePatientUiStore((state) => state.openQrGate);
   const hasInPersonAppointment = useMemo(() => {
     const appointments = Array.isArray((appointmentsData as any)?.appointments)
@@ -183,6 +187,13 @@ function PatientAppointmentsContent() {
           onBooked={() => setIsBookingDialogOpen(false)}
         />
 
+        {isBookingDialogOpening && (
+          <div className="mb-4 flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">
+            <Loader2 className="size-4 animate-spin text-primary" />
+            <p className="text-sm font-medium text-muted-foreground">Opening booking dialogâ€¦</p>
+          </div>
+        )}
+
         {/* Queue/check-in UI hidden intentionally. */}
         {/* <div id="patient-queue-status" className="animate-in fade-in slide-in-from-top-4 duration-500">
           <PatientQueueCard
@@ -196,14 +207,14 @@ function PatientAppointmentsContent() {
             hideBookButton
             autoOpenBookDialog={shouldOpenBooking}
             appointmentsData={appointmentsData}
-            isAppointmentsPending={showAppointmentsSkeleton}
-            isAppointmentsFetching={isFetchingAppointments}
-            onRefreshAppointments={async () => {
-              await refetchAppointments();
-            }}
-            {...(defaultConsultationMode ? { defaultConsultationMode } : {})}
-            {...(resolvedClinicId ? { clinicId: resolvedClinicId } : {})}
-          />
+          isAppointmentsPending={showAppointmentsSkeleton}
+          isAppointmentsFetching={isFetchingAppointments}
+          onRefreshAppointments={async () => {
+            await refetchAppointments();
+          }}
+          {...(defaultConsultationMode ? { defaultConsultationMode } : {})}
+          {...(resolvedClinicId ? { clinicId: resolvedClinicId } : {})}
+        />
         </div>
 
         <Card className="border border-border bg-card shadow-sm">

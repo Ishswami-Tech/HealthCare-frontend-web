@@ -283,6 +283,7 @@ export function useVideoAppointment(id: string) {
   const { hasPermission } = useRBAC();
   const queryClient = useQueryClient();
   const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
+  const clinicId = useCurrentClinicId();
   const resolvedAppointmentId = normalizeVideoSessionAppointmentId(id);
   const {
     subscribeToVideoAppointments,
@@ -298,7 +299,7 @@ export function useVideoAppointment(id: string) {
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
 
       try {
-        const result = await getConsultationStatus(resolvedAppointmentId);
+        const result = await getConsultationStatus(resolvedAppointmentId, clinicId);
         return { success: true, data: result, appointment: result };
       } catch (error) {
         if (
@@ -365,6 +366,7 @@ export function useVideoAppointment(id: string) {
     };
   }, [
     resolvedAppointmentId,
+    clinicId,
     queryClient,
     subscribeToVideoAppointments,
     subscribeToConsultationEvents,
@@ -404,13 +406,13 @@ export function useCreateVideoAppointment() {
           userRole: currentUserRole,
           userInfo,
           ...(resolvedClinicId && { clinicId: resolvedClinicId }),
-        }),
+        }, resolvedClinicId),
         startVideoConsultation({
           appointmentId: data.appointmentId,
           userId: data.doctorId,
           userRole: currentUserRole,
           ...(resolvedClinicId && { clinicId: resolvedClinicId }),
-        }),
+        }, resolvedClinicId),
       ]);
 
       return { success: true, data: consultationResult, token: tokenResult };
@@ -450,6 +452,7 @@ export function useUpdateVideoAppointment() {
   const { hasPermission } = useRBAC();
   const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
   const { user } = useAuth();
+  const clinicId = useCurrentClinicId();
 
   return useMutationOperation<{ success: boolean; data: any }, UpdateVideoAppointmentData>(
     async (data: UpdateVideoAppointmentData) => {
@@ -467,7 +470,7 @@ export function useUpdateVideoAppointment() {
           userId: resolvedUserId,
           userRole: 'doctor',
           endReason: data.status === 'cancelled' ? 'Cancelled by user' : 'Completed',
-        });
+        }, clinicId);
         return { success: true, data: result };
       }
       
@@ -476,7 +479,7 @@ export function useUpdateVideoAppointment() {
         appointmentId: data.appointmentId,
         userId: resolvedUserId,
         userRole: 'doctor',
-      });
+      }, clinicId);
       
       return { success: true, data: result };
     },
@@ -513,6 +516,7 @@ export function useEndVideoAppointment() {
   const { hasPermission } = useRBAC();
   const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
   const { user } = useAuth();
+  const clinicId = useCurrentClinicId();
 
   return useMutationOperation<{ success: boolean; data: any }, string>(
     async (appointmentId: string) => {
@@ -527,7 +531,7 @@ export function useEndVideoAppointment() {
         appointmentId,
         userId: resolvedUserId,
         userRole: getVideoTokenRole(user?.role),
-      });
+      }, clinicId);
       
       return { success: true, data: result };
     },
@@ -564,6 +568,7 @@ export function useDeleteVideoAppointment() {
   const queryClient = useQueryClient();
   const { hasPermission } = useRBAC();
   const { user } = useAuth();
+  const clinicId = useCurrentClinicId();
 
   return useMutationOperation<{ success: boolean; data: any }, string>(
     async (appointmentId: string) => {
@@ -580,7 +585,7 @@ export function useDeleteVideoAppointment() {
         userId: resolvedUserId,
         userRole: 'doctor',
         endReason: 'Deleted by user',
-      });
+      }, clinicId);
       
       return { success: true, data: result };
     },

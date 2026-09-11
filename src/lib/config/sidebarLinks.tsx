@@ -14,7 +14,13 @@ import {
   TrendingUp,
   DollarSign,
   CreditCard,
-  ShieldCheck
+  ShieldCheck,
+  Mail,
+  UserX,
+  Leaf,
+  Apple,
+  Bed,
+  Sparkles
 } from "lucide-react";
 
 import { Permission } from "@/types/rbac.types";
@@ -50,6 +56,8 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
   DOCTOR: [
     { title: "Dashboard", href: "/doctor/dashboard", icon: LayoutDashboard },
     { title: "Appointments", href: "/doctor/appointments", icon: Calendar, permission: Permission.VIEW_APPOINTMENTS },
+    { title: "Daily Summary", href: "/doctor/daily-summary", icon: Mail, permission: Permission.VIEW_APPOINTMENTS },
+    { title: "No-Show Management", href: "/doctor/no-show", icon: UserX, permission: Permission.VIEW_APPOINTMENTS },
     { title: "Patients", href: "/doctor/patients", icon: Users, permission: Permission.VIEW_PATIENTS },
     { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },
     { title: "Prescriptions", href: "/doctor/prescriptions", icon: Pill, permission: Permission.MANAGE_PRESCRIPTIONS },
@@ -128,6 +136,28 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
     { title: "Patients", href: "/counselor/patients", icon: Users, permission: Permission.VIEW_PATIENTS },
     { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },
     { title: "Billing", href: "/billing", icon: Wallet, permission: Permission.VIEW_BILLING },
+  ],
+  AYURVEDIST: [
+    { title: "Dashboard", href: "/ayurveda/dashboard", icon: LayoutDashboard },
+    { title: "Prakriti Assessment", href: "/ayurveda/prakriti", icon: Leaf, permission: Permission.VIEW_MEDICAL_RECORDS },
+    { title: "Nadi Pariksha", href: "/ayurveda/nadi", icon: Activity, permission: Permission.VIEW_MEDICAL_RECORDS },
+    { title: "Dosha Tracking", href: "/ayurveda/dosha", icon: Sparkles, permission: Permission.VIEW_MEDICAL_RECORDS },
+    { title: "Diagnoses", href: "/ayurveda/diagnoses", icon: FileText, permission: Permission.VIEW_MEDICAL_RECORDS },
+    { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },
+  ],
+  DIETITIAN: [
+    { title: "Dashboard", href: "/diet/dashboard", icon: LayoutDashboard },
+    { title: "Diet Plans", href: "/diet/plans", icon: ClipboardList, permission: Permission.VIEW_MEDICAL_RECORDS },
+    { title: "Food Catalog", href: "/diet/catalog", icon: Apple, permission: Permission.VIEW_MEDICAL_RECORDS },
+    { title: "Patients", href: "/diet/patients", icon: Users, permission: Permission.VIEW_PATIENTS },
+  ],
+  IPD_MANAGER: [
+    { title: "Dashboard", href: "/ipd/dashboard", icon: LayoutDashboard },
+    { title: "Admissions", href: "/ipd/admissions", icon: Users, permission: Permission.VIEW_PATIENTS },
+    { title: "Bed Management", href: "/ipd/beds", icon: Bed, permission: Permission.MANAGE_CLINIC_STAFF },
+    { title: "Wards", href: "/ipd/wards", icon: Building2, permission: Permission.VIEW_CLINICS },
+    { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },
+    { title: "Discharge Summary", href: "/ipd/discharge", icon: FileText, permission: Permission.VIEW_MEDICAL_RECORDS },
   ],
 };
 

@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 
-import { ApiError, clinicApiClient } from "@/lib/api/client";
 import type { PatientDashboardSummaryResponse } from "@/types/patient-dashboard.types";
 
 import { useQueryData } from "../core/useQueryData";
@@ -13,6 +12,7 @@ import { useAuthStore } from "@/stores/auth.store";
 import { useRBAC } from "../utils/useRBAC";
 import { Permission } from "@/types/rbac.types";
 import { useWebSocketStatus } from "@/app/providers/WebSocketProvider";
+import { fetchPatientDashboardSummary } from "@/lib/actions/patient-dashboard.server";
 
 const dashboardSummaryLoadedState: { sessionKey: string; loaded: boolean } = {
   sessionKey: "",
@@ -61,39 +61,24 @@ export const usePatientDashboardSummary = (
   const query = useQueryData<PatientDashboardSummaryResponse | null>(
     ["patientDashboardSummary", userId, clinicId],
     async () => {
-      try {
-        const result = await clinicApiClient.getPatientDashboardSummary();
-        const payload = result.data as PatientDashboardSummaryResponse | undefined;
-        if (!payload) {
+      const result = await fetchPatientDashboardSummary();
+      if (!result.success) {
+        if (
+          result.code === "UNAUTHENTICATED" ||
+          result.code === "CLINIC_CONTEXT_REQUIRED" ||
+          result.code === "PROFILE_INCOMPLETE"
+        ) {
           return null;
         }
-
-        const sessionKey =
-          useAuthStore.getState().session?.session_id ||
-          `${String(userId || "")}|${String(clinicId || "")}`;
-        markDashboardSummaryLoadedOnce(sessionKey);
-
-        return payload;
-      } catch (error) {
-        if (error instanceof ApiError) {
-          if (error.statusCode === 401) {
-            return null;
-          }
-
-          if (
-            error.statusCode === 403 &&
-            (
-              error.backendCode === "PROFILE_INCOMPLETE" ||
-              error.backendCode === "CLINIC_CONTEXT_REQUIRED" ||
-              error.backendCode === "UNAUTHENTICATED"
-            )
-          ) {
-            return null;
-          }
-        }
-
-        throw error;
+        throw new Error(result.error || "Failed to fetch dashboard summary");
       }
+
+      const sessionKey =
+        useAuthStore.getState().session?.session_id ||
+        `${String(userId || "")}|${String(clinicId || "")}`;
+      markDashboardSummaryLoadedOnce(sessionKey);
+
+      return result.data;
     },
     {
       enabled:
@@ -136,35 +121,22 @@ export const prefetchPatientDashboardSummary = async (
     await queryClient.prefetchQuery({
       queryKey: ["patientDashboardSummary", userId, clinicId],
       queryFn: async () => {
-        try {
-          const result = await clinicApiClient.getPatientDashboardSummary();
-          const payload = result.data as PatientDashboardSummaryResponse | undefined;
-          if (!payload) {
+        const result = await fetchPatientDashboardSummary();
+        if (!result.success) {
+          if (
+            result.code === "UNAUTHENTICATED" ||
+            result.code === "CLINIC_CONTEXT_REQUIRED" ||
+            result.code === "PROFILE_INCOMPLETE"
+          ) {
             return null;
           }
-
-          const sessionKey =
-            state.session?.session_id || `${String(userId)}|${String(clinicId)}`;
-          markDashboardSummaryLoadedOnce(sessionKey);
-          return payload;
-        } catch (error) {
-          if (error instanceof ApiError) {
-            if (error.statusCode === 401) {
-              return null;
-            }
-            if (
-              error.statusCode === 403 &&
-              (
-                error.backendCode === "UNAUTHENTICATED" ||
-                error.backendCode === "CLINIC_CONTEXT_REQUIRED" ||
-                error.backendCode === "PROFILE_INCOMPLETE"
-              )
-            ) {
-              return null;
-            }
-          }
-          throw error;
+          throw new Error(result.error || "Failed to fetch dashboard summary");
         }
+
+        const sessionKey =
+          state.session?.session_id || `${String(userId)}|${String(clinicId)}`;
+        markDashboardSummaryLoadedOnce(sessionKey);
+        return result.data;
       },
       staleTime: 60 * 1000,
     });
