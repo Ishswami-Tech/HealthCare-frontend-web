@@ -45,7 +45,7 @@ import {
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { AppointmentListSkeleton, StatCardSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
-import { formatDateInIST } from "@/lib/utils/date-time";
+import { formatDateInIST, formatDateKeyInIST } from "@/lib/utils/date-time";
 
 export default function DoctorPrescriptions() {
   const { session } = useAuth();
@@ -140,7 +140,7 @@ export default function DoctorPrescriptions() {
     dispatch({ type: "updateEditForm", value });
   };
   const isHydrated = useHydrated();
-  const todayDate = isHydrated ? new Date().toDateString() : "";
+  const todayDate = isHydrated ? formatDateKeyInIST(new Date()) : "";
 
   const { data: prescriptionsData, isPending } = usePrescriptions(doctorId);
   const createMutation = useCreatePrescription();
@@ -382,7 +382,7 @@ export default function DoctorPrescriptions() {
                   {prescriptions.filter((p: any) => {
                     if (!todayDate) return false;
                     const today = todayDate;
-                    return new Date(p.date).toDateString() === today;
+                    return formatDateKeyInIST(p.date) === today;
                   }).length}
                 </div>
                 <div className="text-sm text-muted-foreground">Today's Prescriptions</div>
@@ -577,6 +577,5 @@ export default function DoctorPrescriptions() {
     </DashboardPageShell>
   );
 }
-
 
 

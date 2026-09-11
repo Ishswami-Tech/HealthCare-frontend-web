@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
 
 import { Permission } from "@/types/rbac.types";
+import { formatDateKeyInIST } from "@/lib/utils/date-time";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -140,8 +141,8 @@ export default function EHRSystem() {
     activeRecords: Array.isArray(medicalRecords) ? medicalRecords.length : 0,
     recordsToday:
       Array.isArray(medicalRecords) ? medicalRecords.filter((record: any) => {
-        const today = new Date().toDateString();
-        const recordDate = new Date(record.createdAt).toDateString();
+        const today = formatDateKeyInIST(new Date());
+        const recordDate = formatDateKeyInIST(record.createdAt);
         return today === recordDate;
       }).length : 0,
     criticalAlerts:

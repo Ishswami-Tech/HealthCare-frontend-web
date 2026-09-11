@@ -576,6 +576,28 @@ export async function cancelSubscription(
   }
 }
 
+export async function renewSubscription(id: string): Promise<{
+  success: boolean;
+  subscription?: Subscription;
+  error?: string;
+}> {
+  try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+    const { data } = await authenticatedApi(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.RENEW(id), {
+      method: 'POST',
+    });
+    if (!data || typeof data !== 'object') {
+      return { success: false, error: 'Invalid subscription response' };
+    }
+    return { success: true, subscription: normalizeSubscription(data as RawSubscription) };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to renew subscription' };
+  }
+}
+
 export async function getSubscriptionUsageStats(id: string): Promise<{
   success: boolean;
   stats?: SubscriptionUsageStats;
@@ -999,6 +1021,10 @@ export async function verifyPaymentCallback(params: {
   handoffToken?: string;
 }): Promise<{
   success: boolean;
+  clinicId?: string;
+  orderId?: string;
+  paymentId?: string;
+  provider?: string;
   message?: string;
   error?: string;
   payment?: unknown;
@@ -1030,6 +1056,10 @@ export async function verifyPaymentCallback(params: {
 
     const { data } = await publicApi<{
       success?: boolean;
+      clinicId?: string;
+      orderId?: string;
+      paymentId?: string;
+      provider?: string;
       message?: string;
       payment?: unknown;
       invoice?: unknown;
@@ -1045,6 +1075,10 @@ export async function verifyPaymentCallback(params: {
 
     return {
       success: Boolean(data?.success),
+      ...(data?.clinicId ? { clinicId: data.clinicId } : {}),
+      ...(data?.orderId ? { orderId: data.orderId } : {}),
+      ...(data?.paymentId ? { paymentId: data.paymentId } : {}),
+      ...(data?.provider ? { provider: data.provider } : {}),
       message: data?.message ?? 'Payment verified successfully',
       ...(data?.payment ? { payment: data.payment } : {}),
       ...(data?.invoice ? { invoice: data.invoice } : {}),
