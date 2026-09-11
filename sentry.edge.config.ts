@@ -8,7 +8,6 @@ import * as Sentry from "@sentry/nextjs";
 const dsn = process.env.SENTRY_DSN;
 
 if (!dsn) {
-  // eslint-disable-next-line no-console
   console.warn("[Sentry] SENTRY_DSN is not set — edge error reporting is disabled.");
 }
 
