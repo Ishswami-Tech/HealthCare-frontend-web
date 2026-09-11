@@ -18,12 +18,7 @@ export default function IpdDashboardContent() {
         eyebrow="Inpatient Department"
         title="IPD Workspace"
         description="Manage admissions, bed occupancy, ward operations, and patient transfers."
-        meta={{
-          occupancyRate: data.occupancy
-            ? `${((data.occupancy.occupied / data.occupancy.total) * 100).toFixed(0)}%`
-            : "0%",
-          totalBeds: data.beds.length,
-        }}
+        meta={`${data.occupancy ? `${((data.occupancy.occupied / data.occupancy.total) * 100).toFixed(0)}% occupied` : "0% occupied"} · ${data.beds.length} beds`}
         actions={[
           { label: "New Admission", href: "/ipd/dashboard#admit", icon: <Users className="size-4" /> },
           { label: "Bed Status", href: "/ipd/dashboard#beds", icon: <BedIcon className="size-4" /> },
@@ -33,7 +28,7 @@ export default function IpdDashboardContent() {
       <IpdSummaryCards
         admissions={data.admissions}
         beds={data.beds}
-        occupancy={data.occupancy}
+        occupancy={data.occupancy ?? null}
         isLoading={data.isLoading}
       />
 
