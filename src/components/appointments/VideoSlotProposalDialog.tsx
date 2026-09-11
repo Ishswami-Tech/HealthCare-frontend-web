@@ -3,6 +3,7 @@
 import { useState } from "react";
 import {
   Dialog,
+  DialogTrigger,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -152,7 +153,7 @@ export function VideoSlotProposalDialog({
     // they can choose index 0 to accept. The component defaults to showing
     // the original slot as the first entry for convenience.
     setIsConfirming(true);
-    const toastId = TOAST_IDS.VIDEO.SUCCESS;
+    const toastId = TOAST_IDS.GLOBAL.SUCCESS;
 
     try {
       const result = await confirmVideoSlot(appointmentId, {
