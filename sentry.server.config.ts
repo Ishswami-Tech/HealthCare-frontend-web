@@ -7,7 +7,6 @@ import * as Sentry from "@sentry/nextjs";
 const dsn = process.env.SENTRY_DSN;
 
 if (!dsn) {
-  // eslint-disable-next-line no-console
   console.warn("[Sentry] SENTRY_DSN is not set — server-side error reporting is disabled.");
 }
 
@@ -130,7 +129,7 @@ function sanitizeEvent(event: Sentry.Event): void {
     event.breadcrumbs = event.breadcrumbs.map((crumb) => ({
       ...crumb,
       message: crumb.message ? scrubString(crumb.message) : crumb.message,
-      data: sanitizeValue(crumb.data),
+      data: sanitizeValue(crumb.data) as Record<string, unknown>,
     }));
   }
 
@@ -152,7 +151,7 @@ function sanitizeEvent(event: Sentry.Event): void {
       if (PHI_KEYS.has(key)) {
         sanitizedTags[key] = "[REDACTED]";
       } else {
-        sanitizedTags[key] = typeof value === "string" ? scrubString(value) : value;
+        sanitizedTags[key] = typeof value === "string" ? scrubString(value) : String(value ?? "");
       }
     }
     event.tags = sanitizedTags;

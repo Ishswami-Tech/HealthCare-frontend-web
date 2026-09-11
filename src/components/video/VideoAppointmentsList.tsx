@@ -710,10 +710,6 @@ export function VideoAppointmentsList({
     actionReason,
     filterStatus,
   } = uiState;
-  const { tab: filterStatus, setTab: setFilterStatus } = useHashTab({
-    tabs: ["all", "scheduled", "in-progress", "completed", "expired", "cancelled"] as const,
-    defaultValue: isDoctorRole ? "all" : "scheduled",
-  });
   const patchUiState = (patch: Partial<VideoAppointmentsUiState>) =>
     setUiState((current) => ({ ...current, ...patch }));
   const setSearchTerm = (value: string) => patchUiState({ searchTerm: value });
