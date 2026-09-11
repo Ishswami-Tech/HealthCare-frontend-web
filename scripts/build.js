@@ -66,7 +66,8 @@ function runCommand(command, description, continueOnError = false) {
 function main() {
   const startTime = Date.now();
   const args = process.argv.slice(2);
-  const environment = args[0] || 'development';
+  const mode = args[0] || 'full';
+  const environment = args[1] || 'production';
   const stepTimes = {};
 
   log('\n' + '='.repeat(60), 'bright');
@@ -74,20 +75,25 @@ function main() {
   log('='.repeat(60) + '\n', 'bright');
 
   try {
-    // 1. Security Audit
-    const auditResult = runCommand(
-      'npx audit-ci --config audit-ci.json',
-      'Security audit'
-    );
-    stepTimes['Security Audit'] = auditResult.time;
+    if (mode === 'full') {
+      // 1. Security Audit
+      const auditResult = runCommand(
+        'npx audit-ci --config audit-ci.json',
+        'Security audit'
+      );
+      stepTimes['Security Audit'] = auditResult.time;
 
-    // 2. Linting
-    const lintResult = runCommand('npm run lint', 'ESLint check');
-    stepTimes['Linting'] = lintResult.time;
+      // 2. Linting
+      const lintResult = runCommand('npm run lint', 'ESLint check');
+      stepTimes['Linting'] = lintResult.time;
 
-    // 3. Type Checking
-    const typeCheckResult = runCommand('npm run type-check', 'TypeScript type checking');
-    stepTimes['Type Check'] = typeCheckResult.time;
+      // 3. Type Checking
+      const typeCheckResult = runCommand('npm run type-check', 'TypeScript type checking');
+      stepTimes['Type Check'] = typeCheckResult.time;
+    } else if (mode !== 'deploy') {
+      logError(`Unknown build mode: ${mode}`);
+      process.exit(1);
+    }
 
     // 4. Next.js Build
     const envPrefix = environment === 'production' ? 'cross-env NODE_ENV=production' : 'cross-env NODE_ENV=development';

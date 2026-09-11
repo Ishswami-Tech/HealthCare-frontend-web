@@ -352,7 +352,7 @@ export default function ViddhaKarmaPage() {
                 </p>
               </div>
 
-              <div className="gap-y-8">
+              <div className="flex flex-col gap-y-6 sm:gap-y-8">
                 {processSteps.map((step) => {
                   const IconComponent = step.icon;
 
@@ -434,14 +434,14 @@ export default function ViddhaKarmaPage() {
                       </Badge>
                     </CardHeader>
                     <CardContent>
-                      <div className="gap-y-4">
+                      <div className="flex flex-col gap-y-4">
                         <div>
                           <h4 className="font-semibold text-foreground mb-2">
                             {t(
                               "viddhakarma.specializedApplications.specificTreatments"
                             )}
                           </h4>
-                          <ul className="gap-y-1">
+                          <ul className="flex flex-col gap-y-1">
                             {application.treatments.map((treatment) => (
                                 <li
                                   key={treatment}
@@ -616,8 +616,8 @@ export default function ViddhaKarmaPage() {
                 </p>
               </div>
 
-              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-                <Card className="hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-hidden glass card-hover group">
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 pt-4">
+                <Card className="hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-visible glass card-hover group relative">
                   <CardHeader className="text-center">
                     <CardTitle className="text-lg text-foreground">
                       {t("viddhakarma.treatmentPackages.essential.title")}
@@ -646,8 +646,8 @@ export default function ViddhaKarmaPage() {
                   </CardContent>
                 </Card>
 
-                <Card className="hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-hidden glass card-hover group relative">
-                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-orange-500 text-white">
+                <Card className="hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-visible glass card-hover group relative">
+                  <Badge className="absolute -top-3.5 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-orange-500 to-red-500 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-md z-10">
                     {t("viddhakarma.treatmentPackages.comprehensive.badge")}
                   </Badge>
                   <CardHeader className="text-center">
@@ -682,7 +682,7 @@ export default function ViddhaKarmaPage() {
                   </CardContent>
                 </Card>
 
-                <Card className="hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-hidden glass card-hover group">
+                <Card className="hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-visible glass card-hover group relative">
                   <CardHeader className="text-center">
                     <CardTitle className="text-lg text-foreground">
                       {t("viddhakarma.treatmentPackages.advanced.title")}
@@ -711,8 +711,8 @@ export default function ViddhaKarmaPage() {
                   </CardContent>
                 </Card>
 
-                <Card className="hover:shadow-xl transition-all duration-500 bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/10 dark:to-orange-900/10 shadow-2xl border border-border/50 overflow-hidden glass card-hover group relative">
-                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-yellow-500 text-white">
+                <Card className="hover:shadow-xl transition-all duration-500 bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/10 dark:to-orange-900/10 shadow-2xl border border-border/50 overflow-visible glass card-hover group relative">
+                  <Badge className="absolute -top-3.5 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-amber-500 to-yellow-500 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-md z-10">
                     {t("viddhakarma.treatmentPackages.holistic.badge")}
                   </Badge>
                   <CardHeader className="text-center">
@@ -761,15 +761,13 @@ export default function ViddhaKarmaPage() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button
                   size="lg"
-                  variant="secondary"
-                  className="bg-white text-purple-600 hover:bg-purple-50 dark:bg-white/90 dark:text-purple-600 dark:hover:bg-white text-lg px-10 py-4"
+                  className="bg-white text-purple-600 hover:bg-purple-600 hover:text-white border border-transparent hover:border-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
                 >
                   {t("viddhakarma.cta.bookConsultation")}
                 </Button>
                 <Button
                   size="lg"
-                  variant="outline"
-                  className="border-white text-white hover:bg-white/10 dark:border-white/80 dark:text-white/90 dark:hover:bg-white/20 text-lg px-10 py-4"
+                  className="bg-white text-purple-600 hover:bg-purple-600 hover:text-white border border-transparent hover:border-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
                 >
                   {t("viddhakarma.cta.freeAssessment")}
                 </Button>

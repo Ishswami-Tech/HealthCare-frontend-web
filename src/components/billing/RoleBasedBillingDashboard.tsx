@@ -27,7 +27,6 @@ import {
 } from "@/components/ui/select";
 import { RefreshCw, Plus, CreditCard, FileText, Wallet, BarChart3, Info, AlertCircle, Search, MessageCircle } from "lucide-react";
 import { DashboardPageHeader as PatientPageHeader } from "@/components/dashboard/DashboardPageShell";
-import { useHashTab } from "@/hooks/navigation/useHashTab";
 import { InvoiceForm } from "./InvoiceForm";
 import { PaymentHistory } from "./PaymentHistory";
 import { PatientBillingAnalytics } from "./PatientBillingAnalytics";
@@ -113,6 +112,7 @@ export function RoleBasedBillingDashboard({
   const canViewAnalytics = isAdmin || userRole === Role.FINANCE_BILLING;
 
   type BillingUiState = {
+    activeTabOverride: string | null;
     searchTerm: string;
     invoiceStatusFilter: string;
     paymentStatusFilter: string;
@@ -140,6 +140,7 @@ export function RoleBasedBillingDashboard({
   };
 
   const [uiState, setUiState] = useState<BillingUiState>({
+    activeTabOverride: null,
     searchTerm: "",
     invoiceStatusFilter: "all",
     paymentStatusFilter: "all",
@@ -162,6 +163,7 @@ export function RoleBasedBillingDashboard({
     subscribeError: "",
   });
   const {
+    activeTabOverride,
     searchTerm,
     invoiceStatusFilter,
     paymentStatusFilter,
@@ -186,6 +188,7 @@ export function RoleBasedBillingDashboard({
   const patchUiState = useCallback((patch: Partial<BillingUiState>) => {
     setUiState((current) => ({ ...current, ...patch }));
   }, []);
+  const setActiveTabOverride = useCallback((value: string | null) => patchUiState({ activeTabOverride: value }), [patchUiState]);
   const setSearchTerm = useCallback((value: string) => patchUiState({ searchTerm: value }), [patchUiState]);
   const setInvoiceStatusFilter = useCallback((value: string) => patchUiState({ invoiceStatusFilter: value }), [patchUiState]);
   const setPaymentStatusFilter = useCallback((value: string) => patchUiState({ paymentStatusFilter: value }), [patchUiState]);
@@ -307,8 +310,8 @@ export function RoleBasedBillingDashboard({
 
   const filteredInvoices = useMemo(() => {
     const q = searchTerm.toLowerCase();
-    const startAt = startDateFilter ? new Date(`${startDateFilter}T00:00:00`).getTime() : null;
-    const endAt = endDateFilter ? new Date(`${endDateFilter}T23:59:59.999`).getTime() : null;
+    const startAt = startDateFilter ? new Date(`${startDateFilter}T00:00:00+05:30`).getTime() : null;
+    const endAt = endDateFilter ? new Date(`${endDateFilter}T23:59:59.999+05:30`).getTime() : null;
     return invoices.filter((invoice) =>
       (invoiceStatusFilter === "all" || invoice.status === invoiceStatusFilter) &&
       (() => {
@@ -330,8 +333,8 @@ export function RoleBasedBillingDashboard({
 
   const filteredPayments = useMemo(() => {
     const q = searchTerm.toLowerCase();
-    const startAt = startDateFilter ? new Date(`${startDateFilter}T00:00:00`).getTime() : null;
-    const endAt = endDateFilter ? new Date(`${endDateFilter}T23:59:59.999`).getTime() : null;
+    const startAt = startDateFilter ? new Date(`${startDateFilter}T00:00:00+05:30`).getTime() : null;
+    const endAt = endDateFilter ? new Date(`${endDateFilter}T23:59:59.999+05:30`).getTime() : null;
     return payments.filter((payment) => {
       const paymentPatientName =
         "patientName" in payment && typeof payment.patientName === "string"
@@ -378,31 +381,28 @@ export function RoleBasedBillingDashboard({
 
   const showLedgerTab = isAdmin;
   const patientTabs = useMemo(
-    () => ["plans", "subscriptions", "payments", "invoices"] as const,
+    () => ["plans", "subscriptions", "payments", "invoices"],
     []
   );
   const staffTabs = useMemo(
-    () =>
-      (showLedgerTab
-        ? (["overview", "invoices", "payments", "ledger"] as const)
-        : (["overview", "invoices", "payments"] as const)),
+    () => ["overview", "invoices", "payments", ...(showLedgerTab ? ["ledger"] : [])],
     [showLedgerTab]
   );
-  const roleTabs = isPatient ? patientTabs : staffTabs;
-  const defaultTab = isPatient ? "plans" : "overview";
-  const initialDefault =
-    initialTab && (roleTabs as readonly string[]).includes(initialTab.toLowerCase())
-      ? initialTab.toLowerCase()
-      : defaultTab;
-  const { tab: activeTab, setTab: setActiveTab } = useHashTab({
-    tabs: roleTabs,
-    defaultValue: initialDefault as (typeof roleTabs)[number],
-    aliases: {
-      analytics: defaultTab as (typeof roleTabs)[number],
-      reports: defaultTab as (typeof roleTabs)[number],
-    },
-  });
-  const tabCount = roleTabs.length;
+  const availableTabs = useMemo(
+    () => new Set(isPatient ? patientTabs : staffTabs),
+    [isPatient, patientTabs, staffTabs]
+  );
+  const tabCount = isPatient ? patientTabs.length : staffTabs.length;
+  const defaultTab = useMemo(() => {
+    const fallback = isPatient ? "plans" : "overview";
+    if (!initialTab) {
+      return fallback;
+    }
+
+    const normalized = initialTab.toLowerCase();
+    return availableTabs.has(normalized) ? normalized : fallback;
+  }, [initialTab, availableTabs, isPatient]);
+  const activeTab = activeTabOverride ?? defaultTab;
 
   const billingDescription = isReceptionist
     ? "Collections and invoice payments for your clinic."
@@ -510,7 +510,7 @@ export function RoleBasedBillingDashboard({
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-2">
             {(row.original.status === "OPEN" || row.original.status === "OVERDUE") && (
-              <PaymentButton invoiceId={row.original.id} amount={row.original.amount} provider="phonepe" />
+              <PaymentButton invoiceId={row.original.id} amount={row.original.amount} />
             )}
             {canMarkInvoicesPaid &&
               (row.original.status === "OPEN" || row.original.status === "OVERDUE") && (
@@ -605,10 +605,10 @@ export function RoleBasedBillingDashboard({
               </div>
               <Button
                 size="sm"
-                onClick={() => setActiveTab("plans")}
+                onClick={() => setActiveTabOverride("plans")}
                 className="shrink-0"
               >
-                View Plans
+                View Plans’
               </Button>
             </div>
           </CardContent>
@@ -645,7 +645,7 @@ export function RoleBasedBillingDashboard({
         </div>
       )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col gap-y-8">
+      <Tabs value={activeTab} onValueChange={setActiveTabOverride} className="flex flex-col gap-y-8">
           <TabsList>
             {[...(isPatient ? patientTabs : staffTabs)].map((val) => (
               <TabsTrigger
@@ -1182,7 +1182,7 @@ export function RoleBasedBillingDashboard({
                   Open PDF
                 </Button>
                 {(selectedInvoice.status === "OPEN" || selectedInvoice.status === "OVERDUE") && (
-                  <PaymentButton invoiceId={selectedInvoice.id} amount={selectedInvoice.amount} provider="phonepe" />
+                  <PaymentButton invoiceId={selectedInvoice.id} amount={selectedInvoice.amount} />
                 )}
               </div>
             </div>
@@ -1317,7 +1317,6 @@ export function RoleBasedBillingDashboard({
                 subscriptionId={pendingSubscriptionPayment?.subscriptionId || ""}
                 amount={pendingSubscriptionPayment?.amount || 0}
                 description={pendingSubscriptionPayment?.planName || ""}
-                provider="phonepe"
                 autoStart
                 className="w-full h-11 rounded-xl font-bold bg-[#006951] hover:bg-[#005a45]"
                 onSuccess={() => {

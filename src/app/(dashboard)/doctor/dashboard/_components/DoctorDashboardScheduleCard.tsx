@@ -18,6 +18,7 @@ interface DoctorDashboardScheduleCardProps {
   onOpenPrescription: (appointment: TransformedAppointment) => void;
   onOpenEhr: (patientId: string) => void;
   onCompleteAppointment: (appointmentId: string) => void | Promise<void>;
+  onRescheduleAppointment?: (appointmentId: string) => void;
   isStartPending: boolean;
   isCompletePending: boolean;
 }
@@ -137,7 +138,7 @@ export function DoctorDashboardScheduleCard({
                     Join Session
                   </Button>
                   <p className="text-[11px] text-muted-foreground">
-                    Join opens 10 minutes before your visit and stays open for 3 hours after start.
+                    Join opens 15 minutes before your visit and stays open for 5 hours after start.
                   </p>
                 </div>
               )}

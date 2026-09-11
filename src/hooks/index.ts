@@ -26,11 +26,6 @@ export * from './realtime';
 // ============================================================================
 export * from './utils';
 
-// ============================================================================
-// NAVIGATION HOOKS - URL hash tab sync, etc.
-// ============================================================================
-export * from './navigation';
-
 // ✅ Consolidated: useTranslation is exported from @/lib/i18n/context
 // Re-export for convenience
 export { useTranslation } from '@/lib/i18n/context';

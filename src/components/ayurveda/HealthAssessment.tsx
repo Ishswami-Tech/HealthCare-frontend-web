@@ -305,7 +305,7 @@ const HealthAssessment = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="gap-y-3 mb-8">
+              <div className="flex flex-col gap-y-3 mb-8">
                 {currentQuestion.options.map((option) => (
                   <Button
                     key={option}

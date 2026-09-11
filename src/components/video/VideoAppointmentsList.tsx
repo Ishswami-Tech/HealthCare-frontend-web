@@ -11,6 +11,7 @@ const VIDEO_STATUS_TABS = [
   { value: "scheduled", label: "Upcoming" },
   { value: "in-progress", label: "In Progress" },
   { value: "completed", label: "Completed" },
+  { value: "expired", label: "Expired" },
   { value: "cancelled", label: "Cancelled" },
 ] as const;
 const DEFAULT_STATUS_CONFIG = {
@@ -42,8 +43,7 @@ import { useCurrentTimestamp } from "@/hooks/utils/useClientDate";
 import { Textarea } from "@/components/ui/textarea";
 import { PaymentButton } from "@/components/payments/PaymentButton";
 import { formatAmountFromMinorUnits } from "@/lib/utils";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useHashTab } from "@/hooks/navigation/useHashTab";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ServerPagination } from "@/components/ui/pagination";
 import {
   Video,
@@ -111,6 +111,7 @@ import {
   normalizeAppointmentStatus,
   getAppointmentServiceLabel,
 } from "@/lib/utils/appointmentUtils";
+import { formatDateKeyInIST } from "@/lib/utils/date-time";
 import {
   getAppointmentViewState,
   getVideoSessionDecision,
@@ -302,7 +303,7 @@ function computeStats(appointments: VideoAppointment[]): AppointmentStats {
 
 function isWithinJoinWindow(appointment: VideoAppointment | any): boolean {
   const VIDEO_ACTIVE_WINDOW_MS = 5 * 60 * 60 * 1000;
-  const EARLY_JOIN_WINDOW_MS = 20 * 60 * 1000;
+  const EARLY_JOIN_WINDOW_MS = 15 * 60 * 1000;
   const startRaw = appointment?.startTime || appointment?.appointmentDate;
   if (!startRaw) return false;
 
@@ -322,13 +323,13 @@ function isWithinJoinWindow(appointment: VideoAppointment | any): boolean {
 
 function parseDateValue(value: string): Date | undefined {
   if (!value) return undefined;
-  const parsed = new Date(`${value}T00:00:00`);
+  const parsed = new Date(`${value}T00:00:00+05:30`);
   return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 }
 
 function toDateString(date?: Date): string {
   if (!date) return "";
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  return formatDateKeyInIST(date);
 }
 
 function formatDateValue(value: string, placeholder: string): string {
@@ -571,7 +572,7 @@ const AppointmentCard = ({
 
                 {videoSessionDecision.canJoin && (
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[12px] text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
-                    Join opens 20 minutes before your visit and stays open for 5 hours after start.
+                    Join opens 15 minutes before your visit and stays open for 5 hours after start.
                   </div>
                 )}
 
@@ -579,7 +580,7 @@ const AppointmentCard = ({
                   {['scheduled', 'confirmed', 'queued', 'in-progress'].includes(effectiveStatus) && (
                     <>
                       {!paymentCompleted && paymentAmount > 0 && (
-                        <PaymentButton appointmentId={getEffectiveAppointmentId(appointment)} amount={getVideoPaymentAmount(appointment, appointmentServices)} provider="phonepe" appointmentType="VIDEO_CALL" description={serviceLabel} className="h-8 px-3 rounded-xl text-xs font-semibold">
+                        <PaymentButton appointmentId={getEffectiveAppointmentId(appointment)} amount={getVideoPaymentAmount(appointment, appointmentServices)} appointmentType="VIDEO_CALL" description={serviceLabel} className="h-8 px-3 rounded-xl text-xs font-semibold">
                           Pay ₹{formatAmountFromMinorUnits(paymentAmount)}
                         </PaymentButton>
                       )}
@@ -680,6 +681,7 @@ export function VideoAppointmentsList({
     rescheduleDate: string;
     rescheduleTime: string;
     actionReason: string;
+    filterStatus: string;
   };
 
   const [uiState, setUiState] = useState<VideoAppointmentsUiState>({
@@ -693,6 +695,7 @@ export function VideoAppointmentsList({
     rescheduleDate: "",
     rescheduleTime: "",
     actionReason: "",
+    filterStatus: isDoctorRole ? "all" : "scheduled",
   });
   const {
     searchTerm,
@@ -705,11 +708,8 @@ export function VideoAppointmentsList({
     rescheduleDate,
     rescheduleTime,
     actionReason,
+    filterStatus,
   } = uiState;
-  const { tab: filterStatus, setTab: setFilterStatus } = useHashTab({
-    tabs: ["all", "scheduled", "in-progress", "completed", "cancelled"] as const,
-    defaultValue: isDoctorRole ? "all" : "scheduled",
-  });
   const patchUiState = (patch: Partial<VideoAppointmentsUiState>) =>
     setUiState((current) => ({ ...current, ...patch }));
   const setSearchTerm = (value: string) => patchUiState({ searchTerm: value });
@@ -726,6 +726,7 @@ export function VideoAppointmentsList({
   const setRescheduleDate = (value: string) => patchUiState({ rescheduleDate: value });
   const setRescheduleTime = (value: string) => patchUiState({ rescheduleTime: value });
   const setActionReason = (value: string) => patchUiState({ actionReason: value });
+  const setFilterStatus = (value: string) => patchUiState({ filterStatus: value });
   const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: "", end: "" });
 
   const resolvedControls: VideoAppointmentControls = controls ?? EMPTY_VIDEO_APPOINTMENT_CONTROLS;
@@ -963,8 +964,8 @@ export function VideoAppointmentsList({
   const openCancel = (apt: VideoAppointment) => { setActionAppointment(apt); setIsCancelOpen(true); };
   const openReject = (apt: VideoAppointment) => { setActionAppointment(apt); };
 
-  const parseDateValue = (v: string) => v ? new Date(`${v}T00:00:00`) : undefined;
-  const toDateString = (d?: Date) => d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : "";
+  const parseDateValue = (v: string) => v ? new Date(`${v}T00:00:00+05:30`) : undefined;
+  const toDateString = (d?: Date) => d ? formatDateKeyInIST(d) : "";
   const formatDateValue = (v: string, p: string) => { const d = parseDateValue(v); return d ? formatDateInIST(d, { day: "2-digit", month: "short", year: "numeric" }) : p; };
   const availableRescheduleSlots = useMemo(() => extractAvailabilitySlots(rescheduleAvailability), [rescheduleAvailability]);
   const rescheduleSlotGroups = useMemo(() => groupSlotsByPeriod(availableRescheduleSlots), [availableRescheduleSlots]);
@@ -1182,7 +1183,7 @@ const AppointmentCard = ({
 
                   {videoSessionDecision.canJoin && (
                     <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[12px] text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
-                      Join opens 10 minutes before your visit and stays open for 3 hours after start.
+                      Join opens 15 minutes before your visit and stays open for 5 hours after start.
                     </div>
                   )}
 
@@ -1190,7 +1191,7 @@ const AppointmentCard = ({
                     {['scheduled', 'confirmed', 'queued', 'in-progress'].includes(effectiveStatus) && (
                       <>
                         {!paymentCompleted && paymentAmount > 0 && (
-                          <PaymentButton appointmentId={getEffectiveAppointmentId(appointment)} amount={getVideoPaymentAmount(appointment, appointmentServices)} provider="phonepe" appointmentType="VIDEO_CALL" description={serviceLabel} className="h-8 px-3 rounded-xl text-xs font-semibold">
+                          <PaymentButton appointmentId={getEffectiveAppointmentId(appointment)} amount={getVideoPaymentAmount(appointment, appointmentServices)} appointmentType="VIDEO_CALL" description={serviceLabel} className="h-8 px-3 rounded-xl text-xs font-semibold">
                             Pay ₹{formatAmountFromMinorUnits(paymentAmount)}
                           </PaymentButton>
                         )}
