@@ -139,16 +139,16 @@ export function LoginAuthCard({
   }, [isFormDisabled, isVerifyingOTP, otpValue, showOTPInput, submitOtpOnce]);
 
   return (
-    <div className="relative mx-auto w-full max-w-[588px]">
+    <div data-auth-step={showOTPInput ? "otp" : "identifier"} className="relative mx-auto w-full max-w-[588px]">
       {/* Dynamic Background Glow */}
-      <Card className="relative overflow-hidden rounded-[28px] border border-[#e0ad54] bg-[#fffcf5]/86 py-0 shadow-[0_18px_45px_rgba(112,73,12,.14)] backdrop-blur-xl transition-colors lg:rounded-[26px] lg:bg-[#fffcf5]/94 lg:py-6 dark:border-slate-800 dark:bg-slate-900/88 dark:shadow-[0_18px_45px_rgba(0,0,0,.5)]">
+      <Card className="relative gap-0 lg:gap-6 overflow-hidden rounded-[28px] border border-[#e0ad54] bg-[#fffcf5]/86 py-0 shadow-[0_18px_45px_rgba(112,73,12,.14)] backdrop-blur-xl transition-colors lg:rounded-[26px] lg:bg-[#fffcf5]/94 lg:py-6 dark:border-slate-800 dark:bg-slate-900/88 dark:shadow-[0_18px_45px_rgba(0,0,0,.5)]">
 
-        <CardHeader className={cn("px-8 pb-3 pt-6", !showOTPInput && "hidden lg:block")}>
+        <CardHeader className={cn("px-[18px] pb-0 pt-11 lg:px-8 lg:pb-3 lg:pt-6", !showOTPInput && "hidden lg:block")}>
           {showOTPInput && (
             <Button
               variant="ghost"
               size="sm"
-              className="absolute left-4 top-7 h-8 rounded-full px-2.5 text-xs font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800"
+              className="absolute left-3 top-3 lg:left-4 lg:top-7 h-8 rounded-full px-2.5 text-xs font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800"
               onClick={onBack}
             >
               <ArrowLeft className="mr-1 size-3.5" />
@@ -158,14 +158,14 @@ export function LoginAuthCard({
 
           <div className="space-y-1.5 text-center">
             {/* Brand Shield Icon */}
-            <div className="mx-auto mb-1 flex size-[68px] items-center justify-center rounded-full border border-[#e7bd70] bg-[#fffaf0]/90 p-1 shadow-xs dark:border-emerald-800/50 dark:bg-emerald-950/80">
+            <div className="mx-auto mb-1 hidden lg:flex size-[68px] items-center justify-center rounded-full border border-[#e7bd70] bg-[#fffaf0]/90 p-1 shadow-xs dark:border-emerald-800/50 dark:bg-emerald-950/80">
               <AuthBrandLogo className="size-[56px]" imgClassName="size-full rounded-full" />
             </div>
 
-            <h2 className="font-serif text-[34px] font-bold tracking-tight text-[#075735] dark:text-emerald-400">
+            <h2 className="font-serif text-[22px] lg:text-[34px] font-bold tracking-tight text-[#075735] dark:text-emerald-400">
               {showOTPInput ? "Verify Code" : "Welcome"}
             </h2>
-            <p className="mx-auto max-w-[310px] text-[15px] leading-relaxed text-[#263248] dark:text-slate-300">
+            <p className="mx-auto max-w-[310px] text-xs lg:text-[15px] leading-relaxed text-[#263248] dark:text-slate-300">
               {showOTPInput ? (
                 otpMethod === "phone" ? (
                   <span className="inline-flex items-center justify-center flex-wrap gap-1">
@@ -339,7 +339,7 @@ export function LoginAuthCard({
                       <WhatsAppIcon className="size-3" />
                     </div>
                     <p className="text-[11.5px] font-medium leading-snug">
-                      We will send a WhatsApp message with your login code.
+                      We’ll send your login code on WhatsApp
                     </p>
                   </div>
                 ) : null}
@@ -404,7 +404,7 @@ export function LoginAuthCard({
               {!showOTPInput ? (
                 <Button
                   type="button"
-                  className="group relative -mt-2 h-10 w-full overflow-hidden rounded-xl bg-[#075735] text-[16px] font-semibold text-white shadow-md shadow-[#0d7040]/20 transition-all hover:bg-[#06452b] hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50 lg:mt-0 lg:h-[52px] lg:text-[18px] dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:shadow-emerald-950/50"
+                  className={cn("group relative h-10 w-full overflow-hidden rounded-xl bg-[#075735] text-[16px] font-semibold text-white shadow-md shadow-[#0d7040]/20 transition-all hover:bg-[#06452b] hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50 lg:mt-0 lg:h-[52px] lg:text-[18px] dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:shadow-emerald-950/50", otpMethod === "email" ? "mt-3" : "mt-1")}
                   onClick={() => {
                     const id = otpForm.getValues("identifier");
                     if (!id) {
@@ -450,7 +450,7 @@ export function LoginAuthCard({
             </form>
           </Form>
 
-          <div className="mt-3 border-t border-slate-200 pt-3 text-center lg:mt-4.5 lg:pt-4 dark:border-slate-800">
+          <div className="auth-signup-hint mt-3 border-t border-slate-200 pt-3 text-center lg:mt-4.5 lg:pt-4 dark:border-slate-800">
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
               New user?{" "}
               <span className="font-semibold text-[#08743e] dark:text-emerald-400">

@@ -296,7 +296,7 @@ export function PatientBillingContent({
       cell: ({ row }) => (
         <div className="flex flex-wrap items-center gap-2">
           {(row.original.status === "OPEN" || row.original.status === "OVERDUE") && (
-            <PaymentButton invoiceId={row.original.id} amount={row.original.amount} className="w-full sm:w-auto" />
+            <PaymentButton invoiceId={row.original.id} amount={row.original.amount} provider="phonepe" className="w-full sm:w-auto" />
           )}
           <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => window.open(`/api/billing/invoices/${row.original.id}/download`, "_blank", "noopener,noreferrer")} title="Download invoice PDF">
             <Download className="size-3.5" />

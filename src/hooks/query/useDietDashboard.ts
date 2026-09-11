@@ -44,7 +44,7 @@ export function useDietDashboardData() {
   return {
     summary: summaryQuery.data ?? { totalPlans: 0, activePlans: 0, totalFoodItems: 0 },
     plans: plansQuery.data ?? [],
-    isLoading: summaryQuery.isLoading || plansQuery.isLoading,
+    isLoading: summaryQuery.isPending || plansQuery.isPending,
     refetch: () => {
       summaryQuery.refetch();
       plansQuery.refetch();

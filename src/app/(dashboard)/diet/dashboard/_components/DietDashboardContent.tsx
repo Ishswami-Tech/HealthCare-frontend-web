@@ -18,7 +18,7 @@ export default function DietDashboardContent() {
         eyebrow="Diet & Nutrition"
         title="Nutrition Workspace"
         description="Manage diet plans, food catalogs, and nutritional recommendations for patients."
-        meta={data.summary}
+        meta={`${data.summary.totalPlans} plans · ${data.summary.activePlans} active`}
         actions={[
           { label: "New Plan", href: "/diet/dashboard#plans", icon: <ClipboardList className="size-4" /> },
           { label: "Food Catalog", href: "/diet/dashboard#catalog", icon: <Apple className="size-4" /> },

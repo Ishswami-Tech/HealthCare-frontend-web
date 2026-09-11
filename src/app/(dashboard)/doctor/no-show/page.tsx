@@ -50,6 +50,7 @@ interface NoShowAppointment {
   patientName?: string;
   doctorName?: string;
   appointmentDate: string;
+  date?: string;
   status: string;
   type: string;
   reason?: string;
@@ -94,10 +95,10 @@ export default function NoShowManagementPage() {
       try {
         const result = await updateAppointmentStatus(apptId, { status, reason: "No-show follow-up" });
         if (result.success) {
-          showSuccessToast("Updated", "Appointment status updated");
+          showSuccessToast("Updated", { description: "Appointment status updated" });
           fetchNoShows();
         } else {
-          showErrorToast("Error", result.error || "Failed to update");
+          showErrorToast(result.error || "Failed to update", { description: "Error" });
         }
       } finally {
         setIsProcessing(false);
@@ -125,7 +126,7 @@ export default function NoShowManagementPage() {
   return (
     <ProtectedRoute allowedRoles={[Role.DOCTOR, Role.CLINIC_ADMIN, Role.RECEPTIONIST, Role.SUPER_ADMIN]}>
       <div className="min-h-screen bg-gray-50">
-        <DashboardPageHeader title="No-Show Management" subtitle="Track and follow up on missed appointments" />
+        <DashboardPageHeader title="No-Show Management" description="Track and follow up on missed appointments" />
 
         <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
           {/* Stats */}
@@ -196,9 +197,9 @@ export default function NoShowManagementPage() {
                       {filtered.map((apt) => (
                         <TableRow key={apt.id}>
                           <TableCell className="font-medium">
-                            {formatDateInIST(apt.appointmentDate || apt.date)}<br/>
+                            {formatDateInIST(apt.appointmentDate || apt.date || "")}<br/>
                             <span className="text-xs text-gray-400">
-                              {formatTimeInIST(apt.appointmentDate || apt.date)}
+                              {formatTimeInIST(apt.appointmentDate || apt.date || "")}
                             </span>
                           </TableCell>
                           <TableCell>{apt.patientName || "—"}</TableCell>
