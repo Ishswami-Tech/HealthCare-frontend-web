@@ -39,7 +39,7 @@ import {
   parseReceptionistAppointmentDateTime,
 } from "@/lib/utils/appointmentUtils";
 import { getAppointmentViewState } from "@/lib/utils/appointmentUtils";
-import { formatDateInIST, formatISODateInIST, formatTimeInIST } from "@/lib/utils/date-time";
+import { formatDateInIST, formatISODateInIST, formatTimeInIST, IST_TIMEZONE } from "@/lib/utils/date-time";
 
 
 interface AppointmentListItem {
@@ -127,7 +127,7 @@ interface CheckInHistoryItem {
 
 const getTodayDateInIst = () =>
   new Date().toLocaleDateString("en-CA", {
-    timeZone: "Asia/Kolkata",
+    timeZone: IST_TIMEZONE,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

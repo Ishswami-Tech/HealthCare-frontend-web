@@ -525,7 +525,7 @@ export function PatientBillingContent({
           {pendingSubscriptionPayment && (
             <div className="flex flex-col gap-y-4">
               <p className="text-sm text-muted-foreground">Plan: <span className="font-medium text-foreground">{pendingSubscriptionPayment.planName}</span></p>
-              <PaymentButton subscriptionId={pendingSubscriptionPayment.subscriptionId} amount={pendingSubscriptionPayment.amount} description={pendingSubscriptionPayment.planName} provider="phonepe" autoStart className="w-full" onSuccess={() => { onSetPendingSubscriptionPayment(null); onRefetchSubscriptions(); onRefetchActiveSubscription(); onRefetchInvoices(); onRefetchPayments(); onRefetchClinicPlans(); onRefetchFallbackPlans(); }}>
+              <PaymentButton subscriptionId={pendingSubscriptionPayment.subscriptionId} amount={pendingSubscriptionPayment.amount} description={pendingSubscriptionPayment.planName} autoStart className="w-full" onSuccess={() => { onSetPendingSubscriptionPayment(null); onRefetchSubscriptions(); onRefetchActiveSubscription(); onRefetchInvoices(); onRefetchPayments(); onRefetchClinicPlans(); onRefetchFallbackPlans(); }}>
                 Pay {formatAmount(pendingSubscriptionPayment.amount)}
               </PaymentButton>
             </div>

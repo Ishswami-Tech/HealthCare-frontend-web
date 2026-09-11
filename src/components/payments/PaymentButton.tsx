@@ -121,7 +121,7 @@ type PaymentIntentResponse = {
 };
 
 type PaymentBridgePayload = {
-  provider: PaymentProvider;
+  provider?: PaymentProvider;
   amount: number;
   displayAmount?: string;
   currency: string;
@@ -300,11 +300,11 @@ export function PaymentButton({
     }
   };
 
-  const buildProviderAttemptOrder = (): PaymentProvider[] => {
+  const buildProviderAttemptOrder = (): Array<PaymentProvider | undefined> => {
     if (paymentBridgeUrl) {
       return provider && isPaymentProviderEnabled(provider)
         ? [provider]
-        : [DEFAULT_PAYMENT_PROVIDER];
+        : [undefined];
     }
 
     const attempts: PaymentProvider[] = [];
@@ -352,27 +352,27 @@ export function PaymentButton({
   };
 
   const getPaymentIntent = async (
-    requestedProvider: PaymentProvider,
+    requestedProvider?: PaymentProvider,
   ): Promise<PaymentIntentResponse> => {
     if (subscriptionId) {
       return (await createPaymentIntentServerAction({
-        provider: requestedProvider,
+        ...(requestedProvider ? { provider: requestedProvider } : {}),
         subscriptionId,
       })) as PaymentIntentResponse;
     } else if (appointmentId) {
       return (await createPaymentIntentServerAction({
-        provider: requestedProvider,
+        ...(requestedProvider ? { provider: requestedProvider } : {}),
         appointmentId,
         ...(appointmentType ? { appointmentType } : {}),
       })) as PaymentIntentResponse;
     } else if (invoiceId) {
       return (await createPaymentIntentServerAction({
-        provider: requestedProvider,
+        ...(requestedProvider ? { provider: requestedProvider } : {}),
         invoiceId,
       })) as PaymentIntentResponse;
     } else if (prescriptionId) {
       return (await createPaymentIntentServerAction({
-        provider: requestedProvider,
+        ...(requestedProvider ? { provider: requestedProvider } : {}),
         prescriptionId,
       })) as PaymentIntentResponse;
     } else {
@@ -1015,10 +1015,12 @@ export function PaymentButton({
             typeof paymentIntent?.provider === "string"
               ? paymentIntent.provider.toLowerCase()
               : undefined;
-          const usedProvider =
-            providerFromIntent && isPaymentProviderEnabled(providerFromIntent)
-              ? (providerFromIntent as PaymentProvider)
-              : attemptedProvider;
+          if (!providerFromIntent || !isPaymentProviderEnabled(providerFromIntent)) {
+            throw new Error(
+              "The clinic payment provider was not returned by the backend.",
+            );
+          }
+          const usedProvider = providerFromIntent as PaymentProvider;
 
           const paymentMetadata =
             (paymentIntent?.metadata as Record<string, unknown>) || {};

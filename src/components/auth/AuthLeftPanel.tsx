@@ -21,7 +21,6 @@ export function AuthBrandLogo({
         width={128}
         height={128}
         className={cn("block dark:hidden object-contain drop-shadow-xs", imgClassName)}
-        priority
       />
       {/* Dark mode logo */}
       <Image
@@ -30,7 +29,6 @@ export function AuthBrandLogo({
         width={128}
         height={128}
         className={cn("hidden dark:block object-contain rounded-full drop-shadow-xs", imgClassName)}
-        priority
       />
     </div>
   );
@@ -50,29 +48,10 @@ const features = [
 export function AuthLeftPanel() {
   return (
     <section className="relative z-10 hidden h-screen min-h-0 overflow-hidden lg:flex lg:w-[71.5%] flex-col px-[3.15vw] py-[2.35vh] text-[#132238] dark:text-slate-100 transition-colors duration-300">
-      <Image
-        src="/assets/auth-login-forest-hero-face-corrected.png"
-        alt="Dr. Chandrakumar Deshmukh in an Ayurvedic forest setting"
-        fill
-        priority
-        className="object-cover object-[43%_center] dark:hidden"
-        sizes="72vw"
-        style={{
-          maskImage: "linear-gradient(to right, black 0%, black 92%, transparent 100%)",
-          WebkitMaskImage: "linear-gradient(to right, black 0%, black 92%, transparent 100%)",
-        }}
-      />
-      <Image
-        src="/assets/auth-login-hero.png"
-        alt="Dr. Chandrakumar Deshmukh in an Ayurvedic setting"
-        fill
-        priority
-        className="hidden object-cover object-[43%_center] dark:block"
-        sizes="72vw"
-        style={{
-          maskImage: "linear-gradient(to right, black 0%, black 92%, transparent 100%)",
-          WebkitMaskImage: "linear-gradient(to right, black 0%, black 92%, transparent 100%)",
-        }}
+      <div
+        role="img"
+        aria-label="Dr. Chandrakumar Deshmukh in an Ayurvedic forest setting"
+        className="auth-desktop-hero pointer-events-none absolute inset-0"
       />
       {/* Header */}
       <header className="relative z-20 flex shrink-0 items-center justify-between">

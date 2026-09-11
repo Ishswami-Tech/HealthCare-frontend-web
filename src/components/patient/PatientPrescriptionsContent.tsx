@@ -484,7 +484,6 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
                           <PaymentButton
                             prescriptionId={prescription.id}
                             amount={prescription.pendingAmount}
-                            provider="phonepe"
                             className="flex-1 sm:flex-initial rounded-xl bg-emerald-600 hover:bg-emerald-700 h-9 sm:h-auto"
                           >
                             <ShoppingCart className="size-4 mr-1" />
@@ -649,7 +648,6 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
                           <PaymentButton
                             prescriptionId={prescription.id}
                             amount={prescription.pendingAmount}
-                            provider="phonepe"
                             className="rounded-xl bg-emerald-600 hover:bg-emerald-700 w-full sm:w-auto h-10 sm:h-auto"
                           >
                             <ShoppingCart className="mr-1 size-4" />
