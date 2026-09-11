@@ -112,7 +112,7 @@ export function useAyurvedaDashboard() {
     totalDiagnoses: diagnosisData.length,
   };
 
-  const isLoading = prakritiQuery.isLoading || nadiQuery.isLoading;
+  const isLoading = prakritiQuery.isPending || nadiQuery.isPending;
 
   return {
     summary,

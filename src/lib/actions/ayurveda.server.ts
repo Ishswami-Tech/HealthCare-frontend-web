@@ -146,7 +146,7 @@ export async function createSampraptiStage(payload: {
   if (!session?.user?.id) throw new Error('Unauthorized');
 
   try {
-    const { data } = await authenticatedApi(API_ENDPOINTS.AYURVEDA.SAMPRAPTI.CREATE, {
+    const { data } = await authenticatedApi(API_ENDPOINTS.AYURVEDA.SAMPRAPTI.CREATE(payload.diagnosisId), {
       method: 'POST',
       body: JSON.stringify(payload),
     });

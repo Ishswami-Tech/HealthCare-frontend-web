@@ -1925,7 +1925,9 @@ export const useCanCancelAppointment = (appointmentId: string) => {
       
       const now = new Date();
       const appointmentDate = parseIstDateTime(appointment.date, appointment.time);
-      const hoursDifference = (appointmentDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+      const hoursDifference = appointmentDate
+        ? (appointmentDate.getTime() - now.getTime()) / (1000 * 60 * 60)
+        : Number.NEGATIVE_INFINITY;
       
       // Can cancel if appointment is more than 2 hours away and not already completed/cancelled
       const canCancel = hoursDifference > 2 && 
