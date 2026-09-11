@@ -1,10 +1,4 @@
-import dynamic from "next/dynamic";
-import { DashboardPageSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
-
-const IpdDashboardContent = dynamic(
-  () => import("./_components/IpdDashboardContent"),
-  { ssr: false, loading: () => <DashboardPageSkeleton /> }
-);
+import IpdDashboardContent from "./_components/IpdDashboardContent";
 
 export default function IpdDashboardPage() {
   return <IpdDashboardContent />;

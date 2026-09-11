@@ -1,10 +1,4 @@
-import dynamic from "next/dynamic";
-import { DashboardPageSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
-
-const DietDashboardContent = dynamic(
-  () => import("./_components/DietDashboardContent"),
-  { ssr: false, loading: () => <DashboardPageSkeleton /> }
-);
+import DietDashboardContent from "./_components/DietDashboardContent";
 
 export default function DietDashboardPage() {
   return <DietDashboardContent />;
