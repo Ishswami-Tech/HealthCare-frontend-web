@@ -169,7 +169,6 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
   const { t } = useTranslation();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { push } = useRouter();
   const [avatarError, setAvatarError] = useState(false);
   const isSidebarCollapsed = useLayoutStore((state) => state.isSidebarCollapsed);
   const setSidebarCollapsed = useLayoutStore((state) => state.setSidebarCollapsed);
@@ -291,14 +290,9 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                       handleLinkClick();
                       return;
                     }
-                    if (
-                      link.href &&
-                      !link.href.startsWith("#") &&
-                      !link.href.startsWith("http")
-                    ) {
-                      e.preventDefault();
-                      push(link.href);
-                    }
+                    // Let Next <Link> own soft navigation + prefetch.
+                    // preventDefault + router.push was delaying leaves from
+                    // heavy pages (e.g. Payments) by several seconds.
                     handleLinkClick();
                   }}
                   >
@@ -366,11 +360,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                   : "hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-200",
                 !open && "mx-auto justify-center"
               )}
-              onClick={(e) => {
-                if (profileRoute && !profileRoute.startsWith("http")) {
-                  e.preventDefault();
-                  push(profileRoute);
-                }
+              onClick={() => {
                 handleLinkClick();
               }}
             >

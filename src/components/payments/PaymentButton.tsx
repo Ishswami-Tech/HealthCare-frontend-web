@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { load } from "@cashfreepayments/cashfree-js";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import {
@@ -53,6 +52,20 @@ const REDIRECT_PAYMENT_PROVIDERS: PaymentProvider[] = [
 const CASHFREE_LOAD_TIMEOUT_MS = 8000;
 const CASHFREE_CHECKOUT_TIMEOUT_MS = 10000;
 const RAZORPAY_SCRIPT_ID = "razorpay-checkout-script";
+
+type CashfreeCheckoutResult = {
+  error?: { message?: string };
+  redirectUrl?: string;
+  redirect?: boolean;
+};
+
+type CashfreeCheckoutClient = {
+  checkout: (options: {
+    paymentSessionId: string;
+    orderId?: string;
+    redirectTarget?: string;
+  }) => Promise<CashfreeCheckoutResult | void> | CashfreeCheckoutResult | void;
+};
 
 declare global {
   interface Window {
@@ -220,9 +233,7 @@ export function PaymentButton({
   const { session } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const hasAutoStartedRef = useRef(false);
-  const cashfreeSdkPromiseRef = useRef<Promise<Awaited<
-    ReturnType<typeof load>
-  > | null> | null>(null);
+  const cashfreeSdkPromiseRef = useRef<Promise<CashfreeCheckoutClient | null> | null>(null);
   const userRole = (session?.user?.role || "").toUpperCase();
   const normalizedCandidates = [provider, DEFAULT_PAYMENT_PROVIDER].reduce<
     string[]
@@ -390,12 +401,15 @@ export function PaymentButton({
       return cashfreeSdkPromiseRef.current;
     }
 
-    cashfreeSdkPromiseRef.current = load({ mode: cashfreeMode }).catch(
-      (error) => {
+    cashfreeSdkPromiseRef.current = import("@cashfreepayments/cashfree-js")
+      .then(async ({ load }) => {
+        const client = await load({ mode: cashfreeMode });
+        return (client as CashfreeCheckoutClient | null) ?? null;
+      })
+      .catch((error) => {
         cashfreeSdkPromiseRef.current = null;
         throw error;
-      },
-    );
+      });
 
     return cashfreeSdkPromiseRef.current;
   };
@@ -708,7 +722,7 @@ export function PaymentButton({
   const handleCashfreePayment = async (
     paymentIntent: Record<string, unknown>,
     usedProvider: PaymentProvider,
-    preloadedCashfree?: Awaited<ReturnType<typeof load>> | null,
+    preloadedCashfree?: CashfreeCheckoutClient | null,
   ) => {
     const paymentMetadata =
       (paymentIntent?.metadata as Record<string, unknown>) || {};
@@ -798,11 +812,13 @@ export function PaymentButton({
       }
 
       const result = await withTimeout(
-        cashfree.checkout({
-          paymentSessionId,
-          orderId,
-          redirectTarget: "_self",
-        }),
+        Promise.resolve(
+          cashfree.checkout({
+            paymentSessionId,
+            orderId,
+            redirectTarget: "_self",
+          }),
+        ),
         CASHFREE_CHECKOUT_TIMEOUT_MS,
         "Cashfree checkout timed out",
       );
@@ -1113,10 +1129,6 @@ export function PaymentButton({
   useEffect(() => {
     handlePaymentRef.current = handlePayment;
   });
-
-  useEffect(() => {
-    warmUpPaymentResources();
-  }, [warmUpPaymentResources]);
 
   useEffect(() => {
     if (!appointmentId || !autoStart || disabled || hasAutoStartedRef.current) {

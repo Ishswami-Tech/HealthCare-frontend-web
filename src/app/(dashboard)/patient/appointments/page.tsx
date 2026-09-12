@@ -5,7 +5,6 @@ import type { ComponentType } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { useMyAppointments, hasAppointmentsLoadedForSession } from "@/hooks/query/useAppointments";
 import { useCurrentClinicId } from "@/hooks/query/useClinics";
@@ -136,12 +135,11 @@ function PatientAppointmentsContent() {
 
     if (queryClinicId || queryLocationId || queryClinicName || bookingMode || shouldOpenBooking) {
       document.getElementById("appointment-manager")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      window.history.replaceState(null, "", window.location.pathname);
+      window.history.replaceState(window.history.state, "", window.location.pathname);
     }
   }, [queryClinicId, queryLocationId, queryClinicName, bookingMode, shouldOpenBooking]);
 
   return (
-    <DashboardLayout title="Appointments">
       <PatientPageShell>
         <PatientPageHeader
           eyebrow="APPOINTMENTS"
@@ -334,7 +332,6 @@ function PatientAppointmentsContent() {
         </Card>
 
       </PatientPageShell>
-    </DashboardLayout>
   );
 }
 

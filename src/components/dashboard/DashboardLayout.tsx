@@ -35,6 +35,10 @@ const DashboardShellContext = createContext<boolean>(false);
 const DASHBOARD_ROUTE_TITLES: Record<string, string> = {
   "/clinic-admin/staff": "Staff Directory",
   "/patient/payments": "My Billing & Payments",
+  "/patient/appointments": "Appointments",
+  "/patient/check-in": "Location Check-In",
+  "/patient/health": "Health",
+  "/patient/dashboard": "Home",
 };
 
 interface DashboardLayoutProps {
@@ -250,11 +254,22 @@ export function DashboardLayout({
     });
   }, [resolvedPageTitle, setDashboardMeta, userDisplayData]);
 
+  // Keep SSR and the client's first paint identical for the *outer* shell only.
+  // Nested DashboardLayout (appointments/check-in) must not remount a skeleton
+  // on every soft nav — that made Payments → Appointments feel multi-second.
+  if (!isMounted && !isInsideShell) {
+    return (
+      <div className="bg-background p-4 min-h-screen">
+        <DashboardPageSkeleton />
+      </div>
+    );
+  }
+
   // Auth bootstrap: never tear down the whole shell (sidebar + header) once we
   // already have a session in memory. That flash made soft navigations look
   // like full page refreshes.
   if (!user) {
-    if (isMounted && (!isPending || authBootstrapTimedOut) && redirectTarget) {
+    if ((!isPending || authBootstrapTimedOut) && redirectTarget) {
       return <RouteRedirect target={redirectTarget} />;
     }
 

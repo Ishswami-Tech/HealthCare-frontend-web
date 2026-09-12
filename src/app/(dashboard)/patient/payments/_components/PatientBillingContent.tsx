@@ -10,14 +10,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DataTable } from "@/components/ui/data-table";
 import { PaymentHistory } from "@/components/billing/PaymentHistory";
-import { PaymentButton } from "@/components/payments";
 import { DashboardPageHeader, DashboardPageShell as PatientPageShell } from "@/components/dashboard/DashboardPageShell";
 import { useHashTab } from "@/hooks/navigation/useHashTab";
 import { Check, CheckCircle2, CreditCard, Download, FileText, Wallet, Loader2 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/loading";
 import { TableSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import type { BillingPlan, Invoice, Subscription } from "@/types/billing.types";
+
+const PaymentButton = dynamic(
+  () => import("@/components/payments/PaymentButton").then((module) => module.PaymentButton),
+  { ssr: false },
+);
 
 const PATIENT_BILLING_TABS = ["plans", "invoices", "payments", "subscriptions"] as const;
 
