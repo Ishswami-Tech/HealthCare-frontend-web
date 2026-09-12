@@ -2185,7 +2185,6 @@ function BookAppointmentStep5({
               appointmentType="VIDEO_CALL"
               clinicId={activeClinicId}
               amount={videoPaymentAmount}
-              provider="phonepe"
               description={selectedService?.label || "Video consultation"}
               className="w-full"
               disabled={!acceptedVideoPaymentPolicy}

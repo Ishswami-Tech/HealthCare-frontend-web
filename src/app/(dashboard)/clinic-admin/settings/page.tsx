@@ -31,6 +31,7 @@ import {
   DashboardPageShell as PatientPageShell,
 } from "@/components/dashboard/DashboardPageShell";
 import { OperatingWindowsEditor } from "@/components/dashboard/OperatingWindowsEditor";
+import { PaymentProviderSettings } from "@/components/clinic-admin/PaymentProviderSettings";
 import { AlertTriangle, Loader2, Save, Plus, Stethoscope, Trash2, Video, Ban } from "lucide-react";
 import { showErrorToast } from "@/hooks/utils/use-toast";
 import type {
@@ -717,6 +718,7 @@ export default function ClinicAdminSettingsPage() {
               <ToggleRow label="Auto Billing" checked={settings.autoBilling} onCheckedChange={(value) => setSF("autoBilling", value)} />
             </CardContent>
           </Card>
+          {clinic?.id ? <PaymentProviderSettings clinicId={clinic.id} currency={clinicForm.currency} /> : null}
         </div>
       </div>
 

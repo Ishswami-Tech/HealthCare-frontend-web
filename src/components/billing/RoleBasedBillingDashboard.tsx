@@ -307,8 +307,8 @@ export function RoleBasedBillingDashboard({
 
   const filteredInvoices = useMemo(() => {
     const q = searchTerm.toLowerCase();
-    const startAt = startDateFilter ? new Date(`${startDateFilter}T00:00:00`).getTime() : null;
-    const endAt = endDateFilter ? new Date(`${endDateFilter}T23:59:59.999`).getTime() : null;
+    const startAt = startDateFilter ? new Date(`${startDateFilter}T00:00:00+05:30`).getTime() : null;
+    const endAt = endDateFilter ? new Date(`${endDateFilter}T23:59:59.999+05:30`).getTime() : null;
     return invoices.filter((invoice) =>
       (invoiceStatusFilter === "all" || invoice.status === invoiceStatusFilter) &&
       (() => {
@@ -330,8 +330,8 @@ export function RoleBasedBillingDashboard({
 
   const filteredPayments = useMemo(() => {
     const q = searchTerm.toLowerCase();
-    const startAt = startDateFilter ? new Date(`${startDateFilter}T00:00:00`).getTime() : null;
-    const endAt = endDateFilter ? new Date(`${endDateFilter}T23:59:59.999`).getTime() : null;
+    const startAt = startDateFilter ? new Date(`${startDateFilter}T00:00:00+05:30`).getTime() : null;
+    const endAt = endDateFilter ? new Date(`${endDateFilter}T23:59:59.999+05:30`).getTime() : null;
     return payments.filter((payment) => {
       const paymentPatientName =
         "patientName" in payment && typeof payment.patientName === "string"
@@ -510,7 +510,7 @@ export function RoleBasedBillingDashboard({
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-2">
             {(row.original.status === "OPEN" || row.original.status === "OVERDUE") && (
-              <PaymentButton invoiceId={row.original.id} amount={row.original.amount} provider="phonepe" />
+              <PaymentButton invoiceId={row.original.id} amount={row.original.amount} />
             )}
             {canMarkInvoicesPaid &&
               (row.original.status === "OPEN" || row.original.status === "OVERDUE") && (
@@ -1182,7 +1182,7 @@ export function RoleBasedBillingDashboard({
                   Open PDF
                 </Button>
                 {(selectedInvoice.status === "OPEN" || selectedInvoice.status === "OVERDUE") && (
-                  <PaymentButton invoiceId={selectedInvoice.id} amount={selectedInvoice.amount} provider="phonepe" />
+                  <PaymentButton invoiceId={selectedInvoice.id} amount={selectedInvoice.amount} />
                 )}
               </div>
             </div>
@@ -1317,7 +1317,6 @@ export function RoleBasedBillingDashboard({
                 subscriptionId={pendingSubscriptionPayment?.subscriptionId || ""}
                 amount={pendingSubscriptionPayment?.amount || 0}
                 description={pendingSubscriptionPayment?.planName || ""}
-                provider="phonepe"
                 autoStart
                 className="w-full h-11 rounded-xl font-bold bg-[#006951] hover:bg-[#005a45]"
                 onSuccess={() => {
