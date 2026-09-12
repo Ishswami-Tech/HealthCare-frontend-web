@@ -420,14 +420,15 @@ export function LoginAuthCard({
                   disabled={isFormDisabled || isRequestingOTP}
                 >
                   {isRequestingOTP ? (
-                    <>
-                      <Loader2 className="mr-2 size-4 animate-spin" />
-                      {otpMethod === "phone" ? "Sending WhatsApp code..." : "Sending email code..."}
-                    </>
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="size-4 animate-spin" />
+                      Sending WhatsApp code...
+                    </span>
                   ) : (
-                    <span className="flex items-center">
-                      {otpMethod === "phone" ? "Request WhatsApp OTP" : "Request Email OTP"}
-                      <ArrowRight className="ml-2 size-4 transition-transform duration-300 group-hover:translate-x-1" />
+                    <span className="flex items-center justify-center gap-2">
+                      {otpMethod === "phone" && <WhatsAppIcon className="size-4 text-emerald-100" />}
+                      <span>{otpMethod === "phone" ? "Send OTP" : "Send Email OTP"}</span>
+                      <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
                     </span>
                   )}
                 </Button>
