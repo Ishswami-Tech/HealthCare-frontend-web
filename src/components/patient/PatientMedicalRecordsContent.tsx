@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,9 +10,9 @@ import { Input } from "@/components/ui/input";
 import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HashTabs } from "@/hooks/navigation/HashTabs";
 import {
-  DashboardPageHeader as PatientPageHeader,
-  DashboardPageShell as PatientPageShell,
-} from "@/components/dashboard/DashboardPageShell";
+  PatientPageHeader,
+  PatientPageShell,
+} from "@/components/patient/PatientPageShell";
 import {
   Dialog,
   DialogContent,
@@ -22,10 +22,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/auth/useAuth";
+import { useQueryClient } from "@/hooks/core";
+import {
+  useAllergies,
+  useComprehensiveHealthRecord,
+  useCreateMedicalRecord,
+  useUploadMedicalRecordFile,
+} from "@/hooks/query/useMedicalRecords";
 import { theme } from "@/lib/utils/theme-utils";
 import { LoadingSpinner, ErrorState, EmptyState } from "@/components/ui/loading";
-import { useComprehensiveHealthRecord, useAllergies } from "@/hooks/query/useMedicalRecords";
-import { showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import type {
   ComprehensiveHealthRecord,
@@ -56,7 +62,22 @@ import {
   TestTube,
   File,
   Image,
+  Loader2,
 } from "lucide-react";
+
+type QuickUploadType = "LAB_TEST" | "XRAY" | "PRESCRIPTION" | "DIAGNOSIS_REPORT";
+
+const QUICK_UPLOAD_OPTIONS: Array<{
+  type: QuickUploadType;
+  label: string;
+  accept: string;
+  icon: typeof TestTube;
+}> = [
+  { type: "LAB_TEST", label: "Lab Report", accept: ".pdf,.png,.jpg,.jpeg,.webp", icon: TestTube },
+  { type: "XRAY", label: "X-Ray/Scan", accept: ".pdf,.png,.jpg,.jpeg,.webp,.dcm", icon: Image },
+  { type: "PRESCRIPTION", label: "Prescription", accept: ".pdf,.png,.jpg,.jpeg,.webp", icon: Pill },
+  { type: "DIAGNOSIS_REPORT", label: "Other Document", accept: ".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx", icon: File },
+];
 
 type PatientMedicalRecordsProps = {
   embedded?: boolean;
@@ -65,13 +86,19 @@ type PatientMedicalRecordsProps = {
 export default function PatientMedicalRecords({ embedded = false }: PatientMedicalRecordsProps) {
   const { session, isPending: authLoading } = useAuth();
   const user = session?.user;
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
+  const [pendingUploadType, setPendingUploadType] = useState<QuickUploadType | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const {
     data: healthData,
     isPending: isLoading,
     error: healthDataError,
   } = useComprehensiveHealthRecord(user?.id || "");
   const { data: allergiesData } = useAllergies(user?.id || "");
+  const createMedicalRecord = useCreateMedicalRecord();
+  const uploadMedicalRecordFile = useUploadMedicalRecordFile();
   const typedHealthData = (healthData ?? null) as ComprehensiveHealthRecord | null;
   const allergies = Array.isArray(allergiesData) ? (allergiesData as PatientAllergyEntry[]) : [];
   
@@ -89,6 +116,59 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
     showSuccessToast(`Downloading ${recordType}...`, {
       id: TOAST_IDS.GLOBAL.SUCCESS,
     });
+  };
+
+  const openQuickUpload = (type: QuickUploadType) => {
+    if (!user?.id || isUploading) return;
+    setPendingUploadType(type);
+    const option = QUICK_UPLOAD_OPTIONS.find((item) => item.type === type);
+    if (fileInputRef.current) {
+      fileInputRef.current.accept = option?.accept || ".pdf,.png,.jpg,.jpeg,.webp";
+      fileInputRef.current.value = "";
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleQuickUploadFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    const uploadType = pendingUploadType;
+    event.target.value = "";
+    setPendingUploadType(null);
+
+    if (!file || !uploadType || !user?.id) {
+      return;
+    }
+
+    const option = QUICK_UPLOAD_OPTIONS.find((item) => item.type === uploadType);
+    setIsUploading(true);
+    try {
+      const created = (await createMedicalRecord.mutateAsync({
+        patientId: user.id,
+        type: uploadType,
+        title: file.name || option?.label || "Uploaded document",
+        content: `Patient uploaded ${option?.label || "document"}: ${file.name}`,
+      })) as { id?: string; data?: { id?: string } } | null;
+
+      const recordId = created?.id || created?.data?.id;
+      if (!recordId) {
+        throw new Error("Upload created without a record id");
+      }
+
+      await uploadMedicalRecordFile.mutateAsync({ recordId, file });
+      await queryClient.invalidateQueries({ queryKey: ["ehr", "comprehensive"], exact: false });
+      await queryClient.invalidateQueries({ queryKey: ["ehr", "lab-reports"], exact: false });
+      await queryClient.invalidateQueries({ queryKey: ["ehr", "radiology-reports"], exact: false });
+      showSuccessToast(`${option?.label || "Document"} uploaded successfully`, {
+        id: TOAST_IDS.MEDICAL_RECORD.UPLOAD,
+      });
+    } catch (error) {
+      showErrorToast(
+        error instanceof Error ? error.message : "Failed to upload document",
+        { id: TOAST_IDS.MEDICAL_RECORD.UPLOAD },
+      );
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const medicalHistory = (typedHealthData?.medicalHistory || []).toSorted(
@@ -240,7 +320,13 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
 
 
   const content = (
-    <>
+    <div className="flex flex-col gap-y-3">
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hidden"
+        onChange={(event) => void handleQuickUploadFile(event)}
+      />
       {!embedded && (
         <PatientPageHeader
           eyebrow="Health History"
@@ -251,6 +337,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
               label: "Upload report",
               icon: <Upload className="size-4" />,
               variant: "outline",
+              onClick: () => openQuickUpload("DIAGNOSIS_REPORT"),
             },
             {
               label: "Export records",
@@ -265,64 +352,83 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
             tabs={["history", "prescriptions", "reports", "vitals", "allergies", "diet"] as const}
             defaultValue="history"
             namespace="records"
-            className="flex flex-col gap-y-6"
+            className="flex flex-col gap-y-3"
           >
-            <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-              <TabsList className="inline-flex w-max min-w-full sm:flex sm:w-full">
-                <TabsTrigger value="history">History</TabsTrigger>
-                <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
-                <TabsTrigger value="reports">Reports</TabsTrigger>
-                <TabsTrigger value="vitals">Vitals</TabsTrigger>
-                <TabsTrigger value="allergies">Allergies</TabsTrigger>
-                <TabsTrigger value="diet">Diet</TabsTrigger>
+            <div className="scrollbar-hide -mx-1 overflow-x-auto px-1 pb-1 sm:mx-0 sm:px-0">
+              <TabsList
+                className="inline-flex h-10 w-max min-w-full justify-start gap-1 rounded-xl bg-muted/50 p-1 sm:w-full"
+                role="group"
+                aria-label="Record type"
+              >
+                <TabsTrigger value="history" className="rounded-lg px-3">
+                  History
+                </TabsTrigger>
+                <TabsTrigger value="prescriptions" className="rounded-lg px-3">
+                  Prescriptions
+                </TabsTrigger>
+                <TabsTrigger value="reports" className="rounded-lg px-3">
+                  Reports
+                </TabsTrigger>
+                <TabsTrigger value="vitals" className="rounded-lg px-3">
+                  Vitals
+                </TabsTrigger>
+                <TabsTrigger value="allergies" className="rounded-lg px-3">
+                  Allergies
+                </TabsTrigger>
+                <TabsTrigger value="diet" className="rounded-lg px-3">
+                  Diet
+                </TabsTrigger>
               </TabsList>
             </div>
 
-            <TabsContent value="history">
+            <TabsContent value="history" className="mt-0">
               <div className="flex flex-col gap-y-4">
-                <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                <Card className="rounded-2xl border-border/70 shadow-sm dark:border-border/60">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
                       <Clock className="size-5" />
                       Medical History Timeline
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="flex flex-col gap-y-4">
-                      <div className="flex gap-4">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                         <div className="relative flex-1">
                           <Search
-                            className={`absolute left-3 top-1/2 transform -translate-y-1/2 size-4 ${theme.textColors.muted}`}
+                            className={`absolute left-3 top-1/2 size-4 -translate-y-1/2 ${theme.textColors.muted}`}
                           />
                           <Input
                             placeholder="Search medical history..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="h-11 rounded-xl pl-10"
+                            className="h-10 rounded-xl pl-10"
                           />
                         </div>
-                        <Button variant="outline" className="h-11 rounded-xl">
-                          <Filter className="size-4 mr-2" />
+                        <Button variant="outline" className="h-10 shrink-0 rounded-xl">
+                          <Filter className="mr-2 size-4" />
                           Filter
                         </Button>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         {filteredMedicalHistory.length === 0 ? (
-                          <EmptyState
-                            title={searchTerm ? "No matching records" : "No medical history"}
-                            description={searchTerm ? "Try adjusting your search terms." : "You don't have any medical history records yet."}
-                            icon={FileText}
-                          />
+                          <div className="col-span-full">
+                            <EmptyState
+                              title={searchTerm ? "No matching records" : "No medical history"}
+                              description={searchTerm ? "Try adjusting your search terms." : "You don't have any medical history records yet."}
+                              icon={FileText}
+                            />
+                          </div>
                         ) : (
                           filteredMedicalHistory.map((record: PatientMedicalHistoryEntry) => (
                           <div
                             key={record.id}
-                            className={`rounded-2xl border p-3 sm:p-4 ${theme.borders.primary} hover:bg-emerald-50/40 transition-colors`}
+                            className={`cursor-pointer rounded-2xl border p-3 sm:p-4 ${theme.borders.primary} transition-colors hover:bg-emerald-50/40`}
+                            onClick={() => handleViewRecord(record)}
                           >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-2">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <div className="mb-2 flex flex-wrap items-center gap-2">
                                   <h3 className="font-semibold">
                                     {record.type}
                                   </h3>
@@ -332,7 +438,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                                     {record.status}
                                   </Badge>
                                 </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
+                                <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2 sm:gap-3">
                                   <div>
                                     <p>
                                       <strong>Date:</strong>{" "}
@@ -355,7 +461,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                                 </div>
                                 {record.notes && (
                                   <div
-                                    className={`mt-3 p-3 ${theme.containers.featureBlue} rounded-lg`}
+                                    className={`mt-3 rounded-lg p-3 ${theme.containers.featureBlue}`}
                                   >
                                     <p
                                       className={`text-sm ${theme.textColors.heading}`}
@@ -365,12 +471,15 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                                   </div>
                                 )}
                               </div>
-                              <div className="flex gap-2 ml-4">
+                              <div className="flex shrink-0 gap-2">
                                 <Button 
                                   variant="outline" 
                                   size="sm"
                                   className="rounded-xl"
-                                  onClick={() => handleViewRecord(record)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleViewRecord(record);
+                                  }}
                                 >
                                   <Eye className="size-4" />
                                 </Button>
@@ -785,44 +894,43 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
           </HashTabs>
 
           {/* Quick Upload Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Upload</CardTitle>
+          <Card className="rounded-xl border-border/70 shadow-sm dark:border-border/60">
+            <CardHeader className="pb-2 pt-3 px-3 sm:px-4">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                <Upload className="size-4" />
+                Quick Upload
+                {isUploading ? (
+                  <span className="ml-auto inline-flex items-center gap-1.5 text-xs font-normal text-muted-foreground">
+                    <Loader2 className="size-3.5 animate-spin" />
+                    Uploading…
+                  </span>
+                ) : null}
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                <Button
-                  variant="outline"
-                  className="h-20 flex flex-col items-center justify-center gap-2"
-                >
-                  <TestTube className="size-6" />
-                  <span className="text-sm">Lab Report</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-20 flex flex-col items-center justify-center gap-2"
-                >
-                  <Image
-                    className="size-6"
-                    aria-label="Medical imaging icon"
-                  />
-                  <span className="text-sm">X-Ray/Scan</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-20 flex flex-col items-center justify-center gap-2"
-                >
-                  <Pill className="size-6" />
-                  <span className="text-sm">Prescription</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-20 flex flex-col items-center justify-center gap-2"
-                >
-                  <File className="size-6" />
-                  <span className="text-sm">Other Document</span>
-                </Button>
+            <CardContent className="px-3 pb-3 sm:px-4">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2.5">
+                {QUICK_UPLOAD_OPTIONS.map((option) => {
+                  const Icon = option.icon;
+                  return (
+                    <Button
+                      key={option.type}
+                      type="button"
+                      variant="outline"
+                      disabled={isUploading || !user?.id}
+                      onClick={() => openQuickUpload(option.type)}
+                      className="flex h-[4.5rem] flex-col items-center justify-center gap-1.5 rounded-xl px-2"
+                    >
+                      <Icon className="size-5 shrink-0" aria-hidden="true" />
+                      <span className="text-center text-xs font-medium leading-tight">
+                        {option.label}
+                      </span>
+                    </Button>
+                  );
+                })}
               </div>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Choose a type, then pick a PDF or image from your device.
+              </p>
             </CardContent>
           </Card>
 
@@ -888,7 +996,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 
   return embedded ? content : <PatientPageShell>{content}</PatientPageShell>;

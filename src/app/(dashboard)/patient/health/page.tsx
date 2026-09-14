@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
+import { HeartPulse } from "lucide-react";
 import { DashboardPageHeader as PatientPageHeader, DashboardPageShell as PatientPageShell } from "@/components/dashboard/DashboardPageShell";
 import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HashTabs } from "@/hooks/navigation/HashTabs";
@@ -12,9 +13,11 @@ const HEALTH_TABS = ["records", "medicines"] as const;
 
 function PatientHealthPageContent() {
   return (
-    <PatientPageShell className="mx-auto max-w-7xl">
+    <PatientPageShell className="max-w-none gap-y-3 sm:gap-y-3">
       <PatientPageHeader
-        eyebrow="My Health"
+        variant="clinical"
+        icon={<HeartPulse className="size-4" />}
+        eyebrow="Clinical chart"
         title="Health"
         description="Your records and medicines in one place."
       />
@@ -22,20 +25,30 @@ function PatientHealthPageContent() {
       <HashTabs
         tabs={HEALTH_TABS}
         defaultValue="records"
-        className="flex flex-col gap-y-4"
+        className="flex flex-col gap-y-3"
       >
-        <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-          <TabsList className="inline-flex w-max min-w-full sm:flex sm:w-full">
-            <TabsTrigger value="records">Records</TabsTrigger>
-            <TabsTrigger value="medicines">Medicines</TabsTrigger>
+        <div className="rounded-xl border border-violet-200/60 bg-violet-50/40 p-1 dark:border-violet-900/40 dark:bg-violet-950/20">
+          <TabsList className="inline-flex h-9 w-full min-w-0 gap-1 bg-transparent p-0">
+            <TabsTrigger
+              value="records"
+              className="flex-1 rounded-lg px-3 text-sm data-[state=active]:bg-card data-[state=active]:text-violet-700 data-[state=active]:shadow-sm dark:data-[state=active]:text-violet-300"
+            >
+              Records
+            </TabsTrigger>
+            <TabsTrigger
+              value="medicines"
+              className="flex-1 rounded-lg px-3 text-sm data-[state=active]:bg-card data-[state=active]:text-violet-700 data-[state=active]:shadow-sm dark:data-[state=active]:text-violet-300"
+            >
+              Medicines
+            </TabsTrigger>
           </TabsList>
         </div>
 
-        <TabsContent value="records" className="flex flex-col gap-y-4">
+        <TabsContent value="records" className="mt-0 flex flex-col gap-y-3">
           <PatientMedicalRecords embedded />
         </TabsContent>
 
-        <TabsContent value="medicines" className="flex flex-col gap-y-4">
+        <TabsContent value="medicines" className="mt-0 flex flex-col gap-y-3">
           <PatientPrescriptions embedded />
         </TabsContent>
       </HashTabs>

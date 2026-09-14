@@ -492,20 +492,20 @@ export default function PatientDashboard() {
   };
 
   return (
-    <PatientPageShell className="mx-auto max-w-7xl">
+    <PatientPageShell className="gap-y-3 sm:gap-y-4">
           {/* Profile completion banner — only for patients the backend still marks incomplete */}
           {authoritativeProfileComplete !== true && (
-            <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
-              <div>
+            <div className="flex flex-col gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
+              <div className="flex flex-col gap-y-0.5">
                 <p className="font-semibold">Complete your profile</p>
-                <p className="text-xs text-amber-800/80 dark:text-amber-300/80">
+                <p className="text-xs leading-snug text-amber-800/80 dark:text-amber-300/80">
                   Add your name and basic details so your doctors can identify you.
                 </p>
               </div>
               <Button
                 size="sm"
                 variant="outline"
-                className="h-8 self-start rounded-lg border-amber-300 bg-white px-3 text-amber-900 hover:bg-amber-100 sm:self-auto dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
+                className="h-8 self-start rounded-xl border-amber-300 bg-white px-3 text-amber-900 hover:bg-amber-100 sm:self-auto dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
                 onClick={() => push("/profile-completion")}
               >
                 Complete now
@@ -513,14 +513,15 @@ export default function PatientDashboard() {
             </div>
           )}
           <PatientPageHeader
+            variant="welcome"
             eyebrow="Patient Dashboard"
             title={`${t("dashboard.welcomeBack")}, ${patientData.personalInfo.name}`}
             description={t("dashboard.overview")}
             actionsSlot={
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <>
                 <Button
                   variant="outline"
-                  className="h-9 gap-2 rounded-xl border-sky-200 bg-sky-50 px-3 text-sm text-sky-700 hover:bg-sky-100 hover:text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-300 sm:h-10 sm:px-4"
+                  className="h-9 gap-2 rounded-xl border-sky-200 bg-sky-50 px-3.5 text-sm text-sky-700 hover:bg-sky-100 hover:text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-300"
                   onClick={() => {
                     if (hasInPersonAppointment) {
                       push("/patient/check-in");
@@ -538,7 +539,7 @@ export default function PatientDashboard() {
                   Scan Check-In
                 </Button>
                 <Button
-                  className="h-9 gap-2 rounded-xl border border-red-500 bg-red-600 px-3 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(220,38,38,0.22)] transition-all hover:-translate-y-0.5 hover:border-red-600 hover:bg-red-700 hover:shadow-[0_12px_28px_rgba(220,38,38,0.28)] sm:h-10 sm:px-4 active:scale-95 focus-visible:ring-2 focus-visible:ring-red-300 dark:border-red-700 dark:bg-red-600 dark:shadow-[0_8px_20px_rgba(239,68,68,0.15)] dark:hover:bg-red-500"
+                  className="h-9 gap-2 rounded-xl border border-red-500 bg-red-600 px-3.5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(220,38,38,0.22)] transition-all hover:-translate-y-0.5 hover:border-red-600 hover:bg-red-700 hover:shadow-[0_12px_28px_rgba(220,38,38,0.28)] active:scale-95 focus-visible:ring-2 focus-visible:ring-red-300 dark:border-red-700 dark:bg-red-600 dark:shadow-[0_8px_20px_rgba(239,68,68,0.15)] dark:hover:bg-red-500"
                   disabled={isBookingAppointmentLoading}
                   onClick={() => {
                     setIsBookingAppointmentLoading(true);
@@ -552,21 +553,20 @@ export default function PatientDashboard() {
                   )}
                   {isBookingAppointmentLoading ? "Opening…" : "Book Video Appointment"}
                 </Button>
-              </div>
+              </>
             }
           />
 
-          <Card className="overflow-hidden border border-emerald-200/70 bg-linear-to-br from-emerald-50 via-background to-sky-50 shadow-sm dark:border-emerald-900/40 dark:from-emerald-950/30 dark:via-card dark:to-sky-950/20 p-2.5 sm:p-5">
-            <CardContent className="p-0">
-              <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between sm:gap-2.5">
-                <div className="flex min-w-0 flex-1 flex-col gap-y-2 sm:gap-y-2.5">
-                  <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300 sm:gap-2">
-                    <Clock className="size-4" />
-                    Healthcare Workspace
-                  </div>
+          <Card className="overflow-hidden border border-emerald-200/70 bg-linear-to-br from-emerald-50 via-background to-sky-50 shadow-sm dark:border-emerald-900/40 dark:from-emerald-950/30 dark:via-card dark:to-sky-950/20">
+            <CardContent className="flex flex-col gap-y-3 p-3 sm:gap-y-4 sm:p-4 lg:p-5">
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                  <Clock className="size-3.5" />
+                  Healthcare Workspace
+                </div>
                   {showAppointmentsSkeleton ? (
-                    <div className="rounded-2xl border border-emerald-200/80 bg-white/80 p-3 shadow-sm backdrop-blur dark:border-emerald-900/40 dark:bg-card/80 sm:p-4">
-                      <div className="mt-4 space-y-3">
+                    <div className="rounded-xl border border-emerald-200/80 bg-white/80 p-3 shadow-sm backdrop-blur dark:border-emerald-900/40 dark:bg-card/80 sm:p-4">
+                      <div className="space-y-3">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1 space-y-2">
                             <Skeleton className="h-3 w-24 rounded-full" />
@@ -574,11 +574,11 @@ export default function PatientDashboard() {
                           </div>
                           <Skeleton className="h-6 w-24 rounded-full" />
                         </div>
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                          <Skeleton className="h-14 rounded-xl" />
-                          <Skeleton className="h-14 rounded-xl" />
+                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                          <Skeleton className="h-12 rounded-xl" />
+                          <Skeleton className="h-12 rounded-xl" />
                         </div>
-                        <Skeleton className="h-9 w-28 rounded-xl" />
+                        <Skeleton className="h-8 w-28 rounded-xl" />
                       </div>
                     </div>
                   ) : patientData.upcomingAppointments.length > 0 ? (
@@ -586,7 +586,7 @@ export default function PatientDashboard() {
                       role="button"
                       tabIndex={0}
                       aria-label="Open appointments page"
-                      className="group cursor-pointer rounded-2xl border border-emerald-200/80 bg-white/80 p-2 shadow-sm backdrop-blur transition-all hover:border-emerald-300 hover:bg-white hover:shadow-md dark:border-emerald-900/40 dark:bg-card/80 dark:hover:border-emerald-800/60 dark:hover:bg-card sm:p-4"
+                      className="group cursor-pointer rounded-xl border border-emerald-200/80 bg-white/80 p-3 shadow-sm backdrop-blur transition-all hover:border-emerald-300 hover:bg-white hover:shadow-md dark:border-emerald-900/40 dark:bg-card/80 dark:hover:border-emerald-800/60 dark:hover:bg-card sm:p-4"
                       onClick={() => push("/patient/appointments")}
                       onKeyDown={(event) => {
                         if (event.key === "Enter" || event.key === " ") {
@@ -595,21 +595,21 @@ export default function PatientDashboard() {
                         }
                       }}
                     >
-                      <div className="flex flex-wrap items-start justify-between gap-2 sm:gap-3">
-                        <div>
-                          <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700/80 dark:text-emerald-300/80">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="flex flex-col gap-y-0.5">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700/80 dark:text-emerald-300/80 sm:text-xs">
                             Appointments
                           </p>
-                          <h3 className="mt-1 text-base font-semibold text-foreground">
+                          <h3 className="text-base font-semibold text-foreground">
                             {patientData.upcomingAppointments.length} appointment{patientData.upcomingAppointments.length > 1 ? "s" : ""}
                           </h3>
                         </div>
-                        <Badge className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] sm:px-2.5 sm:py-1 sm:text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300">
+                        <Badge className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300">
                           Upcoming & in progress
                         </Badge>
                       </div>
 
-                      <div className="mt-2.5 flex max-h-72 flex-col gap-y-2 overflow-y-auto pr-1 sm:mt-4 sm:gap-y-3">
+                      <div className="mt-3 flex max-h-72 flex-col gap-y-2 overflow-y-auto pr-1">
                         {patientData.upcomingAppointments.map((appointment: any) => {
                           const videoSessionDecision = appointment.isOnline
                             ? getVideoSessionDecision(appointment)
@@ -618,23 +618,23 @@ export default function PatientDashboard() {
                           return (
                             <div
                               key={appointment.id}
-                              className="flex flex-col gap-2 rounded-2xl border border-emerald-100 bg-background/80 p-1.5 shadow-sm transition-colors hover:border-emerald-200 dark:border-emerald-900/30 dark:bg-card/80 sm:gap-2.5 sm:p-3"
+                              className="flex flex-col gap-2.5 rounded-xl border border-emerald-100 bg-background/80 p-2.5 shadow-sm transition-colors hover:border-emerald-200 dark:border-emerald-900/30 dark:bg-card/80 sm:p-3"
                             >
-                              <div className="grid min-w-0 gap-2 sm:gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
-                                <div className="flex min-w-0 items-start gap-2 sm:gap-3">
-                                  <div className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300 sm:h-11 sm:w-11">
+                              <div className="grid min-w-0 gap-2.5 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+                                <div className="flex min-w-0 items-start gap-2.5">
+                                  <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300 sm:size-10">
                                     {appointment.isOnline ? (
-                                      <Video className="size-5" />
+                                      <Video className="size-4" />
                                     ) : (
-                                      <Stethoscope className="size-5" />
+                                      <Stethoscope className="size-4" />
                                     )}
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700/80 dark:text-emerald-300/80">
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700/80 dark:text-emerald-300/80 sm:text-xs">
                                         {appointment.isOnline ? "Video consultation" : "In-person visit"}
                                       </p>
-                                      <Badge className={`h-5 sm:h-6 rounded-full px-2 sm:px-2.5 text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider ${getStatusColor(appointment.status)}`}>
+                                      <Badge className={`h-5 rounded-full px-2 text-[10px] font-semibold uppercase tracking-wider ${getStatusColor(appointment.status)}`}>
                                         {appointment.statusLabel || getAppointmentStatusDisplayName(appointment.status)}
                                       </Badge>
                                       <AppointmentExpiryCountdown
@@ -663,7 +663,7 @@ export default function PatientDashboard() {
                                     <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                                       Date
                                     </div>
-                                    <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                    <div className="mt-0.5 text-sm font-semibold text-slate-900 dark:text-slate-100">
                                       {appointment.date || "Date TBD"}
                                     </div>
                                   </div>
@@ -671,7 +671,7 @@ export default function PatientDashboard() {
                                     <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                                       Time
                                     </div>
-                                    <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                    <div className="mt-0.5 text-sm font-semibold text-slate-900 dark:text-slate-100">
                                       {appointment.time || "Time TBD"}
                                     </div>
                                   </div>
@@ -701,17 +701,19 @@ export default function PatientDashboard() {
                       </div>
                     </div>
                   ) : (
-                    <Empty>
-                      <EmptyContent>
-                        <EmptyMedia>
-                          <Clock className="size-5" />
-                        </EmptyMedia>
-                        <EmptyTitle>No upcoming or in-progress appointments right now</EmptyTitle>
-                        <EmptyDescription>
-                          Book a visit to see your next appointment here.
-                        </EmptyDescription>
-                      </EmptyContent>
-                    </Empty>
+                    <div className="rounded-xl border border-dashed border-emerald-200/80 bg-white/60 px-4 py-5 dark:border-emerald-900/40 dark:bg-card/50 sm:px-5 sm:py-6">
+                      <Empty>
+                        <EmptyContent>
+                          <EmptyMedia>
+                            <Clock className="size-5" />
+                          </EmptyMedia>
+                          <EmptyTitle>No upcoming or in-progress appointments right now</EmptyTitle>
+                          <EmptyDescription>
+                            Book a visit to see your next appointment here.
+                          </EmptyDescription>
+                        </EmptyContent>
+                      </Empty>
+                    </div>
                   )}
 
                   {/* <div className="rounded-2xl border border-emerald-200/70 bg-white/70 p-3 shadow-sm dark:border-emerald-900/30 dark:bg-card/70">
@@ -733,9 +735,9 @@ export default function PatientDashboard() {
 
                   {/* Recent appointments — backend-driven statuses */}
                   {patientData.recentAppointments.length > 0 ? (
-                    <div className="mt-3 rounded-2xl border border-slate-200/70 bg-white/70 p-3 shadow-sm dark:border-slate-800/60 dark:bg-card/70 sm:p-4">
+                    <div className="rounded-xl border border-slate-200/70 bg-white/70 p-3 shadow-sm dark:border-slate-800/60 dark:bg-card/70 sm:p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
+                        <div className="flex flex-col gap-y-0.5">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-600 dark:text-slate-400">
                             Recent appointments
                           </p>
@@ -743,32 +745,32 @@ export default function PatientDashboard() {
                             Cancelled, expired, no-show, and completed sessions — statuses from the backend
                           </p>
                         </div>
-                        <Badge className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-700 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
+                        <Badge className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-700 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
                           {patientData.recentAppointments.length} past
                         </Badge>
                       </div>
 
-                      <div className="mt-3 flex max-h-72 flex-col gap-y-2 overflow-y-auto py-2 pr-1 sm:gap-y-3">
+                      <div className="mt-3 flex max-h-72 flex-col gap-y-2 overflow-y-auto pr-1">
                         {patientData.recentAppointments.map((appointment: any) => (
                           <div
                             key={appointment.id}
-                            className="flex flex-col gap-2 rounded-2xl border border-slate-100 bg-background/80 p-1.5 shadow-sm transition-colors hover:border-slate-200 dark:border-slate-800/60 dark:bg-card/80 sm:gap-2.5 sm:p-3"
+                            className="flex flex-col gap-2.5 rounded-xl border border-slate-100 bg-background/80 p-2.5 shadow-sm transition-colors hover:border-slate-200 dark:border-slate-800/60 dark:bg-card/80 sm:p-3"
                           >
-                            <div className="grid min-w-0 gap-2 sm:gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
-                              <div className="flex min-w-0 items-start gap-2 sm:gap-3">
-                                <div className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 dark:bg-slate-800/60 dark:text-slate-300 sm:h-11 sm:w-11">
+                            <div className="grid min-w-0 gap-2.5 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+                              <div className="flex min-w-0 items-start gap-2.5">
+                                <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-800/60 dark:text-slate-300 sm:size-10">
                                   {appointment.isOnline ? (
-                                    <Video className="size-5" />
+                                    <Video className="size-4" />
                                   ) : (
-                                    <Stethoscope className="size-5" />
+                                    <Stethoscope className="size-4" />
                                   )}
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.18em] text-slate-600/80 dark:text-slate-400/80">
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-600/80 dark:text-slate-400/80 sm:text-xs">
                                       {appointment.isOnline ? "Video consultation" : "In-person visit"}
                                     </p>
-                                    <Badge className={`h-5 sm:h-6 rounded-full px-2 sm:px-2.5 text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider ${getStatusColor(appointment.status)}`}>
+                                    <Badge className={`h-5 rounded-full px-2 text-[10px] font-semibold uppercase tracking-wider ${getStatusColor(appointment.status)}`}>
                                       {appointment.statusLabel || getAppointmentStatusDisplayName(appointment.status)}
                                     </Badge>
                                     <AppointmentExpiryCountdown
@@ -797,7 +799,7 @@ export default function PatientDashboard() {
                                   <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                                     Date
                                   </div>
-                                  <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                  <div className="mt-0.5 text-sm font-semibold text-slate-900 dark:text-slate-100">
                                     {appointment.date || "Date TBD"}
                                   </div>
                                 </div>
@@ -805,7 +807,7 @@ export default function PatientDashboard() {
                                   <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                                     Time
                                   </div>
-                                  <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                  <div className="mt-0.5 text-sm font-semibold text-slate-900 dark:text-slate-100">
                                     {appointment.time || "Time TBD"}
                                   </div>
                                 </div>
@@ -816,58 +818,57 @@ export default function PatientDashboard() {
                       </div>
                     </div>
                   ) : null}
-                </div>
               </div>
 
-              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3 xl:grid-cols-3">
-                <div className="rounded-2xl border border-border bg-card px-3 py-2 shadow-sm">
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3 sm:gap-3">
+                <div className="rounded-xl border border-border bg-card px-3.5 py-3 shadow-sm sm:px-4">
                   <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Medicines</div>
-                  <div className="mt-1 text-lg font-bold leading-none text-foreground">
+                  <div className="mt-1.5 text-lg font-bold leading-none text-foreground tabular-nums">
                     {patientData.medications.length}
                   </div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">Active</div>
+                  <div className="mt-1 text-xs text-muted-foreground">Active</div>
                 </div>
-                <div className="rounded-2xl border border-border bg-card px-3 py-2 shadow-sm">
+                <div className="rounded-xl border border-border bg-card px-3.5 py-3 shadow-sm sm:px-4">
                   <div className="text-[10px] font-semibold uppercase tracking-wide text-violet-700 dark:text-violet-300">Vitals</div>
-                  <div className="mt-1 text-lg font-bold leading-none text-foreground">
+                  <div className="mt-1.5 text-lg font-bold leading-none text-foreground">
                     {patientData.vitalStats.lastUpdated}
                   </div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">Latest update</div>
+                  <div className="mt-1 text-xs text-muted-foreground">Latest update</div>
                 </div>
-                <div className="rounded-2xl border border-border bg-card px-3 py-2 shadow-sm">
+                <div className="rounded-xl border border-border bg-card px-3.5 py-3 shadow-sm sm:px-4">
                   <div className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">Treatment plan</div>
-                  <div className="mt-1 line-clamp-1 text-lg font-bold leading-none text-foreground">
+                  <div className="mt-1.5 line-clamp-1 text-lg font-bold leading-none text-foreground">
                     {patientData.healthOverview.currentTreatment || "None"}
                   </div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">Current plan</div>
+                  <div className="mt-1 text-xs text-muted-foreground">Current plan</div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           {/* Patient Services */}
-          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4 sm:gap-3">
-            <Card className="h-full overflow-hidden border border-border bg-card shadow-sm p-4 sm:p-5">
-              <CardHeader className="flex flex-row items-center justify-between gap-y-0 p-0 pb-1.5 sm:pb-2">
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4">
+            <Card className="flex h-full flex-col overflow-hidden border border-border bg-card p-3 shadow-sm sm:p-3.5">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 p-0 pb-2">
                 <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
                   Prescriptions
                 </CardTitle>
-                <div className="flex size-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
-                  <Pill className="size-4" />
+                <div className="flex size-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                  <Pill className="size-3.5" />
                 </div>
               </CardHeader>
-              <CardContent className="flex flex-col gap-y-2.5 p-0 sm:gap-y-3">
-                <div>
-                  <div className="text-xl font-bold leading-none text-emerald-700 dark:text-emerald-300 sm:text-2xl">
+              <CardContent className="flex flex-1 flex-col gap-y-2.5 p-0">
+                <div className="flex flex-col gap-y-1">
+                  <div className="text-xl font-bold leading-none text-emerald-700 tabular-nums dark:text-emerald-300">
                     {patientData.medications.length}
                   </div>
-                  <p className={`text-xs ${theme.textColors.secondary}`}>
+                  <p className={`text-xs leading-snug ${theme.textColors.secondary}`}>
                     Active medicines and refill reminders
                   </p>
                 </div>
                 <Button
                   variant="outline"
-                  className="h-9 w-full justify-between border-emerald-200 bg-white/80 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200 dark:hover:bg-emerald-900/30 sm:h-10"
+                  className="mt-auto h-9 w-full justify-between border-emerald-200 bg-white/80 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200 dark:hover:bg-emerald-900/30"
                   onClick={() => push("/patient/health?tab=medicines")}
                 >
                   <span className="truncate">Open medicines</span>
@@ -876,27 +877,27 @@ export default function PatientDashboard() {
               </CardContent>
             </Card>
 
-            <Card className="h-full overflow-hidden border border-border bg-card shadow-sm p-4 sm:p-5">
-              <CardHeader className="flex flex-row items-center justify-between gap-y-0 p-0 pb-1.5 sm:pb-2">
+            <Card className="flex h-full flex-col overflow-hidden border border-border bg-card p-3 shadow-sm sm:p-3.5">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 p-0 pb-2">
                 <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
                   Payments
                 </CardTitle>
-                <div className="flex size-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300">
-                  <CreditCard className="size-4" />
+                <div className="flex size-7 items-center justify-center rounded-lg bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300">
+                  <CreditCard className="size-3.5" />
                 </div>
               </CardHeader>
-              <CardContent className="flex flex-col gap-y-2.5 p-0 sm:gap-y-3">
-                <div>
-                  <div className="text-xl font-bold leading-none text-sky-700 dark:text-sky-300 sm:text-2xl">
+              <CardContent className="flex flex-1 flex-col gap-y-2.5 p-0">
+                <div className="flex flex-col gap-y-1">
+                  <div className="text-xl font-bold leading-none text-sky-700 tabular-nums dark:text-sky-300">
                     {patientData.billingSummary.openInvoices}
                   </div>
-                  <p className={`text-xs ${theme.textColors.secondary}`}>
+                  <p className={`text-xs leading-snug ${theme.textColors.secondary}`}>
                     Open invoices
                   </p>
                 </div>
                 <Button
                   variant="outline"
-                  className="h-9 w-full justify-between border-sky-200 bg-white/80 text-sky-700 hover:bg-sky-50 dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-sky-200 dark:hover:bg-sky-900/30 sm:h-10"
+                  className="mt-auto h-9 w-full justify-between border-sky-200 bg-white/80 text-sky-700 hover:bg-sky-50 dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-sky-200 dark:hover:bg-sky-900/30"
                   onClick={() => push("/patient/payments?tab=payments")}
                 >
                   <span className="truncate">Open payments</span>
@@ -905,27 +906,27 @@ export default function PatientDashboard() {
               </CardContent>
             </Card>
 
-            <Card className="h-full overflow-hidden border border-border bg-card shadow-sm p-4 sm:p-5">
-              <CardHeader className="flex flex-row items-center justify-between gap-y-0 p-0 pb-1.5 sm:pb-2">
+            <Card className="flex h-full flex-col overflow-hidden border border-border bg-card p-3 shadow-sm sm:p-3.5">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 p-0 pb-2">
                 <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
                   Video
                 </CardTitle>
-                <div className="flex size-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">
-                  <Video className="size-4" />
+                <div className="flex size-7 items-center justify-center rounded-lg bg-violet-100 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">
+                  <Video className="size-3.5" />
                 </div>
               </CardHeader>
-              <CardContent className="flex flex-col gap-y-2.5 p-0 sm:gap-y-3">
-                <div>
-                  <div className="text-xl font-bold leading-none text-violet-700 dark:text-violet-300 sm:text-2xl">
+              <CardContent className="flex flex-1 flex-col gap-y-2.5 p-0">
+                <div className="flex flex-col gap-y-1">
+                  <div className="text-xl font-bold leading-none text-violet-700 tabular-nums dark:text-violet-300">
                     {patientData.videoAppointments.length}
                   </div>
-                  <p className={`text-xs ${theme.textColors.secondary}`}>
+                  <p className={`text-xs leading-snug ${theme.textColors.secondary}`}>
                     Upcoming online consultations
                   </p>
                 </div>
                 <Button
                   variant="outline"
-                  className="h-9 w-full justify-between border-violet-200 bg-white/80 text-violet-700 hover:bg-violet-50 dark:border-violet-900/40 dark:bg-violet-950/20 dark:text-violet-200 dark:hover:bg-violet-900/30 sm:h-10"
+                  className="mt-auto h-9 w-full justify-between border-violet-200 bg-white/80 text-violet-700 hover:bg-violet-50 dark:border-violet-900/40 dark:bg-violet-950/20 dark:text-violet-200 dark:hover:bg-violet-900/30"
                   onClick={() => push("/patient/appointments?mode=VIDEO")}
                 >
                   <span className="truncate">Join video visits</span>
@@ -934,27 +935,27 @@ export default function PatientDashboard() {
               </CardContent>
             </Card>
 
-            <Card className="h-full overflow-hidden border border-border bg-card shadow-sm p-4 sm:p-5">
-              <CardHeader className="flex flex-row items-center justify-between gap-y-0 p-0 pb-1.5 sm:pb-2">
+            <Card className="flex h-full flex-col overflow-hidden border border-border bg-card p-3 shadow-sm sm:p-3.5">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 p-0 pb-2">
                 <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
                   Records
                 </CardTitle>
-                <div className="flex size-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
-                  <FileText className="size-4" />
+                <div className="flex size-7 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                  <FileText className="size-3.5" />
                 </div>
               </CardHeader>
-              <CardContent className="flex flex-col gap-y-2.5 p-0 sm:gap-y-3">
-                <div>
-                  <div className="text-xl font-bold leading-none text-amber-700 dark:text-amber-300 sm:text-2xl">
+              <CardContent className="flex flex-1 flex-col gap-y-2.5 p-0">
+                <div className="flex flex-col gap-y-1">
+                  <div className="text-xl font-bold leading-none text-amber-700 tabular-nums dark:text-amber-300">
                     {patientData.recordsCount}
                   </div>
-                  <p className={`text-xs ${theme.textColors.secondary}`}>
+                  <p className={`text-xs leading-snug ${theme.textColors.secondary}`}>
                     Visit notes, vitals, and history
                   </p>
                 </div>
                 <Button
                   variant="outline"
-                  className="h-9 w-full justify-between border-amber-200 bg-white/80 text-amber-700 hover:bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200 dark:hover:bg-amber-900/30 sm:h-10"
+                  className="mt-auto h-9 w-full justify-between border-amber-200 bg-white/80 text-amber-700 hover:bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200 dark:hover:bg-amber-900/30"
                   onClick={() => push("/patient/health?tab=records")}
                 >
                   <span className="truncate">Open records</span>
@@ -965,78 +966,78 @@ export default function PatientDashboard() {
           </div>
 
           {/* At a glance */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 xl:grid-cols-4 sm:gap-4 mt-6">
-            <Card className="overflow-hidden border border-border bg-card shadow-sm p-4 sm:p-5">
-              <CardHeader className="flex flex-row items-center justify-between gap-y-0 p-0 pb-1.5 sm:pb-2">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-3 xl:grid-cols-4">
+            <Card className="overflow-hidden border border-border bg-card p-3 shadow-sm sm:p-3.5">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 p-0 pb-2">
                 <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
                   Next visit
                 </CardTitle>
-                <div className="flex size-7 items-center justify-center rounded-xl bg-teal-100 text-teal-700 dark:bg-teal-500/10 dark:text-teal-300">
-                  <Clock className="size-4" />
+                <div className="flex size-7 items-center justify-center rounded-lg bg-teal-100 text-teal-700 dark:bg-teal-500/10 dark:text-teal-300">
+                  <Clock className="size-3.5" />
                 </div>
               </CardHeader>
-              <CardContent className="p-0">
-                <div className="text-xl font-bold leading-none text-teal-700 dark:text-teal-300 sm:text-2xl truncate">
+              <CardContent className="flex flex-col gap-y-1 p-0">
+                <div className="truncate text-lg font-bold leading-none text-teal-700 dark:text-teal-300 sm:text-xl">
                   {patientData.healthOverview.nextAppointment || "None"}
                 </div>
-                <p className={`mt-1 text-xs ${theme.textColors.secondary}`}>
+                <p className={`text-xs leading-snug ${theme.textColors.secondary}`}>
                   Upcoming or active appointment
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="overflow-hidden border border-border bg-card shadow-sm p-4 sm:p-5">
-              <CardHeader className="flex flex-row items-center justify-between gap-y-0 p-0 pb-1.5 sm:pb-2">
+            <Card className="overflow-hidden border border-border bg-card p-3 shadow-sm sm:p-3.5">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 p-0 pb-2">
                 <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
                   Medicines
                 </CardTitle>
-                <div className="flex size-7 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300">
-                  <Pill className="size-4" />
+                <div className="flex size-7 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300">
+                  <Pill className="size-3.5" />
                 </div>
               </CardHeader>
-              <CardContent className="p-0">
-                <div className="text-xl font-bold leading-none text-indigo-700 dark:text-indigo-300 sm:text-2xl">
+              <CardContent className="flex flex-col gap-y-1 p-0">
+                <div className="text-lg font-bold leading-none text-indigo-700 tabular-nums dark:text-indigo-300 sm:text-xl">
                   {patientData.medications.length}
                 </div>
-                <p className={`mt-1 text-xs ${theme.textColors.secondary}`}>
+                <p className={`text-xs leading-snug ${theme.textColors.secondary}`}>
                   Active medicines and refill reminders
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="overflow-hidden border border-border bg-card shadow-sm p-4 sm:p-5">
-              <CardHeader className="flex flex-row items-center justify-between gap-y-0 p-0 pb-1.5 sm:pb-2">
+            <Card className="overflow-hidden border border-border bg-card p-3 shadow-sm sm:p-3.5">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 p-0 pb-2">
                 <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
                   Vitals
                 </CardTitle>
-                <div className="flex size-7 items-center justify-center rounded-xl bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">
-                  <Activity className="size-4" />
+                <div className="flex size-7 items-center justify-center rounded-lg bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">
+                  <Activity className="size-3.5" />
                 </div>
               </CardHeader>
-              <CardContent className="p-0">
-                <div className="text-xl font-bold leading-none text-rose-700 dark:text-rose-300 sm:text-2xl">
+              <CardContent className="flex flex-col gap-y-1 p-0">
+                <div className="text-lg font-bold leading-none text-rose-700 dark:text-rose-300 sm:text-xl">
                   {patientData.vitalStats.bloodPressure !== "N/A" ? patientData.vitalStats.bloodPressure : "--"}
                 </div>
-                <p className={`mt-1 text-xs ${theme.textColors.secondary}`}>
+                <p className={`text-xs leading-snug ${theme.textColors.secondary}`}>
                   Latest blood pressure
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="overflow-hidden border border-border bg-card shadow-sm p-4 sm:p-5">
-              <CardHeader className="flex flex-row items-center justify-between gap-y-0 p-0 pb-1.5 sm:pb-2">
+            <Card className="overflow-hidden border border-border bg-card p-3 shadow-sm sm:p-3.5">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 p-0 pb-2">
                 <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
                   Records
                 </CardTitle>
-                <div className="flex size-7 items-center justify-center rounded-xl bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-300">
-                  <FileText className="size-4" />
+                <div className="flex size-7 items-center justify-center rounded-lg bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-300">
+                  <FileText className="size-3.5" />
                 </div>
               </CardHeader>
-              <CardContent className="p-0">
-                <div className="text-xl font-bold leading-none text-orange-700 dark:text-orange-300 sm:text-2xl">
+              <CardContent className="flex flex-col gap-y-1 p-0">
+                <div className="text-lg font-bold leading-none text-orange-700 tabular-nums dark:text-orange-300 sm:text-xl">
                   {patientData.recordsCount}
                 </div>
-                <p className={`mt-1 text-xs ${theme.textColors.secondary}`}>
+                <p className={`text-xs leading-snug ${theme.textColors.secondary}`}>
                   Records, notes, and reports
                 </p>
               </CardContent>
@@ -1046,6 +1047,7 @@ export default function PatientDashboard() {
     </PatientPageShell>
   );
 }
+
 
 
 

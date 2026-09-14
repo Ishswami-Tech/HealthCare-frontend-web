@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  DashboardPageHeader as PatientPageHeader, DashboardPageShell as PatientPageShell, } from "@/components/dashboard/DashboardPageShell";
+  PatientPageHeader,
+  PatientPageShell,
+} from "@/components/patient/PatientPageShell";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select";
 import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";

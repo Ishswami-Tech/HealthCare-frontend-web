@@ -25,9 +25,9 @@ import { ErrorState } from "@/components/ui/loading";
 import { Skeleton } from "@/components/ui/loading";
 import { DataExportModal, PasswordChangeModal } from "@/components/patient/PatientModals";
 import {
-  DashboardPageHeader as PatientPageHeader,
-  DashboardPageShell as PatientPageShell,
-} from "@/components/dashboard/DashboardPageShell";
+  PatientPageHeader,
+  PatientPageShell,
+} from "@/components/patient/PatientPageShell";
 import { useEffect } from "react";
 import { useUserProfile, useUpdateUserProfile } from "@/hooks/query/useUsers";
 import { 
