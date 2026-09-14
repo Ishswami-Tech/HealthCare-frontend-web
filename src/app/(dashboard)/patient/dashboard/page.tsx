@@ -36,6 +36,7 @@ import {
   FileText,
   Pill,
   Clock,
+  Calendar,
   Video,
   Stethoscope,
   BookOpen,
@@ -51,11 +52,10 @@ import {
 } from "@/components/dashboard/DashboardPageShell";
 import {
   DASHBOARD_SPACING,
-  DashboardCard,
-  DashboardCardHead,
   DashboardEmpty,
   DashboardQuickAction,
   DashboardSection,
+  DashboardStatCard,
   DashboardStatStrip,
 } from "@/components/dashboard/DashboardPrimitives";
 import { usePatientUiStore } from "@/stores/patient-ui.store";
@@ -644,6 +644,7 @@ export default function PatientDashboard() {
 
       <PatientPageHeader
         variant="welcome"
+        showArt
         eyebrow="Patient dashboard"
         title={`${t("dashboard.welcomeBack")}, ${patientData.personalInfo.name}`}
         description={t("dashboard.overview")}
@@ -688,145 +689,165 @@ export default function PatientDashboard() {
       {/* ─── Key figures ─────────────────────────────────────────────────────
           Each number appears exactly once on this page. The cards below are
           navigation only, so nothing is repeated three times any more. */}
-      <DashboardCard>
-        <DashboardCardHead title="At a glance" icon={<Activity className="size-[15px]" />} />
-        <DashboardStatStrip
-          items={[
-            {
-              label: "Next visit",
-              value: patientData.healthOverview.nextAppointment || "None",
-              icon: <Clock className="size-[15px]" />,
-              tone: "info",
-              isPending: showSummarySkeleton,
-            },
-            {
-              label: "Medicines",
-              value: patientData.medications.length,
-              icon: <Pill className="size-[15px]" />,
-              tone: "brand",
-              isPending: showSummarySkeleton,
-            },
-            {
-              label: "Blood pressure",
-              value: vitalsValue,
-              icon: <Activity className="size-[15px]" />,
-              tone: "crit",
-              isPending: showSummarySkeleton,
-            },
-            {
-              label: "Open invoices",
-              value: patientData.billingSummary.openInvoices,
-              icon: <CreditCard className="size-[15px]" />,
-              tone: "warn",
-              isPending: showSummarySkeleton,
-            },
-          ]}
-        />
-        <p className="border-t border-border px-[18px] py-2.5 text-xs text-muted-foreground">
-          {vitalsHint} · {outstandingHint}
-        </p>
-      </DashboardCard>
+      <DashboardStatStrip
+        items={[
+          {
+            label: "Upcoming appointments",
+            value: patientData.upcomingAppointments.length,
+            icon: <Calendar className="size-[22px]" />,
+            tone: "brand",
+            isPending: showSummarySkeleton,
+            href: "/patient/appointments",
+          },
+          {
+            label: "Active medicines",
+            value: patientData.medications.length,
+            icon: <Pill className="size-[22px]" />,
+            tone: "crit",
+            isPending: showSummarySkeleton,
+            href: "/patient/health?tab=medicines",
+          },
+          {
+            label: "Health records",
+            value: patientData.recordsCount,
+            icon: <FileText className="size-[22px]" />,
+            tone: "info",
+            isPending: showSummarySkeleton,
+            href: "/patient/health?tab=records",
+          },
+          {
+            label: "Payments due",
+            value: patientData.billingSummary.openInvoices,
+            icon: <CreditCard className="size-[22px]" />,
+            tone: "warn",
+            isPending: showSummarySkeleton,
+            href: "/patient/payments?tab=payments",
+          },
+        ]}
+      />
 
-      {/* ─── Upcoming appointments ─────────────────────────────────────────── */}
-      <DashboardSection
-        title="Upcoming appointments"
-        icon={<Clock className="size-[15px]" />}
-        description="Scheduled, confirmed and in-progress visits."
-        action={
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 rounded-lg px-3 text-xs font-medium"
-            onClick={() => push("/patient/appointments")}
-          >
-            View all
-          </Button>
-        }
-      >
-        {showAppointmentsSkeleton ? (
-          <>
-            <AppointmentRowSkeleton />
-            <AppointmentRowSkeleton />
-          </>
-        ) : patientData.upcomingAppointments.length > 0 ? (
-          <div className="flex max-h-[26rem] flex-col gap-3 overflow-y-auto pr-1">
-            {patientData.upcomingAppointments.map((appointment: any) => (
-              <AppointmentRow
-                key={appointment.id}
-                appointment={appointment}
-                showJoinAction
-                onJoin={(appointmentId) => push(buildVideoSessionRoute(appointmentId))}
-              />
-            ))}
-          </div>
-        ) : (
-          <DashboardEmpty
-            icon={<Clock className="size-5" />}
-            title="No upcoming or in-progress appointments"
-            description="Book a visit to see your next appointment here."
-            action={
-              <Button
-                size="sm"
-                className="h-8 rounded-lg bg-emerald-600 px-3.5 text-xs font-semibold text-white hover:bg-emerald-700"
-                onClick={() => push("/patient/appointments?openBooking=1")}
-              >
-                Book a visit
-              </Button>
-            }
-          />
-        )}
-      </DashboardSection>
-
-      {/* ─── Recent appointments (backend-driven statuses) ─────────────────── */}
-      {patientData.recentAppointments.length > 0 ? (
+      {/* Main column + right rail, as in the reference layout. Same sections as
+          before, just arranged two-up on large screens. */}
+      <div className={`grid grid-cols-1 ${DASHBOARD_SPACING.grid} lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start`}>
+        <div className={`flex min-w-0 flex-col ${DASHBOARD_SPACING.page}`}>
+        {/* ─── Upcoming appointments ─────────────────────────────────────────── */}
         <DashboardSection
-          title="Recent appointments"
-          icon={<FileText className="size-[15px]" />}
-          description="Completed, cancelled, expired and no-show visits."
+          title="Upcoming appointments"
+          icon={<Clock className="size-[15px]" />}
+          description="Scheduled, confirmed and in-progress visits."
           action={
-            <Badge
-              variant="secondary"
-              className="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 rounded-lg px-3 text-xs font-medium"
+              onClick={() => push("/patient/appointments")}
             >
-              {patientData.recentAppointments.length} past
-            </Badge>
+              View all
+            </Button>
           }
         >
-          <div className="flex max-h-[26rem] flex-col gap-3 overflow-y-auto pr-1">
-            {patientData.recentAppointments.map((appointment: any) => (
-              <AppointmentRow key={appointment.id} appointment={appointment} />
-            ))}
-          </div>
+          {showAppointmentsSkeleton ? (
+            <>
+              <AppointmentRowSkeleton />
+              <AppointmentRowSkeleton />
+            </>
+          ) : patientData.upcomingAppointments.length > 0 ? (
+            <div className="flex max-h-[26rem] flex-col gap-3 overflow-y-auto pr-1">
+              {patientData.upcomingAppointments.map((appointment: any) => (
+                <AppointmentRow
+                  key={appointment.id}
+                  appointment={appointment}
+                  showJoinAction
+                  onJoin={(appointmentId) => push(buildVideoSessionRoute(appointmentId))}
+                />
+              ))}
+            </div>
+          ) : (
+            <DashboardEmpty
+              icon={<Clock className="size-5" />}
+              title="No upcoming or in-progress appointments"
+              description="Book a visit to see your next appointment here."
+              action={
+                <Button
+                  size="sm"
+                  className="h-8 rounded-lg bg-emerald-600 px-3.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                  onClick={() => push("/patient/appointments?openBooking=1")}
+                >
+                  Book a visit
+                </Button>
+              }
+            />
+          )}
         </DashboardSection>
-      ) : null}
 
-      {/* ─── Shortcuts ─────────────────────────────────────────────────────── */}
-      <div className={`grid grid-cols-1 ${DASHBOARD_SPACING.grid} sm:grid-cols-2 xl:grid-cols-4`}>
-        <DashboardQuickAction
-          href="/patient/health?tab=medicines"
-          title="Medicines"
-          description="Prescriptions and refill reminders"
-          icon={<Pill className="size-4" />}
-        />
-        <DashboardQuickAction
-          href="/patient/health?tab=records"
-          title="Health records"
-          description="Visit notes, vitals and history"
-          icon={<FileText className="size-4" />}
-        />
-        <DashboardQuickAction
-          href="/patient/appointments?mode=VIDEO"
-          title="Video visits"
-          description="Join an online consultation"
-          icon={<Video className="size-4" />}
-        />
-        <DashboardQuickAction
-          href="/patient/payments?tab=payments"
-          title="Payments"
-          description="Invoices, receipts and plans"
-          icon={<CreditCard className="size-4" />}
-        />
+        {/* ─── Recent appointments (backend-driven statuses) ─────────────────── */}
+        {patientData.recentAppointments.length > 0 ? (
+          <DashboardSection
+            title="Recent appointments"
+            icon={<FileText className="size-[15px]" />}
+            description="Completed, cancelled, expired and no-show visits."
+            action={
+              <Badge
+                variant="secondary"
+                className="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
+              >
+                {patientData.recentAppointments.length} past
+              </Badge>
+            }
+          >
+            <div className="flex max-h-[26rem] flex-col gap-3 overflow-y-auto pr-1">
+              {patientData.recentAppointments.map((appointment: any) => (
+                <AppointmentRow key={appointment.id} appointment={appointment} />
+              ))}
+            </div>
+          </DashboardSection>
+        ) : null}
+        </div>
+
+        <aside className={`flex flex-col ${DASHBOARD_SPACING.stack}`}>
+          <DashboardStatCard
+            label="Blood pressure"
+            value={vitalsValue}
+            hint={vitalsHint}
+            icon={<Activity className="size-[22px]" />}
+            tone="violet"
+            isPending={showSummarySkeleton}
+          />
+          <DashboardStatCard
+            label="Next visit"
+            value={patientData.healthOverview.nextAppointment || "None"}
+            hint={outstandingHint}
+            icon={<Clock className="size-[22px]" />}
+            tone="plain"
+            isPending={showSummarySkeleton}
+          />
+          <DashboardQuickAction
+            href="/patient/health?tab=medicines"
+            title="Medicines"
+            description="Prescriptions and refill reminders"
+            icon={<Pill className="size-4" />}
+          />
+          <DashboardQuickAction
+            href="/patient/health?tab=records"
+            title="Health records"
+            description="Visit notes, vitals and history"
+            icon={<FileText className="size-4" />}
+          />
+          <DashboardQuickAction
+            href="/patient/appointments?mode=VIDEO"
+            title="Video visits"
+            description="Join an online consultation"
+            icon={<Video className="size-4" />}
+          />
+          <DashboardQuickAction
+            href="/patient/payments?tab=payments"
+            title="Payments"
+            description="Invoices, receipts and plans"
+            icon={<CreditCard className="size-4" />}
+          />
+        </aside>
       </div>
+
     </PatientPageShell>
   );
 }

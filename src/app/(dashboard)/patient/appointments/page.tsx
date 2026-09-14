@@ -127,6 +127,7 @@ function PatientAppointmentsContent() {
   return (
       <PatientPageShell>
         <PatientPageHeader
+          showArt
           eyebrow="Appointments"
           title="Appointments"
           description="Book a visit, check in, and follow your queue in one place."

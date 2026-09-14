@@ -117,24 +117,49 @@ export interface SidebarProps {
 // LOGO COMPONENTS
 // ============================================================================
 
+/** Heart-and-leaf brand mark. Inline SVG so it inherits the theme colours. */
+const BrandMark = memo(function BrandMark({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        "flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white",
+        className,
+      )}
+      aria-hidden="true"
+    >
+      <svg viewBox="0 0 24 24" fill="none" className="size-5">
+        <path
+          d="M12 20.5s-6.8-4.2-6.8-9A3.9 3.9 0 0 1 12 8.3a3.9 3.9 0 0 1 6.8 3.2c0 4.8-6.8 9-6.8 9Z"
+          fill="currentColor"
+          opacity="0.95"
+        />
+        <path
+          d="M12 8.4c0-2.7 1.9-4.9 4.6-5.2.3 2.9-1.6 5.2-4.6 5.6Z"
+          fill="currentColor"
+          opacity="0.6"
+        />
+      </svg>
+    </span>
+  );
+});
+
 const Logo = memo(function Logo() {
   return (
-    <Link
-      href="/"
-      prefetch={false}
-      className="flex items-center gap-2 py-2"
-    >
-      <div className="size-8 bg-primary rounded-lg flex items-center justify-center shrink-0">
-        <span className="text-primary-foreground font-bold text-xl">I</span>
-      </div>
+    <Link href="/" prefetch={false} className="flex items-center gap-2.5 py-1">
+      <BrandMark />
       <m.span
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.2, ease: "linear" }}
-        className="text-lg font-bold tracking-tight text-sidebar-foreground truncate"
+        className="flex min-w-0 flex-col leading-tight"
       >
-        Viddhakarma
+        <span className="truncate text-[15px] font-bold tracking-tight text-sidebar-foreground">
+          Viddhakarma
+        </span>
+        <span className="truncate text-[10.5px] text-muted-foreground">
+          Your Health, Our Care
+        </span>
       </m.span>
     </Link>
   );
@@ -142,14 +167,8 @@ const Logo = memo(function Logo() {
 
 const LogoIcon = memo(function LogoIcon() {
   return (
-    <Link
-      href="/"
-      prefetch={false}
-      className="flex items-center justify-center py-2"
-    >
-      <div className="size-8 bg-primary rounded-lg flex items-center justify-center shrink-0">
-        <span className="text-primary-foreground font-bold text-xl">I</span>
-      </div>
+    <Link href="/" prefetch={false} className="flex items-center justify-center py-1">
+      <BrandMark />
     </Link>
   );
 });
@@ -230,7 +249,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
     .replace(/_/g, " ");
   const isProfileActive = isSidebarLinkActive(pathname, new URLSearchParams(searchParams.toString()), profileRoute);
   const activeNavClass =
-    "!bg-emerald-500/10 !text-emerald-700 font-semibold dark:!bg-emerald-500/15 dark:!text-emerald-400";
+    "!bg-emerald-50 !text-emerald-700 font-semibold dark:!bg-emerald-950/50 dark:!text-emerald-300";
 
   const firstLetter = user.name?.charAt(0).toUpperCase() || "U";
 
@@ -244,7 +263,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
     <>
       {/* Header with Logo */}
       {/* Header with Logo */}
-      <SidebarHeader className={cn("py-4 transition-all duration-300", open ? "px-4" : "px-2")}>
+      <SidebarHeader className={cn("py-4 transition-all duration-300", open ? "px-3" : "px-2")}>
         <div className={cn("flex items-center", open ? "justify-between" : "justify-center w-full")}>
           {open && (
             <div className="flex-1 flex items-center justify-start overflow-hidden">
@@ -263,8 +282,8 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
       </SidebarHeader>
 
       {/* Main Navigation */}
-      <SidebarContent className={cn("flex-1 overflow-y-auto overflow-x-hidden", open ? "p-2" : "p-0 py-2")}>
-        <SidebarMenu>
+      <SidebarContent className={cn("flex-1 overflow-y-auto overflow-x-hidden", open ? "px-3 py-2" : "p-0 py-2")}>
+        <SidebarMenu className="gap-1">
           {filteredLinks.map((link) => {
             const isLogout = link.href === "#logout" || link.title === t("sidebar.logout");
             const Icon = link.icon || Menu;
@@ -277,10 +296,10 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                   isActive={isActive}
                   tooltip={link.title}
                   className={cn(
-                    "relative h-11 px-3 text-sm transition-all duration-200 overflow-hidden sm:h-10",
+                    "relative h-11 rounded-xl px-3 text-[13.5px] font-medium transition-colors overflow-hidden",
                     isActive
                       ? activeNavClass
-                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-200",
+                      : "text-sidebar-foreground/75 hover:bg-accent hover:text-sidebar-foreground",
                     !open && "mx-auto justify-center"
                   )}
                   onClick={(e: any) => {
@@ -297,9 +316,9 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                   }}
                   >
                   {isLogout ? (
-                    <button type="button" className={cn("flex h-full items-center gap-2 w-full text-destructive hover:text-destructive/80", !open && "justify-center")}>
-                      <span className="size-4 flex items-center justify-center shrink-0">
-                        <Icon className="size-4" />
+                    <button type="button" className={cn("flex h-full items-center gap-3 w-full text-destructive hover:text-destructive/80", !open && "justify-center")}>
+                      <span className="flex size-[18px] shrink-0 items-center justify-center">
+                        <Icon className="size-[18px]" />
                       </span>
                       {open && (
                       <span className="truncate whitespace-pre">
@@ -322,16 +341,16 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                           ? () => handleAppointmentsHover(link.href)
                           : undefined
                       }
-                    className={cn("relative flex h-full items-center gap-2 w-full", !open && "justify-center")}
+                    className={cn("relative flex h-full items-center gap-3 w-full", !open && "justify-center")}
                     >
                       {isActive && (
                         <span
-                          className="absolute left-0 top-1/2 h-[60%] w-[3px] -translate-y-1/2 rounded-r-full bg-emerald-600 dark:bg-emerald-500"
+                          className="absolute -left-3 top-1/2 h-[55%] w-[3px] -translate-y-1/2 rounded-r-full bg-emerald-600 dark:bg-emerald-400"
                           aria-hidden="true"
                         />
                       )}
-                      <span className="size-4 flex items-center justify-center shrink-0">
-                        <Icon className="size-4" />
+                      <span className="flex size-[18px] shrink-0 items-center justify-center">
+                        <Icon className="size-[18px]" />
                       </span>
                       {open && (
                       <span className="truncate whitespace-pre">
@@ -348,16 +367,14 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
     </SidebarContent>
 
       {/* Footer with User Info */}
-      <SidebarFooter className="border-t border-sidebar-border/50 p-2">
+      <SidebarFooter className="border-t border-sidebar-border p-3">
         <SidebarMenu>
           <SidebarMenuItem>
               <SidebarMenuButton 
                 asChild 
               className={cn(
-                "relative h-11 p-2 transition-all duration-200 overflow-hidden sm:h-auto",
-                isProfileActive
-                  ? activeNavClass
-                  : "hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-200",
+                "relative h-auto rounded-xl p-2 transition-colors overflow-hidden",
+                isProfileActive ? activeNavClass : "hover:bg-accent",
                 !open && "mx-auto justify-center"
               )}
               onClick={() => {
@@ -371,19 +388,19 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                 className={cn("relative flex h-full items-center gap-3 w-full", !open && "justify-center")}
               >
                 {isProfileActive && (
-                  <span className="absolute left-0 top-1/2 h-[60%] w-[3px] -translate-y-1/2 rounded-r-full bg-emerald-600 dark:bg-emerald-500" aria-hidden="true" />
+                  <span className="absolute -left-3 top-1/2 h-[55%] w-[3px] -translate-y-1/2 rounded-r-full bg-emerald-600 dark:bg-emerald-400" aria-hidden="true" />
                 )}
                 {!avatarError && user.avatarUrl ? (
                   <NextImage
                     src={user.avatarUrl}
-                    className="size-8 shrink-0 rounded-full object-cover border border-sidebar-border/50"
-                    width={32}
-                    height={32}
+                    className="size-9 shrink-0 rounded-full object-cover border border-sidebar-border"
+                    width={36}
+                    height={36}
                     alt="Avatar"
                     onError={() => setAvatarError(true)}
                   />
                 ) : (
-                  <div className="size-8 flex items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-sm shrink-0">
+                  <div className="size-9 flex items-center justify-center rounded-full bg-emerald-600 text-white font-bold text-sm shrink-0">
                     {firstLetter}
                   </div>
                 )}
@@ -398,7 +415,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                     <span className="truncate text-sm text-sidebar-foreground font-semibold leading-tight">
                       {user.name}
                     </span>
-                    <span className="truncate text-[10px] text-sidebar-foreground/50 uppercase tracking-wider font-bold">
+                    <span className="truncate text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
                       {displayRole || t("common.user")}
                     </span>
                 </m.div>

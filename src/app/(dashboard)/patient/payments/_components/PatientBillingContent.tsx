@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DataTable } from "@/components/ui/data-table";
 import { PaymentHistory } from "@/components/billing/PaymentHistory";
 import { DashboardPageHeader, DashboardPageShell as PatientPageShell } from "@/components/dashboard/DashboardPageShell";
-import { DashboardCard, DashboardStatStrip } from "@/components/dashboard/DashboardPrimitives";
+import { DashboardStatStrip } from "@/components/dashboard/DashboardPrimitives";
 import { useHashTab } from "@/hooks/navigation/useHashTab";
 import { Check, CheckCircle2, CreditCard, Download, FileText, Wallet, Loader2 } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -437,34 +437,32 @@ export function PatientBillingContent({
         </Card>
       )}
 
-      <DashboardCard>
-        <DashboardStatStrip
-          columns={3}
-          items={[
-            {
-              label: "Open invoices",
-              value: openInvoices.length,
-              icon: <FileText className="size-[15px]" />,
-              tone: "warn",
-              isPending: invoicesPending,
-            },
-            {
-              label: "Total payments",
-              value: payments.length,
-              icon: <CreditCard className="size-[15px]" />,
-              tone: "brand",
-              isPending: paymentsPending,
-            },
-            {
-              label: "Active subscriptions",
-              value: activeSubscriptionCount,
-              icon: <Wallet className="size-[15px]" />,
-              tone: "info",
-              isPending: subscriptionsPending,
-            },
-          ]}
-        />
-      </DashboardCard>
+      <DashboardStatStrip
+        columns={3}
+        items={[
+          {
+            label: "Open invoices",
+            value: openInvoices.length,
+            icon: <FileText className="size-[22px]" />,
+            tone: "warn",
+            isPending: invoicesPending,
+          },
+          {
+            label: "Total payments",
+            value: payments.length,
+            icon: <CreditCard className="size-[22px]" />,
+            tone: "brand",
+            isPending: paymentsPending,
+          },
+          {
+            label: "Active subscriptions",
+            value: activeSubscriptionCount,
+            icon: <Wallet className="size-[22px]" />,
+            tone: "info",
+            isPending: subscriptionsPending,
+          },
+        ]}
+      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col gap-y-4">
         <TabsList>
