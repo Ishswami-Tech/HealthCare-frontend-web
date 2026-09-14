@@ -62,15 +62,15 @@ interface RoleBasedBillingDashboardProps {
 }
 
 //”€â”€â”€ Module-scope StatCard Component”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-function StatCard({ 
-  label, 
-  value, 
-  icon, 
-  color 
-}: { 
-  label: string; 
-  value: number | string; 
-  icon: React.ReactNode; 
+function StatCard({
+  label,
+  value,
+  icon,
+  color
+}: {
+  label: string;
+  value: number | string;
+  icon: React.ReactNode;
   color: string;
 }) {
   return (
@@ -618,25 +618,25 @@ export function RoleBasedBillingDashboard({
       {/* Premium Stat Grid€” only for staff/admin */}
       {!isPatient && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <StatCard 
+          <StatCard
             label="TOTAL INVOICES"
             value={invoices.length}
             icon={<FileText className="size-4 text-sky-600 dark:text-sky-300" />}
             color="border-sky-200/70 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30"
           />
-          <StatCard 
+          <StatCard
             label="PENDING INVOICES"
             value={pendingInvoicesCount}
             icon={<AlertCircle className="size-4 text-amber-600 dark:text-amber-300" />}
             color="border-amber-200/70 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30"
           />
-          <StatCard 
+          <StatCard
             label="COMPLETED PAYMENTS"
             value={payments.filter(p => p.status === 'COMPLETED').length}
             icon={<CreditCard className="size-4 text-emerald-600 dark:text-emerald-300" />}
             color="border-emerald-200/70 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30"
           />
-          <StatCard 
+          <StatCard
             label="PAID REVENUE"
             value={`â‚¹${(paidAmount ?? 0).toLocaleString('en-IN')}`}
             icon={<Wallet className="size-4 text-violet-600 dark:text-violet-300" />}
@@ -915,19 +915,19 @@ export function RoleBasedBillingDashboard({
             ) : (
               <div className="flex flex-col gap-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <StatCard 
+                  <StatCard
                     label="TOTAL COLLECTIONS"
                     value={`â‚¹${(ledger.summary.totalCollections ?? 0).toLocaleString("en-IN")}`}
                     icon={<Wallet className="size-4 text-sky-600 dark:text-sky-300" />}
                     color="border-sky-200/70 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30"
                   />
-                  <StatCard 
+                  <StatCard
                     label="PENDING PAYOUTS"
                     value={`â‚¹${(ledger.summary.pendingPayouts ?? 0).toLocaleString("en-IN")}`}
                     icon={<RefreshCw className="size-4 text-amber-600 dark:text-amber-300" />}
                     color="border-amber-200/70 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30"
                   />
-                  <StatCard 
+                  <StatCard
                     label="PLATFORM REVENUE"
                     value={`â‚¹${(ledger.summary.totalPlatformRevenue ?? 0).toLocaleString("en-IN")}`}
                     icon={<BarChart3 className="size-4 text-violet-600 dark:text-violet-300" />}
@@ -1289,10 +1289,10 @@ export function RoleBasedBillingDashboard({
                 <Button variant="outline" size="lg" className="h-11 w-full rounded-xl font-bold sm:w-auto" onClick={() => setPlanToConfirm(null)}>
                   Cancel
                 </Button>
-                <Button 
+                <Button
                   size="lg"
                   className="w-full sm:w-auto h-11 rounded-xl bg-[#006951] hover:bg-[#005a45] text-white font-bold transition-all shadow-sm active:scale-95"
-                  onClick={() => void handleSubscribePlan()} 
+                  onClick={() => void handleSubscribePlan()}
                   disabled={createSubscriptionMutation.isPending}
                 >
                   {createSubscriptionMutation.isPending ? "Hold on..." : "Confirm & Pay"}
@@ -1337,7 +1337,4 @@ export function RoleBasedBillingDashboard({
     </div>
   );
 }
-
-
-
 

@@ -135,7 +135,7 @@ export default function PharmacistProfile() {
         {/* Settings Tabs */}
         <div className="md:col-span-8">
           <HashTabs tabs={["personal", "security"] as const} defaultValue="personal" className="w-full">
-            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2">
+            <TabsList>
               <TabsTrigger value="personal">Personal Info</TabsTrigger>
               <TabsTrigger value="security">Security</TabsTrigger>
             </TabsList>
@@ -331,6 +331,4 @@ export default function PharmacistProfile() {
     </div>
   );
 }
-
-
 

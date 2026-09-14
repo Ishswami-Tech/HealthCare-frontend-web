@@ -295,11 +295,29 @@ export interface PatientAllergyEntry {
   status?: string;
 }
 
+/** A file uploaded from the patient portal (Quick Upload) or by clinic staff. */
+export interface PatientDocumentEntry {
+  id: string;
+  userId?: string;
+  clinicId?: string | null;
+  category: string;
+  title: string;
+  notes?: string | null;
+  fileUrl?: string | null;
+  mimeType?: string | null;
+  fileSize?: number | null;
+  uploadedBy?: string | null;
+  date?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface ComprehensiveHealthRecord {
   medicalHistory: PatientMedicalHistoryEntry[];
   prescriptions: PatientPrescriptionEntry[];
   labReports: PatientLabReportEntry[];
   vitals: PatientVitalEntry[];
+  documents?: PatientDocumentEntry[];
 }
 
 export interface Prescription {

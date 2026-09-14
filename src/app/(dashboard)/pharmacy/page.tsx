@@ -179,7 +179,6 @@ export default function PharmacySystem() {
   // Clinic context
   const { clinicId } = useClinicContext();
 
-
   // Fetch medicines data with proper permissions using clinic-aware approach
   const {
     data: medicines,
@@ -211,8 +210,6 @@ export default function PharmacySystem() {
   // Fetch pharmacy statistics
   const { data: realPharmacyStats } = usePharmacyStats(clinicId || "", "day");
 
-
-
   // Calculate pharmacy stats from real data
   const pharmacyStats = {
     totalMedicines: (medicines as any)?.length || 0,
@@ -236,28 +233,24 @@ export default function PharmacySystem() {
     topSelling: (realPharmacyStats as any)?.topSellingMedicine || "N/A",
   };
 
-
-
-
-
   // Show loading state
   if (medicinesLoading) {
     return (
-      
+
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <div className="animate-spin rounded-full size-32 border-b-2 border-blue-600 mx-auto"></div>
             <p className="mt-4 text-gray-600">Loading pharmacy system…</p>
           </div>
         </div>
-      
+
     );
   }
 
   // Show error state
   if (medicinesError) {
     return (
-      
+
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <p className="text-red-600">
@@ -268,7 +261,7 @@ export default function PharmacySystem() {
             </Button>
           </div>
         </div>
-      
+
     );
   }
 
@@ -427,7 +420,7 @@ export default function PharmacySystem() {
   ];
 
   return (
-    
+
       <div className="flex flex-col gap-y-6 p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -514,7 +507,7 @@ export default function PharmacySystem() {
         defaultValue="inventory"
         className="flex flex-col gap-y-6"
       >
-            <TabsList className="grid w-full grid-cols-1 gap-2 md:grid-cols-3 lg:grid-cols-5">
+            <TabsList>
               <TabsTrigger value="inventory">Medicine Inventory</TabsTrigger>
               <TabsTrigger value="orders">Orders</TabsTrigger>
               <TabsTrigger value="pharmacies">Partner Pharmacies</TabsTrigger>
@@ -989,9 +982,7 @@ export default function PharmacySystem() {
             </TabsContent>
           </HashTabs>
         </div>
-    
+
   );
 }
-
-
 

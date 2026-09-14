@@ -1700,7 +1700,7 @@ function BookAppointmentStep4({
                 15 min call within clinic video hours.
               </p>
             </div>
-            <div className="shrink-0 rounded-full bg-primary/12 text-primary px-2.5 py-1 text-[11px] font-bold border border-primary/15">
+            <div className="shrink-0 rounded-md bg-primary/12 text-primary px-2.5 py-1 text-[11px] font-bold border border-primary/15">
               {selectedSlot ? "1/1" : "0/1"}
             </div>
           </div>
@@ -1709,7 +1709,7 @@ function BookAppointmentStep4({
             <div className="flex flex-wrap items-center gap-2">
               <span
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+                  "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-semibold",
                   liveSyncClasses,
                 )}
               >
@@ -1839,7 +1839,7 @@ function BookAppointmentStep4({
                   <span className="text-[10px] text-muted-foreground">
                     ({period.range})
                   </span>
-                  <span className="ml-auto text-[10px] bg-muted px-1.5 py-0.5 rounded-full text-muted-foreground">
+                  <span className="ml-auto text-[10px] bg-muted px-1.5 py-0.5 rounded-md text-muted-foreground">
                     {period.slots.length} slots
                   </span>
                 </div>
@@ -1898,7 +1898,7 @@ function BookAppointmentStep4({
           <div className="flex flex-wrap items-center gap-2">
             <span
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+                "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-semibold",
                 liveSyncClasses,
               )}
             >
@@ -1915,15 +1915,15 @@ function BookAppointmentStep4({
           </div>
         ) : null}
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-md">
             <Clock className="size-3" /> {appointmentDurationMinutes} min per
             slot
           </span>
-          <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full">
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-md">
             20 slots / hour
           </span>
           {selectedSlot ? (
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full">
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-md">
               <CheckCircle className="size-3" /> {selectedSlotLabel}
             </span>
           ) : null}
@@ -1980,7 +1980,7 @@ function BookAppointmentStep4({
                 <span className="text-[10px] text-muted-foreground">
                   ({period.range})
                 </span>
-                <span className="ml-auto text-[10px] bg-muted px-1.5 py-0.5 rounded-full text-muted-foreground">
+                <span className="ml-auto text-[10px] bg-muted px-1.5 py-0.5 rounded-md text-muted-foreground">
                   {period.slots.length} slots
                 </span>
               </div>
@@ -5184,7 +5184,7 @@ export function BookAppointmentDialog({
                 {stepTitle}
               </DialogTitle>
               {consultationMode === "VIDEO" && (
-                <span className="inline-flex w-fit items-center rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                <span className="inline-flex w-fit items-center rounded-md border border-amber-300 bg-amber-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
                   Video booking flow
                 </span>
               )}

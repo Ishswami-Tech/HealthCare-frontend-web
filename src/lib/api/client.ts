@@ -94,6 +94,29 @@ async function getDefaultHeaders(): Promise<Record<string, string>> {
   };
 }
 
+/**
+ * Multipart bodies must NOT carry an explicit Content-Type: fetch has to write
+ * `multipart/form-data; boundary=...` itself. The default headers always set
+ * `application/json`, so without this the server receives a body it cannot parse
+ * and every file upload fails.
+ */
+function stripJsonContentTypeForFormData(
+  headers: Record<string, string>,
+  body: BodyInit | null | undefined
+): Record<string, string> {
+  const isFormData =
+    typeof FormData !== 'undefined' && body instanceof FormData;
+  if (!isFormData) return headers;
+
+  const next = { ...headers };
+  for (const key of Object.keys(next)) {
+    if (key.toLowerCase() === 'content-type') {
+      delete next[key];
+    }
+  }
+  return next;
+}
+
 // ✅ Authentication Headers Generator
 // Requires authentication unless explicitly marked as public
 async function getAuthHeaders(
@@ -441,7 +464,10 @@ export class ApiClient {
       clinicOptions.clinicId,
       clinicOptions.requireClinicId === true
     );
-    const mergedHeaders = options.headers ? { ...headers, ...options.headers } : headers;
+    const mergedHeaders = stripJsonContentTypeForFormData(
+      options.headers ? { ...headers, ...(options.headers as Record<string, string>) } : headers,
+      options.body
+    );
     const scopeKey = this.buildRequestScopeKey(mergedHeaders);
     const cacheKey = this.getCacheKey(`${endpoint}:${scopeKey}`, options);
 
@@ -513,7 +539,7 @@ export class ApiClient {
     
     const config: RequestInit = {
       method: 'GET',
-      headers: headers as HeadersInit,
+      headers: stripJsonContentTypeForFormData(headers, options.body) as HeadersInit,
       credentials: this.withCredentials ? 'include' : 'omit',
       // Do not use keepalive on normal requests.
       // Safari/iOS often surfaces it as a hard "Load failed" network error.
@@ -523,7 +549,10 @@ export class ApiClient {
 
     // Merge headers efficiently
     if (options.headers) {
-      config.headers = { ...headers, ...options.headers } as HeadersInit;
+      config.headers = stripJsonContentTypeForFormData(
+        { ...headers, ...(options.headers as Record<string, string>) },
+        options.body
+      ) as HeadersInit;
     }
 
     // Add timeout with AbortController
@@ -545,7 +574,10 @@ export class ApiClient {
            // Update headers in config
            const newConfig = { 
                ...config, 
-               headers: { ...newHeaders, ...options.headers } as HeadersInit,
+               headers: stripJsonContentTypeForFormData(
+                 { ...newHeaders, ...(options.headers as Record<string, string> | undefined) },
+                 options.body
+               ) as HeadersInit,
                timeout: this.timeout
            };
            return fetchWithAbort(url, newConfig);
@@ -859,12 +891,11 @@ export class ApiClient {
       });
     }
 
-    const headers = await getAuthHeaders(true); // Require auth for uploads
-    delete headers['Content-Type']; // Let browser set content-type for FormData
-
+    // Content-Type is stripped centrally for FormData bodies — see
+    // stripJsonContentTypeForFormData. Deleting it from a local copy here did
+    // nothing, because request() rebuilds the default headers underneath.
     return this.request<T>(endpoint, {
       method: 'POST',
-      headers: headers as HeadersInit,
       body: formData,
       ...options,
     });

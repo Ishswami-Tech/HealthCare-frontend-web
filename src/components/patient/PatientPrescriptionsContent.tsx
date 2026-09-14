@@ -319,14 +319,12 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
         namespace="medicines"
         className="flex flex-col gap-y-6"
       >
-        <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-          <TabsList className="inline-flex w-max min-w-full sm:flex sm:w-full">
-            <TabsTrigger value="prescriptions">Current Prescriptions</TabsTrigger>
-            <TabsTrigger value="plan">Medication Plan</TabsTrigger>
-            <TabsTrigger value="pharmacy">Medicine Queue</TabsTrigger>
-            <TabsTrigger value="history">Prescription History</TabsTrigger>
-          </TabsList>
-        </div>
+        <TabsList>
+          <TabsTrigger value="prescriptions">Current Prescriptions</TabsTrigger>
+          <TabsTrigger value="plan">Medication Plan</TabsTrigger>
+          <TabsTrigger value="pharmacy">Medicine Queue</TabsTrigger>
+          <TabsTrigger value="history">Prescription History</TabsTrigger>
+        </TabsList>
 
         <TabsContent value="prescriptions" className="flex flex-col gap-y-4">
           <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
@@ -739,5 +737,4 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
 
   return embedded ? content : <PatientPageShell>{content}</PatientPageShell>;
 }
-
 

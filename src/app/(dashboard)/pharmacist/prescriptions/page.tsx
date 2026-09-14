@@ -1671,5 +1671,3 @@ export default function PharmacistPrescriptionsPage() {
   );
 }
 
-
-

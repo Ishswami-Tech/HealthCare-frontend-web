@@ -387,7 +387,7 @@ export function DoctorProfileContent({
         onValueChange={handleTabChange}
         className="flex flex-col gap-y-6"
       >
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+        <TabsList>
           <TabsTrigger value="personal">Personal Info</TabsTrigger>
           <TabsTrigger value="professional">Professional</TabsTrigger>
           <TabsTrigger value="consultation">Consultation</TabsTrigger>

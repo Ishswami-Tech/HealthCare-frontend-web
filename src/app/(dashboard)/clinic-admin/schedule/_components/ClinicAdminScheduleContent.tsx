@@ -499,16 +499,16 @@ export function ClinicAdminScheduleContent({
         defaultValue="doctor-schedules"
         className="flex flex-col gap-y-3"
       >
-        <TabsList className="grid h-auto w-full grid-cols-1 gap-1 rounded-xl border border-border bg-card p-1 sm:grid-cols-3">
-          <TabsTrigger value="doctor-schedules" className="flex h-10 items-center gap-2 rounded-lg">
+        <TabsList>
+          <TabsTrigger value="doctor-schedules">
             <Stethoscope className="size-4" />
             Doctor Schedules
           </TabsTrigger>
-          <TabsTrigger value="holidays" className="flex h-10 items-center gap-2 rounded-lg">
+          <TabsTrigger value="holidays">
             <CalendarDays className="size-4" />
             Holidays
           </TabsTrigger>
-          <TabsTrigger value="conflicts" className="flex h-10 items-center gap-2 rounded-lg">
+          <TabsTrigger value="conflicts">
             <AlertCircle className="size-4" />
             Conflicts
           </TabsTrigger>

@@ -758,7 +758,7 @@ export default function ReceptionistAppointmentsPage() {
                   </div>
                   Appointment Queue Workspace
                 </CardTitle>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-background px-3 py-1.5 rounded-full border border-border shadow-sm shrink-0">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-background px-3 py-1.5 rounded-md border border-border shadow-sm shrink-0">
                   <div className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   Live Sync Active
                 </div>

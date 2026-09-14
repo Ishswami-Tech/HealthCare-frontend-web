@@ -14,6 +14,12 @@ import {
   PatientPageShell,
 } from "@/components/patient/PatientPageShell";
 import {
+  DashboardCard,
+  DashboardCardBody,
+  DashboardCardHead,
+  DashboardEmpty,
+} from "@/components/dashboard/DashboardPrimitives";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -79,6 +85,47 @@ const QUICK_UPLOAD_OPTIONS: Array<{
   { type: "DIAGNOSIS_REPORT", label: "Other Document", accept: ".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx", icon: File },
 ];
 
+const DOCUMENT_CATEGORY_LABELS: Record<string, string> = {
+  LAB_TEST: "Lab Report",
+  XRAY: "X-Ray/Scan",
+  MRI: "MRI",
+  PRESCRIPTION: "Prescription",
+  DIAGNOSIS_REPORT: "Other Document",
+  PULSE_DIAGNOSIS: "Pulse Diagnosis",
+};
+
+/** Anything larger is rejected before we spend a round trip on it. */
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/**
+ * The picker's `accept` list is a hint, not a guarantee — a patient can still
+ * choose "All files" on most platforms — so the extension is re-checked here.
+ */
+function isAcceptedFile(file: File, accept: string): boolean {
+  const allowed = accept
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean);
+  if (allowed.length === 0) return true;
+  const name = file.name.toLowerCase();
+  return allowed.some((ext) => name.endsWith(ext));
+}
+
+/** The backend replies with a prefixed id (LAB_/RAD_/GEN_), shape varies by layer. */
+function extractRecordId(response: unknown): string | null {
+  const payload = response as
+    | { id?: string; data?: { id?: string }; record?: { id?: string } }
+    | null
+    | undefined;
+  return payload?.id || payload?.data?.id || payload?.record?.id || null;
+}
+
 type PatientMedicalRecordsProps = {
   embedded?: boolean;
 };
@@ -90,6 +137,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingUploadType, setPendingUploadType] = useState<QuickUploadType | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadingFileName, setUploadingFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const {
     data: healthData,
@@ -97,8 +145,10 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
     error: healthDataError,
   } = useComprehensiveHealthRecord(user?.id || "");
   const { data: allergiesData } = useAllergies(user?.id || "");
-  const createMedicalRecord = useCreateMedicalRecord();
-  const uploadMedicalRecordFile = useUploadMedicalRecordFile();
+  // Silent: this flow is two calls (create the record, then attach the file) but
+  // one user action, so it reports a single result instead of three toasts.
+  const createMedicalRecord = useCreateMedicalRecord({ silent: true });
+  const uploadMedicalRecordFile = useUploadMedicalRecordFile({ silent: true });
   const typedHealthData = (healthData ?? null) as ComprehensiveHealthRecord | null;
   const allergies = Array.isArray(allergiesData) ? (allergiesData as PatientAllergyEntry[]) : [];
   
@@ -124,6 +174,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
     const option = QUICK_UPLOAD_OPTIONS.find((item) => item.type === type);
     if (fileInputRef.current) {
       fileInputRef.current.accept = option?.accept || ".pdf,.png,.jpg,.jpeg,.webp";
+      // Clearing first means picking the same file twice still fires onChange.
       fileInputRef.current.value = "";
       fileInputRef.current.click();
     }
@@ -135,30 +186,65 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
     event.target.value = "";
     setPendingUploadType(null);
 
-    if (!file || !uploadType || !user?.id) {
+    if (!file || !uploadType) {
+      return;
+    }
+
+    if (!user?.id) {
+      showErrorToast("Sign in again before uploading a document.", {
+        id: TOAST_IDS.MEDICAL_RECORD.UPLOAD,
+      });
       return;
     }
 
     const option = QUICK_UPLOAD_OPTIONS.find((item) => item.type === uploadType);
+
+    if (file.size === 0) {
+      showErrorToast("That file is empty. Pick another one.", {
+        id: TOAST_IDS.MEDICAL_RECORD.UPLOAD,
+      });
+      return;
+    }
+
+    if (file.size > MAX_UPLOAD_BYTES) {
+      showErrorToast(
+        `${file.name} is ${formatBytes(file.size)}. The limit is ${formatBytes(MAX_UPLOAD_BYTES)}.`,
+        { id: TOAST_IDS.MEDICAL_RECORD.UPLOAD },
+      );
+      return;
+    }
+
+    if (option && !isAcceptedFile(file, option.accept)) {
+      showErrorToast(
+        `${option.label} accepts ${option.accept.replaceAll(".", "").replaceAll(",", ", ")} files.`,
+        { id: TOAST_IDS.MEDICAL_RECORD.UPLOAD },
+      );
+      return;
+    }
+
     setIsUploading(true);
+    setUploadingFileName(file.name);
     try {
-      const created = (await createMedicalRecord.mutateAsync({
+      const created = await createMedicalRecord.mutateAsync({
         patientId: user.id,
         type: uploadType,
         title: file.name || option?.label || "Uploaded document",
         content: `Patient uploaded ${option?.label || "document"}: ${file.name}`,
-      })) as { id?: string; data?: { id?: string } } | null;
+      });
 
-      const recordId = created?.id || created?.data?.id;
+      const recordId = extractRecordId(created);
       if (!recordId) {
-        throw new Error("Upload created without a record id");
+        throw new Error(
+          "The record was created but the server did not return its id, so the file was not attached.",
+        );
       }
 
       await uploadMedicalRecordFile.mutateAsync({ recordId, file });
-      await queryClient.invalidateQueries({ queryKey: ["ehr", "comprehensive"], exact: false });
-      await queryClient.invalidateQueries({ queryKey: ["ehr", "lab-reports"], exact: false });
-      await queryClient.invalidateQueries({ queryKey: ["ehr", "radiology-reports"], exact: false });
-      showSuccessToast(`${option?.label || "Document"} uploaded successfully`, {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["ehr"], exact: false }),
+        queryClient.invalidateQueries({ queryKey: ["medicalRecords"], exact: false }),
+      ]);
+      showSuccessToast(`${option?.label || "Document"} uploaded`, {
         id: TOAST_IDS.MEDICAL_RECORD.UPLOAD,
       });
     } catch (error) {
@@ -168,8 +254,17 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
       );
     } finally {
       setIsUploading(false);
+      setUploadingFileName(null);
     }
   };
+
+  // Files uploaded from Quick Upload (and by staff). Previously these were written
+  // to a table the read path never returned, so an upload appeared to vanish.
+  const documents = (typedHealthData?.documents || []).toSorted(
+    (left, right) =>
+      new Date(String(right.date || right.createdAt || 0)).getTime() -
+      new Date(String(left.date || left.createdAt || 0)).getTime()
+  );
 
   const medicalHistory = (typedHealthData?.medicalHistory || []).toSorted(
     (left: any, right: any) =>
@@ -325,6 +420,8 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
         ref={fileInputRef}
         type="file"
         className="hidden"
+        aria-hidden="true"
+        tabIndex={-1}
         onChange={(event) => void handleQuickUploadFile(event)}
       />
       {!embedded && (
@@ -360,22 +457,22 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                 role="group"
                 aria-label="Record type"
               >
-                <TabsTrigger value="history" className="rounded-lg px-3">
+                <TabsTrigger value="history">
                   History
                 </TabsTrigger>
-                <TabsTrigger value="prescriptions" className="rounded-lg px-3">
+                <TabsTrigger value="prescriptions">
                   Prescriptions
                 </TabsTrigger>
-                <TabsTrigger value="reports" className="rounded-lg px-3">
+                <TabsTrigger value="reports">
                   Reports
                 </TabsTrigger>
-                <TabsTrigger value="vitals" className="rounded-lg px-3">
+                <TabsTrigger value="vitals">
                   Vitals
                 </TabsTrigger>
-                <TabsTrigger value="allergies" className="rounded-lg px-3">
+                <TabsTrigger value="allergies">
                   Allergies
                 </TabsTrigger>
-                <TabsTrigger value="diet" className="rounded-lg px-3">
+                <TabsTrigger value="diet">
                   Diet
                 </TabsTrigger>
               </TabsList>
@@ -598,6 +695,63 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
 
             <TabsContent value="reports">
               <div className="flex flex-col gap-y-4">
+                <DashboardCard>
+                  <DashboardCardHead
+                    title="Uploaded documents"
+                    icon={<Upload className="size-[15px]" />}
+                  >
+                    <Badge variant="secondary" className="text-[10px] font-semibold uppercase tracking-wider">
+                      {documents.length}
+                    </Badge>
+                  </DashboardCardHead>
+                  {documents.length === 0 ? (
+                    <DashboardEmpty
+                      icon={<Upload className="size-5" />}
+                      title="No documents uploaded yet"
+                      description="Use Quick Upload below to add a prescription, scan or report from your device."
+                    />
+                  ) : (
+                    <DashboardCardBody className="flex flex-col gap-3">
+                      {documents.map((document) => (
+                        <div
+                          key={document.id}
+                          className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-background p-3.5"
+                        >
+                          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground">
+                            <File className="size-4" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-foreground">
+                              {document.title}
+                            </p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {DOCUMENT_CATEGORY_LABELS[document.category] || document.category}
+                              {document.date
+                                ? ` · ${formatDateInIST(document.date, { day: "2-digit", month: "short", year: "numeric" }, "en-IN")}`
+                                : ""}
+                              {typeof document.fileSize === "number" && document.fileSize > 0
+                                ? ` · ${formatBytes(document.fileSize)}`
+                                : ""}
+                            </p>
+                          </div>
+                          {document.fileUrl ? (
+                            <Button asChild variant="outline" size="sm" className="h-8 rounded-lg">
+                              <a href={document.fileUrl} target="_blank" rel="noopener noreferrer">
+                                <Eye className="size-4" />
+                                Open
+                              </a>
+                            </Button>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
+                              No file attached
+                            </Badge>
+                          )}
+                        </div>
+                      ))}
+                    </DashboardCardBody>
+                  )}
+                </DashboardCard>
+
                 <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -894,21 +1048,19 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
           </HashTabs>
 
           {/* Quick Upload Section */}
-          <Card className="rounded-xl border-border/70 shadow-sm dark:border-border/60">
-            <CardHeader className="pb-2 pt-3 px-3 sm:px-4">
-              <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                <Upload className="size-4" />
-                Quick Upload
-                {isUploading ? (
-                  <span className="ml-auto inline-flex items-center gap-1.5 text-xs font-normal text-muted-foreground">
-                    <Loader2 className="size-3.5 animate-spin" />
-                    Uploading…
+          <DashboardCard>
+            <DashboardCardHead title="Quick upload" icon={<Upload className="size-[15px]" />}>
+              {isUploading ? (
+                <span className="inline-flex max-w-[16rem] items-center gap-1.5 text-xs font-normal text-muted-foreground">
+                  <Loader2 className="size-3.5 shrink-0 animate-spin" />
+                  <span className="truncate">
+                    Uploading{uploadingFileName ? ` ${uploadingFileName}` : "…"}
                   </span>
-                ) : null}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-3 pb-3 sm:px-4">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2.5">
+                </span>
+              ) : null}
+            </DashboardCardHead>
+            <DashboardCardBody>
+              <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-4">
                 {QUICK_UPLOAD_OPTIONS.map((option) => {
                   const Icon = option.icon;
                   return (
@@ -918,7 +1070,7 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                       variant="outline"
                       disabled={isUploading || !user?.id}
                       onClick={() => openQuickUpload(option.type)}
-                      className="flex h-[4.5rem] flex-col items-center justify-center gap-1.5 rounded-xl px-2"
+                      className="flex h-[4.5rem] flex-col items-center justify-center gap-1.5 rounded-xl border-dashed px-2 hover:border-solid hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:border-emerald-800 dark:hover:bg-emerald-950/30 dark:hover:text-emerald-300"
                     >
                       <Icon className="size-5 shrink-0" aria-hidden="true" />
                       <span className="text-center text-xs font-medium leading-tight">
@@ -928,11 +1080,12 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
                   );
                 })}
               </div>
-              <p className="mt-2 text-[11px] text-muted-foreground">
-                Choose a type, then pick a PDF or image from your device.
+              <p className="mt-3 text-[11px] text-muted-foreground">
+                Choose a type, then pick a PDF or image from your device. Up to{" "}
+                {formatBytes(MAX_UPLOAD_BYTES)} per file.
               </p>
-            </CardContent>
-          </Card>
+            </DashboardCardBody>
+          </DashboardCard>
 
       {/* View Record Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>

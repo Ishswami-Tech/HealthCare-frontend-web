@@ -512,7 +512,7 @@ const AppointmentCard = ({
                 <p className="text-[11px] text-muted-foreground mt-0.5">{appointmentDateTime ? formatDateInIST(appointmentDateTime, { month: "short", day: "2-digit" }) : "—"}</p>
              </div>
              <div className="flex items-center gap-2">
-               <span className={cn("inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-0.5 text-[11px] font-semibold shadow-sm", cfg.color)}>
+               <span className={cn("inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-0.5 text-[11px] font-semibold shadow-sm", cfg.color)}>
                  <span className={cn("size-1 sm:w-1.5 sm:h-1.5 rounded-full", cfg.dot)} />
                  {statusLabel}
                </span>
@@ -1123,7 +1123,7 @@ const AppointmentCard = ({
                   <p className="text-[11px] text-muted-foreground mt-0.5">{appointmentDateTime ? formatDateInIST(appointmentDateTime, { month: "short", day: "2-digit" }) : "—"}</p>
                </div>
                <div className="flex items-center gap-2">
-                 <span className={cn("inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-0.5 text-[11px] font-semibold shadow-sm", cfg.color)}>
+                 <span className={cn("inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-0.5 text-[11px] font-semibold shadow-sm", cfg.color)}>
                    <span className={cn("size-1 sm:w-1.5 sm:h-1.5 rounded-full", cfg.dot)} />
                    {statusLabel}
                  </span>
@@ -1271,9 +1271,9 @@ const AppointmentCard = ({
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
              <Tabs value={filterStatus} onValueChange={setFilterStatus} className="w-full sm:w-auto">
-                <TabsList className="max-w-full overflow-x-auto h-auto p-1 justify-start scrollbar-hide">
+                <TabsList>
                     {VIDEO_STATUS_TABS.map((tab) => (
-                        <TabsTrigger key={tab.value} value={tab.value} className="capitalize shrink-0 text-xs sm:text-sm px-3">
+                        <TabsTrigger key={tab.value} value={tab.value} className="capitalize">
                           {tab.label}
                         </TabsTrigger>
                     ))}
@@ -1407,7 +1407,7 @@ const AppointmentCard = ({
                             <span className="text-[10px] text-muted-foreground">
                               ({period.range})
                             </span>
-                            <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                            <span className="ml-auto rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
                               {period.slots.length} slots
                             </span>
                           </div>
@@ -1487,17 +1487,4 @@ const AppointmentCard = ({
     </ProtectedComponent>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 

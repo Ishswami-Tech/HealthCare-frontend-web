@@ -1699,14 +1699,14 @@ function DailyCallSurfaceContent({
                 {/* Right: LIVE badge only — no overlap */}
                 <div className="flex items-center gap-1.5 pointer-events-auto shrink-0">
                   {isLocalSharing && (
-                    <div className="hidden md:flex items-center gap-1 rounded-full bg-[#8ab4f8]/20 border border-[#8ab4f8]/40 px-2 py-1 text-[10px] font-semibold text-[#8ab4f8]">
+                    <div className="hidden md:flex items-center gap-1 rounded-md bg-[#8ab4f8]/20 border border-[#8ab4f8]/40 px-2 py-1 text-[10px] font-semibold text-[#8ab4f8]">
                       <MonitorUp className="size-3" />
                       Presenting
                     </div>
                   )}
                   <div
                     className={cn(
-                      "flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wider border",
+                      "flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wider border",
                       isJoined
                         ? "bg-[#34a853]/15 text-[#34a853] border-[#34a853]/30"
                         : "bg-white/10 text-[#9aa0a6] border-white/10",
