@@ -7,7 +7,6 @@ WORKDIR /app
 
 # libc6-compat is needed by some native node addons on alpine
 RUN apk add --no-cache libc6-compat
-
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund \
     --prefer-offline \
@@ -145,6 +144,9 @@ RUN addgroup -g 1001 -S nodejs \
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+RUN mkdir -p /app/.next/cache && \
+    chown -R nextjs:nodejs /app/.next /app/public /app/server.js /app/node_modules
 
 USER nextjs
 

@@ -239,30 +239,7 @@ jobs:
             "${COOLIFY_API_URL}/applications/${COOLIFY_APP_UUID}" >/dev/null
 
       - name: Start deployment
-        id: start
-        shell: bash
-        env:
-          COOLIFY_API_URL: ${{ steps.target.outputs.coolify_api_url }}
-          COOLIFY_API_TOKEN: ${{ steps.target.outputs.coolify_api_token }}
-          COOLIFY_APP_UUID: ${{ steps.target.outputs.coolify_app_uuid }}
-        run: |
-          set -euo pipefail
-
-          response=$(curl --fail --silent --show-error \
-            --request POST \
-            --header "Authorization: Bearer ${COOLIFY_API_TOKEN}" \
-            "${COOLIFY_API_URL}/applications/${COOLIFY_APP_UUID}/start?instant_deploy=true")
-            
-          deployment_uuid=$(echo "${response}" | jq -r '.deployment_uuid // empty')
-          
-          if [[ -n "${deployment_uuid}" && "${deployment_uuid}" != "null" ]]; then
-            echo "deployment_uuid=${deployment_uuid}" >> "${GITHUB_OUTPUT}"
-          else
-            echo "Failed to retrieve deployment UUID. Response: ${response}"
-          fi
-
-      - name: Wait for deployment and health check
-        id: health
+        id: start        id: health
         continue-on-error: true
         shell: bash
         env:
@@ -309,8 +286,7 @@ jobs:
             sleep 30
           fi
 
-          echo "Checking health endpoint..."
-          last_status=0
+          echo "Checking health endpoint..."          last_status=0
           last_body_file="$(mktemp)"
 
           until last_status="$(curl --silent --show-error --output "${last_body_file}" --write-out '%{http_code}' "${HEALTHCHECK_URL}")" && [[ "${last_status}" == "200" ]]; do

@@ -45,9 +45,11 @@ const nextConfig: NextConfig = {
   /* =====================================================
    * Build Optimization (CI runs type/lint checks)
    * ===================================================== */
+  // @ts-ignore
   typescript: {
     ignoreBuildErrors: true,
   },
+  // @ts-ignore
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -71,6 +73,9 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "20mb",
     },
   },
+
+  // Soft-nav / proxy body for large multipart uploads (Next 16).
+  proxyClientMaxBodySize: "25mb",
 
   /* =====================================================
    * Images (unchanged functionality)
