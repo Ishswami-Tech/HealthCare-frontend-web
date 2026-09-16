@@ -122,7 +122,7 @@ export function DashboardPageHeader({
   return (
     <div className="relative overflow-hidden rounded-2xl border border-emerald-100 bg-linear-to-r from-emerald-50/90 via-emerald-50/40 to-card shadow-sm dark:border-emerald-950/60 dark:from-emerald-950/40 dark:via-emerald-950/15 dark:to-card">
       {showArt ? (
-        <DashboardHeroArt className="pointer-events-none absolute -right-8 bottom-0 hidden h-[118%] lg:block" />
+        <DashboardHeroArt className="pointer-events-none absolute right-4 bottom-0 hidden h-full max-h-full object-contain lg:block" />
       ) : (
         /* Decorative leaf motif — drawn, not an asset, so it themes cleanly. */
         <svg

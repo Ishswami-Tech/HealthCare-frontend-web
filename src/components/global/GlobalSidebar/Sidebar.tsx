@@ -144,31 +144,63 @@ const BrandMark = memo(function BrandMark({ className }: { className?: string })
 });
 
 const Logo = memo(function Logo() {
+  const [imageError, setImageError] = useState(false);
+
   return (
-    <Link href="/" prefetch={false} className="flex items-center gap-2.5 py-1">
-      <BrandMark />
-      <m.span
+    <Link href="/" prefetch={false} className="flex items-center gap-2.5 py-1 min-w-0">
+      <div className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-emerald-600/15 p-1 border border-emerald-500/20">
+        {!imageError ? (
+          <NextImage
+            src="/assets/logo/logowithoutbackground.png"
+            alt="Dr. Chandrakumar Deshmukh"
+            width={32}
+            height={32}
+            className="object-contain size-full"
+            onError={() => setImageError(true)}
+            priority
+          />
+        ) : (
+          <BrandMark />
+        )}
+      </div>
+      <m.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.2, ease: "linear" }}
-        className="flex min-w-0 flex-col leading-tight"
+        className="flex min-w-0 flex-col leading-snug"
       >
-        <span className="truncate text-[15px] font-bold tracking-tight text-sidebar-foreground">
-          Viddhakarma
+        <span className="truncate text-[13.5px] font-bold tracking-tight text-sidebar-foreground">
+          Dr. Chandrakumar Deshmukh
         </span>
-        <span className="truncate text-[10.5px] text-muted-foreground">
-          Your Health, Our Care
+        <span className="truncate text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+          Viddhakarma • Your Health, Our Care
         </span>
-      </m.span>
+      </m.div>
     </Link>
   );
 });
 
 const LogoIcon = memo(function LogoIcon() {
+  const [imageError, setImageError] = useState(false);
+
   return (
     <Link href="/" prefetch={false} className="flex items-center justify-center py-1">
-      <BrandMark />
+      <div className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-emerald-600/15 p-1 border border-emerald-500/20">
+        {!imageError ? (
+          <NextImage
+            src="/assets/logo/logowithoutbackground.png"
+            alt="Dr. Chandrakumar Deshmukh"
+            width={32}
+            height={32}
+            className="object-contain size-full"
+            onError={() => setImageError(true)}
+            priority
+          />
+        ) : (
+          <BrandMark />
+        )}
+      </div>
     </Link>
   );
 });
@@ -314,16 +346,16 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                     // heavy pages (e.g. Payments) by several seconds.
                     handleLinkClick();
                   }}
-                  >
+                >
                   {isLogout ? (
                     <button type="button" className={cn("flex h-full items-center gap-3 w-full text-destructive hover:text-destructive/80", !open && "justify-center")}>
                       <span className="flex size-[18px] shrink-0 items-center justify-center">
                         <Icon className="size-[18px]" />
                       </span>
                       {open && (
-                      <span className="truncate whitespace-pre">
-                        {link.title}
-                      </span>
+                        <span className="truncate whitespace-pre">
+                          {link.title}
+                        </span>
                       )}
                     </button>
                   ) : (
@@ -341,7 +373,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                           ? () => handleAppointmentsHover(link.href)
                           : undefined
                       }
-                    className={cn("relative flex h-full items-center gap-3 w-full", !open && "justify-center")}
+                      className={cn("relative flex h-full items-center gap-3 w-full", !open && "justify-center")}
                     >
                       {isActive && (
                         <span
@@ -353,9 +385,9 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                         <Icon className="size-[18px]" />
                       </span>
                       {open && (
-                      <span className="truncate whitespace-pre">
-                        {link.title}
-                      </span>
+                        <span className="truncate whitespace-pre">
+                          {link.title}
+                        </span>
                       )}
                     </Link>
                   )}
@@ -364,14 +396,14 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
             );
           })}
         </SidebarMenu>
-    </SidebarContent>
+      </SidebarContent>
 
       {/* Footer with User Info */}
       <SidebarFooter className="border-t border-sidebar-border p-3">
         <SidebarMenu>
           <SidebarMenuItem>
-              <SidebarMenuButton 
-                asChild 
+            <SidebarMenuButton
+              asChild
               className={cn(
                 "relative h-auto rounded-xl p-2 transition-colors overflow-hidden",
                 isProfileActive ? activeNavClass : "hover:bg-accent",
@@ -405,20 +437,20 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                   </div>
                 )}
                 {open && (
-                <m.div
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  transition={{ duration: 0.2 }}
-                  className="flex flex-col min-w-0 flex-1 text-left"
-                >
+                  <m.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex flex-col min-w-0 flex-1 text-left"
+                  >
                     <span className="truncate text-sm text-sidebar-foreground font-semibold leading-tight">
                       {user.name}
                     </span>
                     <span className="truncate text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
                       {displayRole || t("common.user")}
                     </span>
-                </m.div>
+                  </m.div>
                 )}
               </Link>
             </SidebarMenuButton>
