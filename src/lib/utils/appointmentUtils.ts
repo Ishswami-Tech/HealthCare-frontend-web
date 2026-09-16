@@ -1032,11 +1032,13 @@ export function shouldShowAppointmentOnReceptionDashboard(appointment: any): boo
 /**
  * Convert a name to Title Case for consistent display.
  * Handles null/empty/undefined gracefully.
- * Example: "dr.chandrakumar deshmukh" -> "Dr.Chandrakumar Deshmukh"
+ * Format string to Title Case and fix title spacing.
+ * Example: "dr.chandrakumar deshmukh" -> "Dr. Chandrakumar Deshmukh"
  */
 export function toTitleCase(value: string | undefined | null): string {
   if (!value || typeof value !== 'string') return '';
-  return value
+  const normalized = value.replace(/\b(dr|mr|mrs|ms|prof)\.([a-z])/gi, '$1. $2');
+  return normalized
     .split(/\s+/)
     .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
