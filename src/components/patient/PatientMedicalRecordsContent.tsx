@@ -33,8 +33,9 @@ import {
   useAllergies,
   useComprehensiveHealthRecord,
   useCreateMedicalRecord,
-  useUploadMedicalRecordFile,
 } from "@/hooks/query/useMedicalRecords";
+import { clinicApiClient } from "@/lib/api/client";
+import { API_ENDPOINTS } from "@/lib/config/config";
 import { theme } from "@/lib/utils/theme-utils";
 import { LoadingSpinner, ErrorState, EmptyState } from "@/components/ui/loading";
 import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
@@ -148,7 +149,6 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
   // Silent: this flow is two calls (create the record, then attach the file) but
   // one user action, so it reports a single result instead of three toasts.
   const createMedicalRecord = useCreateMedicalRecord({ silent: true });
-  const uploadMedicalRecordFile = useUploadMedicalRecordFile({ silent: true });
   const typedHealthData = (healthData ?? null) as ComprehensiveHealthRecord | null;
   const allergies = Array.isArray(allergiesData) ? (allergiesData as PatientAllergyEntry[]) : [];
   
@@ -239,7 +239,12 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
         );
       }
 
-      await uploadMedicalRecordFile.mutateAsync({ recordId, file });
+      // Upload the file directly to the API — do not send File through a
+      // Next.js Server Action (default 1mb body limit caused POST 500s).
+      await clinicApiClient.upload(
+        API_ENDPOINTS.MEDICAL_RECORDS.UPLOAD(recordId),
+        file,
+      );
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["ehr"], exact: false }),
         queryClient.invalidateQueries({ queryKey: ["medicalRecords"], exact: false }),
