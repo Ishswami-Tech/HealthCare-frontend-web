@@ -11,7 +11,12 @@ cmds = ["npm ci --no-audit --no-fund --prefer-offline --fetch-retries=5 --fetch-
 cacheDirectories = ["/root/.npm"]
 
 [phases.build]
-cmds = ["npm run build:deploy"]
+cmds = [
+  "npm run build:deploy",
+  "mkdir -p .next/standalone/.next",
+  "cp -r public .next/standalone/public",
+  "cp -r .next/static .next/standalone/.next/static"
+]
 cacheDirectories = [".next/cache"]
 
 [start]
