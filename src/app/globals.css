@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "../styles/patient-portal.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -104,10 +105,10 @@
   --sidebar-border: oklch(0.92 0 0);
   --sidebar-ring: oklch(0.62 0.16 150);
   --font-sans: ui-sans-serif, system-ui, sans-serif;
-  --font-serif: ui-serif, Georgia, Cambria, Times New Roman, Times, serif;
+  --font-serif: "Newsreader", ui-serif, Georgia, Cambria, Times New Roman, Times, serif;
   --font-mono:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono,
-    Courier New, monospace;
+    "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    Liberation Mono, Courier New, monospace;
   --radius: 0.75rem;
 
   /* Base surface scale for page-canvas / shell / divider hierarchy */
@@ -183,10 +184,10 @@
   --sidebar-border: oklch(0.2 0 0);
   --sidebar-ring: oklch(0.62 0.16 150);
   --font-sans: ui-sans-serif, system-ui, sans-serif;
-  --font-serif: ui-serif, Georgia, Cambria, Times New Roman, Times, serif;
+  --font-serif: "Newsreader", ui-serif, Georgia, Cambria, Times New Roman, Times, serif;
   --font-mono:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono,
-    Courier New, monospace;
+    "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    Liberation Mono, Courier New, monospace;
   --radius: 0.75rem;
 
   /* Base surface scale — dark mode */
@@ -1818,7 +1819,6 @@ html5-qrcode {
   html:has(.auth-page-scroll),
   body:has(.auth-page-scroll) {
     background-color: #30471f;
-    overscroll-behavior-y: none;
     scrollbar-width: none;
   }
 
@@ -1847,43 +1847,21 @@ html5-qrcode {
     padding-bottom: max(20px, env(safe-area-inset-bottom));
   }
 
-  /* Keep both login steps aligned with the artwork; short screens can scroll. */
+  /* Anchor both login steps to the same frame; only the card may overflow. */
   .auth-page-scroll:has([data-auth-step]) {
-    /* Match the 390px-wide iPhone 12 composition at every screen height. */
-    --auth-artwork-width: min(100vw, 540px);
-    width: var(--auth-artwork-width);
-    margin-inline: auto;
-    overflow-y: auto;
-    overscroll-behavior-y: none;
-    background-attachment: local;
-    background-size: calc(var(--auth-artwork-width) + 2px) auto;
-  }
-
-  .auth-page-scroll:has([data-auth-step]) .auth-mobile-hero {
-    height: calc(var(--auth-artwork-width) * 1.06153846);
-    max-height: none;
+    overflow: hidden;
   }
 
   .auth-page-scroll:has([data-auth-step]) .auth-mobile-login-form {
-    position: relative;
-    min-height: max(0px, calc(100dvh - var(--auth-artwork-width) * 1.06153846));
+    position: absolute;
+    inset-inline: 0;
+    top: clamp(0px, calc(100dvh - 430px), 49dvh);
+    bottom: 0;
     padding-bottom: max(8px, env(safe-area-inset-bottom));
   }
 
-  .auth-page-scroll:has([data-auth-step]) .auth-mobile-login-form::before {
-    /* Continue the lower forest when the form outgrows the original image. */
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    background: url('/assets/auth-login-mobile-single-background-new-logo.webp') center bottom / calc(100% + 2px) auto no-repeat;
-    mask-image: linear-gradient(to bottom, transparent, black 65%);
-    -webkit-mask-image: linear-gradient(to bottom, transparent, black 65%);
-  }
-
   .auth-page-scroll:has([data-auth-step]) .auth-mobile-login-scale {
-    height: auto;
+    height: 100%;
     justify-content: flex-start;
     scale: 1;
     transform: none;
@@ -1899,7 +1877,7 @@ html5-qrcode {
   [data-auth-step] > [data-slot="card"] {
     min-height: 0;
     overflow-y: auto;
-    overscroll-behavior-y: auto;
+    overscroll-behavior-y: contain;
     scrollbar-width: none;
   }
 
@@ -1978,17 +1956,6 @@ html5-qrcode {
 
 }
 
-/* Let the helpline wrap on narrow phones without changing the composition. */
-@media (max-width: 400px) {
-  [data-auth-step] > :last-child a[href^="tel:"] {
-    max-width: 100%;
-    flex-wrap: wrap;
-    justify-content: center;
-    column-gap: 6px;
-    padding-inline: 12px;
-  }
-}
-
 /* Scope background URLs to the viewport and theme that actually displays them. */
 @media (min-width: 1024px) {
   .auth-desktop-scenery {
@@ -2003,94 +1970,5 @@ html5-qrcode {
 
   .dark .auth-desktop-hero {
     background-image: url('/assets/auth-login-hero.webp');
-  }
-}
-
-/* Keep tablets on one full-width portrait canvas in either orientation. */
-@media (min-width: 600px) and (max-width: 1399px) {
-  html:has(.auth-page-scroll [data-auth-step]),
-  body:has(.auth-page-scroll [data-auth-step]),
-  .auth-page-scroll:has([data-auth-step]) {
-    scrollbar-width: none;
-    overscroll-behavior-y: none;
-    background-color: #30471f;
-  }
-
-  html:has(.auth-page-scroll [data-auth-step])::-webkit-scrollbar,
-  body:has(.auth-page-scroll [data-auth-step])::-webkit-scrollbar,
-  .auth-page-scroll:has([data-auth-step])::-webkit-scrollbar {
-    display: none;
-    width: 0;
-    height: 0;
-  }
-
-  .auth-page-scroll:has([data-auth-step]) {
-    --auth-artwork-width: 100vw;
-    display: block;
-    width: 100%;
-    height: 100dvh;
-    margin: 0;
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior-y: none;
-    background: #30471f url('/assets/auth-login-mobile-single-background-new-logo.webp') center top / calc(100% + 2px) auto no-repeat local;
-  }
-
-  .auth-page-scroll:has([data-auth-step]) > .auth-desktop-scenery,
-  .auth-page-scroll:has([data-auth-step]) > section:has(.auth-desktop-hero) {
-    display: none;
-  }
-
-  .auth-page-scroll:has([data-auth-step]) .auth-mobile-hero {
-    display: block;
-    height: calc(var(--auth-artwork-width) * 1.06153846);
-    max-height: none;
-  }
-
-  .auth-page-scroll:has([data-auth-step]) .auth-mobile-login-form {
-    height: auto;
-    min-height: 0;
-    justify-content: flex-start;
-    padding: 0 32px max(32px, env(safe-area-inset-bottom));
-  }
-
-  .auth-page-scroll:has([data-auth-step]) .auth-mobile-login-scale {
-    flex: 0 0 auto;
-    width: 100%;
-    height: auto;
-    max-width: 540px;
-    scale: 1;
-    translate: none;
-    transform: none;
-  }
-
-  .auth-page-scroll:has([data-auth-step]) [data-auth-step] {
-    flex: 0 0 auto;
-  }
-
-  .auth-page-scroll:has([data-auth-step]) [data-auth-step] > [data-slot="card"] {
-    gap: 0;
-    padding-block: 0;
-  }
-
-  .auth-page-scroll:has([data-auth-step]) [data-auth-step="identifier"] [data-slot="card-header"] {
-    display: none;
-  }
-
-  .auth-page-scroll:has([data-auth-step]) [data-slot="card-content"] {
-    padding: 24px;
-  }
-
-  .auth-page-scroll:has([data-auth-step]) .PhoneInput {
-    min-width: 0;
-    width: 100%;
-    min-height: 48px;
-  }
-
-  .auth-page-scroll:has([data-auth-step]) input[type="tel"],
-  .auth-page-scroll:has([data-auth-step]) input[type="email"] {
-    min-width: 0;
-    min-height: 48px;
-    font-size: 16px;
   }
 }

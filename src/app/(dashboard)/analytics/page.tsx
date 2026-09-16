@@ -255,9 +255,8 @@ export default function AnalyticsDashboard() {
     );
   };
 
-
   return (
-    
+
       <div className="flex flex-col gap-y-6 p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -397,7 +396,7 @@ export default function AnalyticsDashboard() {
                 defaultValue="overview"
                 className="flex flex-col gap-y-6"
               >
-                <TabsList className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+                <TabsList>
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="performance">Performance</TabsTrigger>
                   <TabsTrigger value="patients">Patient Analytics</TabsTrigger>
@@ -1173,9 +1172,7 @@ export default function AnalyticsDashboard() {
             </>
           )}
         </div>
-    
+
   );
 }
-
-
 

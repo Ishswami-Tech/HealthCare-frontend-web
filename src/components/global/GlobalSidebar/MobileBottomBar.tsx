@@ -74,7 +74,8 @@ export function MobileBottomBar({ links }: MobileBottomBarProps) {
               <Link
                 key={link.href}
                 href={link.href}
-                prefetch={false}
+                prefetch
+                scroll={false}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-2 min-h-11 text-[10px] font-medium transition-colors",

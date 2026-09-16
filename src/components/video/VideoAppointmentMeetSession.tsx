@@ -52,7 +52,7 @@ const MEET_JOIN_BUTTON =
 const MEET_SECONDARY_BUTTON =
   "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-[#5f6368] dark:bg-transparent dark:text-white dark:hover:bg-dark-gray";
 const MEET_STATUS_BADGE =
-  "rounded-full border border-blue-200/70 bg-blue-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-blue-700 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-200";
+  "rounded-md border border-blue-200/70 bg-blue-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-blue-700 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-200";
 const MEET_INFO_CARD =
   "rounded-2xl border border-slate-200/80 bg-white/90 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-dark-gray dark:bg-meet-black/90";
 const VIDEO_ACTIVE_WINDOW_MS = 3 * 60 * 60 * 1000;
@@ -529,8 +529,8 @@ export function VideoAppointmentMeetSession({
 
       const now = new Date().getTime();
       const startTime = new Date(appointment.startTime).getTime();
-      // Join opens 20 minutes before the appointment
-      const joinOpenTime = startTime - 20 * 60 * 1000;
+      // Join opens 15 minutes before the appointment
+      const joinOpenTime = startTime - 15 * 60 * 1000;
       const timeUntilJoinOpens = joinOpenTime - now;
 
       if (timeUntilJoinOpens <= 0) {

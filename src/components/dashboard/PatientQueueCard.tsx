@@ -205,7 +205,7 @@ export function PatientQueueCard({
           </div>
           <Badge
             variant="secondary"
-            className="h-6 shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2.5 text-[10px] font-bold text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/35 dark:text-amber-200"
+            className="h-6 shrink-0 rounded-md border border-amber-200 bg-amber-50 px-2.5 text-[10px] font-bold text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/35 dark:text-amber-200"
           >
             {hasAppointments ? "No active queue" : "No appointment"}
           </Badge>
@@ -394,10 +394,10 @@ export function PatientQueueCard({
             )}
           </div>
           <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
-            <Badge variant="outline" className="rounded-full border-border bg-background px-2 py-0.5 text-[10px] font-semibold">
+            <Badge variant="outline" className="rounded-md border-border bg-background px-2 py-0.5 text-[10px] font-semibold">
               {queueTypeLabel}
             </Badge>
-            <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-[10px] font-semibold">
+            <Badge variant="secondary" className="rounded-md px-2 py-0.5 text-[10px] font-semibold">
               {queuePositionLabel}
             </Badge>
           </div>

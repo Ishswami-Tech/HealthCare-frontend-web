@@ -397,7 +397,7 @@ export default function TherapyQueuePanel({
           onValueChange={setActiveTab}
           className="gap-y-6"
         >
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
+          <TabsList>
             <TabsTrigger value="agnikarma">Agnikarma</TabsTrigger>
             <TabsTrigger value="panchakarma">Panchakarma</TabsTrigger>
             <TabsTrigger value="shirodhara">Shirodhara</TabsTrigger>

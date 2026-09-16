@@ -167,6 +167,7 @@ interface OtpModalProps {
 
 function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
   const { session } = useAuth();
+  const router = useRouter();
   const [otp, setOtp] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -197,7 +198,7 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
       setOtp("");
     } catch (error) {
       if (error instanceof Error && error.message.includes("expired")) {
-        window.location.href = "/auth/login";
+        router.push("/auth/login");
       } else {
         setErrorMessage(
           error instanceof Error ? error.message : "Failed to resend OTP"
@@ -244,7 +245,7 @@ function OtpModal({ open, onOpenChange, phone, onVerified }: OtpModalProps) {
           errorMsg.includes("expired") ||
           errorMsg.includes("session")
         ) {
-          window.location.href = "/auth/login";
+          router.push("/auth/login");
         } else if (
           errorMsg.includes("otp_not_found") ||
           errorMsg.includes("otp_expired") ||
@@ -751,7 +752,7 @@ function ProfileCompletionFormContent({
         errorLower.includes("expired") ||
         errorLower.includes("unauthorized")
       ) {
-        window.location.href = "/auth/login";
+        router.push("/auth/login");
       } else if (errorLower.includes("rate limit")) {
         form.setError("phone", {
           type: "server",
@@ -914,7 +915,7 @@ function ProfileCompletionFormContent({
       });
 
       // Now navigate with cookie properly set
-      window.location.replace(finalRedirect);
+      router.replace(finalRedirect);
     } else {
       logger.warn('[ProfileCompletionForm] Backend did not confirm profile completion:', {
         responseProfileComplete: response?.profileComplete,
@@ -1347,7 +1348,7 @@ function ProfileCompletionFormContent({
                           </div>
                           {/* Use reducer state for email verification to persist after verification */}
                           {isEmailVerified && (
-                            <div className="inline-flex h-10 items-center justify-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 text-xs font-medium text-emerald-700 sm:h-9 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                            <div className="inline-flex h-10 items-center justify-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-3 text-xs font-medium text-emerald-700 sm:h-9 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
                               <ShieldCheck className="size-3" />
                               <span>Verified</span>
                             </div>
@@ -1392,7 +1393,7 @@ function ProfileCompletionFormContent({
                               {formatPhoneNumber(sessionUser?.phone) ||
                                 "Phone verified"}
                             </span>
-                            <span className="ml-3 inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/50 dark:text-emerald-300">
+                            <span className="ml-3 inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/50 dark:text-emerald-300">
                               <ShieldCheck className="size-3" />
                               Verified
                             </span>
@@ -1413,7 +1414,7 @@ function ProfileCompletionFormContent({
                             />
                           </div>
                           {isPhoneVerified ? (
-                            <div className="inline-flex h-10 items-center justify-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 text-xs font-medium text-emerald-700 sm:h-9 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                            <div className="inline-flex h-10 items-center justify-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-3 text-xs font-medium text-emerald-700 sm:h-9 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
                               <ShieldCheck className="size-3" />
                               <span>Verified</span>
                             </div>

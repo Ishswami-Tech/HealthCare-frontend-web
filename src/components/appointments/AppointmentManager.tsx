@@ -4,6 +4,7 @@ import { useState, useReducer, useCallback, useMemo, useEffect, useRef } from "r
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -189,11 +190,12 @@ interface AppointmentCardProps {
   expandedCard: string | null;
   checkInRoute: string;
   cancellingAppointment: boolean;
+  reschedulingAppointment: boolean;
   onCancelAppointment: (id: string) => void;
+  onReschedule: (apt: AppointmentWithRelations) => void;
   handleJoinVideo: (appointment: any) => void;
   onExpand: (id: string | null) => void;
   onSelect: (apt: AppointmentWithRelations | null) => void;
-  onReschedule: (apt: AppointmentWithRelations) => void;
   onBookNew: (apt: AppointmentWithRelations | any) => void;
   viewerRole?: string;
 }
@@ -286,11 +288,12 @@ function AppointmentCard({
   expandedCard,
   checkInRoute,
   cancellingAppointment,
+  reschedulingAppointment,
   onCancelAppointment,
+  onReschedule,
   handleJoinVideo,
   onExpand,
   onSelect,
-  onReschedule,
   onBookNew,
   viewerRole,
 }: AppointmentCardProps) {
@@ -400,25 +403,25 @@ function AppointmentCard({
                 Video calls get a subtle blue/cyan tint, in-person gets a
                 soft slate tint. Strong border keeps it readable. */}
             {apt.type === "VIDEO_CALL" ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-300 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold capitalize text-sky-800 shadow-sm dark:border-sky-700 dark:bg-sky-950/30 dark:text-sky-200">
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-sky-300 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold capitalize text-sky-800 shadow-sm dark:border-sky-700 dark:bg-sky-950/30 dark:text-sky-200">
                 <Video className="size-3.5" />
                 {appointmentTypeLabel}
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold capitalize text-slate-700 shadow-sm dark:border-slate-600 dark:bg-slate-800/40 dark:text-slate-200">
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold capitalize text-slate-700 shadow-sm dark:border-slate-600 dark:bg-slate-800/40 dark:text-slate-200">
                 <Stethoscope className="size-3.5" />
                 {appointmentTypeLabel}
               </span>
             )}
             {apt.treatmentType && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-300 bg-violet-50 px-2.5 py-1 text-[11px] font-semibold capitalize text-violet-800 shadow-sm dark:border-violet-700 dark:bg-violet-950/30 dark:text-violet-200">
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-violet-300 bg-violet-50 px-2.5 py-1 text-[11px] font-semibold capitalize text-violet-800 shadow-sm dark:border-violet-700 dark:bg-violet-950/30 dark:text-violet-200">
                 <Activity className="size-3.5" />
                 {String(apt.treatmentType).replace(/_/g, " ").toLowerCase()}
               </span>
             )}
             {/* Payment pending badge for video appointments awaiting payment */}
             {isVideoAppointment && !viewState.paymentCompleted && !isCancelled && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700 shadow-sm dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-amber-400 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700 shadow-sm dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
                 <CreditCard className="size-3.5" />
                 Payment Pending
               </span>
@@ -484,14 +487,13 @@ function AppointmentCard({
                 <PaymentButton
                   appointmentId={getEffectiveAppointmentId(apt)}
                   amount={getAppointmentPaymentAmount(apt)}
-                  provider="phonepe"
                   appointmentType="VIDEO_CALL"
                   description={`Video consultation with ${doctorName || "doctor"}`}
                   className="h-10 w-full justify-center sm:w-auto sm:px-5"
                   data-appointment-pay={getEffectiveAppointmentId(apt)}
                 >
                   <CreditCard className="mr-2 size-4" />
-                  Pay & Confirm via PhonePe
+                  Pay & Confirm
                 </PaymentButton>
               </div>
             </div>
@@ -532,7 +534,6 @@ function AppointmentCard({
                     <PaymentButton
                       appointmentId={getEffectiveAppointmentId(apt)}
                       amount={getAppointmentPaymentAmount(apt)}
-                      provider="phonepe"
                       appointmentType="VIDEO_CALL"
                       description={`Video consultation with ${doctorName || "doctor"}`}
                       className="h-10 w-full justify-center"
@@ -602,15 +603,34 @@ function AppointmentCard({
                       <PaymentButton
                         appointmentId={getEffectiveAppointmentId(apt)}
                         amount={getAppointmentPaymentAmount(apt)}
-                        provider="phonepe"
                         appointmentType="VIDEO_CALL"
                         description={`Video consultation with ${doctorName || "doctor"}`}
                         className="h-10 w-full justify-center"
                       >
                         <CreditCard className="mr-2 size-4" />
-                        Complete Payment via PhonePe
+                        Complete Payment
                       </PaymentButton>
                     )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-10 w-full justify-center"
+                      onClick={() => onReschedule(apt)}
+                      disabled={reschedulingAppointment}
+                    >
+                      Reschedule
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-10 w-full justify-center border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-950/50"
+                      onClick={() => onCancelAppointment(apt.id)}
+                      disabled={cancellingAppointment}
+                    >
+                      <X className="mr-2 size-4" />
+                      Cancel Appointment
+                    </Button>
                   </>
                 ) : (
                   <>
@@ -668,6 +688,17 @@ interface AppointmentManagerProps {
 function getEffectiveAppointmentId(appointment: AppointmentWithRelations | any): string {
   return String(appointment?.appointmentId || appointment?.id || "");
 }
+
+const STATUS_FILTER_TABS: Array<{ value: StatusFilter; label: string }> = [
+  { value: "ALL", label: "All" },
+  { value: "SCHEDULED", label: "Scheduled" },
+  { value: "CONFIRMED", label: "Confirmed" },
+  { value: "IN_PROGRESS", label: "In Progress" },
+  { value: "COMPLETED", label: "Completed" },
+  { value: "CANCELLED", label: "Cancelled" },
+  { value: "NO_SHOW", label: "No Show" },
+  { value: "EXPIRED", label: "Expired" },
+];
 
 export default function AppointmentManager({
   filterType,
@@ -1313,48 +1344,20 @@ export default function AppointmentManager({
             />
           </div>
 
-          <div className="flex h-12 max-w-full gap-1 overflow-x-auto rounded-xl border border-border/60 bg-card p-1 shadow-sm sm:h-12 sm:gap-1.5 sm:rounded-2xl sm:p-1.5 scrollbar-hide">
-            {(
-              [
-                "ALL",
-                "SCHEDULED",
-                "CONFIRMED",
-                "IN_PROGRESS",
-                "COMPLETED",
-                "CANCELLED",
-                "NO_SHOW",
-                "EXPIRED",
-              ] as StatusFilter[]
-            ).map(s => {
-              const isActive = statusFilter === s;
-              const labelMap: Record<string, string> = {
-                ALL: "All",
-                SCHEDULED: "Scheduled",
-                CONFIRMED: "Confirmed",
-                IN_PROGRESS: "In Progress",
-                COMPLETED: "Completed",
-                CANCELLED: "Cancelled",
-                NO_SHOW: "No Show",
-                EXPIRED: "Expired",
-              };
-
-              return (
-                <button
-                  type="button"
-                  key={s}
-                  onClick={() => setStatusFilter(s)}
-                  className={cn(
-                    "h-full whitespace-nowrap rounded-lg px-4 text-xs sm:text-[13px] font-semibold transition-all sm:rounded-xl sm:px-5",
-                    isActive
-                      ? "bg-emerald-600 text-white shadow-sm"
-                      : "text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50"
-                  )}
-                >
-                  {labelMap[s]}
-                </button>
-              );
-            })}
-          </div>
+          {/* Status filter — the shared Tabs component, not a hand-rolled copy of
+              its classes, so it stays in step with every other tab rail. */}
+          <Tabs
+            value={statusFilter}
+            onValueChange={(value) => setStatusFilter(value as StatusFilter)}
+          >
+            <TabsList>
+              {STATUS_FILTER_TABS.map(({ value, label }) => (
+                <TabsTrigger key={value} value={value}>
+                  {label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
 
           {/* 3. Default View Label */}
           <p className="px-1 text-[13px] text-muted-foreground/80">
@@ -1472,6 +1475,7 @@ export default function AppointmentManager({
                   expandedCard={expandedCard}
                   checkInRoute={checkInRoute}
                   cancellingAppointment={cancellingAppointment}
+                  reschedulingAppointment={reschedulingAppointment}
                   onCancelAppointment={handleCancelAppointment}
                   handleJoinVideo={handleJoinVideo}
                   onExpand={setExpandedCard}
@@ -1501,7 +1505,7 @@ export default function AppointmentManager({
                 >
                   Prev
                 </Button>
-                <span className="hidden rounded-full border border-border/60 px-3 py-1 text-xs font-medium text-muted-foreground sm:inline-flex">
+                <span className="hidden rounded-md border border-border/60 px-3 py-1 text-xs font-medium text-muted-foreground sm:inline-flex">
                   Page {safeCurrentPage} of {totalPages}
                 </span>
                 {getPaginationWindow(safeCurrentPage, totalPages).map((page, index) =>

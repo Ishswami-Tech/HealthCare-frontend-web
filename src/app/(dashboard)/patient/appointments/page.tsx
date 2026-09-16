@@ -1,12 +1,10 @@
-﻿"use client";
+"use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import type { ComponentType } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { useMyAppointments, hasAppointmentsLoadedForSession } from "@/hooks/query/useAppointments";
 import { useCurrentClinicId } from "@/hooks/query/useClinics";
@@ -27,9 +25,6 @@ interface TreatmentCategory {
   icon: ComponentType<{ className?: string }>;
   title: string;
   description: string;
-  containerClass: string;
-  iconClass: string;
-  buttonClass: string;
 }
 
 const TREATMENT_CATEGORIES: TreatmentCategory[] = [
@@ -37,33 +32,21 @@ const TREATMENT_CATEGORIES: TreatmentCategory[] = [
     icon: Stethoscope,
     title: "Consultations",
     description: "General health assessment and follow-ups",
-    containerClass: theme.containers.featureBlue,
-    iconClass: theme.iconColors.blue,
-    buttonClass: "border-blue-200 bg-blue-50/60 text-blue-700 hover:border-blue-300 hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-950/60 dark:hover:border-blue-800",
   },
   {
     icon: Droplets,
     title: "Panchakarma",
     description: "Detox and rejuvenation therapies",
-    containerClass: theme.containers.featureGreen,
-    iconClass: theme.iconColors.emerald,
-    buttonClass: "border-emerald-200 bg-emerald-50/60 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-950/60 dark:hover:border-emerald-800",
   },
   {
     icon: Heart,
     title: "Diagnosis",
     description: "Nadi Pariksha and dosha analysis",
-    containerClass: theme.containers.featureOrange,
-    iconClass: theme.iconColors.orange,
-    buttonClass: "border-orange-200 bg-orange-50/60 text-orange-700 hover:border-orange-300 hover:bg-orange-100 dark:border-orange-900/60 dark:bg-orange-950/40 dark:text-orange-300 dark:hover:bg-orange-950/60 dark:hover:border-orange-800",
   },
   {
     icon: Leaf,
     title: "Specialized",
     description: "Agnikarma, Viddhakarma procedures",
-    containerClass: theme.containers.featureYellow,
-    iconClass: theme.iconColors.yellow,
-    buttonClass: "border-yellow-200 bg-yellow-50/60 text-yellow-700 hover:border-yellow-300 hover:bg-yellow-100 dark:border-yellow-900/60 dark:bg-yellow-950/40 dark:text-yellow-300 dark:hover:bg-yellow-950/60 dark:hover:border-yellow-800",
   },
 ];
 
@@ -137,32 +120,22 @@ function PatientAppointmentsContent() {
 
     if (queryClinicId || queryLocationId || queryClinicName || bookingMode || shouldOpenBooking) {
       document.getElementById("appointment-manager")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      window.history.replaceState(null, "", window.location.pathname);
+      window.history.replaceState(window.history.state, "", window.location.pathname);
     }
   }, [queryClinicId, queryLocationId, queryClinicName, bookingMode, shouldOpenBooking]);
 
   return (
-    <DashboardLayout title="Appointments">
       <PatientPageShell>
         <PatientPageHeader
-          illustration={
-            <Image
-              src="/assets/dashboard/appointments-banner.webp"
-              alt=""
-              width={780}
-              height={520}
-              sizes="(max-width: 639px) 96px, (max-width: 1023px) 144px, 240px"
-              className="h-full w-full object-contain"
-            />
-          }
-          eyebrow="APPOINTMENTS"
+          showArt
+          eyebrow="Appointments"
           title="Appointments"
           description="Book a visit, check in, and follow your queue in one place."
           actionsSlot={
-            <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:gap-3">
               <Button
                 variant="outline"
-                className="h-10 gap-2 rounded-xl border-sky-200 bg-sky-50 px-4 text-sky-700 hover:bg-sky-100 hover:text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-300"
+                className="h-10 gap-2 rounded-lg px-4 text-sm font-medium"
                 onClick={() => {
                   if (hasInPersonAppointment) {
                     push("/patient/check-in");
@@ -174,14 +147,14 @@ function PatientAppointmentsContent() {
                 }}
               >
                 <QrCode className="size-4" />
-                Scan QR
+                Scan check-in
               </Button>
               <Button
-                className="h-10 gap-2 rounded-xl border border-red-500 bg-red-600 px-4 font-semibold text-white shadow-[0_8px_20px_rgba(220,38,38,0.22)] transition-all hover:-translate-y-0.5 hover:border-red-600 hover:bg-red-700 hover:shadow-[0_12px_28px_rgba(220,38,38,0.28)] active:scale-95 focus-visible:ring-2 focus-visible:ring-red-300 dark:border-red-700 dark:bg-red-600 dark:shadow-[0_8px_20px_rgba(239,68,68,0.15)] dark:hover:bg-red-500"
+                className="h-10 gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700 focus-visible:ring-emerald-500/40"
                 onClick={() => setIsBookingDialogOpen(true)}
               >
                 <BookOpen className="size-4" />
-                Book Video Appointment
+                Book video appointment
               </Button>
             </div>
           }
@@ -199,7 +172,7 @@ function PatientAppointmentsContent() {
         />
 
         {isBookingDialogOpening && (
-          <div className="mb-4 flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">
+          <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-sm sm:px-5">
             <Loader2 className="size-4 animate-spin text-primary" />
             <p className="text-sm font-medium text-muted-foreground">Opening booking dialogâ€¦</p>
           </div>
@@ -228,21 +201,21 @@ function PatientAppointmentsContent() {
         />
         </div>
 
-        <Card className="border border-border bg-card shadow-sm">
-          <CardHeader>
+        <Card className="gap-4 rounded-xl border border-border bg-card py-5 shadow-sm">
+          <CardHeader className="px-5 sm:px-6">
             <CardTitle className="flex items-center gap-2 text-base">
-              <div className="flex size-7 items-center justify-center rounded-lg border border-amber-100 bg-amber-50">
-                <Leaf className="size-4 text-amber-600" />
+              <div className="flex size-7 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                <Leaf className="size-4" />
               </div>
-              Ayurvedic Treatment Categories
+              Ayurvedic treatment categories
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
-              {TREATMENT_CATEGORIES.map(({ icon: Icon, title, description, containerClass, iconClass, buttonClass }) => (
-                <div key={title} className={`flex flex-row sm:flex-col items-center sm:items-start gap-4 sm:gap-0 rounded-xl border p-3 sm:p-4 shadow-sm transition-all hover:shadow-md ${containerClass}`}>
+          <CardContent className="px-5 sm:px-6">
+            <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {TREATMENT_CATEGORIES.map(({ icon: Icon, title, description }) => (
+                <div key={title} className="flex flex-row items-center gap-4 rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-emerald-300 sm:flex-col sm:items-start sm:gap-0 dark:hover:border-emerald-800">
                   <div className="shrink-0">
-                    <Icon className={`sm:mb-3 size-10 sm:size-8 ${iconClass}`} />
+                    <Icon className="size-9 text-muted-foreground sm:mb-3 sm:size-8" />
                   </div>
                   <div className="flex-1 flex flex-col justify-center text-left">
                     <h3 className="mb-1 sm:mb-2 font-semibold text-sm sm:text-base">{title}</h3>
@@ -252,7 +225,7 @@ function PatientAppointmentsContent() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className={`w-full ${buttonClass}`}
+                      className="w-full rounded-lg"
                       onClick={() =>
                         document
                           .getElementById("appointment-manager")
@@ -269,11 +242,11 @@ function PatientAppointmentsContent() {
           </CardContent>
         </Card>
 
-        <Card className="border border-border bg-card shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-base">Understanding Ayurvedic Treatments</CardTitle>
+        <Card className="gap-4 rounded-xl border border-border bg-card py-5 shadow-sm">
+          <CardHeader className="px-5 sm:px-6">
+            <CardTitle className="text-base">Understanding Ayurvedic treatments</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-5 sm:px-6">
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div className="flex flex-col gap-y-4">
                 <h4 className="text-lg font-semibold">Traditional Therapies</h4>
@@ -345,7 +318,6 @@ function PatientAppointmentsContent() {
         </Card>
 
       </PatientPageShell>
-    </DashboardLayout>
   );
 }
 
@@ -356,4 +328,5 @@ export default function PatientAppointments() {
     </Suspense>
   );
 }
+
 

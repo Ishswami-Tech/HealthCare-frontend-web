@@ -196,7 +196,7 @@ export function DoctorDashboardQueueCard({
             >
               <button type="button" onClick={() => onSelectQueueLane(section.key)}>
                 <span className="truncate font-semibold">{section.title}</span>
-                <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
+                <span className="rounded-md bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
                   {section.items.length}
                 </span>
               </button>

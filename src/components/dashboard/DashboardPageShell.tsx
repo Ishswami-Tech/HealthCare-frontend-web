@@ -1,6 +1,8 @@
 import { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { DASHBOARD_SPACING } from "@/components/dashboard/DashboardPrimitives";
+import { DashboardHeroArt } from "@/components/dashboard/DashboardHeroArt";
 
 interface DashboardPageShellProps {
   children: ReactNode;
@@ -18,20 +20,92 @@ interface DashboardPageHeaderAction {
   disabled?: boolean;
 }
 
+/**
+ * Kept so existing call sites keep compiling. Every variant now renders the same
+ * header — one eyebrow, one serif title, one rule — because per-page variants
+ * were the reason no two dashboards lined up.
+ */
+export type DashboardPageHeaderVariant =
+  | "welcome"
+  | "schedule"
+  | "clinical"
+  | "ledger"
+  | "default";
+
 interface DashboardPageHeaderProps {
-  illustration?: ReactNode;
   eyebrow?: string;
   title: string;
   description: string;
   meta?: ReactNode;
   actions?: DashboardPageHeaderAction[];
   actionsSlot?: ReactNode;
+  variant?: DashboardPageHeaderVariant;
+  icon?: ReactNode;
+  /** Shows the doctor artwork on the right of the banner (large screens only). */
+  showArt?: boolean;
 }
 
+/** Shared vertical rhythm for every dashboard page. */
 export function DashboardPageShell({ children, className }: DashboardPageShellProps) {
   return (
-    <div className={cn("flex flex-col gap-y-3 text-foreground sm:gap-y-4", className)}>
+    <div
+      className={cn(
+        "flex w-full flex-col text-foreground",
+        DASHBOARD_SPACING.page,
+        className,
+      )}
+    >
       {children}
+    </div>
+  );
+}
+
+function HeaderActions({
+  actions,
+  actionsSlot,
+}: {
+  actions: DashboardPageHeaderAction[];
+  actionsSlot?: ReactNode;
+}) {
+  if (actions.length === 0 && !actionsSlot) return null;
+
+  return (
+    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
+      {actions.map((action) => {
+        const content = (
+          <>
+            {action.icon ? <span className="shrink-0">{action.icon}</span> : null}
+            <span>{action.label}</span>
+          </>
+        );
+
+        if (action.href) {
+          return (
+            <Button
+              key={`${action.label}-${action.href}`}
+              asChild
+              variant={action.variant ?? "outline"}
+              disabled={action.disabled}
+              className="h-9 rounded-lg px-3.5 text-[13.5px] font-semibold"
+            >
+              <a href={action.href}>{content}</a>
+            </Button>
+          );
+        }
+
+        return (
+          <Button
+            key={action.label}
+            variant={action.variant ?? "outline"}
+            onClick={action.onClick}
+            disabled={action.disabled}
+            className="h-9 rounded-lg px-3.5 text-[13.5px] font-semibold"
+          >
+            {content}
+          </Button>
+        );
+      })}
+      {actionsSlot}
     </div>
   );
 }
@@ -43,69 +117,54 @@ export function DashboardPageHeader({
   meta,
   actions = EMPTY_ACTIONS,
   actionsSlot,
-  illustration,
+  showArt = false,
 }: DashboardPageHeaderProps) {
   return (
-    <div className={cn("relative overflow-hidden rounded-xl border border-border bg-card shadow-sm sm:rounded-xl", illustration && "border-emerald-200/70 bg-linear-to-r from-emerald-50 via-background to-emerald-50/60 dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-emerald-950/20")}>
-      {!illustration && <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400" />}
+    <div className="relative overflow-hidden rounded-2xl border border-emerald-100 bg-linear-to-r from-emerald-50/90 via-emerald-50/40 to-card shadow-sm dark:border-emerald-950/60 dark:from-emerald-950/40 dark:via-emerald-950/15 dark:to-card">
+      {showArt ? (
+        <DashboardHeroArt className="pointer-events-none absolute -right-8 bottom-0 hidden h-[118%] lg:block" />
+      ) : (
+        /* Decorative leaf motif — drawn, not an asset, so it themes cleanly. */
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 240 200"
+          className="pointer-events-none absolute -right-6 -top-10 hidden h-[150%] w-auto text-emerald-500/10 lg:block dark:text-emerald-400/10"
+        >
+          <path
+            fill="currentColor"
+            d="M120 20c60 0 100 40 100 90s-40 90-100 90S20 160 20 110 60 20 120 20Z"
+            opacity="0.5"
+          />
+          <path
+            fill="currentColor"
+            d="M186 40c6 44-22 78-66 84 2-46 26-76 66-84ZM60 150c28-38 56-54 96-66-26 40-56 60-96 66Z"
+          />
+        </svg>
+      )}
 
-      <div className="relative px-3 pb-4 pt-5 sm:px-6 sm:pb-5 sm:pt-6">
-        <div className={cn("flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4", illustration && "grid grid-cols-[minmax(0,1fr)_96px] items-center sm:grid-cols-[minmax(0,1fr)_144px] sm:items-center lg:flex lg:flex-wrap")}>
-          <div className={cn("flex min-w-0 flex-col gap-y-1", illustration && "lg:flex-1 lg:min-w-72")}>
-            <span className="inline-block text-[9px] font-extrabold uppercase tracking-[0.25em] text-primary sm:text-[11px]">
-              {eyebrow}
-            </span>
-            <h1 className="text-[1.2rem] font-semibold leading-[1.15] tracking-tight text-foreground sm:text-[1.5rem] lg:text-[1.8rem]">
-              {title}
-            </h1>
-            <p className="max-w-xl text-[13px] leading-[1.5] text-muted-foreground sm:text-sm sm:leading-relaxed" suppressHydrationWarning>
-              {description}
-            </p>
-            {meta ? <div className="flex flex-wrap items-center gap-2 pt-1">{meta}</div> : null}
-          </div>
-
-          {illustration ? <div className="pointer-events-none flex h-24 w-24 shrink-0 items-end sm:h-28 sm:w-36 lg:-my-5 lg:h-36 lg:w-60" aria-hidden="true">{illustration}</div> : null}
-
-          {actions.length > 0 || actionsSlot ? (
-            <div className={cn("flex w-full flex-wrap items-stretch gap-2 sm:w-auto sm:shrink-0 sm:items-center sm:justify-end sm:pl-4", illustration && "col-span-2 sm:w-full sm:pl-0 lg:w-auto lg:pl-4")}>
-              {actions.map((action) => {
-                const content = (
-                  <>
-                    {action.icon ? <span className="shrink-0">{action.icon}</span> : null}
-                    <span>{action.label}</span>
-                  </>
-                );
-
-                if (action.href) {
-                  return (
-                    <Button
-                      key={`${action.label}-${action.href}`}
-                      asChild
-                      variant={action.variant ?? "outline"}
-                      disabled={action.disabled}
-                      className="h-9 w-full rounded-lg px-4 text-sm font-semibold sm:h-10 sm:w-auto"
-                    >
-                      <a href={action.href}>{content}</a>
-                    </Button>
-                  );
-                }
-
-                return (
-                  <Button
-                    key={action.label}
-                    variant={action.variant ?? "outline"}
-                    onClick={action.onClick}
-                    disabled={action.disabled}
-                    className="h-9 w-full rounded-lg px-4 text-sm font-semibold sm:h-10 sm:w-auto"
-                  >
-                    {content}
-                  </Button>
-                );
-              })}
-              {actionsSlot ? <div className="w-full sm:w-auto">{actionsSlot}</div> : null}
-            </div>
-          ) : null}
+      <div
+        className={cn(
+          "relative flex flex-col gap-5 px-5 py-6 sm:px-7 sm:py-7 lg:flex-row lg:items-end lg:justify-between lg:gap-8",
+          // leave room for the artwork so the copy never runs under it
+          showArt && "lg:pr-[21rem]",
+        )}
+      >
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400">
+            {eyebrow}
+          </span>
+          <h1 className="mt-2 max-w-2xl text-[26px] font-bold leading-[1.12] tracking-tight text-foreground text-balance sm:text-[32px]">
+            {title}
+          </h1>
+          <p
+            className="mt-2 max-w-2xl text-[15px] leading-relaxed text-muted-foreground"
+            suppressHydrationWarning
+          >
+            {description}
+          </p>
+          {meta ? <div className="mt-3 flex flex-wrap items-center gap-2">{meta}</div> : null}
         </div>
+        <HeaderActions actions={actions} actionsSlot={actionsSlot} />
       </div>
     </div>
   );

@@ -42,6 +42,8 @@ import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard"
 import { formatDateTimeInIST } from "@/lib/utils/date-time";
 import { ClinicAdminSnapshotPanel } from "./_components/ClinicAdminSnapshotPanel";
 import { ClinicQueueBacklogPanel } from "./_components/ClinicQueueBacklogPanel";
+import { triggerDoctorDailySummary } from "@/lib/actions/appointments.server";
+import { showErrorToast, showInfoToast, showSuccessToast } from "@/hooks/utils/use-toast";
 import {
   Settings,
   Clock,
@@ -55,6 +57,7 @@ import {
   RefreshCcw,
   MapPin,
   Users,
+  MessageSquare,
 } from "lucide-react";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -173,6 +176,30 @@ export default function ClinicAdminDashboard() {
   }, [queueItems]);
 
   const [activeQueueLane, setActiveQueueLane] = useState("");
+  const [isTriggeringSummary, setIsTriggeringSummary] = useState(false);
+
+  const handleTriggerDailySummary = async () => {
+    setIsTriggeringSummary(true);
+    try {
+      const result = await triggerDoctorDailySummary({});
+      if (result.success) {
+        if (result.skipped) {
+          showInfoToast(result.reason || 'Skipped', { description: `todayKey: ${result.todayKey}` });
+        } else {
+          showSuccessToast(
+            'Summary queued',
+            { description: `${result.enqueuedCount} doctors · ${result.skipCount} skipped · ${result.totalDoctors} total` }
+          );
+        }
+      } else {
+        showErrorToast(result.message || 'Failed to trigger summary');
+      }
+    } catch {
+      showErrorToast('Something went wrong while triggering the summary');
+    } finally {
+      setIsTriggeringSummary(false);
+    }
+  };
   const resolvedActiveQueueLane = useMemo(() => {
     if (!queueSections.length) {
       return "";
@@ -613,6 +640,16 @@ export default function ClinicAdminDashboard() {
                 Queue
               </Link>
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleTriggerDailySummary}
+              disabled={isTriggeringSummary}
+              className="h-9 items-center gap-2 border-border bg-card px-4 font-semibold text-foreground shadow-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <MessageSquare className="size-4" />
+              {isTriggeringSummary ? "Sending..." : "Trigger Doctor Summaries"}
+            </Button>
           </div>
         }
       />
@@ -1041,7 +1078,7 @@ export default function ClinicAdminDashboard() {
                       >
                         <button type="button" onClick={() => setActiveQueueLane(section.key)}>
                           <span className="truncate font-semibold">{section.title}</span>
-                          <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
+                          <span className="rounded-md bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
                             {section.items.length}
                           </span>
                         </button>
@@ -1080,7 +1117,7 @@ export default function ClinicAdminDashboard() {
                       {selectedQueueItems.slice(0, 5).map((item: any, idx: number) => (
                         <TableRow key={item.entryId || item.appointmentId || idx} className="border-border/60 transition-colors hover:bg-muted/20">
                           <TableCell className="py-2 font-semibold text-primary">
-                            <span className="inline-flex min-w-9 items-center justify-center rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-700">
+                            <span className="inline-flex min-w-9 items-center justify-center rounded-md bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-700">
                               {item.tokenNumber || item.position || idx + 1}
                             </span>
                           </TableCell>

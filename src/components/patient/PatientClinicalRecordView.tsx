@@ -12,8 +12,9 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { HashTabs } from "@/hooks/navigation/HashTabs";
 import { DataTable } from "@/components/ui/data-table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { formatDateInIST, formatDateTimeInIST } from "@/lib/utils/date-time";
 
@@ -134,7 +135,7 @@ export function PatientClinicalRecordView({
         accessorKey: "status",
         header: "Status",
         cell: ({ row }) => (
-          <Badge className={cn("rounded-full border-none px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider", statusClass(row.original.status))}>
+          <Badge className={cn("rounded-md border-none px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider", statusClass(row.original.status))}>
             {String(row.original.status || "UNKNOWN")}
           </Badge>
         ),
@@ -194,7 +195,7 @@ export function PatientClinicalRecordView({
         accessorKey: "status",
         header: "Status",
         cell: ({ row }) => (
-          <Badge className={cn("rounded-full border-none px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider", statusClass(row.original.status))}>
+          <Badge className={cn("rounded-md border-none px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider", statusClass(row.original.status))}>
             {String(row.original.status || "Unknown")}
           </Badge>
         ),
@@ -236,7 +237,7 @@ export function PatientClinicalRecordView({
         accessorKey: "status",
         header: "Status",
         cell: ({ row }) => (
-          <Badge className={cn("rounded-full border-none px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider", statusClass(row.original.status))}>
+          <Badge className={cn("rounded-md border-none px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider", statusClass(row.original.status))}>
             {String(row.original.status || "Unknown")}
           </Badge>
         ),
@@ -310,7 +311,7 @@ export function PatientClinicalRecordView({
         accessorKey: "status",
         header: "Status",
         cell: ({ row }) => (
-          <Badge className={cn("rounded-full border-none px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider", statusClass(row.original.status))}>
+          <Badge className={cn("rounded-md border-none px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider", statusClass(row.original.status))}>
             {String(row.original.status || "Unknown")}
           </Badge>
         ),
@@ -335,35 +336,37 @@ export function PatientClinicalRecordView({
         ))}
       </div>
 
-      <Tabs defaultValue="overview" className="flex flex-col gap-y-4">
-        <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-          <TabsList className="inline-flex w-max min-w-full sm:flex sm:w-full">
-          <TabsTrigger value="overview" className="gap-2">
-            <UserRound className="size-4" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="appointments" className="gap-2">
-            <Calendar className="size-4" />
-            Appointments
-          </TabsTrigger>
-          <TabsTrigger value="history" className="gap-2">
-            <FileText className="size-4" />
-            History
-          </TabsTrigger>
-          <TabsTrigger value="vitals" className="gap-2">
-            <HeartPulse className="size-4" />
-            Vitals
-          </TabsTrigger>
-          <TabsTrigger value="reports" className="gap-2">
-            <FlaskConical className="size-4" />
-            Reports
-          </TabsTrigger>
-          <TabsTrigger value="medications" className="gap-2">
-            <Pill className="size-4" />
-            Medications
-          </TabsTrigger>
-        </TabsList>
-        </div>
+      <HashTabs
+        tabs={["overview", "appointments", "history", "vitals", "reports", "medications"] as const}
+        defaultValue="overview"
+        className="flex flex-col gap-y-4"
+      >
+      <TabsList>
+        <TabsTrigger value="overview">
+          <UserRound className="size-4" />
+          Overview
+        </TabsTrigger>
+        <TabsTrigger value="appointments">
+          <Calendar className="size-4" />
+          Appointments
+        </TabsTrigger>
+        <TabsTrigger value="history">
+          <FileText className="size-4" />
+          History
+        </TabsTrigger>
+        <TabsTrigger value="vitals">
+          <HeartPulse className="size-4" />
+          Vitals
+        </TabsTrigger>
+        <TabsTrigger value="reports">
+          <FlaskConical className="size-4" />
+          Reports
+        </TabsTrigger>
+        <TabsTrigger value="medications">
+          <Pill className="size-4" />
+          Medications
+        </TabsTrigger>
+      </TabsList>
 
         <TabsContent value="overview" className="flex flex-col gap-y-4">
           <div className="grid gap-4 lg:grid-cols-3">
@@ -493,7 +496,7 @@ export function PatientClinicalRecordView({
             </CardContent>
           </Card>
         </TabsContent>
-      </Tabs>
+      </HashTabs>
 
       <Card className="border-border/70 bg-card shadow-sm">
         <CardHeader className="pb-3">
@@ -534,5 +537,4 @@ export function PatientClinicalRecordView({
     </div>
   );
 }
-
 

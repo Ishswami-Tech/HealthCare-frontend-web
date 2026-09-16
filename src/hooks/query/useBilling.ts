@@ -144,7 +144,7 @@ export function useBillingPlans(clinicId?: string, enabled: boolean = true) {
       staleTime: 10 * 60 * 1000, // 10 minutes (optimized for 10M users)
       gcTime: 30 * 60 * 1000, // 30 minutes
       refetchOnWindowFocus: false,
-      refetchOnMount: "always",
+      refetchOnMount: true,
     }
   );
 }
@@ -230,7 +230,7 @@ export function useSubscriptions(userId: string, clinicId?: string, enabled: boo
       staleTime: 10 * 60 * 1000, // 10 minutes (optimized for 10M users)
       gcTime: 30 * 60 * 1000, // 30 minutes
       refetchOnWindowFocus: false,
-      refetchOnMount: "always",
+      refetchOnMount: true,
       refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
   );
@@ -256,7 +256,7 @@ export function useClinicSubscriptions(enabled: boolean = true) {
       staleTime: 10 * 60 * 1000,
       gcTime: 30 * 60 * 1000,
       refetchOnWindowFocus: false,
-      refetchOnMount: "always",
+      refetchOnMount: true,
       refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
   );
@@ -281,7 +281,7 @@ export function useActiveSubscription(userId: string, clinicId: string, enabled:
       staleTime: 5 * 60 * 1000, // 5 minutes (optimized for 10M users)
       gcTime: 15 * 60 * 1000, // 15 minutes
       refetchOnWindowFocus: false,
-      refetchOnMount: "always",
+      refetchOnMount: true,
       refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
   );
@@ -354,7 +354,7 @@ export function useInvoices(userId: string, clinicId?: string) {
       staleTime: 10 * 60 * 1000, // 10 minutes (optimized for 10M users)
       gcTime: 30 * 60 * 1000, // 30 minutes
       refetchOnWindowFocus: false,
-      refetchOnMount: "always",
+      refetchOnMount: true,
       refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
   );
@@ -380,7 +380,7 @@ export function useClinicInvoices(enabled: boolean = true) {
       staleTime: 10 * 60 * 1000,
       gcTime: 30 * 60 * 1000,
       refetchOnWindowFocus: false,
-      refetchOnMount: "always",
+      refetchOnMount: true,
       refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
   );
@@ -446,7 +446,7 @@ export function usePayments(userId: string, clinicId?: string) {
       staleTime: 10 * 60 * 1000, // 10 minutes (optimized for 10M users)
       gcTime: 30 * 60 * 1000, // 30 minutes
       refetchOnWindowFocus: false,
-      refetchOnMount: "always",
+      refetchOnMount: true,
       refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
   );
@@ -479,7 +479,7 @@ export function useClinicPayments(filters?: {
       staleTime: 2 * 60 * 1000,
       gcTime: 10 * 60 * 1000,
       refetchOnWindowFocus: false,
-      refetchOnMount: "always",
+      refetchOnMount: true,
       refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
   );
@@ -512,7 +512,7 @@ export function useClinicLedger(filters?: {
       staleTime: 2 * 60 * 1000,
       gcTime: 10 * 60 * 1000,
       refetchOnWindowFocus: false,
-      refetchOnMount: "always",
+      refetchOnMount: true,
       refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
   );
