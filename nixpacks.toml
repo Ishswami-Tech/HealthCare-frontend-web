@@ -5,7 +5,7 @@ NODE_ENV = "production"
 NEXT_TELEMETRY_DISABLED = "1"
 PORT = "3000"
 HOSTNAME = "0.0.0.0"
-NIXPACKS_NODE_VERSION = "24"
+NIXPACKS_NODE_VERSION = "22"
 
 [phases.install]
 cmds = ["npm ci --no-audit --no-fund --prefer-offline --fetch-retries=5 --fetch-retry-maxtimeout=60000"]
