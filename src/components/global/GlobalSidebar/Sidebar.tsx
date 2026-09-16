@@ -148,14 +148,14 @@ const Logo = memo(function Logo() {
 
   return (
     <Link href="/" prefetch={false} className="flex items-center gap-2.5 py-1 min-w-0">
-      <div className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-emerald-600/15 p-1 border border-emerald-500/20">
+      <div className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-emerald-600/15 border border-emerald-500/20">
         {!imageError ? (
           <NextImage
             src="/assets/logo/logowithoutbackground.png"
             alt="Dr. Chandrakumar Deshmukh"
             width={32}
             height={32}
-            className="object-contain size-full"
+            className="object-contain size-full rounded-full"
             onError={() => setImageError(true)}
             priority
           />
@@ -168,13 +168,10 @@ const Logo = memo(function Logo() {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.2, ease: "linear" }}
-        className="flex min-w-0 flex-col leading-snug"
+        className="flex min-w-0 flex-col justify-center"
       >
-        <span className="truncate text-[13.5px] font-bold tracking-tight text-sidebar-foreground">
+        <span className="text-[14px] font-bold tracking-tight text-sidebar-foreground leading-[1.15]">
           Dr. Chandrakumar Deshmukh
-        </span>
-        <span className="truncate text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-          Viddhakarma • Your Health, Our Care
         </span>
       </m.div>    </Link>
   );
@@ -185,14 +182,14 @@ const LogoIcon = memo(function LogoIcon() {
 
   return (
     <Link href="/" prefetch={false} className="flex items-center justify-center py-1">
-      <div className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-emerald-600/15 p-1 border border-emerald-500/20">
+      <div className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-emerald-600/15 border border-emerald-500/20">
         {!imageError ? (
           <NextImage
             src="/assets/logo/logowithoutbackground.png"
             alt="Dr. Chandrakumar Deshmukh"
             width={32}
             height={32}
-            className="object-contain size-full"
+            className="object-contain size-full rounded-full"
             onError={() => setImageError(true)}
             priority
           />
