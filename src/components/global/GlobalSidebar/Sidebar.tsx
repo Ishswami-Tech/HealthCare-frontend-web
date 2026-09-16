@@ -176,8 +176,7 @@ const Logo = memo(function Logo() {
         <span className="truncate text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
           Viddhakarma • Your Health, Our Care
         </span>
-      </m.div>
-    </Link>
+      </m.div>    </Link>
   );
 });
 
