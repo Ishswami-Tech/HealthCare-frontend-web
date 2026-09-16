@@ -1,0 +1,22 @@
+[providers]
+provider = "node"
+
+[variables]
+NODE_ENV = "production"
+NEXT_TELEMETRY_DISABLED = "1"
+PORT = "3000"
+HOSTNAME = "0.0.0.0"
+
+[phases.setup]
+nixPkgs = ["nodejs_24"]
+
+[phases.install]
+cmds = ["npm ci --no-audit --no-fund"]
+cacheDirectories = ["/root/.npm"]
+
+[phases.build]
+cmds = ["npm run build:deploy"]
+cacheDirectories = [".next/cache"]
+
+[start]
+cmd = "node .next/standalone/server.js"
