@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useHashTab } from "@/hooks/navigation/useHashTab";
 import {
   getQueuePatientDisplayName,
   getQueueStatusLabel,
@@ -220,7 +221,10 @@ export function QueueTreatmentTabs({
     [procedureQueueFilters, queueEntries]
   );
 
-  const [activeQueue, setActiveQueue] = useState<"consultations" | "procedures">("consultations");
+  const { tab: activeQueue, setTab: setActiveQueue } = useHashTab({
+    tabs: ["consultations", "procedures"] as const,
+    defaultValue: "consultations",
+  });
   const [activeConsultationLaneOverride, setActiveConsultationLaneOverride] = useState<string | null>(null);
   const [activeTherapyLaneOverride, setActiveTherapyLaneOverride] = useState<string | null>(null);
   const defaultConsultationLane = useMemo(
@@ -318,25 +322,19 @@ export function QueueTreatmentTabs({
       </CardHeader>
 
       <CardContent className="gap-y-4 p-4">
-        <Tabs value={activeQueue} onValueChange={(value) => setActiveQueue(value as "consultations" | "procedures")} className="gap-y-4">
-          <TabsList className="grid h-auto grid-cols-2 gap-2 bg-transparent p-0">
-            <TabsTrigger
-              value="consultations"
-              className="justify-between rounded-full border border-border bg-background px-3 py-1.5 text-sm font-medium data-[state=active]:bg-emerald-600 data-[state=active]:text-white"
-            >
+        <Tabs value={activeQueue} onValueChange={setActiveQueue} className="gap-y-4">
+          <TabsList>
+            <TabsTrigger value="consultations">
               <span>Consultations</span>
-              <Badge variant="outline" className="h-5 rounded-full border-transparent bg-muted/70 px-1.5 text-[10px] text-muted-foreground data-[state=active]:bg-white/20 data-[state=active]:text-white">
+              <TabsCount>
                 {consultationQueueSections.reduce((total, section) => total + section.items.length, 0)}
-              </Badge>
+              </TabsCount>
             </TabsTrigger>
-            <TabsTrigger
-              value="procedures"
-              className="justify-between rounded-full border border-border bg-background px-3 py-1.5 text-sm font-medium data-[state=active]:bg-emerald-600 data-[state=active]:text-white"
-            >
+            <TabsTrigger value="procedures">
               <span>Procedures</span>
-              <Badge variant="outline" className="h-5 rounded-full border-transparent bg-muted/70 px-1.5 text-[10px] text-muted-foreground data-[state=active]:bg-white/20 data-[state=active]:text-white">
+              <TabsCount>
                 {procedureQueueSections.reduce((total, section) => total + section.items.length, 0)}
-              </Badge>
+              </TabsCount>
             </TabsTrigger>
           </TabsList>
 
@@ -355,7 +353,7 @@ export function QueueTreatmentTabs({
                 >
               <button type="button" onClick={() => setActiveConsultationLaneOverride(section.key)}>
                     <span className="truncate">{section.title}</span>
-                    <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
+                    <span className="rounded-md bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
                       {section.items.length}
                     </span>
                   </button>
@@ -397,7 +395,7 @@ export function QueueTreatmentTabs({
                 >
               <button type="button" onClick={() => setActiveTherapyLaneOverride(section.key)}>
                     <span className="truncate">{section.title}</span>
-                    <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
+                    <span className="rounded-md bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
                       {section.items.length}
                     </span>
                   </button>
@@ -428,5 +426,4 @@ export function QueueTreatmentTabs({
     </Card>
   );
 }
-
 

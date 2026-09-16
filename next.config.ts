@@ -59,8 +59,14 @@ const nextConfig: NextConfig = {
     ],
     serverActions: {
       allowedOrigins: serverActionOrigins,
+      // Patient Quick Upload attaches files through Server Actions; default 1mb
+      // rejects typical lab/prescription images and returns POST 500.
+      bodySizeLimit: "20mb",
     },
   },
+
+  // Soft-nav / proxy body for large multipart uploads (Next 16).
+  proxyClientMaxBodySize: "25mb",
 
   /* =====================================================
    * Images (unchanged functionality)

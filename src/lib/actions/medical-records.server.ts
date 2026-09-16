@@ -115,15 +115,22 @@ export async function uploadMedicalRecordFile(recordId: string, file: File) {
     throw new Error('Unauthorized: Authentication required');
   }
 
+  if (!recordId) {
+    throw new Error('A medical record id is required before a file can be attached');
+  }
+  if (!file || file.size === 0) {
+    throw new Error('The selected file is empty');
+  }
+
   const formData = new FormData();
-  formData.append('file', file);
-  
+  // Field name must stay `file` — the backend reads it via @FastifyFile().
+  formData.append('file', file, file.name);
+
+  // No Content-Type here on purpose: the API client strips it for FormData so
+  // fetch can write the multipart boundary itself.
   const { data } = await authenticatedApi(API_ENDPOINTS.MEDICAL_RECORDS.UPLOAD(recordId), {
     method: 'POST',
     body: formData,
-    headers: {
-      // Don't set Content-Type for FormData
-    },
   });
   return data;
 }

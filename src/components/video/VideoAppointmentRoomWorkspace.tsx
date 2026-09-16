@@ -406,7 +406,7 @@ export function VideoAppointmentRoomWorkspace({
                 <Badge
                   variant={viewState.paymentCompleted ? "default" : "secondary"}
                   className={cn(
-                    "rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.18em] shadow-sm",
+                    "rounded-md border px-3 py-1 text-[11px] uppercase tracking-[0.18em] shadow-sm",
                     viewState.paymentCompleted ? "bg-[#e8f0fe] text-[#1a73e8] border-[#d2e3fc]" : "bg-white text-[#5f6368] border-[#e8eaed]"
                   )}
                 >

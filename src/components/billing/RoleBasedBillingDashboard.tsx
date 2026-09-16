@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { RefreshCw, Plus, CreditCard, FileText, Wallet, BarChart3, Info, AlertCircle, Search, MessageCircle } from "lucide-react";
 import { DashboardPageHeader as PatientPageHeader } from "@/components/dashboard/DashboardPageShell";
+import { useHashTab } from "@/hooks/navigation/useHashTab";
 import { InvoiceForm } from "./InvoiceForm";
 import { PaymentHistory } from "./PaymentHistory";
 import { PatientBillingAnalytics } from "./PatientBillingAnalytics";
@@ -61,15 +62,15 @@ interface RoleBasedBillingDashboardProps {
 }
 
 //”€â”€â”€ Module-scope StatCard Component”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-function StatCard({ 
-  label, 
-  value, 
-  icon, 
-  color 
-}: { 
-  label: string; 
-  value: number | string; 
-  icon: React.ReactNode; 
+function StatCard({
+  label,
+  value,
+  icon,
+  color
+}: {
+  label: string;
+  value: number | string;
+  icon: React.ReactNode;
   color: string;
 }) {
   return (
@@ -112,7 +113,6 @@ export function RoleBasedBillingDashboard({
   const canViewAnalytics = isAdmin || userRole === Role.FINANCE_BILLING;
 
   type BillingUiState = {
-    activeTabOverride: string | null;
     searchTerm: string;
     invoiceStatusFilter: string;
     paymentStatusFilter: string;
@@ -140,7 +140,6 @@ export function RoleBasedBillingDashboard({
   };
 
   const [uiState, setUiState] = useState<BillingUiState>({
-    activeTabOverride: null,
     searchTerm: "",
     invoiceStatusFilter: "all",
     paymentStatusFilter: "all",
@@ -163,7 +162,6 @@ export function RoleBasedBillingDashboard({
     subscribeError: "",
   });
   const {
-    activeTabOverride,
     searchTerm,
     invoiceStatusFilter,
     paymentStatusFilter,
@@ -188,7 +186,6 @@ export function RoleBasedBillingDashboard({
   const patchUiState = useCallback((patch: Partial<BillingUiState>) => {
     setUiState((current) => ({ ...current, ...patch }));
   }, []);
-  const setActiveTabOverride = useCallback((value: string | null) => patchUiState({ activeTabOverride: value }), [patchUiState]);
   const setSearchTerm = useCallback((value: string) => patchUiState({ searchTerm: value }), [patchUiState]);
   const setInvoiceStatusFilter = useCallback((value: string) => patchUiState({ invoiceStatusFilter: value }), [patchUiState]);
   const setPaymentStatusFilter = useCallback((value: string) => patchUiState({ paymentStatusFilter: value }), [patchUiState]);
@@ -381,28 +378,31 @@ export function RoleBasedBillingDashboard({
 
   const showLedgerTab = isAdmin;
   const patientTabs = useMemo(
-    () => ["plans", "subscriptions", "payments", "invoices"],
+    () => ["plans", "subscriptions", "payments", "invoices"] as const,
     []
   );
   const staffTabs = useMemo(
-    () => ["overview", "invoices", "payments", ...(showLedgerTab ? ["ledger"] : [])],
+    () =>
+      (showLedgerTab
+        ? (["overview", "invoices", "payments", "ledger"] as const)
+        : (["overview", "invoices", "payments"] as const)),
     [showLedgerTab]
   );
-  const availableTabs = useMemo(
-    () => new Set(isPatient ? patientTabs : staffTabs),
-    [isPatient, patientTabs, staffTabs]
-  );
-  const tabCount = isPatient ? patientTabs.length : staffTabs.length;
-  const defaultTab = useMemo(() => {
-    const fallback = isPatient ? "plans" : "overview";
-    if (!initialTab) {
-      return fallback;
-    }
-
-    const normalized = initialTab.toLowerCase();
-    return availableTabs.has(normalized) ? normalized : fallback;
-  }, [initialTab, availableTabs, isPatient]);
-  const activeTab = activeTabOverride ?? defaultTab;
+  const roleTabs = isPatient ? patientTabs : staffTabs;
+  const defaultTab = isPatient ? "plans" : "overview";
+  const initialDefault =
+    initialTab && (roleTabs as readonly string[]).includes(initialTab.toLowerCase())
+      ? initialTab.toLowerCase()
+      : defaultTab;
+  const { tab: activeTab, setTab: setActiveTab } = useHashTab({
+    tabs: roleTabs,
+    defaultValue: initialDefault as (typeof roleTabs)[number],
+    aliases: {
+      analytics: defaultTab as (typeof roleTabs)[number],
+      reports: defaultTab as (typeof roleTabs)[number],
+    },
+  });
+  const tabCount = roleTabs.length;
 
   const billingDescription = isReceptionist
     ? "Collections and invoice payments for your clinic."
@@ -605,10 +605,10 @@ export function RoleBasedBillingDashboard({
               </div>
               <Button
                 size="sm"
-                onClick={() => setActiveTabOverride("plans")}
+                onClick={() => setActiveTab("plans")}
                 className="shrink-0"
               >
-                View Plans’
+                View Plans
               </Button>
             </div>
           </CardContent>
@@ -618,25 +618,25 @@ export function RoleBasedBillingDashboard({
       {/* Premium Stat Grid€” only for staff/admin */}
       {!isPatient && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <StatCard 
+          <StatCard
             label="TOTAL INVOICES"
             value={invoices.length}
             icon={<FileText className="size-4 text-sky-600 dark:text-sky-300" />}
             color="border-sky-200/70 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30"
           />
-          <StatCard 
+          <StatCard
             label="PENDING INVOICES"
             value={pendingInvoicesCount}
             icon={<AlertCircle className="size-4 text-amber-600 dark:text-amber-300" />}
             color="border-amber-200/70 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30"
           />
-          <StatCard 
+          <StatCard
             label="COMPLETED PAYMENTS"
             value={payments.filter(p => p.status === 'COMPLETED').length}
             icon={<CreditCard className="size-4 text-emerald-600 dark:text-emerald-300" />}
             color="border-emerald-200/70 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30"
           />
-          <StatCard 
+          <StatCard
             label="PAID REVENUE"
             value={`â‚¹${(paidAmount ?? 0).toLocaleString('en-IN')}`}
             icon={<Wallet className="size-4 text-violet-600 dark:text-violet-300" />}
@@ -645,7 +645,7 @@ export function RoleBasedBillingDashboard({
         </div>
       )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTabOverride} className="flex flex-col gap-y-8">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col gap-y-8">
           <TabsList>
             {[...(isPatient ? patientTabs : staffTabs)].map((val) => (
               <TabsTrigger
@@ -915,19 +915,19 @@ export function RoleBasedBillingDashboard({
             ) : (
               <div className="flex flex-col gap-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <StatCard 
+                  <StatCard
                     label="TOTAL COLLECTIONS"
                     value={`â‚¹${(ledger.summary.totalCollections ?? 0).toLocaleString("en-IN")}`}
                     icon={<Wallet className="size-4 text-sky-600 dark:text-sky-300" />}
                     color="border-sky-200/70 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30"
                   />
-                  <StatCard 
+                  <StatCard
                     label="PENDING PAYOUTS"
                     value={`â‚¹${(ledger.summary.pendingPayouts ?? 0).toLocaleString("en-IN")}`}
                     icon={<RefreshCw className="size-4 text-amber-600 dark:text-amber-300" />}
                     color="border-amber-200/70 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30"
                   />
-                  <StatCard 
+                  <StatCard
                     label="PLATFORM REVENUE"
                     value={`â‚¹${(ledger.summary.totalPlatformRevenue ?? 0).toLocaleString("en-IN")}`}
                     icon={<BarChart3 className="size-4 text-violet-600 dark:text-violet-300" />}
@@ -1289,10 +1289,10 @@ export function RoleBasedBillingDashboard({
                 <Button variant="outline" size="lg" className="h-11 w-full rounded-xl font-bold sm:w-auto" onClick={() => setPlanToConfirm(null)}>
                   Cancel
                 </Button>
-                <Button 
+                <Button
                   size="lg"
                   className="w-full sm:w-auto h-11 rounded-xl bg-[#006951] hover:bg-[#005a45] text-white font-bold transition-all shadow-sm active:scale-95"
-                  onClick={() => void handleSubscribePlan()} 
+                  onClick={() => void handleSubscribePlan()}
                   disabled={createSubscriptionMutation.isPending}
                 >
                   {createSubscriptionMutation.isPending ? "Hold on..." : "Confirm & Pay"}
@@ -1337,7 +1337,4 @@ export function RoleBasedBillingDashboard({
     </div>
   );
 }
-
-
-
 
