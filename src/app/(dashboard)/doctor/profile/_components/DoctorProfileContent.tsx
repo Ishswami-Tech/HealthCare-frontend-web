@@ -269,7 +269,7 @@ export function DoctorProfileContent({
       const payload = buildSavePayload(data);
       const result = await updateProfileMutation.mutateAsync(payload);
       if (!result.success) {
-        showErrorToast(result.error || "Failed to save", {
+        showErrorToast(("error" in result && result.error) || "Failed to save", {
           id: TOAST_IDS.GLOBAL.ERROR,
         });
         return false;

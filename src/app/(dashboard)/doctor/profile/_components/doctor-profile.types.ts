@@ -1,3 +1,5 @@
+import type { useUpdateUserProfile } from "@/hooks/query/useUsers";
+
 export interface DoctorProfilePersonalInfo {
   firstName: string;
   lastName: string;
@@ -72,21 +74,10 @@ export interface DoctorReview {
   date: string;
 }
 
-export interface SaveProfileMutation {
-  isPending: boolean;
-  mutateAsync: (input: {
-    firstName: string;
-    lastName: string;
-    phone: string;
-    dateOfBirth: string;
-    gender?: string;
-    address: string;
-    city: string;
-    state: string;
-    country: string;
-    zipCode: string;
-  }) => Promise<{ success: boolean; error?: string | null }>;
-}
+export type SaveProfileMutation = Pick<
+  ReturnType<typeof useUpdateUserProfile>,
+  "isPending" | "mutateAsync"
+>;
 
 export interface DoctorProfileUser {
   firstName?: string | null;

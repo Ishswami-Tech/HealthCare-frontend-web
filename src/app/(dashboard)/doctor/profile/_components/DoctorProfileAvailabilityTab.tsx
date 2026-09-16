@@ -1,6 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -10,11 +11,15 @@ import type { DoctorProfileFormState } from "./doctor-profile.types";
 interface DoctorProfileAvailabilityTabProps {
   profileData: DoctorProfileFormState;
   updateAvailability: (day: string, field: string, value: unknown) => void;
+  onSave: () => Promise<void>;
+  isSaving: boolean;
 }
 
 export function DoctorProfileAvailabilityTab({
   profileData,
   updateAvailability,
+  onSave,
+  isSaving,
 }: DoctorProfileAvailabilityTabProps) {
   return (
     <Card>
@@ -74,6 +79,13 @@ export function DoctorProfileAvailabilityTab({
               )}
             </div>
           ))}
+          <Button
+            className="self-start"
+            onClick={onSave}
+            disabled={isSaving}
+          >
+            {isSaving ? "Saving…" : "Save availability"}
+          </Button>
         </div>
       </CardContent>
     </Card>
