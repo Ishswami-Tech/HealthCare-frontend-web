@@ -10,14 +10,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DataTable } from "@/components/ui/data-table";
 import { PaymentHistory } from "@/components/billing/PaymentHistory";
-import { PaymentButton } from "@/components/payments";
 import { DashboardPageHeader, DashboardPageShell as PatientPageShell } from "@/components/dashboard/DashboardPageShell";
+import { DashboardStatStrip } from "@/components/dashboard/DashboardPrimitives";
 import { useHashTab } from "@/hooks/navigation/useHashTab";
 import { Check, CheckCircle2, CreditCard, Download, FileText, Wallet, Loader2 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/loading";
 import { TableSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import type { BillingPlan, Invoice, Subscription } from "@/types/billing.types";
+
+const PaymentButton = dynamic(
+  () => import("@/components/payments/PaymentButton").then((module) => module.PaymentButton),
+  { ssr: false },
+);
 
 const PATIENT_BILLING_TABS = ["plans", "invoices", "payments", "subscriptions"] as const;
 
@@ -265,7 +271,7 @@ export function PatientBillingContent({
       if (!response.ok) throw new Error("Failed to download PDF");
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      
+
       // Use an anchor tag click to bypass popup blockers after async fetch
       const link = document.createElement("a");
       link.href = url;
@@ -410,10 +416,10 @@ export function PatientBillingContent({
   ];
 
   return (
-    <PatientPageShell className="mx-auto max-w-6xl gap-y-4">
+    <PatientPageShell>
       <DashboardPageHeader
         eyebrow="Payments"
-        title="My payments"
+        title="Payments"
         description="Review invoices, payments, and subscription plans in one place."
       />
 
@@ -431,23 +437,42 @@ export function PatientBillingContent({
         </Card>
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
-        <Card><CardContent className="flex flex-row items-center gap-3 p-3 sm:p-4 text-left"><div className="rounded-full bg-amber-100 p-2 sm:p-3 dark:bg-amber-950/40"><FileText className="size-5 text-amber-600 dark:text-amber-300" /></div><div className="flex-1"><p className="text-xs sm:text-sm text-muted-foreground">Open Invoices</p>{invoicesPending ? <Skeleton className="h-7 w-12 mt-1" /> : <p className="text-xl sm:text-2xl font-bold">{openInvoices.length}</p>}</div></CardContent></Card>
-        <Card><CardContent className="flex flex-row items-center gap-3 p-3 sm:p-4 text-left"><div className="rounded-full bg-emerald-100 p-2 sm:p-3 dark:bg-emerald-950/40"><CreditCard className="size-5 text-emerald-600 dark:text-emerald-300" /></div><div className="flex-1"><p className="text-xs sm:text-sm text-muted-foreground">Total Payments</p>{paymentsPending ? <Skeleton className="h-7 w-12 mt-1" /> : <p className="text-xl sm:text-2xl font-bold">{payments.length}</p>}</div></CardContent></Card>
-        <Card className="col-span-2 sm:col-span-1"><CardContent className="flex flex-row items-center justify-start gap-3 p-3 sm:p-4 text-left"><div className="rounded-full bg-blue-100 p-2 sm:p-3 dark:bg-blue-950/40"><Wallet className="size-5 text-blue-600 dark:text-blue-300" /></div><div className="flex-1"><p className="text-xs sm:text-sm text-muted-foreground">Active Subscriptions</p>{subscriptionsPending ? <Skeleton className="h-7 w-12 mt-1" /> : <p className="text-xl sm:text-2xl font-bold">{activeSubscriptionCount}</p>}</div></CardContent></Card>
-      </div>
+      <DashboardStatStrip
+        columns={3}
+        items={[
+          {
+            label: "Open invoices",
+            value: openInvoices.length,
+            icon: <FileText className="size-[22px]" />,
+            tone: "warn",
+            isPending: invoicesPending,
+          },
+          {
+            label: "Total payments",
+            value: payments.length,
+            icon: <CreditCard className="size-[22px]" />,
+            tone: "brand",
+            isPending: paymentsPending,
+          },
+          {
+            label: "Active subscriptions",
+            value: activeSubscriptionCount,
+            icon: <Wallet className="size-[22px]" />,
+            tone: "info",
+            isPending: subscriptionsPending,
+          },
+        ]}
+      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col gap-y-4">
-        <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-          <TabsList className="inline-flex w-max min-w-full sm:flex sm:w-full">
-            <TabsTrigger id="patient-billing-plans-trigger" value="plans">Plans</TabsTrigger>
-            <TabsTrigger value="invoices">Invoices</TabsTrigger>
-            <TabsTrigger value="payments">Payments</TabsTrigger>
-            <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
-          </TabsList>
-        </div>
+        <TabsList>
+          <TabsTrigger id="patient-billing-plans-trigger" value="plans">Plans</TabsTrigger>
+          <TabsTrigger value="invoices">Invoices</TabsTrigger>
+          <TabsTrigger value="payments">Payments</TabsTrigger>
+          <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
+        </TabsList>
 
-        <TabsContent value="plans" className="mt-4 flex flex-col gap-y-4">
+        <TabsContent value="plans" className="mt-0 flex flex-col gap-y-4">
           {plansPending ? (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2">
               <PlanLoadingCard />
@@ -495,7 +520,7 @@ export function PatientBillingContent({
           )}
         </TabsContent>
 
-        <TabsContent value="invoices" className="mt-4 flex flex-col gap-y-3">
+        <TabsContent value="invoices" className="mt-0 flex flex-col gap-y-4">
           {invoicesPending ? (
             <TableSkeleton columns={["Invoice", "Date", "Status", "Amount"]} rows={4} />
           ) : invoices.length === 0 ? (
@@ -512,7 +537,7 @@ export function PatientBillingContent({
           )}
         </TabsContent>
 
-        <TabsContent value="payments" className="mt-4 flex flex-col gap-y-3">
+        <TabsContent value="payments" className="mt-0 flex flex-col gap-y-4">
           {paymentsPending ? (
             <TableSkeleton columns={["Date", "Method", "Status", "Amount"]} rows={4} />
           ) : payments.length === 0 ? (
@@ -522,7 +547,7 @@ export function PatientBillingContent({
           )}
         </TabsContent>
 
-        <TabsContent value="subscriptions" className="mt-4 flex flex-col gap-y-4">
+        <TabsContent value="subscriptions" className="mt-0 flex flex-col gap-y-4">
           {subscriptionsPending ? (
             <TableSkeleton columns={["Plan", "Start", "End", "Status"]} rows={4} />
           ) : displayedSubscriptions.length === 0 ? (
@@ -575,7 +600,7 @@ export function PatientBillingContent({
           {pendingSubscriptionPayment && (
             <div className="flex flex-col gap-y-4">
               <p className="text-sm text-muted-foreground">Plan: <span className="font-medium text-foreground">{pendingSubscriptionPayment.planName}</span></p>
-              <PaymentButton subscriptionId={pendingSubscriptionPayment.subscriptionId} amount={pendingSubscriptionPayment.amount} description={pendingSubscriptionPayment.planName} provider="phonepe" autoStart className="w-full" onSuccess={() => { onSetPendingSubscriptionPayment(null); onRefetchSubscriptions(); onRefetchActiveSubscription(); onRefetchInvoices(); onRefetchPayments(); onRefetchClinicPlans(); onRefetchFallbackPlans(); }}>
+              <PaymentButton subscriptionId={pendingSubscriptionPayment.subscriptionId} amount={pendingSubscriptionPayment.amount} description={pendingSubscriptionPayment.planName} autoStart className="w-full" onSuccess={() => { onSetPendingSubscriptionPayment(null); onRefetchSubscriptions(); onRefetchActiveSubscription(); onRefetchInvoices(); onRefetchPayments(); onRefetchClinicPlans(); onRefetchFallbackPlans(); }}>
                 Pay {formatAmount(pendingSubscriptionPayment.amount)}
               </PaymentButton>
             </div>

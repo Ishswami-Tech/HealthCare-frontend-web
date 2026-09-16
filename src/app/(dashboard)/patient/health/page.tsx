@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
+import { HeartPulse } from "lucide-react";
 import { DashboardPageHeader as PatientPageHeader, DashboardPageShell as PatientPageShell } from "@/components/dashboard/DashboardPageShell";
 import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HashTabs } from "@/hooks/navigation/HashTabs";
@@ -12,11 +13,13 @@ const HEALTH_TABS = ["records", "medicines"] as const;
 
 function PatientHealthPageContent() {
   return (
-    <PatientPageShell className="mx-auto max-w-7xl">
+    <PatientPageShell>
       <PatientPageHeader
-        eyebrow="My Health"
+        variant="clinical"
+        icon={<HeartPulse className="size-4" />}
+        eyebrow="Health"
         title="Health"
-        description="Your records and medicines in one place."
+        description="Your medical records, visit notes and prescriptions in one place."
       />
 
       <HashTabs
@@ -24,18 +27,16 @@ function PatientHealthPageContent() {
         defaultValue="records"
         className="flex flex-col gap-y-4"
       >
-        <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-          <TabsList className="inline-flex w-max min-w-full sm:flex sm:w-full">
-            <TabsTrigger value="records">Records</TabsTrigger>
-            <TabsTrigger value="medicines">Medicines</TabsTrigger>
-          </TabsList>
-        </div>
+        <TabsList>
+          <TabsTrigger value="records">Records</TabsTrigger>
+          <TabsTrigger value="medicines">Medicines</TabsTrigger>
+        </TabsList>
 
-        <TabsContent value="records" className="flex flex-col gap-y-4">
+        <TabsContent value="records" className="mt-0 flex flex-col gap-y-4">
           <PatientMedicalRecords embedded />
         </TabsContent>
 
-        <TabsContent value="medicines" className="flex flex-col gap-y-4">
+        <TabsContent value="medicines" className="mt-0 flex flex-col gap-y-4">
           <PatientPrescriptions embedded />
         </TabsContent>
       </HashTabs>

@@ -526,20 +526,20 @@ export default function SuperAdminSettings() {
         defaultValue="general"
         className="flex flex-col gap-y-6"
       >
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
-          <TabsTrigger value="general" className="flex items-center gap-2">
+        <TabsList>
+          <TabsTrigger value="general">
             <Globe className="size-4" />
             General
           </TabsTrigger>
-          <TabsTrigger value="security" className="flex items-center gap-2">
+          <TabsTrigger value="security">
             <Shield className="size-4" />
             Security
           </TabsTrigger>
-          <TabsTrigger value="notifications" className="flex items-center gap-2">
+          <TabsTrigger value="notifications">
             <Bell className="size-4" />
             Notifications
           </TabsTrigger>
-          <TabsTrigger value="appearance" className="flex items-center gap-2">
+          <TabsTrigger value="appearance">
             <Palette className="size-4" />
             Appearance
           </TabsTrigger>
@@ -751,5 +751,4 @@ export default function SuperAdminSettings() {
     </div>
   );
 }
-
 

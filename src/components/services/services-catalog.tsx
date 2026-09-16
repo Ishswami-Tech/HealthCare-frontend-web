@@ -426,13 +426,13 @@ export function ServicesCatalog({
                   {service.treatments.slice(0, 4).map((treatment) => (
                     <span
                       key={`${service.id}-${treatment}`}
-                      className="px-2 sm:px-3 py-1 sm:py-2 bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary/90 text-xs sm:text-sm rounded-full border border-primary/20 dark:border-primary/30 hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors duration-200"
+                      className="px-2 sm:px-3 py-1 sm:py-2 bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary/90 text-xs sm:text-sm rounded-md border border-primary/20 dark:border-primary/30 hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors duration-200"
                     >
                       {treatment}
                     </span>
                   ))}
                   {service.treatments.length > 4 && (
-                    <span className="px-2 sm:px-3 py-1 sm:py-2 bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary/90 text-xs sm:text-sm rounded-full border border-primary/20 dark:border-primary/30 hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors duration-200">
+                    <span className="px-2 sm:px-3 py-1 sm:py-2 bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary/90 text-xs sm:text-sm rounded-md border border-primary/20 dark:border-primary/30 hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors duration-200">
                       +{service.treatments.length - 4} more
                     </span>
                   )}
@@ -513,7 +513,7 @@ export function ServicesCatalog({
                       {service.treatments.map((treatment) => (
                         <span
                           key={`${service.id}-${treatment}`}
-                          className="px-2 sm:px-3 py-1 sm:py-2 bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary/90 text-xs sm:text-sm rounded-full border border-primary/20 dark:border-primary/30 hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors duration-200"
+                          className="px-2 sm:px-3 py-1 sm:py-2 bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary/90 text-xs sm:text-sm rounded-md border border-primary/20 dark:border-primary/30 hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors duration-200"
                         >
                           {treatment}
                         </span>

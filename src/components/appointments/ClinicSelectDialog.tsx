@@ -172,7 +172,7 @@ const isLoading = clinicsLoading || myClinicLoading || defaultClinicLoading;
                         </div>
                         {loc.isActive && (
                           <div className="mt-3 pl-6 flex items-center gap-2">
-                             <span className="inline-flex items-center gap-1.5 py-0.5 px-2 rounded-full text-xs font-medium bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border border-green-100 dark:border-green-900/30">
+                             <span className="inline-flex items-center gap-1.5 py-0.5 px-2 rounded-md text-xs font-medium bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border border-green-100 dark:border-green-900/30">
                                 <span className="relative flex size-2">
                                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                                   <span className="relative inline-flex rounded-full size-2 bg-green-500"></span>

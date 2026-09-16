@@ -9,6 +9,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { formatDateKeyInIST } from "@/lib/utils/date-time";
 
 // ✅ Note: Notification types may need to be defined in @/types/notifications.types.ts
 // For now, keeping local definitions until notification types are consolidated
@@ -208,8 +209,8 @@ export const useNotificationSelectors = () => {
     
     // Today's notifications
     todayNotifications: store.notifications.filter(n => {
-      const today = new Date().toDateString();
-      const notificationDate = new Date(n.createdAt).toDateString();
+      const today = formatDateKeyInIST(new Date());
+      const notificationDate = formatDateKeyInIST(n.createdAt);
       return today === notificationDate;
     }),
   };

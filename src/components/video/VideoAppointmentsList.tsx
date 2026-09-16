@@ -112,6 +112,7 @@ import {
   normalizeAppointmentStatus,
   getAppointmentServiceLabel,
 } from "@/lib/utils/appointmentUtils";
+import { formatDateKeyInIST } from "@/lib/utils/date-time";
 import {
   getAppointmentViewState,
   getVideoSessionDecision,
@@ -323,13 +324,13 @@ function isWithinJoinWindow(appointment: VideoAppointment | any): boolean {
 
 function parseDateValue(value: string): Date | undefined {
   if (!value) return undefined;
-  const parsed = new Date(`${value}T00:00:00`);
+  const parsed = new Date(`${value}T00:00:00+05:30`);
   return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 }
 
 function toDateString(date?: Date): string {
   if (!date) return "";
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  return formatDateKeyInIST(date);
 }
 
 function formatDateValue(value: string, placeholder: string): string {
@@ -511,7 +512,7 @@ const AppointmentCard = ({
                 <p className="text-[11px] text-muted-foreground mt-0.5">{appointmentDateTime ? formatDateInIST(appointmentDateTime, { month: "short", day: "2-digit" }) : "—"}</p>
              </div>
              <div className="flex items-center gap-2">
-               <span className={cn("inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-0.5 text-[11px] font-semibold shadow-sm", cfg.color)}>
+               <span className={cn("inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-0.5 text-[11px] font-semibold shadow-sm", cfg.color)}>
                  <span className={cn("size-1 sm:w-1.5 sm:h-1.5 rounded-full", cfg.dot)} />
                  {statusLabel}
                </span>
@@ -580,7 +581,7 @@ const AppointmentCard = ({
                   {['scheduled', 'confirmed', 'queued', 'in-progress'].includes(effectiveStatus) && (
                     <>
                       {!paymentCompleted && paymentAmount > 0 && (
-                        <PaymentButton appointmentId={getEffectiveAppointmentId(appointment)} amount={getVideoPaymentAmount(appointment, appointmentServices)} provider="phonepe" appointmentType="VIDEO_CALL" description={serviceLabel} className="h-8 px-3 rounded-xl text-xs font-semibold">
+                        <PaymentButton appointmentId={getEffectiveAppointmentId(appointment)} amount={getVideoPaymentAmount(appointment, appointmentServices)} appointmentType="VIDEO_CALL" description={serviceLabel} className="h-8 px-3 rounded-xl text-xs font-semibold">
                           Pay ₹{formatAmountFromMinorUnits(paymentAmount)}
                         </PaymentButton>
                       )}
@@ -964,8 +965,8 @@ export function VideoAppointmentsList({
   const openCancel = (apt: VideoAppointment) => { setActionAppointment(apt); setIsCancelOpen(true); };
   const openReject = (apt: VideoAppointment) => { setActionAppointment(apt); };
 
-  const parseDateValue = (v: string) => v ? new Date(`${v}T00:00:00`) : undefined;
-  const toDateString = (d?: Date) => d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : "";
+  const parseDateValue = (v: string) => v ? new Date(`${v}T00:00:00+05:30`) : undefined;
+  const toDateString = (d?: Date) => d ? formatDateKeyInIST(d) : "";
   const formatDateValue = (v: string, p: string) => { const d = parseDateValue(v); return d ? formatDateInIST(d, { day: "2-digit", month: "short", year: "numeric" }) : p; };
   const availableRescheduleSlots = useMemo(() => extractAvailabilitySlots(rescheduleAvailability), [rescheduleAvailability]);
   const rescheduleSlotGroups = useMemo(() => groupSlotsByPeriod(availableRescheduleSlots), [availableRescheduleSlots]);
@@ -1122,7 +1123,7 @@ const AppointmentCard = ({
                   <p className="text-[11px] text-muted-foreground mt-0.5">{appointmentDateTime ? formatDateInIST(appointmentDateTime, { month: "short", day: "2-digit" }) : "—"}</p>
                </div>
                <div className="flex items-center gap-2">
-                 <span className={cn("inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-0.5 text-[11px] font-semibold shadow-sm", cfg.color)}>
+                 <span className={cn("inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-0.5 text-[11px] font-semibold shadow-sm", cfg.color)}>
                    <span className={cn("size-1 sm:w-1.5 sm:h-1.5 rounded-full", cfg.dot)} />
                    {statusLabel}
                  </span>
@@ -1191,7 +1192,7 @@ const AppointmentCard = ({
                     {['scheduled', 'confirmed', 'queued', 'in-progress'].includes(effectiveStatus) && (
                       <>
                         {!paymentCompleted && paymentAmount > 0 && (
-                          <PaymentButton appointmentId={getEffectiveAppointmentId(appointment)} amount={getVideoPaymentAmount(appointment, appointmentServices)} provider="phonepe" appointmentType="VIDEO_CALL" description={serviceLabel} className="h-8 px-3 rounded-xl text-xs font-semibold">
+                          <PaymentButton appointmentId={getEffectiveAppointmentId(appointment)} amount={getVideoPaymentAmount(appointment, appointmentServices)} appointmentType="VIDEO_CALL" description={serviceLabel} className="h-8 px-3 rounded-xl text-xs font-semibold">
                             Pay ₹{formatAmountFromMinorUnits(paymentAmount)}
                           </PaymentButton>
                         )}
@@ -1270,9 +1271,9 @@ const AppointmentCard = ({
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
              <Tabs value={filterStatus} onValueChange={setFilterStatus} className="w-full sm:w-auto">
-                <TabsList className="max-w-full overflow-x-auto h-auto p-1 justify-start scrollbar-hide">
+                <TabsList>
                     {VIDEO_STATUS_TABS.map((tab) => (
-                        <TabsTrigger key={tab.value} value={tab.value} className="capitalize shrink-0 text-xs sm:text-sm px-3">
+                        <TabsTrigger key={tab.value} value={tab.value} className="capitalize">
                           {tab.label}
                         </TabsTrigger>
                     ))}
@@ -1406,7 +1407,7 @@ const AppointmentCard = ({
                             <span className="text-[10px] text-muted-foreground">
                               ({period.range})
                             </span>
-                            <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                            <span className="ml-auto rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
                               {period.slots.length} slots
                             </span>
                           </div>
@@ -1486,17 +1487,4 @@ const AppointmentCard = ({
     </ProtectedComponent>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 

@@ -35,6 +35,10 @@ const DashboardShellContext = createContext<boolean>(false);
 const DASHBOARD_ROUTE_TITLES: Record<string, string> = {
   "/clinic-admin/staff": "Staff Directory",
   "/patient/payments": "My Billing & Payments",
+  "/patient/appointments": "Appointments",
+  "/patient/check-in": "Location Check-In",
+  "/patient/health": "Health",
+  "/patient/dashboard": "Home",
 };
 
 interface DashboardLayoutProps {
@@ -250,11 +254,22 @@ export function DashboardLayout({
     });
   }, [resolvedPageTitle, setDashboardMeta, userDisplayData]);
 
+  // Keep SSR and the client's first paint identical for the *outer* shell only.
+  // Nested DashboardLayout (appointments/check-in) must not remount a skeleton
+  // on every soft nav — that made Payments → Appointments feel multi-second.
+  if (!isMounted && !isInsideShell) {
+    return (
+      <div className="bg-background p-4 min-h-screen">
+        <DashboardPageSkeleton />
+      </div>
+    );
+  }
+
   // Auth bootstrap: never tear down the whole shell (sidebar + header) once we
   // already have a session in memory. That flash made soft navigations look
   // like full page refreshes.
   if (!user) {
-    if (isMounted && (!isPending || authBootstrapTimedOut) && redirectTarget) {
+    if ((!isPending || authBootstrapTimedOut) && redirectTarget) {
       return <RouteRedirect target={redirectTarget} />;
     }
 
@@ -328,8 +343,8 @@ export function DashboardLayout({
         >
           <div className="flex flex-col h-full bg-background overflow-hidden text-neutral-900 dark:text-neutral-50">
             <Header className="bg-transparent border-b border-muted transition-none" />
-            <main className="flex-1 overflow-auto">
-              <div className="px-2 pt-4 pb-24 md:px-8 md:pt-8 lg:pb-8 max-w-6xl mx-auto">
+            <main className="flex-1 overflow-auto bg-muted/30">
+              <div className="w-full max-w-[1180px] px-4 pt-5 pb-24 sm:px-6 md:px-8 md:pt-[26px] lg:pb-16">
                 {showPermissionWarnings && title.toLowerCase().includes("appointment") && !appointmentPermissions.canViewAppointments && (
                   <Alert className="mb-4 bg-yellow-50 border-yellow-200">
                     <AlertTriangle className="size-4 text-yellow-600" />

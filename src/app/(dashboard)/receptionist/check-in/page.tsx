@@ -40,8 +40,7 @@ import {
   parseReceptionistAppointmentDateTime,
 } from "@/lib/utils/appointmentUtils";
 import { getAppointmentViewState } from "@/lib/utils/appointmentUtils";
-import { formatDateInIST, formatISODateInIST, formatTimeInIST } from "@/lib/utils/date-time";
-
+import { formatDateInIST, formatISODateInIST, formatTimeInIST, IST_TIMEZONE } from "@/lib/utils/date-time";
 
 interface AppointmentListItem {
   id: string;
@@ -128,7 +127,7 @@ interface CheckInHistoryItem {
 
 const getTodayDateInIst = () =>
   new Date().toLocaleDateString("en-CA", {
-    timeZone: "Asia/Kolkata",
+    timeZone: IST_TIMEZONE,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -236,7 +235,6 @@ function receptionistCheckInReducer(
       return state;
   }
 }
-
 
 export default function ReceptionistCheckInPage() {
   const { session } = useAuth();
@@ -768,11 +766,11 @@ export default function ReceptionistCheckInPage() {
             className="flex flex-col gap-y-3"
           >
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <TabsList className="w-full sm:w-auto">
-                <TabsTrigger value="upcoming" className="min-w-0 flex-1 sm:flex-none">
+              <TabsList>
+                <TabsTrigger value="upcoming">
                   Upcoming
                 </TabsTrigger>
-                <TabsTrigger value="history" className="min-w-0 flex-1 sm:flex-none">
+                <TabsTrigger value="history">
                   <HistoryIcon className="mr-1.5 size-4" />
                   History
                 </TabsTrigger>
@@ -823,7 +821,7 @@ export default function ReceptionistCheckInPage() {
                             <CalendarIcon className="size-4" />
                             <span>{selectedDatesSorted.length > 0 ? "Selected dates" : "Select dates"}</span>
                             {selectedDatesSorted.length > 0 ? (
-                              <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                              <span className="inline-flex min-w-5 items-center justify-center rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground">
                                 {selectedDatesSorted.length}
                               </span>
                             ) : null}
@@ -882,7 +880,7 @@ export default function ReceptionistCheckInPage() {
                           <Badge
                             key={key}
                             variant="secondary"
-                            className="inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs"
+                            className="inline-flex items-center gap-2 rounded-md px-2.5 py-1 text-xs"
                           >
                             <span>{formatDateInIST(date, { day: "2-digit", month: "short", year: "numeric" })}</span>
                             <button
@@ -937,8 +935,4 @@ export default function ReceptionistCheckInPage() {
     </DashboardPageShell>
   );
 }
-
-
-
-
 

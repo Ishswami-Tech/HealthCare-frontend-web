@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  DashboardPageHeader as PatientPageHeader, DashboardPageShell as PatientPageShell, } from "@/components/dashboard/DashboardPageShell";
+  PatientPageHeader,
+  PatientPageShell,
+} from "@/components/patient/PatientPageShell";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select";
 import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -317,14 +319,12 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
         namespace="medicines"
         className="flex flex-col gap-y-6"
       >
-        <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-          <TabsList className="inline-flex w-max min-w-full sm:flex sm:w-full">
-            <TabsTrigger value="prescriptions">Current Prescriptions</TabsTrigger>
-            <TabsTrigger value="plan">Medication Plan</TabsTrigger>
-            <TabsTrigger value="pharmacy">Medicine Queue</TabsTrigger>
-            <TabsTrigger value="history">Prescription History</TabsTrigger>
-          </TabsList>
-        </div>
+        <TabsList>
+          <TabsTrigger value="prescriptions">Current Prescriptions</TabsTrigger>
+          <TabsTrigger value="plan">Medication Plan</TabsTrigger>
+          <TabsTrigger value="pharmacy">Medicine Queue</TabsTrigger>
+          <TabsTrigger value="history">Prescription History</TabsTrigger>
+        </TabsList>
 
         <TabsContent value="prescriptions" className="flex flex-col gap-y-4">
           <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
@@ -490,7 +490,6 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
                           <PaymentButton
                             prescriptionId={prescription.id}
                             amount={prescription.pendingAmount}
-                            provider="phonepe"
                             className="flex-1 sm:flex-initial rounded-xl bg-emerald-600 hover:bg-emerald-700 h-9 sm:h-auto"
                           >
                             <ShoppingCart className="size-4 mr-1" />
@@ -655,7 +654,6 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
                           <PaymentButton
                             prescriptionId={prescription.id}
                             amount={prescription.pendingAmount}
-                            provider="phonepe"
                             className="rounded-xl bg-emerald-600 hover:bg-emerald-700 w-full sm:w-auto h-10 sm:h-auto"
                           >
                             <ShoppingCart className="mr-1 size-4" />
@@ -739,5 +737,4 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
 
   return embedded ? content : <PatientPageShell>{content}</PatientPageShell>;
 }
-
 

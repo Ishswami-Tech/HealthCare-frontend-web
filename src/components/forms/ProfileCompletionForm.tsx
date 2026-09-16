@@ -1351,7 +1351,7 @@ function ProfileCompletionFormContent({
                           </div>
                           {/* Use reducer state for email verification to persist after verification */}
                           {isEmailVerified && (
-                            <div className="inline-flex h-10 items-center justify-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 text-xs font-medium text-emerald-700 sm:h-9 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                            <div className="inline-flex h-10 items-center justify-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-3 text-xs font-medium text-emerald-700 sm:h-9 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
                               <ShieldCheck className="size-3" />
                               <span>Verified</span>
                             </div>
@@ -1396,7 +1396,7 @@ function ProfileCompletionFormContent({
                               {formatPhoneNumber(sessionUser?.phone) ||
                                 "Phone verified"}
                             </span>
-                            <span className="ml-3 inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/50 dark:text-emerald-300">
+                            <span className="ml-3 inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/50 dark:text-emerald-300">
                               <ShieldCheck className="size-3" />
                               Verified
                             </span>
@@ -1417,7 +1417,7 @@ function ProfileCompletionFormContent({
                             />
                           </div>
                           {isPhoneVerified ? (
-                            <div className="inline-flex h-10 items-center justify-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 text-xs font-medium text-emerald-700 sm:h-9 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                            <div className="inline-flex h-10 items-center justify-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-3 text-xs font-medium text-emerald-700 sm:h-9 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
                               <ShieldCheck className="size-3" />
                               <span>Verified</span>
                             </div>

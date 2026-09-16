@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HashTabs } from "@/hooks/navigation/HashTabs";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -25,12 +25,12 @@ import { ErrorState } from "@/components/ui/loading";
 import { Skeleton } from "@/components/ui/loading";
 import { DataExportModal, PasswordChangeModal } from "@/components/patient/PatientModals";
 import {
-  DashboardPageHeader as PatientPageHeader,
-  DashboardPageShell as PatientPageShell,
-} from "@/components/dashboard/DashboardPageShell";
+  PatientPageHeader,
+  PatientPageShell,
+} from "@/components/patient/PatientPageShell";
 import { useEffect } from "react";
 import { useUserProfile, useUpdateUserProfile } from "@/hooks/query/useUsers";
-import { 
+import {
   Activity,
   FileText,
   Pill,
@@ -325,8 +325,8 @@ export default function PatientProfile() {
                         {profileData.personalInfo.firstName.charAt(0)}
                       </span>
                     </div>
-                    <Button 
-                      size="sm" 
+                    <Button
+                      size="sm"
                       className="absolute -bottom-1 -right-1 size-6.5 rounded-full p-0"
                     >
                       <Camera className="size-3" />
@@ -379,16 +379,14 @@ export default function PatientProfile() {
             defaultValue="personal"
             className="flex flex-col gap-y-4"
           >
-            <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-              <TabsList>
-                <TabsTrigger value="personal">Personal</TabsTrigger>
-                <TabsTrigger value="ayurveda">Ayurveda</TabsTrigger>
-                <TabsTrigger value="medical">Medical</TabsTrigger>
-                <TabsTrigger value="lifestyle">Lifestyle</TabsTrigger>
-                <TabsTrigger value="documents">Documents</TabsTrigger>
-                <TabsTrigger value="preferences">Preferences</TabsTrigger>
-              </TabsList>
-            </div>
+            <TabsList>
+              <TabsTrigger value="personal">Personal</TabsTrigger>
+              <TabsTrigger value="ayurveda">Ayurveda</TabsTrigger>
+              <TabsTrigger value="medical">Medical</TabsTrigger>
+              <TabsTrigger value="lifestyle">Lifestyle</TabsTrigger>
+              <TabsTrigger value="documents">Documents</TabsTrigger>
+              <TabsTrigger value="preferences">Preferences</TabsTrigger>
+            </TabsList>
 
             <TabsContent value="personal">
               {showSkeleton ? (
@@ -849,6 +847,4 @@ export default function PatientProfile() {
       </PatientPageShell>
   );
 }
-
-
 
