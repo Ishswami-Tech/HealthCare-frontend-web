@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import type { ComponentType } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -144,6 +145,16 @@ function PatientAppointmentsContent() {
     <DashboardLayout title="Appointments">
       <PatientPageShell>
         <PatientPageHeader
+          illustration={
+            <Image
+              src="/assets/dashboard/appointments-banner.webp"
+              alt=""
+              width={780}
+              height={520}
+              sizes="(max-width: 639px) 96px, (max-width: 1023px) 144px, 240px"
+              className="h-full w-full object-contain"
+            />
+          }
           eyebrow="APPOINTMENTS"
           title="Appointments"
           description="Book a visit, check in, and follow your queue in one place."
@@ -345,5 +356,4 @@ export default function PatientAppointments() {
     </Suspense>
   );
 }
-
 

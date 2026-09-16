@@ -19,6 +19,7 @@ interface DashboardPageHeaderAction {
 }
 
 interface DashboardPageHeaderProps {
+  illustration?: ReactNode;
   eyebrow?: string;
   title: string;
   description: string;
@@ -42,14 +43,15 @@ export function DashboardPageHeader({
   meta,
   actions = EMPTY_ACTIONS,
   actionsSlot,
+  illustration,
 }: DashboardPageHeaderProps) {
   return (
-    <div className="relative overflow-hidden rounded-xl border border-border bg-card shadow-sm sm:rounded-xl">
-      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400" />
+    <div className={cn("relative overflow-hidden rounded-xl border border-border bg-card shadow-sm sm:rounded-xl", illustration && "border-emerald-200/70 bg-linear-to-r from-emerald-50 via-background to-emerald-50/60 dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-emerald-950/20")}>
+      {!illustration && <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400" />}
 
       <div className="relative px-3 pb-4 pt-5 sm:px-6 sm:pb-5 sm:pt-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-          <div className="flex min-w-0 flex-col gap-y-1">
+        <div className={cn("flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4", illustration && "grid grid-cols-[minmax(0,1fr)_96px] items-center sm:grid-cols-[minmax(0,1fr)_144px] sm:items-center lg:flex lg:flex-wrap")}>
+          <div className={cn("flex min-w-0 flex-col gap-y-1", illustration && "lg:flex-1 lg:min-w-72")}>
             <span className="inline-block text-[9px] font-extrabold uppercase tracking-[0.25em] text-primary sm:text-[11px]">
               {eyebrow}
             </span>
@@ -62,8 +64,10 @@ export function DashboardPageHeader({
             {meta ? <div className="flex flex-wrap items-center gap-2 pt-1">{meta}</div> : null}
           </div>
 
+          {illustration ? <div className="pointer-events-none flex h-24 w-24 shrink-0 items-end sm:h-28 sm:w-36 lg:-my-5 lg:h-36 lg:w-60" aria-hidden="true">{illustration}</div> : null}
+
           {actions.length > 0 || actionsSlot ? (
-            <div className="flex w-full flex-wrap items-stretch gap-2 sm:w-auto sm:shrink-0 sm:items-center sm:justify-end sm:pl-4">
+            <div className={cn("flex w-full flex-wrap items-stretch gap-2 sm:w-auto sm:shrink-0 sm:items-center sm:justify-end sm:pl-4", illustration && "col-span-2 sm:w-full sm:pl-0 lg:w-auto lg:pl-4")}>
               {actions.map((action) => {
                 const content = (
                   <>
@@ -106,4 +110,3 @@ export function DashboardPageHeader({
     </div>
   );
 }
-

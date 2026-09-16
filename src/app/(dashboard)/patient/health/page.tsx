@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useMemo } from "react";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { DashboardPageHeader as PatientPageHeader, DashboardPageShell as PatientPageShell } from "@/components/dashboard/DashboardPageShell";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,6 +17,16 @@ function PatientHealthPageContent() {
   return (
     <PatientPageShell className="mx-auto max-w-7xl">
       <PatientPageHeader
+        illustration={
+          <Image
+            src="/assets/dashboard/health-banner.webp"
+            alt=""
+            width={780}
+            height={520}
+            sizes="(max-width: 639px) 96px, (max-width: 1023px) 144px, 240px"
+            className="h-full w-full object-contain"
+          />
+        }
         eyebrow="My Health"
         title="Health"
         description="Your records and medicines in one place."

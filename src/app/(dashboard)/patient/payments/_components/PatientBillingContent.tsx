@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -362,6 +363,16 @@ export function PatientBillingContent({
   return (
     <PatientPageShell className="mx-auto max-w-6xl gap-y-4">
       <DashboardPageHeader
+        illustration={
+          <Image
+            src="/assets/dashboard/payments-banner.webp"
+            alt=""
+            width={780}
+            height={520}
+            sizes="(max-width: 639px) 96px, (max-width: 1023px) 144px, 240px"
+            className="h-full w-full object-contain"
+          />
+        }
         eyebrow="Payments"
         title="My payments"
         description="Review invoices, payments, and subscription plans in one place."

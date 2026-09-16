@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +48,7 @@ import {
   Stethoscope,
   BookOpen,
   Loader2,
+  QrCode,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -59,6 +61,7 @@ import {
 import { usePatientUiStore } from "@/stores/patient-ui.store";
 import { resolveAuthoritativeProfileCompleteFromCandidates } from "@/lib/config/profile";
 import { resolvePatientDisplayName } from "@/lib/utils/display-name";
+import { PatientAppointmentOverview } from "./_components/PatientAppointmentOverview";
 
 export default function PatientDashboard() {
   const { session } = useAuth();
@@ -492,7 +495,7 @@ export default function PatientDashboard() {
   };
 
   return (
-    <PatientPageShell className="mx-auto max-w-7xl">
+    <PatientPageShell className="mx-auto w-full max-w-[1600px]">
           {/* Profile completion banner — only for patients the backend still marks incomplete */}
           {authoritativeProfileComplete !== true && (
             <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
@@ -513,6 +516,7 @@ export default function PatientDashboard() {
             </div>
           )}
           <PatientPageHeader
+            illustration={<Image src="/assets/dashboard/patient-family.webp" alt="" width={360} height={240} className="h-full w-full object-contain object-bottom" sizes="240px" />}
             eyebrow="Patient Dashboard"
             title={`${t("dashboard.welcomeBack")}, ${patientData.personalInfo.name}`}
             description={t("dashboard.overview")}
@@ -532,9 +536,7 @@ export default function PatientDashboard() {
                     });
                   }}
                 >
-                  <div className="flex size-4 items-center justify-center rounded-full border-2 border-current">
-                    <div className="size-1.5 rounded-[1px] bg-current" />
-                  </div>
+                  <QrCode className="size-5" aria-hidden="true" />
                   Scan Check-In
                 </Button>
                 <Button
@@ -548,13 +550,15 @@ export default function PatientDashboard() {
                   {isBookingAppointmentLoading ? (
                     <Loader2 className="size-4 animate-spin" />
                   ) : (
-                    <BookOpen className="size-4" />
+                    <Video className="size-4" />
                   )}
                   {isBookingAppointmentLoading ? "Opening…" : "Book Video Appointment"}
                 </Button>
               </div>
             }
           />
+
+          <PatientAppointmentOverview clinicId={clinicId} />
 
           <Card className="overflow-hidden border border-emerald-200/70 bg-linear-to-br from-emerald-50 via-background to-sky-50 shadow-sm dark:border-emerald-900/40 dark:from-emerald-950/30 dark:via-card dark:to-sky-950/20 p-2.5 sm:p-5">
             <CardContent className="p-0">
@@ -701,7 +705,9 @@ export default function PatientDashboard() {
                       </div>
                     </div>
                   ) : (
-                    <Empty>
+                    <div className="relative grid items-center gap-2 md:grid-cols-[minmax(0,1fr)_220px] xl:grid-cols-[220px_minmax(0,1fr)_260px]">
+                    <div className="hidden xl:block" aria-hidden="true" />
+                    <Empty className="min-h-44 px-3 py-5 md:p-5">
                       <EmptyContent>
                         <EmptyMedia>
                           <Clock className="size-5" />
@@ -712,6 +718,8 @@ export default function PatientDashboard() {
                         </EmptyDescription>
                       </EmptyContent>
                     </Empty>
+                    <Image src="/assets/dashboard/appointment-calendar.webp" alt="" width={390} height={260} className="mx-auto h-36 w-56 object-contain md:h-44 md:w-full" sizes="(min-width: 1280px) 260px, 220px" />
+                    </div>
                   )}
 
                   {/* <div className="rounded-2xl border border-emerald-200/70 bg-white/70 p-3 shadow-sm dark:border-emerald-900/30 dark:bg-card/70">
@@ -820,22 +828,25 @@ export default function PatientDashboard() {
               </div>
 
               <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3 xl:grid-cols-3">
-                <div className="rounded-2xl border border-border bg-card px-3 py-2 shadow-sm">
+                <div className="relative rounded-2xl border border-border bg-card px-4 py-3 pr-16 shadow-sm">
                   <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Medicines</div>
+                  <span className="absolute right-4 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300"><Pill className="size-5" aria-hidden="true" /></span>
                   <div className="mt-1 text-lg font-bold leading-none text-foreground">
                     {patientData.medications.length}
                   </div>
                   <div className="mt-1 text-[11px] text-muted-foreground">Active</div>
                 </div>
-                <div className="rounded-2xl border border-border bg-card px-3 py-2 shadow-sm">
+                <div className="relative rounded-2xl border border-border bg-card px-4 py-3 pr-16 shadow-sm">
                   <div className="text-[10px] font-semibold uppercase tracking-wide text-violet-700 dark:text-violet-300">Vitals</div>
+                  <span className="absolute right-4 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-violet-100 text-violet-600 dark:bg-violet-950 dark:text-violet-300"><Activity className="size-5" aria-hidden="true" /></span>
                   <div className="mt-1 text-lg font-bold leading-none text-foreground">
                     {patientData.vitalStats.lastUpdated}
                   </div>
                   <div className="mt-1 text-[11px] text-muted-foreground">Latest update</div>
                 </div>
-                <div className="rounded-2xl border border-border bg-card px-3 py-2 shadow-sm">
+                <div className="relative rounded-2xl border border-border bg-card px-4 py-3 pr-16 shadow-sm">
                   <div className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">Treatment plan</div>
+                  <span className="absolute right-4 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-300"><FileText className="size-5" aria-hidden="true" /></span>
                   <div className="mt-1 line-clamp-1 text-lg font-bold leading-none text-foreground">
                     {patientData.healthOverview.currentTreatment || "None"}
                   </div>
@@ -1046,6 +1057,5 @@ export default function PatientDashboard() {
     </PatientPageShell>
   );
 }
-
 
 
