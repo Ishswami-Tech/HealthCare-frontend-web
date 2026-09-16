@@ -45,9 +45,11 @@ const nextConfig: NextConfig = {
   /* =====================================================
    * Build Optimization (CI runs type/lint checks)
    * ===================================================== */
+  // @ts-ignore
   typescript: {
     ignoreBuildErrors: true,
   },
+  // @ts-ignore
   eslint: {
     ignoreDuringBuilds: true,
   },
