@@ -51,6 +51,8 @@ const nextConfig: NextConfig = {
    * Experimental (safe + useful)
    * ===================================================== */
   experimental: {
+    // Buffer multipart uploads through the proxy (Next 16 experimental option).
+    proxyClientMaxBodySize: "25mb",
     optimizePackageImports: [
       "@tanstack/react-query",
       "lucide-react",
