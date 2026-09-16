@@ -74,10 +74,16 @@ export interface DoctorReview {
   date: string;
 }
 
-export type SaveProfileMutation = Pick<
-  ReturnType<typeof useUpdateUserProfile>,
-  "isPending" | "mutateAsync"
->;
+export interface SaveProfileMutation {
+  isPending: boolean;
+  mutateAsync: (input: Record<string, unknown>) => Promise<{
+    success: boolean;
+    error?: string | null;
+    message?: string;
+    user?: Record<string, unknown>;
+    profileComplete?: boolean;
+  }>;
+}
 
 export interface DoctorProfileUser {
   firstName?: string | null;

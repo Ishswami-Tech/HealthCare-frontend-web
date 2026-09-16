@@ -388,7 +388,9 @@ export function LoginAuthCard({
                       disabled={isFormDisabled || isRequestingOTP}
                     >
                       {isRequestingOTP
-                        ? "Sending WhatsApp code..."
+                        ? otpMethod === "phone"
+                          ? "Sending WhatsApp code..."
+                          : "Sending email code..."
                         : "Resend OTP"}
                     </Button>
                   </div>
