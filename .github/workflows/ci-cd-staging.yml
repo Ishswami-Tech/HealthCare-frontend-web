@@ -239,6 +239,7 @@ jobs:
             "${COOLIFY_API_URL}/applications/${COOLIFY_APP_UUID}" >/dev/null
 
       - name: Start deployment
+        id: start
         shell: bash
         env:
           COOLIFY_API_URL: ${{ steps.target.outputs.coolify_api_url }}
@@ -247,25 +248,68 @@ jobs:
         run: |
           set -euo pipefail
 
-          curl --fail --silent --show-error \
+          response=$(curl --fail --silent --show-error \
             --request POST \
             --header "Authorization: Bearer ${COOLIFY_API_TOKEN}" \
-            "${COOLIFY_API_URL}/applications/${COOLIFY_APP_UUID}/start?instant_deploy=true&force=true" >/dev/null
+            "${COOLIFY_API_URL}/applications/${COOLIFY_APP_UUID}/start?instant_deploy=true")
+            
+          deployment_uuid=$(echo "${response}" | jq -r '.deployment_uuid // empty')
+          
+          if [[ -n "${deployment_uuid}" && "${deployment_uuid}" != "null" ]]; then
+            echo "deployment_uuid=${deployment_uuid}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "Failed to retrieve deployment UUID. Response: ${response}"
+          fi
 
-      - name: Wait for health check
+      - name: Wait for deployment and health check
         id: health
         continue-on-error: true
         shell: bash
         env:
           HEALTHCHECK_URL: ${{ steps.target.outputs.healthcheck_url }}
+          COOLIFY_API_URL: ${{ steps.target.outputs.coolify_api_url }}
+          COOLIFY_API_TOKEN: ${{ steps.target.outputs.coolify_api_token }}
+          DEPLOYMENT_UUID: ${{ steps.start.outputs.deployment_uuid }}
         run: |
           set -euo pipefail
-
-          sleep 30
 
           timeout_seconds=1800
           interval_seconds=15
           elapsed=0
+          
+          if [[ -n "${DEPLOYMENT_UUID}" ]]; then
+            echo "Waiting for deployment ${DEPLOYMENT_UUID} to finish..."
+            while true; do
+              if (( elapsed >= timeout_seconds )); then
+                echo "Deployment did not finish within ${timeout_seconds} seconds." >&2
+                echo "healthy=false" >> "${GITHUB_OUTPUT}"
+                exit 1
+              fi
+              
+              status=$(curl --silent --show-error \
+                --header "Authorization: Bearer ${COOLIFY_API_TOKEN}" \
+                "${COOLIFY_API_URL}/deployments/${DEPLOYMENT_UUID}" | jq -r '.status // empty')
+                
+              echo "Deployment status: ${status}"
+              
+              if [[ "${status}" == "finished" ]]; then
+                echo "Deployment finished successfully on server."
+                break
+              elif [[ "${status}" == "error" || "${status}" == "failed" || "${status}" == "canceled" ]]; then
+                echo "Deployment failed on server with status: ${status}" >&2
+                echo "healthy=false" >> "${GITHUB_OUTPUT}"
+                exit 1
+              fi
+              
+              sleep "${interval_seconds}"
+              elapsed=$((elapsed + interval_seconds))
+            done
+          else
+            echo "No deployment UUID found, skipping deployment status check."
+            sleep 30
+          fi
+
+          echo "Checking health endpoint..."
           last_status=0
           last_body_file="$(mktemp)"
 
