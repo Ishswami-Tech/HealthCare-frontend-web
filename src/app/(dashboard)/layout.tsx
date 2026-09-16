@@ -8,6 +8,7 @@ import { queryClientConfig } from "@/hooks/query/config";
 import { getAppointmentQueryKey } from "@/lib/query/appointment-query-keys";
 import { getQueueListQueryKey } from "@/lib/queue/queue-cache";
 import { API_ENDPOINTS } from "@/lib/config/config";
+import { formatDateKeyInIST } from "@/lib/utils/date-time";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -63,8 +64,8 @@ async function buildDashboardHydrationState() {
       const appointmentFilters = {
         clinicId,
         doctorId: user.id,
-        startDate: historyStartDate.toISOString().slice(0, 10),
-        endDate: futureEndDate.toISOString().slice(0, 10),
+        startDate: formatDateKeyInIST(historyStartDate),
+        endDate: formatDateKeyInIST(futureEndDate),
         limit: 500,
       };
 
@@ -89,8 +90,8 @@ async function buildDashboardHydrationState() {
       futureEndDate.setDate(futureEndDate.getDate() + 365);
       const appointmentFilters = {
         clinicId,
-        startDate: historyStartDate.toISOString().slice(0, 10),
-        endDate: futureEndDate.toISOString().slice(0, 10),
+        startDate: formatDateKeyInIST(historyStartDate),
+        endDate: formatDateKeyInIST(futureEndDate),
         limit: 200,
       };
 
