@@ -1162,8 +1162,8 @@ export function wasExpiredDueToPaymentFailure(appointment: any): boolean {
   ).toLowerCase();
   const cancelledBy = String(appointment?.cancelledBy || '').toLowerCase();
 
-  if ((cancelledBy === 'system' || cancelledBy === 'auto' || !cancelledBy) &&
-      /payment|expired|timeout|not completed/i.test(reason)) {
+  // Only true if the reason explicitly mentions payment
+  if (/payment|not completed/i.test(reason)) {
     return true;
   }
 
