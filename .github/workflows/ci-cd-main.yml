@@ -276,7 +276,7 @@ jobs:
           curl --fail --silent --show-error \
             --request POST \
             --header "Authorization: Bearer ${COOLIFY_API_TOKEN}" \
-            "${COOLIFY_API_URL}/applications/${COOLIFY_APP_UUID}/start?instant_deploy=true&force=true" >/dev/null
+            "${COOLIFY_API_URL}/applications/${COOLIFY_APP_UUID}/start?instant_deploy=true" >/dev/null
 
       - name: Wait for health check
         id: health
