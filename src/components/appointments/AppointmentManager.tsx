@@ -66,6 +66,7 @@ import {
   getReceptionistAppointmentTimeLabel,
   getAppointmentPaymentAmount,
   wasCancelledDueToPaymentFailure,
+  wasExpiredDueToPaymentFailure,
   isAppointmentTimeSlotExpired,
   toTitleCase,
 } from "@/lib/utils/appointmentUtils";
@@ -498,7 +499,26 @@ function AppointmentCard({
               </div>
             </div>
           ) : isTerminalAppointmentStatus(effectiveStatus) ? (
-            effectiveStatus === "CANCELLED" && wasCancelledDueToPaymentFailure(apt) ? (
+            effectiveStatus === "EXPIRED" && wasExpiredDueToPaymentFailure(apt) ? (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/30 dark:text-amber-200">
+                  <p className="font-semibold">Appointment Expired</p>
+                  <p className="mt-0.5">
+                    This {isVideoAppointment ? "video " : ""}appointment expired because payment was not completed in time.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-10 w-full justify-center sm:w-auto sm:px-5"
+                  onClick={() => onBookNew(apt)}
+                  disabled={cancellingAppointment}
+                >
+                  <RefreshCw className="mr-2 size-4" />
+                  Book New Appointment
+                </Button>
+              </div>
+            ) : effectiveStatus === "CANCELLED" && wasCancelledDueToPaymentFailure(apt) ? (
               isAppointmentTimeSlotExpired(apt) ? (
                 // Expired slot: do NOT show retry payment; the backend will
                 // refuse the charge anyway. Offer "Book New" only.
