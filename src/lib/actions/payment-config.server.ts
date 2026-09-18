@@ -1,6 +1,6 @@
 import { authenticatedApi } from './auth.server';
 
-export type PaymentProvider = 'cashfree' | 'phonepe';
+export type PaymentProvider = 'cashfree' | 'razorpay' | 'phonepe' | 'zoho' | 'easebuzz' | 'paytm' | 'payu';
 
 export type PaymentProviderStatus = {
   provider: string;
