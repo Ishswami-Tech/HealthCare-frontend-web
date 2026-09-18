@@ -1149,6 +1149,27 @@ export function wasCancelledDueToPaymentFailure(appointment: any): boolean {
   return false;
 }
 
+export function wasExpiredDueToPaymentFailure(appointment: any): boolean {
+  if (!appointment || typeof appointment !== 'object') {
+    return false;
+  }
+  const rawStatus = normalizeAppointmentStatus(appointment?.status);
+  if (rawStatus !== 'EXPIRED') {
+    return false;
+  }
+  const reason = String(
+    appointment?.cancellationReason || appointment?.reason || ''
+  ).toLowerCase();
+  const cancelledBy = String(appointment?.cancelledBy || '').toLowerCase();
+
+  // Only true if the reason explicitly mentions payment
+  if (/payment|not completed/i.test(reason)) {
+    return true;
+  }
+
+  return false;
+}
+
 export function getVideoSessionDecision(appointment: any): VideoSessionDecision {
   const viewState = getAppointmentViewState(appointment);
   const status = viewState.normalizedStatus.toUpperCase();
