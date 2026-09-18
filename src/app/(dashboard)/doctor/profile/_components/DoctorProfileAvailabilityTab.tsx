@@ -74,6 +74,13 @@ export function DoctorProfileAvailabilityTab({
               )}
             </div>
           ))}
+          <Button
+            className="self-start"
+            onClick={onSave}
+            disabled={isSaving}
+          >
+            {isSaving ? "Saving…" : "Save availability"}
+          </Button>
         </div>
       </CardContent>
     </Card>

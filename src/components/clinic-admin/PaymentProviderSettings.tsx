@@ -16,27 +16,68 @@ import {
   type PaymentProviderCredentials,
 } from '@/lib/actions/payment-config.server';
 import { showErrorToast, showSuccessToast } from '@/hooks/utils/use-toast';
+import { ENABLED_PAYMENT_PROVIDERS } from '@/lib/payments/providers';
 
 type Props = { clinicId: string; currency: string };
 type ProviderCredentials = Record<PaymentProvider, PaymentProviderCredentials>;
 
-const EMPTY_CREDENTIALS: ProviderCredentials = { cashfree: {}, phonepe: {} };
+const EMPTY_CREDENTIALS: ProviderCredentials = {
+  cashfree: {},
+  razorpay: {},
+  phonepe: {},
+  zoho: {},
+  easebuzz: {},
+  paytm: {},
+  payu: {},
+};
 
-const fields: Record<PaymentProvider, { key: string; label: string; secret?: boolean }[]> = {
+const providerFields: Record<PaymentProvider, { key: string; label: string; secret?: boolean }[]> = {
   cashfree: [
     { key: 'cashfreeAppId', label: 'App ID' },
     { key: 'cashfreeSecretKey', label: 'Secret key', secret: true },
+  ],
+  razorpay: [
+    { key: 'keyId', label: 'Key ID' },
+    { key: 'keySecret', label: 'Key secret', secret: true },
+    { key: 'webhookSecret', label: 'Webhook secret', secret: true },
   ],
   phonepe: [
     { key: 'phonepeClientId', label: 'Client ID' },
     { key: 'phonepeClientSecret', label: 'Client secret', secret: true },
     { key: 'phonepeSalt', label: 'Salt / webhook password', secret: true },
   ],
+  zoho: [
+    { key: 'accountId', label: 'Account ID' },
+    { key: 'accessToken', label: 'Access token', secret: true },
+    { key: 'signingKey', label: 'Signing key', secret: true },
+  ],
+  easebuzz: [
+    { key: 'merchantKey', label: 'Merchant key', secret: true },
+    { key: 'merchantSalt', label: 'Merchant salt', secret: true },
+  ],
+  paytm: [
+    { key: 'merchantId', label: 'Merchant ID' },
+    { key: 'merchantKey', label: 'Merchant key', secret: true },
+    { key: 'website', label: 'Website' },
+    { key: 'industryType', label: 'Industry type' },
+  ],
+  payu: [
+    { key: 'merchantKey', label: 'Merchant key' },
+    { key: 'merchantSalt', label: 'Merchant salt', secret: true },
+    { key: 'clientId', label: 'Client ID' },
+    { key: 'clientSecret', label: 'Client secret', secret: true },
+  ],
 };
 
-function providerLabel(provider: PaymentProvider) {
-  return provider === 'cashfree' ? 'Cashfree' : 'PhonePe';
-}
+const providerLabels: Record<PaymentProvider, string> = {
+  cashfree: 'Cashfree',
+  razorpay: 'Razorpay',
+  phonepe: 'PhonePe',
+  zoho: 'Zoho',
+  easebuzz: 'Easebuzz',
+  paytm: 'Paytm',
+  payu: 'PayU',
+};
 
 export function PaymentProviderSettings({ clinicId, currency }: Props) {
   const [config, setConfig] = useState<ClinicPaymentConfig | null>(null);
@@ -56,7 +97,7 @@ export function PaymentProviderSettings({ clinicId, currency }: Props) {
     getClinicPaymentConfig(clinicId)
       .then((nextConfig) => {
         if (!active || !nextConfig) return;
-        const nextProvider = nextConfig.primary?.provider === 'phonepe' ? 'phonepe' : 'cashfree';
+        const nextProvider = (nextConfig.primary?.provider || ENABLED_PAYMENT_PROVIDERS[0] || 'cashfree') as PaymentProvider;
         setConfig(nextConfig);
         setProvider(nextProvider);
         setEnabled(nextConfig.primary?.enabled ?? true);
@@ -80,7 +121,7 @@ export function PaymentProviderSettings({ clinicId, currency }: Props) {
     try {
       const result = await verifyClinicPaymentProvider(provider, { ...credentials[provider], environment });
       setVerification({ valid: result.valid, message: result.valid ? result.details || 'Credentials look valid.' : result.error || 'Credentials are incomplete.' });
-      if (result.valid) showSuccessToast(`${providerLabel(provider)} credential format validated.`);
+      if (result.valid) showSuccessToast(`${providerLabels[provider]} credential format validated.`);
     } catch (error) {
       showErrorToast(error instanceof Error ? error.message : 'Unable to verify credentials.');
     } finally {
@@ -99,7 +140,7 @@ export function PaymentProviderSettings({ clinicId, currency }: Props) {
       setConfig(nextConfig);
       setCredentials(EMPTY_CREDENTIALS);
       setVerification(null);
-      showSuccessToast(`${providerLabel(provider)} is now the clinic payment provider.`);
+      showSuccessToast(`${providerLabels[provider]} is now the clinic payment provider.`);
     } catch (error) {
       showErrorToast(error instanceof Error ? error.message : 'Unable to save payment configuration.');
     } finally {
@@ -120,7 +161,7 @@ export function PaymentProviderSettings({ clinicId, currency }: Props) {
         {config?.primary ? (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             {configured ? <CheckCircle2 className="size-4 text-emerald-600" /> : <CircleAlert className="size-4 text-amber-600" />}
-            {configured ? `${providerLabel(provider)} credentials are configured.` : 'Credentials are not configured yet.'}
+            {configured ? `${providerLabels[provider]} credentials are configured.` : 'Credentials are not configured yet.'}
           </div>
         ) : null}
       </CardHeader>
@@ -131,15 +172,16 @@ export function PaymentProviderSettings({ clinicId, currency }: Props) {
               <div className="grid gap-2">
                 <Label htmlFor="payment-provider">Active provider</Label>
                 <select id="payment-provider" className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={provider} onChange={(event) => { setProvider(event.target.value as PaymentProvider); setVerification(null); }}>
-                  <option value="cashfree">Cashfree</option>
-                  <option value="phonepe">PhonePe</option>
+                  {ENABLED_PAYMENT_PROVIDERS.map((p) => (
+                    <option key={p} value={p}>{providerLabels[p] || p}</option>
+                  ))}
                 </select>
               </div>
               <div className="grid gap-2"><Label htmlFor="payment-environment">Environment</Label><select id="payment-environment" className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={environment} onChange={(event) => setEnvironment(event.target.value)}><option value="sandbox">Sandbox</option><option value="production">Production</option></select></div>
               <div className="flex h-10 items-center gap-2 rounded-md border border-border bg-background px-3"><Label htmlFor="payment-enabled">Enabled</Label><Switch id="payment-enabled" checked={enabled} onCheckedChange={setEnabled} /></div>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              {fields[provider].map((field) => {
+              {providerFields[provider].map((field) => {
                 const inputId = `payment-${provider}-${field.key}`;
                 const isVisible = visible[inputId];
                 return <div className="grid gap-2" key={field.key}><Label htmlFor={inputId}>{field.label}</Label><div className="relative"><Input id={inputId} className="h-10 pr-10" type={field.secret && !isVisible ? 'password' : 'text'} value={credentials[provider][field.key] || ''} onChange={(event) => setCredential(field.key, event.target.value)} placeholder={configured ? 'Leave blank to keep saved value' : undefined} autoComplete="new-password" />{field.secret ? <button type="button" className="absolute inset-y-0 right-0 px-3 text-muted-foreground" onClick={() => setVisible((current) => ({ ...current, [inputId]: !isVisible }))} aria-label={isVisible ? `Hide ${field.label}` : `Show ${field.label}`}>{isVisible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button> : null}</div></div>;

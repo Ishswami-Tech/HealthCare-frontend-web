@@ -141,7 +141,12 @@ export function useHashTab<T extends string>(
         }
       }
 
-      window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${nextHash}`);
+      // Preserve Next.js internal history state so soft navigations stay fast.
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `${window.location.pathname}${window.location.search}${nextHash}`,
+      );
     },
     [namespace],
   );

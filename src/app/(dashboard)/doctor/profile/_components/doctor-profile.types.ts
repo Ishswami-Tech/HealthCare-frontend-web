@@ -1,3 +1,5 @@
+import type { useUpdateUserProfile } from "@/hooks/query/useUsers";
+
 export interface DoctorProfilePersonalInfo {
   firstName: string;
   lastName: string;

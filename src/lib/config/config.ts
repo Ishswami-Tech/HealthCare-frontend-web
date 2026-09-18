@@ -1080,17 +1080,20 @@ export const API_ENDPOINTS = {
   // },
   
   // Medical Records Endpoints
+  // Served by the EHR controller (@Controller('ehr')), so every path is /ehr-scoped.
+  // CREATE and UPLOAD are the two the backend implements today; the rest are kept
+  // for the legacy client surface and will 404 until the backend adds them.
   MEDICAL_RECORDS: {
-    BASE: '/medical-records',
-    GET_BY_PATIENT: (patientId: string) => `/medical-records/patient/${patientId}`,
-    CREATE: '/medical-records',
-    UPDATE: (recordId: string) => `/medical-records/${recordId}`,
-    DELETE: (recordId: string) => `/medical-records/${recordId}`,
-    GET_BY_ID: (recordId: string) => `/medical-records/${recordId}`,
-    UPLOAD: (recordId: string) => `/medical-records/${recordId}/upload`,
+    BASE: '/ehr/medical-records',
+    GET_BY_PATIENT: (patientId: string) => `/ehr/medical-records/patient/${patientId}`,
+    CREATE: '/ehr/medical-records',
+    UPDATE: (recordId: string) => `/ehr/medical-records/${recordId}`,
+    DELETE: (recordId: string) => `/ehr/medical-records/${recordId}`,
+    GET_BY_ID: (recordId: string) => `/ehr/medical-records/${recordId}`,
+    UPLOAD: (recordId: string) => `/ehr/medical-records/${recordId}/upload`,
     TEMPLATES: {
-      GET: '/medical-records/templates',
-      CREATE: '/medical-records/templates',
+      GET: '/ehr/medical-records/templates',
+      CREATE: '/ehr/medical-records/templates',
     },
   },
   

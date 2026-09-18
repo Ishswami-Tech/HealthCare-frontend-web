@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { load } from "@cashfreepayments/cashfree-js";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import {
@@ -12,7 +11,6 @@ import {
 import { useQueryClient } from "@/hooks/core";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { APP_CONFIG } from "@/lib/config/config";
-import { API_ENDPOINTS } from "@/lib/config/config";
 import {
   DEFAULT_PAYMENT_PROVIDER,
   ENABLED_PAYMENT_PROVIDERS,
@@ -20,7 +18,6 @@ import {
   type PaymentProvider,
 } from "@/lib/payments/providers";
 import { formatAmountFromMinorUnits } from "@/lib/utils";
-import { getClinicId } from "@/lib/utils/token-manager";
 import { syncAppointmentInCache } from "@/lib/utils/appointment-cache";
 import {
   createPaymentIntent as createPaymentIntentServerAction,
@@ -53,6 +50,20 @@ const REDIRECT_PAYMENT_PROVIDERS: PaymentProvider[] = [
 const CASHFREE_LOAD_TIMEOUT_MS = 8000;
 const CASHFREE_CHECKOUT_TIMEOUT_MS = 10000;
 const RAZORPAY_SCRIPT_ID = "razorpay-checkout-script";
+
+type CashfreeCheckoutResult = {
+  error?: { message?: string };
+  redirectUrl?: string;
+  redirect?: boolean;
+};
+
+type CashfreeCheckoutClient = {
+  checkout: (options: {
+    paymentSessionId: string;
+    orderId?: string;
+    redirectTarget?: string;
+  }) => Promise<CashfreeCheckoutResult | void> | CashfreeCheckoutResult | void;
+};
 
 declare global {
   interface Window {
@@ -144,6 +155,21 @@ type PaymentBridgePayload = {
   handoffCallbackUrl?: string;
 };
 
+function isPaymentBridgePayload(
+  value: unknown,
+): value is PaymentBridgePayload {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.clinicId === "string" &&
+    typeof record.amount === "number" &&
+    typeof record.currency === "string"
+  );
+}
+
 function encodeBridgePayload(payload: PaymentBridgePayload): string {
   const bytes = new TextEncoder().encode(JSON.stringify(payload));
   let binary = "";
@@ -220,9 +246,7 @@ export function PaymentButton({
   const { session } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const hasAutoStartedRef = useRef(false);
-  const cashfreeSdkPromiseRef = useRef<Promise<Awaited<
-    ReturnType<typeof load>
-  > | null> | null>(null);
+  const cashfreeSdkPromiseRef = useRef<Promise<CashfreeCheckoutClient | null> | null>(null);
   const userRole = (session?.user?.role || "").toUpperCase();
   const normalizedCandidates = [provider, DEFAULT_PAYMENT_PROVIDER].reduce<
     string[]
@@ -304,7 +328,7 @@ export function PaymentButton({
     if (paymentBridgeUrl) {
       return provider && isPaymentProviderEnabled(provider)
         ? [provider]
-        : [undefined];
+        : [effectiveProvider];
     }
 
     const attempts: PaymentProvider[] = [];
@@ -390,12 +414,15 @@ export function PaymentButton({
       return cashfreeSdkPromiseRef.current;
     }
 
-    cashfreeSdkPromiseRef.current = load({ mode: cashfreeMode }).catch(
-      (error) => {
+    cashfreeSdkPromiseRef.current = import("@cashfreepayments/cashfree-js")
+      .then(async ({ load }) => {
+        const client = await load({ mode: cashfreeMode });
+        return (client as CashfreeCheckoutClient | null) ?? null;
+      })
+      .catch((error) => {
         cashfreeSdkPromiseRef.current = null;
         throw error;
-      },
-    );
+      });
 
     return cashfreeSdkPromiseRef.current;
   };
@@ -412,6 +439,9 @@ export function PaymentButton({
     bridgeBase.pathname = bridgeBase.pathname.replace(/\/+$/u, "");
     if (!bridgeBase.pathname || bridgeBase.pathname === "/") {
       bridgeBase.pathname = "/payments/start";
+    }
+    if (!isPaymentBridgePayload(payload)) {
+      return "";
     }
     const encodedPayload = encodeBridgePayload(payload);
     bridgeBase.searchParams.set("payload", encodedPayload);
@@ -432,15 +462,21 @@ export function PaymentButton({
     ensureBridgePreconnect(bridgeLaunchUrl);
     try {
       window.location.assign(bridgeLaunchUrl);
-
       return true;
     } catch (error) {
-      console.warn("[PaymentButton] Bridge navigation failed", error);
+      console.debug("[PaymentButton] Bridge navigation failed, retrying", {
+        message: error instanceof Error ? error.message : String(error),
+      });
       try {
         window.location.assign(bridgeLaunchUrl);
         return true;
       } catch (fallbackError) {
-        console.warn("[PaymentButton] Bridge fallback navigation failed", fallbackError);
+        console.debug(
+          "[PaymentButton] Bridge fallback navigation failed",
+          {
+            message: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
+          },
+        );
       }
       setIsProcessing(false);
       return false;
@@ -584,7 +620,9 @@ export function PaymentButton({
       return;
     }
     void loadRazorpayScript().catch((err) =>
-      console.warn("[PaymentButton] Razorpay script preload failed", err),
+      console.debug("[PaymentButton] Razorpay script preload failed", {
+        message: err instanceof Error ? err.message : String(err),
+      }),
     );
   };
 
@@ -708,10 +746,8 @@ export function PaymentButton({
   const handleCashfreePayment = async (
     paymentIntent: Record<string, unknown>,
     usedProvider: PaymentProvider,
-    preloadedCashfree?: Awaited<ReturnType<typeof load>> | null,
+    preloadedCashfree?: CashfreeCheckoutClient | null,
   ) => {
-    const paymentMetadata =
-      (paymentIntent?.metadata as Record<string, unknown>) || {};
     const metadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
     const providerResponse =
       (paymentIntent?.providerResponse as Record<string, unknown>) || {};
@@ -733,37 +769,21 @@ export function PaymentButton({
       (metadata?.paymentSessionId as string) ||
       (providerResponse?.payment_session_id as string) ||
       (providerResponse?.paymentSessionId as string);
-    const redirectUrl =
-      (paymentIntent?.redirectUrl as string) ||
-      (metadata?.redirectUrl as string) ||
-      (providerResponseMeta?.payment_link as string) ||
-      (providerResponse?.payment_link as string);
     let resolvedClinicId =
       clinicId ||
       (paymentIntent?.clinicId as string) ||
-      (paymentMetadata?.clinicId as string) ||
-      APP_CONFIG.CLINIC.ID;
-
-    if (!orderId) {
-      throw new Error("Order ID not received from server");
-    }
+      (metadata?.clinicId as string);
 
     if (!resolvedClinicId) {
-      resolvedClinicId = (await getClinicId()) || APP_CONFIG.CLINIC.ID;
+      throw new Error(
+        "Clinic context is required for payment verification",
+      );
     }
 
-    if (!resolvedClinicId) {
-      throw new Error("Clinic context is required for payment verification");
-    }
-
-    console.info("[PaymentButton] Cashfree checkout diagnostics", {
+    console.debug("[PaymentButton] Cashfree checkout started", {
       usedProvider,
-      cashfreeMode,
-      orderId,
       hasPaymentSessionId: Boolean(paymentSessionId),
       hasCheckoutUrl: Boolean(checkoutUrl),
-      hasRedirectUrl: Boolean(redirectUrl),
-      resolvedClinicId,
     });
 
     try {
@@ -798,11 +818,13 @@ export function PaymentButton({
       }
 
       const result = await withTimeout(
-        cashfree.checkout({
-          paymentSessionId,
-          orderId,
-          redirectTarget: "_self",
-        }),
+        Promise.resolve(
+          cashfree.checkout({
+            paymentSessionId,
+            orderId,
+            redirectTarget: "_self",
+          }),
+        ),
         CASHFREE_CHECKOUT_TIMEOUT_MS,
         "Cashfree checkout timed out",
       );
@@ -835,11 +857,9 @@ export function PaymentButton({
 
       console.error("[PaymentButton] Cashfree checkout failed", {
         error: message,
-        orderId,
-        checkoutUrl,
-        redirectUrl,
-        cashfreeMode,
         usedProvider,
+        cashfreeMode,
+        // orderId, checkoutUrl, redirectUrl omitted to avoid logging sensitive payment identifiers
       });
 
       showErrorToast(message, { id: TOAST_IDS.PAYMENT.ERROR });
@@ -951,14 +971,19 @@ export function PaymentButton({
     const metadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
     const providerResponse =
       (paymentIntent?.providerResponse as Record<string, unknown>) || {};
-    const fallbackClinicId =
+    const resolvedClinicId =
+      clinicId ||
       (paymentIntent?.clinicId as string) ||
-      (metadata?.clinicId as string) ||
-      APP_CONFIG.CLINIC.ID;
+      (metadata?.clinicId as string);
 
-    if (
-      launchPaymentBridge(buildBridgePayload(fallbackClinicId, paymentIntent))
-    ) {
+    if (!resolvedClinicId) {
+      throw new Error("Clinic context is required for payment redirect");
+    }
+
+    const bridgeLaunched = launchPaymentBridge(
+      buildBridgePayload(resolvedClinicId, paymentIntent),
+    );
+    if (bridgeLaunched) {
       return;
     }
 
@@ -986,11 +1011,10 @@ export function PaymentButton({
     window.location.assign(redirectUrl);
   };
 
-  const handlePayment = async () => {
+  const handlePayment = async (): Promise<void> => {
     setIsProcessing(true);
     try {
       const providerAttempts = buildProviderAttemptOrder();
-      let lastError: unknown = null;
 
       for (let index = 0; index < providerAttempts.length; index += 1) {
         const attemptedProvider = providerAttempts[index]!;
@@ -1022,16 +1046,11 @@ export function PaymentButton({
           }
           const usedProvider = providerFromIntent as PaymentProvider;
 
-          const paymentMetadata =
-            (paymentIntent?.metadata as Record<string, unknown>) || {};
+          const metadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
           let resolvedClinicId =
             clinicId ||
             (paymentIntent?.clinicId as string) ||
-            (paymentMetadata?.clinicId as string) ||
-            APP_CONFIG.CLINIC.ID;
-          if (!resolvedClinicId) {
-            resolvedClinicId = (await getClinicId()) || APP_CONFIG.CLINIC.ID;
-          }
+            (metadata?.clinicId as string);
           if (!resolvedClinicId) {
             throw new Error(
               "Clinic context is required for payment verification",
@@ -1073,7 +1092,6 @@ export function PaymentButton({
 
           return;
         } catch (error) {
-          lastError = error;
           const message =
             error instanceof Error
               ? error.message
@@ -1090,7 +1108,7 @@ export function PaymentButton({
             throw error;
           }
 
-          console.warn(
+          console.debug(
             "[PaymentButton] Payment provider attempt failed, trying next",
             {
               attemptedProvider,
@@ -1113,10 +1131,6 @@ export function PaymentButton({
   useEffect(() => {
     handlePaymentRef.current = handlePayment;
   });
-
-  useEffect(() => {
-    warmUpPaymentResources();
-  }, [warmUpPaymentResources]);
 
   useEffect(() => {
     if (!appointmentId || !autoStart || disabled || hasAutoStartedRef.current) {

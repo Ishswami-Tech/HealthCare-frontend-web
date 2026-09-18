@@ -85,12 +85,12 @@ export default function DoctorPatientDetailPage() {
           Patient ID: {patientId || "Unavailable"}
         </span>
         {patientRecord.gender ? (
-          <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium">
+          <span className="rounded-md bg-secondary px-2.5 py-1 text-xs font-medium">
             {String(patientRecord.gender)}
           </span>
         ) : null}
         {patientRecord.bloodGroup ? (
-          <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium">
+          <span className="rounded-md bg-secondary px-2.5 py-1 text-xs font-medium">
             {String(patientRecord.bloodGroup)}
           </span>
         ) : null}

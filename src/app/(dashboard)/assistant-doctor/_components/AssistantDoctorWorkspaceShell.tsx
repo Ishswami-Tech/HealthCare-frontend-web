@@ -34,7 +34,7 @@ export function AssistantDoctorWorkspaceShell({
     return (
       <Badge
         variant="outline"
-        className="rounded-full border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700"
+        className="rounded-md border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700"
       >
         {note}
       </Badge>

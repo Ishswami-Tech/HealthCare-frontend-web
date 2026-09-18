@@ -34,7 +34,7 @@ import {
 const DOCTOR_DASHBOARD_META = (
   <Badge
     variant="outline"
-    className="rounded-full border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700"
+    className="rounded-md border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700"
   >
     <Activity className="mr-1 inline-block size-3" />
     Active Shift
