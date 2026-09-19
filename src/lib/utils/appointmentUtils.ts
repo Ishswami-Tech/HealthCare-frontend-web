@@ -86,6 +86,9 @@ export function normalizeAppointmentStatus(value: unknown): string {
       return 'SCHEDULED';
     case 'PAID':
       return 'CONFIRMED';
+    case 'CANCELED':
+    case 'CANCELLED':
+      return 'CANCELLED';
     case 'ACTIVE':
     case 'STARTED':
       return 'IN_PROGRESS';
@@ -888,6 +891,25 @@ function isCancelledLike(status: string): boolean {
 export function isTerminalAppointmentStatus(status: unknown): boolean {
   const normalized = normalizeAppointmentStatus(status);
   return ['COMPLETED', 'CANCELLED', 'NO_SHOW', 'VOID', 'REJECTED', 'EXPIRED'].includes(normalized);
+}
+
+/** Statuses where the backend allows cancellation. CONFIRMED is excluded. */
+export const APPOINTMENT_CANCELABLE_STATUSES = new Set([
+  'PENDING', 'SCHEDULED', 'RESCHEDULED', 'WAITING',
+  'ON_HOLD', 'AWAITING_SLOT_CONFIRMATION', 'FOLLOW_UP_SCHEDULED',
+]);
+
+/** Reschedule is only allowed for CONFIRMED appointments (backend enforces this strictly). */
+export const APPOINTMENT_RESCHEDULABLE_STATUSES = new Set([
+  'CONFIRMED', // includes PAID → CONFIRMED via normalization
+]);
+
+export function canCancelAppointment(status: unknown): boolean {
+  return APPOINTMENT_CANCELABLE_STATUSES.has(normalizeAppointmentStatus(status));
+}
+
+export function canRescheduleAppointment(status: unknown): boolean {
+  return APPOINTMENT_RESCHEDULABLE_STATUSES.has(normalizeAppointmentStatus(status));
 }
 
 export function isTerminalAppointment(appointment: any): boolean {
