@@ -166,6 +166,8 @@ const Logo = memo(function Logo() {
 });
 
 const LogoIcon = memo(function LogoIcon() {
+  const [imageError, setImageError] = useState(false);
+
   return (
     <Link href="/" prefetch={false} className="flex items-center justify-center py-1">
       <BrandMark />
@@ -314,7 +316,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                     // heavy pages (e.g. Payments) by several seconds.
                     handleLinkClick();
                   }}
-                  >
+                >
                   {isLogout ? (
                     <button type="button" className={cn("flex h-full items-center gap-3 w-full text-destructive hover:text-destructive/80", !open && "justify-center")}>
                       <span className="flex size-[18px] shrink-0 items-center justify-center">
@@ -364,14 +366,14 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
             );
           })}
         </SidebarMenu>
-    </SidebarContent>
+      </SidebarContent>
 
       {/* Footer with User Info */}
       <SidebarFooter className="border-t border-sidebar-border p-3">
         <SidebarMenu>
           <SidebarMenuItem>
-              <SidebarMenuButton 
-                asChild 
+            <SidebarMenuButton
+              asChild
               className={cn(
                 "relative h-auto rounded-xl p-2 transition-colors overflow-hidden",
                 isProfileActive ? activeNavClass : "hover:bg-accent",
@@ -405,20 +407,20 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                   </div>
                 )}
                 {open && (
-                <m.div
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  transition={{ duration: 0.2 }}
-                  className="flex flex-col min-w-0 flex-1 text-left"
-                >
+                  <m.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex flex-col min-w-0 flex-1 text-left"
+                  >
                     <span className="truncate text-sm text-sidebar-foreground font-semibold leading-tight">
                       {user.name}
                     </span>
                     <span className="truncate text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
                       {displayRole || t("common.user")}
                     </span>
-                </m.div>
+                  </m.div>
                 )}
               </Link>
             </SidebarMenuButton>

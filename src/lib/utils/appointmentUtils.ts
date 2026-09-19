@@ -86,6 +86,9 @@ export function normalizeAppointmentStatus(value: unknown): string {
       return 'SCHEDULED';
     case 'PAID':
       return 'CONFIRMED';
+    case 'CANCELED':
+    case 'CANCELLED':
+      return 'CANCELLED';
     case 'ACTIVE':
     case 'STARTED':
       return 'IN_PROGRESS';
@@ -890,6 +893,25 @@ export function isTerminalAppointmentStatus(status: unknown): boolean {
   return ['COMPLETED', 'CANCELLED', 'NO_SHOW', 'VOID', 'REJECTED', 'EXPIRED'].includes(normalized);
 }
 
+/** Statuses where the backend allows cancellation. CONFIRMED is excluded. */
+export const APPOINTMENT_CANCELABLE_STATUSES = new Set([
+  'PENDING', 'SCHEDULED', 'RESCHEDULED', 'WAITING',
+  'ON_HOLD', 'AWAITING_SLOT_CONFIRMATION', 'FOLLOW_UP_SCHEDULED',
+]);
+
+/** Reschedule is only allowed for CONFIRMED appointments (backend enforces this strictly). */
+export const APPOINTMENT_RESCHEDULABLE_STATUSES = new Set([
+  'CONFIRMED', // includes PAID → CONFIRMED via normalization
+]);
+
+export function canCancelAppointment(status: unknown): boolean {
+  return APPOINTMENT_CANCELABLE_STATUSES.has(normalizeAppointmentStatus(status));
+}
+
+export function canRescheduleAppointment(status: unknown): boolean {
+  return APPOINTMENT_RESCHEDULABLE_STATUSES.has(normalizeAppointmentStatus(status));
+}
+
 export function isTerminalAppointment(appointment: any): boolean {
   if (!appointment || typeof appointment !== 'object') {
     return false;
@@ -1032,11 +1054,13 @@ export function shouldShowAppointmentOnReceptionDashboard(appointment: any): boo
 /**
  * Convert a name to Title Case for consistent display.
  * Handles null/empty/undefined gracefully.
- * Example: "dr.chandrakumar deshmukh" -> "Dr.Chandrakumar Deshmukh"
+ * Format string to Title Case and fix title spacing.
+ * Example: "dr.chandrakumar deshmukh" -> "Dr. Chandrakumar Deshmukh"
  */
 export function toTitleCase(value: string | undefined | null): string {
   if (!value || typeof value !== 'string') return '';
-  return value
+  const normalized = value.replace(/\b(dr|mr|mrs|ms|prof)\.([a-z])/gi, '$1. $2');
+  return normalized
     .split(/\s+/)
     .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
@@ -1141,6 +1165,27 @@ export function wasCancelledDueToPaymentFailure(appointment: any): boolean {
 
   const paymentStatus = String(getAppointmentPaymentStatus(appointment) || '').toUpperCase();
   if (paymentStatus === 'FAILED' || paymentStatus === 'PENDING' || paymentStatus === 'OVERDUE') {
+    return true;
+  }
+
+  return false;
+}
+
+export function wasExpiredDueToPaymentFailure(appointment: any): boolean {
+  if (!appointment || typeof appointment !== 'object') {
+    return false;
+  }
+  const rawStatus = normalizeAppointmentStatus(appointment?.status);
+  if (rawStatus !== 'EXPIRED') {
+    return false;
+  }
+  const reason = String(
+    appointment?.cancellationReason || appointment?.reason || ''
+  ).toLowerCase();
+  const cancelledBy = String(appointment?.cancelledBy || '').toLowerCase();
+
+  // Only true if the reason explicitly mentions payment
+  if (/payment|not completed/i.test(reason)) {
     return true;
   }
 
