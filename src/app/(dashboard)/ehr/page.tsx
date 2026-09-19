@@ -67,7 +67,6 @@ import {
 
 export default function EHRSystem() {
 
-
   const [searchTerm, setSearchTerm] = useState("");
   const [patientPage, setPatientPage] = useState(1);
   const patientPageSize = 10;
@@ -106,8 +105,6 @@ export default function EHRSystem() {
       enabled: !!clinicId && !!selectedPatientId,
     });
 
-
-
   // Fetch clinic critical alerts
   const { data: criticalAlertsData } = useClinicCriticalAlerts(clinicId || "", {
     resolved: false,
@@ -129,7 +126,6 @@ export default function EHRSystem() {
       limit: 10,
     }
   );
-
 
   // Mutation hooks
   const createMedicalRecordMutation = useCreateMedicalRecord();
@@ -165,7 +161,7 @@ export default function EHRSystem() {
   const handleCreateMedicalRecord = (recordData: any) => {
     if (!selectedPatientId || !patientPermissions.canCreateMedicalRecords)
       return;
-    
+
     createMedicalRecordMutation.mutate({
       patientId: selectedPatientId,
       type: recordData.type,
@@ -180,8 +176,6 @@ export default function EHRSystem() {
       }
     });
   };
-
-
 
   // Transform patients data for display
   const recentPatients =
@@ -203,7 +197,7 @@ export default function EHRSystem() {
     }));
 
   // Use critical alerts from API, fallback to empty array if not available
-  const criticalAlerts = Array.isArray(criticalAlertsData) 
+  const criticalAlerts = Array.isArray(criticalAlertsData)
     ? criticalAlertsData.map((alert: any) => ({
         id: alert.id || `A${String(alert.id || Math.random()).padStart(3, '0')}`,
         patient:
@@ -215,7 +209,7 @@ export default function EHRSystem() {
         type: alert.type || alert.alertType || "Alert",
         message: alert.message || alert.description || "Critical alert requires attention",
         severity: alert.severity || alert.priority || "High",
-        timestamp: alert.createdAt 
+        timestamp: alert.createdAt
           ? formatDateTimeInIST(alert.createdAt)
           : alert.timestamp || "Recently",
       }))
@@ -314,9 +308,6 @@ export default function EHRSystem() {
     [setSelectedPatientId]
   );
 
-
-
-
   // Show loading state
   if (patientsLoading) {
     return (
@@ -356,7 +347,7 @@ export default function EHRSystem() {
   // Show error state
   if (patientsError) {
     return (
-      
+
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <p className="text-red-600">
@@ -367,13 +358,13 @@ export default function EHRSystem() {
             </Button>
           </div>
         </div>
-      
+
     );
   }
 
   return (
     <MedicalRecordsRouteProtection>
-      
+
         <div className="p-6 gap-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -967,10 +958,8 @@ export default function EHRSystem() {
               </TabsContent>
             </HashTabs>
           </div>
-      
+
     </MedicalRecordsRouteProtection>
   );
 }
-
-
 

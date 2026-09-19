@@ -1,4 +1,5 @@
-import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";
+"use client";
+
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { getServerSession } from "@/lib/actions/auth.server";
 import { getUserProfile } from "@/lib/actions/users.server";
@@ -127,11 +128,5 @@ export default async function DashboardRouteLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const dehydratedState = await buildDashboardHydrationState();
-
-  return (
-    <HydrationBoundary state={dehydratedState}>
-      <DashboardLayout>{children}</DashboardLayout>
-    </HydrationBoundary>
-  );
+  return <DashboardLayout>{children}</DashboardLayout>;
 }

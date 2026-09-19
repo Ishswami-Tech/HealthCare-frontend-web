@@ -21,9 +21,9 @@ import { Input } from "@/components/ui/input";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { useMyAppointments } from "@/hooks/query/useAppointments";
 import {
-  DashboardPageHeader as PatientPageHeader,
-  DashboardPageShell as PatientPageShell,
-} from "@/components/dashboard/DashboardPageShell";
+  PatientPageHeader,
+  PatientPageShell,
+} from "@/components/patient/PatientPageShell";
 import {
   showErrorToast,
   showInfoToast,

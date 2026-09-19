@@ -77,7 +77,7 @@ export function DoctorAppointmentsDetailsDialog({
             </div>
 
             <Tabs defaultValue="patient-info" className="flex flex-col gap-y-4">
-              <TabsList className="grid h-auto w-full grid-cols-3 rounded-xl bg-muted p-1">
+              <TabsList>
                 <TabsTrigger value="patient-info">Patient Info</TabsTrigger>
                 <TabsTrigger value="consultation" disabled={selectedAppointmentIsClosed}>
                   Consultation

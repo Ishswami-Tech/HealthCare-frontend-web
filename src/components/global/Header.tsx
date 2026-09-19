@@ -9,8 +9,8 @@ import { MinimalStatusIndicator } from "@/components/common/MinimalStatusIndicat
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useHydrated } from "@/hooks/utils/useHydrated";
-import { useRouter } from "next/navigation";
-import { LogOut, User, Settings } from "lucide-react";
+import { useRouter, usePathname } from "next/navigation";
+import { LogOut, User, Settings, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -48,11 +48,13 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
   const mounted = useHydrated();
   const { logoutAsync } = useAuth();
   const { push } = useRouter();
-  
-  // ─── Zustand Store State ───────────────────────────────────────────────────
+  const pathname = usePathname();
+
   const displayUser = useLayoutStore((state) => state.displayUser);
   const pageTitle = useLayoutStore((state) => state.pageTitle);
   const normalizedRole = displayUser?.role?.toUpperCase().replace(/\s+/g, "_") || "";
+  // Patient pages already have in-page titles — hide the duplicate top label.
+  const showPageTitle = Boolean(pageTitle) && !pathname?.startsWith("/patient");
 
   const handleProfileClick = () => {
     if (displayUser?.role) {
@@ -70,7 +72,6 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
     }
     if (displayUser?.role) {
       const rolePath = displayUser.role.toLowerCase().replace(/_/g, "-");
-      // Some roles might have specific settings, others use shared
       if (["SUPER_ADMIN", "CLINIC_ADMIN"].includes(displayUser.role)) {
         push(`/${rolePath}/settings`);
       } else {
@@ -83,117 +84,132 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
 
   return (
     <LazyMotion features={domAnimation}>
-      <header className={cn(
-        "sticky top-0 z-40 w-full transition-all duration-200 border-b border-border/10 bg-background/80 backdrop-blur-md",
-        className
-      )}>
-      <div className="flex h-12 md:h-14 items-center px-3 md:px-5 gap-3 max-w-6xl mx-auto">
-        {/* Left side content (title, breadcrumbs, etc) */}
-        <div className="flex-1 flex items-center min-w-0">
-          {showSidebarTrigger && (
-            <SidebarTrigger className="-ml-1 mr-1.5 md:hidden shrink-0 size-7" />
-          )}
-          
-          {pageTitle && (
-            <m.h1 
-              key={pageTitle}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="text-sm md:text-base font-semibold tracking-tight text-foreground truncate pl-1 border-l-2 border-primary/50 ml-1"
-            >
-              {pageTitle}
-            </m.h1>
-          )}
-          {children}
-        </div>
-        
-        {/* Right side controls - Client only to prevent hydration issues */}
-        <div className="flex items-center gap-2">
-          {mounted ? (
-            <>
-              {/* 1. Status Indicator */}
-              <div className="hidden lg:flex items-center">
-                <MinimalStatusIndicator />
-              </div>
+      <header
+        className={cn(
+          "sticky top-0 z-40 w-full border-b border-border bg-card",
+          className,
+        )}
+      >
+        <div className="flex h-14 w-full items-center gap-3 px-4 sm:px-6 md:h-16 md:px-8">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            {showSidebarTrigger && (
+              <SidebarTrigger className="-ml-1 size-8 shrink-0 md:hidden" />
+            )}
 
-              <div className="hidden sm:block h-4 w-px bg-border/40 mx-2" />
+            {showPageTitle && (
+              <m.h1
+                key={pageTitle}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="truncate text-sm font-semibold tracking-tight text-foreground md:text-base"
+              >
+                {pageTitle}
+              </m.h1>
+            )}
+            {children}
+          </div>
 
-              {/* 2. Utility Cluster */}
-              <div className="flex items-center gap-1 p-0.5 bg-muted/30 dark:bg-muted/10 rounded-full border border-border/50 backdrop-blur-md shadow-sm">
-                <NotificationBell className="size-7 rounded-full hover:bg-muted/50 transition-colors" />
-                
-                <div className="h-4 w-px bg-border/40 mx-0.5" />
-                
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {mounted ? (
+              <>
+                <div className="hidden items-center lg:flex">
+                  <MinimalStatusIndicator />
+                </div>
+
+                <NotificationBell className="size-9 rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground" />
+
                 <CompactThemeSwitcher />
-                
-                <div className="h-4 w-px bg-border/40 mx-0.5" />
-                
-                <LanguageSwitcher 
-                  variant="compact" 
-                  size="icon" 
-                  showFlag={true} 
+
+                <LanguageSwitcher
+                  variant="compact"
+                  size="icon"
+                  showFlag={true}
                   showLabel={false}
-                  className="size-7 rounded-full hover:bg-muted/50 transition-colors" 
+                  className="size-9 rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                 />
 
-                {/* 3. Profile Dropdown (Connected to Zustand) */}
                 {displayUser && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button
                         type="button"
-                        className={cn(
-                          "relative size-7 rounded-full bg-linear-to-br flex items-center justify-center text-white text-[10px] font-bold ring-2 ring-primary/20 hover:ring-primary/40 transition-all overflow-hidden",
-                          getAvatarGradient(displayUser.initials)
-                        )}
+                        className="flex items-center gap-2.5 rounded-xl border border-border bg-card py-1 pl-1 pr-2 text-left transition-colors hover:bg-accent sm:pr-3"
                       >
-                        {displayUser.avatar ? (
-                          <Image
-                            src={displayUser.avatar}
-                            alt={displayUser.name}
-                            fill
-                            sizes="28px"
-                            className="object-cover"
-                            unoptimized
-                          />
-                        ) : (
-                          <span className="tracking-wide">{displayUser.initials}</span>
-                        )}
+                        <span
+                          className={cn(
+                            "relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-linear-to-br text-[11px] font-bold text-white",
+                            getAvatarGradient(displayUser.initials),
+                          )}
+                        >
+                          {displayUser.avatar ? (
+                            <Image
+                              src={displayUser.avatar}
+                              alt={displayUser.name}
+                              fill
+                              sizes="32px"
+                              className="object-cover"
+                              unoptimized
+                            />
+                          ) : (
+                            <span className="tracking-wide">{displayUser.initials}</span>
+                          )}
+                        </span>
+                        <span className="hidden min-w-0 flex-col leading-tight sm:flex">
+                          <span className="truncate text-[13px] font-semibold text-foreground">
+                            {displayUser.name}
+                          </span>
+                          <span className="truncate text-[11px] capitalize text-muted-foreground">
+                            {displayUser.role.replace(/_/g, " ").toLowerCase()}
+                          </span>
+                        </span>
+                        <ChevronDown className="hidden size-4 shrink-0 text-muted-foreground sm:block" />
                       </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-64 p-2 mt-2 mr-4 rounded-2xl shadow-2xl border border-border" align="end">
-                      <DropdownMenuLabel className="font-normal p-3">
+                    <DropdownMenuContent
+                      className="mt-2 mr-4 w-64 rounded-2xl border border-border p-2 shadow-2xl"
+                      align="end"
+                    >
+                      <DropdownMenuLabel className="p-3 font-normal">
                         <div className="flex flex-col gap-1">
                           <p className="text-sm font-bold leading-none">{displayUser.name}</p>
-                          <p className="text-xs text-muted-foreground truncate">{displayUser.email}</p>
+                          <p className="truncate text-xs text-muted-foreground">{displayUser.email}</p>
                           <div className="mt-2">
-                            <Badge variant="secondary" className="text-[10px] uppercase font-bold tracking-wider px-2 py-0 h-5">
+                            <Badge
+                              variant="secondary"
+                              className="h-5 px-2 py-0 text-[10px] font-bold uppercase tracking-wider"
+                            >
                               {displayUser.role.replace("_", " ")}
                             </Badge>
                           </div>
                         </div>
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator className="opacity-50" />
-                      
-                      <div className="p-1 gap-y-1">
-                        <DropdownMenuItem onClick={handleProfileClick} className="rounded-xl cursor-pointer py-2 focus:bg-primary/5">
+
+                      <div className="gap-y-1 p-1">
+                        <DropdownMenuItem
+                          onClick={handleProfileClick}
+                          className="cursor-pointer rounded-xl py-2 focus:bg-primary/5"
+                        >
                           <User className="mr-3 size-4 text-primary" />
                           <span>{normalizedRole === "PATIENT" ? "Profile" : "My Profile"}</span>
                         </DropdownMenuItem>
                         {normalizedRole !== "PATIENT" && (
-                          <DropdownMenuItem onClick={handleSettingsClick} className="rounded-xl cursor-pointer py-2 focus:bg-primary/5">
+                          <DropdownMenuItem
+                            onClick={handleSettingsClick}
+                            className="cursor-pointer rounded-xl py-2 focus:bg-primary/5"
+                          >
                             <Settings className="mr-3 size-4 text-primary" />
                             <span>Settings</span>
                           </DropdownMenuItem>
                         )}
                       </div>
-                      
+
                       <DropdownMenuSeparator className="opacity-50" />
-                      
+
                       <div className="p-1">
-                        <DropdownMenuItem 
-                          onClick={() => logoutAsync()} 
-                          className="rounded-xl cursor-pointer py-2 text-destructive focus:bg-destructive/5 focus:text-destructive transition-colors"
+                        <DropdownMenuItem
+                          onClick={() => logoutAsync()}
+                          className="cursor-pointer rounded-xl py-2 text-destructive transition-colors focus:bg-destructive/5 focus:text-destructive"
                         >
                           <LogOut className="mr-3 size-4" />
                           <span>Log out</span>
@@ -202,16 +218,13 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
-              </div>
-            </>
-          ) : (
-            <div className="h-10 w-40 bg-muted/50 rounded-full animate-pulse" />
-          )}
+              </>
+            ) : (
+              <div className="h-10 w-40 animate-pulse rounded-xl bg-muted/50" />
+            )}
+          </div>
         </div>
-      </div>
       </header>
     </LazyMotion>
   );
 }
-
-

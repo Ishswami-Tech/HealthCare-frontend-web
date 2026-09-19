@@ -46,7 +46,6 @@ import { Calendar } from "@/components/ui/calendar";
 
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useQueryClient } from "@/hooks/core";
-import { useIsMobile } from "@/hooks/utils";
 import { useDoctors } from "@/hooks/query/useDoctors";
 import {
   usePatients,
@@ -70,6 +69,7 @@ import {
   useActiveLocations,
   useClinicContext,
   useClinicLocations,
+  useCurrentClinic,
   useCurrentClinicId,
   useMyClinic,
 } from "@/hooks/query/useClinics";
@@ -1559,11 +1559,11 @@ function BookAppointmentStep3({
   isClinicClosedDate,
 }: BookAppointmentStep3Props) {
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col justify-start gap-3">
-      <p className="text-sm text-muted-foreground">
+    <div className="flex min-h-0 w-full flex-col gap-3">
+      <p className="shrink-0 text-sm text-muted-foreground">
         Pick your preferred appointment date
       </p>
-      <div className="book-dialog-calendar-container flex flex-1 min-h-0 w-full max-w-full items-start justify-start px-1 sm:px-0">
+      <div className="book-dialog-calendar-container flex w-full max-w-full justify-center px-1 sm:px-0">
         <style dangerouslySetInnerHTML={{ __html: `
           .book-dialog-calendar-container .rdp-week,
           .book-dialog-calendar-container .rdp-weekdays {
@@ -1581,6 +1581,9 @@ function BookAppointmentStep3({
           mode="single"
           selected={selectedDate}
           onSelect={(d) => {
+            if (d && isClinicClosedDate(d)) {
+              return;
+            }
             setSelectedDate(d);
             setSelectedSlot("");
             if (d) {
@@ -1589,7 +1592,14 @@ function BookAppointmentStep3({
           }}
           disabled={(date) => {
             const todayIST = getTodayIST();
-            return date < todayIST || isClinicClosedDate(date);
+            const isPastDate =
+              date.getFullYear() < todayIST.getFullYear() ||
+              (date.getFullYear() === todayIST.getFullYear() &&
+                date.getMonth() < todayIST.getMonth()) ||
+              (date.getFullYear() === todayIST.getFullYear() &&
+                date.getMonth() === todayIST.getMonth() &&
+                date.getDate() < todayIST.getDate());
+            return isPastDate || isClinicClosedDate(date);
           }}
           className="border border-border/50 shadow-sm p-2 sm:p-3 mx-auto w-full max-w-[22rem] [--cell-size:1.875rem] sm:[--cell-size:2.25rem] text-sm [&_.rdp-caption_label]:text-sm [&_.rdp-button]:text-sm"
         />
@@ -1690,7 +1700,7 @@ function BookAppointmentStep4({
                 15 min call within clinic video hours.
               </p>
             </div>
-            <div className="shrink-0 rounded-full bg-primary/12 text-primary px-2.5 py-1 text-[11px] font-bold border border-primary/15">
+            <div className="shrink-0 rounded-md bg-primary/12 text-primary px-2.5 py-1 text-[11px] font-bold border border-primary/15">
               {selectedSlot ? "1/1" : "0/1"}
             </div>
           </div>
@@ -1699,7 +1709,7 @@ function BookAppointmentStep4({
             <div className="flex flex-wrap items-center gap-2">
               <span
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+                  "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-semibold",
                   liveSyncClasses,
                 )}
               >
@@ -1829,7 +1839,7 @@ function BookAppointmentStep4({
                   <span className="text-[10px] text-muted-foreground">
                     ({period.range})
                   </span>
-                  <span className="ml-auto text-[10px] bg-muted px-1.5 py-0.5 rounded-full text-muted-foreground">
+                  <span className="ml-auto text-[10px] bg-muted px-1.5 py-0.5 rounded-md text-muted-foreground">
                     {period.slots.length} slots
                   </span>
                 </div>
@@ -1888,7 +1898,7 @@ function BookAppointmentStep4({
           <div className="flex flex-wrap items-center gap-2">
             <span
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+                "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-semibold",
                 liveSyncClasses,
               )}
             >
@@ -1905,15 +1915,15 @@ function BookAppointmentStep4({
           </div>
         ) : null}
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-md">
             <Clock className="size-3" /> {appointmentDurationMinutes} min per
             slot
           </span>
-          <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full">
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-md">
             20 slots / hour
           </span>
           {selectedSlot ? (
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full">
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-md">
               <CheckCircle className="size-3" /> {selectedSlotLabel}
             </span>
           ) : null}
@@ -1970,7 +1980,7 @@ function BookAppointmentStep4({
                 <span className="text-[10px] text-muted-foreground">
                   ({period.range})
                 </span>
-                <span className="ml-auto text-[10px] bg-muted px-1.5 py-0.5 rounded-full text-muted-foreground">
+                <span className="ml-auto text-[10px] bg-muted px-1.5 py-0.5 rounded-md text-muted-foreground">
                   {period.slots.length} slots
                 </span>
               </div>
@@ -2441,7 +2451,59 @@ const getTodayIST = () => {
   );
 };
 
+/** Next open calendar day on/after `fromDate` using schedule checker (max 21 days). */
+const getNextBookableDateIST = (
+  isUnavailable: (date: Date) => boolean,
+  fromDate: Date = getTodayIST(),
+) => {
+  const next = new Date(
+    fromDate.getFullYear(),
+    fromDate.getMonth(),
+    fromDate.getDate(),
+  );
+  for (let i = 0; i < 21; i += 1) {
+    if (!isUnavailable(next)) {
+      return new Date(next.getFullYear(), next.getMonth(), next.getDate());
+    }
+    next.setDate(next.getDate() + 1);
+  }
+  return new Date(next.getFullYear(), next.getMonth(), next.getDate());
+};
+
 const formatDateIST = (date: Date) => formatISODateInIST(date);
+
+const WEEKDAY_KEYS = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+] as const;
+
+const hasOpenSessionWindows = (dayWindows: unknown): boolean => {
+  if (Array.isArray(dayWindows)) {
+    return dayWindows.some((window) => {
+      if (!window || typeof window !== "object" || Array.isArray(window)) {
+        return false;
+      }
+      const record = window as Record<string, unknown>;
+      const start = typeof record.start === "string" ? record.start.trim() : "";
+      const end = typeof record.end === "string" ? record.end.trim() : "";
+      return !!start && !!end && start < end;
+    });
+  }
+
+  if (dayWindows && typeof dayWindows === "object") {
+    const record = dayWindows as Record<string, unknown>;
+    const start = typeof record.start === "string" ? record.start.trim() : "";
+    const end = typeof record.end === "string" ? record.end.trim() : "";
+    return !!start && !!end && start < end;
+  }
+
+  return false;
+};
 
 const isSubscriptionCurrent = (
   subscription?: {
@@ -2549,12 +2611,11 @@ export function BookAppointmentDialog({
   const patientCheckInRoute = "/patient/check-in";
   const { clinicId: contextClinicId } = useClinicContext();
   const currentClinicId = useCurrentClinicId();
-  const { data: myClinic } = useMyClinic({
-    enabled: userRole !== Role.PATIENT,
-  });
   const clinicFallbackId = APP_CONFIG.CLINIC.ID?.trim() || "";
   const sessionClinicId = session?.user?.clinicId || "";
   const safeContextClinicId = contextClinicId || "";
+  const { data: myClinic } = useMyClinic();
+  const { data: currentClinic } = useCurrentClinic();
   const myClinicId = myClinic?.id?.trim() || "";
 
   const authClinicId =
@@ -3068,7 +3129,6 @@ export function BookAppointmentDialog({
   const [pendingStepNavigation, setPendingStepNavigation] = useState<
     "forward" | "backward" | null
   >(null);
-  const isMobile = useIsMobile();
   const doctorAutoRefreshRef = useRef(false);
   const doctorsRefreshing =
     doctorsLoading || doctorsFetching || isHardRefreshingDoctors;
@@ -3185,6 +3245,38 @@ export function BookAppointmentDialog({
     ],
   );
 
+  const resolvedAppointmentSettings = useMemo(() => {
+    const candidates: Array<unknown> = [
+      (myClinic?.settings as Record<string, unknown> | undefined)?.appointmentSettings,
+      (currentClinic as { settings?: Record<string, unknown> } | null | undefined)
+        ?.settings?.appointmentSettings,
+      (currentClinic as { appointmentSettings?: unknown } | null | undefined)
+        ?.appointmentSettings,
+    ];
+
+    for (const candidate of candidates) {
+      if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
+        return candidate as Record<string, unknown>;
+      }
+    }
+
+    return null;
+  }, [currentClinic, myClinic]);
+
+  if (APP_CONFIG.ENVIRONMENT === "development") {
+    console.log("[BookAppointmentDialog] Schedule settings source:", {
+      hasMyClinicSettings: !!myClinic?.settings,
+      hasCurrentClinicSettings: !!(currentClinic as { settings?: unknown } | null)
+        ?.settings,
+      hasOperatingWindows: !!resolvedAppointmentSettings?.operatingWindowsByDay,
+      operatingDayKeys: resolvedAppointmentSettings?.operatingWindowsByDay
+        ? Object.keys(
+            resolvedAppointmentSettings.operatingWindowsByDay as object,
+          )
+        : [],
+    });
+  }
+
   const clinicVideoCallWindow = useMemo(() => {
     const normalizeWindowTime = (value: unknown): string | null => {
       if (typeof value !== "string") return null;
@@ -3192,20 +3284,11 @@ export function BookAppointmentDialog({
       return /^([01]\d|2[0-3]):([0-5]\d)$/.test(trimmed) ? trimmed : null;
     };
 
-    const clinicSettings = myClinic?.settings as unknown as
-      | Record<string, unknown>
-      | undefined;
-    const appointmentSettings = clinicSettings?.appointmentSettings;
-    if (
-      !appointmentSettings ||
-      typeof appointmentSettings !== "object" ||
-      Array.isArray(appointmentSettings)
-    ) {
+    if (!resolvedAppointmentSettings) {
       return null;
     }
 
-    const windowValue = (appointmentSettings as Record<string, unknown>)
-      .videoCallWindow;
+    const windowValue = resolvedAppointmentSettings.videoCallWindow;
     if (
       !windowValue ||
       typeof windowValue !== "object" ||
@@ -3225,16 +3308,9 @@ export function BookAppointmentDialog({
     }
 
     return { start, end };
-  }, [myClinic]);
+  }, [resolvedAppointmentSettings]);
   const clinicHolidayClosures = useMemo(() => {
-    const clinicSettings =
-      (myClinic?.settings as Record<string, unknown> | undefined) || {};
-    const appointmentSettings = clinicSettings.appointmentSettings;
-    if (
-      !appointmentSettings ||
-      typeof appointmentSettings !== "object" ||
-      Array.isArray(appointmentSettings)
-    ) {
+    if (!resolvedAppointmentSettings) {
       return new Set<string>();
     }
 
@@ -3243,17 +3319,19 @@ export function BookAppointmentDialog({
       if (typeof value !== "string") return;
       const trimmed = value.trim();
       if (!trimmed) return;
+      // Prefer bare YYYY-MM-DD to avoid Safari/Chrome parse drift.
+      const isoMatch = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
+      if (isoMatch?.[1]) {
+        closures.add(isoMatch[1]);
+        return;
+      }
       const normalized = formatISODateInIST(new Date(trimmed));
       if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
         closures.add(normalized);
       }
     };
 
-    const appointmentSettingsRecord = appointmentSettings as Record<
-      string,
-      unknown
-    >;
-    const rawClosures = appointmentSettingsRecord.holidayClosures;
+    const rawClosures = resolvedAppointmentSettings.holidayClosures;
     if (Array.isArray(rawClosures)) {
       rawClosures.forEach((entry) => {
         if (typeof entry === "string") {
@@ -3268,30 +3346,19 @@ export function BookAppointmentDialog({
       });
     }
 
-    const legacyHolidayDates = appointmentSettingsRecord.holidayDates;
+    const legacyHolidayDates = resolvedAppointmentSettings.holidayDates;
     if (Array.isArray(legacyHolidayDates)) {
       legacyHolidayDates.forEach(addDate);
     }
 
     return closures;
-  }, [myClinic]);
+  }, [resolvedAppointmentSettings]);
   const clinicOperatingDays = useMemo(() => {
-    const clinicSettings =
-      (myClinic?.settings as Record<string, unknown> | undefined) || {};
-    const appointmentSettings = clinicSettings.appointmentSettings;
-    if (
-      !appointmentSettings ||
-      typeof appointmentSettings !== "object" ||
-      Array.isArray(appointmentSettings)
-    ) {
+    if (!resolvedAppointmentSettings) {
       return null;
     }
 
-    const appointmentSettingsRecord = appointmentSettings as Record<
-      string,
-      unknown
-    >;
-    const operatingWindows = appointmentSettingsRecord.operatingWindowsByDay;
+    const operatingWindows = resolvedAppointmentSettings.operatingWindowsByDay;
     if (
       !operatingWindows ||
       typeof operatingWindows !== "object" ||
@@ -3301,52 +3368,30 @@ export function BookAppointmentDialog({
     }
 
     return operatingWindows as Record<string, unknown>;
-  }, [myClinic]);
+  }, [resolvedAppointmentSettings]);
   const isClinicClosedDate = useCallback(
     (date: Date) => {
-      const dayKey = [
-        "sunday",
-        "monday",
-        "tuesday",
-        "wednesday",
-        "thursday",
-        "friday",
-        "saturday",
-      ][date.getDay()];
+      const dayKey = WEEKDAY_KEYS[date.getDay()];
       if (!dayKey) {
         return false;
       }
 
+      // Match backend availability: clinic operatingWindowsByDay empty = closed.
       if (clinicOperatingDays) {
-        const dayWindows = clinicOperatingDays[dayKey];
-        const hasOpenWindow = Array.isArray(dayWindows)
-          ? dayWindows.some((window) => {
-              if (
-                !window ||
-                typeof window !== "object" ||
-                Array.isArray(window)
-              ) {
-                return false;
-              }
-
-              const record = window as Record<string, unknown>;
-              const start =
-                typeof record.start === "string" ? record.start.trim() : "";
-              const end =
-                typeof record.end === "string" ? record.end.trim() : "";
-              return !!start && !!end && start < end;
-            })
-          : false;
-
-        if (!hasOpenWindow) {
+        if (!hasOpenSessionWindows(clinicOperatingDays[dayKey])) {
           return true;
         }
       }
 
-      return clinicHolidayClosures.has(formatISODateInIST(date));
+      const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      return (
+        clinicHolidayClosures.has(dateKey) ||
+        clinicHolidayClosures.has(formatISODateInIST(date))
+      );
     },
     [clinicHolidayClosures, clinicOperatingDays],
   );
+
   const isSlotWithinClinicVideoWindow = useCallback(
     (slot: string) => {
       if (consultationMode !== "VIDEO" || !clinicVideoCallWindow) {
@@ -3548,6 +3593,42 @@ export function BookAppointmentDialog({
     () => doctorsList.find((d: any) => d.id === resolvedDoctorId),
     [doctorsList, resolvedDoctorId],
   );
+
+  // Mirror backend availability day resolution: doctor workingHours → clinic windows → holidays.
+  const isBookingDateDisabled = useCallback(
+    (date: Date) => {
+      const dayKey = WEEKDAY_KEYS[date.getDay()];
+      const workingHours = (selectedDoctor as { workingHours?: unknown } | undefined)
+        ?.workingHours;
+
+      if (
+        dayKey &&
+        workingHours &&
+        typeof workingHours === "object" &&
+        !Array.isArray(workingHours) &&
+        Object.prototype.hasOwnProperty.call(workingHours, dayKey)
+      ) {
+        if (!hasOpenSessionWindows((workingHours as Record<string, unknown>)[dayKey])) {
+          return true;
+        }
+      }
+
+      return isClinicClosedDate(date);
+    },
+    [isClinicClosedDate, selectedDoctor],
+  );
+
+  useEffect(() => {
+    if (!selectedDate) return;
+    if (!isBookingDateDisabled(selectedDate)) return;
+    setSelectedDate(getNextBookableDateIST(isBookingDateDisabled, selectedDate));
+    setSelectedSlot("");
+  }, [
+    isBookingDateDisabled,
+    selectedDate,
+    setSelectedDate,
+    setSelectedSlot,
+  ]);
 
   if (APP_CONFIG.ENVIRONMENT === "development") {
     console.log('[BookAppointmentDialog] doctors state:', {
@@ -4359,9 +4440,11 @@ export function BookAppointmentDialog({
       }
 
       const dayOfWeek = selectedDate.getDay();
-      if (dayOfWeek === 0 || dayOfWeek === 6) {
+      if (isBookingDateDisabled(selectedDate)) {
         showErrorToast(
-          "Appointments cannot be booked on weekends. Please select a weekday.",
+          dayOfWeek === 0 || dayOfWeek === 6
+            ? "Appointments cannot be booked on this day. Please select an available date."
+            : "The clinic or doctor is unavailable on this date. Please select another day.",
         );
         return;
       }
@@ -4757,6 +4840,7 @@ export function BookAppointmentDialog({
     selectedService,
     resolvedDoctorId,
     selectedDate,
+    isBookingDateDisabled,
     activeSelectedSlot,
     resolvedBookingPatientId,
     chiefComplaint,
@@ -4814,7 +4898,9 @@ export function BookAppointmentDialog({
     if (currentStepId === "doctor") {
       return !!resolvedDoctorId || doctorsList.length === 1;
     }
-    if (currentStepId === "date") return !!selectedDate;
+    if (currentStepId === "date") {
+      return !!selectedDate && !isBookingDateDisabled(selectedDate);
+    }
     if (currentStepId === "slot") return !!activeSelectedSlot;
     return true;
   }, [
@@ -4824,6 +4910,7 @@ export function BookAppointmentDialog({
     isPrivilegedScheduler,
     locations.length,
     selectedDate,
+    isBookingDateDisabled,
     resolvedDoctorId,
     resolvedLocationId,
     selectedServiceId,
@@ -4977,7 +5064,7 @@ export function BookAppointmentDialog({
               setSelectedDate={setSelectedDate}
               setSelectedSlot={setSelectedSlot}
               goNext={goNext}
-              isClinicClosedDate={isClinicClosedDate}
+              isClinicClosedDate={isBookingDateDisabled}
             />
           </AppointmentStepWrapper>
         );
@@ -5097,7 +5184,7 @@ export function BookAppointmentDialog({
                 {stepTitle}
               </DialogTitle>
               {consultationMode === "VIDEO" && (
-                <span className="inline-flex w-fit items-center rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                <span className="inline-flex w-fit items-center rounded-md border border-amber-300 bg-amber-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
                   Video booking flow
                 </span>
               )}
@@ -5121,11 +5208,13 @@ export function BookAppointmentDialog({
           )}
         </div>
 
-        {/* Content */}
+        {/* Content — keep scrollable on all steps/devices (incl. iOS) */}
         <div
           className={cn(
-            "flex-1 px-3 sm:px-5 py-3 sm:py-4",
-            currentStepId === "date" && isMobile ? "overflow-hidden" : "overflow-y-auto",
+            "min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 py-3 sm:px-5 sm:py-4",
+            "[-webkit-overflow-scrolling:touch] touch-pan-y",
+            // Extra bottom space so calendar/footer content isn't clipped under sticky actions
+            "pb-6 sm:pb-4",
           )}
         >
           <LazyMotion features={domAnimation}>
@@ -5139,7 +5228,7 @@ export function BookAppointmentDialog({
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: stepDirection === "forward" ? -20 : 20 }}
                 transition={{ duration: 0.22, ease: "easeOut" }}
-                className="h-full min-h-0"
+                className="min-h-0"
               >
                 {stepContent}
               </m.div>
@@ -5149,11 +5238,11 @@ export function BookAppointmentDialog({
 
         {/* Footer hide on success screen */}
         {!isSuccessStep && (
-          <div className="px-3 sm:px-6 py-3 sm:py-4 border-t bg-background flex flex-col-reverse gap-2.5 sm:flex-row sm:items-center sm:gap-4 shrink-0">
+          <div className="px-3 sm:px-6 py-3 sm:py-4 border-t bg-background flex flex-row gap-2.5 items-center sm:gap-4 shrink-0">
             <Button
               variant="outline"
               onClick={step > 1 ? goBack : () => handleOpenChange(false)}
-              className="h-11 w-full px-6 rounded-xl border-border/50 transition-all active:scale-95 gap-2 sm:w-auto"
+              className="h-11 flex-auto px-6 rounded-xl border-border/50 transition-all active:scale-95 gap-2 sm:flex-none sm:w-auto"
               disabled={pendingStepNavigation === "backward"}
             >
               {pendingStepNavigation === "backward" ? (
@@ -5169,7 +5258,7 @@ export function BookAppointmentDialog({
               <Button
                 onClick={goNext}
                 disabled={!canNext}
-                className="h-11 w-full px-8 rounded-xl font-semibold bg-primary hover:bg-primary/90 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2 sm:w-auto"
+                className="h-11 flex-auto px-8 rounded-xl font-semibold bg-primary hover:bg-primary/90 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2 sm:flex-none sm:w-auto"
               >
                 {pendingStepNavigation === "forward" ? (
                   <Loader2 className="size-4 animate-spin" />
@@ -5210,7 +5299,7 @@ export function BookAppointmentDialog({
                   <Button
                     onClick={handleBook}
                     disabled={isVideoConfirmDisabled}
-                    className="h-11 w-full px-8 rounded-xl font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2 sm:w-auto"
+                    className="min-h-11 h-auto py-2 whitespace-normal leading-tight flex-auto px-4 sm:px-8 rounded-xl font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2 sm:flex-none sm:w-auto"
                   >
                     {(
                       consultationMode === "VIDEO"

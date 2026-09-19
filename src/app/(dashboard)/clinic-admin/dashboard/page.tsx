@@ -1078,7 +1078,7 @@ export default function ClinicAdminDashboard() {
                       >
                         <button type="button" onClick={() => setActiveQueueLane(section.key)}>
                           <span className="truncate font-semibold">{section.title}</span>
-                          <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
+                          <span className="rounded-md bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
                             {section.items.length}
                           </span>
                         </button>
@@ -1117,7 +1117,7 @@ export default function ClinicAdminDashboard() {
                       {selectedQueueItems.slice(0, 5).map((item: any, idx: number) => (
                         <TableRow key={item.entryId || item.appointmentId || idx} className="border-border/60 transition-colors hover:bg-muted/20">
                           <TableCell className="py-2 font-semibold text-primary">
-                            <span className="inline-flex min-w-9 items-center justify-center rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-700">
+                            <span className="inline-flex min-w-9 items-center justify-center rounded-md bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-700">
                               {item.tokenNumber || item.position || idx + 1}
                             </span>
                           </TableCell>

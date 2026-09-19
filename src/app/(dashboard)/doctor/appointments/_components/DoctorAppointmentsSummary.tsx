@@ -173,7 +173,7 @@ export function DoctorAppointmentsSummary({
                   onClick={() => setAppointmentViewFilter(filter.value)}
                 >
                   <span className="mr-2">{filter.label}</span>
-                  <span className="rounded-full bg-background/80 px-2 py-0.5 text-[11px] font-semibold leading-none text-foreground">
+                  <span className="rounded-md bg-background/80 px-2 py-0.5 text-[11px] font-semibold leading-none text-foreground">
                     {filter.count}
                   </span>
                 </Button>

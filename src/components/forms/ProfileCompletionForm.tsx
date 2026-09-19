@@ -512,8 +512,8 @@ function ProfileCompletionFormContent({
 
   const formatPhoneNumber = (phone: string | undefined | null) => {
     if (!phone) return "";
-    if (phone.startsWith("+")) return phone;
-    const cleaned = phone.replace(/[^\d+]/g, "");
+    const cleaned = phone.trim().replace(/[^\d+]/g, "");
+    if (!cleaned) return "";
     if (cleaned.startsWith("+")) return cleaned;
     if (cleaned.length === 10) return `+91${cleaned}`;
     return `+${cleaned}`;
@@ -779,6 +779,7 @@ function ProfileCompletionFormContent({
     const response = result as {
       success?: boolean;
       error?: string;
+      message?: string;
       profileComplete?: boolean;
       validationErrors?: Array<{
         field: string;
@@ -926,6 +927,7 @@ function ProfileCompletionFormContent({
         type: "server",
         message:
           response?.error ||
+          response?.message ||
           "Profile was saved, but the server could not confirm completion. Please verify your name and phone number, then try again.",
       });
       isSubmittingRef.current = false;
@@ -985,14 +987,15 @@ function ProfileCompletionFormContent({
       // For email OTP / Google login, include verified email from session
       // For other login methods, include fields as filled in the form
       const emailWasEdited = Boolean(dirtyFields.email);
-      const phoneWasEdited = Boolean(dirtyFields.phone);
       let resolvedPhone: string | undefined;
       if (isPhoneOtpLogin) {
         // Phone is already verified by backend, use session phone
         resolvedPhone = formatPhoneNumber(sessionUser?.phone) || undefined;
-      } else if (data.phone?.trim() && isPhoneVerified && phoneWasEdited) {
-        // For other login methods, include phone only if user has verified it
+      } else if (data.phone?.trim() && isPhoneVerified) {
+        // Always send verified phone so backend completion can confirm against DB
         resolvedPhone = formatPhoneNumber(data.phone);
+      } else if (isPhoneVerified && sessionUser?.phone) {
+        resolvedPhone = formatPhoneNumber(sessionUser.phone) || undefined;
       }
 
       // Email is optional for phone OTP users and comes from the login/session
@@ -1348,7 +1351,7 @@ function ProfileCompletionFormContent({
                           </div>
                           {/* Use reducer state for email verification to persist after verification */}
                           {isEmailVerified && (
-                            <div className="inline-flex h-10 items-center justify-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 text-xs font-medium text-emerald-700 sm:h-9 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                            <div className="inline-flex h-10 items-center justify-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-3 text-xs font-medium text-emerald-700 sm:h-9 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
                               <ShieldCheck className="size-3" />
                               <span>Verified</span>
                             </div>
@@ -1393,7 +1396,7 @@ function ProfileCompletionFormContent({
                               {formatPhoneNumber(sessionUser?.phone) ||
                                 "Phone verified"}
                             </span>
-                            <span className="ml-3 inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/50 dark:text-emerald-300">
+                            <span className="ml-3 inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/50 dark:text-emerald-300">
                               <ShieldCheck className="size-3" />
                               Verified
                             </span>
@@ -1414,7 +1417,7 @@ function ProfileCompletionFormContent({
                             />
                           </div>
                           {isPhoneVerified ? (
-                            <div className="inline-flex h-10 items-center justify-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 text-xs font-medium text-emerald-700 sm:h-9 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                            <div className="inline-flex h-10 items-center justify-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-3 text-xs font-medium text-emerald-700 sm:h-9 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
                               <ShieldCheck className="size-3" />
                               <span>Verified</span>
                             </div>

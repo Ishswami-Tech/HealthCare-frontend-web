@@ -255,9 +255,8 @@ export default function AnalyticsDashboard() {
     );
   };
 
-
   return (
-    
+
       <div className="flex flex-col gap-y-6 p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -1173,9 +1172,7 @@ export default function AnalyticsDashboard() {
             </>
           )}
         </div>
-    
+
   );
 }
-
-
 

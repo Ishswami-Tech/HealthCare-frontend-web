@@ -454,8 +454,8 @@ function matchesQueueSection(item: QueueDisplayItem, section: string): boolean {
   }
 
   // Fallback match: if section name is contained in any of the tokens
-  return tokens.some((token) => 
-    token === normalizedSection || 
+  return tokens.some((token) =>
+    token === normalizedSection ||
     token.includes(normalizedSection) ||
     normalizedSection.includes(token) && token.length > 3
   );
@@ -588,7 +588,6 @@ export default function QueuePage() {
     return normalize((doctorsData as any)?.doctors || []);
   }, [doctorsData]);
 
-
   const rawQueueEntries = useMemo(() => extractQueueDisplayItems(queueData), [queueData]);
 
   const queueEntries = rawQueueEntries.filter(
@@ -718,7 +717,7 @@ export default function QueuePage() {
 
   const handleBulkCleanup = async () => {
     if (staleEntries.length === 0) return;
-    
+
     setIsCleaningUp(true);
     try {
       const ids = staleEntries.map(e => e.id);
@@ -731,8 +730,6 @@ export default function QueuePage() {
       setIsCleaningUp(false);
     }
   };
-
-
 
   const queueStatsSummary = useMemo(() => {
     const useApiQueueStats =
@@ -1206,8 +1203,8 @@ export default function QueuePage() {
               </p>
             </div>
           </div>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
             onClick={handleBulkCleanup}
             disabled={isCleaningUp}
@@ -1246,7 +1243,7 @@ export default function QueuePage() {
               >
                 <button type="button" onClick={() => setActiveTreatmentFilter(normalizedOption)}>
                   <span className="truncate">{option.label}</span>
-                  <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
+                  <span className="rounded-md bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
                     {getTreatmentFilterCount(option.value)}
                   </span>
                 </button>
@@ -1333,20 +1330,11 @@ export default function QueuePage() {
         onValueChange={setActiveQueue}
         className="gap-y-5"
       >
-        <TabsList className="flex h-auto flex-wrap gap-1.5 bg-transparent p-0">
+        <TabsList>
           {activeQueueTabs.map((tab) => (
-            <TabsTrigger
-              key={tab.key}
-              value={tab.key}
-              className="gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-sm font-medium data-[state=active]:bg-emerald-600 data-[state=active]:text-white"
-            >
+            <TabsTrigger key={tab.key} value={tab.key}>
               <span>{tab.label}</span>
-              <Badge
-                variant="outline"
-                className="h-5 rounded-full border-transparent bg-muted/70 px-1.5 text-xs text-muted-foreground data-[state=active]:bg-white/20 data-[state=active]:text-white"
-              >
-                {tab.count}
-              </Badge>
+              <TabsCount>{tab.count}</TabsCount>
             </TabsTrigger>
           ))}
         </TabsList>
@@ -1382,7 +1370,7 @@ export default function QueuePage() {
                   >
                     <button type="button" onClick={() => setActiveConsultationLane(section.key)}>
                       <span className="truncate">{section.title}</span>
-                      <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
+                      <span className="rounded-md bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
                         {section.items.length}
                       </span>
                     </button>
@@ -1437,7 +1425,7 @@ export default function QueuePage() {
                   >
                     <button type="button" onClick={() => setActiveTherapyLane(section.key)}>
                       <span className="truncate">{section.title}</span>
-                      <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
+                      <span className="rounded-md bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
                         {section.items.length}
                       </span>
                     </button>
@@ -1667,9 +1655,4 @@ export default function QueuePage() {
     </DashboardPageShell>
   );
 }
-
-
-
-
-
 

@@ -1,9 +1,7 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { DashboardPageSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useActiveSubscription,
@@ -16,17 +14,10 @@ import {
 import { useCurrentClinicId } from "@/hooks/query/useClinics";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import type { BillingPlan, Subscription } from "@/types/billing.types";
-
-const PatientBillingContent = dynamic(
-  () => import("./_components/PatientBillingContent").then((module) => module.PatientBillingContent),
-  {
-    ssr: false,
-    loading: () => <DashboardPageSkeleton />,
-  }
-);
+import { PatientBillingContent } from "./_components/PatientBillingContent";
 
 export default function PatientBillingPage() {
-  const { session, refreshSession, isPending: isSessionPending } = useAuth();
+  const { session } = useAuth();
   const searchParams = useSearchParams();
   const currentClinicId = useCurrentClinicId();
   const clinicId = session?.user?.clinicId || currentClinicId || "";
@@ -40,8 +31,6 @@ export default function PatientBillingPage() {
   } | null>(null);
   const [showSubscriptionHistory, setShowSubscriptionHistory] = useState(false);
   const [subscribeError, setSubscribeError] = useState("");
-  const refreshInFlightRef = useRef(false);
-  const lastRefreshedScopeRef = useRef<string>("");
 
   useWebSocketQuerySync();
 
@@ -79,90 +68,16 @@ export default function PatientBillingPage() {
     refetch: refetchFallbackPlans,
   } = useBillingPlans(undefined, !clinicId);
   const createSubscriptionMutation = useCreateSubscription();
-  const refreshAndRefetchBillingData = useCallback(async () => {
-    if (refreshInFlightRef.current) {
-      return;
-    }
 
-    const scopeKey = [session?.user?.id || "", session?.user?.clinicId || currentClinicId || ""].join("|");
-    if (scopeKey && lastRefreshedScopeRef.current === scopeKey) {
-      await Promise.allSettled([
-        refetchInvoices(),
-        refetchPayments(),
-        refetchSubscriptions(),
-        refetchActiveSubscription(),
-        clinicId ? refetchClinicPlans() : refetchFallbackPlans(),
-      ]);
-      return;
-    }
-
-    refreshInFlightRef.current = true;
-    try {
-      const resolvedSession = session?.user?.id ? session : await refreshSession(true);
-      const resolvedUserId = resolvedSession?.user?.id || "";
-      const resolvedClinicId = resolvedSession?.user?.clinicId || currentClinicId || "";
-
-      if (!resolvedUserId) {
-        return;
-      }
-
-      lastRefreshedScopeRef.current = [resolvedUserId, resolvedClinicId].join("|");
-
-      await Promise.allSettled([
-        refetchInvoices(),
-        refetchPayments(),
-        refetchSubscriptions(),
-        refetchActiveSubscription(),
-        resolvedClinicId ? refetchClinicPlans() : refetchFallbackPlans(),
-      ]);
-    } finally {
-      refreshInFlightRef.current = false;
-    }
-  }, [
-    clinicId,
-    currentClinicId,
-    refetchActiveSubscription,
-    refetchClinicPlans,
-    refetchFallbackPlans,
-    refetchInvoices,
-    refetchPayments,
-    refetchSubscriptions,
-    refreshSession,
-    session,
-  ]);
-
-  useEffect(() => {
-    if (!session?.user?.id && !isSessionPending) {
-      void refreshSession(true);
-      return;
-    }
-
-    if (session?.user?.id) {
-      void refreshAndRefetchBillingData();
-    }
-  }, [isSessionPending, refreshAndRefetchBillingData, refreshSession, session?.user?.id]);
-
-  useEffect(() => {
-    const handlePageShow = (event: PageTransitionEvent) => {
-      if (event.persisted) {
-        void refreshAndRefetchBillingData();
-      }
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        void refreshAndRefetchBillingData();
-      }
-    };
-
-    window.addEventListener("pageshow", handlePageShow);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      window.removeEventListener("pageshow", handlePageShow);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [refreshAndRefetchBillingData]);
+  const refetchAllBillingData = () => {
+    void Promise.allSettled([
+      refetchInvoices(),
+      refetchPayments(),
+      refetchSubscriptions(),
+      refetchActiveSubscription(),
+      clinicId ? refetchClinicPlans() : refetchFallbackPlans(),
+    ]);
+  };
 
   const handleCreateSubscription = async (plan: BillingPlan) => {
     setSubscribeError("");
@@ -229,7 +144,7 @@ export default function PatientBillingPage() {
               : ""
       }
       createSubscriptionPending={createSubscriptionMutation.isPending}
-      onRefetchAllBillingData={() => void refreshAndRefetchBillingData()}
+      onRefetchAllBillingData={refetchAllBillingData}
       onOpenPlansTab={() => document.getElementById("patient-billing-plans-trigger")?.click()}
       onSetPlanToConfirm={setPlanToConfirm}
       onSetPendingSubscriptionPayment={setPendingSubscriptionPayment}

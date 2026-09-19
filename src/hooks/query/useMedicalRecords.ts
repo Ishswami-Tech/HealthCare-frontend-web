@@ -834,7 +834,8 @@ export const useMedicalRecord = (recordId: string) => {
 /**
  * Hook to create medical record
  */
-export const useCreateMedicalRecord = () => {
+export const useCreateMedicalRecord = (options?: { silent?: boolean }) => {
+  const silent = options?.silent === true;
   return useMutationOperation(
     async (recordData: {
       patientId: string;
@@ -852,6 +853,10 @@ export const useCreateMedicalRecord = () => {
       loadingMessage: 'Creating medical record...',
       successMessage: 'Medical record created successfully',
       invalidateQueries: [['medicalRecords'], ['ehr'], ['ehrClinic'], ['prescriptions']],
+      // Silent mode is for multi-step flows (create record, then attach the file)
+      // where the caller reports one result instead of a toast per step.
+      showToast: !silent,
+      showLoading: !silent,
     }
   );
 };
@@ -900,7 +905,8 @@ export const useDeleteMedicalRecord = () => {
 /**
  * Hook to upload medical record file
  */
-export const useUploadMedicalRecordFile = () => {
+export const useUploadMedicalRecordFile = (options?: { silent?: boolean }) => {
+  const silent = options?.silent === true;
   return useMutationOperation(
     async ({ recordId, file }: {
       recordId: string;
@@ -913,6 +919,8 @@ export const useUploadMedicalRecordFile = () => {
       loadingMessage: 'Uploading medical record file...',
       successMessage: 'Medical record file uploaded successfully',
       invalidateQueries: [['medicalRecords'], ['ehr'], ['ehrClinic'], ['prescriptions']],
+      showToast: !silent,
+      showLoading: !silent,
     }
   );
 };
