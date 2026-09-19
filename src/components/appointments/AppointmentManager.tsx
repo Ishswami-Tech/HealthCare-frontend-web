@@ -68,6 +68,8 @@ import {
   wasCancelledDueToPaymentFailure,
   wasExpiredDueToPaymentFailure,
   isAppointmentTimeSlotExpired,
+  canCancelAppointment,
+  canRescheduleAppointment,
   toTitleCase,
 } from "@/lib/utils/appointmentUtils";
 import {
@@ -679,7 +681,10 @@ function AppointmentCard({
                       variant="outline"
                       className="h-10 w-full justify-center"
                       onClick={() => onReschedule(apt)}
-                      disabled={cancellingAppointment}
+                      disabled={
+                        cancellingAppointment ||
+                        !canRescheduleAppointment(effectiveStatus)
+                      }
                     >
                       Reschedule
                     </Button>
@@ -688,7 +693,10 @@ function AppointmentCard({
                       size="sm"
                       className="h-10 w-full justify-center border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-950/50"
                       onClick={() => onCancelAppointment(apt.id)}
-                      disabled={cancellingAppointment}
+                      disabled={
+                        cancellingAppointment ||
+                        !canCancelAppointment(effectiveStatus)
+                      }
                     >
                       <X className="mr-2 size-4" />
                       Cancel Appointment
