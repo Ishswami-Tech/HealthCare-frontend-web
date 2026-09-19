@@ -66,7 +66,10 @@ import {
   getReceptionistAppointmentTimeLabel,
   getAppointmentPaymentAmount,
   wasCancelledDueToPaymentFailure,
+  wasExpiredDueToPaymentFailure,
   isAppointmentTimeSlotExpired,
+  canCancelAppointment,
+  canRescheduleAppointment,
   toTitleCase,
 } from "@/lib/utils/appointmentUtils";
 import {
@@ -498,7 +501,45 @@ function AppointmentCard({
               </div>
             </div>
           ) : isTerminalAppointmentStatus(effectiveStatus) ? (
-            effectiveStatus === "CANCELLED" && wasCancelledDueToPaymentFailure(apt) ? (
+            effectiveStatus === "EXPIRED" && wasExpiredDueToPaymentFailure(apt) ? (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/30 dark:text-amber-200">
+                  <p className="font-semibold">Appointment Expired</p>
+                  <p className="mt-0.5">
+                    This appointment expired because payment was not completed within the 15-minute window.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-10 w-full justify-center sm:w-auto sm:px-5"
+                  onClick={() => onBookNew(apt)}
+                  disabled={cancellingAppointment}
+                >
+                  <RefreshCw className="mr-2 size-4" />
+                  Book New Appointment
+                </Button>
+              </div>
+            ) : effectiveStatus === "EXPIRED" ? (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/30 dark:text-amber-200">
+                  <p className="font-semibold">Appointment Expired</p>
+                  <p className="mt-0.5">
+                    This appointment expired because the time slot has passed. Please book a new appointment.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-10 w-full justify-center sm:w-auto sm:px-5"
+                  onClick={() => onBookNew(apt)}
+                  disabled={cancellingAppointment}
+                >
+                  <RefreshCw className="mr-2 size-4" />
+                  Book New Appointment
+                </Button>
+              </div>
+            ) : effectiveStatus === "CANCELLED" && wasCancelledDueToPaymentFailure(apt) ? (
               isAppointmentTimeSlotExpired(apt) ? (
                 // Expired slot: do NOT show retry payment; the backend will
                 // refuse the charge anyway. Offer "Book New" only.
@@ -564,7 +605,7 @@ function AppointmentCard({
                     : effectiveStatus === "NO_SHOW"
                       ? "Marked as no-show. Book a new appointment if you still need care."
                       : effectiveStatus === "EXPIRED"
-                        ? "This appointment expired because nobody joined in time. Please book a new appointment."
+                        ? "This appointment expired because the appointment time has passed. Please book a new appointment."
                         : "No further actions available for this appointment."}
               </p>
             )
@@ -640,7 +681,10 @@ function AppointmentCard({
                       variant="outline"
                       className="h-10 w-full justify-center"
                       onClick={() => onReschedule(apt)}
-                      disabled={cancellingAppointment}
+                      disabled={
+                        cancellingAppointment ||
+                        !canRescheduleAppointment(effectiveStatus)
+                      }
                     >
                       Reschedule
                     </Button>
@@ -649,7 +693,10 @@ function AppointmentCard({
                       size="sm"
                       className="h-10 w-full justify-center border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-950/50"
                       onClick={() => onCancelAppointment(apt.id)}
-                      disabled={cancellingAppointment}
+                      disabled={
+                        cancellingAppointment ||
+                        !canCancelAppointment(effectiveStatus)
+                      }
                     >
                       <X className="mr-2 size-4" />
                       Cancel Appointment
