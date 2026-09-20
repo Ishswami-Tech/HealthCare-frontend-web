@@ -47,7 +47,7 @@ const features = [
 
 export function AuthLeftPanel() {
   return (
-    <section className="relative z-10 hidden h-screen min-h-0 overflow-hidden lg:flex lg:w-[71.5%] flex-col px-[3.15vw] py-[2.35vh] text-[#132238] dark:text-slate-100 transition-colors duration-300">
+    <section className="auth-desktop-panel relative z-10 hidden h-screen min-h-0 overflow-hidden lg:flex lg:w-[71.5%] flex-col px-[3.15vw] py-[2.35vh] text-[#132238] dark:text-slate-100 transition-colors duration-300">
       <div
         role="img"
         aria-label="Dr. Chandrakumar Deshmukh in an Ayurvedic forest setting"

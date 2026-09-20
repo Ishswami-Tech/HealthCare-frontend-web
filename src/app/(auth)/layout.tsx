@@ -101,7 +101,7 @@ export default function AuthLayout({
 
       {/* Right side - Auth forms */}
       <div className="auth-mobile-login-form relative z-20 mt-0 flex min-h-0 flex-1 flex-col justify-start overflow-visible px-5 pt-0 sm:px-6 lg:mt-0 lg:h-screen lg:justify-center lg:px-[1.65vw] lg:py-3">
-        <div className="auth-mobile-login-scale mx-auto flex min-h-0 w-full max-w-[588px] origin-top flex-col justify-center transition-transform duration-200 lg:w-[calc(100%+88px)] lg:flex-1 lg:origin-center lg:-translate-x-[7vw] [@media(max-height:900px)]:scale-[.95] [@media(max-height:800px)]:scale-[.88] [@media(max-height:720px)]:scale-[.80]">
+        <div className="auth-mobile-login-scale mx-auto flex min-h-0 w-full max-w-[588px] origin-top flex-col justify-center transition-transform duration-200 lg:w-[calc(100%+88px)] lg:flex-1 lg:origin-center [@media(min-width:1367px)_and_(max-height:900px)]:scale-[.95] [@media(min-width:1367px)_and_(max-height:800px)]:scale-[.88] [@media(min-width:1367px)_and_(max-height:720px)]:scale-[.80]">
           {children}
           <StatusFooter className="mt-3 shrink-0 justify-center py-0 lg:py-1" />
         </div>
