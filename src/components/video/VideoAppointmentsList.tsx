@@ -71,6 +71,10 @@ import {
   CheckCircle,
   FileText,
   ArrowRight,
+  CalendarIcon,
+  Sun,
+  CloudSun,
+  Moon,
 } from "lucide-react";
 import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { useAuth } from "@/hooks/auth/useAuth";
@@ -1344,94 +1348,94 @@ const AppointmentCard = ({
         </div>
 
         <Dialog open={isRescheduleOpen} onOpenChange={setIsRescheduleOpen}>
-          <DialogContent className="rounded-xl p-6">
+          <DialogContent className="rounded-xl p-6 max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Modify Schedule</DialogTitle>
-              <DialogDescription>Select a new session date and pick from the available time slots.</DialogDescription>
+              <DialogTitle>Reschedule Session</DialogTitle>
+              <DialogDescription>Select a new date and time for your video consultation.</DialogDescription>
             </DialogHeader>
-            <div className="flex flex-col gap-y-3.5 py-3.5">
+            <div className="flex flex-col gap-y-4 py-3">
+              {rescheduleDate && (
+                <div className="flex flex-col rounded-xl border bg-slate-50/80 dark:bg-slate-900/40 border-slate-200/80 dark:border-slate-800 p-3 gap-y-2">
+                  <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                    <span className="inline-flex items-center gap-1 font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 px-2 py-1 rounded-full border border-blue-200/70 dark:border-blue-900">
+                      <Video className="size-3" /> Video
+                    </span>
+                    <span className="inline-flex items-center gap-1 font-medium bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300 px-2 py-1 rounded-full border border-violet-200/70 dark:border-violet-900">
+                      <CalendarIcon className="size-3" /> {formatDateValue(rescheduleDate, "")}
+                    </span>
+                    <span className="inline-flex items-center gap-1 font-medium bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 px-2 py-1 rounded-full border border-amber-200/70 dark:border-amber-900">
+                      <Clock className="size-3" /> 15 min
+                    </span>
+                    {rescheduleTime && (
+                      <span className="inline-flex items-center gap-1 font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 px-2 py-1 rounded-full border border-emerald-200/70 dark:border-emerald-900">
+                        <CheckCircle className="size-3" /> Selected {rescheduleTime}
+                      </span>
+                    )}
+                  </div>
+                  {rescheduleTime && (
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 dark:border-emerald-900 dark:bg-emerald-950/30 px-3 py-2">
+                      <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-200">
+                        <CheckCircle className="size-4" />
+                        <span className="text-sm font-semibold">Selected slot: {rescheduleTime}</span>
+                      </div>
+                      <p className="mt-1 text-[11px] text-emerald-700 dark:text-emerald-300">
+                        {formatDateValue(rescheduleDate, "")} 15 min video call
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex flex-col gap-y-2">
                 <Label>Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal h-10",
-                        !rescheduleDate && "text-muted-foreground"
-                      )}
-                    >
-                      <Calendar className="mr-2 size-4" />
-                      {rescheduleDate ? formatDateValue(rescheduleDate, "Pick a new date") : "Pick a new date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                      <CalendarPicker
-                        mode="single"
-                        selected={parseDateValue(rescheduleDate)}
-                        onSelect={setRescheduleDateAndResetTime}
-                        disabled={(date) => date < rescheduleMinDate}
-                        initialFocus
-                      />
-                  </PopoverContent>
-                </Popover>
+                <CalendarPicker
+                  mode="single"
+                  selected={parseDateValue(rescheduleDate)}
+                  onSelect={setRescheduleDateAndResetTime}
+                  disabled={(date) => { const today = new Date(); today.setHours(0, 0, 0, 0); return date < today; }}
+                  initialFocus
+                />
               </div>
+
               <div className="flex flex-col gap-y-3">
                 <div className="flex items-center justify-between">
                   <Label>Available slots</Label>
                   {rescheduleDate && (
-                    <span className="text-xs text-muted-foreground">
-                      {formatDateValue(rescheduleDate, "")}
-                    </span>
+                    <span className="text-xs text-muted-foreground">{formatDateValue(rescheduleDate, "")}</span>
                   )}
                 </div>
+                {rescheduleDate && (
+                  <div className="flex items-center gap-2 rounded-md bg-primary/12 text-primary px-2.5 py-1 text-[11px] font-bold border border-primary/15 w-fit">
+                    Select 1 slot
+                  </div>
+                )}
 
                 {isRescheduleAvailabilityLoading ? (
                   <div className="flex items-center gap-2 justify-center rounded-xl border border-dashed py-6 text-sm text-muted-foreground">
-                    <Loader2 className="size-4 animate-spin" />
-                    Loading available slots…
+                    <Loader2 className="size-4 animate-spin" /> Loading available slots...
                   </div>
                 ) : availableRescheduleSlots.length > 0 ? (
                   <div className="flex flex-col gap-y-4">
                     {[
-                      { key: "morning" as const, label: "Morning", range: "Before 12pm", slots: rescheduleSlotGroups.morning },
-                      { key: "afternoon" as const, label: "Afternoon", range: "12pm€“ 5pm", slots: rescheduleSlotGroups.afternoon },
-                      { key: "evening" as const, label: "Evening", range: "After 5pm", slots: rescheduleSlotGroups.evening },
+                      { key: "morning" as const, label: "Morning", range: "Before 12pm", icon: <Sun className="size-4" />, slots: rescheduleSlotGroups.morning },
+                      { key: "afternoon" as const, label: "Afternoon", range: "12pm - 5pm", icon: <CloudSun className="size-4" />, slots: rescheduleSlotGroups.afternoon },
+                      { key: "evening" as const, label: "Evening", range: "After 5pm", icon: <Moon className="size-4" />, slots: rescheduleSlotGroups.evening },
                     ].map((period) =>
                       period.slots.length === 0 ? null : (
                         <div key={period.key}>
                           <div className="mb-2 flex items-center gap-2">
-                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                              {period.label}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground">
-                              ({period.range})
-                            </span>
-                            <span className="ml-auto rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                              {period.slots.length} slots
-                            </span>
+                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">{period.icon} {period.label}</span>
+                            <span className="text-[10px] text-muted-foreground">({period.range})</span>
+                            <span className="ml-auto rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{period.slots.length} slots</span>
                           </div>
                           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                             {period.slots.map((slot) => {
-                              const normalizedSlot = slot.trim().toLowerCase();
-                              const isSelected = selectedRescheduleSlotKey === normalizedSlot;
-
+                              const isSelected = selectedRescheduleSlotKey === slot.trim().toLowerCase();
                               return (
-                                <button
-                                  key={slot}
-                                  type="button"
-                                  onClick={() => setRescheduleTime(slot)}
-                                  className={cn(
-                                    "rounded-xl border px-2 py-2 text-center transition-all",
-                                    isSelected
-                                      ? "border-primary bg-primary text-primary-foreground shadow-sm ring-2 ring-primary/20"
-                                      : "border-border bg-card hover:border-primary/40 hover:bg-primary/5"
-                                  )}
-                                >
+                                <button key={slot} type="button" onClick={() => setRescheduleTime(slot)}
+                                  className={cn("rounded-xl border px-2 py-2 text-center transition-all", isSelected ? "border-primary bg-primary text-primary-foreground shadow-sm ring-2 ring-primary/20" : "border-border bg-card hover:border-primary/40 hover:bg-primary/5")}>
                                   <span className="text-xs font-semibold">{slot}</span>
-                                  <span className={cn("block text-[9px] font-medium", isSelected ? "text-primary-foreground/70" : "text-muted-foreground")}>
-                                    Select slot
-                                  </span>
+                                  <span className={cn("block text-[9px] font-medium", isSelected ? "text-primary-foreground/70" : "text-muted-foreground")}>Select slot</span>
                                 </button>
                               );
                             })}
@@ -1443,25 +1447,24 @@ const AppointmentCard = ({
                 ) : (
                   <div className="rounded-xl border border-dashed py-6 text-center text-sm text-muted-foreground">
                     <Clock className="mx-auto mb-2 size-5 opacity-40" />
-                    <p className="font-medium">
-                      {rescheduleDate ? "No available slots for this date" : "Pick a date to see available slots"}
-                    </p>
-                    <p className="mt-1 text-xs">
-                      {rescheduleAvailabilityError instanceof Error
-                        ? rescheduleAvailabilityError.message
-                        : "Try another date or check the doctor availability settings."}
-                    </p>
+                    <p className="font-medium">{rescheduleDate ? "No available slots for this date" : "Pick a date to see available slots"}</p>
+                    <p className="mt-1 text-xs">{rescheduleAvailabilityError instanceof Error ? rescheduleAvailabilityError.message : "Try another date or check the doctor availability settings."}</p>
                   </div>
                 )}
               </div>
+
+              {rescheduleTime && (
+                <button type="button" onClick={() => setRescheduleTime("")} className="text-[11px] font-semibold text-primary hover:underline w-fit">Clear selected slot</button>
+              )}
+
               <div className="flex flex-col gap-y-2">
-                <Label>Reason</Label>
-                <Textarea placeholder="Reason for change…" value={actionReason} onChange={e => setActionReason(e.target.value)} className="min-h-[90px]" />
+                <Label>Reason (optional)</Label>
+                <Textarea placeholder="Reason for change..." value={actionReason} onChange={e => setActionReason(e.target.value)} className="min-h-[80px]" />
               </div>
             </div>
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setIsRescheduleOpen(false)} className="flex-1">Discard</Button>
-              <Button onClick={handleRescheduleSubmit} className="flex-1" disabled={!rescheduleDate || !rescheduleTime}>Confirm</Button>
+              <Button variant="outline" onClick={() => { setIsRescheduleOpen(false); resetActionState(); }} className="flex-1">Cancel</Button>
+              <Button onClick={handleRescheduleSubmit} className="flex-1" disabled={!rescheduleDate || !rescheduleTime}>Confirm Reschedule</Button>
             </div>
           </DialogContent>
         </Dialog>
