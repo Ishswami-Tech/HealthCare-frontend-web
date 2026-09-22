@@ -8,6 +8,57 @@ import { API_ENDPOINTS } from '../config/config';
 import { logger } from '@/lib/utils/logger';
 import { sanitizeErrorMessage } from '@/lib/utils/error-handler';
 
+// Extract structured validation errors from an error object.
+// Must be called BEFORE sanitizeErrorMessage() which converts to a plain string.
+function extractValidationErrors(
+  obj: unknown,
+): Array<{ field: string; constraints: Record<string, string> }> | undefined {
+  if (!obj || typeof obj !== 'object') return undefined;
+
+  const record = obj as Record<string, unknown>;
+
+  // Check for validationErrors array (direct, top-level)
+  if (Array.isArray(record.validationErrors)) {
+    return record.validationErrors as Array<{ field: string; constraints: Record<string, string> }>;
+  }
+
+  // Check for errors array (ValidationPipe standard response shape)
+  if (Array.isArray(record.errors)) {
+    const errors = record.errors as Array<Record<string, unknown>>;
+    if (errors.length > 0 && typeof errors[0] === 'object') {
+      return errors.map((e) => ({
+        field: String(e.field || e.property || ''),
+        constraints: (e.constraints as Record<string, string>) || { message: String(e.message || 'Invalid value') },
+      }));
+    }
+  }
+
+  // Check for details.validationErrors (HttpExceptionFilter wraps it here)
+  if (record.details && typeof record.details === 'object') {
+    const details = record.details as Record<string, unknown>;
+    if (Array.isArray(details.validationErrors)) {
+      return details.validationErrors as Array<{ field: string; constraints: Record<string, string> }>;
+    }
+    // Recurse into details for nested error structures
+    const nested = extractValidationErrors(details);
+    if (nested) return nested;
+  }
+
+  // Check for response nested object (axios-style errors)
+  if (record.response && typeof record.response === 'object') {
+    const nested = extractValidationErrors(record.response);
+    if (nested) return nested;
+  }
+
+  // Check for data nested object
+  if (record.data && typeof record.data === 'object') {
+    const nested = extractValidationErrors(record.data);
+    if (nested) return nested;
+  }
+
+  return undefined;
+}
+
 // ✅ Helper function to wrap actions with consistent error handling and logging
 async function executeAction<T>(
   operationName: string,
@@ -157,53 +208,19 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
       user: responseUser,
     };
   } catch (error) {
+    // Extract structured validation errors BEFORE sanitizing the error into a string.
+    // The ApiError from the client contains details.validationErrors with field-level
+    // errors from the ValidationPipe. sanitizeErrorMessage() converts it to a plain
+    // string, destroying the structured data. So we must extract first.
+    const validationErrors = extractValidationErrors(error);
     const errorMessage = sanitizeErrorMessage(error);
     logger.error('[updateUserProfile] ===== ERROR CAUGHT =====', {
       error: errorMessage,
       originalError: error instanceof Error ? error.message : String(error),
       errorName: error instanceof Error ? error.name : 'Unknown',
       errorStack: error instanceof Error ? error.stack?.substring(0, 500) : undefined,
+      hasValidationErrors: validationErrors && validationErrors.length > 0,
     });
-
-    // Extract validation errors from nested error structures (ApiError, details, errors, etc.)
-    const extractValidationErrors = (obj: unknown): Array<{ field: string; constraints: Record<string, string> }> | undefined => {
-      if (!obj || typeof obj !== 'object') return undefined;
-
-      const record = obj as Record<string, unknown>;
-
-      // Check for validationErrors array
-      if (Array.isArray(record.validationErrors)) {
-        return record.validationErrors as Array<{ field: string; constraints: Record<string, string> }>;
-      }
-
-      // Check for errors array (common pattern)
-      if (Array.isArray(record.errors)) {
-        const errors = record.errors as Array<Record<string, unknown>>;
-        if (errors.length > 0 && typeof errors[0] === 'object') {
-          return errors.map((e) => ({
-            field: String(e.field || e.property || ''),
-            constraints: (e.constraints as Record<string, string>) || { message: String(e.message || 'Invalid value') }
-          }));
-        }
-      }
-
-      // Check for details nested object
-      if (record.details && typeof record.details === 'object') {
-        return extractValidationErrors(record.details);
-      }
-
-      // Check for response nested object (from axios-style errors)
-      if (record.response && typeof record.response === 'object') {
-        return extractValidationErrors(record.response);
-      }
-
-      // Check for data nested object
-      if (record.data && typeof record.data === 'object') {
-        return extractValidationErrors(record.data);
-      }
-
-      return undefined;
-    };
 
     const extractBackendErrorCode = (value: unknown): string | undefined => {
       if (!value || typeof value !== 'object') return undefined;
@@ -232,7 +249,6 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
       return undefined;
     };
 
-    const validationErrors = extractValidationErrors(error);
     const backendErrorCode = extractBackendErrorCode(error);
     const duplicateField =
       backendErrorCode === 'USER_EMAIL_ALREADY_EXISTS'
