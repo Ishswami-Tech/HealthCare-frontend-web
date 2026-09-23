@@ -21,7 +21,7 @@ export interface PatientDashboardSummaryResponse {
   /** Comprehensive EHR summary (vitals, allergies, medications, etc). */
   comprehensive?: unknown;
 
-  /** User invoices (OPEN + OVERDUE + recent paid), newest first. */
+  /** User invoices (PENDING + recent paid), newest first. */
   invoices?: unknown[];
 
   /** User payments, newest first. */

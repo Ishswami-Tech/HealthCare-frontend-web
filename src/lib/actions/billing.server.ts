@@ -185,7 +185,7 @@ function normalizeInvoice(raw: RawInvoice): Invoice {
     gatewayOrderId: buildGatewayOrderId(invoiceNumber || invoiceId, invoiceId),
     amount,
     currency: String(raw.currency ?? 'INR'),
-    status: String(raw.status ?? 'DRAFT') as Invoice['status'],
+    status: String(raw.status ?? 'PENDING') as Invoice['status'],
     dueDate: String(raw.dueDate ?? nowIsoTimestamp()),
     ...(raw.paidAt ? { paidDate: String(raw.paidAt) } : {}),
     items,

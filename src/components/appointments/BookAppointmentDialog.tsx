@@ -92,6 +92,7 @@ import { theme } from "@/lib/utils/theme-utils";
 import { cn } from "@/lib/utils";
 import { formatISODateInIST } from "@/lib/utils/date-time";
 import { resolveDisplayNameAndInitials } from "@/lib/utils/display-name";
+import { formatDoctorDisplayName } from "@/lib/utils/appointmentUtils";
 import { format } from "date-fns";
 import { AppointmentStepWrapper } from "@/components/appointments/AppointmentStepWrapper";
 import { syncAppointmentInCache } from "@/lib/utils/appointment-cache";
@@ -1887,7 +1888,7 @@ function BookAppointmentStep4({
         <p className="text-sm text-muted-foreground">
           Available slots for{" "}
           <span className="font-semibold text-foreground">
-            {selectedDoctor?.name}
+            {formatDoctorDisplayName(selectedDoctor?.name)}
           </span>{" "}
           on{" "}
           <span className="font-semibold text-foreground">
@@ -2091,7 +2092,7 @@ function BookAppointmentStep5({
           },
           {
             label: "Doctor",
-            value: selectedDoctor?.name,
+            value: selectedDoctor?.name ? formatDoctorDisplayName(selectedDoctor.name) : undefined,
             sub: selectedDoctor?.specialization || "General Physician",
           },
           {
@@ -2382,7 +2383,7 @@ function BookAppointmentStep6({
             </h4>
             <p className="text-xs text-muted-foreground mt-1">
               {selectedService?.label || "Appointment"} with{" "}
-              {selectedDoctor?.name || "doctor"} on{" "}
+              {selectedDoctor?.name ? formatDoctorDisplayName(selectedDoctor.name) : "doctor"} on{" "}
               {selectedDate ? format(selectedDate, "d MMM") : ""}
             </p>
           </div>
@@ -4588,7 +4589,7 @@ export function BookAppointmentDialog({
 
         onBooked?.();
         showSuccessToast(
-          `Video appointment booked with ${selectedDoctor?.name || "doctor"}` +
+          `Video appointment booked with ${selectedDoctor?.name ? formatDoctorDisplayName(selectedDoctor.name) : "doctor"}` +
             (selectedDate ? ` for ${format(selectedDate, "d MMM yyyy")}` : "") +
             (shouldCollectVideoPayment
               ? " and awaiting payment completion."
@@ -4759,7 +4760,7 @@ export function BookAppointmentDialog({
       }
       onBooked?.();
       showSuccessToast(
-        `Appointment booked${selectedDoctor?.name ? ` with ${selectedDoctor.name}` : ""}` +
+        `Appointment booked${selectedDoctor?.name ? ` with ${formatDoctorDisplayName(selectedDoctor.name)}` : ""}` +
           (selectedDate ? ` on ${format(selectedDate, "d MMM yyyy")}` : "") +
           ".",
         { id: "booking-success" },

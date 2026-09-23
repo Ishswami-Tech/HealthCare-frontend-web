@@ -455,8 +455,17 @@ function AppointmentCard({
       {/* Expanded details */}
       {isExpanded && (
         <div className="border-t border-border/60 bg-muted/30 p-3 sm:p-4">
-          {effectiveStatus === "PENDING" && isVideoAppointment ? (
-            // PENDING = video appointment created but payment not yet completed.
+          {isVideoAppointment &&
+          !viewState.paymentCompleted &&
+          !isTerminalAppointmentStatus(effectiveStatus) ? (
+            // Payment not yet completed on a still-active video appointment.
+            // Keyed on paymentCompleted rather than effectiveStatus === "PENDING"
+            // since freshly-booked video appointments can carry other non-terminal
+            // statuses (e.g. SCHEDULED) while still awaiting payment — checking
+            // the literal status string here missed those and fell through to
+            // the generic branch below, which had no countdown and (wrongly)
+            // still offered "Cancel Appointment" on a slot that's already going
+            // to auto-expire in the payment window.
             // Show a live countdown with a "Complete Payment" CTA so the patient
             // can act before the backend auto-cancels the slot.
             <div className="space-y-3">
@@ -624,34 +633,18 @@ function AppointmentCard({
               <div className="flex flex-col gap-2 sm:min-w-[200px] sm:max-w-[240px] sm:items-stretch">
                 {isVideoAppointment ? (
                   <>
-                    {!viewState.paymentCompleted ? (
-                      <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-2.5 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-200">
-                        <p className="font-semibold">Payment Pending</p>
-                        <p className="mt-0.5">Complete the payment to unlock the video call.</p>
-                      </div>
-                    ) : null}
-                    {viewState.paymentCompleted ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="h-10 w-full justify-center border-0 bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md transition-all hover:from-orange-600 hover:to-amber-600 hover:shadow-lg"
-                        onClick={() => handleJoinVideo(apt)}
-                      >
-                        <Video className="mr-2 size-4" />
-                        Join Video
-                      </Button>
-                    ) : (
-                      <PaymentButton
-                        appointmentId={getEffectiveAppointmentId(apt)}
-                        amount={getAppointmentPaymentAmount(apt)}
-                        appointmentType="VIDEO_CALL"
-                        description={`Video consultation with ${doctorName || "doctor"}`}
-                        className="h-10 w-full justify-center"
-                      >
-                        <CreditCard className="mr-2 size-4" />
-                        Complete Payment
-                      </PaymentButton>
-                    )}
+                    {/* Payment is always complete by the time this branch renders —
+                        the pending-payment case is handled entirely by the
+                        countdown branch above. */}
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-10 w-full justify-center border-0 bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md transition-all hover:from-orange-600 hover:to-amber-600 hover:shadow-lg"
+                      onClick={() => handleJoinVideo(apt)}
+                    >
+                      <Video className="mr-2 size-4" />
+                      Join Video
+                    </Button>
                     <Button
                       type="button"
                       size="sm"

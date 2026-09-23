@@ -220,7 +220,7 @@ export function FinanceBillingDashboardContent({
                 {recentInvoices.map((inv) => {
                   const isOverdue =
                     !!currentTimestampMs &&
-                    (inv.status === "OPEN" || inv.status === "OVERDUE") &&
+                    inv.status === "PENDING" &&
                     !!inv.dueDate &&
                     new Date(inv.dueDate).getTime() < currentTimestampMs;
 
