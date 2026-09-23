@@ -841,6 +841,7 @@ export const API_ENDPOINTS = {
       PROCESS_PAYMENT: (id: string) => `/billing/appointments/${id}/process-payment`,
       PAYOUT_STATUS: (id: string) => `/billing/appointments/${id}/payout-status`,
       RELEASE_PAYOUT: (id: string) => `/billing/appointments/${id}/release-payout`,
+      MANUAL_RECONCILE: (id: string) => `/billing/appointments/${id}/manual-reconcile`,
     },
     ANALYTICS: {
       REVENUE: '/billing/analytics/revenue',
