@@ -5,6 +5,7 @@ import {
   use,
   useTransition,
   useState,
+  useEffect,
   ReactNode,
 } from "react";
 import {
@@ -116,10 +117,18 @@ export function LanguageProvider({
   children,
   initialLanguage,
 }: LanguageProviderProps) {
-  const [language, setLanguageState] = useState<SupportedLanguage>(() =>
-    resolveInitialLanguage(initialLanguage)
+  // Initialize with the server-provided (or default) language only, so the
+  // first client render matches SSR output exactly. Browser-only detection
+  // (localStorage/cookie/navigator) runs after mount to avoid a hydration
+  // mismatch when it resolves to a different language than the server used.
+  const [language, setLanguageState] = useState<SupportedLanguage>(
+    initialLanguage ?? DEFAULT_LANGUAGE
   );
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    setLanguageState(resolveInitialLanguage(initialLanguage));
+  }, [initialLanguage]);
 
   const setLanguage = (newLanguage: SupportedLanguage) => {
     if (Object.keys(SUPPORTED_LANGUAGES).includes(newLanguage)) {
