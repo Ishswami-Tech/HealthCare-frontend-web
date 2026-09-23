@@ -46,6 +46,8 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
   ],
   CLINIC_ADMIN: [
     { title: "Dashboard", href: "/clinic-admin/dashboard", icon: LayoutDashboard },
+    { title: "Appointments", href: "/clinic-admin/appointments", icon: Calendar, permission: Permission.VIEW_APPOINTMENTS },
+    { title: "Payment Reconciliation", href: "/clinic-admin/payments", icon: Receipt, permission: Permission.MANAGE_BILLING },
     { title: "Staff", href: "/clinic-admin/staff", icon: Users, permission: Permission.MANAGE_CLINIC_STAFF },
     { title: "Schedule", href: "/clinic-admin/schedule", icon: Calendar, permission: Permission.MANAGE_DOCTOR_SCHEDULE },
     { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },

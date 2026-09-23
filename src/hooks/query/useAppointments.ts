@@ -394,6 +394,8 @@ export const useAppointments = (
 
     const response = await clinicApiClient.getAppointments({
       ...(filters.clinicId ? { clinicId: filters.clinicId } : {}),
+      ...(filters.patientId ? { patientId: filters.patientId } : {}),
+      ...(filters.doctorId ? { doctorId: filters.doctorId } : {}),
       ...(statusParam ? { status: statusParam } : {}),
       ...(filters.date ? { date: filters.date } : {}),
       ...(filters.startDate ? { startDate: filters.startDate } : {}),
@@ -1158,6 +1160,37 @@ export const useMarkAppointmentNoShow = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: "Marking appointment as no-show...",
       successMessage: "Appointment marked as no-show",
+      invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+    }
+  );
+};
+
+/**
+ * Hook for setting an appointment to an arbitrary status (clinic-admin
+ * management views). For specific workflows with their own side effects,
+ * prefer the dedicated hooks (`useMarkAppointmentNoShow`,
+ * `useCheckInAppointment`, etc.) — this is the general-purpose escape hatch.
+ */
+export const useUpdateAppointmentStatus = () => {
+  const { hasPermission } = useRBAC();
+
+  return useMutationOperation<{ success: boolean }, { appointmentId: string; status: string }>(
+    async ({ appointmentId, status }) => {
+      if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
+        throw new Error("Insufficient permissions to update appointment");
+      }
+
+      const result = await updateAppointmentStatus(appointmentId, { status });
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      return { success: true };
+    },
+    {
+      toastId: TOAST_IDS.APPOINTMENT.UPDATE,
+      loadingMessage: "Updating appointment status...",
+      successMessage: "Appointment status updated",
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
     }
   );

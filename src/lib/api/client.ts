@@ -1160,6 +1160,7 @@ export class ClinicApiClient extends ApiClient {
   async getAppointments(params?: {
     userId?: string;
     doctorId?: string;
+    patientId?: string;
     status?: string;
     date?: string;
     startDate?: string;
