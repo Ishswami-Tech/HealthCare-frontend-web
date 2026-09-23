@@ -57,7 +57,7 @@ export interface Invoice {
   gatewayOrderId?: string;
   amount: number;
   currency: string;
-  status: 'DRAFT' | 'OPEN' | 'PAID' | 'VOID' | 'UNCOLLECTIBLE' | 'OVERDUE';
+  status: 'PENDING' | 'PAID' | 'VOID';
   invoiceDate?: string;
   dueDate: string;
   paidAt?: string;
