@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Clinic Communication Server Actions
  * Handles clinic-specific communication settings and configuration
  */
@@ -7,25 +7,47 @@ import { authenticatedApi } from './auth.server';
 import { API_ENDPOINTS } from '@/lib/config/config';
 import { logger } from '@/lib/utils/logger';
 
+export interface ProviderConfig {
+  provider: string;
+  enabled: boolean;
+  credentials: Record<string, string> | { encrypted: string };
+  settings?: Record<string, unknown>;
+  priority?: number;
+}
+
 export interface ClinicCommunicationConfig {
-  email?: {
-    provider: string;
-    credentials?: Record<string, any>;
-    enabled: boolean;
+  clinicId: string;
+  email: {
+    primary?: ProviderConfig;
+    fallback?: ProviderConfig[];
+    defaultFrom?: string;
+    defaultFromName?: string;
   };
-  sms?: {
-    provider: string;
-    credentials?: Record<string, any>;
-    enabled: boolean;
+  whatsapp: {
+    primary?: ProviderConfig;
+    fallback?: ProviderConfig[];
+    defaultNumber?: string;
   };
-  whatsapp?: {
-    provider: string;
-    credentials?: Record<string, any>;
-    enabled: boolean;
+  sms: {
+    primary?: ProviderConfig;
+    fallback?: ProviderConfig[];
+    defaultNumber?: string;
   };
-  push?: {
-    enabled: boolean;
-  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type UpdateClinicCommunicationConfig = Partial<
+  Pick<ClinicCommunicationConfig, 'email' | 'whatsapp' | 'sms'>
+>;
+
+export interface UpdateSesConfig {
+  region?: string;
+  accessKeyId?: string;
+  secretAccessKey?: string;
+  fromEmail?: string;
+  fromName?: string;
+  enabled?: boolean;
 }
 
 /**
@@ -33,9 +55,10 @@ export interface ClinicCommunicationConfig {
  */
 export async function getClinicCommunicationConfig(clinicId: string) {
   try {
-    const { data } = await authenticatedApi(API_ENDPOINTS.CLINIC_COMMUNICATION.GET(clinicId), {
-      method: 'GET',
-    });
+    const { data } = await authenticatedApi<ClinicCommunicationConfig | null>(
+      API_ENDPOINTS.CLINIC_COMMUNICATION.GET(clinicId),
+      { method: 'GET' }
+    );
     return data;
   } catch (error) {
     logger.error('Failed to get clinic communication config', error instanceof Error ? error : new Error(String(error)));
@@ -44,34 +67,22 @@ export async function getClinicCommunicationConfig(clinicId: string) {
 }
 
 /**
- * Create clinic communication configuration
- */
-export async function createClinicCommunicationConfig(clinicId: string, config: ClinicCommunicationConfig) {
-  try {
-    const { data } = await authenticatedApi(API_ENDPOINTS.CLINIC_COMMUNICATION.CREATE(clinicId), {
-      method: 'POST',
-      body: JSON.stringify(config),
-    });
-    return data;
-  } catch (error) {
-    logger.error('Failed to create clinic communication config', error instanceof Error ? error : new Error(String(error)));
-    throw error;
-  }
-}
-
-/**
- * Update clinic communication configuration
+ * Create or update the clinic's communication configuration.
+ * The backend exposes a single upsert endpoint (PUT .../communication/config) —
+ * there is no separate create endpoint.
  */
 export async function updateClinicCommunicationConfig(
   clinicId: string,
-  id: string,
-  config: Partial<ClinicCommunicationConfig>
+  config: UpdateClinicCommunicationConfig
 ) {
   try {
-    const { data } = await authenticatedApi(API_ENDPOINTS.CLINIC_COMMUNICATION.UPDATE(clinicId, id), {
-      method: 'PUT',
-      body: JSON.stringify(config),
-    });
+    const { data } = await authenticatedApi<ClinicCommunicationConfig>(
+      API_ENDPOINTS.CLINIC_COMMUNICATION.UPDATE(clinicId),
+      {
+        method: 'PUT',
+        body: JSON.stringify(config),
+      }
+    );
     return data;
   } catch (error) {
     logger.error('Failed to update clinic communication config', error instanceof Error ? error : new Error(String(error)));
@@ -80,39 +91,77 @@ export async function updateClinicCommunicationConfig(
 }
 
 /**
- * Delete clinic communication configuration
+ * Update just the clinic's SES email configuration (simplified setup path).
  */
-export async function deleteClinicCommunicationConfig(clinicId: string, id: string) {
+export async function updateClinicSesConfig(clinicId: string, config: UpdateSesConfig) {
   try {
-    const { data } = await authenticatedApi(API_ENDPOINTS.CLINIC_COMMUNICATION.DELETE(clinicId, id), {
-      method: 'DELETE',
-    });
+    const { data } = await authenticatedApi<{ success: boolean; message: string }>(
+      API_ENDPOINTS.CLINIC_COMMUNICATION.UPDATE_SES(clinicId),
+      {
+        method: 'PUT',
+        body: JSON.stringify(config),
+      }
+    );
     return data;
   } catch (error) {
-    logger.error('Failed to delete clinic communication config', error instanceof Error ? error : new Error(String(error)));
+    logger.error('Failed to update clinic SES config', error instanceof Error ? error : new Error(String(error)));
     throw error;
   }
 }
 
 /**
- * Test clinic communication configuration
+ * Send a test email using the clinic's configured email provider.
  */
-export async function testClinicCommunication(clinicId: string, data: {
-  type: 'email' | 'sms' | 'whatsapp';
-  to: string;
-  message?: string;
-}) {
+export async function testClinicEmailConfig(clinicId: string, testEmail: string) {
   try {
-    const { data: response } = await authenticatedApi(API_ENDPOINTS.CLINIC_COMMUNICATION.TEST(clinicId), {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-    return response;
+    const { data } = await authenticatedApi<{ success: boolean; message: string; error?: string }>(
+      API_ENDPOINTS.CLINIC_COMMUNICATION.TEST_EMAIL(clinicId),
+      {
+        method: 'POST',
+        body: JSON.stringify({ testEmail }),
+      }
+    );
+    return data;
   } catch (error) {
-    logger.error('Failed to test clinic communication', error instanceof Error ? error : new Error(String(error)));
+    logger.error('Failed to test clinic email config', error instanceof Error ? error : new Error(String(error)));
     throw error;
   }
 }
 
+/**
+ * Send a test WhatsApp message using the clinic's configured WhatsApp provider.
+ */
+export async function testClinicWhatsAppConfig(clinicId: string, phoneNumber: string) {
+  try {
+    const { data } = await authenticatedApi<{ success: boolean; message: string; error?: string }>(
+      API_ENDPOINTS.CLINIC_COMMUNICATION.TEST_WHATSAPP(clinicId),
+      {
+        method: 'POST',
+        body: JSON.stringify({ phoneNumber }),
+      }
+    );
+    return data;
+  } catch (error) {
+    logger.error('Failed to test clinic WhatsApp config', error instanceof Error ? error : new Error(String(error)));
+    throw error;
+  }
+}
 
-
+/**
+ * Send a test SMS using the clinic's configured SMS provider.
+ */
+export async function testClinicSmsConfig(clinicId: string, phoneNumber: string) {
+  try {
+    const { data } = await authenticatedApi<{ success: boolean; message: string; error?: string }>(
+      API_ENDPOINTS.CLINIC_COMMUNICATION.TEST_SMS(clinicId),
+      {
+        method: 'POST',
+        body: JSON.stringify({ phoneNumber }),
+      }
+    );
+    return data;
+  } catch (error) {
+    logger.error('Failed to test clinic SMS config', error instanceof Error ? error : new Error(String(error)));
+    throw error;
+  }
+}

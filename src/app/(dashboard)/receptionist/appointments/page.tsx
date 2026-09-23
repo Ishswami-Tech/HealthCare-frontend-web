@@ -963,11 +963,19 @@ export default function ReceptionistAppointmentsPage() {
               </div>
               <div>
                 <p className="text-muted-foreground">Payment</p>
-                <Badge className={selectedAppointment.paymentCompleted
-                  ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300"
-                  : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"}>
-                  {selectedAppointment.paymentCompleted ? "Payment verified" : "Payment pending"}
-                </Badge>
+                {["CANCELLED", "EXPIRED", "NO_SHOW"].includes(
+                  String(selectedAppointment.status || "").toUpperCase()
+                ) ? (
+                  <Badge className="bg-slate-100 text-slate-600 dark:bg-slate-900/40 dark:text-slate-400">
+                    {selectedAppointment.status.replace("_", " ")}
+                  </Badge>
+                ) : (
+                  <Badge className={selectedAppointment.paymentCompleted
+                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300"
+                    : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"}>
+                    {selectedAppointment.paymentCompleted ? "Payment verified" : "Payment pending"}
+                  </Badge>
+                )}
               </div>
               <div>
                 <p className="text-muted-foreground">Queue</p>

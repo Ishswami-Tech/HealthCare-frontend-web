@@ -68,16 +68,19 @@ export function PharmacistDashboardQueueCard({
       cell: ({ row }) => {
         const status = row.getValue("status") as string;
         const isReady = status === "ready_to_dispense";
+        const isExpired = status === "payment_expired";
         return (
           <Badge
             variant={isReady ? "default" : "secondary"}
             className={
-              isReady
-                ? "border-none bg-emerald-600 shadow-none hover:bg-emerald-700"
-                : "border-none bg-blue-100 text-blue-800 shadow-none"
+              isExpired
+                ? "border-none bg-slate-300 text-slate-700 shadow-none"
+                : isReady
+                  ? "border-none bg-emerald-600 shadow-none hover:bg-emerald-700"
+                  : "border-none bg-blue-100 text-blue-800 shadow-none"
             }
           >
-            {isReady ? "READY" : "AWAITING PAYMENT"}
+            {isExpired ? "PAYMENT EXPIRED" : isReady ? "READY" : "AWAITING PAYMENT"}
           </Badge>
         );
       },

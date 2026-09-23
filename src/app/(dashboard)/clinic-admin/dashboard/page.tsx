@@ -583,7 +583,10 @@ export default function ClinicAdminDashboard() {
     }
 
     const unpaidMedicineCount = medicineDeskItems.filter(
-      (item: any) => !item.readyForHandover && item.paymentStatus !== "PAID"
+      (item: any) =>
+        !item.readyForHandover &&
+        item.paymentStatus !== "PAID" &&
+        !["EXPIRED", "CANCELLED"].includes(String(item.paymentStatus).toUpperCase())
     ).length;
     if (unpaidMedicineCount > 0) {
       alerts.push({
@@ -772,7 +775,7 @@ export default function ClinicAdminDashboard() {
             icon: Activity,
             color: "text-amber-600",
             bg: "bg-amber-500/10",
-            trend: `${medicineDeskItems.filter((item: any) => item.paymentStatus !== "PAID").length} unpaid`,
+            trend: `${medicineDeskItems.filter((item: any) => item.paymentStatus !== "PAID" && !["EXPIRED", "CANCELLED"].includes(String(item.paymentStatus).toUpperCase())).length} unpaid`,
             isUp: medicineDeskItems.filter((item: any) => item.paymentStatus === "PAID").length > 0
           }
         ].map((item) => (
@@ -1265,12 +1268,16 @@ export default function ClinicAdminDashboard() {
                           <TableCell className="text-right">
                             <Badge
                               className={
-                                item.paymentStatus === "PAID"
-                                  ? "bg-emerald-500 text-white"
-                                  : "bg-amber-500 text-white"
+                                ["EXPIRED", "CANCELLED"].includes(String(item.paymentStatus).toUpperCase())
+                                  ? "bg-slate-400 text-white"
+                                  : item.paymentStatus === "PAID"
+                                    ? "bg-emerald-500 text-white"
+                                    : "bg-amber-500 text-white"
                               }
                             >
-                              {item.paymentStatus === "PAID" ? "Payment verified" : "Payment pending"}
+                              {["EXPIRED", "CANCELLED"].includes(String(item.paymentStatus).toUpperCase())
+                                ? String(item.paymentStatus).charAt(0) + String(item.paymentStatus).slice(1).toLowerCase()
+                                : item.paymentStatus === "PAID" ? "Payment verified" : "Payment pending"}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right text-sm font-medium text-muted-foreground">

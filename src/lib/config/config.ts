@@ -455,6 +455,7 @@ export const API_ENDPOINTS = {
     SCAN_QR: '/appointments/check-in/scan-qr',
     START: (id: string) => `/appointments/${id}/start-consultation`,
     COMPLETE: (id: string) => `/appointments/${id}/complete`,
+    COMPLETE_BULK: '/appointments/complete/bulk',
     RESCHEDULE: (id: string) => `/appointments/${id}/reschedule`,
     DOCTOR_AVAILABILITY: (doctorId: string) => `/appointments/doctor/${doctorId}/availability`,
     UPDATE_AVAILABILITY: (doctorId: string) => `/appointments/doctor/${doctorId}/availability`,
@@ -1158,12 +1159,12 @@ export const API_ENDPOINTS = {
   
   // Clinic Communication Endpoints
   CLINIC_COMMUNICATION: {
-    BASE: (clinicId: string) => `/clinics/${clinicId}/communication`,
-    GET: (clinicId: string) => `/clinics/${clinicId}/communication`,
-    CREATE: (clinicId: string) => `/clinics/${clinicId}/communication`,
-    UPDATE: (clinicId: string, id: string) => `/clinics/${clinicId}/communication/${id}`,
-    DELETE: (clinicId: string, id: string) => `/clinics/${clinicId}/communication/${id}`,
-    TEST: (clinicId: string) => `/clinics/${clinicId}/communication/test`,
+    GET: (clinicId: string) => `/clinics/${clinicId}/communication/config`,
+    UPDATE: (clinicId: string) => `/clinics/${clinicId}/communication/config`,
+    UPDATE_SES: (clinicId: string) => `/clinics/${clinicId}/communication/ses`,
+    TEST_EMAIL: (clinicId: string) => `/clinics/${clinicId}/communication/test-email`,
+    TEST_WHATSAPP: (clinicId: string) => `/clinics/${clinicId}/communication/test-whatsapp`,
+    TEST_SMS: (clinicId: string) => `/clinics/${clinicId}/communication/test-sms`,
   },
 
   // Logging Endpoints

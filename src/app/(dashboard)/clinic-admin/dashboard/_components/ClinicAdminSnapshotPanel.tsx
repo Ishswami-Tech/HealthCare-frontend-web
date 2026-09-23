@@ -70,6 +70,23 @@ function getAppointmentDoctorName(appointment: AppointmentSnapshot): string {
   return String(appointment.doctorName || appointment.raw?.doctorName || "Doctor").trim();
 }
 
+function getPaymentBadgeState(appointment: AppointmentSnapshot): {
+  label: string;
+  className: string;
+} {
+  const status = String(appointment.status || "").toUpperCase();
+  if (status === "EXPIRED") {
+    return { label: "Expired", className: "border-slate-300 bg-slate-100 text-slate-600" };
+  }
+  if (status === "CANCELLED") {
+    return { label: "Cancelled", className: "border-rose-200 bg-rose-50 text-rose-700" };
+  }
+  if (String(appointment.paymentStatus || "").toUpperCase() === "PAID") {
+    return { label: "Paid", className: "border-emerald-200 bg-emerald-50 text-emerald-700" };
+  }
+  return { label: "Pending", className: "border-amber-200 bg-amber-50 text-amber-700" };
+}
+
 function getAppointmentTypeLabel(value: string): string {
   const normalized = value.trim().toUpperCase();
   if (normalized === "VIDEO_CALL" || normalized === "VIDEO") return "Video";
@@ -326,17 +343,8 @@ export function ClinicAdminSnapshotPanel({
                         <div className="text-xs">{appointment.timeLabel}</div>
                       </TableCell>
                       <TableCell className="py-2">
-                        <Badge
-                          variant="outline"
-                          className={
-                            String(appointment.paymentStatus || "").toUpperCase() === "PAID"
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                              : "border-amber-200 bg-amber-50 text-amber-700"
-                          }
-                        >
-                          {String(appointment.paymentStatus || "").toUpperCase() === "PAID"
-                            ? "Paid"
-                            : "Pending"}
+                        <Badge variant="outline" className={getPaymentBadgeState(appointment).className}>
+                          {getPaymentBadgeState(appointment).label}
                         </Badge>
                       </TableCell>
                       <TableCell className="py-2 text-right">

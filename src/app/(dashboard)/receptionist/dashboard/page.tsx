@@ -808,23 +808,29 @@ export default function ReceptionistDashboard() {
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge
                         className={
-                          entry.readyForHandover || entry.paymentStatus === "PAID"
-                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 px-3 py-1"
-                            : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 px-3 py-1"
+                          ["EXPIRED", "CANCELLED"].includes(String(entry.paymentStatus).toUpperCase())
+                            ? "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400 px-3 py-1"
+                            : entry.readyForHandover || entry.paymentStatus === "PAID"
+                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 px-3 py-1"
+                              : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 px-3 py-1"
                         }
                       >
-                        {entry.readyForHandover || entry.paymentStatus === "PAID"
-                          ? "Payment verified"
-                          : "Payment pending"}
+                        {["EXPIRED", "CANCELLED"].includes(String(entry.paymentStatus).toUpperCase())
+                          ? String(entry.paymentStatus).charAt(0) + String(entry.paymentStatus).slice(1).toLowerCase()
+                          : entry.readyForHandover || entry.paymentStatus === "PAID"
+                            ? "Payment verified"
+                            : "Payment pending"}
                       </Badge>
                       {entry.pendingAmount > 0 && (
                         <Badge variant="outline" className="border-amber-200 text-amber-700 bg-amber-50/50 dark:bg-amber-900/20">
                           ₹{entry.pendingAmount.toFixed(2)}
                         </Badge>
                       )}
-                      
+
                       <div className="flex items-center gap-2 sm:ml-2">
-                        {entry.paymentStatus !== "PAID" && entry.pendingAmount > 0 && (
+                        {entry.paymentStatus !== "PAID" &&
+                          entry.pendingAmount > 0 &&
+                          !["EXPIRED", "CANCELLED"].includes(String(entry.paymentStatus).toUpperCase()) && (
                           <Button size="sm" variant="ghost" asChild className="h-8 gap-1 text-slate-600 dark:text-slate-300">
                             <Link href="/billing?tab=invoices" prefetch={false}>
                               <Receipt className="size-3.5" />
