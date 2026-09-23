@@ -685,6 +685,20 @@ export function getAppointmentDoctorName(appointment: any): string {
   return doctorName || candidates[0] || "Doctor assigned";
 }
 
+/**
+ * Prefixes a doctor's display name with "Dr." unless it already has one
+ * (case-insensitive, handles both "Dr." and "Dr " forms).
+ */
+export function formatDoctorDisplayName(name: string | null | undefined): string {
+  const trimmed = (name || "").trim();
+  if (!trimmed) return trimmed;
+  const lower = trimmed.toLowerCase();
+  if (lower.startsWith("dr.") || lower.startsWith("dr ")) {
+    return trimmed;
+  }
+  return `Dr. ${trimmed}`;
+}
+
 export function getAppointmentPatientName(appointment: any): string {
   const candidates = getPersonNameCandidates(appointment?.patient);
   const patientName = candidates.find((value) => value && !isGenericAppointmentName(value, "patient"));
