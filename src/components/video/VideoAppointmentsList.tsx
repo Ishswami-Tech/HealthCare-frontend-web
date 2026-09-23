@@ -442,6 +442,9 @@ const AppointmentCard = ({
         ? "Doctor-selected fallback slot"
         : "";
   const isCancelled = normalizedStatus === "cancelled";
+  const isPaymentDead = ["CANCELLED", "EXPIRED", "NO_SHOW"].includes(
+    viewState.normalizedStatus.toUpperCase()
+  );
   const paymentCompleted = viewState.paymentCompleted;
   const paymentAmount = getVideoPaymentAmount(appointment, appointmentServices);
   const serviceLabel = getAppointmentServiceLabel(appointment, appointmentServices as any[]);
@@ -481,12 +484,14 @@ const AppointmentCard = ({
                   variant="outline"
                   className={cn(
                     "h-5 px-1.5 text-[10px] font-semibold uppercase tracking-wide",
-                    paymentCompleted
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
-                      : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
+                    isPaymentDead
+                      ? "border-slate-300 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400"
+                      : paymentCompleted
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
+                        : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
                   )}
                 >
-                  {paymentCompleted ? "Payment verified" : "Payment pending"}
+                  {isPaymentDead ? statusLabel : paymentCompleted ? "Payment verified" : "Payment pending"}
                 </Badge>
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
@@ -1050,6 +1055,9 @@ const AppointmentCard = ({
           ? "Doctor-selected fallback slot"
           : "";
     const isCancelled = normalizedStatus === "cancelled";
+    const isPaymentDead = ["CANCELLED", "EXPIRED", "NO_SHOW"].includes(
+      viewState.normalizedStatus.toUpperCase()
+    );
     const paymentCompleted = viewState.paymentCompleted;
     const paymentAmount = getVideoPaymentAmount(appointment, appointmentServices);
     const serviceLabel = getAppointmentServiceLabel(appointment, appointmentServices as any[]);
@@ -1092,12 +1100,14 @@ const AppointmentCard = ({
                     variant="outline"
                     className={cn(
                       "h-5 px-1.5 text-[10px] font-semibold uppercase tracking-wide",
-                      paymentCompleted
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
-                        : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
+                      isPaymentDead
+                        ? "border-slate-300 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400"
+                        : paymentCompleted
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
+                          : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
                     )}
                   >
-                    {paymentCompleted ? "Payment verified" : "Payment pending"}
+                    {isPaymentDead ? statusLabel : paymentCompleted ? "Payment verified" : "Payment pending"}
                   </Badge>
                 </div>
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">

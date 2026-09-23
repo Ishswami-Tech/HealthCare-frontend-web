@@ -119,9 +119,11 @@ export default function PharmacistDashboardContent() {
         medicines: prescription.medicines || prescription.medicineNames || [],
         priority: prescription.priority || "normal",
         status:
-          Boolean(entry.readyForHandover) || String(entry.paymentStatus).toUpperCase() === "PAID"
-            ? "ready_to_dispense"
-            : "awaiting_payment",
+          ["EXPIRED", "CANCELLED"].includes(String(entry.paymentStatus).toUpperCase())
+            ? "payment_expired"
+            : Boolean(entry.readyForHandover) || String(entry.paymentStatus).toUpperCase() === "PAID"
+              ? "ready_to_dispense"
+              : "awaiting_payment",
       };
 
       if (!normalizedSearch || item.patientName.toLowerCase().includes(normalizedSearch)) {

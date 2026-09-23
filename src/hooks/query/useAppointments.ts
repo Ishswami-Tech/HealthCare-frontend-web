@@ -16,7 +16,7 @@ import { useMutationOperation } from "../core/useMutationOperation";
 import { useOptimisticMutation } from "../core/useOptimisticMutation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
-import { TOAST_IDS, useToast } from '../utils/use-toast';
+import { TOAST_IDS, useToast, showWarningToast } from '../utils/use-toast';
 import { sanitizeErrorMessage } from '@/lib/utils/error-handler';
 import { useAuth } from '../auth/useAuth';
 import { Role } from '@/types/auth.types';
@@ -46,6 +46,7 @@ import {
     updateAppointmentStatus, // Consolidated status update
     startConsultation,
     completeAppointment,
+  bulkCompleteAppointments,
   bulkUpdateAppointmentStatus,
   cancelAppointment,
   testAppointmentContext,
@@ -1192,6 +1193,50 @@ export const useUpdateAppointmentStatus = () => {
       loadingMessage: "Updating appointment status...",
       successMessage: "Appointment status updated",
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+    }
+  );
+};
+
+/**
+ * Bulk-complete a set of selected appointments in one request, using the
+ * dedicated backend batch endpoint (POST /appointments/complete/bulk) rather
+ * than looping individual status-update calls per appointment.
+ */
+export const useBulkCompleteAppointments = () => {
+  const { hasPermission } = useRBAC();
+
+  return useMutationOperation<
+    { completed: number; failed: number },
+    { appointmentIds: string[]; doctorId?: string; notes?: string }
+  >(
+    async ({ appointmentIds, doctorId, notes }) => {
+      if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
+        throw new Error("Insufficient permissions to complete appointments");
+      }
+
+      const result = await bulkCompleteAppointments({ appointmentIds, doctorId, notes });
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      return { completed: result.completed ?? 0, failed: result.failed ?? 0 };
+    },
+    {
+      toastId: TOAST_IDS.APPOINTMENT.UPDATE,
+      loadingMessage: "Completing selected appointments...",
+      successMessage: "Selected appointments completed",
+      invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      onSuccess: (data) => {
+        if (data.failed > 0) {
+          showWarningToast(
+            `${data.completed} completed, ${data.failed} failed`,
+            {
+              id: TOAST_IDS.APPOINTMENT.UPDATE,
+              description: "The failed appointments are still selected — check their status and retry.",
+            }
+          );
+        }
+      },
     }
   );
 };
