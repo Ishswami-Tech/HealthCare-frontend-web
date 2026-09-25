@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DataTable } from "@/components/ui/data-table";
-import { Eye, Play, Video, CheckCircle } from "lucide-react";
+import { Eye, Play, Video, CheckCircle, Phone, CalendarPlus, UserX } from "lucide-react";
+import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import { TableSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 import { getAppointmentPatientName, getAppointmentViewState, getDisplayAppointmentDuration, getReceptionistAppointmentDateLabel, getReceptionistAppointmentTimeLabel, getAppointmentDateTimeValue, formatDateInIST, formatTimeInIST } from "@/lib/utils/appointmentUtils";
@@ -270,12 +271,36 @@ export function DoctorAppointmentsContent(props: Props) {
                   </Button>
                 </>
               )}
+              {(app.status === "NO_SHOW" || app.status === "CANCELLED") && (
+                <>
+                  {app.patientPhone && (
+                    <Button asChild variant="outline" size="sm" className="h-9 rounded-xl px-3 gap-2">
+                      <a href={`tel:${app.patientPhone}`} aria-label={`Call ${app.patientName}`}>
+                        <Phone className="mr-1 size-4" />
+                        Call
+                      </a>
+                    </Button>
+                  )}
+                  <BookAppointmentDialog
+                    {...(clinicId ? { clinicId } : {})}
+                    {...(app.patientId ? { initialPatientId: app.patientId } : {})}
+                    initialDoctorId={app.doctorId}
+                    initialConsultationMode={app.type === "VIDEO_CALL" ? "VIDEO" : "IN_PERSON"}
+                    trigger={
+                      <Button size="sm" className="h-9 rounded-xl px-3 gap-2" aria-label={`Book again for ${app.patientName}`}>
+                        <CalendarPlus className="mr-1 size-4" />
+                        Book again
+                      </Button>
+                    }
+                  />
+                </>
+              )}
             </div>
           );
         },
       },
     ],
-    [completeAppointmentPending, completeConsultation, consultationNotes, diagnosis, openAppointmentDetails, prescription, selectedIds, startConsultation],
+    [clinicId, completeAppointmentPending, completeConsultation, consultationNotes, diagnosis, openAppointmentDetails, prescription, selectedIds, startConsultation],
   );
 
   return (
@@ -304,7 +329,7 @@ export function DoctorAppointmentsContent(props: Props) {
         <DataTable
           columns={appointmentColumns}
           data={filteredAppointments}
-          emptyMessage="No appointments match this view"
+          emptyMessage={appointmentViewFilter === "NO_SHOW" ? "No missed appointments. Patients who do not turn up show here with Call and Book again." : "No appointments match this view"}
           pageSize={10}
           scrollable
           toolbar={

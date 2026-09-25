@@ -2,19 +2,17 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Calendar, FileText, Users, Video, Mail, UserX } from "lucide-react";
+import { AlertCircle, Calendar, FileText, Users, Video, UserX } from "lucide-react";
 
 interface DoctorDashboardSidebarProps {
   onNavigateAppointments: () => void;
   onNavigatePatients: () => void;
-  onNavigateDailySummary: () => void;
   onNavigateNoShow: () => void;
 }
 
 export function DoctorDashboardSidebar({
   onNavigateAppointments,
   onNavigatePatients,
-  onNavigateDailySummary,
   onNavigateNoShow,
 }: DoctorDashboardSidebarProps) {
   return (
@@ -69,23 +67,13 @@ export function DoctorDashboardSidebar({
           </Button>
           <Button
             variant="outline"
-            className="h-12 w-full justify-start border-purple-200 bg-purple-50 text-purple-800 hover:bg-purple-100 dark:border-purple-500/20 dark:bg-purple-500/10 dark:text-purple-100 dark:hover:bg-purple-500/20"
-            onClick={onNavigateDailySummary}
-          >
-            <div className="mr-3 flex size-8 items-center justify-center rounded bg-purple-100 text-purple-600 transition-colors dark:bg-purple-500/20 dark:text-purple-200">
-              <Mail className="size-4" />
-            </div>
-            Daily Summary
-          </Button>
-          <Button
-            variant="outline"
             className="h-12 w-full justify-start border-orange-200 bg-orange-50 text-orange-800 hover:bg-orange-100 dark:border-orange-500/20 dark:bg-orange-500/10 dark:text-orange-100 dark:hover:bg-orange-500/20"
             onClick={onNavigateNoShow}
           >
             <div className="mr-3 flex size-8 items-center justify-center rounded bg-orange-100 text-orange-600 transition-colors dark:bg-orange-500/20 dark:text-orange-200">
               <UserX className="size-4" />
             </div>
-            No-Show Management
+            Missed Appointments
           </Button>
         </CardContent>
       </Card>

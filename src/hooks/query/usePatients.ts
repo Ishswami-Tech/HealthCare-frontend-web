@@ -383,6 +383,7 @@ export const useQuickRegisterPatient = () => {
       successMessage: 'Patient registered successfully',
       invalidateQueries: [
         ['patients'],
+        ['doctorPatients'],
         ['users'],
         ['patientStats'],
         ['patientTimeline'],

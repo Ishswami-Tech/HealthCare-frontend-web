@@ -1,7 +1,7 @@
-﻿"use client";
+"use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useMemo, useReducer } from "react";
+import { useCallback, useEffect, useMemo, useReducer } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardPageSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { useAuth } from "@/hooks/auth/useAuth";
@@ -267,6 +267,23 @@ export default function DoctorAppointments() {
   const setSearchTerm = (value: string) => {
     dispatch({ type: "setSearchTerm", value });
   };
+
+  // Links such as the dashboard's "Missed Appointments" open a specific view
+  // (`?view=NO_SHOW`). Read once after mount so server and first paint agree.
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get("view");
+    if (!wanted) return;
+    const valid: DoctorAppointmentViewFilter[] = [
+      APPOINTMENT_STATUS.ALL,
+      "ACTIVE",
+      APPOINTMENT_STATUS.COMPLETED,
+      APPOINTMENT_STATUS.CANCELLED,
+      APPOINTMENT_STATUS.EXPIRED,
+      APPOINTMENT_STATUS.NO_SHOW,
+    ];
+    const match = valid.find((v) => v === wanted);
+    if (match) dispatch({ type: "setAppointmentViewFilter", value: match });
+  }, []);
 
   const setAppointmentViewFilter = (value: DoctorAppointmentViewFilter) => {
     dispatch({ type: "setAppointmentViewFilter", value });

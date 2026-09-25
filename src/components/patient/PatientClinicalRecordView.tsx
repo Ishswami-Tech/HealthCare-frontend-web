@@ -28,6 +28,7 @@ export interface PatientClinicalRecordViewProps {
   vitals: RecordLike[];
   labs: RecordLike[];
   carePlan: RecordLike[];
+  prescriptions?: RecordLike[];
   className?: string;
 }
 
@@ -94,6 +95,7 @@ export function PatientClinicalRecordView({
   vitals,
   labs,
   carePlan,
+  prescriptions = [],
   className,
 }: PatientClinicalRecordViewProps) {
   const patientRecord = (patient || {}) as RecordLike;
@@ -320,9 +322,73 @@ export function PatientClinicalRecordView({
     []
   );
 
+  const prescriptionColumns = useMemo<ColumnDef<RecordLike>[]>(
+    () => [
+      {
+        accessorKey: "date",
+        header: "Visit Date",
+        cell: ({ row }) => (
+          <span className="text-sm text-foreground">{formatDateTime(row.original.date)}</span>
+        ),
+      },
+      {
+        accessorKey: "doctorName",
+        header: "Doctor",
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">{row.original.doctorName || "Unknown"}</span>
+        ),
+      },
+      {
+        accessorKey: "diagnosis",
+        header: "Diagnosis",
+        cell: ({ row }) => (
+          <span className="text-sm text-foreground">{row.original.diagnosis || "-"}</span>
+        ),
+      },
+      {
+        accessorKey: "items",
+        header: "Medicines Given",
+        cell: ({ row }) => {
+          const items = toArray(row.original.items);
+          if (items.length === 0) {
+            return <span className="text-sm text-muted-foreground">No medicines recorded</span>;
+          }
+          return (
+            <ul className="flex flex-col gap-y-1">
+              {items.map((item, index) => (
+                <li key={item.id || index} className="text-sm text-foreground">
+                  <span className="font-medium">{item.medicineName || "Unknown medicine"}</span>
+                  {[item.dosage, item.frequency, item.duration].filter(Boolean).length > 0 && (
+                    <span className="text-muted-foreground">
+                      {" "}
+                      — {[item.dosage, item.frequency, item.duration].filter(Boolean).join(", ")}
+                    </span>
+                  )}
+                  {item.quantity ? (
+                    <span className="text-muted-foreground"> (Qty: {item.quantity})</span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          );
+        },
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => (
+          <Badge className={cn("rounded-md border-none px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider", statusClass(row.original.status))}>
+            {String(row.original.status || "Unknown")}
+          </Badge>
+        ),
+      },
+    ],
+    []
+  );
+
   return (
     <div className={cn("flex flex-col gap-y-4", className)}>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {summaryCards.map((card) => (
           <Card key={card.label} className="border-border/70 bg-card shadow-sm">
             <CardContent className="flex items-center justify-between p-4">
@@ -337,7 +403,7 @@ export function PatientClinicalRecordView({
       </div>
 
       <HashTabs
-        tabs={["overview", "appointments", "history", "vitals", "reports", "medications"] as const}
+        tabs={["overview", "appointments", "history", "vitals", "reports", "prescriptions", "medications"] as const}
         defaultValue="overview"
         className="flex flex-col gap-y-4"
       >
@@ -362,6 +428,10 @@ export function PatientClinicalRecordView({
           <FlaskConical className="size-4" />
           Reports
         </TabsTrigger>
+        <TabsTrigger value="prescriptions">
+          <Pill className="size-4" />
+          Prescriptions
+        </TabsTrigger>
         <TabsTrigger value="medications">
           <Pill className="size-4" />
           Medications
@@ -369,12 +439,12 @@ export function PatientClinicalRecordView({
       </TabsList>
 
         <TabsContent value="overview" className="flex flex-col gap-y-4">
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <Card className="border-border/70 bg-card shadow-sm lg:col-span-2">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base font-bold text-foreground">Patient Snapshot</CardTitle>
               </CardHeader>
-              <CardContent className="grid gap-3 sm:grid-cols-2">
+              <CardContent className="grid grid-cols-2 gap-3">
                 {[
                   ["Name", patientDisplayName],
                   ["Email", patientRecord.email || patientRecord.user?.email || " - "],
@@ -426,11 +496,11 @@ export function PatientClinicalRecordView({
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-bold text-foreground">EHR Overview</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <CardContent className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
               {[
                 ["Medical History", summaryValue(ehrRecord.medicalHistory || history)],
                 ["Lab Reports", summaryValue(ehrRecord.labReports || labs)],
-                ["Medications", summaryValue(ehrRecord.medications || activeMedications)],
+                ["Prescriptions", summaryValue(prescriptions)],
                 ["Vitals", summaryValue(ehrRecord.vitals || vitals)],
               ].map(([label, value]) => (
                 <div key={label} className="rounded-xl border border-border/70 bg-background/60 p-4">
@@ -486,6 +556,25 @@ export function PatientClinicalRecordView({
           </Card>
         </TabsContent>
 
+        <TabsContent value="prescriptions">
+          <Card className="border-border/70 bg-card shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-bold text-foreground">Prescription History</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Every visit where a doctor prescribed medicine from pharmacy inventory, most recent first.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <DataTable
+                columns={prescriptionColumns}
+                data={prescriptions}
+                pageSize={10}
+                emptyMessage="No prescriptions recorded yet."
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="medications">
           <Card className="border-border/70 bg-card shadow-sm">
             <CardHeader className="pb-3">
@@ -504,7 +593,7 @@ export function PatientClinicalRecordView({
         </CardHeader>
         <CardContent>
           {carePlan.length > 0 ? (
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {carePlan.map((item, index) => (
                 <div key={item.id || index} className="rounded-xl border border-border/70 bg-background/60 p-4">
                   <p className="text-sm font-semibold text-foreground">
