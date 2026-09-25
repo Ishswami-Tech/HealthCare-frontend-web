@@ -15,8 +15,6 @@ import {
   DollarSign,
   CreditCard,
   ShieldCheck,
-  Mail,
-  UserX,
   Leaf,
   Apple,
   Bed,
@@ -58,8 +56,6 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
   DOCTOR: [
     { title: "Dashboard", href: "/doctor/dashboard", icon: LayoutDashboard },
     { title: "Appointments", href: "/doctor/appointments", icon: Calendar, permission: Permission.VIEW_APPOINTMENTS },
-    { title: "Daily Summary", href: "/doctor/daily-summary", icon: Mail, permission: Permission.VIEW_APPOINTMENTS },
-    { title: "No-Show Management", href: "/doctor/no-show", icon: UserX, permission: Permission.VIEW_APPOINTMENTS },
     { title: "Patients", href: "/doctor/patients", icon: Users, permission: Permission.VIEW_PATIENTS },
     { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },
     { title: "Prescriptions", href: "/doctor/prescriptions", icon: Pill, permission: Permission.MANAGE_PRESCRIPTIONS },

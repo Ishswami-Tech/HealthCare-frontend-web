@@ -543,7 +543,12 @@ export class ApiClient {
       credentials: this.withCredentials ? 'include' : 'omit',
       // Do not use keepalive on normal requests.
       // Safari/iOS often surfaces it as a hard "Load failed" network error.
-      cache: 'default', // Use browser cache for GET requests
+      // Server-side (Server Actions/RSC) fetches must opt out of Next.js's
+      // fetch Data Cache: it otherwise caches this per-user, mutable, PHI
+      // response indefinitely for the life of the server process, so a doctor
+      // never sees new data after the first request. Browser-side requests
+      // keep the default HTTP cache behavior.
+      cache: typeof window === 'undefined' ? 'no-store' : 'default',
       ...options,
     };
 
