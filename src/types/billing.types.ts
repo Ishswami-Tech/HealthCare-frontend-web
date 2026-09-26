@@ -209,3 +209,80 @@ export interface CreatePaymentData {
   transactionId?: string;
 }
 
+// ============ Bill History (OPD consultation + pharmacy invoices) ============
+
+export type BillType = 'CONSULTATION' | 'PHARMACY' | 'APPOINTMENT' | 'SUBSCRIPTION' | 'IPD' | 'OTHER';
+
+export type PatientBillStatus = 'PENDING' | 'PARTIAL' | 'PAID' | 'VOID' | 'REFUNDED';
+
+export type CollectionMethod = 'CASH' | 'UPI' | 'CARD' | 'NET_BANKING';
+
+export interface PatientBillPayment {
+  id: string;
+  amount: number;
+  method: string | null;
+  status: string;
+  transactionId: string | null;
+  createdAt: string;
+}
+
+export interface PatientBillRow {
+  id: string;
+  source: 'INVOICE' | 'PAYMENT';
+  billType: BillType;
+  invoiceNumber: string | null;
+  date: string;
+  description: string | null;
+  visitId?: string | null;
+  opdNumber?: string | null;
+  prescriptionId?: string | null;
+  appointmentId?: string | null;
+  subtotal: number;
+  tax: number;
+  discount: number;
+  total: number;
+  paidAmount: number;
+  balance: number;
+  status: PatientBillStatus;
+  payments: PatientBillPayment[];
+  downloadable: boolean;
+}
+
+export interface PatientBillHistory {
+  rows: PatientBillRow[];
+  total: number;
+  summary: {
+    totalBilled: number;
+    totalPaid: number;
+    outstanding: number;
+  };
+}
+
+export interface PatientBillFilters {
+  type?: BillType | string;
+  status?: PatientBillStatus | string;
+  from?: string;
+  to?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface CreateConsultationInvoiceInput {
+  amount?: number;
+  discount?: number;
+  waive?: boolean;
+  collect?: {
+    method: CollectionMethod;
+    amount?: number;
+    transactionId?: string;
+    note?: string;
+  };
+}
+
+export interface RecordInvoicePaymentInput {
+  method: CollectionMethod;
+  amount?: number;
+  transactionId?: string;
+  note?: string;
+}
+

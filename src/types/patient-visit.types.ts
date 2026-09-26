@@ -23,7 +23,17 @@ export interface PatientVisit {
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Consultation invoice created at registration, when one could be created. */
+  consultationInvoice?: {
+    id: string;
+    invoiceNumber: string;
+    totalAmount: number;
+    status: string;
+    paidAmount: number;
+  } | null;
 }
+
+export type CollectFeeMethod = "CASH" | "UPI" | "CARD" | "NET_BANKING";
 
 export interface CreatePatientVisitInput {
   /** Patient.id — or pass patientUserId right after quick registration. */
@@ -36,6 +46,20 @@ export interface CreatePatientVisitInput {
   presentIllness?: string;
   presentComplaints?: string;
   knownCaseOf?: string;
+  /** Explicit consultation fee; falls back to Doctor.consultationFee, then clinic default. */
+  consultationFee?: number;
+  /** Discount off the resolved consultation fee. */
+  feeDiscount?: number;
+  /** Waive the consultation fee entirely (invoice created PAID at ₹0). */
+  waiveFee?: boolean;
+  /** Collect the consultation fee immediately at registration. */
+  collectFee?: {
+    method: CollectFeeMethod;
+    transactionId?: string;
+    note?: string;
+  };
+  /** Skip creating a consultation invoice for this visit entirely. */
+  skipConsultationInvoice?: boolean;
 }
 
 export type UpdatePatientVisitInput = Partial<

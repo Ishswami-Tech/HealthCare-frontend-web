@@ -107,6 +107,7 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
   THERAPIST: [
     { title: "Dashboard", href: "/therapist/dashboard", icon: LayoutDashboard },
     { title: "Appointments", href: "/therapist/appointments", icon: Calendar, permission: Permission.VIEW_APPOINTMENTS },
+    { title: "My Sessions", href: "/therapist/sessions", icon: ClipboardList, permission: Permission.VIEW_PATIENTS },
     { title: "Patients", href: "/therapist/patients", icon: Users, permission: Permission.VIEW_PATIENTS },
     { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },
     { title: "Billing", href: "/billing", icon: Wallet, permission: Permission.VIEW_BILLING },

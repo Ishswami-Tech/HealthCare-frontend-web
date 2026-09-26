@@ -33,6 +33,10 @@ import { HabitGrid, NidraPanel } from "./HabitGrid";
 import { MedicineHistoryTable } from "./MedicineHistoryTable";
 import { PastHistoryChecklist } from "./PastHistoryChecklist";
 import { PrakritiAssessmentPanel } from "./PrakritiAssessmentPanel";
+import { TherapyPlanPanel } from "./TherapyPlanPanel";
+import { TherapyProgressPanel } from "./TherapyProgressPanel";
+import { DietChartPanel } from "./DietChartPanel";
+import { PatientFilesPanel } from "./PatientFilesPanel";
 
 const SECTION_TABS = [
   "basic",
@@ -50,6 +54,11 @@ const SECTION_TABS = [
   "prakruti",
   "pain",
   "personal",
+  "therapy",
+  "diet",
+  "investigation",
+  "documents",
+  "progress",
 ] as const;
 
 const TAB_LABELS: Record<(typeof SECTION_TABS)[number], string> = {
@@ -68,6 +77,11 @@ const TAB_LABELS: Record<(typeof SECTION_TABS)[number], string> = {
   prakruti: "Prakruti",
   pain: "Pain",
   personal: "Personal",
+  therapy: "Therapy",
+  diet: "Diet",
+  investigation: "Investigation",
+  documents: "Documents",
+  progress: "Progress",
 };
 
 interface ComplaintsPanelProps {
@@ -280,6 +294,21 @@ export function VisitCaseSheet({ clinicId, patientId, patientUserId, visitId }: 
       </TabsContent>
       <TabsContent value="pain">{classical(PAIN_ASSESSMENT)}</TabsContent>
       <TabsContent value="personal">{classical(PERSONAL_HISTORY)}</TabsContent>
+      <TabsContent value="therapy">
+        <TherapyPlanPanel clinicId={clinicId} patientId={patientId} visitId={visitId} />
+      </TabsContent>
+      <TabsContent value="diet">
+        <DietChartPanel clinicId={clinicId} patientId={patientId} visitId={visitId} />
+      </TabsContent>
+      <TabsContent value="investigation">
+        <PatientFilesPanel clinicId={clinicId} patientId={patientId} visitId={visitId} category="INVESTIGATION" />
+      </TabsContent>
+      <TabsContent value="documents">
+        <PatientFilesPanel clinicId={clinicId} patientId={patientId} visitId={visitId} category="DOCUMENT" />
+      </TabsContent>
+      <TabsContent value="progress">
+        <TherapyProgressPanel clinicId={clinicId} patientId={patientId} />
+      </TabsContent>
     </HashTabs>
   );
 }

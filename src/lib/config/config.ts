@@ -824,8 +824,15 @@ export const API_ENDPOINTS = {
       MARK_PAID: (id: string) => `/billing/invoices/${id}/mark-paid`,
       GENERATE_PDF: (id: string) => `/billing/invoices/${id}/generate-pdf`,
       SEND_WHATSAPP: (id: string) => `/billing/invoices/${id}/send-whatsapp`,
-      DOWNLOAD: (fileName: string) => `/api/billing/invoices/download/${fileName}`,
+      // Next.js proxy route (src/app/api/billing/invoices/[id]/download) — keyed by invoice id.
+      DOWNLOAD: (id: string) => `/api/billing/invoices/${id}/download`,
+      // Offline collection at the desk (cash / UPI / card): creates a COMPLETED payment.
+      RECORD_PAYMENT: (id: string) => `/billing/invoices/${id}/record-payment`,
     },
+    // Per-patient Bill History (consultation + pharmacy + other invoices and their payments)
+    PATIENT_BILLS: (patientId: string) => `/billing/patients/${patientId}/bills`,
+    // Consultation fee invoice for an OPD visit (idempotent per visit)
+    VISIT_CONSULTATION_INVOICE: (visitId: string) => `/billing/visits/${visitId}/consultation-invoice`,
     PAYMENTS: {
       BASE: '/billing/payments',
       CREATE: '/billing/payments',
@@ -861,6 +868,29 @@ export const API_ENDPOINTS = {
     CASE_SHEET: (visitId: string) => `/patient-visits/${visitId}/case-sheet`,
     VITALS_EXAMINATION: (visitId: string) => `/patient-visits/${visitId}/vitals-examination`,
     CLASSICAL_EXAMS: (visitId: string) => `/patient-visits/${visitId}/classical-exams`,
+    // Therapy / Panchakarma (visit_therapy_plans / visit_therapy_sessions)
+    THERAPY_PLANS: (visitId: string) => `/patient-visits/${visitId}/therapy-plans`,
+    THERAPY_PLAN: (planId: string) => `/patient-visits/therapy-plans/${planId}`,
+    THERAPY_SESSIONS: (planId: string) => `/patient-visits/therapy-plans/${planId}/sessions`,
+    THERAPY_SESSION: (sessionId: string) => `/patient-visits/therapy-sessions/${sessionId}`,
+    THERAPY_PROGRESS: (patientId: string) => `/patient-visits/patient/${patientId}/therapy-progress`,
+    THERAPY_MY_SESSIONS: '/patient-visits/therapy/my-sessions',
+    THERAPISTS: '/patient-visits/therapists',
+    // Diet chart (Take / Avoid / Occasional, en/gu/hi/mr)
+    DIET_CHART: (visitId: string) => `/patient-visits/${visitId}/diet-chart`,
+    DIET_CHART_FOODS: '/patient-visits/diet-chart-foods',
+    DIET_CHART_FOOD: (foodId: string) => `/patient-visits/diet-chart-foods/${foodId}`,
+  },
+
+  // Investigations & Documents (patient_documents; private storage)
+  PATIENT_DOCUMENTS: {
+    UPLOAD: (category: 'investigations' | 'documents') => `/patient-documents/${category}`,
+    LIST_BY_PATIENT: (patientId: string) => `/patient-documents/patient/${patientId}`,
+    LIST_BY_VISIT: (visitId: string) => `/patient-documents/visit/${visitId}`,
+    URL: (documentId: string) => `/patient-documents/${documentId}/url`,
+    CONTENT: (documentId: string) => `/patient-documents/${documentId}/content`,
+    UPDATE: (documentId: string) => `/patient-documents/${documentId}`,
+    DELETE: (documentId: string) => `/patient-documents/${documentId}`,
   },
 
   // Family members (dependents under a head-of-family patient)

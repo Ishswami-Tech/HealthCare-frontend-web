@@ -380,7 +380,7 @@ export default async function proxy(request: NextRequest) {
     img-src 'self' blob: data: https://lh3.googleusercontent.com https://graph.facebook.com https://platform-lookaside.fbsbx.com https://storage.googleapis.com https://ui-avatars.com https://flagcdn.com https://www.charabibhasma.com https://charabibhasma.com https://i.ytimg.com https://ytimg.com https://img.youtube.com https://www.youtube.com https://youtube.com https://m.youtube.com https://youtu.be;
     font-src 'self' https://fonts.gstatic.com;
     connect-src ${connectSources};
-    frame-src 'self' https://accounts.google.com https://www.facebook.com https://*.cashfree.com https://sdk.cashfree.com https://api.cashfree.com https://sandbox.cashfree.com https://payments.cashfree.com https://payments-test.cashfree.com https://checkout.razorpay.com https://*.razorpay.com https://payments.zoho.com https://static.zohocdn.com;
+    frame-src 'self' blob: https://accounts.google.com https://www.facebook.com https://*.cashfree.com https://sdk.cashfree.com https://api.cashfree.com https://sandbox.cashfree.com https://payments.cashfree.com https://payments-test.cashfree.com https://checkout.razorpay.com https://*.razorpay.com https://payments.zoho.com https://static.zohocdn.com;
     media-src 'self' blob:;
     object-src 'none';
     base-uri 'self';

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { ArrowRight, Banknote, Eye, Check, Pill, Search } from "lucide-react";
+import { ArrowRight, Banknote, Eye, Check, Pill, Printer, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,7 @@ type PrescriptionQueueItem = {
   medicines: unknown[];
   priority: string;
   status: string;
+  invoiceId?: string | null;
 };
 
 interface PharmacistDashboardQueueCardProps {
@@ -25,6 +26,8 @@ interface PharmacistDashboardQueueCardProps {
   /** Record an over-the-counter cash payment so the entry becomes dispensable. */
   onRecordCashPayment?: (prescriptionId: string) => void;
   isRecordingCashPayment?: boolean;
+  /** Opens the pharmacy invoice PDF for a paid/dispensed queue entry. */
+  onPrintInvoice?: (invoiceId: string) => void;
 }
 
 export function PharmacistDashboardQueueCard({
@@ -35,6 +38,7 @@ export function PharmacistDashboardQueueCard({
   onDispensePrescription,
   onRecordCashPayment,
   isRecordingCashPayment = false,
+  onPrintInvoice,
 }: PharmacistDashboardQueueCardProps) {
   const prescriptionColumns: ColumnDef<PrescriptionQueueItem>[] = [
     {
@@ -124,6 +128,17 @@ export function PharmacistDashboardQueueCard({
               title="Dispense prescription"
             >
               <Check className="size-4" />
+            </Button>
+          )}
+          {row.getValue("status") === "ready_to_dispense" && row.original.invoiceId && onPrintInvoice && (
+            <Button
+              size="icon"
+              variant="outline"
+              className="size-8"
+              onClick={() => onPrintInvoice(row.original.invoiceId as string)}
+              title="Print pharmacy invoice"
+            >
+              <Printer className="size-4" />
             </Button>
           )}
         </div>

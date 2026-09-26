@@ -23,6 +23,7 @@ import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/compone
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { PatientClinicalRecordView } from "@/components/patient/PatientClinicalRecordView";
+import { PatientBillHistory } from "@/components/billing/PatientBillHistory";
 import { usePatientStore } from "@/stores";
 import { getAppointmentDateTimeValue } from "@/lib/utils/appointmentUtils";
 import { formatDateInIST } from "@/lib/utils/date-time";
@@ -215,6 +216,15 @@ function EhrDrawerContent({
                 <div className="rounded-xl border border-dashed border-border/70 bg-background/60 p-6 text-sm text-muted-foreground">
                   No OPD visit yet — use “New OPD visit” above to open a case sheet.
                 </div>
+              ) : undefined
+            }
+            billing={
+              clinicId && patientId ? (
+                <PatientBillHistory
+                  clinicId={clinicId}
+                  patientId={patientId}
+                  patientUserId={patientUserId}
+                />
               ) : undefined
             }
           />

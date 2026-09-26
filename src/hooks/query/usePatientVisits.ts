@@ -102,7 +102,7 @@ export const useCreatePatientVisit = () =>
       toastId: "patient-visit-create",
       loadingMessage: "Registering OPD visit...",
       successMessage: "OPD visit registered",
-      invalidateQueries: [[...patientVisitKeys.all]],
+      invalidateQueries: [[...patientVisitKeys.all], ["patient-bills"], ["invoices"], ["payments"]],
     },
   );
 
@@ -268,6 +268,13 @@ export const useRecordCashPrescriptionPayment = () =>
       toastId: "prescription-cash-payment",
       loadingMessage: "Recording cash payment...",
       successMessage: "Cash payment recorded — ready to dispense",
-      invalidateQueries: [["prescriptions"], ["medicineDeskQueue"], ["pharmacyStats"]],
+      invalidateQueries: [
+        ["prescriptions"],
+        ["medicineDeskQueue"],
+        ["pharmacyStats"],
+        ["patient-bills"],
+        ["invoices"],
+        ["payments"],
+      ],
     },
   );

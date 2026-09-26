@@ -8,6 +8,7 @@ import {
   FlaskConical,
   HeartPulse,
   Pill,
+  Receipt,
   UserRound,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +32,8 @@ export interface PatientClinicalRecordViewProps {
   prescriptions?: RecordLike[];
   /** Visit-scoped OPD case-sheet; replaces the flat history table when provided. */
   caseSheet?: React.ReactNode;
+  /** Per-patient Bill History (consultation + pharmacy invoices and payments). */
+  billing?: React.ReactNode;
   className?: string;
 }
 
@@ -99,6 +102,7 @@ export function PatientClinicalRecordView({
   carePlan,
   prescriptions = [],
   caseSheet,
+  billing,
   className,
 }: PatientClinicalRecordViewProps) {
   const patientRecord = (patient || {}) as RecordLike;
@@ -406,7 +410,7 @@ export function PatientClinicalRecordView({
       </div>
 
       <HashTabs
-        tabs={["overview", "appointments", "history", "vitals", "reports", "prescriptions", "medications"] as const}
+        tabs={["overview", "appointments", "history", "vitals", "reports", "prescriptions", "medications", "bills"] as const}
         defaultValue="overview"
         className="flex flex-col gap-y-4"
       >
@@ -438,6 +442,10 @@ export function PatientClinicalRecordView({
         <TabsTrigger value="medications">
           <Pill className="size-4" />
           Medications
+        </TabsTrigger>
+        <TabsTrigger value="bills">
+          <Receipt className="size-4" />
+          Bills
         </TabsTrigger>
       </TabsList>
 
@@ -589,6 +597,16 @@ export function PatientClinicalRecordView({
               <DataTable columns={medicationColumns} data={activeMedications} pageSize={10} emptyMessage="No active medications found." />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="bills">
+          {billing ?? (
+            <Card className="border-border/70 bg-card shadow-sm">
+              <CardContent className="p-6 text-sm text-muted-foreground">
+                Bill history is not available.
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </HashTabs>
 

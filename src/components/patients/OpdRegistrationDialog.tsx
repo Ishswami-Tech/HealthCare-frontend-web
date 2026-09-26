@@ -14,6 +14,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { SPECIAL_CASE_OPTIONS, FAMILY_RELATION_SUGGESTIONS } from "@/lib/constants/case-sheet-fixed-lists";
 import { useDoctorPatients } from "@/hooks/query/useDoctors";
@@ -23,7 +30,19 @@ import {
   useCreatePatientVisit,
   useFamilyMembers,
 } from "@/hooks/query/usePatientVisits";
-import type { FamilyMember, PatientVisit, SpecialCaseFlag } from "@/types/patient-visit.types";
+import { showSuccessToast } from "@/hooks/utils/use-toast";
+import type { CollectFeeMethod, FamilyMember, PatientVisit, SpecialCaseFlag } from "@/types/patient-visit.types";
+
+type FeeCollectMode = CollectFeeMethod | "LATER" | "WAIVE";
+
+const FEE_COLLECT_OPTIONS: { value: FeeCollectMode; label: string }[] = [
+  { value: "LATER", label: "Pay later" },
+  { value: "CASH", label: "Cash" },
+  { value: "UPI", label: "UPI" },
+  { value: "CARD", label: "Card" },
+  { value: "NET_BANKING", label: "Net banking" },
+  { value: "WAIVE", label: "Waive fee" },
+];
 
 type PatientRow = {
   id: string;
@@ -118,6 +137,10 @@ export function OpdRegistrationDialog({ clinicId, trigger, onRegistered }: OpdRe
   const [presentIllness, setPresentIllness] = useState("");
   const [flags, setFlags] = useState<SpecialCaseFlag[]>([]);
   const [internationalId, setInternationalId] = useState("");
+  const [feeAmount, setFeeAmount] = useState("");
+  const [feeDiscount, setFeeDiscount] = useState("");
+  const [feeCollectMode, setFeeCollectMode] = useState<FeeCollectMode>("LATER");
+  const [feeTransactionId, setFeeTransactionId] = useState("");
 
   const patientsQuery = useDoctorPatients(
     clinicId,
@@ -140,6 +163,10 @@ export function OpdRegistrationDialog({ clinicId, trigger, onRegistered }: OpdRe
     setPresentIllness("");
     setFlags([]);
     setInternationalId("");
+    setFeeAmount("");
+    setFeeDiscount("");
+    setFeeCollectMode("LATER");
+    setFeeTransactionId("");
   };
 
   const pickExisting = (row: PatientRow) => {
@@ -183,10 +210,27 @@ export function OpdRegistrationDialog({ clinicId, trigger, onRegistered }: OpdRe
 
   const submit = async () => {
     if (!who) return;
+    const parsedFeeAmount = feeAmount.trim() ? Number(feeAmount) : undefined;
+    const parsedFeeDiscount = feeDiscount.trim() ? Number(feeDiscount) : undefined;
     const visitDetails = {
       ...(presentIllness.trim() ? { presentIllness: presentIllness.trim() } : {}),
       ...(flags.length > 0 ? { specialCaseFlags: flags } : {}),
       ...(internationalId.trim() ? { internationalId: internationalId.trim() } : {}),
+      ...(parsedFeeAmount !== undefined && Number.isFinite(parsedFeeAmount)
+        ? { consultationFee: parsedFeeAmount }
+        : {}),
+      ...(parsedFeeDiscount !== undefined && Number.isFinite(parsedFeeDiscount)
+        ? { feeDiscount: parsedFeeDiscount }
+        : {}),
+      ...(feeCollectMode === "WAIVE" ? { waiveFee: true } : {}),
+      ...(feeCollectMode !== "LATER" && feeCollectMode !== "WAIVE"
+        ? {
+            collectFee: {
+              method: feeCollectMode,
+              ...(feeTransactionId.trim() ? { transactionId: feeTransactionId.trim() } : {}),
+            },
+          }
+        : {}),
     };
 
     let visit: PatientVisit;
@@ -213,6 +257,12 @@ export function OpdRegistrationDialog({ clinicId, trigger, onRegistered }: OpdRe
       }
     } catch {
       return; // Error toast is shown by the mutation hook; keep the dialog open for retry.
+    }
+    if (visit.consultationInvoice) {
+      showSuccessToast(
+        `OPD ${visit.opdNumber} registered · Bill ${visit.consultationInvoice.invoiceNumber} ${visit.consultationInvoice.status}`,
+        { id: "patient-visit-create" },
+      );
     }
     onRegistered?.(visit);
     setOpen(false);
@@ -462,6 +512,66 @@ export function OpdRegistrationDialog({ clinicId, trigger, onRegistered }: OpdRe
                     placeholder="Passport / foreign ID"
                   />
                 </div>
+              </div>
+            </section>
+          ) : null}
+
+          {who ? (
+            <section className="flex flex-col gap-y-3">
+              <p className="text-sm font-semibold text-foreground">Consultation fee</p>
+              <div className="grid grid-cols-1 gap-3 rounded-xl border border-border/70 bg-background/60 p-4 md:grid-cols-2">
+                <div className="flex flex-col gap-y-1">
+                  <Label htmlFor="opd-fee-amount">Amount (leave blank to use default)</Label>
+                  <Input
+                    id="opd-fee-amount"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={feeAmount}
+                    onChange={(event) => setFeeAmount(event.target.value)}
+                    placeholder="e.g. 500"
+                    disabled={feeCollectMode === "WAIVE"}
+                  />
+                </div>
+                <div className="flex flex-col gap-y-1">
+                  <Label htmlFor="opd-fee-discount">Discount</Label>
+                  <Input
+                    id="opd-fee-discount"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={feeDiscount}
+                    onChange={(event) => setFeeDiscount(event.target.value)}
+                    placeholder="0"
+                    disabled={feeCollectMode === "WAIVE"}
+                  />
+                </div>
+                <div className="flex flex-col gap-y-1">
+                  <Label>Collect now</Label>
+                  <Select value={feeCollectMode} onValueChange={(value) => setFeeCollectMode(value as FeeCollectMode)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FEE_COLLECT_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {feeCollectMode !== "LATER" && feeCollectMode !== "WAIVE" && feeCollectMode !== "CASH" ? (
+                  <div className="flex flex-col gap-y-1">
+                    <Label htmlFor="opd-fee-transaction-id">Transaction ID (optional)</Label>
+                    <Input
+                      id="opd-fee-transaction-id"
+                      value={feeTransactionId}
+                      onChange={(event) => setFeeTransactionId(event.target.value)}
+                      placeholder="UTR / reference number"
+                    />
+                  </div>
+                ) : null}
               </div>
             </section>
           ) : null}
