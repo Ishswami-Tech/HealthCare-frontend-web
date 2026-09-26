@@ -349,6 +349,10 @@ export async function createUser(userData: {
   state?: string;
   country?: string;
   zipCode?: string;
+  area?: string;
+  district?: string;
+  occupation?: string;
+  organization?: string;
   medicalConditions?: string[];
   allergies?: string[];
   medicalHistory?: string[];

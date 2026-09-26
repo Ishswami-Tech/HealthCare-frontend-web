@@ -308,6 +308,10 @@ export const useQuickRegisterPatient = () => {
       state?: string;
       country?: string;
       zipCode?: string;
+      area?: string;
+      district?: string;
+      occupation?: string;
+      organization?: string;
       allergies?: string[];
       medicalHistory?: string[];
       emergencyContact?: {
@@ -343,6 +347,10 @@ export const useQuickRegisterPatient = () => {
         ...(patientData.state ? { state: patientData.state } : {}),
         ...(patientData.country ? { country: patientData.country } : {}),
         ...(patientData.zipCode ? { zipCode: patientData.zipCode } : {}),
+        ...(patientData.area ? { area: patientData.area } : {}),
+        ...(patientData.district ? { district: patientData.district } : {}),
+        ...(patientData.occupation ? { occupation: patientData.occupation } : {}),
+        ...(patientData.organization ? { organization: patientData.organization } : {}),
         ...(patientData.allergies ? { allergies: patientData.allergies } : {}),
         ...(patientData.medicalHistory ? { medicalHistory: patientData.medicalHistory } : {}),
         ...(patientData.emergencyContact ? { emergencyContact: patientData.emergencyContact } : {}),
@@ -419,6 +427,11 @@ export const useUpdatePatient = () => {
         groupNumber?: string;
       };
       isActive?: boolean;
+      address?: string;
+      area?: string;
+      district?: string;
+      occupation?: string;
+      organization?: string;
     };
   }) => {
       return await updatePatient(patientId, updates);

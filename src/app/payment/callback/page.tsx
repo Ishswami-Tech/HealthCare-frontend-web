@@ -323,6 +323,25 @@ function PaymentCallbackPageContent() {
         let response =
           await verifyPaymentCallbackServerAction(verificationParams);
 
+        // Handoff tokens are single-use: a re-run of this effect (or a refresh)
+        // gets "Invalid or expired handoff token" even though the payment may be
+        // fine. Fall back to the regular callback when the URL has enough context.
+        if (
+          useHandoffToken &&
+          !response.success &&
+          params.clinicId &&
+          params.orderId
+        ) {
+          verificationParams = {
+            clinicId: params.clinicId,
+            orderId: params.orderId,
+            paymentId: params.paymentId || undefined,
+            provider: params.provider,
+          };
+          useHandoffToken = false;
+          response = await verifyPaymentCallbackServerAction(verificationParams);
+        }
+
         while (true) {
           if (cancelled) return;
           if (!response.success) {

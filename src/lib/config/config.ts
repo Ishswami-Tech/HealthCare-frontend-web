@@ -556,6 +556,8 @@ export const API_ENDPOINTS = {
         `/pharmacy/prescriptions/${prescriptionId}/payment-summary`,
       PROCESS_PAYMENT: (prescriptionId: string) =>
         `/pharmacy/prescriptions/${prescriptionId}/process-payment`,
+      RECORD_CASH_PAYMENT: (prescriptionId: string) =>
+        `/pharmacy/prescriptions/${prescriptionId}/record-cash-payment`,
     },
     INVENTORY: {
       UPDATE: (clinicId: string, medicineId: string) => `/clinics/${clinicId}/pharmacy/inventory/${medicineId}`,
@@ -850,6 +852,25 @@ export const API_ENDPOINTS = {
     },
   },
   
+  // OPD registration / per-visit case-sheet
+  PATIENT_VISITS: {
+    CREATE: '/patient-visits',
+    GET: (visitId: string) => `/patient-visits/${visitId}`,
+    UPDATE: (visitId: string) => `/patient-visits/${visitId}`,
+    LIST_BY_PATIENT: (patientId: string) => `/patient-visits/patient/${patientId}`,
+    CASE_SHEET: (visitId: string) => `/patient-visits/${visitId}/case-sheet`,
+    VITALS_EXAMINATION: (visitId: string) => `/patient-visits/${visitId}/vitals-examination`,
+    CLASSICAL_EXAMS: (visitId: string) => `/patient-visits/${visitId}/classical-exams`,
+  },
+
+  // Family members (dependents under a head-of-family patient)
+  FAMILY_MEMBERS: {
+    CREATE: '/family-members',
+    LIST_BY_PATIENT: (patientId: string) => `/family-members/patient/${patientId}`,
+    UPDATE: (id: string) => `/family-members/${id}`,
+    DELETE: (id: string) => `/family-members/${id}`,
+  },
+
   // EHR Endpoints
   EHR: {
     BASE: '/ehr',
@@ -859,6 +880,12 @@ export const API_ENDPOINTS = {
       GET_BY_USER: (userId: string) => `/ehr/medical-history/${userId}`,
       UPDATE: (id: string) => `/ehr/medical-history/${id}`,
       DELETE: (id: string) => `/ehr/medical-history/${id}`,
+    },
+    FAMILY_HISTORY: {
+      CREATE: '/ehr/family-history',
+      GET_BY_USER: (userId: string) => `/ehr/family-history/${userId}`,
+      UPDATE: (id: string) => `/ehr/family-history/${id}`,
+      DELETE: (id: string) => `/ehr/family-history/${id}`,
     },
     LAB_REPORTS: {
       CREATE: '/ehr/lab-reports',

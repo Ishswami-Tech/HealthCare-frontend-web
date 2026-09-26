@@ -29,6 +29,8 @@ export interface PatientClinicalRecordViewProps {
   labs: RecordLike[];
   carePlan: RecordLike[];
   prescriptions?: RecordLike[];
+  /** Visit-scoped OPD case-sheet; replaces the flat history table when provided. */
+  caseSheet?: React.ReactNode;
   className?: string;
 }
 
@@ -96,6 +98,7 @@ export function PatientClinicalRecordView({
   labs,
   carePlan,
   prescriptions = [],
+  caseSheet,
   className,
 }: PatientClinicalRecordViewProps) {
   const patientRecord = (patient || {}) as RecordLike;
@@ -418,7 +421,7 @@ export function PatientClinicalRecordView({
         </TabsTrigger>
         <TabsTrigger value="history">
           <FileText className="size-4" />
-          History
+          {caseSheet ? "Case Sheet" : "History"}
         </TabsTrigger>
         <TabsTrigger value="vitals">
           <HeartPulse className="size-4" />
@@ -524,14 +527,16 @@ export function PatientClinicalRecordView({
         </TabsContent>
 
         <TabsContent value="history">
-          <Card className="border-border/70 bg-card shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold text-foreground">Treatment History</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <DataTable columns={historyColumns} data={history} pageSize={10} emptyMessage="No treatment history found." />
-            </CardContent>
-          </Card>
+          {caseSheet ?? (
+            <Card className="border-border/70 bg-card shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-bold text-foreground">Treatment History</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <DataTable columns={historyColumns} data={history} pageSize={10} emptyMessage="No treatment history found." />
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="vitals">

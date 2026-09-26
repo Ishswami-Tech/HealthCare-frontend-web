@@ -1,7 +1,7 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { ArrowRight, Eye, Check, Pill, Search } from "lucide-react";
+import { ArrowRight, Banknote, Eye, Check, Pill, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +22,9 @@ interface PharmacistDashboardQueueCardProps {
   onSearchTermChange: (value: string) => void;
   onOpenPrescription: (prescriptionId: string) => void;
   onDispensePrescription: (prescriptionId: string) => void;
+  /** Record an over-the-counter cash payment so the entry becomes dispensable. */
+  onRecordCashPayment?: (prescriptionId: string) => void;
+  isRecordingCashPayment?: boolean;
 }
 
 export function PharmacistDashboardQueueCard({
@@ -30,6 +33,8 @@ export function PharmacistDashboardQueueCard({
   onSearchTermChange,
   onOpenPrescription,
   onDispensePrescription,
+  onRecordCashPayment,
+  isRecordingCashPayment = false,
 }: PharmacistDashboardQueueCardProps) {
   const prescriptionColumns: ColumnDef<PrescriptionQueueItem>[] = [
     {
@@ -98,6 +103,19 @@ export function PharmacistDashboardQueueCard({
           >
             <Eye className="size-4" />
           </Button>
+          {row.getValue("status") === "awaiting_payment" && onRecordCashPayment && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1 text-xs"
+              disabled={isRecordingCashPayment}
+              onClick={() => onRecordCashPayment(row.original.id)}
+              title="Record cash payment received at the counter"
+            >
+              <Banknote className="size-4" />
+              Mark paid — cash
+            </Button>
+          )}
           {row.getValue("status") === "ready_to_dispense" && (
             <Button
               size="icon"

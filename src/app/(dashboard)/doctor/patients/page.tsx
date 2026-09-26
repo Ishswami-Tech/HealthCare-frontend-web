@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useMemo, useReducer } from "react";
+import { useDeferredValue, useMemo, useReducer, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useComprehensiveHealthRecord } from "@/hooks/query/useMedicalRecords";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,9 @@ import { DataTable } from "@/components/ui/data-table";
 import { ServerPagination } from "@/components/ui/pagination";
 import { QuickPrescriptionModal } from "@/components/doctor/QuickPrescriptionModal";
 import { RegisterPatientDialog } from "@/components/patients/RegisterPatientDialog";
+import { OpdRegistrationDialog } from "@/components/patients/OpdRegistrationDialog";
+import { VisitSelector } from "@/components/patient/case-sheet/VisitSelector";
+import { VisitCaseSheet } from "@/components/patient/case-sheet/VisitCaseSheet";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useAppointments } from "@/hooks/query/useAppointments";
@@ -148,19 +151,44 @@ function getPatientName(patient: RecordLike): string {
   );
 }
 
-function EhrDrawerContent({ patient }: { patient: RecordLike }) {
+function EhrDrawerContent({
+  patient,
+  clinicId,
+  onPrescribe,
+}: {
+  patient: RecordLike;
+  clinicId: string;
+  onPrescribe: (patient: RecordLike) => void;
+}) {
   const patientUserId = patient?.userId || patient?.user?.id || "";
+  const patientId: string = patient?.id || "";
+  const [visitId, setVisitId] = useState<string | null>(null);
   const { data: ehrData, isPending: isEhrLoading } = useComprehensiveHealthRecord(patientUserId) as {
     data: RecordLike;
     isPending: boolean;
   };
+  const canShowCaseSheet = Boolean(clinicId && patientId && patientUserId);
 
   return (
     <>
       <DrawerHeader>
         <DrawerTitle>{getPatientName(patient)} - Electronic Health Record</DrawerTitle>
       </DrawerHeader>
-      <div className="px-6 pb-6">
+      <div className="flex flex-col gap-y-4 px-6 pb-6">
+        {canShowCaseSheet ? (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <VisitSelector
+              clinicId={clinicId}
+              patientId={patientId}
+              selectedVisitId={visitId}
+              onSelect={setVisitId}
+            />
+            <Button size="sm" onClick={() => onPrescribe(patient)}>
+              <Pill className="mr-1 size-4" />
+              Move to Prescription
+            </Button>
+          </div>
+        ) : null}
         {isEhrLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="size-8 animate-spin text-blue-600" />
@@ -175,6 +203,20 @@ function EhrDrawerContent({ patient }: { patient: RecordLike }) {
             labs={toArray(ehrData?.labReports)}
             carePlan={toArray(ehrData?.carePlan || ehrData?.carePlans)}
             prescriptions={toArray(ehrData?.prescriptions)}
+            caseSheet={
+              canShowCaseSheet && visitId ? (
+                <VisitCaseSheet
+                  clinicId={clinicId}
+                  patientId={patientId}
+                  patientUserId={patientUserId}
+                  visitId={visitId}
+                />
+              ) : canShowCaseSheet ? (
+                <div className="rounded-xl border border-dashed border-border/70 bg-background/60 p-6 text-sm text-muted-foreground">
+                  No OPD visit yet — use “New OPD visit” above to open a case sheet.
+                </div>
+              ) : undefined
+            }
           />
         )}
       </div>
@@ -264,6 +306,10 @@ export default function DoctorPatients() {
   // to bring the new patient into the list.
   const headerActions = (
     <div className="flex flex-wrap items-center gap-2">
+      <OpdRegistrationDialog
+        clinicId={clinicId || ""}
+        onRegistered={() => void patientsQuery.refetch()}
+      />
       <RegisterPatientDialog
         clinicId={clinicId}
         onRegistered={() => void patientsQuery.refetch()}
@@ -533,7 +579,18 @@ export default function DoctorPatients() {
       onOpenChange={(open) => !open && setSelectedPatient(null)}
       >
         <DrawerContent className="h-full w-[min(92vw,80rem)] max-w-none overflow-y-auto">
-          {drawerPatient ? <EhrDrawerContent patient={drawerPatient} /> : null}
+          {drawerPatient ? (
+            <EhrDrawerContent
+              patient={drawerPatient}
+              clinicId={clinicId || ""}
+              onPrescribe={(target) =>
+                dispatch({
+                  type: "set_prescribe_target",
+                  value: { id: target.id, name: getPatientName(target) },
+                })
+              }
+            />
+          ) : null}
         </DrawerContent>
       </Drawer>
 

@@ -126,7 +126,8 @@ export const useUser = (id: string) => {
 export const useUpdateUser = () => {
   return useMutationOperation<{ status: number; data: Record<string, unknown> }, { id: string; data: Record<string, unknown> }>(
     async ({ id, data }) => {
-      return { status: 200, data: (await clinicApiClient.put(API_ENDPOINTS.USERS.UPDATE(id), data)).data as Record<string, unknown> };
+      // Backend exposes PATCH /user/:id (there is no PUT); PUT returned 404 "Cannot PUT".
+      return { status: 200, data: (await clinicApiClient.patch(API_ENDPOINTS.USERS.UPDATE(id), data)).data as Record<string, unknown> };
     },
     {
       toastId: TOAST_IDS.USER.UPDATE,

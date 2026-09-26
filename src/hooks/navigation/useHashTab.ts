@@ -130,6 +130,15 @@ export function useHashTab<T extends string>(
       const nextHash = buildHash(next, namespace);
       if (window.location.hash === nextHash) return;
 
+      // Top-level tabs: don't clobber a nested `#tab/sub` hash that already
+      // belongs to this same tab (written by a namespaced child HashTabs).
+      // Without this, any parent re-render re-runs the sync effect and
+      // rewrites `#history/medicines` back to `#history`.
+      if (!namespace) {
+        const currentTop = readRawHash().toLowerCase().split("/")[0] || "";
+        if (currentTop === String(next).toLowerCase()) return;
+      }
+
       // Nested tabs: don't clobber a top-level hash that isn't our namespace
       if (namespace) {
         const current = readRawHash().toLowerCase();
