@@ -37,7 +37,10 @@ const BILLING_QUERY_KEYS = [
   ["patientDashboardSummary"],
 ] as const;
 
-const IN_APP_PAYMENT_PROVIDERS: PaymentProvider[] = ["cashfree", "razorpay"];
+const IN_APP_PAYMENT_PROVIDERS: PaymentProvider[] = ENABLED_PAYMENT_PROVIDERS.filter(
+  (provider): provider is PaymentProvider =>
+    ["cashfree", "razorpay"].includes(provider)
+);
 const REDIRECT_PAYMENT_PROVIDERS: PaymentProvider[] = [
   "phonepe",
   "zoho",
@@ -368,8 +371,8 @@ export function PaymentButton({
       }
     }
 
-    if (!attempts.length) {
-      addAttempt("cashfree");
+    if (!attempts.length && ENABLED_PAYMENT_PROVIDERS[0]) {
+      addAttempt(ENABLED_PAYMENT_PROVIDERS[0]);
     }
 
     return attempts;
