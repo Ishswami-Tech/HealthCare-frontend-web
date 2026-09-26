@@ -943,27 +943,24 @@ export async function createPaymentIntent(
     if (!session?.user?.id) {
       throw new Error('Unauthorized: Authentication required');
     }
-    const provider = request.provider?.trim().toLowerCase();
-    const providerQuery = provider ? `?provider=${provider}` : '';
-
     let endpoint: string;
     const body: Record<string, unknown> = {};
 
     if ('subscriptionId' in request) {
       endpoint =
-        `${API_ENDPOINTS.BILLING.SUBSCRIPTIONS.BASE}/${request.subscriptionId}/process-payment${providerQuery}`;
+        `${API_ENDPOINTS.BILLING.SUBSCRIPTIONS.BASE}/${request.subscriptionId}/process-payment`;
     } else if ('appointmentId' in request) {
       endpoint =
-        `${API_ENDPOINTS.BILLING.APPOINTMENT_PAYMENTS.PROCESS_PAYMENT(request.appointmentId)}${providerQuery}`;
+        API_ENDPOINTS.BILLING.APPOINTMENT_PAYMENTS.PROCESS_PAYMENT(request.appointmentId);
       if (request.appointmentType) {
         body.appointmentType = request.appointmentType;
       }
     } else if ('invoiceId' in request) {
       endpoint =
-        `${API_ENDPOINTS.BILLING.INVOICES.PROCESS_PAYMENT(request.invoiceId)}${providerQuery}`;
+        API_ENDPOINTS.BILLING.INVOICES.PROCESS_PAYMENT(request.invoiceId);
     } else if ('prescriptionId' in request) {
       endpoint =
-        `${API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.PROCESS_PAYMENT(request.prescriptionId)}${providerQuery}`;
+        API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.PROCESS_PAYMENT(request.prescriptionId);
     } else {
       return { success: false, error: 'Invalid payment intent request' };
     }
