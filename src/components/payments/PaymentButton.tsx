@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import {
@@ -12,10 +12,14 @@ import { useQueryClient } from "@/hooks/core";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { APP_CONFIG } from "@/lib/config/config";
 import {
-  DEFAULT_PAYMENT_PROVIDER,
+  SUPPORTED_PAYMENT_PROVIDERS,
   isPaymentProviderEnabled,
   type PaymentProvider,
 } from "@/lib/payments/providers";
+import {
+  useClinicPaymentConfig,
+  enabledProvidersFromConfig,
+} from "@/hooks/query/useClinicPaymentConfig";
 import { formatAmountFromMinorUnits } from "@/lib/utils";
 import { syncAppointmentInCache } from "@/lib/utils/appointment-cache";
 import {
@@ -240,7 +244,20 @@ export function PaymentButton({
   const hasAutoStartedRef = useRef(false);
   const cashfreeSdkPromiseRef = useRef<Promise<CashfreeCheckoutClient | null> | null>(null);
   const userRole = (session?.user?.role || "").toUpperCase();
-  const normalizedCandidates = [provider, DEFAULT_PAYMENT_PROVIDER].reduce<
+
+  // The clinic's real payment config — the only source of truth for which
+  // providers are enabled here. `dynamicEnabledProviders` is empty while
+  // this is still loading (or if the clinic has none configured yet), in
+  // which case every known provider is treated as potentially valid rather
+  // than silently rejecting one via a stale frontend-static list.
+  const { data: clinicPaymentConfig } = useClinicPaymentConfig(clinicId);
+  const dynamicEnabledProviders = useMemo(() => {
+    const fromBackend = enabledProvidersFromConfig(clinicPaymentConfig);
+    return fromBackend.length > 0 ? fromBackend : [...SUPPORTED_PAYMENT_PROVIDERS];
+  }, [clinicPaymentConfig]);
+  const defaultProvider = dynamicEnabledProviders[0] ?? SUPPORTED_PAYMENT_PROVIDERS[0];
+
+  const normalizedCandidates = [provider, defaultProvider].reduce<
     string[]
   >((candidates, value) => {
     if (typeof value === "string") {
@@ -252,13 +269,14 @@ export function PaymentButton({
     return candidates;
   }, []);
   const resolvedProviderGuess = normalizedCandidates.find((value) =>
-    isPaymentProviderEnabled(value),
+    isPaymentProviderEnabled(value, dynamicEnabledProviders),
   );
   const effectiveProvider: PaymentProvider = isPaymentProviderEnabled(
     resolvedProviderGuess || "",
+    dynamicEnabledProviders,
   )
     ? (resolvedProviderGuess as PaymentProvider)
-    : DEFAULT_PAYMENT_PROVIDER;
+    : (defaultProvider as PaymentProvider);
   const cashfreeMode =
     process.env.NEXT_PUBLIC_CASHFREE_MODE === "production"
       ? "production"
@@ -705,7 +723,7 @@ export function PaymentButton({
       (metadata?.paymentSessionId as string) ||
       (providerResponse?.payment_session_id as string) ||
       (providerResponse?.paymentSessionId as string);
-    let resolvedClinicId =
+    const resolvedClinicId =
       clinicId ||
       (paymentIntent?.clinicId as string) ||
       (metadata?.clinicId as string);
@@ -977,7 +995,7 @@ export function PaymentButton({
       const usedProvider = providerFromIntent as PaymentProvider;
 
       const metadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
-      let resolvedClinicId =
+      const resolvedClinicId =
         clinicId ||
         (paymentIntent?.clinicId as string) ||
         (metadata?.clinicId as string);
