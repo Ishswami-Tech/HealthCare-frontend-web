@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, CheckCircle, Clock, Pill, TrendingUp } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { usePrescriptions, useInventory, usePharmacyStats, useMedicineDeskQueue } from "@/hooks/query/usePharmacy";
+import { useRecordCashPrescriptionPayment } from "@/hooks/query/usePatientVisits";
+import { API_ENDPOINTS } from "@/lib/config/config";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { getQueuePositionLabel, normalizeQueueEntry } from "@/lib/queue/queue-adapter";
 import { SkeletonList } from "@/components/ui/loading";
@@ -39,6 +41,7 @@ type QueueItem = {
   medicines: unknown[];
   priority: string;
   status: string;
+  invoiceId?: string | null;
 };
 
 export default function PharmacistDashboardContent() {
@@ -124,6 +127,7 @@ export default function PharmacistDashboardContent() {
             : Boolean(entry.readyForHandover) || String(entry.paymentStatus).toUpperCase() === "PAID"
               ? "ready_to_dispense"
               : "awaiting_payment",
+        invoiceId: (prescription.invoiceId as string | undefined) || null,
       };
 
       if (!normalizedSearch || item.patientName.toLowerCase().includes(normalizedSearch)) {
@@ -151,6 +155,19 @@ export default function PharmacistDashboardContent() {
     },
     [push]
   );
+
+  const recordCashPayment = useRecordCashPrescriptionPayment();
+  const handleRecordCashPayment = useCallback(
+    (prescriptionId: string) => {
+      if (!clinicId) return;
+      void recordCashPayment.mutateAsync({ clinicId, prescriptionId });
+    },
+    [clinicId, recordCashPayment]
+  );
+
+  const handlePrintInvoice = useCallback((invoiceId: string) => {
+    window.open(API_ENDPOINTS.BILLING.INVOICES.DOWNLOAD(invoiceId), "_blank", "noopener,noreferrer");
+  }, []);
 
   const isInitialLoading = (prescriptionsPending || inventoryPending) && prescriptions.length === 0 && inventory.length === 0;
 
@@ -200,6 +217,9 @@ export default function PharmacistDashboardContent() {
             onSearchTermChange={setSearchTerm}
             onOpenPrescription={handleOpenPrescription}
             onDispensePrescription={handleDispensePrescription}
+            onRecordCashPayment={handleRecordCashPayment}
+            isRecordingCashPayment={recordCashPayment.isPending}
+            onPrintInvoice={handlePrintInvoice}
           />
         )}
 

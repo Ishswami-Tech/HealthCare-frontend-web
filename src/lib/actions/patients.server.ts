@@ -123,6 +123,11 @@ export async function updatePatient(patientId: string, updates: {
     groupNumber?: string;
   };
   isActive?: boolean;
+  address?: string;
+  area?: string;
+  district?: string;
+  occupation?: string;
+  organization?: string;
 }) {
   const session = await getServerSession();
   if (!session?.user?.id) {

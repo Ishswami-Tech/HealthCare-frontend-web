@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import {
@@ -12,11 +12,14 @@ import { useQueryClient } from "@/hooks/core";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { APP_CONFIG } from "@/lib/config/config";
 import {
-  DEFAULT_PAYMENT_PROVIDER,
-  ENABLED_PAYMENT_PROVIDERS,
+  SUPPORTED_PAYMENT_PROVIDERS,
   isPaymentProviderEnabled,
   type PaymentProvider,
 } from "@/lib/payments/providers";
+import {
+  useClinicPaymentConfig,
+  enabledProvidersFromConfig,
+} from "@/hooks/query/useClinicPaymentConfig";
 import { formatAmountFromMinorUnits } from "@/lib/utils";
 import { syncAppointmentInCache } from "@/lib/utils/appointment-cache";
 import {
@@ -36,18 +39,6 @@ const BILLING_QUERY_KEYS = [
   ["billing-analytics"],
   ["patientDashboardSummary"],
 ] as const;
-
-const IN_APP_PAYMENT_PROVIDERS: PaymentProvider[] = ENABLED_PAYMENT_PROVIDERS.filter(
-  (provider): provider is PaymentProvider =>
-    ["cashfree", "razorpay"].includes(provider)
-);
-const REDIRECT_PAYMENT_PROVIDERS: PaymentProvider[] = [
-  "phonepe",
-  "zoho",
-  "easebuzz",
-  "paytm",
-  "payu",
-];
 
 // Fast timeouts for better UX
 const CASHFREE_LOAD_TIMEOUT_MS = 8000;
@@ -135,7 +126,7 @@ type PaymentIntentResponse = {
 };
 
 type PaymentBridgePayload = {
-  provider?: PaymentProvider;
+  provider: PaymentProvider;
   amount: number;
   displayAmount?: string;
   currency: string;
@@ -169,7 +160,9 @@ function isPaymentBridgePayload(
   return (
     typeof record.clinicId === "string" &&
     typeof record.amount === "number" &&
-    typeof record.currency === "string"
+    typeof record.currency === "string" &&
+    typeof record.provider === "string" &&
+    isPaymentProviderEnabled(record.provider)
   );
 }
 
@@ -251,7 +244,20 @@ export function PaymentButton({
   const hasAutoStartedRef = useRef(false);
   const cashfreeSdkPromiseRef = useRef<Promise<CashfreeCheckoutClient | null> | null>(null);
   const userRole = (session?.user?.role || "").toUpperCase();
-  const normalizedCandidates = [provider, DEFAULT_PAYMENT_PROVIDER].reduce<
+
+  // The clinic's real payment config — the only source of truth for which
+  // providers are enabled here. `dynamicEnabledProviders` is empty while
+  // this is still loading (or if the clinic has none configured yet), in
+  // which case every known provider is treated as potentially valid rather
+  // than silently rejecting one via a stale frontend-static list.
+  const { data: clinicPaymentConfig } = useClinicPaymentConfig(clinicId);
+  const dynamicEnabledProviders = useMemo(() => {
+    const fromBackend = enabledProvidersFromConfig(clinicPaymentConfig);
+    return fromBackend.length > 0 ? fromBackend : [...SUPPORTED_PAYMENT_PROVIDERS];
+  }, [clinicPaymentConfig]);
+  const defaultProvider = dynamicEnabledProviders[0] ?? SUPPORTED_PAYMENT_PROVIDERS[0];
+
+  const normalizedCandidates = [provider, defaultProvider].reduce<
     string[]
   >((candidates, value) => {
     if (typeof value === "string") {
@@ -263,13 +269,14 @@ export function PaymentButton({
     return candidates;
   }, []);
   const resolvedProviderGuess = normalizedCandidates.find((value) =>
-    isPaymentProviderEnabled(value),
+    isPaymentProviderEnabled(value, dynamicEnabledProviders),
   );
   const effectiveProvider: PaymentProvider = isPaymentProviderEnabled(
     resolvedProviderGuess || "",
+    dynamicEnabledProviders,
   )
     ? (resolvedProviderGuess as PaymentProvider)
-    : DEFAULT_PAYMENT_PROVIDER;
+    : (defaultProvider as PaymentProvider);
   const cashfreeMode =
     process.env.NEXT_PUBLIC_CASHFREE_MODE === "production"
       ? "production"
@@ -327,79 +334,22 @@ export function PaymentButton({
     }
   };
 
-  const buildProviderAttemptOrder = (): Array<PaymentProvider | undefined> => {
-    if (paymentBridgeUrl) {
-      return provider && isPaymentProviderEnabled(provider)
-        ? [provider]
-        : [effectiveProvider];
-    }
-
-    const attempts: PaymentProvider[] = [];
-    const addAttempt = (candidate?: string | null) => {
-      if (!candidate) {
-        return;
-      }
-      const normalized = candidate.trim().toLowerCase();
-      if (!isPaymentProviderEnabled(normalized)) {
-        return;
-      }
-      const typed = normalized as PaymentProvider;
-      if (!attempts.includes(typed)) {
-        attempts.push(typed);
-      }
-    };
-
-    if (provider) {
-      addAttempt(provider);
-    }
-
-    for (const candidate of IN_APP_PAYMENT_PROVIDERS) {
-      if (candidate !== provider) {
-        addAttempt(candidate);
-      }
-    }
-
-    for (const candidate of REDIRECT_PAYMENT_PROVIDERS) {
-      if (candidate !== provider) {
-        addAttempt(candidate);
-      }
-    }
-
-    for (const candidate of ENABLED_PAYMENT_PROVIDERS) {
-      if (candidate !== provider) {
-        addAttempt(candidate);
-      }
-    }
-
-    if (!attempts.length && ENABLED_PAYMENT_PROVIDERS[0]) {
-      addAttempt(ENABLED_PAYMENT_PROVIDERS[0]);
-    }
-
-    return attempts;
-  };
-
-  const getPaymentIntent = async (
-    requestedProvider?: PaymentProvider,
-  ): Promise<PaymentIntentResponse> => {
+  const getPaymentIntent = async (): Promise<PaymentIntentResponse> => {
     if (subscriptionId) {
       return (await createPaymentIntentServerAction({
-        ...(requestedProvider ? { provider: requestedProvider } : {}),
         subscriptionId,
       })) as PaymentIntentResponse;
     } else if (appointmentId) {
       return (await createPaymentIntentServerAction({
-        ...(requestedProvider ? { provider: requestedProvider } : {}),
         appointmentId,
         ...(appointmentType ? { appointmentType } : {}),
       })) as PaymentIntentResponse;
     } else if (invoiceId) {
       return (await createPaymentIntentServerAction({
-        ...(requestedProvider ? { provider: requestedProvider } : {}),
         invoiceId,
       })) as PaymentIntentResponse;
     } else if (prescriptionId) {
       return (await createPaymentIntentServerAction({
-        ...(requestedProvider ? { provider: requestedProvider } : {}),
         prescriptionId,
       })) as PaymentIntentResponse;
     } else {
@@ -510,12 +460,13 @@ export function PaymentButton({
       (typeof window !== "undefined"
         ? `${window.location.origin}/payment/callback`
         : `${(APP_CONFIG.APP.URL || "").replace(/\/+$/u, "") || "https://www.viddhakarma.com"}/payment/callback`);
+    const selectedProvider =
+      typeof paymentIntent?.provider === "string"
+        ? paymentIntent.provider.toLowerCase()
+        : "";
 
     return {
-      provider: (
-        String(paymentIntent?.provider || effectiveProvider) ||
-        effectiveProvider
-      ).toLowerCase() as PaymentProvider,
+      provider: selectedProvider as PaymentProvider,
       amount: Number(paymentIntent?.amount || amount),
       displayAmount:
         String(
@@ -772,7 +723,7 @@ export function PaymentButton({
       (metadata?.paymentSessionId as string) ||
       (providerResponse?.payment_session_id as string) ||
       (providerResponse?.paymentSessionId as string);
-    let resolvedClinicId =
+    const resolvedClinicId =
       clinicId ||
       (paymentIntent?.clinicId as string) ||
       (metadata?.clinicId as string);
@@ -1017,107 +968,63 @@ export function PaymentButton({
   const handlePayment = async (): Promise<void> => {
     setIsProcessing(true);
     try {
-      const providerAttempts = buildProviderAttemptOrder();
+      const paymentResponse = await getPaymentIntent();
+      const paymentIntentResponse = paymentResponse as PaymentIntentResponse;
+      const paymentIntentData =
+        paymentIntentResponse.paymentIntent ||
+        paymentIntentResponse.data?.paymentIntent;
 
-      for (let index = 0; index < providerAttempts.length; index += 1) {
-        const attemptedProvider = providerAttempts[index]!;
-        try {
-          const paymentResponse = await getPaymentIntent(attemptedProvider);
-          const paymentIntentResponse =
-            paymentResponse as PaymentIntentResponse;
-          const paymentIntentData =
-            paymentIntentResponse.paymentIntent ||
-            paymentIntentResponse.data?.paymentIntent;
+      if (!paymentResponse.success || !paymentIntentData) {
+        throw new Error(
+          paymentResponse.error ||
+            paymentResponse.message ||
+            "Failed to create payment intent",
+        );
+      }
 
-          if (!paymentResponse.success || !paymentIntentData) {
-            throw new Error(
-              paymentResponse.error ||
-                paymentResponse.message ||
-                "Failed to create payment intent",
-            );
-          }
+      const paymentIntent = paymentIntentData as Record<string, unknown>;
+      const providerFromIntent =
+        typeof paymentIntent?.provider === "string"
+          ? paymentIntent.provider.toLowerCase()
+          : undefined;
+      if (!providerFromIntent || !isPaymentProviderEnabled(providerFromIntent)) {
+        throw new Error(
+          "The clinic payment provider was not returned by the backend.",
+        );
+      }
+      const usedProvider = providerFromIntent as PaymentProvider;
 
-          const paymentIntent = paymentIntentData as Record<string, unknown>;
-          const providerFromIntent =
-            typeof paymentIntent?.provider === "string"
-              ? paymentIntent.provider.toLowerCase()
-              : undefined;
-          if (!providerFromIntent || !isPaymentProviderEnabled(providerFromIntent)) {
-            throw new Error(
-              "The clinic payment provider was not returned by the backend.",
-            );
-          }
-          const usedProvider = providerFromIntent as PaymentProvider;
+      const metadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
+      const resolvedClinicId =
+        clinicId ||
+        (paymentIntent?.clinicId as string) ||
+        (metadata?.clinicId as string);
+      if (!resolvedClinicId) {
+        throw new Error("Clinic context is required for payment verification");
+      }
 
-          const metadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
-          let resolvedClinicId =
-            clinicId ||
-            (paymentIntent?.clinicId as string) ||
-            (metadata?.clinicId as string);
-          if (!resolvedClinicId) {
-            throw new Error(
-              "Clinic context is required for payment verification",
-            );
-          }
+      if (
+        launchPaymentBridge(
+          buildBridgePayload(resolvedClinicId, paymentIntent),
+        )
+      ) {
+        return;
+      }
 
-          if (
-            launchPaymentBridge(
-              buildBridgePayload(resolvedClinicId, paymentIntent),
-            )
-          ) {
-            return;
-          }
-
-          switch (usedProvider) {
-            case "cashfree": {
-              const cashfreeClient = await preloadCashfreeSdk();
-              await handleCashfreePayment(
-                paymentIntent,
-                usedProvider,
-                cashfreeClient,
-              );
-              break;
-            }
-            case "razorpay": {
-              await handleRazorpayPayment(
-                paymentIntent,
-                usedProvider,
-                resolvedClinicId,
-              );
-              break;
-            }
-            default: {
-              // PhonePe, Easebuzz, Paytm, PayU — redirect-based
-              await handleRedirectPayment(paymentIntent, usedProvider);
-              break;
-            }
-          }
-
-          return;
-        } catch (error) {
-          const message =
-            error instanceof Error
-              ? error.message
-              : "Failed to initiate payment";
-          const normalizedMessage = message.toLowerCase();
-          const isUserCancelled =
-            normalizedMessage.includes("payment cancelled") ||
-            normalizedMessage.includes("payment canceled") ||
-            normalizedMessage.includes("cancelled") ||
-            normalizedMessage.includes("canceled") ||
-            normalizedMessage.includes("dismissed");
-
-          if (isUserCancelled || index === providerAttempts.length - 1) {
-            throw error;
-          }
-
-          console.debug(
-            "[PaymentButton] Payment provider attempt failed, trying next",
-            {
-              attemptedProvider,
-              message,
-            },
-          );
+      switch (usedProvider) {
+        case "cashfree": {
+          const cashfreeClient = await preloadCashfreeSdk();
+          await handleCashfreePayment(paymentIntent, usedProvider, cashfreeClient);
+          break;
+        }
+        case "razorpay": {
+          await handleRazorpayPayment(paymentIntent, usedProvider, resolvedClinicId);
+          break;
+        }
+        default: {
+          // PhonePe, Easebuzz, Paytm, PayU — redirect-based
+          await handleRedirectPayment(paymentIntent, usedProvider);
+          break;
         }
       }
     } catch (error) {

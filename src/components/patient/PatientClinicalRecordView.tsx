@@ -8,6 +8,7 @@ import {
   FlaskConical,
   HeartPulse,
   Pill,
+  Receipt,
   UserRound,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +30,10 @@ export interface PatientClinicalRecordViewProps {
   labs: RecordLike[];
   carePlan: RecordLike[];
   prescriptions?: RecordLike[];
+  /** Visit-scoped OPD case-sheet; replaces the flat history table when provided. */
+  caseSheet?: React.ReactNode;
+  /** Per-patient Bill History (consultation + pharmacy invoices and payments). */
+  billing?: React.ReactNode;
   className?: string;
 }
 
@@ -96,6 +101,8 @@ export function PatientClinicalRecordView({
   labs,
   carePlan,
   prescriptions = [],
+  caseSheet,
+  billing,
   className,
 }: PatientClinicalRecordViewProps) {
   const patientRecord = (patient || {}) as RecordLike;
@@ -403,7 +410,7 @@ export function PatientClinicalRecordView({
       </div>
 
       <HashTabs
-        tabs={["overview", "appointments", "history", "vitals", "reports", "prescriptions", "medications"] as const}
+        tabs={["overview", "appointments", "history", "vitals", "reports", "prescriptions", "medications", "bills"] as const}
         defaultValue="overview"
         className="flex flex-col gap-y-4"
       >
@@ -418,7 +425,7 @@ export function PatientClinicalRecordView({
         </TabsTrigger>
         <TabsTrigger value="history">
           <FileText className="size-4" />
-          History
+          {caseSheet ? "Case Sheet" : "History"}
         </TabsTrigger>
         <TabsTrigger value="vitals">
           <HeartPulse className="size-4" />
@@ -435,6 +442,10 @@ export function PatientClinicalRecordView({
         <TabsTrigger value="medications">
           <Pill className="size-4" />
           Medications
+        </TabsTrigger>
+        <TabsTrigger value="bills">
+          <Receipt className="size-4" />
+          Bills
         </TabsTrigger>
       </TabsList>
 
@@ -524,14 +535,16 @@ export function PatientClinicalRecordView({
         </TabsContent>
 
         <TabsContent value="history">
-          <Card className="border-border/70 bg-card shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold text-foreground">Treatment History</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <DataTable columns={historyColumns} data={history} pageSize={10} emptyMessage="No treatment history found." />
-            </CardContent>
-          </Card>
+          {caseSheet ?? (
+            <Card className="border-border/70 bg-card shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-bold text-foreground">Treatment History</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <DataTable columns={historyColumns} data={history} pageSize={10} emptyMessage="No treatment history found." />
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="vitals">
@@ -584,6 +597,16 @@ export function PatientClinicalRecordView({
               <DataTable columns={medicationColumns} data={activeMedications} pageSize={10} emptyMessage="No active medications found." />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="bills">
+          {billing ?? (
+            <Card className="border-border/70 bg-card shadow-sm">
+              <CardContent className="p-6 text-sm text-muted-foreground">
+                Bill history is not available.
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </HashTabs>
 
