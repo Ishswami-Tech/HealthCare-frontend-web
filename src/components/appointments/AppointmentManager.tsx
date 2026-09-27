@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useReducer, useCallback, useMemo, useEffect, useRef } from "react";
+import { APP_CONFIG } from "@/lib/config/config";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -934,7 +935,7 @@ export default function AppointmentManager({
     const deduped = Array.from(seen.values());
 
     // Optional: Log for debugging in browser console
-    if (typeof window !== 'undefined' && list.length !== deduped.length) {
+    if (APP_CONFIG.ENVIRONMENT === "development" && typeof window !== 'undefined' && list.length !== deduped.length) {
       console.log(`[AppointmentManager] Deduped ${list.length} appointments to ${deduped.length}`);
     }
 

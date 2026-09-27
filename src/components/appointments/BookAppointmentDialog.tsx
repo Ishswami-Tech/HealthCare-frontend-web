@@ -2631,18 +2631,19 @@ export function BookAppointmentDialog({
   const activeClinicId =
     resolvedClinicId || clinicFallbackId;  // Always allow fallback for all roles
 
-  // DEBUG: Log clinicId resolution
-  console.log('[BookAppointmentDialog] ClinicId resolution:', {
-    propsClinicId: clinicId,
-    sessionClinicId,
-    safeContextClinicId,
-    currentClinicId,
-    myClinicId,
-    clinicFallbackId,
-    authClinicId,
-    resolvedClinicId,
-    activeClinicId
-  });
+  if (APP_CONFIG.ENVIRONMENT === "development") {
+    console.log('[BookAppointmentDialog] ClinicId resolution:', {
+      propsClinicId: clinicId,
+      sessionClinicId,
+      safeContextClinicId,
+      currentClinicId,
+      myClinicId,
+      clinicFallbackId,
+      authClinicId,
+      resolvedClinicId,
+      activeClinicId
+    });
+  }
 
   type BookingFlowState = {
     step: number;
