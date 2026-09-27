@@ -1492,22 +1492,69 @@ export const useMyAppointments = (filters?: {
   const query = useQueryData(
     ['myAppointments', userId, userRole, filters],
     async (): Promise<any> => {
-      // ✅ Server-action path — this reads the session cookie on the server,
-      // which is more resilient than the client token store on WebKit/iPhone.
-      const result = await getMyAppointmentsServerAction({
-        ...(filters?.clinicId ? { clinicId: filters.clinicId } : {}),
+      const buildFilterParams = () => ({
         ...(filters?.status ? { status: Array.isArray(filters.status) ? filters.status.join(',') : filters.status } : {}),
         ...(filters?.date ? { date: filters.date } : {}),
         ...(filters?.startDate ? { startDate: filters.startDate } : {}),
         ...(filters?.endDate ? { endDate: filters.endDate } : {}),
-        ...(filters?.page ? { page: filters.page } : {}),
-        ...(filters?.limit ? { limit: filters.limit } : {}),
+        page: filters?.page ?? 1,
+        limit: filters?.limit ?? 100,
       });
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch appointments');
+
+      let successfulResult: { appointments?: unknown; data?: unknown; meta?: unknown };
+
+      // ✅ Fast path — direct client-side fetch. Every one of these hooks used
+      // to go through a Server Action, but Next.js's App Router dispatches
+      // *all* Server Actions through one global, startTransition-wrapped
+      // action queue (see next/dist/client/app-call-server.js -> callServer ->
+      // dispatchAppRouterAction) - it serializes them regardless of which
+      // component or hook triggered the call. On a page with several
+      // independent data hooks, that turned N logically-parallel requests
+      // into one strictly sequential chain (confirmed: appointments/profile/
+      // clinic calls on the same page ran back-to-back with ~0ms gaps between
+      // them, summing to 6-20+ seconds instead of capping at the slowest
+      // single call). This hook is already gated on `!!userId` from the same
+      // synced session that holds the client access token, so the token is
+      // reliably present here - falling back to the Server Action only
+      // covers the genuine edge case (WebKit/iPhone session not yet synced
+      // client-side) the original implementation was guarding against.
+      try {
+        const clinicHeaders = filters?.clinicId ? { 'X-Clinic-ID': filters.clinicId } : undefined;
+        const response = await clinicApiClient.get<{
+          data?: unknown[] | { appointments?: unknown[]; pagination?: unknown };
+          appointments?: unknown[];
+          pagination?: unknown;
+          meta?: unknown;
+        }>(API_ENDPOINTS.APPOINTMENTS.MY_APPOINTMENTS, buildFilterParams(), clinicHeaders ? { headers: clinicHeaders } : undefined);
+        if (response.statusCode === 403 && !response.data) {
+          throw new Error('PROFILE_INCOMPLETE');
+        }
+        if (!response.data) {
+          throw new Error('No appointment data available');
+        }
+        successfulResult = response.data as typeof successfulResult;
+      } catch (fastPathError) {
+        if (fastPathError instanceof Error && fastPathError.message === 'PROFILE_INCOMPLETE') {
+          throw new Error('Profile incomplete. Please complete your profile to access appointments.');
+        }
+        // Fall back to the resilient server-action path.
+        const result = await getMyAppointmentsServerAction({
+          ...(filters?.clinicId ? { clinicId: filters.clinicId } : {}),
+          ...(filters?.status ? { status: Array.isArray(filters.status) ? filters.status.join(',') : filters.status } : {}),
+          ...(filters?.date ? { date: filters.date } : {}),
+          ...(filters?.startDate ? { startDate: filters.startDate } : {}),
+          ...(filters?.endDate ? { endDate: filters.endDate } : {}),
+          ...(filters?.page ? { page: filters.page } : {}),
+          ...(filters?.limit ? { limit: filters.limit } : {}),
+        });
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to fetch appointments');
+        }
+        successfulResult = result as typeof successfulResult;
       }
-      const successfulResult = result as any;
-      const appointments = extractAppointments(successfulResult.appointments ?? successfulResult.data);
+      const appointments = extractAppointments(
+        (successfulResult as any).appointments ?? (successfulResult as any).data
+      );
       const sessionKey = useAuthStore.getState().session?.session_id || String(userId || '') + '|' + String(userRole || '');
       markAppointmentsLoadedOnce(sessionKey);
       return {
@@ -1516,7 +1563,7 @@ export const useMyAppointments = (filters?: {
         data: {
           appointments,
         },
-        meta: successfulResult.meta,
+        meta: (successfulResult as any).meta,
       } as any;
     },
     {
