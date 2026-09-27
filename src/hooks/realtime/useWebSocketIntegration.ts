@@ -1647,6 +1647,18 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
       try {
         // ⚠️ SECURITY: Use APP_CONFIG instead of hardcoded URLs
         const tokenForConnect = latestAccessTokenRef.current;
+        // TEMPORARY DIAGNOSTIC — remove once the socket-never-connects root
+        // cause is confirmed. Logs whether we actually have a token at the
+        // moment this effect runs, without ever logging the token itself.
+        logger.warn('WS connect gate check', {
+          component: 'ws-diagnostic',
+          hasToken: Boolean(tokenForConnect),
+          hasAccessToken,
+          autoConnect,
+          tenantId,
+          resolvedUserId,
+          websocketUrl,
+        });
         if (!tokenForConnect) {
           disconnect();
           clearError();
