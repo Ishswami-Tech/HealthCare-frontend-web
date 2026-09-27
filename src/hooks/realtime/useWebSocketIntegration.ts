@@ -1650,10 +1650,14 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         // TEMPORARY DIAGNOSTIC — remove once the socket-never-connects root
         // cause is confirmed. Logs whether we actually have a token at the
         // moment this effect runs, without ever logging the token itself.
+        // Field names deliberately avoid the substring "token" - the browser
+        // log reader used to debug this redacts any key containing it,
+        // which had been hiding these exact booleans from every prior check.
         logger.warn('WS connect gate check', {
           component: 'ws-diagnostic',
-          hasToken: Boolean(tokenForConnect),
-          hasAccessToken,
+          authReady: Boolean(tokenForConnect),
+          sessionHasAuth: hasAccessToken,
+          refVsSessionMismatch: Boolean(tokenForConnect) !== hasAccessToken,
           autoConnect,
           tenantId,
           resolvedUserId,
