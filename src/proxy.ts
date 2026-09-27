@@ -376,6 +376,7 @@ export default async function proxy(request: NextRequest) {
   const csp = `
     default-src 'self';
     script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com https://www.facebook.com https://connect.facebook.net https://sdk.cashfree.com https://checkout.razorpay.com https://payments.zoho.com https://static.zohocdn.com;
+    worker-src 'self' blob:;
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     img-src 'self' blob: data: https://lh3.googleusercontent.com https://graph.facebook.com https://platform-lookaside.fbsbx.com https://storage.googleapis.com https://ui-avatars.com https://flagcdn.com https://www.charabibhasma.com https://charabibhasma.com https://i.ytimg.com https://ytimg.com https://img.youtube.com https://www.youtube.com https://youtube.com https://m.youtube.com https://youtu.be;
     font-src 'self' https://fonts.gstatic.com;
