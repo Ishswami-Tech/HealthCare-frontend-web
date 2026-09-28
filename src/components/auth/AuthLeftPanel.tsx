@@ -73,13 +73,13 @@ export function AuthLeftPanel() {
         {/* Left text column */}
         <div className="relative z-20 flex h-full w-[46%] max-w-[540px] translate-x-[0.4vw] flex-col justify-center pb-[1vh] pt-[3vh]">
           <div>
-            <span className="inline-flex rounded-full border border-transparent bg-[#edf0cf] px-[clamp(13px,1vw,18px)] py-[clamp(5px,0.65vh,8px)] text-[clamp(11.5px,0.85vw,15px)] font-medium text-[#075735] dark:border-emerald-800/50 dark:bg-emerald-950/70 dark:text-emerald-300">
+            <span className="inline-flex items-center rounded-full border border-[#b8dc7e] bg-[#e5f5be] px-[clamp(14px,1.05vw,20px)] py-[clamp(5px,0.65vh,8px)] font-sans text-[clamp(12px,0.88vw,15.5px)] font-bold tracking-tight text-[#075735] shadow-xs dark:border-emerald-700/60 dark:bg-emerald-950/85 dark:text-emerald-200">
               Welcome to
             </span>
-            <h1 className="mt-[clamp(14px,2.1vh,24px)] font-serif text-[clamp(32px,3vw,58px)] font-bold leading-[1.02] tracking-[-.035em] text-[#075735] dark:text-emerald-50">
+            <h1 className="mt-[clamp(14px,2.1vh,24px)] font-sans text-[clamp(30px,2.8vw,54px)] font-bold leading-[1.05] tracking-[-.03em] text-[#075735] dark:text-emerald-50">
               <span className="whitespace-nowrap">Dr. Chandrakumar</span><br />Deshmukh
             </h1>
-            <p className="mt-[clamp(8px,1.25vh,14px)] font-serif text-[clamp(20px,1.8vw,34px)] leading-tight text-[#075735] dark:text-emerald-400">
+            <p className="mt-[clamp(8px,1.25vh,14px)] font-sans text-[clamp(18px,1.6vw,30px)] font-semibold leading-tight text-[#075735]/90 dark:text-emerald-400">
               Healthcare Portal
             </p>
             <div className="mt-[clamp(13px,1.8vh,20px)] h-[2px] w-[clamp(56px,5vw,84px)] rounded-full bg-[#cf8b00] dark:bg-emerald-500" />

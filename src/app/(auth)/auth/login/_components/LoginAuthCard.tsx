@@ -162,7 +162,7 @@ export function LoginAuthCard({
               <AuthBrandLogo className="size-[56px]" imgClassName="size-full rounded-full" />
             </div>
 
-            <h2 className="font-serif text-[22px] lg:text-[34px] font-bold tracking-tight text-[#075735] dark:text-emerald-400">
+            <h2 className="font-sans text-[22px] lg:text-[34px] font-bold tracking-tight text-[#075735] dark:text-emerald-400">
               {showOTPInput ? "Verify Code" : "Welcome"}
             </h2>
             <p className="mx-auto max-w-[310px] text-xs lg:text-[15px] leading-relaxed text-[#263248] dark:text-slate-300">
