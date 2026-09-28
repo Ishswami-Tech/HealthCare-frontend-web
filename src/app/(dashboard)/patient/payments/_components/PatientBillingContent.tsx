@@ -19,6 +19,7 @@ import { Skeleton } from "@/components/ui/loading";
 import { TableSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import type { BillingPlan, Invoice, Subscription } from "@/types/billing.types";
+import { clinicApiClient } from "@/lib/api/client";
 
 const PaymentButton = dynamic(
   () => import("@/components/payments/PaymentButton").then((module) => module.PaymentButton),
@@ -261,9 +262,16 @@ export function PatientBillingContent({
   const handleDownloadPdf = async (invoiceId: string) => {
     try {
       setDownloadingPdfId(invoiceId);
-      const response = await fetch(`/api/v1/billing/invoices/${invoiceId}/download`);
-      if (!response.ok) throw new Error("Failed to download PDF");
-      const blob = await response.blob();
+      // Calls the backend directly via clinicApiClient (absolute baseURL,
+      // Authorization header attached) instead of the relative /api/v1/...
+      // path this used to hit through next.config.ts's rewrite - every
+      // other billing call already goes direct, this was the one holdout
+      // still paying for the extra Next.js proxy hop.
+      const result = await clinicApiClient.get<Blob>(
+        `/billing/invoices/${invoiceId}/download`,
+      );
+      const blob = result.data;
+      if (!blob) throw new Error("Failed to download PDF");
       const url = window.URL.createObjectURL(blob);
 
       // Use an anchor tag click to bypass popup blockers after async fetch

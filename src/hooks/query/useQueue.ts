@@ -101,7 +101,11 @@ export const useQueue = (clinicId?: string, filters?: {
   }, {
     enabled: enabled !== false,
     // Websocket invalidation provides instant updates; polling ensures fallback freshness if events are missed.
-    refetchInterval: isAuthRefreshing ? false : 30000,
+    // isConnected was previously destructured but never used here, so this
+    // polled on a fixed 30s timer even while the socket was live and
+    // already pushing appointment.queue.* events (matching the pattern
+    // already used in useAppointments.ts / usePatientDashboardSummary).
+    refetchInterval: isConnected || isAuthRefreshing ? false : 30000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     placeholderData: keepPreviousData,
@@ -128,7 +132,10 @@ export const useQueueStats = (locationId?: string, options?: { enabled?: boolean
     }
   }, {
     enabled: !!locationId && options?.enabled !== false,
-    refetchInterval: isAuthRefreshing ? false : 60000,
+    // Now that queue.metrics.updated is bridged to the default namespace
+    // (event-socket.broadcaster.ts BROADCASTABLE_EVENTS), this can safely
+    // gate on isConnected the same way useQueue above does.
+    refetchInterval: isConnected || isAuthRefreshing ? false : 60000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     placeholderData: keepPreviousData,

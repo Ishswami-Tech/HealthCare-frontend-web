@@ -711,6 +711,11 @@ export const useUpdateAppointment = () => {
       // overwritten by the subsequent refetch, so we drop them to avoid
       // both double-work and stale-data windows.
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // 27 query-key families invalidated at once here - refetchType: 'none'
+      // marks them stale without forcing every mounted-but-inactive query to
+      // refetch simultaneously on this one mutation (they still refetch
+      // normally next time they're actually used).
+      invalidateRefetchType: 'none',
       onSuccess: (updatedAppointment) => {
         const appointmentId = String((updatedAppointment as any)?.appointmentId || (updatedAppointment as any)?.id || '');
         if (!appointmentId) {
@@ -754,6 +759,11 @@ export const useCancelAppointment = () => {
       // appointment-surface query family. Avoids double-invalidation and
       // ensures counselor/therapist dashboards see the cancellation.
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // 27 query-key families invalidated at once here - refetchType: 'none'
+      // marks them stale without forcing every mounted-but-inactive query to
+      // refetch simultaneously on this one mutation (they still refetch
+      // normally next time they're actually used).
+      invalidateRefetchType: 'none',
       onError: (error: Error) => {
         logger.error('Failed to cancel appointment', error, { component: 'useAppointments' });
       },
@@ -784,6 +794,11 @@ export const useConfirmAppointment = () => {
       loadingMessage: 'Confirming appointment...',
       successMessage: 'Appointment confirmed successfully',
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // 27 query-key families invalidated at once here - refetchType: 'none'
+      // marks them stale without forcing every mounted-but-inactive query to
+      // refetch simultaneously on this one mutation (they still refetch
+      // normally next time they're actually used).
+      invalidateRefetchType: 'none',
     }
   );
 };
@@ -919,6 +934,11 @@ export const useCheckInAppointment = () => {
       loadingMessage: 'Checking in patient...',
       successMessage: 'Patient check-in confirmed successfully',
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // 27 query-key families invalidated at once here - refetchType: 'none'
+      // marks them stale without forcing every mounted-but-inactive query to
+      // refetch simultaneously on this one mutation (they still refetch
+      // normally next time they're actually used).
+      invalidateRefetchType: 'none',
     }
   );
 };
@@ -1134,6 +1154,11 @@ export const useForceCheckInAppointment = () => {
       loadingMessage: 'Checking in patient...',
       successMessage: 'Patient check-in confirmed successfully',
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // 27 query-key families invalidated at once here - refetchType: 'none'
+      // marks them stale without forcing every mounted-but-inactive query to
+      // refetch simultaneously on this one mutation (they still refetch
+      // normally next time they're actually used).
+      invalidateRefetchType: 'none',
     }
   );
 };
@@ -1162,6 +1187,11 @@ export const useMarkAppointmentNoShow = () => {
       loadingMessage: "Marking appointment as no-show...",
       successMessage: "Appointment marked as no-show",
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // 27 query-key families invalidated at once here - refetchType: 'none'
+      // marks them stale without forcing every mounted-but-inactive query to
+      // refetch simultaneously on this one mutation (they still refetch
+      // normally next time they're actually used).
+      invalidateRefetchType: 'none',
     }
   );
 };
@@ -1193,6 +1223,11 @@ export const useUpdateAppointmentStatus = () => {
       loadingMessage: "Updating appointment status...",
       successMessage: "Appointment status updated",
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // 27 query-key families invalidated at once here - refetchType: 'none'
+      // marks them stale without forcing every mounted-but-inactive query to
+      // refetch simultaneously on this one mutation (they still refetch
+      // normally next time they're actually used).
+      invalidateRefetchType: 'none',
     }
   );
 };
@@ -1226,6 +1261,11 @@ export const useBulkCompleteAppointments = () => {
       loadingMessage: "Completing selected appointments...",
       successMessage: "Selected appointments completed",
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // 27 query-key families invalidated at once here - refetchType: 'none'
+      // marks them stale without forcing every mounted-but-inactive query to
+      // refetch simultaneously on this one mutation (they still refetch
+      // normally next time they're actually used).
+      invalidateRefetchType: 'none',
       onSuccess: (data) => {
         if (data.failed > 0) {
           showWarningToast(
@@ -1271,6 +1311,11 @@ export const useReassignAppointmentDoctor = () => {
       loadingMessage: "Reassigning appointment...",
       successMessage: "Appointment reassigned successfully",
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // 27 query-key families invalidated at once here - refetchType: 'none'
+      // marks them stale without forcing every mounted-but-inactive query to
+      // refetch simultaneously on this one mutation (they still refetch
+      // normally next time they're actually used).
+      invalidateRefetchType: 'none',
       showLoading: false,
     }
   );
@@ -1897,7 +1942,15 @@ export const useAppointmentStats = () => {
       // to the revalidation storm (every refetch fired an RSC POST that
       // re-rendered the route subtree). The backend scope handles
       // clinic-scoped filtering server-side from the access token.
-      const response = await clinicApiClient.getAppointments();
+      // `limit` is a guardrail, not a real fix: this hook currently has no
+      // callers anywhere in the app, and was previously calling
+      // getAppointments() with zero params at all - unbounded, on a 15s
+      // poll. If/when this gets wired into a dashboard, it would flood the
+      // backend with a full unbounded appointment scan just to read
+      // .length off 4 counts. A dedicated backend stats/count endpoint
+      // would be the real fix; this bound is the minimum needed so this
+      // isn't a landmine in the meantime.
+      const response = await clinicApiClient.getAppointments({ limit: 500 });
       if (!response.success) {
         throw new Error(response.error || response.message || 'Failed to fetch appointments');
       }
@@ -1961,6 +2014,11 @@ export const useProcessCheckIn = () => {
       loadingMessage: 'Confirming patient arrival...',
       successMessage: 'Patient confirmed and added to queue successfully',
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // 27 query-key families invalidated at once here - refetchType: 'none'
+      // marks them stale without forcing every mounted-but-inactive query to
+      // refetch simultaneously on this one mutation (they still refetch
+      // normally next time they're actually used).
+      invalidateRefetchType: 'none',
     }
   );
 };
@@ -2156,6 +2214,11 @@ export const useRescheduleAppointment = () => {
       loadingMessage: 'Rescheduling appointment...',
       successMessage: 'Appointment rescheduled successfully',
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // 27 query-key families invalidated at once here - refetchType: 'none'
+      // marks them stale without forcing every mounted-but-inactive query to
+      // refetch simultaneously on this one mutation (they still refetch
+      // normally next time they're actually used).
+      invalidateRefetchType: 'none',
     }
   );
 };
@@ -2183,6 +2246,11 @@ export const useRejectVideoProposal = () => {
       loadingMessage: 'Rejecting proposal...',
       successMessage: 'Proposal rejected successfully',
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // 27 query-key families invalidated at once here - refetchType: 'none'
+      // marks them stale without forcing every mounted-but-inactive query to
+      // refetch simultaneously on this one mutation (they still refetch
+      // normally next time they're actually used).
+      invalidateRefetchType: 'none',
     }
   );
 };
@@ -2245,6 +2313,11 @@ export const useScanLocationQrAndCheckIn = () => {
       loadingMessage: 'Checking you in...',
       successMessage: 'Check-in successful',
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // 27 query-key families invalidated at once here - refetchType: 'none'
+      // marks them stale without forcing every mounted-but-inactive query to
+      // refetch simultaneously on this one mutation (they still refetch
+      // normally next time they're actually used).
+      invalidateRefetchType: 'none',
       showToast: false,
     }
   );

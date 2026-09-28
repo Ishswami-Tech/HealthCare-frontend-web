@@ -376,7 +376,7 @@ export function ClinicAdminSnapshotPanel({
 
           <div className="mt-3 flex justify-end">
             <Button asChild variant="link" className="h-auto p-0 text-xs font-semibold uppercase text-primary hover:no-underline">
-              <Link href="/appointments" prefetch={false}>
+              <Link href="/appointments">
                 Open appointments page
               </Link>
             </Button>

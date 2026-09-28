@@ -727,7 +727,7 @@ export default function ReceptionistAppointmentsPage() {
         meta={`Showing ${filteredAppointments.length} of ${appointments.length} appointments`}
         actionsSlot={
           <Button asChild variant="outline">
-            <Link href="/receptionist/check-in" prefetch={false}>
+            <Link href="/receptionist/check-in">
               <QrCode className="size-4 mr-2" />
               QR Check-In
             </Link>

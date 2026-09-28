@@ -411,6 +411,11 @@ export const useDoctorSpecializations = () => {
       throw error;
     }
   }, {
+    // Reference/enum-like catalog of specialization categories - it does not
+    // change per request, so avoid refetching it on every focus/reconnect.
+    staleTime: CACHE_TIMES.VERY_LONG,
+    gcTime: GC_TIMES.STATIC,
+    refetchOnWindowFocus: false,
     retry: doctorQueryRetry,
   });
 };

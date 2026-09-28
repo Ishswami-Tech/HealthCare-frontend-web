@@ -137,26 +137,15 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  /* =====================================================
-   * API Rewrite (proxy only, no CORS)
-   * ===================================================== */
-  async rewrites() {
-    const apiBaseUrl =
-      process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL;
-    if (apiBaseUrl) {
-      // Remove trailing slash if present
-      const cleanApiBaseUrl = apiBaseUrl.replace(/\/$/, "");
-      return [
-        {
-          source: "/api/:path*",
-          destination: `${cleanApiBaseUrl}/api/:path*`,
-        },
-      ];
-    }
-    return [];
-  },
-
-
+  // The /api/:path* -> backend rewrite that used to live here has been
+  // removed. Every real API call in this app already goes directly to the
+  // backend origin (clinicApiClient's baseURL is the absolute
+  // NEXT_PUBLIC_API_BASE_URL, not a relative path), so the rewrite was
+  // adding an extra Next.js server hop to traffic that never used it - the
+  // one remaining call that did rely on it (invoice PDF download in
+  // PatientBillingContent.tsx) has been switched to clinicApiClient.
+  // Next.js's own /api/* route handlers (src/app/api/**) are unaffected -
+  // the filesystem routes always took priority over this rewrite.
 };
 
 export default withSentryConfig(nextConfig, {
