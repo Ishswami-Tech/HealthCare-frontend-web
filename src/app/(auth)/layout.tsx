@@ -91,10 +91,15 @@ export default function AuthLayout({
 
       {/* The mobile hero and form share one continuous forest background. */}
       <section
-        aria-label="Welcome to Dr. Chandrakumar Deshmukh Clinic"
+        aria-labelledby="mobile-clinic-heading"
         className="auth-mobile-hero relative h-[max(180px,calc(100dvh-421px))] max-h-[540px] shrink-0 lg:hidden"
-        role="img"
-      />
+      >
+        <div className="auth-mobile-heading">
+          <p>Welcome to</p>
+          <h1 id="mobile-clinic-heading">Dr. Chandrakumar<br />Deshmukh</h1>
+          <p>Clinic</p>
+        </div>
+      </section>
 
       {/* Left side - Ayurvedic Hero Panel */}
       <AuthLeftPanel />
