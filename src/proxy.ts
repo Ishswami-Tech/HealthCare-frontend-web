@@ -70,17 +70,25 @@ async function fetchBackendProfileCompletion(
   if (!apiBase) return undefined;
 
   try {
-    const response = await fetch(
-      new URL("/api/v1/profile/completion/status", apiBase),
-      {
-        method: "GET",
-        cache: "no-store",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          ...(sessionId ? { "X-Session-ID": sessionId } : {}),
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    let response: Response;
+    try {
+      response = await fetch(
+        new URL("/api/v1/profile/completion/status", apiBase),
+        {
+          method: "GET",
+          cache: "no-store",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            ...(sessionId ? { "X-Session-ID": sessionId } : {}),
+          },
+          signal: controller.signal,
         },
-      },
-    );
+      );
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!response.ok) return undefined;
 
@@ -291,8 +299,19 @@ export default async function proxy(request: NextRequest) {
   const profileComplete =
     profileCompleteFromCookie || profileCompleteFromUserData === true;
 
+  // This backend call only feeds the profile-completion redirect decision
+  // below, but it used to fire on every navigation for any user without a
+  // profile_complete=true cookie/JWT claim - including routes that aren't
+  // profile-gated at all, where the result is never even used. Restricting
+  // it to profile-gated routes removes a blocking, uncached backend round
+  // trip from the hot path of most page loads without changing the
+  // redirect decision itself.
   let authoritativeProfileComplete = profileComplete;
-  if (!authoritativeProfileComplete && accessToken) {
+  if (
+    !authoritativeProfileComplete &&
+    accessToken &&
+    routePolicy.kind === "profile-gated"
+  ) {
     const backendProfileComplete = await fetchBackendProfileCompletion(
       accessToken,
       sessionId,

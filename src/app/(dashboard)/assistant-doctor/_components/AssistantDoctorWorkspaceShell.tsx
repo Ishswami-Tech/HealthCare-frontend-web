@@ -61,7 +61,7 @@ export function AssistantDoctorWorkspaceShell({
                     <p className="text-sm text-muted-foreground">{action.description}</p>
                   </div>
                   <Button asChild className="w-full gap-2">
-                    <Link href={action.href} prefetch={false}>
+                    <Link href={action.href}>
                       Open workspace
                       <ArrowRight className="size-4" />
                     </Link>

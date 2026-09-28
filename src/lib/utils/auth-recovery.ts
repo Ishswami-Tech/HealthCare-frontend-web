@@ -117,6 +117,14 @@ export function getJwtExpiryEpochMs(token: string): number | null {
   }
 }
 
+// Added on top of the lead time (never subtracted) so tokens issued in the
+// same window - e.g. everyone who logged in via a shared login page, or all
+// staff at shift start - don't force-reconnect their sockets in lockstep at
+// the exact same second. This only makes the refresh fire earlier/never
+// later than before, so the "always refresh before expiry" guarantee is
+// unaffected.
+const JWT_REFRESH_JITTER_MAX_MS = 30 * 1000;
+
 export function getJwtRefreshDelayMs(
   token: string,
   leadTimeMs: number = DEFAULT_JWT_REFRESH_LEAD_MS
@@ -126,7 +134,8 @@ export function getJwtRefreshDelayMs(
     return null;
   }
 
-  return Math.max(expiryMs - Date.now() - leadTimeMs, 0);
+  const jitterMs = Math.floor(Math.random() * JWT_REFRESH_JITTER_MAX_MS);
+  return Math.max(expiryMs - Date.now() - leadTimeMs - jitterMs, 0);
 }
 
 export async function refreshClientSessionForRealtime(

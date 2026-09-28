@@ -563,7 +563,7 @@ export default function ReceptionistPatients() {
               View
             </Button>
             <Button asChild size="sm">
-              <Link href="/receptionist/appointments#appointment-manager" prefetch={false}>
+              <Link href="/receptionist/appointments#appointment-manager">
                 <Calendar className="mr-1 size-4" />
                 Book
               </Link>
@@ -1342,7 +1342,7 @@ export default function ReceptionistPatients() {
                         </Dialog>
 
                         <Button asChild size="sm">
-                          <Link href="/receptionist/appointments#appointment-manager" prefetch={false}>
+                          <Link href="/receptionist/appointments#appointment-manager">
                             <Calendar className="size-4 mr-1" />
                             Book
                           </Link>
