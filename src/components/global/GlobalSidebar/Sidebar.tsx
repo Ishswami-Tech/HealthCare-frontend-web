@@ -357,7 +357,14 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                   ) : (
                     <Link
                       href={link.href}
-                      prefetch
+                      // Every nav link sits in the always-visible sidebar, so Next's
+                      // default viewport prefetch fired an RSC data fetch for every
+                      // destination (dashboard/appointments/health/payments, several
+                      // duplicated) concurrently on every single page load — the
+                      // backend saw ~10 concurrent full page loads per patient visit.
+                      // The appointments link keeps its own deliberate, narrower
+                      // hover-triggered warm (handleAppointmentsHover, below) instead.
+                      prefetch={false}
                       scroll={false}
                       onMouseEnter={
                         isAppointmentsHref(link.href)
@@ -411,7 +418,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
             >
               <Link
                 href={profileRoute}
-                prefetch
+                prefetch={false}
                 scroll={false}
                 className={cn("relative flex h-full items-center gap-3 w-full", !open && "justify-center")}
               >

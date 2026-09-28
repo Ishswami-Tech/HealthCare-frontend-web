@@ -58,13 +58,18 @@ import {
   getHealthReady,
   getHealthLive
 } from '@/lib/actions/clinic.server';
-import type { ClinicCommunicationConfig } from '@/lib/actions/clinic-communication.server';
+import type {
+  ClinicCommunicationConfig,
+  UpdateClinicCommunicationConfig,
+  UpdateSesConfig,
+} from '@/lib/actions/clinic-communication.server';
 import {
   getClinicCommunicationConfig,
-  createClinicCommunicationConfig,
   updateClinicCommunicationConfig,
-  deleteClinicCommunicationConfig,
-  testClinicCommunication,
+  updateClinicSesConfig,
+  testClinicEmailConfig,
+  testClinicWhatsAppConfig,
+  testClinicSmsConfig,
 } from '@/lib/actions/clinic-communication.server';
 
 // ✅ Get clinic ID from centralized config (not directly from env)
@@ -1086,34 +1091,19 @@ export const useClinicCommunicationConfig = (clinicId: string) => {
   );
 };
 
-export const useCreateClinicCommunicationConfig = () => {
-  return useMutationOperation<ClinicCommunicationConfig, { clinicId: string; config: ClinicCommunicationConfig }>(
-    async (data: { clinicId: string; config: ClinicCommunicationConfig }) => {
-      const result = await createClinicCommunicationConfig(data.clinicId, data.config);
-      return result as ClinicCommunicationConfig;
-    },
-    {
-      toastId: TOAST_IDS.COMMUNICATION.TEMPLATE_CREATE,
-      loadingMessage: 'Creating clinic communication config...',
-      successMessage: 'Clinic communication config created successfully',
-      invalidateQueries: [['clinicCommunication']],
-    }
-  );
-};
-
+/**
+ * Create or update the clinic's communication config. The backend exposes a
+ * single upsert endpoint (PUT .../communication/config) — there is no
+ * separate create endpoint, so this covers both first-time setup and edits.
+ */
 export const useUpdateClinicCommunicationConfig = () => {
-  return useMutationOperation<ClinicCommunicationConfig, {
-    clinicId: string;
-    id: string;
-    config: Partial<ClinicCommunicationConfig>;
-  }>(
-    async (data: {
-      clinicId: string;
-      id: string;
-      config: Partial<ClinicCommunicationConfig>;
-    }) => {
-      const result = await updateClinicCommunicationConfig(data.clinicId, data.id, data.config);
-      return result as ClinicCommunicationConfig;
+  return useMutationOperation<
+    ClinicCommunicationConfig,
+    { clinicId: string; config: UpdateClinicCommunicationConfig }
+  >(
+    async (data) => {
+      const result = await updateClinicCommunicationConfig(data.clinicId, data.config);
+      return result;
     },
     {
       toastId: TOAST_IDS.COMMUNICATION.TEMPLATE_UPDATE,
@@ -1124,48 +1114,71 @@ export const useUpdateClinicCommunicationConfig = () => {
   );
 };
 
-export const useDeleteClinicCommunicationConfig = () => {
-  return useMutationOperation<{ message?: string }, { clinicId: string; id: string }>(
-    async (data: { clinicId: string; id: string }) => {
-      const result = await deleteClinicCommunicationConfig(data.clinicId, data.id);
-      return (result as { message?: string }) || { message: 'Deleted successfully' };
+export const useUpdateClinicSesConfig = () => {
+  return useMutationOperation<
+    { success: boolean; message: string },
+    { clinicId: string; config: UpdateSesConfig }
+  >(
+    async (data) => {
+      const result = await updateClinicSesConfig(data.clinicId, data.config);
+      return result;
     },
     {
-      toastId: TOAST_IDS.COMMUNICATION.TEMPLATE_DELETE,
-      loadingMessage: 'Deleting clinic communication config...',
-      successMessage: 'Clinic communication config deleted successfully',
+      toastId: TOAST_IDS.COMMUNICATION.TEMPLATE_UPDATE,
+      loadingMessage: 'Updating SES configuration...',
+      successMessage: 'SES configuration updated successfully',
       invalidateQueries: [['clinicCommunication']],
     }
   );
 };
 
-export const useTestClinicCommunication = () => {
-  return useMutationOperation<{ success: boolean; message?: string }, {
-    clinicId: string;
-    type: 'email' | 'sms' | 'whatsapp';
-    to: string;
-    message?: string;
-  }>(
-    async (data: {
-      clinicId: string;
-      type: 'email' | 'sms' | 'whatsapp';
-      to: string;
-      message?: string;
-    }) => {
-      const testData: { type: 'email' | 'sms' | 'whatsapp'; to: string; message?: string } = {
-        type: data.type,
-        to: data.to,
-      };
-      if (data.message) {
-        testData.message = data.message;
-      }
-      const result = await testClinicCommunication(data.clinicId, testData);
-      return result as { success: boolean; message?: string };
+export const useTestClinicEmailConfig = () => {
+  return useMutationOperation<
+    { success: boolean; message: string; error?: string },
+    { clinicId: string; testEmail: string }
+  >(
+    async (data) => {
+      const result = await testClinicEmailConfig(data.clinicId, data.testEmail);
+      return result;
     },
     {
       toastId: TOAST_IDS.COMMUNICATION.TEST,
-      loadingMessage: 'Testing clinic communication...',
-      successMessage: 'Communication test completed successfully',
+      loadingMessage: 'Sending test email...',
+      successMessage: 'Test email sent successfully',
+    }
+  );
+};
+
+export const useTestClinicWhatsAppConfig = () => {
+  return useMutationOperation<
+    { success: boolean; message: string; error?: string },
+    { clinicId: string; phoneNumber: string }
+  >(
+    async (data) => {
+      const result = await testClinicWhatsAppConfig(data.clinicId, data.phoneNumber);
+      return result;
+    },
+    {
+      toastId: TOAST_IDS.COMMUNICATION.TEST,
+      loadingMessage: 'Sending test WhatsApp message...',
+      successMessage: 'Test WhatsApp message sent successfully',
+    }
+  );
+};
+
+export const useTestClinicSmsConfig = () => {
+  return useMutationOperation<
+    { success: boolean; message: string; error?: string },
+    { clinicId: string; phoneNumber: string }
+  >(
+    async (data) => {
+      const result = await testClinicSmsConfig(data.clinicId, data.phoneNumber);
+      return result;
+    },
+    {
+      toastId: TOAST_IDS.COMMUNICATION.TEST,
+      loadingMessage: 'Sending test SMS...',
+      successMessage: 'Test SMS sent successfully',
     }
   );
 };

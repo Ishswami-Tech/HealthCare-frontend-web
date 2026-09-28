@@ -66,6 +66,18 @@ export default function QueryProvider({
                 return false;
               }
 
+              // A client-side timeout (fetchWithAbort) throws a plain
+              // TimeoutError with no `.response.status`, so it fell through
+              // the 4xx check above and retried like any other network
+              // error - even though the original request may already have
+              // been processed server-side (e.g. an appointment-create POST
+              // that succeeded but responded slowly). Retrying blindly here
+              // is what produced "Duplicate appointment creation detected"
+              // in production. Timeouts on mutations must not auto-retry.
+              if (error instanceof Error && error.name === "TimeoutError") {
+                return false;
+              }
+
               // Retry once for server errors
               return failureCount < 1;
             },

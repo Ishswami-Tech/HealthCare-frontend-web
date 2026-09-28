@@ -643,6 +643,44 @@ export function useReconcilePayment() {
   );
 }
 
+/**
+ * Manual recovery reconciliation for one appointment — for when a provider
+ * payment succeeded but the automated webhook was missed/rejected and the
+ * appointment auto-expired before it could be confirmed automatically.
+ * Independently re-verified against the provider on the backend before
+ * anything changes.
+ */
+export function useManualReconcileAppointmentPayment() {
+  return useMutationOperation<
+    { success: boolean; payment?: Payment; appointment?: unknown; error?: string },
+    { appointmentId: string; provider?: PaymentProvider; orderId?: string; transactionId?: string }
+  >(
+    async ({ appointmentId, provider, orderId, transactionId }) => {
+      const result = await clinicApiClient.post(
+        API_ENDPOINTS.BILLING.APPOINTMENT_PAYMENTS.MANUAL_RECONCILE(appointmentId),
+        { provider, orderId, transactionId }
+      );
+      const payment = unwrapObject<Payment>(result.data, ['payment']);
+      const appointment = unwrapObject<unknown>(result.data, ['appointment']);
+      return { success: true, payment, appointment };
+    },
+    {
+      toastId: 'manual-reconcile-appointment-payment',
+      loadingMessage: 'Confirming payment with provider...',
+      successMessage: 'Payment confirmed and appointment updated',
+      invalidateQueries: [
+        ['appointments'],
+        ['myAppointments'],
+        ['clinic-ledger'],
+        ['clinic-payments'],
+        ['payments'],
+        ['billing-analytics'],
+        ['clinic-invoices'],
+      ],
+    }
+  );
+}
+
 // ============ Invoice Communication Hooks ============
 
 export function useSendInvoiceViaWhatsApp() {

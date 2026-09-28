@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DataTable } from "@/components/ui/data-table";
-import { Eye, Play, Video, CheckCircle } from "lucide-react";
+import { Eye, Play, Video, CheckCircle, Phone, CalendarPlus, UserX } from "lucide-react";
+import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import { TableSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 import { getAppointmentPatientName, getAppointmentViewState, getDisplayAppointmentDuration, getReceptionistAppointmentDateLabel, getReceptionistAppointmentTimeLabel, getAppointmentDateTimeValue, formatDateInIST, formatTimeInIST } from "@/lib/utils/appointmentUtils";
@@ -46,6 +48,8 @@ interface Props {
   saveConsultationDraft: (appointmentId: string) => Promise<void>;
   completeConsultation: (appointmentId: string, data?: { diagnosis?: string; prescription?: string; notes?: string }) => Promise<void>;
   startConsultation: (appointmentId: string, doctorId: string, options?: { openVideoAfterStart?: boolean }) => Promise<void>;
+  bulkCompleteSelected: (appointmentIds: string[]) => Promise<{ completed: number; failed: number } | undefined>;
+  bulkCompletePending: boolean;
 }
 
 function getStatusColor(status: string) {
@@ -126,10 +130,64 @@ export function DoctorAppointmentsContent(props: Props) {
     saveConsultationDraft,
     completeConsultation,
     startConsultation,
+    bulkCompleteSelected,
+    bulkCompletePending,
   } = props;
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const selectableIds = useMemo(
+    () => new Set(filteredAppointments.filter((app) => app.status === "IN_PROGRESS").map((app) => app.id)),
+    [filteredAppointments]
+  );
+  const selectedSelectableIds = useMemo(
+    () => [...selectedIds].filter((id) => selectableIds.has(id)),
+    [selectedIds, selectableIds]
+  );
+
+  const toggleSelected = (id: string, checked: boolean) => {
+    setSelectedIds((previous) => {
+      const next = new Set(previous);
+      if (checked) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+  };
+
+  const handleBulkComplete = async () => {
+    if (selectedSelectableIds.length === 0) return;
+    const result = await bulkCompleteSelected(selectedSelectableIds);
+    // Only clear the selection when every selected appointment actually
+    // completed. On partial failure, leave selectedIds as-is — the failed
+    // ones are still IN_PROGRESS, so selectedSelectableIds naturally narrows
+    // down to just them once the appointment list refetches, letting the
+    // doctor see and retry exactly what didn't go through.
+    if (!result || result.failed === 0) {
+      setSelectedIds(new Set());
+    }
+  };
 
   const appointmentColumns = useMemo<ColumnDef<TransformedAppointment>[]>(
     () => [
+      {
+        id: "select",
+        header: () => <span className="sr-only">Select</span>,
+        cell: ({ row }) => {
+          const app = row.original;
+          const isSelectable = app.status === "IN_PROGRESS";
+          return (
+            <Checkbox
+              checked={selectedIds.has(app.id)}
+              disabled={!isSelectable}
+              aria-label={`Select ${app.patientName} for bulk completion`}
+              onCheckedChange={(checked) => toggleSelected(app.id, checked === true)}
+            />
+          );
+        },
+      },
       {
         accessorKey: "patientName",
         header: "Patient",
@@ -213,12 +271,36 @@ export function DoctorAppointmentsContent(props: Props) {
                   </Button>
                 </>
               )}
+              {(app.status === "NO_SHOW" || app.status === "CANCELLED") && (
+                <>
+                  {app.patientPhone && (
+                    <Button asChild variant="outline" size="sm" className="h-9 rounded-xl px-3 gap-2">
+                      <a href={`tel:${app.patientPhone}`} aria-label={`Call ${app.patientName}`}>
+                        <Phone className="mr-1 size-4" />
+                        Call
+                      </a>
+                    </Button>
+                  )}
+                  <BookAppointmentDialog
+                    {...(clinicId ? { clinicId } : {})}
+                    {...(app.patientId ? { initialPatientId: app.patientId } : {})}
+                    initialDoctorId={app.doctorId}
+                    initialConsultationMode={app.type === "VIDEO_CALL" ? "VIDEO" : "IN_PERSON"}
+                    trigger={
+                      <Button size="sm" className="h-9 rounded-xl px-3 gap-2" aria-label={`Book again for ${app.patientName}`}>
+                        <CalendarPlus className="mr-1 size-4" />
+                        Book again
+                      </Button>
+                    }
+                  />
+                </>
+              )}
             </div>
           );
         },
       },
     ],
-    [completeAppointmentPending, completeConsultation, consultationNotes, diagnosis, openAppointmentDetails, prescription, startConsultation],
+    [clinicId, completeAppointmentPending, completeConsultation, consultationNotes, diagnosis, openAppointmentDetails, prescription, selectedIds, startConsultation],
   );
 
   return (
@@ -247,9 +329,27 @@ export function DoctorAppointmentsContent(props: Props) {
         <DataTable
           columns={appointmentColumns}
           data={filteredAppointments}
-          emptyMessage="No appointments match this view"
+          emptyMessage={appointmentViewFilter === "NO_SHOW" ? "No missed appointments. Patients who do not turn up show here with Call and Book again." : "No appointments match this view"}
           pageSize={10}
           scrollable
+          toolbar={
+            selectedSelectableIds.length > 0 ? (
+              <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 px-4 py-2.5">
+                <span className="text-sm font-medium text-foreground">
+                  {selectedSelectableIds.length} appointment{selectedSelectableIds.length === 1 ? "" : "s"} selected
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+                    Clear
+                  </Button>
+                  <Button size="sm" className="gap-2" onClick={handleBulkComplete} disabled={bulkCompletePending}>
+                    <CheckCircle className="size-4" />
+                    Complete selected
+                  </Button>
+                </div>
+              </div>
+            ) : undefined
+          }
         />
       )}
 

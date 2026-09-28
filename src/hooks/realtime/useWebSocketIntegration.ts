@@ -41,86 +41,96 @@ export function invalidateAppointmentQueryFamilies(queryClient: QueryClient) {
   }
 }
 
+// NOTE: every invalidateQueries call below passes `refetchType: 'none'`.
+// These families used to omit it, so a single realtime event (e.g. one
+// payment.completed) triggered ~40 immediate parallel refetches across
+// every open tab/dashboard currently mounting any of these query keys -
+// right after the exact moment a patient finishes paying/booking, spiking
+// concurrent DB-pool consumers well beyond normal load. `refetchType: 'none'`
+// still marks the data stale (so the next mount/focus refetches fresh data,
+// same as invalidateAppointmentQueryFamilies above already did deliberately)
+// - it just stops the burst of forced immediate refetches on every active
+// query matching the key.
 export function invalidateDashboardQueryFamilies(queryClient: QueryClient) {
-  void queryClient.invalidateQueries({ queryKey: ['clinicStats'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['dashboardAnalytics'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['appointmentAnalytics'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['patientAnalytics'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['revenueAnalytics'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['serviceUtilizationAnalytics'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['waitTimeAnalytics'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['patientSatisfactionAnalytics'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['queueAnalytics'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['pharmacyStats'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['medicineDeskQueue'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['prescriptions'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['medicalRecords'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['ehr'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['ehrClinic'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['billing-plans'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['billing-plan'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['subscriptions'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinic-subscriptions'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['active-subscription'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['billing-analytics'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['invoices'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinic-invoices'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['payments'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinic-payments'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinic-ledger'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['clinicStats'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['dashboardAnalytics'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['appointmentAnalytics'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['patientAnalytics'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['revenueAnalytics'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['serviceUtilizationAnalytics'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['waitTimeAnalytics'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['patientSatisfactionAnalytics'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['queueAnalytics'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['pharmacyStats'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['medicineDeskQueue'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['prescriptions'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['medicalRecords'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['ehr'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['ehrClinic'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['billing-plans'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['billing-plan'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['subscriptions'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['clinic-subscriptions'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['active-subscription'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['billing-analytics'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['invoices'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['clinic-invoices'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['payments'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['clinic-payments'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['clinic-ledger'], exact: false, refetchType: 'none' });
 }
 
 export function invalidateUserQueryFamilies(queryClient: QueryClient) {
-  void queryClient.invalidateQueries({ queryKey: ['users'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['user'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['userProfile'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['patients'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['doctors'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['receptionists'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinicAdmins'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinicUsers'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinicUsersByRole'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinicDoctors'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinicPatients'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['users'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['user'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['userProfile'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['patients'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['doctors'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['receptionists'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['clinicAdmins'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['clinicUsers'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['clinicUsersByRole'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['clinicDoctors'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['clinicPatients'], exact: false, refetchType: 'none' });
 }
 
 export function invalidateDoctorAvailabilityQueryFamilies(queryClient: QueryClient) {
-  void queryClient.invalidateQueries({ queryKey: ['doctorAvailability'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['doctorSchedule'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['doctorAppointments'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['doctorPatients'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['doctorAvailability'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['doctorSchedule'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['doctorAppointments'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['doctorPatients'], exact: false, refetchType: 'none' });
 }
 
 export function invalidateClinicQueryFamilies(queryClient: QueryClient) {
-  void queryClient.invalidateQueries({ queryKey: ['clinics'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinic'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinicByAppName'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['myClinic'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['current-clinic'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinicLocations'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinicLocation'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['activeLocations'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinicDoctors'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinicStaff'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinicUsers'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinicUsersByRole'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinicPatients'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinicStats'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinicOperatingHours'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinicSettings'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinicCommunication'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['clinics'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['clinic'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['clinicByAppName'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['myClinic'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['current-clinic'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['clinicLocations'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['clinicLocation'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['activeLocations'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['clinicDoctors'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['clinicStaff'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['clinicUsers'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['clinicUsersByRole'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['clinicPatients'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['clinicStats'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['clinicOperatingHours'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['clinicSettings'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['clinicCommunication'], exact: false, refetchType: 'none' });
 }
 
 export function invalidateBillingQueryFamilies(queryClient: QueryClient) {
-  void queryClient.invalidateQueries({ queryKey: ['billing'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['invoices'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinic-invoices'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['payments'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinic-payments'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['subscriptions'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['active-subscription'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['clinic-ledger'], exact: false });
-  void queryClient.invalidateQueries({ queryKey: ['billing-analytics'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['billing'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['invoices'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['clinic-invoices'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['payments'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['clinic-payments'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['subscriptions'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['active-subscription'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['clinic-ledger'], exact: false, refetchType: 'none' });
+  void queryClient.invalidateQueries({ queryKey: ['billing-analytics'], exact: false, refetchType: 'none' });
 }
 
 function getRealtimeAppointmentId(value: unknown): string {
@@ -1647,6 +1657,22 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
       try {
         // ⚠️ SECURITY: Use APP_CONFIG instead of hardcoded URLs
         const tokenForConnect = latestAccessTokenRef.current;
+        // TEMPORARY DIAGNOSTIC — remove once the socket-never-connects root
+        // cause is confirmed. Logs whether we actually have a token at the
+        // moment this effect runs, without ever logging the token itself.
+        // Field names deliberately avoid the substring "token" - the browser
+        // log reader used to debug this redacts any key containing it,
+        // which had been hiding these exact booleans from every prior check.
+        logger.warn('WS connect gate check', {
+          component: 'ws-diagnostic',
+          authReady: Boolean(tokenForConnect),
+          sessionHasAuth: hasAccessToken,
+          refVsSessionMismatch: Boolean(tokenForConnect) !== hasAccessToken,
+          autoConnect,
+          tenantId,
+          resolvedUserId,
+          websocketUrl,
+        });
         if (!tokenForConnect) {
           disconnect();
           clearError();

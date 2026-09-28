@@ -335,6 +335,8 @@ export async function createPrescription(
   const items = prescriptionData.medications.map((m) => ({
     medicineId: m.medicineId,
     dosage: m.dosage,
+    frequency: m.frequency,
+    duration: m.duration,
     quantity: m.quantity,
   }));
   const { data } = await authenticatedApi(
@@ -346,6 +348,7 @@ export async function createPrescription(
         doctorId: prescriptionData.doctorId,
         items,
         notes: prescriptionData.notes,
+        diagnosis: prescriptionData.diagnosis,
       }),
       headers: clinicId ? { "X-Clinic-ID": clinicId } : {},
     },

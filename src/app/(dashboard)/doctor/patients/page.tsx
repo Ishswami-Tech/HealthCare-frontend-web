@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useMemo, useReducer } from "react";
+import { useDeferredValue, useMemo, useReducer, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useComprehensiveHealthRecord } from "@/hooks/query/useMedicalRecords";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,15 +10,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { DataTable } from "@/components/ui/data-table";
 import { ServerPagination } from "@/components/ui/pagination";
-import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
+import { QuickPrescriptionModal } from "@/components/doctor/QuickPrescriptionModal";
+import { RegisterPatientDialog } from "@/components/patients/RegisterPatientDialog";
+import { OpdRegistrationDialog } from "@/components/patients/OpdRegistrationDialog";
+import { VisitSelector } from "@/components/patient/case-sheet/VisitSelector";
+import { VisitCaseSheet } from "@/components/patient/case-sheet/VisitCaseSheet";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useAppointments } from "@/hooks/query/useAppointments";
-import { useDoctorPatients } from "@/hooks/query/useDoctors";
+import { useDoctorPatients, useCurrentDoctorEntityId } from "@/hooks/query/useDoctors";
 import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { PatientClinicalRecordView } from "@/components/patient/PatientClinicalRecordView";
+import { PatientBillHistory } from "@/components/billing/PatientBillHistory";
 import { usePatientStore } from "@/stores";
 import { getAppointmentDateTimeValue } from "@/lib/utils/appointmentUtils";
 import { formatDateInIST } from "@/lib/utils/date-time";
@@ -32,20 +37,19 @@ import {
   Loader2,
   Clock,
   TrendingUp,
-  Video,
+  Pill,
 } from "lucide-react";
 
 type RecordLike = Record<string, any>;
-const DOCTOR_PATIENTS_HEADER_ACTIONS = <WebSocketStatusIndicator />;
 
 type DoctorPatientsState = {
   searchTerm: string;
   genderFilter: string;
   ageFilter: string;
   page: number;
-  scheduleTarget: {
+  prescribeTarget: {
     id: string;
-    token: string;
+    name: string;
   } | null;
 };
 
@@ -54,14 +58,14 @@ type DoctorPatientsAction =
   | { type: "set_gender_filter"; value: string }
   | { type: "set_age_filter"; value: string }
   | { type: "set_page"; value: number }
-  | { type: "set_schedule_target"; value: DoctorPatientsState["scheduleTarget"] };
+  | { type: "set_prescribe_target"; value: DoctorPatientsState["prescribeTarget"] };
 
 const initialDoctorPatientsState: DoctorPatientsState = {
   searchTerm: "",
   genderFilter: "all",
   ageFilter: "all",
   page: 1,
-  scheduleTarget: null,
+  prescribeTarget: null,
 };
 
 function doctorPatientsReducer(
@@ -77,8 +81,8 @@ function doctorPatientsReducer(
       return { ...state, ageFilter: action.value, page: 1 };
     case "set_page":
       return { ...state, page: action.value };
-    case "set_schedule_target":
-      return { ...state, scheduleTarget: action.value };
+    case "set_prescribe_target":
+      return { ...state, prescribeTarget: action.value };
     default:
       return state;
   }
@@ -148,19 +152,44 @@ function getPatientName(patient: RecordLike): string {
   );
 }
 
-function EhrDrawerContent({ patient }: { patient: RecordLike }) {
+function EhrDrawerContent({
+  patient,
+  clinicId,
+  onPrescribe,
+}: {
+  patient: RecordLike;
+  clinicId: string;
+  onPrescribe: (patient: RecordLike) => void;
+}) {
   const patientUserId = patient?.userId || patient?.user?.id || "";
+  const patientId: string = patient?.id || "";
+  const [visitId, setVisitId] = useState<string | null>(null);
   const { data: ehrData, isPending: isEhrLoading } = useComprehensiveHealthRecord(patientUserId) as {
     data: RecordLike;
     isPending: boolean;
   };
+  const canShowCaseSheet = Boolean(clinicId && patientId && patientUserId);
 
   return (
     <>
       <DrawerHeader>
         <DrawerTitle>{getPatientName(patient)} - Electronic Health Record</DrawerTitle>
       </DrawerHeader>
-      <div className="px-6 pb-6">
+      <div className="flex flex-col gap-y-4 px-6 pb-6">
+        {canShowCaseSheet ? (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <VisitSelector
+              clinicId={clinicId}
+              patientId={patientId}
+              selectedVisitId={visitId}
+              onSelect={setVisitId}
+            />
+            <Button size="sm" onClick={() => onPrescribe(patient)}>
+              <Pill className="mr-1 size-4" />
+              Move to Prescription
+            </Button>
+          </div>
+        ) : null}
         {isEhrLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="size-8 animate-spin text-blue-600" />
@@ -174,6 +203,30 @@ function EhrDrawerContent({ patient }: { patient: RecordLike }) {
             vitals={toArray(ehrData?.vitals)}
             labs={toArray(ehrData?.labReports)}
             carePlan={toArray(ehrData?.carePlan || ehrData?.carePlans)}
+            prescriptions={toArray(ehrData?.prescriptions)}
+            caseSheet={
+              canShowCaseSheet && visitId ? (
+                <VisitCaseSheet
+                  clinicId={clinicId}
+                  patientId={patientId}
+                  patientUserId={patientUserId}
+                  visitId={visitId}
+                />
+              ) : canShowCaseSheet ? (
+                <div className="rounded-xl border border-dashed border-border/70 bg-background/60 p-6 text-sm text-muted-foreground">
+                  No OPD visit yet — use “New OPD visit” above to open a case sheet.
+                </div>
+              ) : undefined
+            }
+            billing={
+              clinicId && patientId ? (
+                <PatientBillHistory
+                  clinicId={clinicId}
+                  patientId={patientId}
+                  patientUserId={patientUserId}
+                />
+              ) : undefined
+            }
           />
         )}
       </div>
@@ -185,10 +238,13 @@ export default function DoctorPatients() {
   const { session } = useAuth();
   const doctorId = session?.user?.id || "";
   const { clinicId } = useClinicContext();
+  // Prescription.doctorId is a foreign key to the Doctor entity, not the
+  // User id most other doctor-scoped queries on this page use.
+  const { doctorId: doctorEntityId } = useCurrentDoctorEntityId(clinicId || "");
   const [state, dispatch] = useReducer(doctorPatientsReducer, initialDoctorPatientsState);
   const pageSize = 10;
   const debouncedSearchTerm = useDeferredValue(state.searchTerm);
-  const { genderFilter, ageFilter, page, scheduleTarget } = state;
+  const { genderFilter, ageFilter, page, prescribeTarget } = state;
 
   const patientsQuery = useDoctorPatients(
     clinicId || "",
@@ -243,7 +299,6 @@ export default function DoctorPatients() {
         gender: patient.gender || patient.user?.gender || "",
         dateOfBirth,
         age,
-        address: patient.address || patient.user?.address || "",
       };
     });
   }, [patients]);
@@ -256,21 +311,29 @@ export default function DoctorPatients() {
   const filteredPatients = patientsWithProfile;
   const totalPatientsCount = patientsPage.total || patientsWithProfile.length;
   const headerMeta = `Loaded: ${patientsPage.total} patients`;
-  const headerActions = DOCTOR_PATIENTS_HEADER_ACTIONS;
-  const appointmentDialog = scheduleTarget ? (
-    <BookAppointmentDialog
-      key={scheduleTarget.token}
-      defaultOpen
-      {...(clinicId ? { clinicId } : {})}
-      {...(doctorId ? { initialDoctorId: doctorId } : {})}
-      initialPatientId={scheduleTarget.id}
-      trigger={
-        <Button className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white animate-pulse">
-          <Video className="mr-2 size-4" />
-          Book Video Appointment
-        </Button>
-      }
-      onBooked={() => dispatch({ type: "set_schedule_target", value: null })}
+  // A doctor-registered patient is linked to this doctor directly on the
+  // backend (no appointment required), so registering just needs a refetch
+  // to bring the new patient into the list.
+  const headerActions = (
+    <div className="flex flex-wrap items-center gap-2">
+      <OpdRegistrationDialog
+        clinicId={clinicId || ""}
+        onRegistered={() => void patientsQuery.refetch()}
+      />
+      <RegisterPatientDialog
+        clinicId={clinicId}
+        onRegistered={() => void patientsQuery.refetch()}
+      />
+      <WebSocketStatusIndicator />
+    </div>
+  );
+  const prescriptionDialog = prescribeTarget ? (
+    <QuickPrescriptionModal
+      isOpen
+      onClose={() => dispatch({ type: "set_prescribe_target", value: null })}
+      patientId={prescribeTarget.id}
+      patientName={prescribeTarget.name}
+      doctorId={doctorEntityId}
     />
   ) : null;
 
@@ -306,15 +369,6 @@ export default function DoctorPatients() {
         },
       },
       {
-        accessorKey: "address",
-        header: "Address",
-        cell: ({ row }) => (
-          <div className="max-w-[280px] truncate text-sm text-muted-foreground">
-            {row.original.address || "No address"}
-          </div>
-        ),
-      },
-      {
         accessorKey: "lastVisit",
         header: "Visits",
         cell: ({ row }) => {
@@ -343,16 +397,16 @@ export default function DoctorPatients() {
               className="flex items-center gap-1"
               onClick={() =>
                 dispatch({
-                  type: "set_schedule_target",
+                  type: "set_prescribe_target",
                   value: {
-                    id: row.original.userId || row.original.user?.id || row.original.id,
-                    token: row.original.userId || row.original.user?.id || row.original.id || "",
+                    id: row.original.id,
+                    name: getPatientName(row.original),
                   },
                 })
               }
             >
-              <Calendar className="size-3" />
-              Schedule
+              <Pill className="size-3" />
+              Prescribe
             </Button>
           </div>
         ),
@@ -399,7 +453,7 @@ export default function DoctorPatients() {
         actionsSlot={headerActions}
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-6">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-6">
         {isPendingPatients ? (
           <>
             <StatCardSkeleton icon={<Users className="size-4" />} label="Total Patients" />
@@ -535,11 +589,22 @@ export default function DoctorPatients() {
       onOpenChange={(open) => !open && setSelectedPatient(null)}
       >
         <DrawerContent className="h-full w-[min(92vw,80rem)] max-w-none overflow-y-auto">
-          {drawerPatient ? <EhrDrawerContent patient={drawerPatient} /> : null}
+          {drawerPatient ? (
+            <EhrDrawerContent
+              patient={drawerPatient}
+              clinicId={clinicId || ""}
+              onPrescribe={(target) =>
+                dispatch({
+                  type: "set_prescribe_target",
+                  value: { id: target.id, name: getPatientName(target) },
+                })
+              }
+            />
+          ) : null}
         </DrawerContent>
       </Drawer>
 
-      {appointmentDialog}
+      {prescriptionDialog}
     </DashboardPageShell>
   );
 }

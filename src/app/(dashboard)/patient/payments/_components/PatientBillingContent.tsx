@@ -19,6 +19,7 @@ import { Skeleton } from "@/components/ui/loading";
 import { TableSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import type { BillingPlan, Invoice, Subscription } from "@/types/billing.types";
+import { clinicApiClient } from "@/lib/api/client";
 
 const PaymentButton = dynamic(
   () => import("@/components/payments/PaymentButton").then((module) => module.PaymentButton),
@@ -94,17 +95,14 @@ function statusColor(status: string) {
     case "ACTIVE":
     case "COMPLETED":
       return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900";
-    case "OPEN":
-    case "DRAFT":
+    case "PENDING":
     case "TRIALING":
       return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-900";
-    case "OVERDUE":
     case "PAST_DUE":
     case "EXPIRED":
       return "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900";
     case "CANCELLED":
     case "VOID":
-    case "UNCOLLECTIBLE":
       return "bg-slate-100 text-slate-500 border-slate-200 line-through dark:bg-slate-900 dark:text-slate-400 dark:border-slate-800";
     case "PAUSED":
     default:
@@ -185,17 +183,14 @@ function formatSubscriptionStatus(status: string) {
 function formatInvoiceStatus(status: string) {
   if (!status) return "";
   const s = status.toUpperCase();
-  if (s === "OPEN" || s === "DRAFT") return "Pending";
+  if (s === "PENDING") return "Pending";
   if (s === "PAID") return "Paid";
-  if (s === "OVERDUE") return "Overdue";
   if (s === "VOID") return "Voided";
-  if (s === "UNCOLLECTIBLE") return "Uncollectible";
   return s.replace(/_/g, " ");
 }
 
 function isPayableInvoiceStatus(status: string) {
-  const s = String(status || "").toUpperCase();
-  return s === "OPEN" || s === "DRAFT" || s === "OVERDUE";
+  return String(status || "").toUpperCase() === "PENDING";
 }
 
 function getInvoiceDateLabel(invoice: { status: string; dueDate?: string; paidDate?: string; paidAt?: string; invoiceDate?: string; createdAt?: string; updatedAt?: string }) {
@@ -267,9 +262,16 @@ export function PatientBillingContent({
   const handleDownloadPdf = async (invoiceId: string) => {
     try {
       setDownloadingPdfId(invoiceId);
-      const response = await fetch(`/api/v1/billing/invoices/${invoiceId}/download`);
-      if (!response.ok) throw new Error("Failed to download PDF");
-      const blob = await response.blob();
+      // Calls the backend directly via clinicApiClient (absolute baseURL,
+      // Authorization header attached) instead of the relative /api/v1/...
+      // path this used to hit through next.config.ts's rewrite - every
+      // other billing call already goes direct, this was the one holdout
+      // still paying for the extra Next.js proxy hop.
+      const result = await clinicApiClient.get<Blob>(
+        `/billing/invoices/${invoiceId}/download`,
+      );
+      const blob = result.data;
+      if (!blob) throw new Error("Failed to download PDF");
       const url = window.URL.createObjectURL(blob);
 
       // Use an anchor tag click to bypass popup blockers after async fetch

@@ -1,12 +1,12 @@
-﻿"use client";
+"use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useMemo, useReducer } from "react";
+import { useCallback, useEffect, useMemo, useReducer } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardPageSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
-import { useStartAppointment, useCompleteAppointment, useUpdateAppointment } from "@/hooks/query/useAppointments";
+import { useStartAppointment, useCompleteAppointment, useUpdateAppointment, useBulkCompleteAppointments } from "@/hooks/query/useAppointments";
 import { useRealTimeAppointments, useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { showInfoToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { useCurrentTimestamp } from "@/hooks/utils/useClientDate";
@@ -268,6 +268,23 @@ export default function DoctorAppointments() {
     dispatch({ type: "setSearchTerm", value });
   };
 
+  // Links such as the dashboard's "Missed Appointments" open a specific view
+  // (`?view=NO_SHOW`). Read once after mount so server and first paint agree.
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get("view");
+    if (!wanted) return;
+    const valid: DoctorAppointmentViewFilter[] = [
+      APPOINTMENT_STATUS.ALL,
+      "ACTIVE",
+      APPOINTMENT_STATUS.COMPLETED,
+      APPOINTMENT_STATUS.CANCELLED,
+      APPOINTMENT_STATUS.EXPIRED,
+      APPOINTMENT_STATUS.NO_SHOW,
+    ];
+    const match = valid.find((v) => v === wanted);
+    if (match) dispatch({ type: "setAppointmentViewFilter", value: match });
+  }, []);
+
   const setAppointmentViewFilter = (value: DoctorAppointmentViewFilter) => {
     dispatch({ type: "setAppointmentViewFilter", value });
   };
@@ -316,6 +333,7 @@ export default function DoctorAppointments() {
   const startAppointmentMutation = useStartAppointment();
   const completeAppointmentMutation = useCompleteAppointment();
   const updateAppointmentMutation = useUpdateAppointment();
+  const bulkCompleteMutation = useBulkCompleteAppointments();
 
   // Transform appointments data
   const appointments = useMemo(() => {
@@ -544,6 +562,21 @@ export default function DoctorAppointments() {
     }
   };
 
+  const bulkCompleteSelected = useCallback(
+    async (appointmentIds: string[]): Promise<{ completed: number; failed: number } | undefined> => {
+      try {
+        return await bulkCompleteMutation.mutateAsync({
+          appointmentIds,
+          ...(user?.id ? { doctorId: user.id } : {}),
+        });
+      } catch (error: unknown) {
+        console.error("Failed to bulk complete appointments", { appointmentIds, error });
+        return undefined;
+      }
+    },
+    [bulkCompleteMutation, user?.id]
+  );
+
   const openAppointmentDetails = (appointment: TransformedAppointment) => {
     setSelectedAppointment(appointment);
 
@@ -587,6 +620,8 @@ export default function DoctorAppointments() {
       saveConsultationDraft={saveConsultationDraft}
       completeConsultation={completeConsultation}
       startConsultation={startConsultation}
+      bulkCompleteSelected={bulkCompleteSelected}
+      bulkCompletePending={bulkCompleteMutation.isPending}
     />
   );
 }

@@ -74,7 +74,11 @@ export function MobileBottomBar({ links }: MobileBottomBarProps) {
               <Link
                 key={link.href}
                 href={link.href}
-                prefetch
+                // Same fix as the desktop GlobalSidebar/Sidebar.tsx: this bar is
+                // always-visible on mobile, so Next's default viewport prefetch
+                // fired a full RSC data fetch for every tab (dashboard/
+                // appointments/health/payments) concurrently on every page load.
+                prefetch={false}
                 scroll={false}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(

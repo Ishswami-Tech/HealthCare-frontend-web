@@ -543,7 +543,12 @@ export class ApiClient {
       credentials: this.withCredentials ? 'include' : 'omit',
       // Do not use keepalive on normal requests.
       // Safari/iOS often surfaces it as a hard "Load failed" network error.
-      cache: 'default', // Use browser cache for GET requests
+      // Server-side (Server Actions/RSC) fetches must opt out of Next.js's
+      // fetch Data Cache: it otherwise caches this per-user, mutable, PHI
+      // response indefinitely for the life of the server process, so a doctor
+      // never sees new data after the first request. Browser-side requests
+      // keep the default HTTP cache behavior.
+      cache: typeof window === 'undefined' ? 'no-store' : 'default',
       ...options,
     };
 
@@ -559,21 +564,21 @@ export class ApiClient {
     // fetchWithAbort handles the abort controller internally
     
     try {
-      const response = await retryRequest(async () => {
+      const performFetch = async () => {
         // Use fetchWithAbort for timeout support
         const res = await fetchWithAbort(url, {
            ...config,
            timeout: this.timeout
         });
-        
+
         if (res.status === HTTP_STATUS.UNAUTHORIZED && shouldRequireAuth) {
            // Attempt refresh
            await this.performTokenRefresh();
            // Retry request with new headers
            const newHeaders = await getAuthHeaders(shouldRequireAuth, includeClinicId);
            // Update headers in config
-           const newConfig = { 
-               ...config, 
+           const newConfig = {
+               ...config,
                headers: stripJsonContentTypeForFormData(
                  { ...newHeaders, ...(options.headers as Record<string, string> | undefined) },
                  options.body
@@ -584,7 +589,18 @@ export class ApiClient {
         }
 
         return res;
-      });
+      };
+
+      // Only auto-retry safe, idempotent-by-convention methods (GET/HEAD).
+      // POST/PUT/PATCH/DELETE carry real side effects (send an OTP, create a
+      // booking, charge a payment) — silently repeating them on a timeout or
+      // transient 5xx duplicates the side effect instead of just retrying a
+      // read. This was firing for OTP requests: a slow/failed response was
+      // retried up to RETRY.MAX_ATTEMPTS times, each attempt generating and
+      // dispatching a brand-new OTP.
+      const method = (config.method || 'GET').toUpperCase();
+      const isSafeToAutoRetry = method === 'GET' || method === 'HEAD';
+      const response = isSafeToAutoRetry ? await retryRequest(performFetch) : await performFetch();
 
       const result = await handleResponse<T>(response);
       
@@ -1160,6 +1176,7 @@ export class ClinicApiClient extends ApiClient {
   async getAppointments(params?: {
     userId?: string;
     doctorId?: string;
+    patientId?: string;
     status?: string;
     date?: string;
     startDate?: string;

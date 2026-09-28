@@ -356,14 +356,12 @@ export function RoleBasedBillingDashboard({
     });
   }, [endDateFilter, paymentMethodFilter, paymentStatusFilter, payments, searchTerm, startDateFilter]);
 
-  const pendingInvoicesCount = invoices.filter(
-    (i) => i.status === "DRAFT" || i.status === "OPEN" || i.status === "OVERDUE"
-  ).length;
+  const pendingInvoicesCount = invoices.filter((i) => i.status === "PENDING").length;
   const paidAmount = payments
     .filter((p) => p.status === "COMPLETED")
     .reduce((sum, p) => sum + p.amount, 0);
   const pendingAmount = invoices
-    .filter((i) => i.status === "DRAFT" || i.status === "OPEN" || i.status === "OVERDUE")
+    .filter((i) => i.status === "PENDING")
     .reduce((sum, i) => sum + i.amount, 0);
 
   const lastCompletedPayment = payments.find((p) => p.status === "COMPLETED");
@@ -495,9 +493,9 @@ export function RoleBasedBillingDashboard({
             className={`rounded-full px-2.5 py-0.5 font-bold uppercase text-[10px] tracking-wider border-none shadow-sm ${
               row.original.status === "PAID"
                 ? "bg-emerald-500 text-white"
-                : row.original.status === "OVERDUE"
-                  ? "bg-red-500 text-white"
-                  : "bg-slate-500 text-white"
+                : row.original.status === "VOID"
+                  ? "bg-slate-400 text-white"
+                  : "bg-amber-500 text-white"
             }`}
           >
             {row.original.status}
@@ -509,11 +507,10 @@ export function RoleBasedBillingDashboard({
         header: "Actions",
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-2">
-            {(row.original.status === "OPEN" || row.original.status === "OVERDUE") && (
+            {row.original.status === "PENDING" && (
               <PaymentButton invoiceId={row.original.id} amount={row.original.amount} />
             )}
-            {canMarkInvoicesPaid &&
-              (row.original.status === "OPEN" || row.original.status === "OVERDUE") && (
+            {canMarkInvoicesPaid && row.original.status === "PENDING" && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -692,12 +689,9 @@ export function RoleBasedBillingDashboard({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="DRAFT">Draft</SelectItem>
-                    <SelectItem value="OPEN">Open</SelectItem>
+                    <SelectItem value="PENDING">Pending</SelectItem>
                     <SelectItem value="PAID">Paid</SelectItem>
-                    <SelectItem value="OVERDUE">Overdue</SelectItem>
                     <SelectItem value="VOID">Void</SelectItem>
-                    <SelectItem value="UNCOLLECTIBLE">Uncollectible</SelectItem>
                   </SelectContent>
                 </Select>
               )}
@@ -1099,9 +1093,9 @@ export function RoleBasedBillingDashboard({
                       className={`rounded-full px-2.5 py-0.5 font-bold uppercase text-[10px] tracking-wider border-none shadow-sm ${
                         selectedInvoice.status === "PAID"
                           ? "bg-emerald-500 text-white"
-                          : selectedInvoice.status === "OVERDUE"
-                            ? "bg-red-500 text-white"
-                            : "bg-slate-500 text-white"
+                          : selectedInvoice.status === "VOID"
+                            ? "bg-slate-400 text-white"
+                            : "bg-amber-500 text-white"
                       }`}
                     >
                       {selectedInvoice.status}
@@ -1181,7 +1175,7 @@ export function RoleBasedBillingDashboard({
                   <FileText className="mr-2 size-4" />
                   Open PDF
                 </Button>
-                {(selectedInvoice.status === "OPEN" || selectedInvoice.status === "OVERDUE") && (
+                {selectedInvoice.status === "PENDING" && (
                   <PaymentButton invoiceId={selectedInvoice.id} amount={selectedInvoice.amount} />
                 )}
               </div>

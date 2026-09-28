@@ -141,7 +141,7 @@ const doctor = {
   socialLinks: {
     instagram: "https://instagram.com/drchandrakumardeshmukh",
     youtube: "http://www.youtube.com/@viddhakarma",
-    whatsapp: "https://wa.me/919860370961",
+    whatsapp: "https://wa.me/917972548944",
     email: "mailto:info@viddhakarma.com",
   },
 };

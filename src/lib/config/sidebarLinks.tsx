@@ -15,8 +15,6 @@ import {
   DollarSign,
   CreditCard,
   ShieldCheck,
-  Mail,
-  UserX,
   Leaf,
   Apple,
   Bed,
@@ -46,6 +44,8 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
   ],
   CLINIC_ADMIN: [
     { title: "Dashboard", href: "/clinic-admin/dashboard", icon: LayoutDashboard },
+    { title: "Appointments", href: "/clinic-admin/appointments", icon: Calendar, permission: Permission.VIEW_APPOINTMENTS },
+    { title: "Payment Reconciliation", href: "/clinic-admin/payments", icon: Receipt, permission: Permission.MANAGE_BILLING },
     { title: "Staff", href: "/clinic-admin/staff", icon: Users, permission: Permission.MANAGE_CLINIC_STAFF },
     { title: "Schedule", href: "/clinic-admin/schedule", icon: Calendar, permission: Permission.MANAGE_DOCTOR_SCHEDULE },
     { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },
@@ -56,8 +56,6 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
   DOCTOR: [
     { title: "Dashboard", href: "/doctor/dashboard", icon: LayoutDashboard },
     { title: "Appointments", href: "/doctor/appointments", icon: Calendar, permission: Permission.VIEW_APPOINTMENTS },
-    { title: "Daily Summary", href: "/doctor/daily-summary", icon: Mail, permission: Permission.VIEW_APPOINTMENTS },
-    { title: "No-Show Management", href: "/doctor/no-show", icon: UserX, permission: Permission.VIEW_APPOINTMENTS },
     { title: "Patients", href: "/doctor/patients", icon: Users, permission: Permission.VIEW_PATIENTS },
     { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },
     { title: "Prescriptions", href: "/doctor/prescriptions", icon: Pill, permission: Permission.MANAGE_PRESCRIPTIONS },
@@ -109,6 +107,7 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
   THERAPIST: [
     { title: "Dashboard", href: "/therapist/dashboard", icon: LayoutDashboard },
     { title: "Appointments", href: "/therapist/appointments", icon: Calendar, permission: Permission.VIEW_APPOINTMENTS },
+    { title: "My Sessions", href: "/therapist/sessions", icon: ClipboardList, permission: Permission.VIEW_PATIENTS },
     { title: "Patients", href: "/therapist/patients", icon: Users, permission: Permission.VIEW_PATIENTS },
     { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },
     { title: "Billing", href: "/billing", icon: Wallet, permission: Permission.VIEW_BILLING },

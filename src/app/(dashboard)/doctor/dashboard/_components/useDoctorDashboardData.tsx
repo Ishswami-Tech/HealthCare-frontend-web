@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useCurrentClinicId } from "@/hooks/query/useClinics";
+import { useCurrentDoctorEntityId } from "@/hooks/query/useDoctors";
 import { useAppointments, useCompleteAppointment, useStartAppointment, hasAppointmentsLoadedForSession } from "@/hooks/query/useAppointments";
 import { useQueue } from "@/hooks/query/useQueue";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
@@ -51,6 +52,8 @@ export function useDoctorDashboardData() {
   );
   const clinicId = useCurrentClinicId();
   const doctorId = user?.id;
+  // Prescription.doctorId is a foreign key to the Doctor entity, not the User id.
+  const { doctorId: doctorEntityId } = useCurrentDoctorEntityId(clinicId || "");
   const currentTimestamp = useCurrentTimestamp();
   const dashboardTodayLabel = useMemo(
     () =>
@@ -387,8 +390,7 @@ export function useDoctorDashboardData() {
     onOpenEhr: (patientId: string) => push(`/doctor/patients/${patientId}`),
     onNavigateAppointments: () => push("/doctor/appointments"),
     onNavigatePatients: () => push("/doctor/patients"),
-    onNavigateDailySummary: () => push("/doctor/daily-summary"),
-    onNavigateNoShow: () => push("/doctor/no-show"),
+    onNavigateNoShow: () => push("/doctor/appointments?view=NO_SHOW"),
     onOpenQueue: () => push("/queue"),
     onClosePrescriptionModal: () =>
       dispatch({
@@ -400,6 +402,7 @@ export function useDoctorDashboardData() {
       }),
     meta: DOCTOR_DASHBOARD_META,
     userId: user?.id || "",
+    doctorEntityId,
     hasAppointmentsLoadedForSession: hasAppointmentsLoadedForSession(),
   };
 }

@@ -39,7 +39,8 @@ import type { Medicine } from "@/types/pharmacy.types";
 interface QuickPrescriptionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  appointmentId: string;
+  /** Omit when prescribing directly from a patient record with no active appointment. */
+  appointmentId?: string;
   patientId: string;
   patientName: string;
   doctorId: string;
@@ -333,30 +334,34 @@ export function QuickPrescriptionModal({
         .join("\n");
       const followUpContext = [treatmentPlan.trim(), notes.trim()].filter(Boolean).join(" ");
 
-      const appointmentTask = updateAppointment.mutateAsync({
-        id: appointmentId,
-        data: {
-          diagnosis: diagnosis.trim(),
-          notes: notes.trim(),
-          treatmentPlan: treatmentPlan.trim() || notes.trim(),
-          metadata: {
-            prescriptionIssued: cleanMedications.length > 0,
-            medicineSkipped: cleanMedications.length === 0,
-            medicineCount: cleanMedications.length,
-            consultationDraft: {
-              diagnosis: diagnosis.trim() || null,
-              notes: notes.trim() || null,
-              treatmentPlan: treatmentPlan.trim() || notes.trim() || null,
-              medicationCount: cleanMedications.length,
-              savedAt: new Date().toISOString(),
-              savedBy: doctorId,
+      // No active appointment to attach consultation notes to when prescribing
+      // directly from a patient record (e.g. a walk-in with no visit booked).
+      const appointmentTask = appointmentId
+        ? updateAppointment.mutateAsync({
+            id: appointmentId,
+            data: {
+              diagnosis: diagnosis.trim(),
+              notes: notes.trim(),
+              treatmentPlan: treatmentPlan.trim() || notes.trim(),
+              metadata: {
+                prescriptionIssued: cleanMedications.length > 0,
+                medicineSkipped: cleanMedications.length === 0,
+                medicineCount: cleanMedications.length,
+                consultationDraft: {
+                  diagnosis: diagnosis.trim() || null,
+                  notes: notes.trim() || null,
+                  treatmentPlan: treatmentPlan.trim() || notes.trim() || null,
+                  medicationCount: cleanMedications.length,
+                  savedAt: new Date().toISOString(),
+                  savedBy: doctorId,
+                },
+              },
+              ...(prescriptionText ? { prescription: prescriptionText } : {}),
+              ...(followUpDate ? { followUpDate } : {}),
+              ...(followUpNotes.trim() ? { followUpNotes: followUpNotes.trim() } : {}),
             },
-          },
-          ...(prescriptionText ? { prescription: prescriptionText } : {}),
-          ...(followUpDate ? { followUpDate } : {}),
-          ...(followUpNotes.trim() ? { followUpNotes: followUpNotes.trim() } : {}),
-        },
-      });
+          })
+        : Promise.resolve(null);
 
       const pharmacyTask =
         clinicId && structuredMedications.length > 0
@@ -419,8 +424,10 @@ export function QuickPrescriptionModal({
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
             Record diagnosis, treatment, and structured medicines for{" "}
-            <span className="font-semibold text-foreground">{patientName}</span>. Saving this
-            keeps the consultation open until you complete it from the dashboard.
+            <span className="font-semibold text-foreground">{patientName}</span>.
+            {appointmentId
+              ? " Saving this keeps the consultation open until you complete it from the dashboard."
+              : " This prescription is saved directly to the patient's record."}
           </DialogDescription>
         </DialogHeader>
 
@@ -437,7 +444,7 @@ export function QuickPrescriptionModal({
               </div>
               <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Appointment</p>
-                <p className="mt-1 font-semibold break-all">{appointmentId}</p>
+                <p className="mt-1 font-semibold break-all">{appointmentId || "None (direct prescription)"}</p>
               </div>
               <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Doctor</p>

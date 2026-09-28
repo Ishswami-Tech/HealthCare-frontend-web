@@ -16,7 +16,10 @@ import {
   type PaymentProviderCredentials,
 } from '@/lib/actions/payment-config.server';
 import { showErrorToast, showSuccessToast } from '@/hooks/utils/use-toast';
-import { ENABLED_PAYMENT_PROVIDERS } from '@/lib/payments/providers';
+// This is the config page itself, so the admin must see every provider the
+// app supports (to configure one that isn't enabled yet) — not the subset
+// already enabled for some clinic, which is what "ENABLED_" would imply.
+import { SUPPORTED_PAYMENT_PROVIDERS } from '@/lib/payments/providers';
 
 type Props = { clinicId: string; currency: string };
 type ProviderCredentials = Record<PaymentProvider, PaymentProviderCredentials>;
@@ -97,7 +100,7 @@ export function PaymentProviderSettings({ clinicId, currency }: Props) {
     getClinicPaymentConfig(clinicId)
       .then((nextConfig) => {
         if (!active || !nextConfig) return;
-        const nextProvider = (nextConfig.primary?.provider || ENABLED_PAYMENT_PROVIDERS[0] || 'cashfree') as PaymentProvider;
+        const nextProvider = (nextConfig.primary?.provider || SUPPORTED_PAYMENT_PROVIDERS[0] || 'cashfree') as PaymentProvider;
         setConfig(nextConfig);
         setProvider(nextProvider);
         setEnabled(nextConfig.primary?.enabled ?? true);
@@ -172,7 +175,7 @@ export function PaymentProviderSettings({ clinicId, currency }: Props) {
               <div className="grid gap-2">
                 <Label htmlFor="payment-provider">Active provider</Label>
                 <select id="payment-provider" className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={provider} onChange={(event) => { setProvider(event.target.value as PaymentProvider); setVerification(null); }}>
-                  {ENABLED_PAYMENT_PROVIDERS.map((p) => (
+                  {SUPPORTED_PAYMENT_PROVIDERS.map((p) => (
                     <option key={p} value={p}>{providerLabels[p] || p}</option>
                   ))}
                 </select>

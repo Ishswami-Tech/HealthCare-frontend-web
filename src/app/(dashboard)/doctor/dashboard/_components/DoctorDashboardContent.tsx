@@ -76,8 +76,7 @@ export default function DoctorDashboardContent() {
         <DoctorDashboardSidebar
           onNavigateAppointments={data.onNavigateAppointments}
           onNavigatePatients={data.onNavigatePatients}
-          onNavigateDailySummary={data.onNavigateAppointments}
-          onNavigateNoShow={data.onNavigateAppointments}
+          onNavigateNoShow={data.onNavigateNoShow}
         />
       </div>
 
@@ -87,7 +86,7 @@ export default function DoctorDashboardContent() {
         appointmentId={data.prescriptionModal.activeAppointmentId || ""}
         patientId={data.prescriptionModal.activePatient?.id || ""}
         patientName={data.prescriptionModal.activePatient?.name || ""}
-        doctorId={data.userId}
+        doctorId={data.doctorEntityId}
       />
     </DashboardPageShell>
   );
