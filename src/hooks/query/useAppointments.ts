@@ -1563,14 +1563,27 @@ export const useMyAppointments = (filters?: {
       // reliably present here - falling back to the Server Action only
       // covers the genuine edge case (WebKit/iPhone session not yet synced
       // client-side) the original implementation was guarding against.
+      // The session's access_token is passed explicitly rather than relying on
+      // clinicApiClient's own internal lookup (which reads from the Zustand
+      // auth store): that store is synced from this same `session` value via
+      // a separate useEffect one render behind, so on a cold/fresh page load
+      // the store can still be empty at the exact moment this queryFn runs
+      // even though `session.access_token` itself is already available here.
+      const accessToken = (session as { access_token?: string } | null | undefined)?.access_token;
       try {
-        const clinicHeaders = filters?.clinicId ? { 'X-Clinic-ID': filters.clinicId } : undefined;
+        if (!accessToken) {
+          throw new Error('NO_CLIENT_TOKEN');
+        }
+        const clinicHeaders: Record<string, string> = { Authorization: `Bearer ${accessToken}` };
+        if (filters?.clinicId) {
+          clinicHeaders['X-Clinic-ID'] = filters.clinicId;
+        }
         const response = await clinicApiClient.get<{
           data?: unknown[] | { appointments?: unknown[]; pagination?: unknown };
           appointments?: unknown[];
           pagination?: unknown;
           meta?: unknown;
-        }>(API_ENDPOINTS.APPOINTMENTS.MY_APPOINTMENTS, buildFilterParams(), clinicHeaders ? { headers: clinicHeaders } : undefined);
+        }>(API_ENDPOINTS.APPOINTMENTS.MY_APPOINTMENTS, buildFilterParams(), { headers: clinicHeaders });
         if (response.statusCode === 403 && !response.data) {
           throw new Error('PROFILE_INCOMPLETE');
         }
