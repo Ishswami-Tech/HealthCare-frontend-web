@@ -33,6 +33,21 @@ const typeIcons = {
   MARKETING: Megaphone,
 };
 
+/** Roles that have their own `/<role>/appointments` page (URL segment form). */
+const ROLES_WITH_APPOINTMENTS = new Set([
+  "patient",
+  "doctor",
+  "assistant-doctor",
+  "receptionist",
+  "clinic-admin",
+  "clinic-location-head",
+  "therapist",
+  "counselor",
+]);
+
+/** Staff roles that have their own `/<role>/prescriptions` page (patients use Medicines). */
+const ROLES_WITH_PRESCRIPTIONS = new Set(["doctor", "assistant-doctor", "pharmacist"]);
+
 const typeColors = {
   APPOINTMENT: "bg-blue-100 text-blue-700 border-blue-200",
   PRESCRIPTION: "bg-green-100 text-green-700 border-green-200",
@@ -50,7 +65,12 @@ export function NotificationItem({
   const { push } = useRouter();
   const { session } = useAuth();
   const user = session?.user;
-  const userRole = (user?.role as string)?.toLowerCase() || 'patient';
+  // The role as it appears in the URL: "ASSISTANT_DOCTOR" -> "assistant-doctor".
+  const userRole =
+    String(user?.role || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_]+/g, "-") || "patient";
 
   const Icon = typeIcons[notification.type] || Bell;
   const colorClass = typeColors[notification.type] || typeColors.SYSTEM;
@@ -65,15 +85,21 @@ export function NotificationItem({
     if (notification.data?.url) {
       push(notification.data.url as string);
     } else if (notification.data?.appointmentId) {
-      // Redirect to role-based appointments page with ID query param
-      push(`/${userRole}/appointments?id=${notification.data.appointmentId}`);
+      // The role's own appointments page. Roles without one (pharmacy, lab, ...) stay where they are.
+      if (ROLES_WITH_APPOINTMENTS.has(userRole)) {
+        push(`/${userRole}/appointments?id=${encodeURIComponent(String(notification.data.appointmentId))}`);
+      }
     } else if (notification.data?.prescriptionId) {
-      // Redirect patients to the consolidated Health page; other roles keep their prescriptions page.
-      push(
-        userRole === "patient"
-          ? `/patient/health?tab=medicines&id=${notification.data.prescriptionId}`
-          : `/${userRole}/prescriptions?id=${notification.data.prescriptionId}`
-      );
+      const prescriptionId = encodeURIComponent(String(notification.data.prescriptionId));
+      if (userRole === "patient") {
+        // Patients open the prescription on their Medicines page.
+        push(`/patient/health/medicines?prescriptionId=${prescriptionId}`);
+      } else if (userRole === "pharmacist") {
+        // The pharmacy prescriptions screen reads `prescriptionId` (it marks and opens that one).
+        push(`/pharmacist/prescriptions?prescriptionId=${prescriptionId}`);
+      } else if (ROLES_WITH_PRESCRIPTIONS.has(userRole)) {
+        push(`/${userRole}/prescriptions?id=${prescriptionId}`);
+      }
     }
   };
 

@@ -113,6 +113,8 @@ import {
   formatTimeInIST,
   getVideoAppointmentJoinBlockedReason,
   isVideoAppointmentJoinable,
+  canRescheduleVideoAppointment,
+  canCancelVideoAppointment,
   normalizeAppointmentStatus,
   getAppointmentServiceLabel,
 } from "@/lib/utils/appointmentUtils";
@@ -121,6 +123,8 @@ import {
   getAppointmentViewState,
   getVideoSessionDecision,
   getAppointmentCounterpartyName,
+  VIDEO_JOIN_EARLY_WINDOW_MINUTES,
+  VIDEO_JOIN_WINDOW_TEXT,
 } from "@/lib/utils/appointmentUtils";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -308,7 +312,7 @@ function computeStats(appointments: VideoAppointment[]): AppointmentStats {
 
 function isWithinJoinWindow(appointment: VideoAppointment | any): boolean {
   const VIDEO_ACTIVE_WINDOW_MS = 5 * 60 * 60 * 1000;
-  const EARLY_JOIN_WINDOW_MS = 15 * 60 * 1000;
+  const EARLY_JOIN_WINDOW_MS = VIDEO_JOIN_EARLY_WINDOW_MINUTES * 60 * 1000;
   const startRaw = appointment?.startTime || appointment?.appointmentDate;
   if (!startRaw) return false;
 
@@ -582,7 +586,7 @@ const AppointmentCard = ({
 
                 {videoSessionDecision.canJoin && (
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[12px] text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
-                    Join opens 15 minutes before your visit and stays open for 5 hours after start.
+                    {VIDEO_JOIN_WINDOW_TEXT}
                   </div>
                 )}
 
@@ -594,8 +598,12 @@ const AppointmentCard = ({
                           Pay ₹{formatAmountFromMinorUnits(paymentAmount)}
                         </PaymentButton>
                       )}
-                      <Button variant="outline" size="sm" onClick={() => openReschedule(appointment)} className="h-8 px-3 rounded-xl text-xs">Reschedule</Button>
-                      <Button variant="ghost" size="sm" onClick={() => openCancel(appointment)} className="h-8 px-3 rounded-xl text-xs text-destructive hover:text-destructive">Cancel</Button>
+                      {canRescheduleVideoAppointment(appointment) && (
+                        <Button variant="outline" size="sm" onClick={() => openReschedule(appointment)} className="h-8 px-3 rounded-xl text-xs">Reschedule</Button>
+                      )}
+                      {canCancelVideoAppointment(appointment, String(role || "").trim().toUpperCase() === "PATIENT") && (
+                        <Button variant="ghost" size="sm" onClick={() => openCancel(appointment)} className="h-8 px-3 rounded-xl text-xs text-destructive hover:text-destructive">Cancel</Button>
+                      )}
                     </>
                   )}
                   {showJoinButton &&
@@ -1198,7 +1206,7 @@ const AppointmentCard = ({
 
                   {videoSessionDecision.canJoin && (
                     <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[12px] text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
-                      Join opens 15 minutes before your visit and stays open for 5 hours after start.
+                      {VIDEO_JOIN_WINDOW_TEXT}
                     </div>
                   )}
 
@@ -1210,8 +1218,12 @@ const AppointmentCard = ({
                             Pay ₹{formatAmountFromMinorUnits(paymentAmount)}
                           </PaymentButton>
                         )}
+                        {canRescheduleVideoAppointment(appointment) && (
                         <Button variant="outline" size="sm" onClick={() => openReschedule(appointment)} className="h-8 px-3 rounded-xl text-xs">Reschedule</Button>
+                      )}
+                        {canCancelVideoAppointment(appointment, String(role || "").trim().toUpperCase() === "PATIENT") && (
                         <Button variant="ghost" size="sm" onClick={() => openCancel(appointment)} className="h-8 px-3 rounded-xl text-xs text-destructive hover:text-destructive">Cancel</Button>
+                      )}
                       </>
                     )}
                     {showJoinButton &&

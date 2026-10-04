@@ -11,10 +11,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
+import { EmptyBlock, InitialsAvatar, SearchBox } from "@/components/tbd";
 import {
   getAppointmentReassignmentCandidates,
   reassignAppointmentDoctor,
@@ -23,13 +22,11 @@ import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-t
 import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 import { cn } from "@/lib/utils";
 import {
-  User,
   Loader2,
   AlertTriangle,
   CheckCircle2,
   RefreshCw,
   Stethoscope,
-  Search,
   ClipboardList,
 } from "lucide-react";
 import type { AppointmentReassignmentCandidate } from "@/types/appointment.types";
@@ -181,44 +178,34 @@ export function ReassignAppointmentDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <ClipboardList className="size-5 text-primary" />
-            Reassign Appointment
+            <ClipboardList className="size-5 text-brand" aria-hidden="true" />
+            Reassign visit
           </DialogTitle>
           <DialogDescription>
-            Select a replacement doctor for this appointment.
+            Pick another doctor for this visit.
           </DialogDescription>
         </DialogHeader>
 
         {/* Current doctor summary */}
         {currentDoctor && (
-          <Card className="border-border/60 bg-muted/30">
-            <CardContent className="p-3">
-              <p className="text-xs font-semibold text-muted-foreground mb-1">
-                Currently assigned to
-              </p>
-              <div className="flex items-center gap-2 text-sm">
-                <div className="flex size-8 items-center justify-center rounded-full bg-muted text-xs font-bold">
-                  {currentDoctor.name.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <p className="font-medium">{currentDoctor.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {currentDoctor.role}
-                  </p>
-                </div>
+          <div className="rounded-[14px] bg-well px-3.5 py-3">
+            <p className="m-0 mb-1.5 text-xs font-semibold text-ink-muted">Now with</p>
+            <div className="flex items-center gap-2.5 text-sm">
+              <InitialsAvatar name={currentDoctor.name} size={36} />
+              <div className="min-w-0">
+                <p className="m-0 truncate font-bold text-ink">{currentDoctor.name}</p>
+                <p className="m-0 truncate text-xs text-ink-muted">{currentDoctor.role}</p>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
         <div className="flex flex-col gap-y-3 py-2">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Available Doctors
-            </p>
+            <p className="m-0 text-[13px] font-bold text-ink">Available doctors</p>
             {eligibleCandidates.length > 0 && (
-              <span className="text-[11px] text-muted-foreground">
-                {eligibleCandidates.length} candidate
+              <span className="text-xs text-ink-muted">
+                {eligibleCandidates.length} doctor
                 {eligibleCandidates.length === 1 ? "" : "s"}
               </span>
             )}
@@ -226,47 +213,41 @@ export function ReassignAppointmentDialog({
 
           {/* Search */}
           {eligibleCandidates.length > 3 && (
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search doctors..."
-                className="pl-9 h-9 text-sm"
-              />
-            </div>
+            <SearchBox value={searchQuery} onChange={setSearchQuery} placeholder="Search doctors" />
           )}
 
           {/* Loading state */}
           {isLoading && (
-            <div className="flex flex-col items-center gap-2 py-8 text-muted-foreground">
-              <Loader2 className="size-6 animate-spin" />
-              <p className="text-sm">Loading candidates...</p>
+            <div className="flex flex-col items-center gap-2 py-8 text-ink-muted" role="status">
+              <Loader2 className="size-6 animate-spin text-brand" aria-hidden="true" />
+              <p className="m-0 text-sm">Loading doctors…</p>
             </div>
           )}
 
           {/* Error state */}
           {!isLoading && error && (
-            <div className="flex flex-col items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900 dark:border-red-900 dark:bg-red-950/30 dark:text-red-100">
-              <AlertTriangle className="size-5 shrink-0" />
-              <p className="font-semibold">Unable to load candidates</p>
-              <p className="text-xs opacity-80">{error}</p>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="mt-2 h-8 rounded-lg"
-                onClick={() => {
-                  setError(null);
-                  // Re-trigger the effect by toggling open state.
-                  onOpenChange?.(false);
-                  setTimeout(() => onOpenChange?.(true), 50);
-                }}
-              >
-                <RefreshCw className="mr-1.5 size-3.5" />
-                Retry
-              </Button>
-            </div>
+            <EmptyBlock
+              className="py-6"
+              icon={AlertTriangle}
+              tone="rose"
+              title="Could not load doctors"
+              description={error}
+              action={
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setError(null);
+                    // Re-trigger the effect by toggling open state.
+                    onOpenChange?.(false);
+                    setTimeout(() => onOpenChange?.(true), 50);
+                  }}
+                >
+                  <RefreshCw aria-hidden="true" />
+                  Try again
+                </Button>
+              }
+            />
           )}
 
           {/* Empty state */}
@@ -274,24 +255,23 @@ export function ReassignAppointmentDialog({
             !error &&
             eligibleCandidates.length === 0 &&
             candidates.length > 0 && (
-              <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center text-sm text-muted-foreground">
-                <Stethoscope className="size-8 opacity-40" />
-                <p className="font-medium">No eligible doctors found</p>
-                <p className="text-xs opacity-80">
-                  There are no available replacement doctors for this
-                  appointment right now.
-                </p>
-              </div>
+              <EmptyBlock
+                className="py-6"
+                icon={Stethoscope}
+                tone="slate"
+                title="No doctor is free"
+                description="No other doctor can take this visit right now."
+              />
             )}
 
           {!isLoading && !error && candidates.length === 0 && (
-            <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center text-sm text-muted-foreground">
-              <Stethoscope className="size-8 opacity-40" />
-              <p className="font-medium">No candidates available</p>
-              <p className="text-xs opacity-80">
-                The system could not find any doctors eligible for reassignment.
-              </p>
-            </div>
+            <EmptyBlock
+              className="py-6"
+              icon={Stethoscope}
+              tone="slate"
+              title="No doctors to show"
+              description="No doctor can take over this visit."
+            />
           )}
 
           {/* Candidates list */}
@@ -305,40 +285,33 @@ export function ReassignAppointmentDialog({
                     key={candidate.id}
                     type="button"
                     onClick={() => setSelectedDoctorId(candidate.id)}
+                    aria-pressed={isSelected}
                     className={cn(
-                      "flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all",
+                      "flex w-full items-center gap-3 rounded-[14px] border px-3.5 py-3 text-left transition-colors",
+                      "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40",
                       isSelected
-                        ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                        : "border-border bg-card hover:border-primary/30 hover:bg-muted/30"
+                        ? "border-brand bg-mint-soft"
+                        : "border-line bg-card hover:bg-mint-soft"
                     )}
                   >
-                    <div
-                      className={cn(
-                        "flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-bold",
-                        isSelected
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-muted-foreground"
-                      )}
-                    >
-                      {candidate.name.charAt(0).toUpperCase()}
-                    </div>
+                    <InitialsAvatar name={candidate.name} size={40} />
                     <div className="min-w-0 flex-1">
                       <p
                         className={cn(
-                          "truncate font-semibold text-sm",
-                          isSelected ? "text-primary" : ""
+                          "m-0 truncate text-sm font-bold",
+                          isSelected ? "text-brand-dark" : "text-ink"
                         )}
                       >
                         {candidate.name}
                       </p>
-                      <p className="truncate text-xs text-muted-foreground">
+                      <p className="m-0 truncate text-xs text-ink-muted">
                         {candidate.role}
                         {candidate.isPrimary ? " · Primary doctor" : ""}
                         {candidate.reason ? ` · ${candidate.reason}` : ""}
                       </p>
                     </div>
                     {isSelected && (
-                      <CheckCircle2 className="size-4 text-primary shrink-0" />
+                      <CheckCircle2 className="size-[18px] shrink-0 text-brand" aria-hidden="true" />
                     )}
                   </button>
                 );
@@ -350,40 +323,40 @@ export function ReassignAppointmentDialog({
         <div className="flex flex-col gap-y-2">
           <Label
             htmlFor="reassign-reason"
-            className="text-xs font-semibold text-muted-foreground"
+            className="text-[13px] font-semibold text-ink"
           >
-            Reason <span className="opacity-60">(optional)</span>
+            Reason <span className="font-medium text-ink-muted">(optional)</span>
           </Label>
           <Textarea
             id="reassign-reason"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="e.g., Doctor unavailable due to emergency"
-            className="rounded-xl text-sm min-h-16"
+            placeholder="For example: the doctor is away for an emergency"
+            className="min-h-16"
           />
         </div>
 
         <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
           <Button
             variant="outline"
+            size="md"
             onClick={() => handleClose(false)}
             disabled={isSubmitting}
-            className="h-10 rounded-xl border-border/50"
           >
-            Cancel
+            Back
           </Button>
           <Button
+            size="md"
             onClick={handleSubmit}
             disabled={!canSubmit}
-            className="h-10 rounded-xl bg-primary hover:bg-primary/90 text-white"
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="mr-2 size-4 animate-spin" />
-                Reassigning...
+                <Loader2 className="animate-spin" aria-hidden="true" />
+                Reassigning…
               </>
             ) : (
-              "Confirm Reassignment"
+              "Reassign visit"
             )}
           </Button>
         </DialogFooter>

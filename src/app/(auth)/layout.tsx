@@ -18,7 +18,7 @@ import { ROUTES, getDashboardByRole } from "@/lib/config/routes";
 import { StatusFooter } from "@/components/status/StatusFooter";
 import { resolveAuthoritativeProfileCompleteFromCandidates } from "@/lib/config/profile";
 
-import { AuthLeftPanel } from "@/components/auth/AuthLeftPanel";
+import { AuthFrame, AuthHelpPill } from "@/components/auth/AuthFrame";
 
 export default function AuthLayout({
   children,
@@ -82,30 +82,15 @@ export default function AuthLayout({
   }, [isAuthenticated, profilePending, authPending, userProfile, replace, pathname]);
 
   return (
-    <div className="auth-page-scroll relative h-dvh min-h-0 w-full overflow-x-hidden overflow-y-auto bg-[#fff9ed] transition-colors duration-300 lg:flex lg:h-screen lg:overflow-hidden">
-      {/* Full-canvas scenery contains no person; the doctor is rendered only by AuthLeftPanel. */}
-      <div
-        aria-hidden="true"
-        className="auth-desktop-scenery pointer-events-none absolute inset-0 hidden lg:block"
-      />
-
-      {/* The mobile hero and form share one continuous forest background. */}
-      <section
-        aria-label="Welcome to Dr. Chandrakumar Deshmukh Clinic"
-        className="auth-mobile-hero relative h-[max(180px,calc(100dvh-421px))] max-h-[540px] shrink-0 lg:hidden"
-        role="img"
-      />
-
-      {/* Left side - Ayurvedic Hero Panel */}
-      <AuthLeftPanel />
-
-      {/* Right side - Auth forms */}
-      <div className="auth-mobile-login-form relative z-20 mt-0 flex min-h-0 flex-1 flex-col justify-start overflow-visible px-5 pt-0 sm:px-6 lg:mt-0 lg:h-screen lg:justify-center lg:px-[1.65vw] lg:py-3">
-        <div className="auth-mobile-login-scale mx-auto flex min-h-0 w-full max-w-[588px] origin-top flex-col justify-center transition-transform duration-200 lg:w-[calc(100%+88px)] lg:flex-1 lg:origin-center [@media(min-width:1367px)_and_(max-height:900px)]:scale-[.95] [@media(min-width:1367px)_and_(max-height:800px)]:scale-[.88] [@media(min-width:1367px)_and_(max-height:720px)]:scale-[.80]">
-          {children}
-          <StatusFooter className="mt-3 shrink-0 justify-center py-0 lg:py-1" />
-        </div>
-      </div>
-    </div>
+    <AuthFrame
+      footer={
+        <>
+          <AuthHelpPill />
+          <StatusFooter className="w-auto shrink-0 justify-center py-0" />
+        </>
+      }
+    >
+      {children}
+    </AuthFrame>
   );
 }

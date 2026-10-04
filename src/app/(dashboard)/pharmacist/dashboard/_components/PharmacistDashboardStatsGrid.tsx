@@ -1,81 +1,43 @@
-"use client";
-
-import { AlertTriangle, CheckCircle, Clock, Package, Pill, TrendingUp } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MiniStat } from "@/components/tbd";
+import type { PharmacyDashboardStats } from "./pharmacist-dashboard.logic";
 
 interface PharmacistDashboardStatsGridProps {
-  pendingPrescriptions: number;
-  awaitingPayment: number;
-  dispensedToday: number;
-  lowStockItems: number;
-  monthlyDispensed: number;
+  stats: PharmacyDashboardStats;
+  /** First load: show placeholders instead of zeros. */
+  loading?: boolean;
 }
 
-function StatCard({
-  title,
-  value,
-  description,
-  tone,
-}: {
-  title: string;
-  value: number;
-  description: string;
-  tone: string;
-}) {
-  return (
-    <Card className={`shadow-sm ${tone}`}>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium uppercase tracking-tight text-slate-500">
-          {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-        <p className="mt-1 text-xs text-slate-400">{description}</p>
-      </CardContent>
-    </Card>
-  );
-}
+const TILES: { key: keyof PharmacyDashboardStats; label: string; tone: string }[] = [
+  { key: "toFill", label: "To fill", tone: "text-[#1d4ed8] dark:text-blue-300" },
+  { key: "paymentDue", label: "Payment due", tone: "text-[#b45309] dark:text-amber-300" },
+  { key: "dispensedToday", label: "Dispensed today", tone: "text-brand" },
+  { key: "lowStock", label: "Low stock", tone: "text-[#be123c] dark:text-rose-300" },
+  { key: "thisMonth", label: "This month", tone: "text-ink-soft" },
+];
 
-export function PharmacistDashboardStatsGrid({
-  pendingPrescriptions,
-  awaitingPayment,
-  dispensedToday,
-  lowStockItems,
-  monthlyDispensed,
-}: PharmacistDashboardStatsGridProps) {
+/** The strip of numbers inside the banner. Every number comes from the pharmacy hooks. */
+export function PharmacistDashboardStatsGrid({ stats, loading = false }: PharmacistDashboardStatsGridProps) {
   return (
-    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
-      <StatCard
-        title="Pending"
-        value={pendingPrescriptions}
-        description="Prescriptions to fill"
-        tone="border-slate-100"
-      />
-      <StatCard
-        title="Payment Due"
-        value={awaitingPayment}
-        description="Awaiting checkout"
-        tone="border-slate-100"
-      />
-      <StatCard
-        title="Dispensed"
-        value={dispensedToday}
-        description="Today's total"
-        tone="border-emerald-100"
-      />
-      <StatCard
-        title="Low Stock"
-        value={lowStockItems}
-        description="Action required"
-        tone="border-rose-100"
-      />
-      <StatCard
-        title="Monthly"
-        value={monthlyDispensed}
-        description="Volume this month"
-        tone="border-slate-100"
-      />
+    <div
+      role="group"
+      aria-label="Pharmacy numbers"
+      aria-busy={loading}
+      className="z-[1] grid w-full grid-cols-2 gap-3 sm:grid-cols-3 lg:flex lg:w-auto"
+    >
+      {TILES.map((tile) => (
+        <MiniStat
+          key={tile.key}
+          className="rounded-[14px] bg-white lg:min-w-[124px]"
+          value={
+            loading ? (
+              <span className="my-1 block h-[22px] w-9 animate-pulse rounded-md bg-well" aria-label="Loading" />
+            ) : (
+              stats[tile.key]
+            )
+          }
+          label={<span className={`font-bold ${tile.tone}`}>{tile.label}</span>}
+        />
+      ))}
     </div>
   );
 }

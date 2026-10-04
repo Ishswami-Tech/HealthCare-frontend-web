@@ -74,6 +74,8 @@ export const mr: TranslationKeys = {
   },
   dashboard: {
     welcomeBack: 'पुन्हा स्वागत आहे',
+    hello: 'नमस्कार',
+    howAreYouFeeling: 'आज तुम्हाला कसे वाटत आहे?',
     overview: 'आज तुमच्या आरोग्याबद्दल काय घडत आहे.',
     bookAppointment: 'अपॉइंटमेंट बुक करा',
   },

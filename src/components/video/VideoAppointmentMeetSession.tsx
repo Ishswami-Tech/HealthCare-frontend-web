@@ -2,39 +2,26 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import {
-  Loader2,
-  Mic,
-  MicOff,
-  Video,
-  VideoOff,
-  Shield,
-  ArrowLeft,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useAppointment } from "@/hooks/query/useAppointments";
 import { useVideoAppointment } from "@/hooks/query/useVideoAppointments";
 import { useCurrentClinicId } from "@/hooks/query/useClinics";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
+  formatDateInIST,
   formatDateTimeInIST,
   formatTimeInIST,
   nowIso,
 } from "@/lib/utils/date-time";
 import {
+  formatDoctorDisplayName,
   getAppointmentDoctorName,
   getAppointmentPatientName,
   getAppointmentViewState,
+  getDisplayAppointmentDuration,
   getVideoSessionDecision,
+  VIDEO_JOIN_WINDOW_TEXT,
 } from "@/lib/utils/appointmentUtils";
+import { getAppointmentDateTimeValue } from "@/lib/utils/clock";
 import { getVideoSessionExitRoute } from "@/lib/utils/video-session-route";
 import { generateVideoToken } from "@/lib/actions/video.server";
 import {
@@ -42,19 +29,14 @@ import {
   type VideoRoomAccess,
 } from "@/components/video/VideoAppointmentRoomWorkspace";
 import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
+import { VideoLobbyView } from "@/components/video/lobby/VideoLobbyView";
+import {
+  VideoLobbyError,
+  VideoLobbyLoading,
+} from "@/components/video/lobby/VideoLobbyStatus";
+import { videoPortalLabel } from "@/components/video/lobby/VideoStageShell";
+import { getAppointmentDoctorPhoto } from "@/components/video/lobby/videoVisitPeople";
 
-const MEET_MEDIA_BUTTON_ON =
-  "bg-dark-gray text-white border border-dark-gray shadow-sm hover:bg-[#4a4d51] hover:border-[#4a4d51] dark:bg-dark-gray dark:text-white dark:border-[#5f6368] dark:hover:bg-[#4a4d51]";
-const MEET_MEDIA_BUTTON_OFF =
-  "bg-[#ea4335] text-white border border-[#ea4335] shadow-sm hover:bg-[#d93025] hover:border-[#d93025]";
-const MEET_JOIN_BUTTON =
-  "bg-[#1a73e8] text-white shadow-sm hover:bg-[#1558b0] dark:bg-[#8ab4f8] dark:text-[#202124] dark:hover:bg-[#aecbfa]";
-const MEET_SECONDARY_BUTTON =
-  "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-[#5f6368] dark:bg-transparent dark:text-white dark:hover:bg-dark-gray";
-const MEET_STATUS_BADGE =
-  "rounded-md border border-blue-200/70 bg-blue-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-blue-700 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-200";
-const MEET_INFO_CARD =
-  "rounded-2xl border border-slate-200/80 bg-white/90 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-dark-gray dark:bg-meet-black/90";
 const VIDEO_ACTIVE_WINDOW_MS = 3 * 60 * 60 * 1000;
 
 type VideoAppointmentMeetSessionProps = {
@@ -313,6 +295,21 @@ export function VideoAppointmentMeetSession({
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const mediaStreamRef = React.useRef<MediaStream | null>(null);
   const previewHandedOffRef = React.useRef(false);
+  // The lobby's <video> mounts only after the first camera request has finished, so the stream
+  // that is already running is attached here (the request itself could not reach the element).
+  const attachPreviewVideo = React.useCallback(
+    (node: HTMLVideoElement | null) => {
+      videoRef.current = node;
+      const stream = mediaStreamRef.current;
+      if (node && stream && node.srcObject !== stream) {
+        node.srcObject = stream;
+        node.muted = true;
+        node.playsInline = true;
+        void node.play().catch(() => {});
+      }
+    },
+    [],
+  );
   const appointmentRecordSource = React.useMemo(
     () =>
       (appointmentRecordQuery as any)?.appointment ||
@@ -925,49 +922,68 @@ export function VideoAppointmentMeetSession({
     replace(exitRoute);
   };
 
+  // ── presentation values for the lobby ──
+  const portalLabel = videoPortalLabel(effectiveViewerRole);
+  const isPatientViewer =
+    viewerRoleNormalized === "" || viewerRoleNormalized === "PATIENT";
+  const lobbyBackLabel = "Back to appointments";
+  const lobbyStatusCode = videoSessionDecision.status || "";
+  const scheduledStartSource = (
+    appointmentDetailsSource as { scheduledStartTime?: unknown } | null | undefined
+  )?.scheduledStartTime;
+  const scheduledStartDate =
+    typeof scheduledStartSource === "string" && scheduledStartSource
+      ? new Date(scheduledStartSource)
+      : getAppointmentDateTimeValue(
+          appointmentRecordSource || appointmentDetailsSource,
+        );
+  const lobbyStartsAt =
+    scheduledStartDate && !Number.isNaN(scheduledStartDate.getTime())
+      ? scheduledStartDate
+      : null;
+  const lobbyDurationMinutes = getDisplayAppointmentDuration(
+    appointmentRecordSource || appointmentDetailsSource,
+  );
+  const lobbyScheduledLabel = lobbyStartsAt
+    ? [
+        formatDateInIST(lobbyStartsAt, {
+          weekday: "short",
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        }),
+        lobbyDurationMinutes
+          ? `${formatTimeInIST(lobbyStartsAt)} – ${formatTimeInIST(
+              new Date(lobbyStartsAt.getTime() + lobbyDurationMinutes * 60_000),
+            )}`
+          : formatTimeInIST(lobbyStartsAt),
+      ].join(" · ")
+    : appointmentTimeSlotLabel !== "TBD"
+      ? appointmentTimeSlotLabel
+      : "Not set yet";
+  const lobbyDoctorName = appointmentDoctorName
+    ? appointmentDoctorName === "Doctor assigned"
+      ? "Your doctor"
+      : formatDoctorDisplayName(appointmentDoctorName)
+    : "Your doctor";
+
   if (isPending || isRequesting) {
-    return (
-      <div className="flex min-h-dvh w-full items-center justify-center bg-[#111315] px-6 text-center text-white">
-        <div className="flex flex-col items-center gap-y-4 max-w-xs w-full">
-          <div className="relative mx-auto size-14">
-            <div className="h-full w-full animate-spin rounded-full border-2 border-[#8ab4f8]/20 border-t-[#8ab4f8]" />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Video className="size-6 text-[#8ab4f8]" />
-            </div>
-          </div>
-          <div>
-            <p className="text-[16px] font-medium text-white">Getting ready…</p>
-            <p className="mt-1 text-[13px] text-[#9aa0a6]">
-              Preparing your consultation.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
+    return <VideoLobbyLoading portalLabel={portalLabel} />;
   }
 
   if (error || permissionError || appointmentLoadFailed) {
     return (
-      <div className="flex min-h-dvh w-full items-center justify-center bg-[#111315] px-6 text-center text-white">
-        <div className="max-w-sm w-full rounded-2xl border border-[#ea4335]/20 bg-[#ea4335]/10 px-6 py-8 text-center">
-          <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-[#ea4335]/20">
-            <VideoOff className="size-7 text-[#f28b82]" />
-          </div>
-          <p className="text-[16px] font-semibold text-white">Unable to join</p>
-          <p className="mt-2 text-[13px] text-[#9aa0a6]">
-            {permissionError ||
-              error?.message ||
-              "Unable to load this meeting. Please reopen the consultation from your appointment list."}
-          </p>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="mt-6 rounded-full bg-[#8ab4f8] px-6 py-2.5 text-[13px] font-semibold text-[#202124] hover:bg-[#aecbfa] transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
+      <VideoLobbyError
+        portalLabel={portalLabel}
+        backLabel={lobbyBackLabel}
+        message={
+          permissionError ||
+          error?.message ||
+          "Unable to load this meeting. Please reopen the consultation from your appointment list."
+        }
+        onRetry={() => window.location.reload()}
+        onBack={handleLeavePreview}
+      />
     );
   }
 
@@ -982,281 +998,55 @@ export function VideoAppointmentMeetSession({
     );
   }
 
+  const doctorPhotoUrl = getAppointmentDoctorPhoto(
+    appointmentRecordSource || appointmentDetailsSource,
+  );
+  const showLinkActions = Boolean(meetingUrl) && !blockedReason && !isDailyProvider;
+
   return (
-    <div className="relative min-h-dvh w-full overflow-y-auto bg-[#111315] text-white">
-      {/* Subtle background glow */}
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_right,rgba(138,180,248,0.08),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(52,168,83,0.06),transparent_40%)]" />
-
-      {/* Full-height centered on desktop, scrollable column on mobile */}
-      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-0 px-4 py-6 sm:px-6 sm:py-8 lg:min-h-dvh lg:flex-row lg:items-center lg:gap-10 lg:px-10 lg:py-0">
-        {/* ── Left: Video preview ── */}
-        <div className="w-full flex-shrink-0 lg:w-[56%]">
-          {/* Video card */}
-          <div className="relative w-full overflow-hidden rounded-2xl bg-[#1e1f20] border border-white/10">
-            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#ea4335] via-[#fbbc05] to-[#34a853]" />
-
-            {/* 16:9 on all screen sizes for consistent video preview */}
-            <div className="relative w-full aspect-video">
-              <video
-                ref={videoRef}
-                autoPlay
-                muted
-                playsInline
-                aria-label="Camera preview"
-                className={`h-full w-full object-cover transition-opacity duration-300 ${isMirrored ? "-scale-x-100" : ""} ${isVideoEnabled ? "opacity-100" : "opacity-0"}`}
-              />
-              {!isVideoEnabled && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#1e1f20]">
-                  <div className="flex size-28 items-center justify-center rounded-full bg-[#3c4043]">
-                    <VideoOff className="size-12 text-[#9aa0a6]" />
-                  </div>
-                  <p className="mt-3 text-[13px] text-[#9aa0a6]">
-                    Camera is off
-                  </p>
-                </div>
-              )}
-
-              {/* Mic + Camera overlay */}
-              <div className="absolute inset-x-0 bottom-0 flex justify-center gap-5 bg-gradient-to-t from-black/75 to-transparent pb-8 pt-20">
-                <button
-                  type="button"
-                  onClick={toggleAudio}
-                  aria-pressed={isAudioEnabled}
-                  aria-label={
-                    isAudioEnabled ? "Mute microphone" : "Unmute microphone"
-                  }
-                  className={`flex size-14 items-center justify-center rounded-full shadow-lg transition-all ${isAudioEnabled ? "bg-[#3c4043]/90 text-white hover:bg-[#5f6368]" : "bg-[#ea4335] text-white hover:bg-[#d93025]"}`}
-                >
-                  {isAudioEnabled ? (
-                    <Mic className="size-6" />
-                  ) : (
-                    <MicOff className="size-6" />
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={toggleVideo}
-                  aria-pressed={isVideoEnabled}
-                  aria-label={
-                    isVideoEnabled ? "Turn off camera" : "Turn on camera"
-                  }
-                  className={`flex size-14 items-center justify-center rounded-full shadow-lg transition-all ${isVideoEnabled ? "bg-[#3c4043]/90 text-white hover:bg-[#5f6368]" : "bg-[#ea4335] text-white hover:bg-[#d93025]"}`}
-                >
-                  {isVideoEnabled ? (
-                    <Video className="size-6" />
-                  ) : (
-                    <VideoOff className="size-6" />
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Device selectors — compact */}
-          <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
-            <Select
-              value={selectedAudioDeviceId}
-              onValueChange={handleAudioDeviceChange}
-            >
-              <SelectTrigger className="h-10 w-full min-w-0 rounded-xl border border-white/10 bg-[#2d2e30] px-3 text-[12px] text-white focus:ring-1 focus:ring-[#8ab4f8]/40 overflow-hidden">
-                <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
-                  <Mic className="size-3.5 text-[#9aa0a6] shrink-0" />
-                  <span className="truncate min-w-0 flex-1 text-left text-[12px]">
-                    <SelectValue placeholder="Microphone" />
-                  </span>
-                </div>
-              </SelectTrigger>
-              <SelectContent
-                position="popper"
-                className="rounded-xl border border-white/10 bg-[#2d2e30] text-white"
-              >
-                {audioDevices.length === 0 ? (
-                  <SelectItem
-                    value="default-mic"
-                    className="py-1.5 text-[12px]"
-                  >
-                    Default microphone
-                  </SelectItem>
-                ) : (
-                  audioDevices.map((device, index) => (
-                    <SelectItem
-                      key={device.deviceId}
-                      value={device.deviceId}
-                      className="py-1.5 text-[12px] focus:bg-white/10 focus:text-white"
-                    >
-                      {device.label || `Microphone ${index + 1}`}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={selectedVideoDeviceId}
-              onValueChange={handleVideoDeviceChange}
-            >
-              <SelectTrigger className="h-10 w-full min-w-0 rounded-xl border border-white/10 bg-[#2d2e30] px-3 text-[12px] text-white focus:ring-1 focus:ring-[#8ab4f8]/40 overflow-hidden">
-                <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
-                  <Video className="size-3.5 text-[#9aa0a6] shrink-0" />
-                  <span className="truncate min-w-0 flex-1 text-left text-[12px]">
-                    <SelectValue placeholder="Camera" />
-                  </span>
-                </div>
-              </SelectTrigger>
-              <SelectContent
-                position="popper"
-                className="rounded-xl border border-white/10 bg-[#2d2e30] text-white"
-              >
-                {videoDevices.length === 0 ? (
-                  <SelectItem
-                    value="default-camera"
-                    className="py-1.5 text-[12px]"
-                  >
-                    Default camera
-                  </SelectItem>
-                ) : (
-                  videoDevices.map((device, index) => (
-                    <SelectItem
-                      key={device.deviceId}
-                      value={device.deviceId}
-                      className="py-1.5 text-[12px] focus:bg-white/10 focus:text-white"
-                    >
-                      {device.label || `Camera ${index + 1}`}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* ── Right: Meeting info + join ── */}
-        <div className="mt-5 flex w-full flex-col lg:mt-0 lg:flex-1 lg:justify-center">
-          <h1 className="text-center text-[26px] sm:text-[30px] lg:text-[38px] font-semibold text-white tracking-tight lg:text-left">
-            {sessionStateLabel}
-          </h1>
-          <p className="mt-2 text-center text-[14px] lg:text-[16px] text-[#9aa0a6] lg:text-left">
-            Meeting with{" "}
-            <span className="font-semibold text-white">{meetingWithLabel}</span>
-          </p>
-
-          {/* Provider info — dev only */}
-          <div className="mt-3 inline-flex max-w-full items-start gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-left">
-            <Shield className="mt-0.5 size-4 shrink-0 text-emerald-300" />
-            <p className="text-[12px] leading-5 text-emerald-50/90">
-              Join opens 20 minutes before your visit and stays open for 5 hours
-              after start.
-            </p>
-          </div>
-
-          {process.env.NODE_ENV === "development" && (
-            <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
-              <span className="text-white/20">·</span>
-              <span className="text-[10px] font-mono text-[#9aa0a6]">
-                {appointmentSessionLabel}
-              </span>
-              <span className="text-white/20">·</span>
-              <span className="text-[11px] text-[#9aa0a6] truncate min-w-0">
-                {meetingUrlLabel}
-              </span>
-            </div>
-          )}
-
-          {/* Blocked reason */}
-          {blockedReason && (
-            <div className="mt-4 w-full rounded-xl border border-[#fbbc05]/20 bg-[#fbbc05]/8 px-4 py-3 text-[13px] text-[#fbbc05]">
-              {sessionStateMessage}
-            </div>
-          )}
-
-          {/* Action buttons */}
-          <div className="mt-6 flex w-full flex-col gap-3">
-            {!blockedReason && (
-              <button
-                type="button"
-                onClick={() => void handleJoin()}
-                disabled={!meetingUrl || isJoiningRoom}
-                className="group relative w-full overflow-hidden rounded-full bg-[#8ab4f8] px-6 py-3.5 text-[15px] font-bold text-[#202124] transition-all hover:bg-[#aecbfa] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-[#8ab4f8]/30"
-              >
-                <span className="relative z-10 flex items-center justify-center gap-2">
-                  {isJoiningRoom ? (
-                    <>
-                      <svg
-                        className="size-4 animate-spin"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                        />
-                      </svg>
-                      Joining…
-                    </>
-                  ) : (
-                    "Join now"
-                  )}
-                </span>
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={handleLeavePreview}
-              className="w-full rounded-full border border-white/20 bg-white/8 px-6 py-3.5 text-[15px] font-medium text-white transition-all hover:bg-white/15 hover:border-white/30 active:scale-[0.98]"
-            >
-              Return
-            </button>
-          </div>
-
-          {/* Copy / open for non-daily */}
-          {meetingUrl && !blockedReason && !isDailyProvider && (
-            <div className="mt-3 flex w-full flex-col gap-2 sm:flex-row">
-              <button
-                type="button"
-                onClick={handleCopyMeetingLink}
-                className="flex-1 rounded-full border border-white/15 bg-white/5 py-2.5 text-[13px] font-medium text-white hover:bg-white/10 transition active:scale-[0.98]"
-              >
-                Copy link
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleJoin()}
-                className="flex-1 rounded-full bg-[#34a853] py-2.5 text-[13px] font-semibold text-white hover:bg-[#2d9248] transition active:scale-[0.98] shadow-lg shadow-[#34a853]/20"
-              >
-                Open meeting
-              </button>
-            </div>
-          )}
-
-          {/* Footer info */}
-          <div className="mt-8 flex flex-col items-center gap-1.5 text-[12px] text-[#5f6368] lg:items-start">
-            {appointmentTimeSlotLabel !== "TBD" && (
-              <p className="text-[#9aa0a6]">
-                Scheduled:{" "}
-                <span className="text-white/70">
-                  {appointmentTimeSlotLabel}
-                </span>
-              </p>
-            )}
-            <p className="flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
-              <Shield className="size-3.5 text-[#34a853]" />
-              <span className="text-[#34a853]">Secure</span>
-              <span className="text-[#5f6368]">
-                Session: {appointmentSessionLabel}
-              </span>
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+    <VideoLobbyView
+      variant={isPatientViewer ? "patient" : "staff"}
+      portalLabel={portalLabel}
+      backLabel={lobbyBackLabel}
+      onBack={handleLeavePreview}
+      videoRef={attachPreviewVideo}
+      isVideoEnabled={isVideoEnabled}
+      isAudioEnabled={isAudioEnabled}
+      isMirrored={isMirrored}
+      onToggleAudio={toggleAudio}
+      onToggleVideo={toggleVideo}
+      audioDevices={audioDevices}
+      videoDevices={videoDevices}
+      selectedAudioDeviceId={selectedAudioDeviceId}
+      selectedVideoDeviceId={selectedVideoDeviceId}
+      onAudioDeviceChange={handleAudioDeviceChange}
+      onVideoDeviceChange={handleVideoDeviceChange}
+      doctorName={lobbyDoctorName}
+      {...(doctorPhotoUrl ? { doctorPhotoUrl } : {})}
+      meetingWithLabel={meetingWithLabel}
+      statusCode={lobbyStatusCode}
+      visitInProgress={lobbyStatusCode === "IN_PROGRESS"}
+      startsAt={lobbyStartsAt ? lobbyStartsAt.toISOString() : null}
+      scheduledLabel={lobbyScheduledLabel}
+      sessionLabel={appointmentSessionLabel}
+      joinWindowText={VIDEO_JOIN_WINDOW_TEXT}
+      stateLabel={sessionStateLabel}
+      stateMessage={sessionStateMessage}
+      blocked={Boolean(blockedReason)}
+      joinDisabled={!meetingUrl || isJoiningRoom}
+      isJoining={isJoiningRoom}
+      onJoin={() => void handleJoin()}
+      {...(showLinkActions
+        ? { onCopyLink: () => void handleCopyMeetingLink() }
+        : {})}
+      {...(lobbyStatusCode === "COMPLETED"
+        ? {
+            summaryHref: `/meet/${encodeURIComponent(resolvedAppointmentId)}/summary`,
+          }
+        : {})}
+      {...(process.env.NODE_ENV === "development"
+        ? { devInfo: `${appointmentSessionLabel} · ${meetingUrlLabel}` }
+        : {})}
+    />
   );
 }

@@ -70,6 +70,19 @@ import {
   updateAppointmentStatus,
 } from '@/lib/actions/appointments.server';
 
+import {
+  getConsultationSummary,
+  rateConsultation,
+  type VideoConsultationSummary,
+  type VideoConsultationSummaryNote,
+  type VideoConsultationRatingResult,
+} from '@/lib/actions/video.server';
+export type {
+  VideoConsultationSummary,
+  VideoConsultationSummaryNote,
+  VideoConsultationRatingResult,
+} from '@/lib/actions/video.server';
+
 export type VideoTokenRole = 'patient' | 'doctor' | 'receptionist' | 'clinic_admin';
 
 function normalizeVideoRole(role?: string | null): string {
@@ -796,4 +809,57 @@ export function useTerminateVideoSession() {
   );
 }
 
+// Post-call summary of a video visit (GET /video/consultation/:appointmentId/summary).
+// `data` is null when the appointment does not exist.
+export function useConsultationSummary(appointmentId: string, options?: { enabled?: boolean }) {
+  const { hasPermission } = useRBAC();
+  const clinicId = useCurrentClinicId();
+  const resolvedAppointmentId = normalizeVideoSessionAppointmentId(appointmentId);
+  const canView = hasPermission(Permission.VIEW_VIDEO_APPOINTMENTS);
 
+  return useQueryData<VideoConsultationSummary | null>(
+    ['video-consultation-summary', resolvedAppointmentId],
+    async () => {
+      if (!canView) throw new Error('Access denied: Insufficient permissions');
+      return await getConsultationSummary(resolvedAppointmentId, clinicId);
+    },
+    {
+      enabled: (options?.enabled ?? true) && !!resolvedAppointmentId && canView,
+      staleTime: 30_000,
+      gcTime: 5 * 60 * 1000, // 5 minutes
+      refetchOnWindowFocus: false,
+      retry: false,
+    }
+  );
+}
+
+// Patient's star rating for a video visit (POST /video/consultation/:appointmentId/rate).
+// The summary page shows the pending / saved / failed state itself, so no toast is raised here.
+export function useRateConsultation() {
+  const clinicId = useCurrentClinicId();
+
+  return useMutationOperation<
+    VideoConsultationRatingResult,
+    { appointmentId: string; rating: number; comment?: string; consultationId?: string }
+  >(
+    async ({ appointmentId, rating, comment, consultationId }) => {
+      return await rateConsultation(
+        normalizeVideoSessionAppointmentId(appointmentId),
+        {
+          rating,
+          ...(comment ? { comment } : {}),
+          ...(consultationId ? { consultationId } : {}),
+        },
+        clinicId
+      );
+    },
+    {
+      toastId: 'video-consultation-rate',
+      loadingMessage: 'Saving your rating...',
+      successMessage: 'Thanks for your rating',
+      showToast: false,
+      showLoading: false,
+      invalidateQueries: [['video-consultation-summary']],
+    }
+  );
+}

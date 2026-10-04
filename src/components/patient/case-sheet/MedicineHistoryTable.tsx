@@ -2,25 +2,24 @@
 
 import { runSave } from "./run-save";
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, Pill as PillIcon, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { EmptyBlock, Note } from "@/components/tbd";
 import {
   useCreateMedication,
   useDeleteMedication,
   useMedications,
 } from "@/hooks/query/useMedicalRecords";
+import {
+  CaseSheetCard,
+  RemoveRowButton,
+  RowTable,
+  RowTableRow,
+  RowTableSkeleton,
+} from "./case-sheet-parts";
 
-type MedicationRow = {
+export type MedicationRow = {
   id?: string;
   name?: string;
   medicationName?: string;
@@ -47,6 +46,132 @@ interface MedicineHistoryTableProps {
 
 const EMPTY = { name: "", dose: "", instruction: "" };
 
+export type MedicineHistoryDraft = typeof EMPTY;
+
+export interface MedicineHistoryTableViewProps {
+  rows: MedicationRow[];
+  isLoading: boolean;
+  hasError: boolean;
+  onRetry: () => void;
+  /** Adds one medicine. Resolves true when saved, so the add row can be cleared. */
+  onAdd: (draft: MedicineHistoryDraft) => Promise<boolean>;
+  isAdding: boolean;
+  onRemove: (id: string) => void;
+  isRemoving: boolean;
+}
+
+const COLUMNS = "1.4fr 1fr 1.2fr 36px";
+
+/** Layout of Medicine History: an add row, the table and a short note. */
+export function MedicineHistoryTableView({
+  rows,
+  isLoading,
+  hasError,
+  onRetry,
+  onAdd,
+  isAdding,
+  onRemove,
+  isRemoving,
+}: MedicineHistoryTableViewProps) {
+  const [draft, setDraft] = useState(EMPTY);
+  const canAdd = draft.name.trim().length > 0;
+
+  const handleAdd = async () => {
+    if (!canAdd) return;
+    if (await onAdd(draft)) setDraft(EMPTY);
+  };
+
+  return (
+    <>
+      <CaseSheetCard title="Medicine History" description="Medicines the patient is currently taking">
+        <div className="grid grid-cols-1 items-center gap-2.5 md:grid-cols-[1.4fr_1fr_1.2fr_auto]">
+          <Input
+            aria-label="Medicine"
+            placeholder="Medicine"
+            value={draft.name}
+            onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))}
+          />
+          <Input
+            aria-label="Dose"
+            placeholder="Dose (e.g. 1 tab M-A-E-N)"
+            value={draft.dose}
+            onChange={(event) => setDraft((prev) => ({ ...prev, dose: event.target.value }))}
+          />
+          <Input
+            aria-label="Instruction"
+            placeholder="Instruction"
+            value={draft.instruction}
+            onChange={(event) => setDraft((prev) => ({ ...prev, instruction: event.target.value }))}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") void handleAdd();
+            }}
+          />
+          <Button size="md" onClick={() => void handleAdd()} disabled={!canAdd || isAdding}>
+            <Plus aria-hidden="true" />
+            Add
+          </Button>
+        </div>
+
+        {isLoading ? (
+          <RowTableSkeleton rows={2} />
+        ) : hasError ? (
+          <div className="rounded-[14px] border border-line">
+            <EmptyBlock
+              icon={AlertTriangle}
+              tone="rose"
+              title="Could not load the medicines"
+              description="Check the connection and try again."
+              action={
+                <Button variant="outline" onClick={onRetry}>
+                  Try again
+                </Button>
+              }
+            />
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="rounded-[14px] border border-dashed border-line">
+            <EmptyBlock
+              icon={PillIcon}
+              title="No current medicines recorded"
+              description="Add a medicine above."
+              className="py-8"
+            />
+          </div>
+        ) : (
+          <RowTable label="Medicine history" columns={COLUMNS} headings={["Medicine", "Dose", "Instruction"]}>
+            {rows.map((row, index) => {
+              const name = row.name || row.medicationName || "-";
+              const id = row.id;
+              return (
+                <RowTableRow
+                  key={id ?? index}
+                  primary={name}
+                  secondary={row.dosage || "-"}
+                  tertiary={row.instructions || row.notes || row.frequency || "-"}
+                  action={
+                    id ? (
+                      <RemoveRowButton
+                        label={`Remove ${name}`}
+                        disabled={isRemoving}
+                        onClick={() => onRemove(id)}
+                      />
+                    ) : null
+                  }
+                />
+              );
+            })}
+          </RowTable>
+        )}
+      </CaseSheetCard>
+
+      <Note tone="green">
+        This is what the patient already takes, from any doctor. Medicines this clinic prescribes are listed
+        under Prescriptions.
+      </Note>
+    </>
+  );
+}
+
 /**
  * Medicines the patient is already taking (from anywhere) — distinct from
  * prescriptions this clinic writes, which live in the Prescriptions tab.
@@ -55,13 +180,9 @@ export function MedicineHistoryTable({ userId }: MedicineHistoryTableProps) {
   const query = useMedications(userId, true);
   const create = useCreateMedication();
   const remove = useDeleteMedication();
-  const [draft, setDraft] = useState(EMPTY);
-  const rows = toRows(query.data);
-  const canAdd = draft.name.trim().length > 0;
 
-  const handleAdd = async () => {
-    if (!canAdd) return;
-    const saved = await runSave(() =>
+  const handleAdd = (draft: MedicineHistoryDraft) =>
+    runSave(() =>
       create.mutateAsync({
         userId,
         medicationName: draft.name.trim(),
@@ -72,82 +193,17 @@ export function MedicineHistoryTable({ userId }: MedicineHistoryTableProps) {
         status: "active",
       }),
     );
-    if (saved) setDraft(EMPTY);
-  };
 
   return (
-    <Card className="border-border/70 bg-card shadow-sm">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base font-bold text-foreground">Medicine History</CardTitle>
-        <p className="text-sm text-muted-foreground">Medicines the patient is currently taking</p>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-y-4">
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-[1.4fr_1fr_1.2fr_auto]">
-          <Input
-            placeholder="Medicine"
-            value={draft.name}
-            onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))}
-          />
-          <Input
-            placeholder="Dose (e.g. 1 tab M-A-E-N)"
-            value={draft.dose}
-            onChange={(event) => setDraft((prev) => ({ ...prev, dose: event.target.value }))}
-          />
-          <Input
-            placeholder="Instruction"
-            value={draft.instruction}
-            onChange={(event) => setDraft((prev) => ({ ...prev, instruction: event.target.value }))}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") void handleAdd();
-            }}
-          />
-          <Button onClick={() => void handleAdd()} disabled={!canAdd || create.isPending}>
-            <Plus className="mr-1 size-4" />
-            Add
-          </Button>
-        </div>
-
-        {rows.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-border/70 bg-background/60 p-4 text-sm text-muted-foreground">
-            {query.isPending ? "Loading…" : "No current medicines recorded."}
-          </p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Medicine</TableHead>
-                <TableHead>Dose</TableHead>
-                <TableHead>Instruction</TableHead>
-                <TableHead className="w-12" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row, index) => (
-                <TableRow key={row.id ?? index}>
-                  <TableCell className="font-medium">{row.name || row.medicationName || "-"}</TableCell>
-                  <TableCell>{row.dosage || "-"}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {row.instructions || row.notes || row.frequency || "-"}
-                  </TableCell>
-                  <TableCell>
-                    {row.id ? (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Remove"
-                        disabled={remove.isPending}
-                        onClick={() => void runSave(() => remove.mutateAsync(row.id as string))}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    ) : null}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
+    <MedicineHistoryTableView
+      rows={toRows(query.data)}
+      isLoading={query.isPending}
+      hasError={Boolean(query.error) && query.data === undefined}
+      onRetry={() => void query.refetch()}
+      onAdd={handleAdd}
+      isAdding={create.isPending}
+      onRemove={(id) => void runSave(() => remove.mutateAsync(id))}
+      isRemoving={remove.isPending}
+    />
   );
 }

@@ -103,12 +103,13 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
   };
 
   return (
-    <Card className="border-0 shadow-none">
+    <Card className="gap-0 rounded-none border-0 bg-transparent py-0 shadow-none dark:border-0">
       <CardContent className="p-0">
         <form onSubmit={handleSubmit} className="flex flex-col gap-y-4">
           <div className="flex flex-col gap-y-2">
-            <Label>Description</Label>
+            <Label htmlFor="invoice-description">Description</Label>
             <Input
+              id="invoice-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Consultation Charges"
@@ -116,8 +117,9 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-y-2">
-              <Label>Quantity</Label>
+              <Label htmlFor="invoice-quantity">Quantity</Label>
               <Input
+                id="invoice-quantity"
                 type="number"
                 min={1}
                 value={quantity}
@@ -125,8 +127,9 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
               />
             </div>
             <div className="flex flex-col gap-y-2">
-              <Label>Unit Price</Label>
+              <Label htmlFor="invoice-unit-price">Unit Price</Label>
               <Input
+                id="invoice-unit-price"
                 type="number"
                 min={0}
                 value={unitPrice}
@@ -135,8 +138,9 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
             </div>
           </div>
           <div className="flex flex-col gap-y-2">
-            <Label>Total Amount</Label>
+            <Label htmlFor="invoice-total">Total Amount</Label>
             <Input
+              id="invoice-total"
               type="number"
               min={0}
               value={amount || lineTotal}
@@ -144,18 +148,19 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
             />
           </div>
           <div className="flex flex-col gap-y-2">
-            <Label>Due Date</Label>
+            <Label htmlFor="invoice-due-date">Due Date</Label>
             <Input
+              id="invoice-due-date"
               type="date"
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
             />
           </div>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={onCancel}>
+          <div className="flex flex-col-reverse gap-2.5 pt-1 sm:flex-row sm:justify-end">
+            <Button type="button" variant="outline" size="md" onClick={onCancel}>
               Cancel
             </Button>
-            <Button type="submit" disabled={createInvoice.isPending || !userId || !clinicId}>
+            <Button type="submit" size="md" disabled={createInvoice.isPending || !userId || !clinicId}>
               {createInvoice.isPending ? "Saving…" : "Save Invoice"}
             </Button>
           </div>

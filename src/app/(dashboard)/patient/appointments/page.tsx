@@ -1,57 +1,19 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import type { ComponentType } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
-import { useMyAppointments, hasAppointmentsLoadedForSession } from "@/hooks/query/useAppointments";
-import { useCurrentClinicId } from "@/hooks/query/useClinics";
-import { APP_CONFIG } from "@/lib/config/config";
-import { PatientQueueCard } from "@/components/dashboard/PatientQueueCard";
+import { useSearchParams } from "next/navigation";
+import { Loader2, Plus } from "lucide-react";
 import AppointmentManager from "@/components/appointments/AppointmentManager";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
-import { usePatientUiStore } from "@/stores/patient-ui.store";
-import {
-  DashboardPageHeader as PatientPageHeader,
-  DashboardPageShell as PatientPageShell,
-} from "@/components/dashboard/DashboardPageShell";
-import { theme } from "@/lib/utils/theme-utils";
-import { Leaf, Droplets, Waves, Wind, Heart, Sun, Stethoscope, QrCode, BookOpen, Loader2 } from "lucide-react";
-import { normalizeAppointmentStatus } from "@/lib/utils/appointmentUtils";
-
-interface TreatmentCategory {
-  icon: ComponentType<{ className?: string }>;
-  title: string;
-  description: string;
-}
-
-const TREATMENT_CATEGORIES: TreatmentCategory[] = [
-  {
-    icon: Stethoscope,
-    title: "Consultations",
-    description: "General health assessment and follow-ups",
-  },
-  {
-    icon: Droplets,
-    title: "Panchakarma",
-    description: "Detox and rejuvenation therapies",
-  },
-  {
-    icon: Heart,
-    title: "Diagnosis",
-    description: "Nadi Pariksha and dosha analysis",
-  },
-  {
-    icon: Leaf,
-    title: "Specialized",
-    description: "Agnikarma, Viddhakarma procedures",
-  },
-];
+import { DashboardPageShell as PatientPageShell } from "@/components/dashboard/DashboardPageShell";
+import { PageHead } from "@/components/tbd";
+import { Button } from "@/components/ui/button";
+import { useMyAppointments, hasAppointmentsLoadedForSession } from "@/hooks/query/useAppointments";
+import { useCurrentClinicId } from "@/hooks/query/useClinics";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { APP_CONFIG } from "@/lib/config/config";
 
 function PatientAppointmentsContent() {
-  const { push } = useRouter();
   useWebSocketQuerySync();
   const searchParams = useSearchParams();
   const getSearchParam = useMemo(() => searchParams.get.bind(searchParams), [searchParams]);
@@ -60,6 +22,11 @@ function PatientAppointmentsContent() {
   const queryClinicName = getSearchParam("clinicName") || undefined;
   const bookingMode = getSearchParam("mode");
   const shouldOpenBooking = getSearchParam("openBooking") === "1";
+  // `?tab=past` / `?tab=cancelled` open that list (Home links "Past visits" here).
+  const tabParam = (getSearchParam("tab") || "").toLowerCase();
+  const initialTab = tabParam === "past" || tabParam === "cancelled" ? tabParam : undefined;
+  // `&familyMemberId=<id>`: open the booking wizard for that family member.
+  const queryFamilyMemberId = getSearchParam("familyMemberId") || undefined;
   const defaultConsultationMode =
     bookingMode?.toUpperCase() === "VIDEO" ? "VIDEO" : undefined;
   const currentClinicId = useCurrentClinicId();
@@ -73,6 +40,7 @@ function PatientAppointmentsContent() {
     data: appointmentsData,
     isPending: isPendingAppointments,
     isFetching: isFetchingAppointments,
+    error: appointmentsError,
     refetch: refetchAppointments,
   } = useMyAppointments(myAppointmentsFilters);
 
@@ -80,7 +48,7 @@ function PatientAppointmentsContent() {
   // Once the cache has any appointments (initial load, dashboard prefetch, or
   // sidebar hover-warm), `placeholderData: keepPreviousData` keeps the list
   // visible across refetches, filter changes, and remounts. Background
-  // `isFetching` does NOT count as loading here â€” otherwise the list would
+  // `isFetching` does NOT count as loading here — otherwise the list would
   // flash a skeleton on every window focus or reconnect.
   const hasCachedAppointments = useMemo(() => {
     if (!appointmentsData) return false;
@@ -89,235 +57,90 @@ function PatientAppointmentsContent() {
     return Array.isArray(inner) && inner.length > 0;
   }, [appointmentsData]);
   const showAppointmentsSkeleton =
-    isPendingAppointments && !hasCachedAppointments && !hasAppointmentsLoadedForSession();
+    isPendingAppointments &&
+    !appointmentsError &&
+    !hasCachedAppointments &&
+    !hasAppointmentsLoadedForSession();
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(shouldOpenBooking);
+  // Kept in state because the query string is removed from the address bar below.
+  const [bookingFamilyMemberId, setBookingFamilyMemberId] = useState(
+    shouldOpenBooking ? queryFamilyMemberId : undefined,
+  );
   const isBookingDialogOpening = shouldOpenBooking && !isBookingDialogOpen;
-  const openQrGate = usePatientUiStore((state) => state.openQrGate);
-  const hasInPersonAppointment = useMemo(() => {
-    const appointments = Array.isArray((appointmentsData as any)?.appointments)
-      ? (appointmentsData as any).appointments
-      : Array.isArray(appointmentsData)
-        ? appointmentsData
-        : [];
-
-    return appointments.some((appointment: any) => {
-      const status = normalizeAppointmentStatus(appointment?.status);
-      const type = String(appointment?.type || appointment?.appointmentType || "").toUpperCase();
-      return (
-        type === "IN_PERSON" &&
-        status !== "CANCELLED" &&
-        status !== "COMPLETED" &&
-        status !== "NO_SHOW" &&
-        status !== "EXPIRED"
-      );
-    });
-  }, [appointmentsData]);
 
   useEffect(() => {
     if (shouldOpenBooking) {
       setIsBookingDialogOpen(true);
+      setBookingFamilyMemberId(queryFamilyMemberId);
     }
 
     if (queryClinicId || queryLocationId || queryClinicName || bookingMode || shouldOpenBooking) {
       document.getElementById("appointment-manager")?.scrollIntoView({ behavior: "smooth", block: "start" });
       window.history.replaceState(window.history.state, "", window.location.pathname);
     }
-  }, [queryClinicId, queryLocationId, queryClinicName, bookingMode, shouldOpenBooking]);
+  }, [queryClinicId, queryLocationId, queryClinicName, bookingMode, shouldOpenBooking, queryFamilyMemberId]);
+
+  // Closing the wizard forgets the family member, so the next booking starts with "Myself".
+  const handleBookingDialogOpenChange = (open: boolean) => {
+    setIsBookingDialogOpen(open);
+    if (!open) {
+      setBookingFamilyMemberId(undefined);
+    }
+  };
 
   return (
-      <PatientPageShell>
-        <PatientPageHeader
-          showArt
-          eyebrow="Appointments"
-          title="Appointments"
-          description="Book a visit, check in, and follow your queue in one place."
-          actionsSlot={
-            <div className="flex flex-col gap-2.5 sm:flex-row sm:gap-3">
-              <Button
-                variant="outline"
-                className="h-10 gap-2 rounded-lg px-4 text-sm font-medium"
-                onClick={() => {
-                  if (hasInPersonAppointment) {
-                    push("/patient/check-in");
-                    return;
-                  }
-                  openQrGate({
-                    onBookAppointment: () => setIsBookingDialogOpen(true),
-                  });
-                }}
-              >
-                <QrCode className="size-4" />
-                Scan check-in
-              </Button>
-              <Button
-                className="h-10 gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700 focus-visible:ring-emerald-500/40"
-                onClick={() => setIsBookingDialogOpen(true)}
-              >
-                <BookOpen className="size-4" />
-                Book video appointment
-              </Button>
-            </div>
-          }
-        />
+    <PatientPageShell>
+      <PageHead
+        title="Appointments"
+        description="Manage your consultations"
+        actions={
+          <Button variant="action" size="md" onClick={() => setIsBookingDialogOpen(true)}>
+            <Plus aria-hidden="true" />
+            Book appointment
+          </Button>
+        }
+      />
 
-        <BookAppointmentDialog
-          open={isBookingDialogOpen}
-          onOpenChange={setIsBookingDialogOpen}
-          hideTrigger
-          {...(defaultConsultationMode ? { initialConsultationMode: defaultConsultationMode } : {})}
-          {...(resolvedClinicId ? { clinicId: resolvedClinicId } : {})}
-          {...(queryLocationId ? { locationId: queryLocationId } : {})}
-          {...(queryClinicName ? { clinicName: queryClinicName } : {})}
-          onBooked={() => setIsBookingDialogOpen(false)}
-        />
+      <BookAppointmentDialog
+        open={isBookingDialogOpen}
+        onOpenChange={handleBookingDialogOpenChange}
+        hideTrigger
+        {...(defaultConsultationMode ? { initialConsultationMode: defaultConsultationMode } : {})}
+        {...(resolvedClinicId ? { clinicId: resolvedClinicId } : {})}
+        {...(queryLocationId ? { locationId: queryLocationId } : {})}
+        {...(queryClinicName ? { clinicName: queryClinicName } : {})}
+        {...(bookingFamilyMemberId ? { initialFamilyMemberId: bookingFamilyMemberId } : {})}
+        onBooked={() => setIsBookingDialogOpen(false)}
+      />
 
-        {isBookingDialogOpening && (
-          <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-sm sm:px-5">
-            <Loader2 className="size-4 animate-spin text-primary" />
-            <p className="text-sm font-medium text-muted-foreground">Opening booking dialogâ€¦</p>
-          </div>
-        )}
+      {isBookingDialogOpening && (
+        <div
+          role="status"
+          className="flex items-center gap-3 rounded-[20px] bg-card px-5 py-3.5 shadow-card dark:border dark:border-border/70"
+        >
+          <Loader2 className="size-4 animate-spin text-brand" aria-hidden="true" />
+          <p className="m-0 text-sm font-semibold text-ink-muted">Opening booking…</p>
+        </div>
+      )}
 
-        {/* Queue/check-in UI hidden intentionally. */}
-        {/* <div id="patient-queue-status" className="animate-in fade-in slide-in-from-top-4 duration-500">
-          <PatientQueueCard
-            appointmentsData={appointmentsData}
-            isAppointmentsPending={showAppointmentsSkeleton}
-            onBookAppointment={() => setIsBookingDialogOpen(true)}
-          />
-        </div> */}
-        <div id="appointment-manager">
-          <AppointmentManager
-            hideBookButton
-            autoOpenBookDialog={shouldOpenBooking}
-            appointmentsData={appointmentsData}
+      <div id="appointment-manager">
+        <AppointmentManager
+          hideBookButton
+          autoOpenBookDialog={shouldOpenBooking}
+          appointmentsData={appointmentsData}
           isAppointmentsPending={showAppointmentsSkeleton}
           isAppointmentsFetching={isFetchingAppointments}
+          appointmentsError={appointmentsError}
           onRefreshAppointments={async () => {
             await refetchAppointments();
           }}
+          onBookAppointment={() => setIsBookingDialogOpen(true)}
+          initialTab={initialTab}
           {...(defaultConsultationMode ? { defaultConsultationMode } : {})}
           {...(resolvedClinicId ? { clinicId: resolvedClinicId } : {})}
         />
-        </div>
-
-        <Card className="gap-4 rounded-xl border border-border bg-card py-5 shadow-sm">
-          <CardHeader className="px-5 sm:px-6">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <div className="flex size-7 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                <Leaf className="size-4" />
-              </div>
-              Ayurvedic treatment categories
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-5 sm:px-6">
-            <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {TREATMENT_CATEGORIES.map(({ icon: Icon, title, description }) => (
-                <div key={title} className="flex flex-row items-center gap-4 rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-emerald-300 sm:flex-col sm:items-start sm:gap-0 dark:hover:border-emerald-800">
-                  <div className="shrink-0">
-                    <Icon className="size-9 text-muted-foreground sm:mb-3 sm:size-8" />
-                  </div>
-                  <div className="flex-1 flex flex-col justify-center text-left">
-                    <h3 className="mb-1 sm:mb-2 font-semibold text-sm sm:text-base">{title}</h3>
-                    <p className={`mb-0 sm:mb-3 text-xs sm:text-sm ${theme.textColors.secondary}`}>{description}</p>
-                  </div>
-                  <div className="shrink-0 sm:w-full mt-0 sm:mt-auto">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full rounded-lg"
-                      onClick={() =>
-                        document
-                          .getElementById("appointment-manager")
-                          ?.scrollIntoView({ behavior: "smooth", block: "start" })
-                      }
-                    >
-                      <span className="hidden sm:inline">Use Booking Manager</span>
-                      <span className="sm:hidden">Book</span>
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="gap-4 rounded-xl border border-border bg-card py-5 shadow-sm">
-          <CardHeader className="px-5 sm:px-6">
-            <CardTitle className="text-base">Understanding Ayurvedic treatments</CardTitle>
-          </CardHeader>
-          <CardContent className="px-5 sm:px-6">
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div className="flex flex-col gap-y-4">
-                <h4 className="text-lg font-semibold">Traditional Therapies</h4>
-                <div className="flex flex-col gap-y-3">
-                  <div className="flex items-start gap-3">
-                    <Droplets className={`mt-0.5 size-5 ${theme.iconColors.cyan}`} />
-                    <div>
-                      <h5 className="font-medium">Panchakarma</h5>
-                      <p className={`text-sm ${theme.textColors.secondary}`}>
-                        Five-action detoxification process including Vamana, Virechana, Basti, Nasya, and Raktamokshana
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <Waves className={`mt-0.5 size-5 ${theme.iconColors.cyan}`} />
-                    <div>
-                      <h5 className="font-medium">Shirodhara</h5>
-                      <p className={`text-sm ${theme.textColors.secondary}`}>
-                        Continuous pouring of medicated oils on forehead for stress relief and mental clarity
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <Wind className={`mt-0.5 size-5 ${theme.iconColors.blue}`} />
-                    <div>
-                      <h5 className="font-medium">Abhyanga</h5>
-                      <p className={`text-sm ${theme.textColors.secondary}`}>
-                        Full-body therapeutic massage with warm herbal oils to improve circulation and flexibility
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-y-4">
-                <h4 className="text-lg font-semibold">Diagnostic Methods</h4>
-                <div className="flex flex-col gap-y-3">
-                  <div className="flex items-start gap-3">
-                    <Heart className={`mt-0.5 size-5 ${theme.iconColors.red}`} />
-                    <div>
-                      <h5 className="font-medium">Nadi Pariksha</h5>
-                      <p className={`text-sm ${theme.textColors.secondary}`}>
-                        Pulse diagnosis to assess dosha imbalances and overall health status
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <Leaf className={`mt-0.5 size-5 ${theme.iconColors.green}`} />
-                    <div>
-                      <h5 className="font-medium">Prakriti Analysis</h5>
-                      <p className={`text-sm ${theme.textColors.secondary}`}>
-                        Constitutional assessment to determine individual body type and treatment approach
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <Sun className={`mt-0.5 size-5 ${theme.iconColors.yellow}`} />
-                    <div>
-                      <h5 className="font-medium">Vikriti Assessment</h5>
-                      <p className={`text-sm ${theme.textColors.secondary}`}>
-                        Current health imbalances and deviation from natural constitution
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-      </PatientPageShell>
+      </div>
+    </PatientPageShell>
   );
 }
 
@@ -328,5 +151,3 @@ export default function PatientAppointments() {
     </Suspense>
   );
 }
-
-

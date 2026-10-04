@@ -1,12 +1,12 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
+import { AlertCircle, Bell, Loader2, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
+import { IconBox, Note, Surface } from '@/components/tbd';
 import { useNotificationPreferences, useUpdateNotificationPreferences } from '@/hooks/query';
-import { Loader2, Bell, Save } from 'lucide-react';
 
 interface NotificationPreferencesData {
   emailEnabled?: boolean;
@@ -20,8 +20,73 @@ interface NotificationPreferencesData {
   systemEnabled?: boolean;
 }
 
+type SettingKey = keyof Required<NotificationPreferencesData>;
+
+const CHANNELS: Array<{ key: SettingKey; label: string; description: string }> = [
+  { key: 'emailEnabled', label: 'Email Notifications', description: 'Receive notifications via email' },
+  { key: 'smsEnabled', label: 'SMS Notifications', description: 'Receive notifications via SMS' },
+  { key: 'pushEnabled', label: 'Push Notifications', description: 'Receive push notifications' },
+  { key: 'whatsappEnabled', label: 'WhatsApp Notifications', description: 'Receive notifications via WhatsApp' },
+];
+
+const CATEGORIES: Array<{ key: SettingKey; label: string; description: string }> = [
+  { key: 'appointmentEnabled', label: 'Appointments', description: 'Appointment confirmations, reminders, and changes' },
+  { key: 'ehrEnabled', label: 'Medical Records (EHR)', description: 'Prescriptions, lab reports, and medical notes' },
+  { key: 'billingEnabled', label: 'Billing & Payments', description: 'Invoices, receipts, and payment updates' },
+  { key: 'systemEnabled', label: 'System', description: 'Security alerts, account updates, and system notifications' },
+];
+
+/** The design switch: 48 × 28 with a 22 px thumb. */
+const SWITCH_CLASS =
+  'h-7 w-12 border-0 p-[3px] shadow-none data-[state=unchecked]:bg-[#cbd5e1] dark:data-[state=unchecked]:bg-white/20 [&>span]:size-[22px] [&>span]:shadow-[0_1px_3px_rgba(0,0,0,0.2)] [&>span[data-state=checked]]:translate-x-5';
+
+const GROUP_TITLE = 'm-0 text-[11px] font-extrabold uppercase tracking-[0.8px] text-ink-muted';
+
+function PreferenceGroup({
+  title,
+  rows,
+  settings,
+  disabled,
+  onToggle,
+}: {
+  title: string;
+  rows: Array<{ key: SettingKey; label: string; description: string }>;
+  settings: Record<SettingKey, boolean>;
+  disabled: boolean;
+  onToggle: (key: SettingKey, value: boolean) => void;
+}) {
+  return (
+    <div className="flex min-w-0 flex-col">
+      <h3 className={GROUP_TITLE}>{title}</h3>
+      {rows.map((row) => {
+        const id = `notification-${row.key}`;
+        return (
+          <div key={row.key} className="flex items-center gap-4 border-b border-hair py-[13px] last:border-b-0">
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <label htmlFor={id} className="text-sm font-bold text-ink">
+                {row.label}
+              </label>
+              <span id={`${id}-hint`} className="text-xs text-ink-muted">
+                {row.description}
+              </span>
+            </div>
+            <Switch
+              id={id}
+              aria-describedby={`${id}-hint`}
+              className={SWITCH_CLASS}
+              checked={settings[row.key]}
+              disabled={disabled}
+              onCheckedChange={(checked) => onToggle(row.key, checked)}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function NotificationPreferences({ userId, onSave }: { userId?: string; onSave?: () => void }) {
-  const { data: preferences, isPending: isLoading } = useNotificationPreferences();
+  const { data: preferences, isPending: isLoading, error, refetch } = useNotificationPreferences();
   const preferencesData = preferences as NotificationPreferencesData | undefined;
   const { mutate: updatePreferences, isPending: isSaving } = useUpdateNotificationPreferences();
 
@@ -68,153 +133,72 @@ export function NotificationPreferences({ userId, onSave }: { userId?: string; o
     );
   };
 
-  if (isLoading) {
-    return (
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  // The saved choices are not known: no switches, so "all off" is never saved over them by mistake.
+  const loadFailed = Boolean(error) && !preferencesData;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Bell className="size-5" />
-          Notification Preferences
-        </CardTitle>
-        <CardDescription>
-          Manage how you receive notifications
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-y-6">
-        {/* Channel Preferences */}
-        <div className="flex flex-col gap-y-4">
-          <h4 className="font-semibold">Notification Channels</h4>
+    <Surface as="section" className="@container gap-3.5 p-[22px]" aria-labelledby="notification-preferences-title">
+      <div className="flex items-center gap-3">
+        <IconBox icon={Bell} size={36} />
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <h2 id="notification-preferences-title" className="m-0 text-base font-bold text-ink">
+            Notification Preferences
+          </h2>
+          <p className="m-0 text-[13px] text-ink-muted">Manage how you receive notifications</p>
+        </div>
+      </div>
 
-          <div className="flex flex-col gap-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Email Notifications</Label>
-                <p className="text-sm text-muted-foreground">Receive notifications via email</p>
+      {isLoading ? (
+        <div className="flex flex-col" aria-busy="true" aria-label="Loading notification preferences">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="flex items-center gap-4 border-b border-hair py-[13px] last:border-b-0">
+              <div className="flex flex-1 flex-col gap-1.5">
+                <Skeleton className="h-4 w-40 rounded" />
+                <Skeleton className="h-3 w-56 max-w-full rounded" />
               </div>
-              <Switch
-                checked={settings.emailEnabled}
-                onCheckedChange={(checked) => handleToggle('emailEnabled', checked)}
-              />
+              <Skeleton className="h-7 w-12 rounded-full" />
             </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>SMS Notifications</Label>
-                <p className="text-sm text-muted-foreground">Receive notifications via SMS</p>
-              </div>
-              <Switch
-                checked={settings.smsEnabled}
-                onCheckedChange={(checked) => handleToggle('smsEnabled', checked)}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Push Notifications</Label>
-                <p className="text-sm text-muted-foreground">Receive push notifications</p>
-              </div>
-              <Switch
-                checked={settings.pushEnabled}
-                onCheckedChange={(checked) => handleToggle('pushEnabled', checked)}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>WhatsApp Notifications</Label>
-                <p className="text-sm text-muted-foreground">Receive notifications via WhatsApp</p>
-              </div>
-              <Switch
-                checked={settings.whatsappEnabled}
-                onCheckedChange={(checked) => handleToggle('whatsappEnabled', checked)}
-              />
-            </div>
+          ))}
+        </div>
+      ) : loadFailed ? (
+        <Note tone="rose" icon={AlertCircle} className="[&>div]:flex-1">
+          <div className="flex flex-wrap items-center justify-between gap-3" role="alert">
+            <span>
+              <strong className="font-bold">Your notification settings could not be loaded.</strong> Please try again.
+            </span>
+            <Button variant="outline" onClick={() => void refetch()}>
+              Try again
+            </Button>
           </div>
-        </div>
-
-        {/* Category Preferences */}
-        <div className="flex flex-col gap-y-4">
-          <h4 className="font-semibold">Notification Categories</h4>
-
-          <div className="flex flex-col gap-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Appointments</Label>
-                <p className="text-sm text-muted-foreground">Appointment confirmations, reminders, and changes</p>
-              </div>
-              <Switch
-                checked={settings.appointmentEnabled}
-                onCheckedChange={(checked) => handleToggle('appointmentEnabled', checked)}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Medical Records (EHR)</Label>
-                <p className="text-sm text-muted-foreground">Prescriptions, lab reports, and medical notes</p>
-              </div>
-              <Switch
-                checked={settings.ehrEnabled}
-                onCheckedChange={(checked) => handleToggle('ehrEnabled', checked)}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Billing & Payments</Label>
-                <p className="text-sm text-muted-foreground">Invoices, receipts, and payment updates</p>
-              </div>
-              <Switch
-                checked={settings.billingEnabled}
-                onCheckedChange={(checked) => handleToggle('billingEnabled', checked)}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>System</Label>
-                <p className="text-sm text-muted-foreground">Security alerts, account updates, and system notifications</p>
-              </div>
-              <Switch
-                checked={settings.systemEnabled}
-                onCheckedChange={(checked) => handleToggle('systemEnabled', checked)}
-              />
-            </div>
+        </Note>
+      ) : (
+        <>
+          {/* One column in a narrow card, two side by side when the card spans the page. */}
+          <div className="mt-0.5 grid grid-cols-1 gap-x-10 gap-y-3.5 @3xl:grid-cols-2">
+            <PreferenceGroup
+              title="Notification Channels"
+              rows={CHANNELS}
+              settings={settings}
+              disabled={isSaving}
+              onToggle={handleToggle}
+            />
+            <PreferenceGroup
+              title="Notification Categories"
+              rows={CATEGORIES}
+              settings={settings}
+              disabled={isSaving}
+              onToggle={handleToggle}
+            />
           </div>
-        </div>
 
-        <div className="flex justify-end pt-4">
-          <Button onClick={handleSave} disabled={isSaving}>
-            {isSaving ? (
-              <>
-                <Loader2 className="mr-2 size-4 animate-spin" />
-                Saving…
-              </>
-            ) : (
-              <>
-                <Save className="mr-2 size-4" />
-                Save Preferences
-              </>
-            )}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+          <div className="flex justify-end pt-1">
+            <Button size="md" className="w-full sm:w-auto" onClick={handleSave} disabled={isSaving}>
+              {isSaving ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Save aria-hidden="true" />}
+              {isSaving ? 'Saving…' : 'Save Preferences'}
+            </Button>
+          </div>
+        </>
+      )}
+    </Surface>
   );
 }
-
-
-
-
-

@@ -1,14 +1,23 @@
 "use client";
 
-import { Calendar, CheckCircle, Clock, Play, Search, XCircle, AlertCircle, Video } from "lucide-react";
+import type { ReactNode } from "react";
+import { AlertCircle, Calendar, CheckCircle, Clock, Play, UserX, Video, XCircle } from "lucide-react";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
-import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
-import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
-import { StatCardSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
-import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { useWebSocketStatus } from "@/app/providers/WebSocketProvider";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  FilterChips,
+  IconBox,
+  PageHero,
+  Pill,
+  SearchBox,
+  Surface,
+  type IconTone,
+  type PillTone,
+  type TbdIcon,
+  type TbdOption,
+} from "@/components/tbd";
 import type { DoctorAppointmentViewFilter } from "../page";
 
 interface DoctorAppointmentsSummaryProps {
@@ -19,6 +28,7 @@ interface DoctorAppointmentsSummaryProps {
   appointmentViewFilter: DoctorAppointmentViewFilter;
   activeAppointmentsCount: number;
   inProgressAppointmentsCount: number;
+  confirmedAppointmentsCount: number;
   completedAppointmentsCount: number;
   cancelledAppointmentsCount: number;
   expiredAppointmentsCount: number;
@@ -27,6 +37,66 @@ interface DoctorAppointmentsSummaryProps {
   setSearchTerm: (value: string) => void;
   setAppointmentViewFilter: (value: DoctorAppointmentViewFilter) => void;
   loading?: boolean;
+  /** Replaces the live connection tag (used by the design preview). */
+  connectionSlot?: ReactNode;
+}
+
+/** Live-updates tag in the banner: the same socket state the old indicator showed. */
+function ConnectionPill() {
+  const { isConnected, connectionStatus, error } = useWebSocketStatus();
+
+  let tone: PillTone = "slate";
+  let label = "Offline";
+  if (error) {
+    tone = "rose";
+    label = "Connection error";
+  } else if (connectionStatus === "connecting") {
+    tone = "amber";
+    label = "Connecting";
+  } else if (connectionStatus === "reconnecting") {
+    tone = "amber";
+    label = "Reconnecting";
+  } else if (isConnected) {
+    tone = "green";
+    label = "Connected";
+  }
+
+  return (
+    <span role="status" aria-label={`Live updates: ${label}`}>
+      <Pill tone={tone} dot>
+        {label}
+      </Pill>
+    </span>
+  );
+}
+
+/** Small number tile: seven of them sit in one row on a desktop. */
+function StatTile({
+  label,
+  value,
+  icon,
+  tone,
+  loading,
+}: {
+  label: string;
+  value: number;
+  icon: TbdIcon;
+  tone: IconTone;
+  loading: boolean;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-2.5 rounded-2xl bg-card p-3.5 shadow-card dark:border dark:border-border/70">
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="truncate text-xs font-bold text-ink-muted">{label}</span>
+        {loading ? (
+          <Skeleton className="my-0.5 h-6 w-9 rounded-md" />
+        ) : (
+          <span className="text-2xl font-extrabold leading-[1.15] text-ink">{value}</span>
+        )}
+      </span>
+      <IconBox icon={icon} tone={tone} size={34} />
+    </div>
+  );
 }
 
 export function DoctorAppointmentsSummary({
@@ -37,6 +107,7 @@ export function DoctorAppointmentsSummary({
   appointmentViewFilter,
   activeAppointmentsCount,
   inProgressAppointmentsCount,
+  confirmedAppointmentsCount,
   completedAppointmentsCount,
   cancelledAppointmentsCount,
   expiredAppointmentsCount,
@@ -45,143 +116,67 @@ export function DoctorAppointmentsSummary({
   setSearchTerm,
   setAppointmentViewFilter,
   loading = false,
+  connectionSlot,
 }: DoctorAppointmentsSummaryProps) {
+  const filterOptions: TbdOption<DoctorAppointmentViewFilter>[] = [
+    { value: "ALL", label: "All", count: totalAppointmentsCount },
+    { value: "ACTIVE", label: "Active", count: activeAppointmentsCount },
+    { value: "CONFIRMED", label: "Confirmed", count: confirmedAppointmentsCount },
+    { value: "COMPLETED", label: "Completed", count: completedAppointmentsCount },
+    { value: "CANCELLED", label: "Cancelled", count: cancelledAppointmentsCount },
+    { value: "EXPIRED", label: "Expired", count: expiredAppointmentsCount },
+    { value: "NO_SHOW", label: "No Show", count: noShowAppointmentsCount },
+  ];
+
   return (
-    <DashboardPageShell>
-      <DashboardPageHeader
+    <>
+      <PageHero
         eyebrow="Doctor Appointments"
         title="My Appointments"
         description={`Today is ${todayLabel || "today"}. Review active visits and appointment history, including completed, cancelled, and no-show records.`}
-        actionsSlot={
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-3">
-            <BookAppointmentDialog
-              {...(clinicId ? { clinicId } : {})}
-              {...(userId ? { initialDoctorId: userId } : {})}
-              trigger={
-                <Button className="h-10 w-full rounded-xl border-0 bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm hover:from-orange-600 hover:to-amber-600 focus-visible:ring-2 focus-visible:ring-orange-500/30 animate-pulse sm:w-auto">
-                  <Video className="mr-2 size-4" />
-                  Book Video Appointment
-                </Button>
-              }
-            />
-            <WebSocketStatusIndicator />
-          </div>
+        badge={connectionSlot ?? <ConnectionPill />}
+        actions={
+          <BookAppointmentDialog
+            {...(clinicId ? { clinicId } : {})}
+            {...(userId ? { initialDoctorId: userId } : {})}
+            trigger={
+              <Button size="md" className="w-full sm:w-auto">
+                <Video />
+                Book Video Appointment
+              </Button>
+            }
+          />
         }
       />
 
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {loading ? (
-          <>
-            <StatCardSkeleton icon={<Clock className="size-4" />} label="Active" />
-            <StatCardSkeleton icon={<Play className="size-4" />} label="In Progress" />
-            <StatCardSkeleton icon={<CheckCircle className="size-4" />} label="Completed" />
-            <StatCardSkeleton icon={<XCircle className="size-4" />} label="Cancelled" />
-            <StatCardSkeleton icon={<AlertCircle className="size-4" />} label="Expired" />
-            <StatCardSkeleton icon={<AlertCircle className="size-4" />} label="No Show" />
-            <StatCardSkeleton icon={<Calendar className="size-4" />} label="Total" />
-          </>
-        ) : (
-          <>
-            <DashboardMetricCard
-              label="Active"
-              value={activeAppointmentsCount}
-              icon={<Clock className="size-3.5 text-slate-600" />}
-              accentClassName="border-l-slate-400"
-              valueClassName="text-sm font-semibold text-slate-600 sm:text-base"
-              compact
-            />
-            <DashboardMetricCard
-              label="In Progress"
-              value={inProgressAppointmentsCount}
-              icon={<Play className="size-3.5 text-blue-600" />}
-              accentClassName="border-l-blue-400"
-              valueClassName="text-sm font-semibold text-blue-600 sm:text-base"
-              compact
-            />
-            <DashboardMetricCard
-              label="Completed"
-              value={completedAppointmentsCount}
-              icon={<CheckCircle className="size-3.5 text-purple-600" />}
-              accentClassName="border-l-purple-400"
-              valueClassName="text-sm font-semibold text-purple-600 sm:text-base"
-              compact
-            />
-            <DashboardMetricCard
-              label="Cancelled"
-              value={cancelledAppointmentsCount}
-              icon={<XCircle className="size-3.5 text-rose-600" />}
-              accentClassName="border-l-rose-400"
-              valueClassName="text-sm font-semibold text-rose-600 sm:text-base"
-              compact
-            />
-            <DashboardMetricCard
-              label="Expired"
-              value={expiredAppointmentsCount}
-              icon={<AlertCircle className="size-3.5 text-slate-600" />}
-              accentClassName="border-l-slate-400"
-              valueClassName="text-sm font-semibold text-slate-600 sm:text-base"
-              compact
-            />
-            <DashboardMetricCard
-              label="No Show"
-              value={noShowAppointmentsCount}
-              icon={<AlertCircle className="size-3.5 text-orange-600" />}
-              accentClassName="border-l-orange-400"
-              valueClassName="text-sm font-semibold text-orange-600 sm:text-base"
-              compact
-            />
-            <DashboardMetricCard
-              label="Total"
-              value={totalAppointmentsCount}
-              icon={<Calendar className="size-3.5 text-violet-600" />}
-              accentClassName="border-l-violet-400"
-              valueClassName="text-sm font-semibold text-violet-600 sm:text-base"
-              compact
-            />
-          </>
-        )}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7" role="group" aria-label="Appointment counts">
+        <StatTile label="Active" value={activeAppointmentsCount} icon={Clock} tone="slate" loading={loading} />
+        <StatTile label="In Progress" value={inProgressAppointmentsCount} icon={Play} tone="blue" loading={loading} />
+        <StatTile label="Completed" value={completedAppointmentsCount} icon={CheckCircle} tone="mint" loading={loading} />
+        <StatTile label="Cancelled" value={cancelledAppointmentsCount} icon={XCircle} tone="rose" loading={loading} />
+        <StatTile label="Expired" value={expiredAppointmentsCount} icon={AlertCircle} tone="slate" loading={loading} />
+        <StatTile label="No Show" value={noShowAppointmentsCount} icon={UserX} tone="amber" loading={loading} />
+        <StatTile label="Total" value={totalAppointmentsCount} icon={Calendar} tone="video" loading={loading} />
       </div>
 
-      <Card className="rounded-2xl border-border/60 shadow-sm">
-        <CardHeader className="px-4 pb-3 pt-4">
-          <CardTitle className="text-base font-semibold">Filter Appointments</CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 pb-4 pt-0">
-          <div className="flex flex-col gap-y-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-500" />
-              <Input
-                placeholder="Search by patient name, appointment type, or complaint..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <div className="flex flex-wrap gap-2">
-                {[
-                  { value: "ALL" as const, label: "All", count: totalAppointmentsCount },
-                  { value: "ACTIVE" as const, label: "Active", count: activeAppointmentsCount },
-                  { value: "COMPLETED" as const, label: "Completed", count: completedAppointmentsCount },
-                  { value: "CANCELLED" as const, label: "Cancelled", count: cancelledAppointmentsCount },
-                  { value: "EXPIRED" as const, label: "Expired", count: expiredAppointmentsCount },
-                  { value: "NO_SHOW" as const, label: "No Show", count: noShowAppointmentsCount },
-                ].map((filter) => (
-                <Button
-                  key={filter.value}
-                  variant={appointmentViewFilter === filter.value ? "default" : "outline"}
-                  className="h-10 flex-1 rounded-xl px-4 sm:flex-none"
-                  onClick={() => setAppointmentViewFilter(filter.value)}
-                >
-                  <span className="mr-2">{filter.label}</span>
-                  <span className="rounded-md bg-background/80 px-2 py-0.5 text-[11px] font-semibold leading-none text-foreground">
-                    {filter.count}
-                  </span>
-                </Button>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </DashboardPageShell>
+      <Surface as="section" aria-label="Filter appointments">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <h2 className="m-0 shrink-0 text-base font-bold text-ink">Filter Appointments</h2>
+          <FilterChips
+            ariaLabel="Appointment status"
+            options={filterOptions}
+            value={appointmentViewFilter}
+            onChange={setAppointmentViewFilter}
+            className="lg:justify-end"
+          />
+        </div>
+        <SearchBox
+          value={searchTerm}
+          onChange={setSearchTerm}
+          placeholder="Search by patient name, appointment type, or complaint..."
+          ariaLabel="Search appointments"
+        />
+      </Surface>
+    </>
   );
 }
