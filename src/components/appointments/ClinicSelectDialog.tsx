@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { 
   Dialog, 
@@ -51,12 +51,45 @@ const isLoading = clinicsLoading || myClinicLoading || defaultClinicLoading;
         ? ((locationSource.data as any[]) || [])
         : [];
 
-  const handleSelectLocation = (clinicId: string, locationId: string) => {
-    setOpen(false);
-    const selectedClinic = clinics.find(c => c.id === clinicId);
-    const clinicName = selectedClinic?.name || "";
-    push(`/patient/appointments?clinicId=${clinicId}&locationId=${locationId}&clinicName=${encodeURIComponent(clinicName)}`);
-  };
+  const handleSelectLocation = useCallback(
+    (clinicId: string, locationId: string) => {
+      setOpen(false);
+      const selectedClinic = clinics.find(c => c.id === clinicId);
+      const clinicName = selectedClinic?.name || "";
+      push(`/patient/appointments?clinicId=${clinicId}&locationId=${locationId}&clinicName=${encodeURIComponent(clinicName)}`);
+    },
+    [clinics, push],
+  );
+
+  // A clinic with exactly one active location offers no real choice, so skip
+  // the picker and go straight through — mirroring the single-clinic shortcut
+  // in `effectiveClinicId` above. Waits for locationsLoading so a momentarily
+  // empty list can't be mistaken for "one option", and the ref keeps the
+  // navigation to once per opening (locations/clinics are new arrays each
+  // render, so this effect re-runs often and must stay idempotent).
+  const hasAutoSelectedRef = useRef(false);
+  useEffect(() => {
+    if (!open) {
+      hasAutoSelectedRef.current = false;
+      return;
+    }
+    if (hasAutoSelectedRef.current || locationsLoading || !effectiveClinicId) {
+      return;
+    }
+    if (locations.length !== 1) return;
+
+    const onlyLocationId = locations[0]?.id;
+    if (!onlyLocationId) return;
+
+    hasAutoSelectedRef.current = true;
+    handleSelectLocation(effectiveClinicId, onlyLocationId);
+  }, [
+    open,
+    locationsLoading,
+    effectiveClinicId,
+    locations,
+    handleSelectLocation,
+  ]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
