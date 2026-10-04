@@ -4401,15 +4401,15 @@ export function BookAppointmentDialog({
           }
         }
 
-        const cachedProfile = queryClient.getQueryData<Record<string, unknown>>([
-          "userProfile",
-        ]);
-        const refreshedProfile =
-          cachedProfile ||
-          ((await queryClient.fetchQuery({
-            queryKey: ["userProfile"],
-            queryFn: async () => await getUserProfile(),
-          })) as Record<string, unknown> | undefined);
+        // updateUserProfile above may have just created the patient record, so
+        // the cached ["userProfile"] entry (populated by useUserProfile while
+        // this dialog is open) predates it and carries no patient.id. Always
+        // re-read; staleTime 0 stops fetchQuery from serving that stale entry.
+        const refreshedProfile = (await queryClient.fetchQuery({
+          queryKey: ["userProfile"],
+          queryFn: async () => await getUserProfile(),
+          staleTime: 0,
+        })) as Record<string, unknown> | undefined;
 
         bookingPatientId =
           (refreshedProfile as any)?.patient?.id ||
