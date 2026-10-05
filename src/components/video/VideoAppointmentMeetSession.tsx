@@ -726,11 +726,14 @@ export function VideoAppointmentMeetSession({
         setIsAudioEnabled(nextAudioEnabled && hasAudioTrack);
         setIsVideoEnabled(nextVideoEnabled && hasVideoTrack);
       } catch (err) {
+        const message =
+          err instanceof Error ? String(err.message || "") : "";
         setPermissionError(
           err instanceof Error
-            ? err.name === "AbortError" || err.message.includes("Timeout")
+            ? err.name === "AbortError" || message.includes("Timeout")
               ? "Your camera took too long to start. Try refreshing or selecting a different device."
-              : err.message
+              : message ||
+                "Camera and microphone access is required to join the meeting."
             : "Camera and microphone access is required to join the meeting.",
         );
       } finally {

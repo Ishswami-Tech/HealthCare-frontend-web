@@ -294,7 +294,12 @@ export function VideoAppointmentRoomWorkspace({
   const currentUserDisplayName = React.useMemo(() => {
     const role = viewerRoleNormalized;
     if (role === "patient") return patientName || "Patient";
-    if (role === "doctor" || role.includes("doctor") || role.includes("assistant") || role.includes("therapist")) {
+    if (
+      role === "doctor" ||
+      role?.includes("doctor") ||
+      role?.includes("assistant") ||
+      role?.includes("therapist")
+    ) {
       return doctorName || "Doctor";
     }
     return doctorName || patientName || "Participant";
