@@ -23,7 +23,7 @@ export const metadata = generateSEOMetadata({
   description: pageSEO.home.description,
   keywords: [...pageSEO.home.keywords],
   url: "/",
-  image: "/assets/og/og-image.png",
+  image: "/assets/og/og-image.jpg",
 });
 
 // Preload components for better UX

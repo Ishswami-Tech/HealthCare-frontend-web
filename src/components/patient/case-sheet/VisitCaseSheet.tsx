@@ -2,14 +2,16 @@
 
 import { runSave } from "./run-save";
 import { useStableSnapshot } from "./use-stable-snapshot";
-import { useEffect, useState } from "react";
-import { Loader2, Save } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import * as TabsPrimitive from "@radix-ui/react-tabs";
+import { AlertTriangle, FlaskConical } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabsContent } from "@/components/ui/tabs";
+import { Chip, EmptyBlock, Surface } from "@/components/tbd";
 import { HashTabs } from "@/hooks/navigation/HashTabs";
+import { cn } from "@/lib/utils";
 import {
   ASHTAVIDHA_PARIKSHA,
   DASHAVIDHA_PARIKSHA,
@@ -26,6 +28,7 @@ import {
 } from "@/hooks/query/usePatientVisits";
 import type { PatientVisit, UpdatePatientVisitInput } from "@/types/patient-visit.types";
 import { BasicDetailsPanel } from "./BasicDetailsPanel";
+import { CaseSheetCard, FieldLabel, GroupLabel, SaveButton } from "./case-sheet-parts";
 import { ClassicalExamSection } from "./ClassicalExamSection";
 import { GeneralExaminationForm, PhysicalMeasurementForm } from "./ExaminationForms";
 import { FamilyHistoryTable } from "./FamilyHistoryTable";
@@ -84,13 +87,147 @@ const TAB_LABELS: Record<(typeof SECTION_TABS)[number], string> = {
   progress: "Progress",
 };
 
-interface ComplaintsPanelProps {
+type SectionTab = (typeof SECTION_TABS)[number];
+
+/** The 20 sections in the three groups the navigation shows. */
+const SECTION_GROUPS: readonly { id: string; label: string; tabs: readonly SectionTab[] }[] = [
+  {
+    id: "history",
+    label: "History",
+    tabs: ["basic", "complaints", "past-history", "habits", "family", "medicines"],
+  },
+  {
+    id: "examination",
+    label: "Examination",
+    tabs: [
+      "general-exam",
+      "measurements",
+      "ashtavidha",
+      "dashavidha",
+      "srotas",
+      "samprapti",
+      "prakruti",
+      "pain",
+      "personal",
+    ],
+  },
+  {
+    id: "plan",
+    label: "Plan and files",
+    tabs: ["therapy", "diet", "investigation", "documents", "progress"],
+  },
+];
+
+/** Every section is a column of cards with the page gap between them. */
+const SECTION_CONTENT = "flex flex-col gap-5";
+
+/**
+ * Section navigation: one labelled row of tabs per group. Each row is its own
+ * tab list, so the arrow keys move inside a group and Tab moves between groups.
+ */
+function CaseSheetSectionNav() {
+  return (
+    <Surface as="section" aria-label="Case sheet sections" className="gap-2 p-4">
+      {SECTION_GROUPS.map((group) => (
+        <div key={group.id} className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:gap-3.5">
+          <span className="shrink-0 whitespace-nowrap sm:w-[104px] sm:pt-[9px]">
+            <GroupLabel id={`case-sheet-nav-${group.id}`}>{group.label}</GroupLabel>
+          </span>
+          <TabsPrimitive.List
+            aria-labelledby={`case-sheet-nav-${group.id}`}
+            className="flex min-w-0 flex-wrap gap-1.5"
+          >
+            {group.tabs.map((tab) => (
+              <TabsPrimitive.Trigger
+                key={tab}
+                value={tab}
+                className={cn(
+                  "inline-flex min-h-[34px] items-center whitespace-nowrap rounded-[10px] bg-well px-3 text-[13px] font-semibold text-ink transition-colors",
+                  "hover:bg-mint",
+                  "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-500/40",
+                  "data-[state=active]:bg-primary data-[state=active]:font-bold data-[state=active]:text-primary-foreground",
+                  "data-[state=active]:shadow-[0_6px_14px_rgba(4,120,87,0.22)] dark:data-[state=active]:shadow-none",
+                )}
+              >
+                {TAB_LABELS[tab]}
+              </TabsPrimitive.Trigger>
+            ))}
+          </TabsPrimitive.List>
+        </div>
+      ))}
+    </Surface>
+  );
+}
+
+/**
+ * The case-sheet frame: hash tabs (#history/<section>) with the section
+ * navigation on top. Children are the `TabsContent` panels.
+ */
+export function CaseSheetShell({ children }: { children: ReactNode }) {
+  return (
+    <HashTabs tabs={SECTION_TABS} defaultValue="basic" namespace="history" className="flex flex-col gap-5">
+      <CaseSheetSectionNav />
+      {children}
+    </HashTabs>
+  );
+}
+
+/** Placeholder while the case sheet loads. */
+export function CaseSheetLoading() {
+  return (
+    <div className="flex flex-col gap-5" aria-busy="true">
+      <span className="sr-only">Loading the case sheet</span>
+      <Surface className="gap-2 p-4">
+        {[0, 1, 2].map((row) => (
+          <div key={row} className="flex flex-wrap gap-1.5">
+            {[0, 1, 2, 3, 4].map((chip) => (
+              <Skeleton key={chip} className="h-[34px] w-24 rounded-[10px]" />
+            ))}
+          </div>
+        ))}
+      </Surface>
+      <Surface className="gap-4">
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-4 w-64 max-w-full" />
+        </div>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {[0, 1, 2, 3].map((tile) => (
+            <Skeleton key={tile} className="h-[62px] rounded-[14px]" />
+          ))}
+        </div>
+        <Skeleton className="h-40 rounded-2xl" />
+      </Surface>
+    </div>
+  );
+}
+
+/** Shown when the case sheet could not be loaded. */
+export function CaseSheetLoadError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <Surface>
+      <EmptyBlock
+        icon={AlertTriangle}
+        tone="rose"
+        title="Could not load the case sheet"
+        description="Check the connection and try again."
+        action={
+          <Button variant="outline" size="md" onClick={onRetry}>
+            Try again
+          </Button>
+        }
+      />
+    </Surface>
+  );
+}
+
+export interface ComplaintsPanelProps {
   visit: PatientVisit;
   onSave: (input: UpdatePatientVisitInput) => Promise<unknown>;
   isSaving: boolean;
 }
 
-function ComplaintsPanel({ visit, onSave, isSaving }: ComplaintsPanelProps) {
+export function ComplaintsPanel({ visit, onSave, isSaving }: ComplaintsPanelProps) {
   // Snapshot so a background refetch with identical data doesn't reset the draft.
   const saved = useStableSnapshot({
     presentComplaints: visit.presentComplaints ?? "",
@@ -106,12 +243,13 @@ function ComplaintsPanel({ visit, onSave, isSaving }: ComplaintsPanelProps) {
     setDirty(false);
   }, [saved]);
 
-  const field = (key: keyof typeof values, label: string, placeholder: string, rows = 3) => (
-    <div className="flex flex-col gap-y-1">
-      <Label htmlFor={`complaint-${key}`}>{label}</Label>
+  const field = (key: keyof typeof values, label: string, placeholder: string, tall = true) => (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <FieldLabel htmlFor={`complaint-${key}`}>{label}</FieldLabel>
       <Textarea
         id={`complaint-${key}`}
-        rows={rows}
+        rows={tall ? 3 : 2}
+        className={tall ? "min-h-[100px]" : "min-h-[72px]"}
         placeholder={placeholder}
         value={values[key]}
         onChange={(event) => {
@@ -123,14 +261,13 @@ function ComplaintsPanel({ visit, onSave, isSaving }: ComplaintsPanelProps) {
   );
 
   return (
-    <Card className="border-border/70 bg-card shadow-sm">
-      <CardHeader className="flex flex-row items-start justify-between gap-4 pb-3">
-        <div>
-          <CardTitle className="text-base font-bold text-foreground">Present Complaints</CardTitle>
-          <p className="text-sm text-muted-foreground">Symptoms, known conditions and allergies</p>
-        </div>
-        <Button
-          size="sm"
+    <CaseSheetCard
+      title="Present Complaints"
+      description="Symptoms, known conditions and allergies"
+      action={
+        <SaveButton
+          saving={isSaving}
+          disabled={isSaving || !dirty}
           onClick={async () => {
             const saved = await runSave(() =>
               onSave({
@@ -142,19 +279,16 @@ function ComplaintsPanel({ visit, onSave, isSaving }: ComplaintsPanelProps) {
             );
             if (saved) setDirty(false);
           }}
-          disabled={isSaving || !dirty}
-        >
-          <Save className="mr-1 size-4" />
-          {isSaving ? "Saving..." : "Save"}
-        </Button>
-      </CardHeader>
-      <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        />
+      }
+    >
+      <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
         {field("presentComplaints", "Symptoms", "Type symptoms")}
         {field("knownCaseOf", "Known case of", "e.g. Hypertension, Diabetes")}
-        {field("foodAllergyNotes", "Food allergy", "Type here", 2)}
-        {field("drugAllergyNotes", "Drug allergy", "Type here", 2)}
-      </CardContent>
-    </Card>
+        {field("foodAllergyNotes", "Food allergy", "Type here", false)}
+        {field("drugAllergyNotes", "Drug allergy", "Type here", false)}
+      </div>
+    </CaseSheetCard>
   );
 }
 
@@ -177,11 +311,11 @@ export function VisitCaseSheet({ clinicId, patientId, patientUserId, visitId }: 
   const upsertExams = useUpsertClassicalExamFindings();
 
   const caseSheet = caseSheetQuery.data;
-  if (caseSheetQuery.isPending || !caseSheet) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="size-8 animate-spin text-primary" />
-      </div>
+  if (!caseSheet) {
+    return caseSheetQuery.error && !caseSheetQuery.isFetching ? (
+      <CaseSheetLoadError onRetry={() => void caseSheetQuery.refetch()} />
+    ) : (
+      <CaseSheetLoading />
     );
   }
 
@@ -203,24 +337,14 @@ export function VisitCaseSheet({ clinicId, patientId, patientUserId, visitId }: 
   );
 
   return (
-    <HashTabs tabs={SECTION_TABS} defaultValue="basic" namespace="history" className="flex flex-col gap-y-4">
-      <div className="-mx-1 overflow-x-auto px-1 pb-1">
-        <TabsList className="inline-flex h-auto w-max flex-nowrap gap-1 p-1">
-          {SECTION_TABS.map((tab) => (
-            <TabsTrigger key={tab} value={tab} className="whitespace-nowrap text-xs">
-              {TAB_LABELS[tab]}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </div>
-
-      <TabsContent value="basic">
+    <CaseSheetShell>
+      <TabsContent value="basic" className={SECTION_CONTENT}>
         <BasicDetailsPanel clinicId={clinicId} visit={visit} patient={patient} />
       </TabsContent>
-      <TabsContent value="complaints">
+      <TabsContent value="complaints" className={SECTION_CONTENT}>
         <ComplaintsPanel visit={visit} onSave={saveVisit} isSaving={updateVisit.isPending} />
       </TabsContent>
-      <TabsContent value="past-history">
+      <TabsContent value="past-history" className={SECTION_CONTENT}>
         <PastHistoryChecklist
           userId={patientUserId}
           notes={visit.pastHistoryNotes}
@@ -228,7 +352,7 @@ export function VisitCaseSheet({ clinicId, patientId, patientUserId, visitId }: 
           isSavingNotes={updateVisit.isPending}
         />
       </TabsContent>
-      <TabsContent value="habits" className="flex flex-col gap-y-4">
+      <TabsContent value="habits" className={SECTION_CONTENT}>
         <HabitGrid
           habits={visit.habits}
           onSave={(habits) => saveVisit({ habits })}
@@ -243,72 +367,80 @@ export function VisitCaseSheet({ clinicId, patientId, patientUserId, visitId }: 
           isSaving={updateVisit.isPending}
         />
       </TabsContent>
-      <TabsContent value="family">
+      <TabsContent value="family" className={SECTION_CONTENT}>
         <FamilyHistoryTable clinicId={clinicId} userId={patientUserId} />
       </TabsContent>
-      <TabsContent value="medicines">
+      <TabsContent value="medicines" className={SECTION_CONTENT}>
         <MedicineHistoryTable userId={patientUserId} />
       </TabsContent>
-      <TabsContent value="general-exam" className="flex flex-col gap-y-4">
+      <TabsContent value="general-exam" className={SECTION_CONTENT}>
         <GeneralExaminationForm
           vitals={vitalsExamination}
           onSave={saveVitals}
           isSaving={upsertVitals.isPending}
         />
-        <Card className="border-border/70 bg-card shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-bold text-foreground">Lab Investigation</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              {labReports.length === 0
-                ? "No lab reports on file. Reports are managed in the Reports tab."
-                : `${labReports.length} recent report${labReports.length === 1 ? "" : "s"} on file`}
-            </p>
-          </CardHeader>
+        <CaseSheetCard
+          title="Lab Investigation"
+          description={
+            labReports.length === 0
+              ? "No lab reports on file. Reports are managed in the Reports tab."
+              : `${labReports.length} recent report${labReports.length === 1 ? "" : "s"} on file`
+          }
+        >
           {labReports.length > 0 ? (
-            <CardContent className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2">
               {labReports.slice(0, 8).map((report, index) => (
-                <span
-                  key={String(report["id"] ?? index)}
-                  className="rounded-full border border-border/70 bg-background px-3 py-1 text-xs text-foreground"
-                >
+                <Chip key={String(report["id"] ?? index)} icon={FlaskConical}>
                   {String(report["testName"] ?? report["reportType"] ?? "Report")}
-                </span>
+                </Chip>
               ))}
-            </CardContent>
+            </div>
           ) : null}
-        </Card>
+        </CaseSheetCard>
       </TabsContent>
-      <TabsContent value="measurements">
+      <TabsContent value="measurements" className={SECTION_CONTENT}>
         <PhysicalMeasurementForm
           vitals={vitalsExamination}
           onSave={saveVitals}
           isSaving={upsertVitals.isPending}
         />
       </TabsContent>
-      <TabsContent value="ashtavidha">{classical(ASHTAVIDHA_PARIKSHA)}</TabsContent>
-      <TabsContent value="dashavidha">{classical(DASHAVIDHA_PARIKSHA)}</TabsContent>
-      <TabsContent value="srotas">{classical(SROTAS_PARIKSHA)}</TabsContent>
-      <TabsContent value="samprapti">{classical(SAMPRAPTI_GHATAKA)}</TabsContent>
-      <TabsContent value="prakruti">
+      <TabsContent value="ashtavidha" className={SECTION_CONTENT}>
+        {classical(ASHTAVIDHA_PARIKSHA)}
+      </TabsContent>
+      <TabsContent value="dashavidha" className={SECTION_CONTENT}>
+        {classical(DASHAVIDHA_PARIKSHA)}
+      </TabsContent>
+      <TabsContent value="srotas" className={SECTION_CONTENT}>
+        {classical(SROTAS_PARIKSHA)}
+      </TabsContent>
+      <TabsContent value="samprapti" className={SECTION_CONTENT}>
+        {classical(SAMPRAPTI_GHATAKA)}
+      </TabsContent>
+      <TabsContent value="prakruti" className={SECTION_CONTENT}>
         <PrakritiAssessmentPanel clinicId={clinicId} patientId={patientId} />
       </TabsContent>
-      <TabsContent value="pain">{classical(PAIN_ASSESSMENT)}</TabsContent>
-      <TabsContent value="personal">{classical(PERSONAL_HISTORY)}</TabsContent>
-      <TabsContent value="therapy">
+      <TabsContent value="pain" className={SECTION_CONTENT}>
+        {classical(PAIN_ASSESSMENT)}
+      </TabsContent>
+      <TabsContent value="personal" className={SECTION_CONTENT}>
+        {classical(PERSONAL_HISTORY)}
+      </TabsContent>
+      <TabsContent value="therapy" className={SECTION_CONTENT}>
         <TherapyPlanPanel clinicId={clinicId} patientId={patientId} visitId={visitId} />
       </TabsContent>
-      <TabsContent value="diet">
+      <TabsContent value="diet" className={SECTION_CONTENT}>
         <DietChartPanel clinicId={clinicId} patientId={patientId} visitId={visitId} />
       </TabsContent>
-      <TabsContent value="investigation">
+      <TabsContent value="investigation" className={SECTION_CONTENT}>
         <PatientFilesPanel clinicId={clinicId} patientId={patientId} visitId={visitId} category="INVESTIGATION" />
       </TabsContent>
-      <TabsContent value="documents">
+      <TabsContent value="documents" className={SECTION_CONTENT}>
         <PatientFilesPanel clinicId={clinicId} patientId={patientId} visitId={visitId} category="DOCUMENT" />
       </TabsContent>
-      <TabsContent value="progress">
+      <TabsContent value="progress" className={SECTION_CONTENT}>
         <TherapyProgressPanel clinicId={clinicId} patientId={patientId} />
       </TabsContent>
-    </HashTabs>
+    </CaseSheetShell>
   );
 }

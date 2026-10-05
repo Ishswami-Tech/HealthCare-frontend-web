@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import { useCreatePatientVisit, usePatientVisits } from "@/hooks/query/usePatientVisits";
@@ -20,12 +21,117 @@ interface VisitSelectorProps {
   patientId: string;
   selectedVisitId: string | null;
   onSelect: (visitId: string) => void;
+  /**
+   * The "New OPD visit" button after the visits. Turn it off when the screen has its own
+   * button for that (the EHR workspace keeps it in the patient header).
+   */
+  showCreate?: boolean;
+  className?: string;
 }
 
 /** Newest visits shown as chips; anything older goes into the dropdown. */
 const VISIBLE_CHIPS = 4;
 /** Upper bound on visits loaded for the dropdown (a returning patient can have hundreds). */
-const MAX_VISITS = 200;
+export const MAX_VISITS = 200;
+
+/** "28 Sept 2026" */
+function visitDate(value: string): string {
+  return formatDateInIST(value, { day: "numeric", month: "short", year: "numeric" });
+}
+
+export type VisitSelectorVisit = Pick<PatientVisit, "id" | "opdNumber" | "registrationDate">;
+
+export interface VisitSelectorViewProps {
+  /** Newest first. */
+  visits: VisitSelectorVisit[];
+  loading?: boolean;
+  selectedVisitId: string | null;
+  onSelect: (visitId: string) => void;
+  /** Leave out to hide the "New OPD visit" button. */
+  onCreate?: (() => void) | undefined;
+  createPending?: boolean;
+  className?: string;
+}
+
+/** The row of OPD visit chips. Props only: the data hooks live in `VisitSelector`. */
+export function VisitSelectorView({
+  visits,
+  loading = false,
+  selectedVisitId,
+  onSelect,
+  onCreate,
+  createPending = false,
+  className,
+}: VisitSelectorViewProps) {
+  const chipVisits = visits.slice(0, VISIBLE_CHIPS);
+  const olderVisits = visits.slice(VISIBLE_CHIPS);
+  const selectedOlder = olderVisits.find((visit) => visit.id === selectedVisitId) ?? null;
+
+  const chip = (visit: VisitSelectorVisit) => {
+    const active = visit.id === selectedVisitId;
+    return (
+      <button
+        key={visit.id}
+        type="button"
+        onClick={() => onSelect(visit.id)}
+        aria-pressed={active}
+        className={cn(
+          "inline-flex min-h-[34px] items-center gap-2 whitespace-nowrap rounded-full border px-[13px] text-[13px] transition-colors",
+          "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40",
+          active
+            ? "border-[#047857] bg-[#047857] text-white"
+            : "border-line bg-card text-ink hover:bg-mint-soft",
+        )}
+      >
+        <span className="font-bold">{visit.opdNumber}</span>
+        <span className={active ? "text-[#d1fae5]" : "text-ink-muted"}>{visitDate(visit.registrationDate)}</span>
+      </button>
+    );
+  };
+
+  return (
+    <div className={cn("flex flex-wrap items-center gap-2", className)}>
+      <span className="mr-1 text-[11px] font-extrabold uppercase tracking-[0.6px] text-ink-muted">OPD visits</span>
+      {loading ? (
+        <span className="flex items-center gap-2" role="status" aria-label="Loading OPD visits">
+          <Skeleton className="h-[34px] w-[168px] rounded-full" />
+          <Skeleton className="h-[34px] w-[168px] rounded-full" />
+        </span>
+      ) : visits.length === 0 ? (
+        <span className="text-[13px] text-ink-muted">No OPD visit yet</span>
+      ) : (
+        <>
+          {chipVisits.map(chip)}
+          {selectedOlder ? chip(selectedOlder) : null}
+          {olderVisits.length > 0 ? (
+            <Select value={selectedOlder?.id ?? ""} onValueChange={onSelect}>
+              <SelectTrigger
+                size="sm"
+                className="w-auto gap-1.5 rounded-full border-line bg-card px-3 py-0 text-[13px] text-ink-soft data-[size=sm]:h-[34px]"
+                aria-label="Older OPD visits"
+              >
+                <SelectValue placeholder={`${olderVisits.length} older`} />
+              </SelectTrigger>
+              <SelectContent>
+                {olderVisits.map((visit) => (
+                  <SelectItem key={visit.id} value={visit.id} className="text-[13px]">
+                    {visit.opdNumber} · {visitDate(visit.registrationDate)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
+        </>
+      )}
+      {onCreate ? (
+        <Button variant="outline" className="h-[34px] rounded-full" onClick={onCreate} disabled={createPending}>
+          <Plus />
+          New OPD visit
+        </Button>
+      ) : null}
+    </div>
+  );
+}
 
 /**
  * A patient's OPD visits (newest first) with a "New OPD visit" action.
@@ -33,7 +139,14 @@ const MAX_VISITS = 200;
  * visits are rendered as chips so a long-standing patient's history doesn't
  * push the case-sheet below the fold.
  */
-export function VisitSelector({ clinicId, patientId, selectedVisitId, onSelect }: VisitSelectorProps) {
+export function VisitSelector({
+  clinicId,
+  patientId,
+  selectedVisitId,
+  onSelect,
+  showCreate = true,
+  className,
+}: VisitSelectorProps) {
   const visitsQuery = usePatientVisits(clinicId, patientId, { limit: MAX_VISITS });
   const createVisit = useCreatePatientVisit();
   const visits = visitsQuery.data?.visits ?? [];
@@ -54,64 +167,15 @@ export function VisitSelector({ clinicId, patientId, selectedVisitId, onSelect }
     }
   };
 
-  const chipVisits = visits.slice(0, VISIBLE_CHIPS);
-  const olderVisits = visits.slice(VISIBLE_CHIPS);
-  const selectedOlder = olderVisits.find((visit) => visit.id === selectedVisitId) ?? null;
-
-  const chip = (visit: PatientVisit) => {
-    const active = visit.id === selectedVisitId;
-    return (
-      <button
-        key={visit.id}
-        type="button"
-        onClick={() => onSelect(visit.id)}
-        aria-pressed={active}
-        className={cn(
-          "rounded-full border px-3 py-1 text-xs transition-colors",
-          active
-            ? "border-primary bg-primary text-primary-foreground"
-            : "border-border/70 bg-background text-foreground hover:bg-muted",
-        )}
-      >
-        <span className="font-semibold">{visit.opdNumber}</span>
-        <span className={cn("ml-1.5", active ? "opacity-90" : "text-muted-foreground")}>
-          {formatDateInIST(visit.registrationDate)}
-        </span>
-      </button>
-    );
-  };
-
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">OPD visits</span>
-      {visitsQuery.isPending ? (
-        <span className="text-sm text-muted-foreground">Loading…</span>
-      ) : visits.length === 0 ? (
-        <span className="text-sm text-muted-foreground">No OPD visit yet</span>
-      ) : (
-        <>
-          {chipVisits.map(chip)}
-          {selectedOlder ? chip(selectedOlder) : null}
-          {olderVisits.length > 0 ? (
-            <Select value={selectedOlder?.id ?? ""} onValueChange={onSelect}>
-              <SelectTrigger size="sm" className="h-7 rounded-full text-xs" aria-label="Older OPD visits">
-                <SelectValue placeholder={`${olderVisits.length} older`} />
-              </SelectTrigger>
-              <SelectContent>
-                {olderVisits.map((visit) => (
-                  <SelectItem key={visit.id} value={visit.id} className="text-xs">
-                    {visit.opdNumber} · {formatDateInIST(visit.registrationDate)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : null}
-        </>
-      )}
-      <Button size="sm" variant="outline" onClick={() => void handleCreate()} disabled={createVisit.isPending}>
-        <Plus className="mr-1 size-4" />
-        New OPD visit
-      </Button>
-    </div>
+    <VisitSelectorView
+      visits={visits}
+      loading={visitsQuery.isPending}
+      selectedVisitId={selectedVisitId}
+      onSelect={onSelect}
+      onCreate={showCreate ? () => void handleCreate() : undefined}
+      createPending={createVisit.isPending}
+      {...(className ? { className } : {})}
+    />
   );
 }

@@ -2,14 +2,12 @@
 
 import { runSave } from "./run-save";
 import { useStableSnapshot } from "./use-stable-snapshot";
-import { useEffect, useMemo, useState } from "react";
-import { Save } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useId, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { Divider, Pill, type PillTone } from "@/components/tbd";
 import { GENERAL_EXAM_TEXT_OPTIONS } from "@/lib/constants/case-sheet-fixed-lists";
+import { ExamEyebrow, ExamOptionChip, ExamPanel, ExamPanelHead, ExamSaveButton } from "./ExamParts";
 import type {
   UpsertVisitVitalsExaminationInput,
   VisitVitalsExamination,
@@ -76,6 +74,11 @@ function bmiLabel(bmi: number): string {
   return "Obese";
 }
 
+/** Normal is green; anything else is a plain amber notice (red is kept for errors). */
+function bmiTone(bmi: number): PillTone {
+  return bmi >= 18.5 && bmi < 25 ? "green" : "amber";
+}
+
 function NumericGrid({
   fields,
   draft,
@@ -86,10 +89,10 @@ function NumericGrid({
   onChange: (key: string, value: string) => void;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+    <div className="grid grid-cols-2 items-start gap-3.5 @xl:grid-cols-3 @3xl:grid-cols-4">
       {fields.map((field) => (
-        <div key={field.key} className="flex flex-col gap-y-1">
-          <Label htmlFor={`exam-${field.key}`} className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <div key={field.key} className="flex min-w-0 flex-col gap-1.5">
+          <Label htmlFor={`exam-${field.key}`} className="text-xs font-bold leading-tight text-ink-soft">
             {field.label}
           </Label>
           <div className="relative">
@@ -101,9 +104,13 @@ function NumericGrid({
               min={0}
               value={draft[field.key] ?? ""}
               onChange={(event) => onChange(field.key, event.target.value)}
-              className="pr-14"
+              aria-describedby={`exam-${field.key}-unit`}
+              className="pr-[58px] font-semibold text-ink"
             />
-            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">
+            <span
+              id={`exam-${field.key}-unit`}
+              className="pointer-events-none absolute inset-y-0 right-3.5 flex items-center text-xs text-ink-muted"
+            >
               {field.unit}
             </span>
           </div>
@@ -133,6 +140,7 @@ interface ExamFormProps {
 export function GeneralExaminationForm({ vitals: vitalsProp, onSave, isSaving = false }: ExamFormProps) {
   // Snapshot so a background refetch with identical data doesn't reset the draft.
   const vitals = useStableSnapshot(vitalsProp);
+  const headingId = useId();
   const initial = useMemo(() => toDraft(vitals, GENERAL_FIELDS), [vitals]);
   const [draft, setDraft] = useState<Draft>(initial);
   const [text, setText] = useState<Record<TextField, string>>({
@@ -161,69 +169,68 @@ export function GeneralExaminationForm({ vitals: vitalsProp, onSave, isSaving = 
   };
 
   return (
-    <Card className="border-border/70 bg-card shadow-sm">
-      <CardHeader className="flex flex-row items-start justify-between gap-4 pb-3">
-        <div>
-          <CardTitle className="text-base font-bold text-foreground">General Examination</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            {liveBmi ? `BMI ${liveBmi} · ${bmiLabel(liveBmi)}` : "Enter height and weight for BMI"}
-          </p>
-        </div>
-        <Button size="sm" onClick={handleSave} disabled={isSaving || !dirty}>
-          <Save className="mr-1 size-4" />
-          {isSaving ? "Saving..." : "Save"}
-        </Button>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-y-4">
-        <NumericGrid
-          fields={GENERAL_FIELDS}
-          draft={draft}
-          onChange={(key, value) => {
-            setDraft((prev) => ({ ...prev, [key]: value }));
-            setDirty(true);
-          }}
-        />
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {(Object.keys(GENERAL_EXAM_TEXT_OPTIONS) as TextField[]).map((field) => (
-            <div key={field} className="flex flex-col gap-y-1">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {field}
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {GENERAL_EXAM_TEXT_OPTIONS[field].map((option) => {
-                  const active = text[field] === option;
-                  return (
-                    <button
-                      key={option}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => {
-                        setText((prev) => ({ ...prev, [field]: active ? "" : option }));
-                        setDirty(true);
-                      }}
-                      className={cn(
-                        "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                        active
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border/70 bg-background text-foreground hover:bg-muted",
-                      )}
-                    >
-                      {option}
-                    </button>
-                  );
-                })}
-              </div>
+    <ExamPanel labelledBy={headingId}>
+      <ExamPanelHead
+        id={headingId}
+        title="General Examination"
+        description={
+          liveBmi ? (
+            <span className="inline-flex flex-wrap items-center gap-2">
+              BMI {liveBmi}
+              <Pill tone={bmiTone(liveBmi)}>{bmiLabel(liveBmi)}</Pill>
+            </span>
+          ) : (
+            "Enter height and weight for BMI"
+          )
+        }
+        aside={<ExamSaveButton onClick={() => void handleSave()} disabled={isSaving || !dirty} saving={isSaving} />}
+      />
+      <NumericGrid
+        fields={GENERAL_FIELDS}
+        draft={draft}
+        onChange={(key, value) => {
+          setDraft((prev) => ({ ...prev, [key]: value }));
+          setDirty(true);
+        }}
+      />
+      <Divider />
+      <div className="grid grid-cols-1 items-start gap-4 @xl:grid-cols-3">
+        {(Object.keys(GENERAL_EXAM_TEXT_OPTIONS) as TextField[]).map((field) => (
+          <div
+            key={field}
+            role="group"
+            aria-labelledby={`${headingId}-${field}`}
+            className="flex min-w-0 flex-col gap-2"
+          >
+            <ExamEyebrow id={`${headingId}-${field}`}>{field}</ExamEyebrow>
+            <div className="flex flex-wrap gap-2">
+              {GENERAL_EXAM_TEXT_OPTIONS[field].map((option) => {
+                const active = text[field] === option;
+                return (
+                  <ExamOptionChip
+                    key={option}
+                    size="md"
+                    label={option}
+                    active={active}
+                    onClick={() => {
+                      setText((prev) => ({ ...prev, [field]: active ? "" : option }));
+                      setDirty(true);
+                    }}
+                  />
+                );
+              })}
             </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+          </div>
+        ))}
+      </div>
+    </ExamPanel>
   );
 }
 
 export function PhysicalMeasurementForm({ vitals: vitalsProp, onSave, isSaving = false }: ExamFormProps) {
   // Snapshot so a background refetch with identical data doesn't reset the draft.
   const vitals = useStableSnapshot(vitalsProp);
+  const headingId = useId();
   const initial = useMemo(() => toDraft(vitals, MEASUREMENT_FIELDS), [vitals]);
   const [draft, setDraft] = useState<Draft>(initial);
   const [dirty, setDirty] = useState(false);
@@ -238,27 +245,21 @@ export function PhysicalMeasurementForm({ vitals: vitalsProp, onSave, isSaving =
   };
 
   return (
-    <Card className="border-border/70 bg-card shadow-sm">
-      <CardHeader className="flex flex-row items-start justify-between gap-4 pb-3">
-        <div>
-          <CardTitle className="text-base font-bold text-foreground">Physical Measurement</CardTitle>
-          <p className="text-sm text-muted-foreground">Circumferences in centimetres</p>
-        </div>
-        <Button size="sm" onClick={handleSave} disabled={isSaving || !dirty}>
-          <Save className="mr-1 size-4" />
-          {isSaving ? "Saving..." : "Save"}
-        </Button>
-      </CardHeader>
-      <CardContent>
-        <NumericGrid
-          fields={MEASUREMENT_FIELDS}
-          draft={draft}
-          onChange={(key, value) => {
-            setDraft((prev) => ({ ...prev, [key]: value }));
-            setDirty(true);
-          }}
-        />
-      </CardContent>
-    </Card>
+    <ExamPanel labelledBy={headingId}>
+      <ExamPanelHead
+        id={headingId}
+        title="Physical Measurement"
+        description="Circumferences in centimetres"
+        aside={<ExamSaveButton onClick={() => void handleSave()} disabled={isSaving || !dirty} saving={isSaving} />}
+      />
+      <NumericGrid
+        fields={MEASUREMENT_FIELDS}
+        draft={draft}
+        onChange={(key, value) => {
+          setDraft((prev) => ({ ...prev, [key]: value }));
+          setDirty(true);
+        }}
+      />
+    </ExamPanel>
   );
 }

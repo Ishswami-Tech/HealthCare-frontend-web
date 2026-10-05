@@ -13,7 +13,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDateInIST } from "@/lib/utils/date-time";
 
 import { proposeVideoAppointment, confirmVideoSlot } from "@/lib/actions/appointments.server";
@@ -200,47 +199,37 @@ export function VideoSlotProposalDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Video className="size-5 text-primary" />
-            Propose Alternative Video Slots
+            <Video className="size-5 text-video" aria-hidden="true" />
+            Propose other times
           </DialogTitle>
           <DialogDescription>
-            The proposed time does not work? Suggest up to 3 alternative
-            slots, or confirm the original slot.
+            If the time does not work, suggest up to 3 other times, or keep
+            the original one.
           </DialogDescription>
         </DialogHeader>
 
         {/* Appointment summary */}
-        <Card className="border-border/60 bg-muted/30">
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex flex-col gap-y-2 text-sm">
-              <div className="flex items-center gap-2">
-                <User className="size-4 text-muted-foreground" />
-                <span className="font-medium">{doctorName}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CalendarIcon className="size-4 text-muted-foreground" />
-                <span>Original: {formatDateLabel(originalDate)}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Clock className="size-4 text-muted-foreground" />
-                <span>Original: {originalTime || "Time TBD"}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col gap-y-2 rounded-[14px] bg-well px-3.5 py-3 text-sm text-ink">
+          <div className="flex items-center gap-2">
+            <User className="size-4 shrink-0 text-brand" aria-hidden="true" />
+            <span className="font-bold">{doctorName}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <CalendarIcon className="size-4 shrink-0 text-brand" aria-hidden="true" />
+            <span>Original date: {formatDateLabel(originalDate)}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Clock className="size-4 shrink-0 text-brand" aria-hidden="true" />
+            <span>Original time: {originalTime || "To be confirmed"}</span>
+          </div>
+        </div>
 
         <div className="flex flex-col gap-y-3 py-2">
-          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            Alternative Time Slots
-          </p>
+          <p className="m-0 text-[13px] font-bold text-ink">Other times</p>
           {slots.map((slot, index) => (
-            <Card
-              key={index}
-              className="border-border/60"
-            >
-              <CardContent className="p-3">
-                <p className="text-xs font-semibold text-muted-foreground mb-2">
-                  Slot {index + 1}
+            <div key={index} className="rounded-[14px] border border-line p-3">
+                <p className="m-0 mb-2 text-xs font-semibold text-ink-muted">
+                  Time {index + 1}
                 </p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="flex flex-col gap-y-1.5">
@@ -257,10 +246,10 @@ export function VideoSlotProposalDialog({
                       onChange={(e) =>
                         handleSlotChange(index, "date", e.target.value)
                       }
+                      aria-invalid={Boolean(slot.date) && !isValidDate(slot.date)}
                       className={cn(
-                        "h-9 text-sm",
                         slot.date && !isValidDate(slot.date)
-                          ? "border-red-400"
+                          ? "border-[#e11d48]"
                           : ""
                       )}
                     />
@@ -279,54 +268,52 @@ export function VideoSlotProposalDialog({
                       onChange={(e) =>
                         handleSlotChange(index, "time", e.target.value)
                       }
-                      className="h-9 text-sm"
                     />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+            </div>
           ))}
         </div>
 
         <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
           <Button
             variant="outline"
+            size="md"
             onClick={() => {
               resetSlots();
               onOpenChange?.(false);
             }}
             disabled={isSubmitting}
-            className="h-10 rounded-xl border-border/50"
           >
-            Cancel
+            Back
           </Button>
           <Button
-            variant="secondary"
+            variant="soft"
+            size="md"
             onClick={handleConfirmSlot}
             disabled={isConfirming}
-            className="h-10 rounded-xl"
           >
             {isConfirming ? (
               <>
-                <Loader2 className="mr-2 size-4 animate-spin" />
-                Confirming...
+                <Loader2 className="animate-spin" aria-hidden="true" />
+                Confirming…
               </>
             ) : (
-              "Accept Original Slot"
+              "Keep original time"
             )}
           </Button>
           <Button
+            size="md"
             onClick={handlePropose}
             disabled={!canSubmit}
-            className="h-10 rounded-xl bg-primary hover:bg-primary/90 text-white"
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="mr-2 size-4 animate-spin" />
-                Proposing...
+                <Loader2 className="animate-spin" aria-hidden="true" />
+                Sending…
               </>
             ) : (
-              "Propose Alternatives"
+              "Send other times"
             )}
           </Button>
         </DialogFooter>

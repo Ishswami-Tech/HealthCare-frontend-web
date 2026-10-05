@@ -3,18 +3,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { Note, PageHero } from "@/components/tbd";
 import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { useHashTab } from "@/hooks/navigation/useHashTab";
-import { Loader2, Save } from "lucide-react";
+import { CircleAlert, Loader2, RefreshCw, Save } from "lucide-react";
 import type {
   DoctorProfileAvailabilityDay,
   DoctorProfileFormState,
+  DoctorProfileReviewsState,
   DoctorProfileStats,
   DoctorProfileUser,
-  DoctorReview,
   SaveProfileMutation,
 } from "./doctor-profile.types";
+import { asRecord, educationList, stringList } from "./doctor-profile.logic";
 import { DoctorProfileOverviewCard } from "./DoctorProfileOverviewCard";
 import { DoctorProfilePersonalTab } from "./DoctorProfilePersonalTab";
 import { DoctorProfileProfessionalTab } from "./DoctorProfileProfessionalTab";
@@ -27,6 +29,32 @@ interface DoctorProfileContentProps {
   userProfile: unknown;
   isLoading: boolean;
   updateProfileMutation: SaveProfileMutation;
+  /** Patient reviews for the Reviews tab (from `useDoctorReviews`). */
+  reviews?: DoctorProfileReviewsState;
+  /** The profile could not be loaded; the form shows what the session knows. */
+  loadFailed?: boolean;
+  onRetryLoad?: () => void;
+}
+
+const NO_REVIEWS: DoctorProfileReviewsState = { reviews: [], isLoading: false, loadFailed: false };
+
+/** Text of a profile field that may be a number ("14", 600). */
+function fieldText(value: unknown): string {
+  return value === undefined || value === null ? "" : String(value).trim();
+}
+
+/** "MALE" from the API -> "Male" for the select; anything else is kept as typed. */
+function genderOption(value: unknown): string {
+  const gender = fieldText(value);
+  return /^(male|female|other)$/i.test(gender)
+    ? gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase()
+    : gender;
+}
+
+/** The date input needs "YYYY-MM-DD"; the API may answer with a full timestamp. */
+function dateInputValue(value: unknown): string {
+  const date = fieldText(value);
+  return /^\d{4}-\d{2}-\d{2}T/.test(date) ? date.slice(0, 10) : date;
 }
 
 const PROFILE_TABS = [
@@ -44,6 +72,15 @@ function createInitialProfileData(
   userProfile?: unknown,
 ): DoctorProfileFormState {
   const profile = (userProfile || {}) as Record<string, unknown>;
+  // Doctor-only fields may sit on the profile itself or on its `doctor` record.
+  const doctor = asRecord(profile.doctor);
+  const pick = (...fields: string[]): unknown => {
+    for (const field of fields) {
+      const value = profile[field] ?? doctor[field];
+      if (value !== undefined && value !== null && value !== "") return value;
+    }
+    return undefined;
+  };
   const defaultAvailability: DoctorProfileFormState["availability"] = {
     monday: { available: true, startTime: "09:00", endTime: "17:00" },
     tuesday: { available: true, startTime: "09:00", endTime: "17:00" },
@@ -88,8 +125,8 @@ function createInitialProfileData(
       lastName: (profile.lastName as string) || user?.lastName || "",
       email: (profile.email as string) || user?.email || "",
       phone: (profile.phone as string) || "",
-      dateOfBirth: (profile.dateOfBirth as string) || "",
-      gender: (profile.gender as string) || "",
+      dateOfBirth: dateInputValue(profile.dateOfBirth),
+      gender: genderOption(profile.gender),
       address: (profile.address as string) || "",
       city: (profile.city as string) || "",
       state: (profile.state as string) || "",
@@ -97,25 +134,22 @@ function createInitialProfileData(
       zipCode: (profile.zipCode as string) || "",
     },
     professionalInfo: {
-      medicalLicense: "",
-      specializations: profile.specialization ? [String(profile.specialization)] : [],
-      experience:
-        profile.experience !== undefined && profile.experience !== null
-          ? String(profile.experience)
-          : "",
-      education: [],
-      certifications: [],
-      languagesSpoken: [],
+      medicalLicense: fieldText(pick("medicalLicense", "licenseNumber", "registrationNumber")),
+      specializations: pick("specialization") ? [String(pick("specialization"))] : [],
+      experience: fieldText(pick("experience")),
+      education: educationList(pick("education"), pick("qualification")),
+      certifications: stringList(pick("certifications")),
+      languagesSpoken: stringList(pick("languagesSpoken", "languages")),
       clinicAffiliations: [],
     },
     consultationSettings: {
-      consultationFee: "",
-      followUpFee: "",
-      onlineConsultation: false,
-      videoConsultation: false,
-      homeVisits: false,
-      emergencyConsultation: false,
-      consultationDuration: "30",
+      consultationFee: fieldText(pick("consultationFee")),
+      followUpFee: fieldText(pick("followUpFee")),
+      onlineConsultation: pick("onlineConsultation") === true,
+      videoConsultation: pick("videoConsultation") === true,
+      homeVisits: pick("homeVisits") === true,
+      emergencyConsultation: pick("emergencyConsultation") === true,
+      consultationDuration: fieldText(pick("consultationDuration")) || "30",
       maxPatientsPerDay: "",
       bookingAdvanceDays: "30",
     },
@@ -169,6 +203,9 @@ export function DoctorProfileContent({
   userProfile,
   isLoading,
   updateProfileMutation,
+  reviews = NO_REVIEWS,
+  loadFailed = false,
+  onRetryLoad,
 }: DoctorProfileContentProps) {
   const [profileData, setProfileData] = useState(() =>
     createInitialProfileData(user, userProfile),
@@ -231,7 +268,10 @@ export function DoctorProfileContent({
     ],
   );
 
-  const recentReviews: DoctorReview[] = [];
+  const photoUrl =
+    fieldText((userProfile as Record<string, unknown> | null | undefined)?.profilePicture) ||
+    fieldText(user?.profilePicture) ||
+    undefined;
 
   const buildSavePayload = (data: DoctorProfileFormState) => {
     const { personalInfo, availability, professionalInfo } = data;
@@ -357,85 +397,99 @@ export function DoctorProfileContent({
 
   const headerActions = (
     <Button
-      className="flex items-center gap-2"
+      size="md"
       onClick={handleSaveProfile}
       disabled={updateProfileMutation.isPending || isLoading}
       type="button"
     >
-      {updateProfileMutation.isPending ? (
-        <LoaderIcon />
-      ) : (
-        <Save className="size-4" />
-      )}
+      {updateProfileMutation.isPending ? <LoaderIcon /> : <Save aria-hidden="true" />}
       Save Changes
     </Button>
   );
 
   return (
     <DashboardPageShell>
-      <DashboardPageHeader
-        eyebrow="Doctor Profile"
+      <PageHero
+        eyebrow="Account"
         title="Doctor Profile"
         description="Update your profile details. Use Save Changes on each section — your current tab stays open."
-        actionsSlot={headerActions}
+        actions={headerActions}
       />
 
-      <DoctorProfileOverviewCard profileData={profileData} stats={stats} />
+      {loadFailed ? (
+        <Note tone="rose" icon={CircleAlert}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span role="alert">Your profile could not be loaded. Some fields may be empty.</span>
+            {onRetryLoad ? (
+              <Button variant="outline" size="sm" onClick={onRetryLoad}>
+                <RefreshCw aria-hidden="true" />
+                Try again
+              </Button>
+            ) : null}
+          </div>
+        </Note>
+      ) : null}
 
-      <Tabs
-        value={activeTab}
-        onValueChange={handleTabChange}
-        className="flex flex-col gap-y-6"
-      >
-        <TabsList>
-          <TabsTrigger value="personal">Personal Info</TabsTrigger>
-          <TabsTrigger value="professional">Professional</TabsTrigger>
-          <TabsTrigger value="consultation">Consultation</TabsTrigger>
-          <TabsTrigger value="availability">Availability</TabsTrigger>
-          <TabsTrigger value="reviews">Reviews</TabsTrigger>
-        </TabsList>
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <Tabs
+          value={activeTab}
+          onValueChange={handleTabChange}
+          className="order-2 min-w-0 gap-5 lg:order-1"
+        >
+          <TabsList aria-label="Profile sections">
+            <TabsTrigger value="personal">Personal Info</TabsTrigger>
+            <TabsTrigger value="professional">Professional</TabsTrigger>
+            <TabsTrigger value="consultation">Consultation</TabsTrigger>
+            <TabsTrigger value="availability">Availability</TabsTrigger>
+            <TabsTrigger value="reviews">Reviews</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="personal">
-          <DoctorProfilePersonalTab
-            profileData={profileData}
-            updatePersonalInfo={updatePersonalInfo}
-            phoneVerified={
-              (userProfile as Record<string, unknown>)?.phoneVerified as boolean | undefined
-            }
-          />
-        </TabsContent>
+          <TabsContent value="personal">
+            <DoctorProfilePersonalTab
+              profileData={profileData}
+              updatePersonalInfo={updatePersonalInfo}
+              phoneVerified={
+                (userProfile as Record<string, unknown>)?.phoneVerified as boolean | undefined
+              }
+            />
+          </TabsContent>
 
-        <TabsContent value="professional">
-          <DoctorProfileProfessionalTab
-            profileData={profileData}
-            updateProfessionalInfo={updateProfessionalInfo}
-          />
-        </TabsContent>
+          <TabsContent value="professional">
+            <DoctorProfileProfessionalTab
+              profileData={profileData}
+              updateProfessionalInfo={updateProfessionalInfo}
+            />
+          </TabsContent>
 
-        <TabsContent value="consultation">
-          <DoctorProfileConsultationTab
-            profileData={profileData}
-            updateConsultationSettings={updateConsultationSettings}
-          />
-        </TabsContent>
+          <TabsContent value="consultation">
+            <DoctorProfileConsultationTab
+              profileData={profileData}
+              updateConsultationSettings={updateConsultationSettings}
+            />
+          </TabsContent>
 
-        <TabsContent value="availability">
-          <DoctorProfileAvailabilityTab
-            profileData={profileData}
-            updateAvailability={updateAvailability}
-            onSave={handleSaveAvailability}
-            isSaving={updateProfileMutation.isPending || isLoading}
-          />
-        </TabsContent>
+          <TabsContent value="availability">
+            <DoctorProfileAvailabilityTab
+              profileData={profileData}
+              updateAvailability={updateAvailability}
+              onSave={handleSaveAvailability}
+              isSaving={updateProfileMutation.isPending || isLoading}
+            />
+          </TabsContent>
 
-        <TabsContent value="reviews">
-          <DoctorProfileReviewsTab recentReviews={recentReviews} />
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="reviews">
+            <DoctorProfileReviewsTab {...reviews} />
+          </TabsContent>
+        </Tabs>
+
+        <div className="order-1 min-w-0 lg:order-2">
+          <DoctorProfileOverviewCard profileData={profileData} stats={stats} photoUrl={photoUrl} />
+        </div>
+      </div>
     </DashboardPageShell>
   );
 }
 
 function LoaderIcon() {
-  return <Loader2 className="size-4 animate-spin" />;
+  return <Loader2 className="size-4 animate-spin" aria-hidden="true" />;
 }

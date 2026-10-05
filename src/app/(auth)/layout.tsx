@@ -18,7 +18,7 @@ import { ROUTES, getDashboardByRole } from "@/lib/config/routes";
 import { StatusFooter } from "@/components/status/StatusFooter";
 import { resolveAuthoritativeProfileCompleteFromCandidates } from "@/lib/config/profile";
 
-import { AuthLeftPanel } from "@/components/auth/AuthLeftPanel";
+import { AuthFrame, AuthHelpPill } from "@/components/auth/AuthFrame";
 
 export default function AuthLayout({
   children,
@@ -47,9 +47,6 @@ export default function AuthLayout({
     };
   }, []);
 
-  // Check if user came with error params (like session_expired) - these indicate
-  // intentional navigation to login, not needing session restoration
-  const hasErrorParams = searchParams.get('error') !== null;
   const callbackUrl = searchParams.get('callbackUrl');
 
   const { session, isPending: authPending, isAuthenticated } = useAuth();
@@ -61,7 +58,7 @@ export default function AuthLayout({
 
   useEffect(() => {
     if (authPending || profilePending) return;
-    const role = (userProfile as { role?: string })?.role;
+    const role = (userProfile as { role?: string })?.role || session?.user?.role;
     if (!isAuthenticated || !role) return;
 
     const profileComplete = resolveAuthoritativeProfileCompleteFromCandidates(
@@ -71,46 +68,44 @@ export default function AuthLayout({
     const nextPath =
       String(role).toUpperCase() === "PATIENT" && profileComplete !== true
         ? ROUTES.PROFILE_COMPLETION
-        : getDashboardByRole(role);
+        : callbackUrl &&
+            callbackUrl.startsWith("/") &&
+            !callbackUrl.startsWith("//") &&
+            !callbackUrl.startsWith("/auth/")
+          ? callbackUrl
+          : getDashboardByRole(role);
 
     if (!nextPath) return;
 
-    // Skip redirect on auth pages — each page manages its own navigation flow.
-    if (pathname?.startsWith('/auth/login')) return;
+    // Payment/protected-route bounce: if session is still valid, leave login
+    // and honor callbackUrl instead of forcing a new OTP.
+    if (pathname?.startsWith("/auth/login")) {
+      replace(nextPath);
+      return;
+    }
 
     replace(nextPath);
-  }, [isAuthenticated, profilePending, authPending, userProfile, replace, pathname]);
+  }, [
+    isAuthenticated,
+    profilePending,
+    authPending,
+    userProfile,
+    replace,
+    pathname,
+    callbackUrl,
+    session?.user,
+  ]);
 
   return (
-    <div className="auth-page-scroll relative h-dvh min-h-0 w-full overflow-x-hidden overflow-y-auto bg-[#fff9ed] transition-colors duration-300 lg:flex lg:h-screen lg:overflow-hidden">
-      {/* Full-canvas scenery contains no person; the doctor is rendered only by AuthLeftPanel. */}
-      <div
-        aria-hidden="true"
-        className="auth-desktop-scenery pointer-events-none absolute inset-0 hidden lg:block"
-      />
-
-      {/* The mobile hero and form share one continuous forest background. */}
-      <section
-        aria-labelledby="mobile-clinic-heading"
-        className="auth-mobile-hero relative h-[max(180px,calc(100dvh-421px))] max-h-[540px] shrink-0 lg:hidden"
-      >
-        <div className="auth-mobile-heading">
-          <p>Welcome to</p>
-          <h1 id="mobile-clinic-heading">Dr. Chandrakumar<br />Deshmukh</h1>
-          <p>Clinic</p>
-        </div>
-      </section>
-
-      {/* Left side - Ayurvedic Hero Panel */}
-      <AuthLeftPanel />
-
-      {/* Right side - Auth forms */}
-      <div className="auth-mobile-login-form relative z-20 mt-0 flex min-h-0 flex-1 flex-col justify-start overflow-visible px-5 pt-0 sm:px-6 lg:mt-0 lg:h-screen lg:justify-center lg:px-[1.65vw] lg:py-3">
-        <div className="auth-mobile-login-scale mx-auto flex min-h-0 w-full max-w-[588px] origin-top flex-col justify-center transition-transform duration-200 lg:w-[calc(100%+88px)] lg:flex-1 lg:origin-center [@media(min-width:1367px)_and_(max-height:900px)]:scale-[.95] [@media(min-width:1367px)_and_(max-height:800px)]:scale-[.88] [@media(min-width:1367px)_and_(max-height:720px)]:scale-[.80]">
-          {children}
-          <StatusFooter className="mt-3 shrink-0 justify-center py-0 lg:py-1" />
-        </div>
-      </div>
-    </div>
+    <AuthFrame
+      footer={
+        <>
+          <AuthHelpPill />
+          <StatusFooter className="w-auto shrink-0 justify-center py-0" />
+        </>
+      }
+    >
+      {children}
+    </AuthFrame>
   );
 }

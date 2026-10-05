@@ -112,6 +112,12 @@ interface PaymentButtonProps {
   onSuccess?: (paymentId: string) => void;
   onError?: (error: string) => void;
   className?: string;
+  /**
+   * Look only. Paying is amber ("action") in the design. When a caller paints the button
+   * itself (a `bg-…` class in `className`) the plain base is used so its colours stay as they are.
+   */
+  variant?: React.ComponentProps<typeof Button>["variant"];
+  size?: React.ComponentProps<typeof Button>["size"];
   children?: React.ReactNode;
 }
 
@@ -236,6 +242,8 @@ export function PaymentButton({
   onSuccess,
   onError,
   className,
+  variant,
+  size,
   children,
 }: PaymentButtonProps) {
   const queryClient = useQueryClient();
@@ -1050,9 +1058,15 @@ export function PaymentButton({
     void handlePaymentRef.current();
   }, [autoStart, disabled, appointmentId]);
 
+  // Look only: amber unless the caller sets its own background.
+  const buttonVariant =
+    variant ?? (/(^|\s)bg-/.test(className ?? "") ? "default" : "action");
+
   return (
     <Button
       type="button"
+      variant={buttonVariant}
+      {...(size ? { size } : {})}
       onClick={handlePayment}
       onPointerEnter={warmUpPaymentResources}
       onFocus={warmUpPaymentResources}
@@ -1061,7 +1075,7 @@ export function PaymentButton({
     >
       {isProcessing ? (
         <>
-          <Loader2 className="mr-2 size-4 animate-spin" />
+          <Loader2 className="size-4 animate-spin" />
           Processing…
         </>
       ) : (

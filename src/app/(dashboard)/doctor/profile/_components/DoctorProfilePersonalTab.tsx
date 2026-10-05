@@ -1,15 +1,12 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UserCheck } from "lucide-react";
-import type {
-  DoctorProfileFormState,
-} from "./doctor-profile.types";
+import { UserRound } from "lucide-react";
+import { Pill } from "@/components/tbd";
+import { ProfileCard, ProfileField } from "./DoctorProfileParts";
+import type { DoctorProfileFormState } from "./doctor-profile.types";
 
 interface DoctorProfilePersonalTabProps {
   profileData: DoctorProfileFormState;
@@ -22,107 +19,98 @@ export function DoctorProfilePersonalTab({
   updatePersonalInfo,
   phoneVerified,
 }: DoctorProfilePersonalTabProps) {
+  const { personalInfo } = profileData;
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <UserCheck className="size-5" />
-          Personal Information
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-y-4">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <Label htmlFor="firstName">First Name</Label>
-            <Input
-              id="firstName"
-              value={profileData.personalInfo.firstName}
-              onChange={(e) => updatePersonalInfo("firstName", e.target.value)}
-            />
-          </div>
-          <div>
-            <Label htmlFor="lastName">Last Name</Label>
-            <Input
-              id="lastName"
-              value={profileData.personalInfo.lastName}
-              onChange={(e) => updatePersonalInfo("lastName", e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <Label htmlFor="email">Email Address</Label>
-            <Input
-              id="email"
-              type="email"
-              value={profileData.personalInfo.email}
-              onChange={(e) => updatePersonalInfo("email", e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-y-1.5">
-            <div className="flex items-center gap-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              {phoneVerified && (
-                <Badge variant="outline" className="text-green-600 border-green-600 text-xs">Verified</Badge>
-              )}
-            </div>
-            <Input
-              id="phone"
-              value={profileData.personalInfo.phone}
-              onChange={(e) => updatePersonalInfo("phone", e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div>
-            <Label htmlFor="dateOfBirth">Date of Birth</Label>
-            <Input
-              id="dateOfBirth"
-              type="date"
-              value={profileData.personalInfo.dateOfBirth}
-              onChange={(e) =>
-                updatePersonalInfo("dateOfBirth", e.target.value)
-              }
-            />
-          </div>
-          <div>
-            <Label htmlFor="gender">Gender</Label>
-            <Select
-              value={profileData.personalInfo.gender}
-              onValueChange={(value) => updatePersonalInfo("gender", value)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Male">Male</SelectItem>
-                <SelectItem value="Female">Female</SelectItem>
-                <SelectItem value="Other">Other</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="zipCode">ZIP Code</Label>
-            <Input
-              id="zipCode"
-              value={profileData.personalInfo.zipCode}
-              onChange={(e) => updatePersonalInfo("zipCode", e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div>
-          <Label htmlFor="address">Address</Label>
-          <Textarea
-            id="address"
-            value={profileData.personalInfo.address}
-            onChange={(e) => updatePersonalInfo("address", e.target.value)}
-            rows={2}
+    <ProfileCard icon={UserRound} title="Personal Information">
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+        <ProfileField label="First Name" htmlFor="firstName">
+          <Input
+            id="firstName"
+            autoComplete="given-name"
+            value={personalInfo.firstName}
+            onChange={(e) => updatePersonalInfo("firstName", e.target.value)}
           />
-        </div>
-      </CardContent>
-    </Card>
+        </ProfileField>
+        <ProfileField label="Last Name" htmlFor="lastName">
+          <Input
+            id="lastName"
+            autoComplete="family-name"
+            value={personalInfo.lastName}
+            onChange={(e) => updatePersonalInfo("lastName", e.target.value)}
+          />
+        </ProfileField>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+        <ProfileField label="Email Address" htmlFor="email">
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            value={personalInfo.email}
+            onChange={(e) => updatePersonalInfo("email", e.target.value)}
+          />
+        </ProfileField>
+        <ProfileField
+          label="Phone Number"
+          htmlFor="phone"
+          aside={phoneVerified ? <Pill tone="green">Verified</Pill> : null}
+        >
+          <Input
+            id="phone"
+            type="tel"
+            autoComplete="tel"
+            value={personalInfo.phone}
+            onChange={(e) => updatePersonalInfo("phone", e.target.value)}
+          />
+        </ProfileField>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+        <ProfileField label="Date of Birth" htmlFor="dateOfBirth">
+          <Input
+            id="dateOfBirth"
+            type="date"
+            value={personalInfo.dateOfBirth}
+            onChange={(e) => updatePersonalInfo("dateOfBirth", e.target.value)}
+          />
+        </ProfileField>
+        <ProfileField label="Gender" htmlFor="gender">
+          <Select
+            value={personalInfo.gender}
+            onValueChange={(value) => updatePersonalInfo("gender", value)}
+          >
+            <SelectTrigger id="gender" className="w-full border-line">
+              <SelectValue placeholder="Select" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Male">Male</SelectItem>
+              <SelectItem value="Female">Female</SelectItem>
+              <SelectItem value="Other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+        </ProfileField>
+        <ProfileField label="ZIP Code" htmlFor="zipCode">
+          <Input
+            id="zipCode"
+            inputMode="numeric"
+            autoComplete="postal-code"
+            value={personalInfo.zipCode}
+            onChange={(e) => updatePersonalInfo("zipCode", e.target.value)}
+          />
+        </ProfileField>
+      </div>
+
+      <ProfileField label="Address" htmlFor="address">
+        <Textarea
+          id="address"
+          className="min-h-[72px] border-line"
+          value={personalInfo.address}
+          onChange={(e) => updatePersonalInfo("address", e.target.value)}
+          rows={2}
+        />
+      </ProfileField>
+    </ProfileCard>
   );
 }

@@ -19,8 +19,8 @@ import {
   useClinicLedger,
 } from "@/hooks/query/useBilling";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { useLayoutStore } from "@/stores/layout.store";
 
 function BillingPageContent() {
@@ -59,36 +59,47 @@ function BillingPageContent() {
   const {
     data: clinicPlans = [],
     isPending: clinicPlansPending,
+    isFetching: clinicPlansFetching,
     refetch: refetchClinicPlans,
   } = useBillingPlans(clinicId, !!clinicId);
   const {
     data: fallbackPlans = [],
     isPending: fallbackPlansPending,
+    isFetching: fallbackPlansFetching,
     refetch: refetchFallbackPlans,
   } = useBillingPlans(undefined, !clinicId);
   const {
     data: userSubscriptions = [],
     isPending: userSubscriptionsPending,
+    isFetching: userSubscriptionsFetching,
     refetch: refetchUserSubscriptions,
   } = useSubscriptions(userId, clinicId, isPatientRole);
   const {
     data: userInvoices = [],
     isPending: userInvoicesPending,
+    isFetching: userInvoicesFetching,
+    error: userInvoicesError,
     refetch: refetchUserInvoices,
   } = useInvoices(userId, clinicId);
   const {
     data: clinicInvoices = [],
     isPending: clinicInvoicesPending,
+    isFetching: clinicInvoicesFetching,
+    error: clinicInvoicesError,
     refetch: refetchClinicInvoices,
   } = useClinicInvoices(usesClinicBillingData);
   const {
     data: userPayments = [],
     isPending: userPaymentsPending,
+    isFetching: userPaymentsFetching,
+    error: userPaymentsError,
     refetch: refetchUserPayments,
   } = usePayments(userId, clinicId);
   const {
     data: clinicPayments = [],
     isPending: clinicPaymentsPending,
+    isFetching: clinicPaymentsFetching,
+    error: clinicPaymentsError,
     refetch: refetchClinicPayments,
   } = useClinicPayments(undefined, usesClinicBillingData);
   const { data: analytics } = useBillingAnalytics(isAdminRole ? clinicId : "");
@@ -99,16 +110,27 @@ function BillingPageContent() {
   const invoices = usesClinicBillingData ? clinicInvoices : userInvoices;
   const payments = usesClinicBillingData ? clinicPayments : userPayments;
   const plans = clinicPlans.length > 0 ? clinicPlans : fallbackPlans;
-  const plansPending = clinicId ? clinicPlansPending : fallbackPlansPending;
+  const plansLoading = clinicId
+    ? clinicPlansPending && clinicPlansFetching
+    : fallbackPlansPending && fallbackPlansFetching;
 
+  // First load of the lists this role reads. A switched-off query stays "pending" for ever,
+  // so a list only counts as loading while its request is running.
+  const isSyncing = usesClinicBillingData
+    ? clinicInvoicesFetching || clinicPaymentsFetching
+    : userInvoicesFetching || userPaymentsFetching;
   const isPending =
     isAuthPending ||
-    plansPending ||
-    (isAdminRole
-      ? clinicInvoicesPending || clinicPaymentsPending
-      : usesClinicBillingData
-        ? clinicInvoicesPending || clinicPaymentsPending
-        : hasUserId && (userSubscriptionsPending || userInvoicesPending || userPaymentsPending));
+    (usesClinicBillingData
+      ? (clinicInvoicesPending && clinicInvoicesFetching) || (clinicPaymentsPending && clinicPaymentsFetching)
+      : hasUserId &&
+        ((userInvoicesPending && userInvoicesFetching) || (userPaymentsPending && userPaymentsFetching))) ||
+    // Plans and subscriptions are only shown to patients.
+    (isPatientRole && (plansLoading || (userSubscriptionsPending && userSubscriptionsFetching)));
+  const loadFailure = usesClinicBillingData
+    ? clinicInvoicesError || clinicPaymentsError
+    : userInvoicesError || userPaymentsError;
+  const loadError = loadFailure ? loadFailure.message || "Please try again." : null;
 
   const handleRefetchAll = useCallback(() => {
     void refetchClinicPlans();
@@ -175,11 +197,18 @@ function BillingPageContent() {
   // For billing queries, render UI immediately and let sections refresh progressively.
   if (isAuthPending && !session?.user) {
     return (
-      <Card>
-        <CardContent className="py-12 text-center text-muted-foreground">
-          Loading billing data&hellip;
-        </CardContent>
-      </Card>
+      <DashboardPageShell>
+        <span className="sr-only" role="status">
+          Loading billing data…
+        </span>
+        <Skeleton className="h-[132px] w-full rounded-[24px]" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-hidden="true">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-[92px] rounded-[18px]" />
+          ))}
+        </div>
+        <Skeleton className="h-64 w-full rounded-[20px]" />
+      </DashboardPageShell>
     );
   }
 
@@ -193,6 +222,8 @@ function BillingPageContent() {
       invoices={invoices}
       payments={payments}
       isLoading={isPending}
+      loadError={loadError}
+      isSyncing={isSyncing}
       {...(isAdminRole && clinicLedger ? { ledger: clinicLedger } : {})}
       onRefetch={handleRefetchAll}
       {...(analytics ? { analytics } : {})}

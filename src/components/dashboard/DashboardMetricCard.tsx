@@ -27,25 +27,27 @@ export function DashboardMetricCard({
   valueClassName,
   compact = false,
 }: DashboardMetricCardProps) {
+  // Design "kpi": label, big number, small line under it, icon on the right.
+  // `accentClassName` is kept for existing call sites; the coloured left edge is gone.
   return (
     <Card
       className={cn(
-        "gap-0 rounded-2xl border-l-4 py-0 shadow-sm transition-shadow duration-300 hover:shadow-md",
+        "flex-row items-center gap-3.5 rounded-[18px] transition-shadow duration-300 hover:shadow-md",
+        compact ? "px-4 py-3" : "px-[18px] py-4",
         accentClassName,
         className
       )}
     >
-      <CardHeader className={cn("flex flex-row items-center justify-between gap-y-0 px-2.5 pb-0.5", compact ? "pt-2" : "pt-3")}>
-        <CardTitle className={cn("text-[10px] font-medium uppercase tracking-wide text-muted-foreground", labelClassName)}>
-          {label}
-        </CardTitle>
-        {icon ? <div className="shrink-0">{icon}</div> : null}
-      </CardHeader>
-      <CardContent className={cn("px-2.5 pt-0", compact ? "pb-2" : "pb-3")}>
-        <div className={cn("font-semibold leading-none", valueClassName)}>{value}</div>
-        {subtext ? <p className="mt-1 text-[11px] text-muted-foreground">{subtext}</p> : null}
+      <CardContent className="flex min-w-0 flex-1 flex-col gap-0.5 p-0">
+        <CardHeader className="block p-0">
+          <CardTitle className={cn("truncate text-xs font-bold leading-tight text-ink-muted", labelClassName)}>
+            {label}
+          </CardTitle>
+        </CardHeader>
+        <div className={cn("truncate text-[26px] font-extrabold leading-[1.15] text-ink", valueClassName)}>{value}</div>
+        {subtext ? <p className="truncate text-xs text-ink-muted">{subtext}</p> : null}
       </CardContent>
+      {icon ? <div className="shrink-0">{icon}</div> : null}
     </Card>
   );
 }
-

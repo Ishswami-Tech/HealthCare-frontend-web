@@ -142,6 +142,8 @@ export interface CreateAppointmentData {
   notes?: string;
   clinicId?: string;
   locationId?: string | undefined;
+  /** Family member (dependent of the booking patient) the visit is for. Omit when it is for the patient. */
+  familyMemberId?: string;
   symptoms?: string[];
   priority?: AppointmentPriority;
 }

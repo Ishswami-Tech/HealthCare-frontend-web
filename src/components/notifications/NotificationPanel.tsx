@@ -94,11 +94,11 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
           className={cn("relative", className)}
           aria-label="Notifications"
         >
-          <Bell className="size-5" />
+          <Bell className="size-[18px]" />
           {unreadCount > 0 && (
             <Badge
               variant="destructive"
-              className="absolute -top-1 -right-1 size-5 flex items-center justify-center p-0 text-xs"
+              className="absolute -top-1.5 -right-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-card bg-[#e11d48] px-1 py-0 text-[10px] font-extrabold text-white"
             >
               {unreadCount > 99 ? "99+" : unreadCount}
             </Badge>

@@ -23,10 +23,10 @@ export function AppointmentStepWrapper({
       {(title || description || badge) && (
         <header className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            {title ? <h3 className="text-sm font-semibold text-foreground">{title}</h3> : <span />}
+            {title ? <h3 className="m-0 text-base font-bold text-ink">{title}</h3> : <span />}
             {badge}
           </div>
-          {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+          {description ? <p className="m-0 text-[13px] text-ink-muted">{description}</p> : null}
         </header>
       )}
       {children}

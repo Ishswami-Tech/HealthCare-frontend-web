@@ -144,6 +144,8 @@ export interface TranslationKeys {
   };
   dashboard: {
     welcomeBack: string;
+    hello: string;
+    howAreYouFeeling: string;
     overview: string;
     bookAppointment: string;
   };

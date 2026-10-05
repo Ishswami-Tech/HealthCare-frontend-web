@@ -47,8 +47,15 @@ function scheduleNextRefresh(delayMs: number): void {
   if (typeof window === "undefined") return;
   clearSchedulerTimer();
   schedulerState.timer = window.setTimeout(async () => {
+    schedulerState.timer = null;
+    const scheduledToken = schedulerState.token;
+    if (!scheduledToken || !useAuthStore.getState().session?.access_token) return;
     try {
       const refreshed = await refreshClientSessionOnce("auth-refresh-scheduler");
+      if (
+        schedulerState.token !== scheduledToken ||
+        !useAuthStore.getState().session?.access_token
+      ) return;
       if (refreshed?.access_token) {
         schedulerState.token = refreshed.access_token;
         // Reschedule based on the *new* token's exp.
@@ -60,7 +67,10 @@ function scheduleNextRefresh(delayMs: number): void {
         scheduleNextRefresh(30_000);
       }
     } catch {
-      scheduleNextRefresh(30_000);
+      if (
+        schedulerState.token === scheduledToken &&
+        useAuthStore.getState().session?.access_token
+      ) scheduleNextRefresh(30_000);
     }
   }, Math.max(delayMs, 5_000));
 }
@@ -73,6 +83,7 @@ export function useAuthRefreshScheduler(): void {
     if (typeof window === "undefined") return;
     if (!accessToken) {
       clearSchedulerTimer();
+      schedulerState.token = null;
       lastTokenRef.current = null;
       return;
     }

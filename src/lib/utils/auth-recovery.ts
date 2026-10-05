@@ -80,13 +80,6 @@ export function isSessionInvalidError(error: unknown): boolean {
     return false;
   }
 
-  // Also check for network errors that might occur after logout
-  // (e.g., "Failed to fetch" when server is unavailable)
-  const networkPatterns = ["failed to fetch", "fetch failed", "network error", "net::"];
-  if (networkPatterns.some(pattern => message.includes(pattern))) {
-    return true;
-  }
-
   return [
     "no token provided",
     "authentication required",
@@ -142,22 +135,30 @@ export async function refreshClientSessionForRealtime(
   context: string
 ): Promise<Session | null> {
   const authStore = useAuthStore.getState();
+  const originalSession = authStore.session;
   authStore.setRefreshing(true);
 
   try {
     const refreshedSession = await refreshToken();
+    const currentSession = useAuthStore.getState().session;
+    if (!currentSession || currentSession.user?.id !== originalSession?.user?.id) {
+      return null;
+    }
     if (refreshedSession?.access_token) {
       authStore.setSession(refreshedSession);
       return refreshedSession;
     }
 
+    // The server action returns null only when the refresh session is invalid;
+    // temporary failures throw and must remain retryable.
+    triggerClientAuthRecovery();
     return null;
   } catch (error) {
     if (process.env.NODE_ENV === "development") {
       // Keep logs quiet in production unless the caller wants to surface the failure.
       console.warn(`[${context}] realtime auth refresh failed`, error);
     }
-    return null;
+    throw error;
   } finally {
     authStore.setRefreshing(false);
   }

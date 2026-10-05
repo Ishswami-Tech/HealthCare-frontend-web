@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { 
   Dialog, 
@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useClinics, useClinicLocations, useMyClinic, useClinic } from "@/hooks/query/useClinics";
 import { MapPin, Building, ChevronRight, Loader2, Plus } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { IconBox, Pill } from "@/components/tbd";
 
 
 interface ClinicSelectDialogProps {
@@ -50,18 +51,51 @@ const isLoading = clinicsLoading || myClinicLoading || defaultClinicLoading;
         ? ((locationSource.data as any[]) || [])
         : [];
 
-  const handleSelectLocation = (clinicId: string, locationId: string) => {
-    setOpen(false);
-    const selectedClinic = clinics.find(c => c.id === clinicId);
-    const clinicName = selectedClinic?.name || "";
-    push(`/patient/appointments?clinicId=${clinicId}&locationId=${locationId}&clinicName=${encodeURIComponent(clinicName)}`);
-  };
+  const handleSelectLocation = useCallback(
+    (clinicId: string, locationId: string) => {
+      setOpen(false);
+      const selectedClinic = clinics.find(c => c.id === clinicId);
+      const clinicName = selectedClinic?.name || "";
+      push(`/patient/appointments?clinicId=${clinicId}&locationId=${locationId}&clinicName=${encodeURIComponent(clinicName)}`);
+    },
+    [clinics, push],
+  );
+
+  // A clinic with exactly one active location offers no real choice, so skip
+  // the picker and go straight through — mirroring the single-clinic shortcut
+  // in `effectiveClinicId` above. Waits for locationsLoading so a momentarily
+  // empty list can't be mistaken for "one option", and the ref keeps the
+  // navigation to once per opening (locations/clinics are new arrays each
+  // render, so this effect re-runs often and must stay idempotent).
+  const hasAutoSelectedRef = useRef(false);
+  useEffect(() => {
+    if (!open) {
+      hasAutoSelectedRef.current = false;
+      return;
+    }
+    if (hasAutoSelectedRef.current || locationsLoading || !effectiveClinicId) {
+      return;
+    }
+    if (locations.length !== 1) return;
+
+    const onlyLocationId = locations[0]?.id;
+    if (!onlyLocationId) return;
+
+    hasAutoSelectedRef.current = true;
+    handleSelectLocation(effectiveClinicId, onlyLocationId);
+  }, [
+    open,
+    locationsLoading,
+    effectiveClinicId,
+    locations,
+    handleSelectLocation,
+  ]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger || (
-          <Button className="flex items-center gap-2 rounded-xl border border-amber-400 bg-amber-600 text-white shadow-[0_8px_20px_rgba(217,119,6,0.22)] transition-all hover:-translate-y-0.5 hover:border-amber-500 hover:bg-amber-700 hover:shadow-[0_12px_28px_rgba(217,119,6,0.28)] active:scale-95 focus-visible:ring-2 focus-visible:ring-amber-300 dark:border-amber-700 dark:bg-amber-600 dark:shadow-[0_8px_20px_rgba(245,158,11,0.15)] dark:hover:bg-amber-500">
+          <Button variant="action" size="md">
             <Plus className="size-4" />
             Book Video Appointment
           </Button>
@@ -69,26 +103,26 @@ const isLoading = clinicsLoading || myClinicLoading || defaultClinicLoading;
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
         <DialogHeader className="p-6 pb-2">
-          <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-            <Building className="size-6 text-blue-600" />
+          <DialogTitle className="flex items-center gap-2.5">
+            <IconBox icon={Building} tone="mint" size={36} />
             Select Clinic Location
           </DialogTitle>
-          <DialogDescription className="text-muted-foreground text-sm">
+          <DialogDescription>
             Choose a clinic location to book your appointment.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden flex flex-col border-t mt-4">
+        <div className="mt-4 flex flex-1 flex-col overflow-hidden border-t border-hair">
           {/* Clinic Header / Context - Only show if we have a clinic selected or only one option */}
           {(effectiveClinicId && clinics.find(c => c.id === effectiveClinicId)) && (
-            <div className="px-6 py-4 bg-muted/30 border-b flex items-center justify-between">
+            <div className="flex items-center justify-between border-b border-hair bg-[#f8fafc] px-6 py-4 dark:bg-well/50">
               <div>
-                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Clinic</p>
-                 <h3 className="font-semibold text-base text-foreground flex items-center gap-2">
-                    <Building className="size-4 text-blue-600" />
+                 <p className="mb-1 text-[11px] font-extrabold uppercase tracking-[0.6px] text-ink-muted">Clinic</p>
+                 <h3 className="flex items-center gap-2 text-base font-bold text-ink">
+                    <Building className="size-4 text-brand" />
                     {clinics.find(c => c.id === effectiveClinicId)?.name}
                  </h3>
-                 <p className="text-xs text-muted-foreground mt-0.5">{clinics.find(c => c.id === effectiveClinicId)?.address}</p>
+                 <p className="mt-0.5 text-xs text-ink-muted">{clinics.find(c => c.id === effectiveClinicId)?.address}</p>
               </div>
               {clinics.length > 1 && (
                   <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedClinicId(null)} className="text-xs h-8">
@@ -101,21 +135,21 @@ const isLoading = clinicsLoading || myClinicLoading || defaultClinicLoading;
           {/* Clinic List - Only show if no clinic is selected (rare case if length > 1) */}
           {!effectiveClinicId && (
              <div className="flex-1 overflow-y-auto p-4">
-               <p className="text-sm font-medium mb-3 text-muted-foreground">Please select a clinic</p>
+               <p className="mb-3 text-sm font-medium text-ink-muted">Please select a clinic</p>
                <div className="grid gap-3">
                  {isLoading ? (
-                    <div className="flex justify-center p-4"><Loader2 className="animate-spin text-blue-600" /></div>
+                    <div className="flex justify-center p-4"><Loader2 className="animate-spin text-brand" /></div>
                  ) : clinics.map((clinic) => (
                    <Button
                      key={clinic.id}
                      type="button"
                      variant="outline"
                      onClick={() => setSelectedClinicId(clinic.id)}
-                     className="w-full justify-start rounded-xl border p-4 text-left hover:border-blue-500 hover:shadow-sm bg-card"
+                     className="h-auto w-full justify-start whitespace-normal rounded-2xl border-2 border-line bg-card p-4 text-left hover:border-brand/40 hover:bg-mint-soft"
                    >
                       <div className="flex flex-col gap-y-1">
-                       <h4 className="font-semibold">{clinic.name}</h4>
-                       <p className="text-sm text-muted-foreground">{clinic.address}</p>
+                       <h4 className="m-0 text-sm font-bold text-ink">{clinic.name}</h4>
+                       <p className="m-0 text-[13px] font-normal text-ink-muted">{clinic.address}</p>
                      </div>
                    </Button>
                  ))}
@@ -126,8 +160,8 @@ const isLoading = clinicsLoading || myClinicLoading || defaultClinicLoading;
           {/* Location List - Full Width */}
           {effectiveClinicId && (
             <div className="flex-1 flex flex-col min-h-0 bg-background">
-              <div className="px-6 py-3 border-b bg-background z-10">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="z-10 border-b border-hair bg-card px-6 py-3">
+                <p className="m-0 text-[11px] font-extrabold uppercase tracking-[0.6px] text-ink-muted">
                   Available Locations
                 </p>
               </div>
@@ -135,14 +169,12 @@ const isLoading = clinicsLoading || myClinicLoading || defaultClinicLoading;
                 <div className="flex flex-col gap-y-3 p-4 pt-2">
                   {locationsLoading ? (
                     <div className="flex items-center justify-center py-12">
-                      <Loader2 className="size-6 animate-spin text-blue-600" />
+                      <Loader2 className="size-6 animate-spin text-brand" />
                     </div>
                   ) : locations.length === 0 ? (
                     <div className="flex flex-col gap-y-3 py-12 text-center">
-                      <div className="size-12 rounded-full bg-muted flex items-center justify-center mx-auto">
-                         <MapPin className="size-6 text-muted-foreground" />
-                      </div>
-                      <p className="text-sm text-muted-foreground">No active locations for this clinic.</p>
+                      <IconBox icon={MapPin} tone="slate" size={48} className="mx-auto" />
+                      <p className="m-0 text-sm text-ink-muted">No active locations for this clinic.</p>
                     </div>
                   ) : (
                     locations.map((loc) => (
@@ -151,34 +183,30 @@ const isLoading = clinicsLoading || myClinicLoading || defaultClinicLoading;
                         key={loc.id}
                         variant="outline"
                         onClick={() => handleSelectLocation(effectiveClinicId, loc.id)}
-                        className="group w-full justify-start text-left p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 hover:border-blue-500 hover:ring-2 hover:ring-blue-500/20 transition-all bg-white dark:bg-neutral-900 shadow-sm"
+                        className="group h-auto w-full flex-col items-stretch justify-start whitespace-normal rounded-2xl border-2 border-line bg-card p-4 text-left hover:border-brand/40 hover:bg-mint-soft"
                       >
                         <div className="flex items-center justify-between">
                       <div className="flex flex-col gap-y-1">
-                            <h4 className="font-semibold text-base group-hover:text-blue-600 transition-colors">
+                            <h4 className="m-0 text-[15px] font-bold text-ink">
                               {loc.name}
                             </h4>
-                            <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                              <MapPin className="size-4 mt-0.5 shrink-0 text-muted-foreground/70" />
+                            <div className="flex items-start gap-2 text-[13px] font-normal text-ink-muted">
+                              <MapPin className="mt-0.5 size-4 shrink-0" />
                               <span>{loc.address}, {loc.city}</span>
                             </div>
                             {loc.phone && (
-                              <p className="text-xs text-muted-foreground pl-6">
+                              <p className="m-0 pl-6 text-xs font-normal text-ink-muted">
                                 Ph: {loc.phone}
                               </p>
                             )}
                           </div>
-                          <ChevronRight className="size-5 text-muted-foreground group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+                          <ChevronRight className="size-5 shrink-0 text-ink-muted transition-transform group-hover:translate-x-1 group-hover:text-brand" />
                         </div>
                         {loc.isActive && (
                           <div className="mt-3 pl-6 flex items-center gap-2">
-                             <span className="inline-flex items-center gap-1.5 py-0.5 px-2 rounded-md text-xs font-medium bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border border-green-100 dark:border-green-900/30">
-                                <span className="relative flex size-2">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                  <span className="relative inline-flex rounded-full size-2 bg-green-500"></span>
-                                </span>
+                             <Pill tone="green" dot>
                                 Accepting Appointments
-                             </span>
+                             </Pill>
                           </div>
                         )}
                       </Button>

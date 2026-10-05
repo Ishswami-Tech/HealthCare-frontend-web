@@ -1,0 +1,216 @@
+/*
+ * TestByDoctor web design system — shared look for the patient, doctor and pharmacy portals.
+ *
+ * Tokens here mirror the approved designs:
+ *   ink #0f1b2d · soft #3b4a5e · muted #4b5a6e · line #e2e8f0 · hair #eef2f6 · well #f1f5f9
+ *   brand (emerald) #047857 · mint #d1fae5 · action (amber, book / pay / join video only) #fe9a00
+ * Each token has a dark value so the existing theme switch keeps working.
+ */
+
+:root {
+  --tbd-ink: #0f1b2d;
+  --tbd-soft: #3b4a5e;
+  --tbd-muted: #4b5a6e;
+  --tbd-line: #e2e8f0;
+  --tbd-hair: #eef2f6;
+  --tbd-well: #f1f5f9;
+  --tbd-brand: #047857;
+  --tbd-brand-dark: #065f46;
+  --tbd-mint: #d1fae5;
+  --tbd-mint-soft: #ecfdf5;
+  --tbd-action: #fe9a00;
+  --tbd-video: #4f46e5;
+  --tbd-card-shadow: 0 1px 3px rgba(15, 27, 45, 0.06);
+}
+
+.dark {
+  --tbd-ink: #f1f5f9;
+  --tbd-soft: #cbd5e1;
+  --tbd-muted: #94a3b8;
+  --tbd-line: #2a3340;
+  --tbd-hair: #212936;
+  --tbd-well: #1b222c;
+  --tbd-brand: #34d399;
+  --tbd-brand-dark: #6ee7b7;
+  --tbd-mint: rgba(16, 185, 129, 0.2);
+  --tbd-mint-soft: rgba(16, 185, 129, 0.1);
+  --tbd-action: #fe9a00;
+  --tbd-video: #818cf8;
+  --tbd-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+@theme inline {
+  --color-ink: var(--tbd-ink);
+  --color-ink-soft: var(--tbd-soft);
+  --color-ink-muted: var(--tbd-muted);
+  --color-line: var(--tbd-line);
+  --color-hair: var(--tbd-hair);
+  --color-well: var(--tbd-well);
+  --color-brand: var(--tbd-brand);
+  --color-brand-dark: var(--tbd-brand-dark);
+  --color-mint: var(--tbd-mint);
+  --color-mint-soft: var(--tbd-mint-soft);
+  --color-action: var(--tbd-action);
+  --color-video: var(--tbd-video);
+  --shadow-card: var(--tbd-card-shadow);
+  --shadow-brand: 0 8px 18px rgba(4, 120, 87, 0.25);
+  --shadow-action: 0 8px 18px rgba(254, 154, 0, 0.3);
+}
+
+/* ── Section backgrounds ────────────────────────────────────────────────────
+ * One soft wash per area, the same six as the mobile app:
+ *   mint: home, dashboards, queue, check-in · sky: appointments, booking
+ *   lavender: video, prescriptions, profile, settings, library · sun: billing
+ *   aqua: patients, health records, medicines, inventory · peach: reports, help
+ */
+.tbd-wash {
+  --wash-page: #f4f9f6;
+  --wash-top: #d3f0dd;
+  --wash-a: 167, 243, 208;
+  --wash-b: 186, 230, 253;
+  background:
+    radial-gradient(520px 360px at 100% 0%, rgba(var(--wash-a), 0.75) 0%, rgba(var(--wash-a), 0) 70%),
+    radial-gradient(460px 320px at 8% 26%, rgba(var(--wash-b), 0.45) 0%, rgba(var(--wash-b), 0) 70%),
+    linear-gradient(180deg, var(--wash-top) 0px, var(--wash-page) 460px),
+    var(--wash-page);
+}
+.tbd-wash[data-tone="sky"] {
+  --wash-page: #f3f7fd;
+  --wash-top: #d6e8fb;
+  --wash-a: 191, 219, 254;
+  --wash-b: 187, 247, 208;
+}
+.tbd-wash[data-tone="lavender"] {
+  --wash-page: #f6f5fd;
+  --wash-top: #e4e1fd;
+  --wash-a: 199, 210, 254;
+  --wash-b: 251, 207, 232;
+}
+.tbd-wash[data-tone="sun"] {
+  --wash-page: #fffaf0;
+  --wash-top: #fdefc8;
+  --wash-a: 253, 230, 138;
+  --wash-b: 187, 247, 208;
+}
+.tbd-wash[data-tone="aqua"] {
+  --wash-page: #f1f9fa;
+  --wash-top: #cdeff0;
+  --wash-a: 153, 246, 228;
+  --wash-b: 186, 230, 253;
+}
+.tbd-wash[data-tone="peach"] {
+  --wash-page: #fff7f1;
+  --wash-top: #ffe4d1;
+  --wash-a: 254, 215, 170;
+  --wash-b: 253, 230, 138;
+}
+.dark .tbd-wash {
+  background:
+    radial-gradient(520px 360px at 100% 0%, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0) 70%),
+    var(--background);
+}
+
+/* ── Feature card ("hero") ─────────────────────────────────────────────────
+ * Light mint-to-cream card with two soft circles. Used for page banners,
+ * the next-patient card, balances and tokens. */
+.tbd-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid #c9eedb;
+  background: linear-gradient(135deg, #ecfdf5 0%, #fffbeb 60%, #fef3c7 100%);
+  box-shadow: 0 10px 24px rgba(4, 120, 87, 0.1);
+}
+.tbd-hero::before,
+.tbd-hero::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+.tbd-hero::before {
+  right: -90px;
+  top: -110px;
+  width: 240px;
+  height: 240px;
+  background: #a7f3d0;
+  opacity: 0.6;
+}
+.tbd-hero::after {
+  right: -20px;
+  top: 140px;
+  width: 160px;
+  height: 160px;
+  background: #fde68a;
+  opacity: 0.5;
+}
+/* Content always sits above the two circles (also on tall phone banners). */
+.tbd-hero > * {
+  position: relative;
+  z-index: 1;
+}
+.tbd-hero[data-tone="video"] {
+  border-color: #d7dcfb;
+  background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 55%, #fdf2f8 100%);
+  box-shadow: 0 10px 24px rgba(79, 70, 229, 0.12);
+}
+.tbd-hero[data-tone="video"]::before {
+  background: #c7d2fe;
+}
+.tbd-hero[data-tone="video"]::after {
+  background: #fbcfe8;
+}
+.tbd-hero[data-tone="aqua"] {
+  border-color: #bfe9ea;
+  background: linear-gradient(135deg, #ecfeff 0%, #f0fdfa 55%, #ecfdf5 100%);
+  box-shadow: 0 10px 24px rgba(13, 148, 136, 0.1);
+}
+.tbd-hero[data-tone="aqua"]::before {
+  background: #99f6e4;
+}
+.tbd-hero[data-tone="aqua"]::after {
+  background: #bae6fd;
+}
+.tbd-hero[data-tone="sun"] {
+  border-color: #f5e3a8;
+  background: linear-gradient(135deg, #fffbeb 0%, #fef9c3 55%, #ecfdf5 100%);
+  box-shadow: 0 10px 24px rgba(217, 119, 6, 0.1);
+}
+.tbd-hero[data-tone="sun"]::before {
+  background: #fde68a;
+}
+.tbd-hero[data-tone="sun"]::after {
+  background: #a7f3d0;
+}
+.dark .tbd-hero,
+.dark .tbd-hero[data-tone] {
+  border-color: rgba(52, 211, 153, 0.22);
+  background: linear-gradient(135deg, rgba(6, 78, 59, 0.45) 0%, rgba(23, 23, 23, 0.6) 100%);
+  box-shadow: none;
+}
+.dark .tbd-hero::before,
+.dark .tbd-hero::after {
+  opacity: 0.08;
+}
+
+/* Live dot (queue, shift, in-call) */
+@keyframes tbd-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.6);
+    opacity: 0.45;
+  }
+}
+.tbd-pulse {
+  animation: tbd-pulse 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tbd-pulse {
+    animation: none;
+  }
+}

@@ -51,8 +51,11 @@ export interface NormalizedPatientAppointment {
 
 const IN_PERSON_DEFAULT_DURATION_MINUTES = 3;
 const VIDEO_DEFAULT_DURATION_MINUTES = 15;
-const VIDEO_JOIN_EARLY_WINDOW_MINUTES = 15;
-const VIDEO_JOIN_LATE_WINDOW_MINUTES = 300;
+// One source of truth for the video join window on the web (the backend and the mobile app use
+// the same two numbers). Every sentence that mentions the window uses VIDEO_JOIN_WINDOW_TEXT.
+export const VIDEO_JOIN_EARLY_WINDOW_MINUTES = 15;
+export const VIDEO_JOIN_LATE_WINDOW_MINUTES = 300;
+export const VIDEO_JOIN_WINDOW_TEXT = `Join opens ${VIDEO_JOIN_EARLY_WINDOW_MINUTES} minutes before your visit and stays open for ${VIDEO_JOIN_LATE_WINDOW_MINUTES / 60} hours after start.`;
 
 const COMPLETED_PAYMENT_STATUSES = new Set(['COMPLETED', 'SUCCESS', 'PAID', 'CAPTURED']);
 const PENDING_PAYMENT_STATUSES = new Set([
@@ -926,6 +929,44 @@ export function canRescheduleAppointment(status: unknown): boolean {
   return APPOINTMENT_RESCHEDULABLE_STATUSES.has(normalizeAppointmentStatus(status));
 }
 
+/** A visit can be moved this many times (the backend's MAX_RESCHEDULES). */
+export const APPOINTMENT_MAX_RESCHEDULES = 2;
+
+/** How many times this visit has already been moved. */
+export function getAppointmentRescheduleCount(appointment: any): number {
+  const count = Number(appointment?.metadata?.rescheduleCount ?? 0);
+  return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+}
+
+/**
+ * The video reschedule rule, the same as the backend's: only while CONFIRMED (the doctor has
+ * not started the visit), until its window closes (5 hours after the visit time), and at most
+ * APPOINTMENT_MAX_RESCHEDULES times. After the window the visit expires and cannot be moved.
+ */
+export function canRescheduleVideoAppointment(appointment: any, now = new Date()): boolean {
+  const status = getAppointmentViewState(appointment).normalizedStatus.toUpperCase();
+  if (!canRescheduleAppointment(status)) {
+    return false;
+  }
+  if (getAppointmentRescheduleCount(appointment) >= APPOINTMENT_MAX_RESCHEDULES) {
+    return false;
+  }
+  const window = getVideoJoinWindow(appointment);
+  return !window.end || now <= window.end;
+}
+
+/**
+ * A video visit is never cancelled by the patient (it is rescheduled, or it expires), and by
+ * nobody once it is paid. Staff can cancel one that is still unpaid and not yet confirmed.
+ */
+export function canCancelVideoAppointment(appointment: any, viewerIsPatient: boolean): boolean {
+  if (viewerIsPatient) {
+    return false;
+  }
+  const viewState = getAppointmentViewState(appointment);
+  return !viewState.paymentCompleted && canCancelAppointment(viewState.normalizedStatus);
+}
+
 export function isTerminalAppointment(appointment: any): boolean {
   if (!appointment || typeof appointment !== 'object') {
     return false;
@@ -1277,8 +1318,7 @@ export function getVideoSessionDecision(appointment: any): VideoSessionDecision 
       status,
       action: 'blocked',
       label: status === 'IN_PROGRESS' ? 'Resume Video Call' : 'Join Session',
-      blockedReason:
-        'Join opens 15 minutes before your visit and stays open for 5 hours after start.',
+      blockedReason: VIDEO_JOIN_WINDOW_TEXT,
       shouldCallConsultationStart: false,
       canJoin: false,
     };
@@ -1310,8 +1350,7 @@ export function getVideoSessionDecision(appointment: any): VideoSessionDecision 
     status,
     action: 'blocked',
     label: getAppointmentStatusDisplayName(status),
-    blockedReason:
-      'Join opens 20 minutes before your visit and stays open for 5 hours after start.',
+    blockedReason: VIDEO_JOIN_WINDOW_TEXT,
     shouldCallConsultationStart: false,
     canJoin: false,
   };

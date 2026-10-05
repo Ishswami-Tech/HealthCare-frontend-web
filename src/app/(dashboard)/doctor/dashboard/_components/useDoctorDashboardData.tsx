@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useReducer } from "react";
 import { useRouter } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useCurrentClinicId } from "@/hooks/query/useClinics";
 import { useCurrentDoctorEntityId } from "@/hooks/query/useDoctors";
@@ -14,33 +13,34 @@ import {
   formatDateInIST,
   getAppointmentDateTimeValue,
   getAppointmentPatientName,
+  getVideoSessionDecision,
   shouldShowAppointmentOnDoctorDashboard,
+  VIDEO_JOIN_LATE_WINDOW_MINUTES,
 } from "@/lib/utils/appointmentUtils";
 import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 import { extractQueueEntries, hasQueuePatientIdentity } from "@/lib/queue/queue-adapter";
 import type { AppointmentWithRelations } from "@/types/appointment.types";
 import type { CanonicalQueueEntry } from "@/types/queue.types";
-import { Activity } from "lucide-react";
 import {
   buildDoctorDashboardStats,
+  buildDoctorQueueLines,
   buildDoctorQueueSections,
+  buildDoctorTodayRow,
   doctorDashboardReducer,
   getDisplayDoctorName,
   initialDoctorDashboardState,
   mapDoctorAppointmentToTimelineItem,
+  pickDoctorNextPatient,
+  type CompletedVisitSummary,
+  type DoctorAppointmentFilter,
   type DoctorQueueSection,
+  type DoctorTodayRow,
+  type DoctorVideoJoinState,
   type TransformedAppointment,
 } from "./doctor-dashboard.logic";
 
-const DOCTOR_DASHBOARD_META = (
-  <Badge
-    variant="outline"
-    className="rounded-md border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700"
-  >
-    <Activity className="mr-1 inline-block size-3" />
-    Active Shift
-  </Badge>
-);
+/** How often the video join state of today's visits is worked out again. */
+const JOIN_STATE_REFRESH_MS = 30_000;
 
 export function useDoctorDashboardData() {
   const { push } = useRouter();
@@ -87,6 +87,8 @@ export function useDoctorDashboardData() {
       consultTick,
       consultStartOverrides,
       activeDoctorQueueLane,
+      appointmentFilter,
+      lastCompletedVisit,
     },
     dispatch,
   ] = useReducer(doctorDashboardReducer, initialDoctorDashboardState);
@@ -218,7 +220,10 @@ export function useDoctorDashboardData() {
     Boolean(currentInPersonConsult?.checkedInAt) &&
     !currentConsultStartedAtMs;
 
-  const isConsultInProgress = currentConsultStatus === "IN_PROGRESS" || Boolean(currentConsultStartedAtMs);
+  // A visit that is already closed is never "in progress", even while the queue still lists it.
+  const isConsultInProgress =
+    !["COMPLETED", "CANCELLED", "NO_SHOW", "EXPIRED"].includes(currentConsultStatus) &&
+    (currentConsultStatus === "IN_PROGRESS" || Boolean(currentConsultStartedAtMs));
 
   const appointmentTimeline = useMemo(
     () =>
@@ -231,9 +236,124 @@ export function useDoctorDashboardData() {
     [today, visibleAppointmentsArray]
   );
 
+  // Video visits this doctor started and has not completed. Only the doctor can complete
+  // them, and they expire when the visit window closes, so they are surfaced on their own.
+  const openVideoVisits = useMemo(
+    () =>
+      appointmentTimeline
+        .filter(
+          (appointment: TransformedAppointment) =>
+            appointment.isVideo && appointment.statusEnum === "IN_PROGRESS" && appointment.startAtMs !== null
+        )
+        .map((appointment: TransformedAppointment) => ({
+          appointment,
+          expiresAtMs: (appointment.startAtMs as number) + VIDEO_JOIN_LATE_WINDOW_MINUTES * 60_000,
+        }))
+        .filter((visit: { expiresAtMs: number }) => visit.expiresAtMs > consultTick),
+    [appointmentTimeline, consultTick]
+  );
+
   const stats = useMemo(
     () => buildDoctorDashboardStats(appointmentsArray, appointmentTimeline, liveQueueEntries),
     [appointmentTimeline, appointmentsArray, liveQueueEntries]
+  );
+
+  const timelineById = useMemo(
+    () => new Map<string, TransformedAppointment>(appointmentTimeline.map((item: TransformedAppointment) => [item.id, item])),
+    [appointmentTimeline]
+  );
+
+  // Today's visits only: the table, its filter chips and the banner tiles all count these rows.
+  const todayTimeline = useMemo(
+    () => appointmentTimeline.filter((item: TransformedAppointment) => item.scheduleState === "TODAY"),
+    [appointmentTimeline]
+  );
+
+  // The join state depends on the clock, so it is worked out again every half minute from
+  // the full appointment (which carries the backend's join and payment signals).
+  const joinStateTick = Math.floor(consultTick / JOIN_STATE_REFRESH_MS);
+  const videoJoinById = useMemo(() => {
+    const todayVideoIds = new Set(
+      todayTimeline.filter((item: TransformedAppointment) => item.isVideo).map((item: TransformedAppointment) => item.id)
+    );
+    const result = new Map<string, DoctorVideoJoinState>();
+    visibleAppointmentsArray.forEach((appointment: AppointmentWithRelations) => {
+      if (!todayVideoIds.has(appointment.id)) {
+        return;
+      }
+      const decision = getVideoSessionDecision(appointment);
+      result.set(appointment.id, {
+        canJoin: decision.canJoin,
+        paymentPending: !decision.canJoin && /payment/i.test(`${decision.label} ${decision.blockedReason ?? ""}`),
+      });
+    });
+    return result;
+  }, [joinStateTick, todayTimeline, visibleAppointmentsArray]);
+
+  const todayRows = useMemo<DoctorTodayRow[]>(
+    () =>
+      todayTimeline.map((item: TransformedAppointment) =>
+        buildDoctorTodayRow(
+          lastCompletedVisit?.appointmentId === item.id && lastCompletedVisit.pharmacyMedicineCount > 0
+            ? { ...item, sentToPharmacy: true }
+            : item,
+          videoJoinById.get(item.id) ?? null,
+          joinStateTick * JOIN_STATE_REFRESH_MS
+        )
+      ),
+    [joinStateTick, lastCompletedVisit, todayTimeline, videoJoinById]
+  );
+
+  const appointmentCounts = useMemo(
+    () => ({
+      all: todayRows.length,
+      confirmed: todayRows.filter((row) => row.appointment.statusEnum === "CONFIRMED").length,
+      completed: todayRows.filter((row) => row.appointment.statusEnum === "COMPLETED").length,
+    }),
+    [todayRows]
+  );
+
+  const filteredTodayRows = useMemo(
+    () =>
+      appointmentFilter === "ALL"
+        ? todayRows
+        : todayRows.filter((row) => row.appointment.statusEnum === appointmentFilter),
+    [appointmentFilter, todayRows]
+  );
+
+  // Right rail: in-clinic, checked-in patients only (video visits never join the queue).
+  const queueLines = useMemo(() => buildDoctorQueueLines(liveQueueEntries, timelineById), [liveQueueEntries, timelineById]);
+
+  const activeConsult = useMemo<TransformedAppointment | null>(() => {
+    if (!currentInPersonConsult) {
+      return null;
+    }
+    return timelineById.get(currentInPersonConsult.id) ?? mapDoctorAppointmentToTimelineItem(currentInPersonConsult, today);
+  }, [currentInPersonConsult, timelineById, today]);
+
+  const nextPatient = useMemo(() => {
+    const queuePosition =
+      liveQueueEntries.find((entry) => entry.appointmentId === activeConsult?.id)?.position ?? null;
+    return pickDoctorNextPatient(
+      todayRows,
+      canStartConsultation && activeConsult
+        ? { appointment: activeConsult, queuePosition: queuePosition && queuePosition > 0 ? queuePosition : null }
+        : null
+    );
+  }, [activeConsult, canStartConsultation, liveQueueEntries, todayRows]);
+
+  const recordCompletedVisit = useCallback(
+    (summary: Omit<CompletedVisitSummary, "completedAtMs" | "patientName"> & { patientName?: string }) => {
+      dispatch({
+        type: "setLastCompletedVisit",
+        value: {
+          ...summary,
+          patientName: summary.patientName || timelineById.get(summary.appointmentId)?.patientName || "the patient",
+          completedAtMs: Date.now(),
+        },
+      });
+    },
+    [timelineById]
   );
 
   const handleOpenPrescription = useCallback((apt: TransformedAppointment) => {
@@ -279,6 +399,7 @@ export function useDoctorDashboardData() {
         appointmentId,
         doctorId: doctorIdForAppointment,
       });
+      dispatch({ type: "setLastCompletedVisit", value: null });
       dispatch({
         type: "setConsultStartOverrides",
         value: (prev) => ({
@@ -318,6 +439,14 @@ export function useDoctorDashboardData() {
         },
       },
     });
+    recordCompletedVisit({
+      appointmentId: currentInPersonConsult.id,
+      patientName: getAppointmentPatientName(currentInPersonConsult),
+      pharmacyMedicineCount: 0,
+      outsideMedicineCount: 0,
+      prescriptionNumber: null,
+      followUpDate: null,
+    });
     dispatch({ type: "setConsultSummary", value: "" });
     dispatch({
       type: "updatePrescriptionModal",
@@ -327,7 +456,7 @@ export function useDoctorDashboardData() {
       }),
     });
     await refetchAppointments();
-  }, [completeAppointmentMutation, consultSummary, currentInPersonConsult, refetchAppointments]);
+  }, [completeAppointmentMutation, consultSummary, currentInPersonConsult, recordCompletedVisit, refetchAppointments]);
 
   const handleCompleteAppointment = useCallback(
     async (appointmentId: string) => {
@@ -335,8 +464,43 @@ export function useDoctorDashboardData() {
         id: appointmentId,
         data: {},
       });
+      recordCompletedVisit({
+        appointmentId,
+        pharmacyMedicineCount: 0,
+        outsideMedicineCount: 0,
+        prescriptionNumber: null,
+        followUpDate: null,
+      });
     },
-    [completeAppointmentMutation]
+    [completeAppointmentMutation, recordCompletedVisit]
+  );
+
+  // The prescription dialog saved the medicines and completed the visit.
+  const handlePrescriptionSaved = useCallback(
+    async (result: {
+      appointmentId?: string;
+      appointmentCompleted: boolean;
+      patientName: string;
+      pharmacyMedicineCount: number;
+      outsideMedicineCount: number;
+      prescriptionNumber: string | null;
+      followUpDate: string | null;
+    }) => {
+      if (!result.appointmentId || !result.appointmentCompleted) {
+        return;
+      }
+      recordCompletedVisit({
+        appointmentId: result.appointmentId,
+        patientName: result.patientName,
+        pharmacyMedicineCount: result.pharmacyMedicineCount,
+        outsideMedicineCount: result.outsideMedicineCount,
+        prescriptionNumber: result.prescriptionNumber,
+        followUpDate: result.followUpDate,
+      });
+      dispatch({ type: "setConsultSummary", value: "" });
+      await refetchAppointments();
+    },
+    [recordCompletedVisit, refetchAppointments]
   );
 
   const handleSelectQueueLane = useCallback(
@@ -356,10 +520,27 @@ export function useDoctorDashboardData() {
     });
   }, []);
 
+  const handleCancelSkipMedicine = useCallback(() => {
+    dispatch({
+      type: "updatePrescriptionModal",
+      value: (current) => ({
+        ...current,
+        skipMedicineSelected: false,
+      }),
+    });
+  }, []);
+
+  // The visit the prescription dialog is open for (shown in its patient strip).
+  const prescriptionAppointment = prescriptionModal.activeAppointmentId
+    ? timelineById.get(prescriptionModal.activeAppointmentId) ?? null
+    : null;
+
   return {
     appointmentsArray,
     appointmentsError,
     appointmentTimeline,
+    openVideoVisits,
+    nowMs: consultTick,
     canStartConsultation,
     consultElapsedLabel,
     consultSummary,
@@ -383,9 +564,22 @@ export function useDoctorDashboardData() {
     onStartConsultation: handleStartConsultation,
     onCompleteWithoutMedicine: handleCompleteWithoutMedicine,
     onCompleteAppointment: handleCompleteAppointment,
+    onPrescriptionSaved: handlePrescriptionSaved,
+    onStartAppointment: startConsultationForAppointment,
+    onAppointmentFilterChange: (value: DoctorAppointmentFilter) => dispatch({ type: "setAppointmentFilter", value }),
+    activeConsult,
+    appointmentCounts,
+    appointmentFilter,
+    filteredTodayRows,
+    lastCompletedVisit,
+    nextPatient,
+    queueLines,
+    todayRows,
     onConsultSummaryChange: (value: string) => dispatch({ type: "setConsultSummary", value }),
     onSelectQueueLane: handleSelectQueueLane,
     onToggleSkipMedicine: handleToggleSkipMedicine,
+    onCancelSkipMedicine: handleCancelSkipMedicine,
+    prescriptionAppointment,
     onJoinVideoSession: (appointmentId: string) => push(buildVideoSessionRoute(appointmentId)),
     onOpenEhr: (patientId: string) => push(`/doctor/patients/${patientId}`),
     onNavigateAppointments: () => push("/doctor/appointments"),
@@ -400,7 +594,6 @@ export function useDoctorDashboardData() {
           isOpen: false,
         }),
       }),
-    meta: DOCTOR_DASHBOARD_META,
     userId: user?.id || "",
     doctorEntityId,
     hasAppointmentsLoadedForSession: hasAppointmentsLoadedForSession(),

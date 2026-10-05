@@ -74,6 +74,8 @@ export const en: TranslationKeys = {
   },
   dashboard: {
     welcomeBack: 'Welcome Back',
+    hello: 'Hi',
+    howAreYouFeeling: 'how are you feeling today?',
     overview: 'Here is what is happening with your health today.',
     bookAppointment: 'Book Appointment',
   },

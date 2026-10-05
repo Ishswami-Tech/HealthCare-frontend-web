@@ -71,6 +71,50 @@ function normalizeMedicineRecord(medicine: Record<string, unknown>) {
   };
 }
 
+/** Values `POST /pharmacy/inventory` accepts for `type` (backend `CreateMedicineDto`). */
+const BACKEND_MEDICINE_TYPES = [
+  "TABLET",
+  "SYRUP",
+  "CAPSULE",
+  "INJECTION",
+  "CREAM",
+  "DROPS",
+  "OTHER",
+] as const;
+
+function toBackendMedicineType(value: unknown): (typeof BACKEND_MEDICINE_TYPES)[number] {
+  const upper = String(value ?? "").trim().toUpperCase();
+  return BACKEND_MEDICINE_TYPES.find((type) => type === upper) ?? "OTHER";
+}
+
+/** One CSV cell: quoted when needed; a leading formula character is neutralised. */
+function csvCell(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  let cell = value instanceof Date ? value.toISOString() : String(value);
+  if (/^[=+\-@\t\r]/.test(cell) && Number.isNaN(Number(cell))) cell = `'${cell}`;
+  return /[",\n\r]/.test(cell) ? `"${cell.replace(/"/g, '""')}"` : cell;
+}
+
+function toCsv(header: string[], rows: unknown[][]): string {
+  return [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function unwrapRecords(value: unknown, key: string): Record<string, unknown>[] {
+  const list = Array.isArray(value) ? value : asRecord(value)[key];
+  return Array.isArray(list) ? list.map(asRecord) : [];
+}
+
+function dayKey(value: unknown): string {
+  const parsed = parseDateTime(value);
+  return parsed ? parsed.toISOString().slice(0, 10) : "";
+}
+
 // ===== PHARMACY MANAGEMENT ACTIONS =====
 
 /**
@@ -130,9 +174,13 @@ export async function getMedicineById(medicineId: string) {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  // Backend: GET /pharmacy/inventory/:id
-  const { data } = await authenticatedApi(`/pharmacy/inventory/${medicineId}`);
-  return data;
+  // The backend has no GET /pharmacy/inventory/:id (only PATCH), so read the
+  // clinic list (GET /pharmacy/inventory) and pick the medicine from it.
+  const { data } = await authenticatedApi("/pharmacy/inventory");
+  const match = Array.isArray(data)
+    ? data.find((medicine) => asRecord(medicine).id === medicineId)
+    : null;
+  return match ? normalizeMedicineRecord(asRecord(match)) : null;
 }
 
 /**
@@ -142,20 +190,26 @@ export async function createMedicine(
   clinicId: string,
   medicineData: {
     name: string;
-    genericName?: string;
     manufacturer: string;
-    category: string;
+    /** Sent as `type`: TABLET, SYRUP, CAPSULE, INJECTION, CREAM, DROPS or OTHER. */
     dosageForm: string;
-    strength: string;
-    packSize: number;
     unitPrice: number;
     stockQuantity: number;
-    minStockLevel: number;
-    maxStockLevel: number;
     expiryDate: string;
-    batchNumber: string;
-    prescriptionRequired: boolean;
+    minStockLevel?: number;
     description?: string;
+    /** Dosage instructions ("1 tablet twice a day"). */
+    instructions?: string;
+    supplierId?: string;
+    // Not stored by the backend yet (CreateMedicineDto has no such fields) — accepted
+    // so older call sites keep compiling, never sent.
+    genericName?: string;
+    category?: string;
+    strength?: string;
+    packSize?: number;
+    maxStockLevel?: number;
+    batchNumber?: string;
+    prescriptionRequired?: boolean;
     sideEffects?: string[];
     contraindications?: string[];
     storageConditions?: string;
@@ -166,10 +220,24 @@ export async function createMedicine(
     throw new Error('Unauthorized: Authentication required');
   }
 
-  // Backend: POST /pharmacy/inventory (clinic-scoped via guard)
+  // Backend: POST /pharmacy/inventory (clinic-scoped via guard). The API rejects
+  // unknown fields, so only the CreateMedicineDto fields are sent.
   const { data } = await authenticatedApi("/pharmacy/inventory", {
     method: "POST",
-    body: JSON.stringify(medicineData),
+    body: JSON.stringify({
+      name: medicineData.name,
+      manufacturer: medicineData.manufacturer,
+      description: medicineData.description ?? "",
+      type: toBackendMedicineType(medicineData.dosageForm),
+      quantity: medicineData.stockQuantity,
+      price: medicineData.unitPrice,
+      expiryDate: medicineData.expiryDate,
+      ...(medicineData.minStockLevel !== undefined
+        ? { minStockThreshold: medicineData.minStockLevel }
+        : {}),
+      ...(medicineData.supplierId ? { supplierId: medicineData.supplierId } : {}),
+      ...(medicineData.instructions ? { instructions: medicineData.instructions } : {}),
+    }),
     ...(clinicId ? { headers: { "X-Clinic-ID": clinicId } } : {}),
   });
   return data;
@@ -182,6 +250,12 @@ export async function updateMedicine(
   clinicId: string,
   medicineId: string,
   updates: {
+    /** New price per unit. */
+    unitPrice?: number;
+    /** Units to add (positive) or take off (negative). */
+    quantityChange?: number;
+    // Not editable on the backend yet (UpdateInventoryDto has only quantityChange
+    // and price) — accepted so older call sites keep compiling, never sent.
     name?: string;
     genericName?: string;
     manufacturer?: string;
@@ -189,7 +263,6 @@ export async function updateMedicine(
     dosageForm?: string;
     strength?: string;
     packSize?: number;
-    unitPrice?: number;
     stockQuantity?: number;
     minStockLevel?: number;
     maxStockLevel?: number;
@@ -208,10 +281,19 @@ export async function updateMedicine(
     throw new Error('Unauthorized: Authentication required');
   }
 
-  // Backend: PATCH /pharmacy/inventory/:id
+  const body = {
+    ...(updates.quantityChange ? { quantityChange: updates.quantityChange } : {}),
+    ...(updates.unitPrice !== undefined ? { price: updates.unitPrice } : {}),
+  };
+  if (Object.keys(body).length === 0) {
+    throw new Error('Only the price and the stock of a medicine can be changed.');
+  }
+
+  // Backend: PATCH /pharmacy/inventory/:id — accepts quantityChange and price only.
   const { data } = await authenticatedApi(`/pharmacy/inventory/${medicineId}`, {
     method: "PATCH",
-    body: JSON.stringify(updates),
+    body: JSON.stringify(body),
+    ...(clinicId ? { headers: { "X-Clinic-ID": clinicId } } : {}),
   });
   return data;
 }
@@ -418,6 +500,13 @@ export async function dispensePrescription(
                 quantity: item.quantityDispensed,
                 batchNumber: item.batchNumber,
                 expiryDate: item.expiryDate,
+                // A substitute and its reason travel with the line (the API accepts both).
+                ...(item.substituteMedicineId
+                  ? { substituteMedicineId: item.substituteMedicineId }
+                  : {}),
+                ...(item.substituteMedicineId && item.substitutionReason
+                  ? { substitutionReason: item.substitutionReason }
+                  : {}),
               })),
             }
           : {}),
@@ -530,6 +619,9 @@ export async function updateInventory(
   clinicId: string,
   medicineId: string,
   inventoryData: {
+    /** Units received (positive) or taken off (negative). */
+    quantityChange?: number;
+    // Not stored by the backend yet — accepted so older call sites keep compiling, never sent.
     stockQuantity?: number;
     minStockLevel?: number;
     maxStockLevel?: number;
@@ -542,17 +634,23 @@ export async function updateInventory(
     throw new Error('Unauthorized: Authentication required');
   }
 
-  // Backend: PATCH /pharmacy/inventory/:id
+  if (!inventoryData.quantityChange) {
+    throw new Error('Enter how many units to add or take off.');
+  }
+
+  // Backend: PATCH /pharmacy/inventory/:id — the stock moves by `quantityChange`.
   const { data } = await authenticatedApi(`/pharmacy/inventory/${medicineId}`, {
     method: "PATCH",
-    body: JSON.stringify(inventoryData),
+    body: JSON.stringify({ quantityChange: inventoryData.quantityChange }),
+    ...(clinicId ? { headers: { "X-Clinic-ID": clinicId } } : {}),
   });
   return data;
 }
 
 /**
  * Get pharmacy orders for a clinic
- * Backend: GET /pharmacy/suppliers (no dedicated orders endpoint)
+ * Backend: purchase orders can be created (POST /pharmacy/inventory/purchase-orders)
+ * but there is no route that lists them yet.
  */
 export async function getPharmacyOrders(
   _clinicId: string,
@@ -569,19 +667,19 @@ export async function getPharmacyOrders(
     throw new Error('Unauthorized: Authentication required');
   }
 
-  // No backend orders endpoint — return empty
+  // No backend route lists purchase orders yet — callers show an empty state.
   return null;
 }
 
 /**
  * Create pharmacy order for a clinic
- * Backend: No dedicated orders endpoint
+ * Backend: POST /pharmacy/inventory/purchase-orders (a purchase order to a supplier)
  */
 export async function createPharmacyOrder(
-  _clinicId: string,
-  _orderData: {
+  clinicId: string,
+  orderData: {
     supplierId: string;
-    items: { medicineId: string; quantity: number; unitPrice: number }[];
+    items: { medicineId: string; quantity: number; unitPrice?: number }[];
     expectedDeliveryDate?: string;
     notes?: string;
   },
@@ -591,8 +689,23 @@ export async function createPharmacyOrder(
     throw new Error('Unauthorized: Authentication required');
   }
 
-  // No backend orders endpoint
-  return null;
+  const { data } = await authenticatedApi("/pharmacy/inventory/purchase-orders", {
+    method: "POST",
+    body: JSON.stringify({
+      supplierId: orderData.supplierId,
+      ...(orderData.notes ? { notes: orderData.notes } : {}),
+      ...(orderData.expectedDeliveryDate
+        ? { expectedDeliveryDate: orderData.expectedDeliveryDate }
+        : {}),
+      items: orderData.items.map((item) => ({
+        productId: item.medicineId,
+        quantity: item.quantity,
+        ...(item.unitPrice !== undefined ? { unitPrice: item.unitPrice } : {}),
+      })),
+    }),
+    ...(clinicId ? { headers: { "X-Clinic-ID": clinicId } } : {}),
+  });
+  return data;
 }
 
 /**
@@ -702,22 +815,100 @@ export async function getSuppliers() {
 }
 
 /**
- * Export pharmacy data for a clinic
+ * Export pharmacy data for a clinic.
+ * The backend has no export endpoint, so the file is built here from the lists it
+ * does serve: GET /pharmacy/inventory (medicines, inventory) and
+ * GET /pharmacy/prescriptions. CSV only; there is no sales data to export.
  */
 export async function exportPharmacyData(
-  _clinicId: string,
-  _filters: {
+  clinicId: string,
+  filters: {
     type: "medicines" | "prescriptions" | "sales" | "inventory";
     format: "csv" | "excel" | "pdf";
     startDate?: string;
     endDate?: string;
   },
-) {
+): Promise<{ fileName: string; mimeType: string; content: string; rowCount: number }> {
   const session = await getServerSession();
   if (!session?.user?.id) {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  // No backend export endpoint
-  return null;
+  if (filters.format !== "csv") {
+    throw new Error('Only CSV files can be exported for now.');
+  }
+  if (filters.type === "sales") {
+    throw new Error('Sales cannot be exported yet.');
+  }
+
+  const clinicHeaders = clinicId ? { headers: { "X-Clinic-ID": clinicId } } : {};
+  const stamp = new Date().toISOString().slice(0, 10);
+  let header: string[];
+  let rows: unknown[][];
+
+  if (filters.type === "prescriptions") {
+    const { data } = await authenticatedApi(API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.LIST, clinicHeaders);
+    header = ["Prescription ID", "Date", "Patient", "Doctor", "Status", "Payment", "Medicines", "Total"];
+    rows = unwrapRecords(data, "prescriptions")
+      .filter((prescription) => {
+        const day = dayKey(prescription.date ?? prescription.prescribedAt ?? prescription.createdAt);
+        if (filters.startDate && (!day || day < filters.startDate)) return false;
+        if (filters.endDate && (!day || day > filters.endDate)) return false;
+        return true;
+      })
+      .map((prescription) => {
+        const patient = asRecord(asRecord(prescription.patient).user);
+        const doctor = asRecord(asRecord(prescription.doctor).user);
+        const medicines = (Array.isArray(prescription.items) ? prescription.items : [])
+          .map(asRecord)
+          .map((item) => `${String(asRecord(item.medicine).name ?? item.medicineName ?? "Medicine")} x ${Number(item.quantity ?? 0)}`)
+          .join("; ");
+        return [
+          prescription.id,
+          dayKey(prescription.date ?? prescription.prescribedAt ?? prescription.createdAt),
+          prescription.patientName ?? patient.name,
+          prescription.doctorName ?? doctor.name,
+          prescription.status,
+          prescription.paymentStatus,
+          medicines,
+          prescription.totalAmount,
+        ];
+      });
+  } else {
+    const { data } = await authenticatedApi("/pharmacy/inventory", clinicHeaders);
+    const medicines = unwrapRecords(data, "inventory").map(normalizeMedicineRecord);
+    if (filters.type === "medicines") {
+      header = ["Medicine", "Manufacturer", "Type", "Ingredients", "Description", "Dosage", "Price per unit"];
+      rows = medicines.map((medicine) => {
+        const raw = medicine as Record<string, unknown>;
+        return [raw.name, raw.manufacturer, raw.type, raw.ingredients, raw.properties ?? raw.description, raw.dosage, medicine.unitPrice];
+      });
+    } else {
+      header = ["Medicine", "Manufacturer", "Stock", "Minimum stock", "Status", "Expiry date", "Price per unit", "Stock value"];
+      rows = medicines.map((medicine) => {
+        const raw = medicine as Record<string, unknown>;
+        return [
+          raw.name,
+          raw.manufacturer,
+          medicine.stockQuantity,
+          medicine.minStockLevel,
+          medicine.stockQuantity <= 0
+            ? "Out of stock"
+            : medicine.minStockLevel > 0 && medicine.stockQuantity <= medicine.minStockLevel
+              ? "Low stock"
+              : "In stock",
+          dayKey(medicine.expiryDate),
+          medicine.unitPrice,
+          Number((medicine.stockQuantity * medicine.unitPrice).toFixed(2)),
+        ];
+      });
+    }
+  }
+
+  return {
+    fileName: `pharmacy-${filters.type}-${stamp}.csv`,
+    mimeType: "text/csv;charset=utf-8",
+    content: toCsv(header, rows),
+    rowCount: rows.length,
+  };
 }

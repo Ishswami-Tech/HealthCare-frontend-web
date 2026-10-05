@@ -3,13 +3,10 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Pencil, Save, X } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
+import { Pill, SectionTitle } from "@/components/tbd";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import { SPECIAL_CASE_OPTIONS } from "@/lib/constants/case-sheet-fixed-lists";
 import { useUpdatePatient } from "@/hooks/query/usePatients";
@@ -20,6 +17,14 @@ import type {
   SpecialCaseFlag,
   VisitPatientSummary,
 } from "@/types/patient-visit.types";
+import {
+  CaseSheetCard,
+  ChoiceChip,
+  FactTile,
+  FieldLabel,
+  GroupLabel,
+  SaveButton,
+} from "./case-sheet-parts";
 
 interface BasicDetailsPanelProps {
   clinicId: string;
@@ -37,6 +42,14 @@ const DEMOGRAPHIC_FIELDS = [
 
 type DemographicKey = (typeof DEMOGRAPHIC_FIELDS)[number]["key"];
 
+export type BasicDetailsDemographics = Record<DemographicKey, string>;
+
+export interface BasicDetailsVisitInput {
+  specialCaseFlags: SpecialCaseFlag[];
+  internationalId: string | null;
+  presentIllness: string | null;
+}
+
 function computeAge(dateOfBirth: string | null, age: number | null): string {
   if (age) return `${age} y`;
   if (!dateOfBirth) return "-";
@@ -49,26 +62,28 @@ function computeAge(dateOfBirth: string | null, age: number | null): string {
   return `${years} y`;
 }
 
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-border/70 bg-background/60 p-3">
-      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className="mt-1 truncate text-sm font-semibold text-foreground" title={value}>
-        {value || "-"}
-      </p>
-    </div>
-  );
+export interface BasicDetailsPanelViewProps {
+  visit: PatientVisit;
+  patient: VisitPatientSummary | null;
+  /** Saves the patient's address details. Resolves true when saved. */
+  onSaveDemographics: (demographics: BasicDetailsDemographics) => Promise<boolean>;
+  isSavingDemographics: boolean;
+  /** Saves the details of this OPD visit. Resolves true when saved. */
+  onSaveVisit: (input: BasicDetailsVisitInput) => Promise<boolean>;
+  isSavingVisit: boolean;
 }
 
-export function BasicDetailsPanel({ clinicId, visit, patient }: BasicDetailsPanelProps) {
-  const queryClient = useQueryClient();
-  // Demographics live on the User row but are edited by clinic staff, so they go
-  // through the staff-facing, clinic-scoped PUT /patients/:userId route (the
-  // /user/:id route only allows self-updates).
-  const updatePatient = useUpdatePatient();
-  const updateVisit = useUpdatePatientVisit();
+/** Layout and draft state of Basic Details. Data and saving come in through props. */
+export function BasicDetailsPanelView({
+  visit,
+  patient,
+  onSaveDemographics,
+  isSavingDemographics,
+  onSaveVisit,
+  isSavingVisit,
+}: BasicDetailsPanelViewProps) {
   const [editing, setEditing] = useState(false);
-  const [demographics, setDemographics] = useState<Record<DemographicKey, string>>({
+  const [demographics, setDemographics] = useState<BasicDetailsDemographics>({
     address: "",
     area: "",
     district: "",
@@ -81,7 +96,7 @@ export function BasicDetailsPanel({ clinicId, visit, patient }: BasicDetailsPane
   const [visitDirty, setVisitDirty] = useState(false);
 
   // Snapshots so a background refetch with identical data doesn't reset the drafts.
-  const savedDemographics = useStableSnapshot<Record<DemographicKey, string>>({
+  const savedDemographics = useStableSnapshot<BasicDetailsDemographics>({
     address: patient?.address ?? "",
     area: patient?.area ?? "",
     district: patient?.district ?? "",
@@ -106,32 +121,17 @@ export function BasicDetailsPanel({ clinicId, visit, patient }: BasicDetailsPane
   }, [savedVisitDetails]);
 
   const saveDemographics = async () => {
-    if (!patient?.userId) return;
-    try {
-      await updatePatient.mutateAsync({ patientId: patient.userId, updates: demographics });
-      await queryClient.invalidateQueries({ queryKey: patientVisitKeys.caseSheet(clinicId, visit.id) });
-      setEditing(false);
-    } catch {
-      // The mutation hook already surfaces the error toast; keep the form open
-      // so the user can retry without losing their edits.
-    }
+    // On failure the form stays open so the user can retry without losing edits.
+    if (await onSaveDemographics(demographics)) setEditing(false);
   };
 
   const saveVisit = async () => {
-    try {
-      await updateVisit.mutateAsync({
-        clinicId,
-        visitId: visit.id,
-        input: {
-          specialCaseFlags: flags,
-          internationalId: internationalId.trim() || null,
-          presentIllness: presentIllness.trim() || null,
-        },
-      });
-      setVisitDirty(false);
-    } catch {
-      // Error toast is shown by the mutation hook; keep the unsaved edits.
-    }
+    const saved = await onSaveVisit({
+      specialCaseFlags: flags,
+      internationalId: internationalId.trim() || null,
+      presentIllness: presentIllness.trim() || null,
+    });
+    if (saved) setVisitDirty(false);
   };
 
   const toggleFlag = (flag: SpecialCaseFlag) => {
@@ -140,137 +140,182 @@ export function BasicDetailsPanel({ clinicId, visit, patient }: BasicDetailsPane
   };
 
   return (
-    <Card className="border-border/70 bg-card shadow-sm">
-      <CardHeader className="flex flex-row items-start justify-between gap-4 pb-3">
-        <div>
-          <CardTitle className="text-base font-bold text-foreground">Basic Details</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            OPD <span className="font-semibold text-foreground">{visit.opdNumber}</span> · registered{" "}
-            {formatDateInIST(visit.registrationDate)}
-          </p>
-        </div>
-        {editing ? (
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => setEditing(false)}>
-              <X className="mr-1 size-4" />
+    <CaseSheetCard
+      title="Basic Details"
+      description={
+        <>
+          OPD <b className="font-bold text-ink">{visit.opdNumber}</b> · registered{" "}
+          {formatDateInIST(visit.registrationDate)}
+        </>
+      }
+      action={
+        editing ? (
+          <>
+            <Button variant="outline" className="h-[38px] px-3.5 has-[>svg]:px-3.5" onClick={() => setEditing(false)}>
+              <X aria-hidden="true" />
               Cancel
             </Button>
-            <Button size="sm" onClick={() => void saveDemographics()} disabled={updatePatient.isPending}>
-              <Save className="mr-1 size-4" />
-              {updatePatient.isPending ? "Saving..." : "Save"}
+            <Button
+              className="h-[38px] px-3.5 has-[>svg]:px-3.5"
+              onClick={() => void saveDemographics()}
+              disabled={isSavingDemographics}
+            >
+              <Save aria-hidden="true" />
+              {isSavingDemographics ? "Saving..." : "Save"}
             </Button>
-          </div>
+          </>
         ) : (
-          <Button size="sm" variant="outline" onClick={() => setEditing(true)} disabled={!patient}>
-            <Pencil className="mr-1 size-4" />
+          <Button
+            variant="outline"
+            className="h-[38px] px-3.5 has-[>svg]:px-3.5"
+            onClick={() => setEditing(true)}
+            disabled={!patient}
+          >
+            <Pencil aria-hidden="true" />
             Edit details
           </Button>
-        )}
-      </CardHeader>
-      <CardContent className="flex flex-col gap-y-4">
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Field label="Name" value={patient?.name ?? "-"} />
-          <Field label="Mobile" value={patient?.phone ?? "-"} />
-          <Field
-            label="Age / Gender"
-            value={`${computeAge(patient?.dateOfBirth ?? null, patient?.age ?? null)}${patient?.gender ? ` · ${patient.gender}` : ""}`}
-          />
-          <Field label="Email" value={patient?.email ?? "-"} />
-        </div>
+        )
+      }
+    >
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <FactTile label="Name" value={patient?.name ?? "-"} />
+        <FactTile label="Mobile" value={patient?.phone ?? "-"} />
+        <FactTile
+          label="Age / Gender"
+          value={`${computeAge(patient?.dateOfBirth ?? null, patient?.age ?? null)}${patient?.gender ? ` · ${patient.gender}` : ""}`}
+        />
+        <FactTile label="Email" value={patient?.email ?? "-"} />
+      </div>
 
-        {editing ? (
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {DEMOGRAPHIC_FIELDS.map((field) => (
-              <div key={field.key} className="flex flex-col gap-y-1">
-                <Label htmlFor={`demo-${field.key}`}>{field.label}</Label>
-                <Input
-                  id={`demo-${field.key}`}
-                  value={demographics[field.key]}
-                  onChange={(event) =>
-                    setDemographics((prev) => ({ ...prev, [field.key]: event.target.value }))
-                  }
-                />
-              </div>
+      {editing ? (
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+          {DEMOGRAPHIC_FIELDS.map((field) => (
+            <div key={field.key} className="flex min-w-0 flex-col gap-1.5">
+              <FieldLabel htmlFor={`demo-${field.key}`}>{field.label}</FieldLabel>
+              <Input
+                id={`demo-${field.key}`}
+                value={demographics[field.key]}
+                onChange={(event) =>
+                  setDemographics((prev) => ({ ...prev, [field.key]: event.target.value }))
+                }
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+          {DEMOGRAPHIC_FIELDS.map((field) => (
+            <FactTile key={field.key} label={field.label} value={patient?.[field.key] ?? "-"} />
+          ))}
+        </div>
+      )}
+
+      <div className="flex flex-col gap-3.5 rounded-2xl border border-line bg-[#fbfdfc] p-[18px] dark:bg-white/[0.03]">
+        <SectionTitle
+          title="This visit"
+          description="Details that apply to this OPD visit only"
+          action={
+            <SaveButton
+              label="Save visit"
+              saving={isSavingVisit}
+              disabled={isSavingVisit || !visitDirty}
+              onClick={() => void saveVisit()}
+            />
+          }
+        />
+        <div className="flex flex-col gap-2" role="group" aria-labelledby="visit-special-case">
+          <GroupLabel id="visit-special-case">Special case</GroupLabel>
+          <div className="flex flex-wrap gap-2">
+            {SPECIAL_CASE_OPTIONS.map((option) => (
+              <ChoiceChip
+                key={option.value}
+                active={flags.includes(option.value)}
+                onClick={() => toggleFlag(option.value)}
+              >
+                {option.label}
+              </ChoiceChip>
             ))}
           </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-            {DEMOGRAPHIC_FIELDS.map((field) => (
-              <Field key={field.key} label={field.label} value={patient?.[field.key] ?? "-"} />
-            ))}
+        </div>
+        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-[1fr_2fr]">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <FieldLabel htmlFor="visit-international-id">International ID</FieldLabel>
+            <Input
+              id="visit-international-id"
+              placeholder="Passport / foreign ID"
+              value={internationalId}
+              onChange={(event) => {
+                setInternationalId(event.target.value);
+                setVisitDirty(true);
+              }}
+            />
           </div>
-        )}
-
-        <div className="rounded-xl border border-border/70 bg-background/60 p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-sm font-semibold text-foreground">This visit</p>
-            <Button size="sm" onClick={() => void saveVisit()} disabled={updateVisit.isPending || !visitDirty}>
-              <Save className="mr-1 size-4" />
-              {updateVisit.isPending ? "Saving..." : "Save visit"}
-            </Button>
-          </div>
-          <div className="flex flex-col gap-y-3">
-            <div>
-              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                Special case
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {SPECIAL_CASE_OPTIONS.map((option) => {
-                  const active = flags.includes(option.value);
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => toggleFlag(option.value)}
-                      className={cn(
-                        "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                        active
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border/70 bg-background text-foreground hover:bg-muted",
-                      )}
-                    >
-                      {option.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_2fr]">
-              <div className="flex flex-col gap-y-1">
-                <Label htmlFor="visit-international-id">International ID</Label>
-                <Input
-                  id="visit-international-id"
-                  placeholder="Passport / foreign ID"
-                  value={internationalId}
-                  onChange={(event) => {
-                    setInternationalId(event.target.value);
-                    setVisitDirty(true);
-                  }}
-                />
-              </div>
-              <div className="flex flex-col gap-y-1">
-                <Label htmlFor="visit-present-illness">Present illness</Label>
-                <Textarea
-                  id="visit-present-illness"
-                  rows={2}
-                  placeholder="Why the patient came today"
-                  value={presentIllness}
-                  onChange={(event) => {
-                    setPresentIllness(event.target.value);
-                    setVisitDirty(true);
-                  }}
-                />
-              </div>
-            </div>
-            {visit.doctorId ? (
-              <Badge variant="outline" className="w-fit rounded-md text-xs">
-                Assigned doctor set
-              </Badge>
-            ) : null}
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <FieldLabel htmlFor="visit-present-illness">Present illness</FieldLabel>
+            <Textarea
+              id="visit-present-illness"
+              rows={2}
+              className="min-h-16"
+              placeholder="Why the patient came today"
+              value={presentIllness}
+              onChange={(event) => {
+                setPresentIllness(event.target.value);
+                setVisitDirty(true);
+              }}
+            />
           </div>
         </div>
-      </CardContent>
-    </Card>
+        {visit.doctorId ? (
+          <div>
+            <Pill tone="green" dot>
+              Assigned doctor set
+            </Pill>
+          </div>
+        ) : null}
+      </div>
+    </CaseSheetCard>
+  );
+}
+
+export function BasicDetailsPanel({ clinicId, visit, patient }: BasicDetailsPanelProps) {
+  const queryClient = useQueryClient();
+  // Demographics live on the User row but are edited by clinic staff, so they go
+  // through the staff-facing, clinic-scoped PUT /patients/:userId route (the
+  // /user/:id route only allows self-updates).
+  const updatePatient = useUpdatePatient();
+  const updateVisit = useUpdatePatientVisit();
+
+  const saveDemographics = async (demographics: BasicDetailsDemographics) => {
+    if (!patient?.userId) return false;
+    try {
+      await updatePatient.mutateAsync({ patientId: patient.userId, updates: demographics });
+      await queryClient.invalidateQueries({ queryKey: patientVisitKeys.caseSheet(clinicId, visit.id) });
+      return true;
+    } catch {
+      // The mutation hook already surfaces the error toast; the form stays open
+      // so the user can retry without losing their edits.
+      return false;
+    }
+  };
+
+  const saveVisit = async (input: BasicDetailsVisitInput) => {
+    try {
+      await updateVisit.mutateAsync({ clinicId, visitId: visit.id, input });
+      return true;
+    } catch {
+      // Error toast is shown by the mutation hook; keep the unsaved edits.
+      return false;
+    }
+  };
+
+  return (
+    <BasicDetailsPanelView
+      visit={visit}
+      patient={patient}
+      onSaveDemographics={saveDemographics}
+      isSavingDemographics={updatePatient.isPending}
+      onSaveVisit={saveVisit}
+      isSavingVisit={updateVisit.isPending}
+    />
   );
 }

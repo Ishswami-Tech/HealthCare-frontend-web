@@ -59,7 +59,7 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
     { title: "Patients", href: "/doctor/patients", icon: Users, permission: Permission.VIEW_PATIENTS },
     { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },
     { title: "Prescriptions", href: "/doctor/prescriptions", icon: Pill, permission: Permission.MANAGE_PRESCRIPTIONS },
-    { title: "Billing", href: "/billing", icon: Wallet, permission: Permission.VIEW_BILLING },
+    // No Billing link: the designs keep money out of the doctor's view (clinic admin and pharmacy handle it).
   ],
   ASSISTANT_DOCTOR: [
     { title: "Dashboard", href: "/assistant-doctor/dashboard", icon: LayoutDashboard },

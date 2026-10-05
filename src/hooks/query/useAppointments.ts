@@ -1531,6 +1531,9 @@ export const useMyAppointments = (filters?: {
   const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
   const userId = session?.user?.id;
   const userRole = session?.user?.role;
+  // Backend `@Roles(Role.PATIENT)` on GET /appointments/my-appointments — staff
+  // callers get 403 Forbidden. Doctors/admins must use the clinic appointments list.
+  const isPatientRole = String(userRole || '').toUpperCase() === Role.PATIENT;
 
   const hasSocketFailed = connectionStatus !== 'connected';
 
@@ -1625,7 +1628,11 @@ export const useMyAppointments = (filters?: {
       } as any;
     },
     {
-      enabled: (options?.enabled ?? true) && !!userId && hasPermission(Permission.VIEW_APPOINTMENTS),
+      enabled:
+        (options?.enabled ?? true) &&
+        !!userId &&
+        isPatientRole &&
+        hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 0,
       gcTime: 5 * 60 * 1000,
       refetchOnMount: 'always',
@@ -2365,7 +2372,12 @@ export async function prefetchMyAppointments(
 ) {
   const { userId, userRole, clinicId, hasPermission, filters } = options;
 
-  if (!userId || !hasPermission(Permission.VIEW_APPOINTMENTS)) {
+  // Patient-only endpoint — never prefetch for doctors/staff (403 Forbidden).
+  if (
+    !userId ||
+    String(userRole || '').toUpperCase() !== Role.PATIENT ||
+    !hasPermission(Permission.VIEW_APPOINTMENTS)
+  ) {
     return;
   }
 
@@ -2456,7 +2468,11 @@ export async function prefetchAppointments(
     filters?: { clinicId?: string; doctorId?: string; startDate?: string; endDate?: string; limit?: number };
   }
 ) {
-  const resolvedFilters = options.filters ?? {};
+  const resolvedFilters = {
+    ...(options.filters ?? {}),
+    ...(options.clinicId ? { clinicId: options.clinicId } : {}),
+    ...(options.doctorId ? { doctorId: options.doctorId } : {}),
+  };
   const queryKey = serializeAppointmentQueryKey(options.clinicId, resolvedFilters);
 
   try {
