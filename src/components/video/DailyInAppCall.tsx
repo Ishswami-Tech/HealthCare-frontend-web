@@ -103,18 +103,136 @@ type DailyInAppCallProps = {
 let sharedDailyCallObject: DailyCall | null = null;
 let sharedDailyCallRefCount = 0;
 
+type DailyMediaKind = "audio" | "video";
+
+/**
+ * @daily-co/daily-react's camera-error handler calls `error.missingMedia.includes(...)`
+ * without guarding null. Some NotFoundError paths (no mic / preferred device gone) emit
+ * `missingMedia: null`, which crashes the meet page. Normalize before listeners run.
+ */
+function inferDailyMediaKinds(message: string): DailyMediaKind[] {
+  const msg = message.toLowerCase();
+  const kinds: DailyMediaKind[] = [];
+  if (msg.includes("mic") || msg.includes("audio")) kinds.push("audio");
+  if (msg.includes("cam") || msg.includes("video")) kinds.push("video");
+  return kinds;
+}
+
+function normalizeDailyCameraErrorEvent(event: unknown): unknown {
+  if (!event || typeof event !== "object") return event;
+
+  const payload = event as {
+    error?: {
+      type?: string;
+      msg?: string;
+      missingMedia?: DailyMediaKind[] | null;
+      blockedMedia?: DailyMediaKind[] | null;
+      [key: string]: unknown;
+    } | null;
+    errorMsg?: string | { errorMsg?: string } | null;
+  };
+
+  const error = payload.error;
+  if (!error || typeof error !== "object") return event;
+
+  const needsMissing =
+    error.type === "not-found" && !Array.isArray(error.missingMedia);
+  const needsBlocked =
+    error.type === "permissions" && !Array.isArray(error.blockedMedia);
+  if (!needsMissing && !needsBlocked) return event;
+
+  const nestedMsg =
+    payload.errorMsg &&
+    typeof payload.errorMsg === "object" &&
+    typeof payload.errorMsg.errorMsg === "string"
+      ? payload.errorMsg.errorMsg
+      : "";
+  const message = String(
+    error.msg ||
+      (typeof payload.errorMsg === "string" ? payload.errorMsg : nestedMsg) ||
+      "",
+  );
+  const inferred = inferDailyMediaKinds(message);
+
+  return {
+    ...payload,
+    error: {
+      ...error,
+      ...(needsMissing ? { missingMedia: inferred } : {}),
+      ...(needsBlocked ? { blockedMedia: inferred } : {}),
+    },
+  };
+}
+
+function patchDailyCallCameraErrorEvents(call: DailyCall): DailyCall {
+  const flagged = call as DailyCall & { __vkCameraErrorNormalized?: boolean };
+  if (flagged.__vkCameraErrorNormalized) return call;
+  flagged.__vkCameraErrorNormalized = true;
+
+  // Daily's on/off/once are heavily overloaded; keep the patch runtime-safe and
+  // avoid fighting those overloads at the assignment site.
+  type AnyHandler = (event: unknown) => void;
+  const handlerMap = new WeakMap<AnyHandler, AnyHandler>();
+
+  const wrapHandler = (handler: AnyHandler): AnyHandler => {
+    const existing = handlerMap.get(handler);
+    if (existing) return existing;
+    const wrapped: AnyHandler = (event) => {
+      handler(normalizeDailyCameraErrorEvent(event));
+    };
+    handlerMap.set(handler, wrapped);
+    return wrapped;
+  };
+
+  const callAny = call as unknown as {
+    on: (event: string, handler: AnyHandler) => DailyCall;
+    off: (event: string, handler: AnyHandler) => DailyCall;
+    once?: (event: string, handler: AnyHandler) => DailyCall;
+  };
+
+  const originalOn = callAny.on.bind(call);
+  callAny.on = (event, handler) => {
+    if (event === "camera-error" && typeof handler === "function") {
+      return originalOn(event, wrapHandler(handler));
+    }
+    return originalOn(event, handler);
+  };
+
+  const originalOff = callAny.off.bind(call);
+  callAny.off = (event, handler) => {
+    if (event === "camera-error" && typeof handler === "function") {
+      return originalOff(event, handlerMap.get(handler) || handler);
+    }
+    return originalOff(event, handler);
+  };
+
+  if (typeof callAny.once === "function") {
+    const originalOnce = callAny.once.bind(call);
+    callAny.once = (event, handler) => {
+      if (event === "camera-error" && typeof handler === "function") {
+        return originalOnce(event, wrapHandler(handler));
+      }
+      return originalOnce(event, handler);
+    };
+  }
+
+  return call;
+}
+
 function acquireCallObject(): DailyCall {
   if (!sharedDailyCallObject || sharedDailyCallObject.isDestroyed()) {
-    sharedDailyCallObject = Daily.createCallObject({
-      showLeaveButton: false,
-      showFullscreenButton: false,
-      showUserNameChangeUI: false,
-      customLayout: true,
-      subscribeToTracksAutomatically: true,
-      startVideoOff: false,
-      startAudioOff: false,
-      allowMultipleCallInstances: true,
-    });
+    sharedDailyCallObject = patchDailyCallCameraErrorEvents(
+      Daily.createCallObject({
+        showLeaveButton: false,
+        showFullscreenButton: false,
+        showUserNameChangeUI: false,
+        customLayout: true,
+        subscribeToTracksAutomatically: true,
+        startVideoOff: false,
+        startAudioOff: false,
+        allowMultipleCallInstances: true,
+      }),
+    );
   }
   sharedDailyCallRefCount += 1;
   return sharedDailyCallObject;
@@ -840,6 +958,56 @@ function DailyCallSurfaceContent({
     onOpenPanel?.(nextPanel);
   };
 
+  const handleToggleMic = React.useCallback(() => {
+    void (async () => {
+      const enable = !isLocalAudioOn;
+      if (
+        enable &&
+        (devices.hasMicError || devices.microphones.length === 0)
+      ) {
+        showErrorToast(
+          "No microphone found. Check your device and browser permissions.",
+          { id: "video-mic-missing" },
+        );
+        return;
+      }
+      try {
+        await daily?.setLocalAudio(enable);
+      } catch {
+        showErrorToast(
+          "Could not change the microphone. Check your device and try again.",
+          { id: "video-mic-toggle" },
+        );
+      }
+    })();
+  }, [
+    daily,
+    devices.hasMicError,
+    devices.microphones.length,
+    isLocalAudioOn,
+  ]);
+
+  const handleToggleCamera = React.useCallback(() => {
+    void (async () => {
+      const enable = !isLocalVideoOn;
+      if (enable && (devices.hasCamError || devices.cameras.length === 0)) {
+        showErrorToast(
+          "No camera found. Check your device and browser permissions.",
+          { id: "video-cam-missing" },
+        );
+        return;
+      }
+      try {
+        await daily?.setLocalVideo(enable);
+      } catch {
+        showErrorToast(
+          "Could not change the camera. Check your device and try again.",
+          { id: "video-cam-toggle" },
+        );
+      }
+    })();
+  }, [daily, devices.cameras.length, devices.hasCamError, isLocalVideoOn]);
+
   if (!isJoined) {
     return (
       <div className="relative flex h-full w-full flex-col overflow-hidden bg-[#0b1220] text-white">
@@ -969,8 +1137,8 @@ function DailyCallSurfaceContent({
     onClosePanel: () => onOpenPanel?.(null),
     micOn: isLocalAudioOn,
     cameraOn: isLocalVideoOn,
-    onToggleMic: () => daily?.setLocalAudio(!isLocalAudioOn),
-    onToggleCamera: () => daily?.setLocalVideo(!isLocalVideoOn),
+    onToggleMic: handleToggleMic,
+    onToggleCamera: handleToggleCamera,
     isSharingScreen: isLocalSharing,
     onStartShare: () => {
       void screenShare.startScreenShare();
