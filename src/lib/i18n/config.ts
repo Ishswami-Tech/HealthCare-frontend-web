@@ -117,6 +117,8 @@ export interface TranslationKeys {
     register: string;
     successRate: string;
     duration: string;
+    play: string;
+    pause: string;
     sessions: string;
     program: string;
     treatments: string;
@@ -1864,6 +1866,8 @@ export interface TranslationKeys {
     scientificFoundation: {
       title: string;
       subtitle: string;
+      /** Optional lede; falls back to English when a locale omits it. */
+      description?: string;
       ancientText: {
         title: string;
         description: string;
@@ -1910,6 +1914,12 @@ export interface TranslationKeys {
     conditions: {
       title: string;
       subtitle: string;
+      /** Optional lede + assurance panel; fall back to English when omitted. */
+      description?: string;
+      assurance?: {
+        title: string;
+        points: string[];
+      };
       chronicKneePain: {
         condition: string;
         successRate: string;

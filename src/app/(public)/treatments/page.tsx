@@ -213,7 +213,7 @@ export default function TreatmentsPage() {
 
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="max-w-5xl mx-auto text-center">
-              <Badge className="bg-gradient-to-r from-orange-100 to-red-100 dark:from-orange-900/50 dark:to-red-900/50 text-orange-800 dark:text-orange-100 border-orange-200 dark:border-orange-700/60 glass interactive mb-8 px-6 py-3 text-sm font-medium">
+              <Badge className="bg-gradient-to-r from-amber-100 to-amber-100 dark:from-amber-900/50 dark:to-rose-900/50 text-amber-800 dark:text-amber-100 border-amber-200 dark:border-amber-700/60 glass interactive mb-8 px-6 py-3 text-sm font-medium">
                 <Heart className="size-4 mr-2" />
                 {t("treatments.title")}
               </Badge>
@@ -227,15 +227,15 @@ export default function TreatmentsPage() {
               </p>
 
               <div className="flex flex-wrap justify-center gap-4 mb-10">
-                <Badge className="bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/30 dark:to-emerald-900/30 text-green-800 dark:text-green-100 border-green-200 dark:border-green-700/50 glass interactive px-4 py-2">
+                <Badge className="bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-emerald-900/30 text-emerald-800 dark:text-emerald-100 border-emerald-200 dark:border-emerald-700/50 glass interactive px-4 py-2">
                   <CheckCircle className="size-4 mr-2" />
                   {t("stats.livesTransformed")}
                 </Badge>
-                <Badge className="bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-900/30 dark:to-cyan-900/30 text-blue-800 dark:text-blue-100 border-blue-200 dark:border-blue-700/50 glass interactive px-4 py-2">
+                <Badge className="bg-gradient-to-r from-sky-100 to-cyan-100 dark:from-sky-900/30 dark:to-cyan-900/30 text-sky-800 dark:text-sky-100 border-sky-200 dark:border-sky-700/50 glass interactive px-4 py-2">
                   <Award className="size-4 mr-2" />
                   {t("common.governmentCertified")}
                 </Badge>
-                <Badge className="bg-gradient-to-r from-purple-100 to-violet-100 dark:from-purple-900/30 dark:to-violet-900/30 text-purple-800 dark:text-purple-100 border-purple-200 dark:border-purple-700/50 glass interactive px-4 py-2">
+                <Badge className="bg-gradient-to-r from-violet-100 to-violet-100 dark:from-violet-900/30 dark:to-violet-900/30 text-violet-800 dark:text-violet-100 border-violet-200 dark:border-violet-700/50 glass interactive px-4 py-2">
                   <Star className="size-4 mr-2" />
                   {t("navigation.rating")}
                 </Badge>
@@ -244,7 +244,7 @@ export default function TreatmentsPage() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center max-w-2xl mx-auto">
                 <Button
                   size="lg"
-                  className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 dark:from-orange-600 dark:to-red-700 dark:hover:from-orange-700 dark:hover:to-red-800 text-white text-base sm:text-lg px-6 sm:px-10 py-3 sm:py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300 w-full sm:w-auto"
+                  className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-rose-700 dark:from-amber-600 dark:to-rose-700 dark:hover:from-amber-700 dark:hover:to-rose-800 text-white text-base sm:text-lg px-6 sm:px-10 py-3 sm:py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300 w-full sm:w-auto"
                 >
                   {t("common.bookAppointment")}
                 </Button>
@@ -314,7 +314,7 @@ export default function TreatmentsPage() {
                                   isEven ? "" : "ml-auto"
                                 } interactive hover:${
                                   treatment.colorScheme.hover
-                                } transition-all duration-300 shadow-lg group-hover:scale-110`}
+                                } hover-child shadow-lg group-hover:scale-105`}
                               >
                                 <IconComponent className="size-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 text-white" />
                               </div>
@@ -458,7 +458,7 @@ export default function TreatmentsPage() {
                                 key={service}
                                 className="flex items-center gap-x-2"
                               >
-                                <CheckCircle className="size-4 text-green-500 dark:text-green-400" />
+                                <CheckCircle className="size-4 text-emerald-500 dark:text-emerald-400" />
                                 <span className="text-muted-foreground dark:text-muted-foreground/90">
                                   {service}
                                 </span>

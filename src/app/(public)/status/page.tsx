@@ -42,8 +42,8 @@ function StatusServiceRow({ service }: { service: ServiceStatus }) {
             "bg-muted/50 dark:bg-slate-900/80 border-border dark:border-slate-800",
             isHealthy && "text-emerald-500 dark:text-emerald-500",
             isWarning && "text-amber-500 dark:text-amber-500",
-            isError && "text-red-500 dark:text-red-500",
-            isLoading && "text-blue-500 dark:text-blue-500"
+            isError && "text-rose-500 dark:text-rose-500",
+            isLoading && "text-sky-500 dark:text-sky-500"
           )}>
             <service.icon className="size-5" />
             {isHealthy && <div className="absolute top-1 right-1 size-1 rounded-full bg-emerald-500 shadow-[0_0_8px_2px_rgba(16,185,129,0.4)]" />}
@@ -51,7 +51,7 @@ function StatusServiceRow({ service }: { service: ServiceStatus }) {
           <div>
             <h3 className="font-semibold text-sm sm:text-base text-foreground dark:text-slate-100">{service.name}</h3>
             {service.error ? (
-               <p className="text-xs text-red-500 dark:text-red-400 mt-0.5 max-w-[200px] truncate">{service.error}</p>
+               <p className="text-xs text-rose-500 dark:text-rose-400 mt-0.5 max-w-[200px] truncate">{service.error}</p>
             ) : (
                <div className="flex flex-col gap-0.5 mt-0.5">
                   <p className="text-xs text-muted-foreground dark:text-slate-500">
@@ -102,8 +102,8 @@ function StatusPill({ status }: { status: string }) {
         "flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold tracking-wide border transition-all min-w-[140px] justify-center",
         isHealthy && "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 dark:bg-emerald-500/5",
         isWarning && "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400 dark:bg-amber-500/5",
-        isError && "border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400 dark:bg-red-500/5",
-        isLoading && "border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400 dark:bg-blue-500/5"
+        isError && "border-rose-500/20 bg-rose-500/10 text-rose-600 dark:text-rose-400 dark:bg-rose-500/5",
+        isLoading && "border-sky-500/20 bg-sky-500/10 text-sky-600 dark:text-sky-400 dark:bg-sky-500/5"
      )}>
         {isLoading && <Loader2 className="size-3.5 animate-spin" />}
         {isHealthy && <CheckCircle2 className="size-3.5" />}
@@ -284,7 +284,7 @@ export default function StatusPage() {
         {/* Metrics Banner */}
         <div className="mb-12 grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="col-span-1 md:col-span-2 relative overflow-hidden rounded-3xl border border-border dark:border-white/10 bg-card/50 dark:bg-white/2 p-8 backdrop-blur-md shadow-sm">
-                <div className="absolute top-0 right-0 p-32 bg-linear-to-br from-indigo-500/10 to-purple-500/10 blur-3xl rounded-full pointer-events-none" />
+                <div className="absolute top-0 right-0 p-32 bg-linear-to-br from-indigo-500/10 to-violet-500/10 blur-3xl rounded-full pointer-events-none" />
 
                 <h2 className="text-sm font-semibold text-muted-foreground dark:text-slate-500 uppercase tracking-widest mb-1">Overall Health</h2>
                 <div className="flex flex-col sm:flex-row sm:items-baseline gap-4 mt-2">
@@ -295,7 +295,7 @@ export default function StatusPage() {
                         "text-sm sm:text-lg font-bold px-3 py-1 rounded-full border w-fit",
                         isHealthy ? "border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10" :
                         isDegraded ? "border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10" :
-                        "border-red-500/30 text-red-600 dark:text-red-400 bg-red-500/10"
+                        "border-rose-500/30 text-rose-600 dark:text-rose-400 bg-rose-500/10"
                     )}>
                         {isHealthy ? "Fully Operational" : isDegraded ? "Partially Degraded" : "System Outage"}
                     </span>

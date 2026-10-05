@@ -1,10 +1,10 @@
 "use client";
 
-import { Fragment, useState, useEffect, useRef } from "react";
+import { Fragment, useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LazyMotion, domAnimation, m, AnimatePresence } from "motion/react";
+import { LazyMotion, domAnimation, m } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useTranslation, useLanguageSwitcher } from "@/lib/i18n/context";
@@ -15,7 +15,7 @@ import { APP_CONFIG } from "@/lib/config/config";
 import { ROUTES, getDashboardByRole } from "@/lib/config/routes";
 import { Role } from "@/types/auth.types";
 import { CompactThemeSwitcher } from "@/components/theme/ThemeSwitcher";
-import { Globe, ChevronDown, ChevronRight, User, LogOut } from "lucide-react";
+import { Globe, ChevronDown, User, LogOut } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,127 +37,30 @@ type NavigationItem = {
   href: string;
 };
 
-type MobileTreatmentsAccordionProps = {
-  subItems: NavigationItem[] | undefined;
-  pathname: string;
-  onSelect: () => void;
-};
-
 type MobileNavMenuItemProps = {
-  item: NavigationItem & {
-    hasDropdown?: boolean;
-    subItems?: NavigationItem[];
-  };
-  pathname: string;
-  isTreatmentsDropdownOpen: boolean;
-  onToggleTreatmentsDropdown: () => void;
-  onSelect: () => void;
-};
-
-type MobileTreatmentLinkProps = {
-  subItem: NavigationItem;
+  item: NavigationItem;
   pathname: string;
   onSelect: () => void;
 };
 
-const MobileTreatmentLink = ({
-  subItem,
-  pathname,
-  onSelect,
-}: MobileTreatmentLinkProps) => (
+const MobileNavMenuItem = ({ item, pathname, onSelect }: MobileNavMenuItemProps) => (
   <Link
-    href={subItem.href}
+    href={item.href}
     prefetch={false}
     className={cn(
-      "block text-sm text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 py-2 px-3 rounded-lg transition-all duration-200 border border-transparent hover:border-orange-200 dark:hover:border-orange-800",
-      pathname === subItem.href &&
-        "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800"
+      "text-gray-800 dark:text-gray-200 hover:text-primary hover:bg-primary/8 font-semibold py-4 px-5 rounded-xl flex items-center transition-all duration-200 touch-manipulation min-h-[52px] border border-transparent hover:border-primary/25 text-base",
+      pathname === item.href && "text-primary bg-primary/8 border-primary/25"
     )}
     onClick={onSelect}
   >
-    <span className="flex items-center gap-x-2">
-      <span className="size-1.5 rounded-full bg-orange-400" />
-      <span>{subItem.name}</span>
-    </span>
+    {item.name}
   </Link>
 );
-
-const MobileTreatmentsAccordion = ({
-  subItems,
-  pathname,
-  onSelect,
-}: MobileTreatmentsAccordionProps) => (
-  <div className="ml-4 gap-y-1 py-2">
-    {subItems?.map((subItem) => (
-      <MobileTreatmentLink
-        key={subItem.name}
-        subItem={subItem}
-        pathname={pathname}
-        onSelect={onSelect}
-      />
-    ))}
-  </div>
-);
-
-const MobileNavMenuItem = ({
-  item,
-  pathname,
-  isTreatmentsDropdownOpen,
-  onToggleTreatmentsDropdown,
-  onSelect,
-}: MobileNavMenuItemProps) =>
-  item.hasDropdown ? (
-    <div>
-      <button
-        type="button"
-        onClick={onToggleTreatmentsDropdown}
-        className={cn(
-          "w-full text-left text-gray-800 dark:text-gray-200 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 font-semibold py-4 px-5 rounded-xl flex items-center justify-between transition-all duration-200 touch-manipulation min-h-[52px] border border-transparent hover:border-orange-200 dark:hover:border-orange-800 text-base",
-          (pathname === item.href ||
-            item.subItems?.some((subItem) => pathname === subItem.href)) &&
-            "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800"
-        )}
-      >
-        <span>{item.name}</span>
-        <div
-          className={`transform transition-transform duration-150 ${
-            isTreatmentsDropdownOpen ? "rotate-90" : "rotate-0"
-          }`}
-        >
-          <ChevronRight className="size-4" />
-        </div>
-      </button>
-
-      {isTreatmentsDropdownOpen && (
-        <MobileTreatmentsAccordion
-          subItems={item.subItems}
-          pathname={pathname}
-          onSelect={onSelect}
-        />
-      )}
-    </div>
-  ) : (
-    <Link
-      href={item.href}
-      prefetch={false}
-      className={cn(
-        "text-gray-800 dark:text-gray-200 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 font-semibold py-4 px-5 rounded-xl flex items-center transition-all duration-200 touch-manipulation min-h-[52px] border border-transparent hover:border-orange-200 dark:hover:border-orange-800 text-base",
-        pathname === item.href &&
-          "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800"
-      )}
-      onClick={onSelect}
-    >
-      {item.name}
-    </Link>
-  );
 
 const Navigation = () => {
   const mounted = useHydrated();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isTreatmentsDropdownOpen, setIsTreatmentsDropdownOpen] =
-    useState(false);
-  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pathname = usePathname();
   const { t } = useTranslation();
   const { setLanguage, language: currentLanguage } = useLanguageSwitcher();
@@ -223,32 +126,6 @@ const Navigation = () => {
     };
   }, [isMobileMenuOpen]);
 
-  // Enhanced hover handlers with timeout
-  const handleMouseEnter = () => {
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-      hoverTimeoutRef.current = null;
-    }
-    setIsTreatmentsDropdownOpen(true);
-  };
-
-  const handleMouseLeave = () => {
-    const timeout = setTimeout(() => {
-      setIsTreatmentsDropdownOpen(false);
-    }, 150); // Small delay to prevent accidental closes
-    hoverTimeoutRef.current = timeout;
-  };
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    const timeoutRef = hoverTimeoutRef;
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
-
   // Authentication handlers
   const handleLogin = () => {
     push(ROUTES.LOGIN);
@@ -277,21 +154,12 @@ const Navigation = () => {
     push(dashboardPath);
   };
 
-  const treatmentsSubItems = [
+  /* The three therapies sit at the top level — no Treatments dropdown.
+     Home is reached through the logo, so it needs no tab of its own. */
+  const navItems: NavigationItem[] = [
     { name: t("navigation.agnikarma"), href: "/treatments/agnikarma" },
     { name: t("navigation.viddhakarma"), href: "/treatments/viddha-karma" },
     { name: t("navigation.panchakarma"), href: "/treatments/panchakarma" },
-  ];
-
-  const navItems = [
-    { name: t("navigation.home"), href: "/" },
-    {
-      name: t("navigation.treatments"),
-      href: "/treatments",
-      hasDropdown: true,
-      subItems: treatmentsSubItems,
-    },
-    { name: t("navigation.ourTeam"), href: "/team" },
     { name: t("navigation.about"), href: "/about" },
     { name: t("navigation.contact"), href: "/contact" },
   ];
@@ -299,7 +167,7 @@ const Navigation = () => {
   return (
     <>
       {/* Top Trust Bar */}
-      <div className="bg-linear-to-r from-orange-600 to-red-600 dark:from-orange-700 dark:to-red-700 text-white py-2 px-4 relative z-40">
+      <div className="bg-[oklch(0.22_0.045_163)] text-white py-2 px-4 relative z-40">
         <div className="container mx-auto max-w-7xl flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs md:text-sm gap-2 sm:gap-0">
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             <Badge
@@ -445,7 +313,7 @@ const Navigation = () => {
                     <h1 className="font-playfair text-base sm:text-lg lg:text-lg font-semibold text-gray-900 dark:text-white leading-tight truncate">
                       {t("navigation.clinicName")}
                     </h1>
-                    <p className="text-[10px] sm:text-xs lg:text-xs text-orange-600 dark:text-orange-400 -mt-1 truncate">
+                    <p className="text-[10px] sm:text-xs lg:text-xs text-primary -mt-1 truncate">
                       {t("navigation.clinicSubtitle")}
                     </p>
                   </div>
@@ -466,133 +334,23 @@ const Navigation = () => {
                   }}
                   className="relative"
                 >
-                  {item.hasDropdown ? (
-                    <div
-                      className="relative rounded-lg transition-all duration-200 hover:bg-orange-50/50 dark:hover:bg-orange-900/10 px-2 py-1"
-                      onMouseEnter={handleMouseEnter}
-                      onMouseLeave={handleMouseLeave}
-                    >
-                      <button
-                        type="button"
-                        className={cn(
-                          "text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 font-medium transition-colors duration-200 relative group text-sm lg:text-sm xl:text-sm whitespace-nowrap flex items-center gap-x-1 text-left w-full",
-                          (pathname === item.href ||
-                            item.subItems?.some(
-                              (subItem) => pathname === subItem.href
-                            )) &&
-                            "text-orange-600 dark:text-orange-400"
-                        )}
-                        onClick={() => push(item.href)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            setIsTreatmentsDropdownOpen(
-                              !isTreatmentsDropdownOpen
-                            );
-                          }
-                        }}
-                        aria-haspopup="menu"
-                        aria-expanded={isTreatmentsDropdownOpen}
-                      >
-                        <span>{item.name}</span>
-                        <m.div
-                          animate={{
-                            rotate: isTreatmentsDropdownOpen ? 90 : 0,
-                            scale: isTreatmentsDropdownOpen ? 1.1 : 1,
-                          }}
-                          transition={{
-                            duration: 0.2,
-                            ease: [0.0, 0.0, 0.2, 1],
-                          }}
-                        >
-                          <ChevronRight className="size-3" />
-                        </m.div>
-                        <m.span
-                          className="absolute -bottom-1 left-0 h-0.5 bg-orange-600 dark:bg-orange-400"
-                          initial={{ width: 0 }}
-                          whileHover={{ width: "100%" }}
-                          animate={{
-                            width:
-                              pathname === item.href ||
-                              item.subItems?.some(
-                                (subItem) => pathname === subItem.href
-                              )
-                                ? "100%"
-                                : 0,
-                          }}
-                          transition={{
-                            duration: 0.3,
-                            ease: [0.0, 0.0, 0.2, 1],
-                          }}
-                        />
-                      </button>
-
-                      {/* Animated Dropdown */}
-                      <AnimatePresence>
-                        {isTreatmentsDropdownOpen && (
-                          <m.div
-                            initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                            transition={{
-                              duration: 0.2,
-                              ease: [0.0, 0.0, 0.2, 1],
-                            }}
-                            className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden z-50"
-                            onMouseEnter={handleMouseEnter}
-                            onMouseLeave={handleMouseLeave}
-                          >
-                            {item.subItems?.map((subItem, subIndex) => (
-                              <m.div
-                                key={subItem.name}
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{
-                                  duration: 0.2,
-                                  delay: subIndex * 0.05,
-                                  ease: [0.0, 0.0, 0.2, 1],
-                                }}
-                              >
-                                <Link
-                                  href={subItem.href}
-                                  prefetch={false}
-                                  className={cn(
-                                    "block px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:text-orange-600 dark:hover:text-orange-400 transition-colors duration-200 border-b border-gray-100 dark:border-gray-700 last:border-b-0",
-                                    pathname === subItem.href &&
-                                      "bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400"
-                                  )}
-                                >
-                                  <div className="flex items-center gap-x-2">
-                                    <div className="size-2 bg-orange-400 rounded-full"></div>
-                                    <span>{subItem.name}</span>
-                                  </div>
-                                </Link>
-                              </m.div>
-                            ))}
-                          </m.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  ) : (
-                    <Link
-                      href={item.href}
-                      prefetch={false}
-                      className={cn(
-                        "text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 font-medium transition-colors duration-200 relative group text-sm lg:text-sm xl:text-sm whitespace-nowrap",
-                        pathname === item.href &&
-                          "text-orange-600 dark:text-orange-400"
-                      )}
-                    >
-                      {item.name}
-                      <m.span
-                        className="absolute -bottom-1 left-0 h-0.5 bg-orange-600 dark:bg-orange-400"
-                        initial={{ width: 0 }}
-                        whileHover={{ width: "100%" }}
-                        animate={{ width: pathname === item.href ? "100%" : 0 }}
-                        transition={{ duration: 0.3, ease: [0.0, 0.0, 0.2, 1] }}
-                      />
-                    </Link>
-                  )}
+                  <Link
+                    href={item.href}
+                    prefetch={false}
+                    className={cn(
+                      "text-gray-700 dark:text-gray-300 hover:text-primary font-medium transition-colors duration-200 relative group text-sm lg:text-sm xl:text-sm whitespace-nowrap",
+                      pathname === item.href && "text-primary"
+                    )}
+                  >
+                    {item.name}
+                    <m.span
+                      className="absolute -bottom-1 left-0 h-0.5 bg-primary"
+                      initial={{ width: 0 }}
+                      whileHover={{ width: "100%" }}
+                      animate={{ width: pathname === item.href ? "100%" : 0 }}
+                      transition={{ duration: 0.3, ease: [0.0, 0.0, 0.2, 1] }}
+                    />
+                  </Link>
                 </m.div>
               ))}
             </div>
@@ -638,7 +396,7 @@ const Navigation = () => {
                         size="sm"
                         variant="ghost"
                         onClick={handleLogin}
-                        className="text-orange-600 hover:bg-orange-50 text-xs sm:text-sm px-2 sm:px-3 touch-manipulation"
+                        className="text-primary hover:bg-primary/8 text-xs sm:text-sm px-2 sm:px-3 touch-manipulation"
                       >
                         <span className="hidden sm:inline">Login</span>
                         <span className="sm:hidden">Login</span>
@@ -647,7 +405,7 @@ const Navigation = () => {
                         type="button"
                         size="sm"
                         onClick={handleRegister}
-                        className="bg-linear-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs sm:text-sm px-2 sm:px-3 touch-manipulation"
+                        className="bg-primary hover:bg-primary/90 text-white text-xs sm:text-sm px-2 sm:px-3 touch-manipulation"
                       >
                         <span className="hidden sm:inline">Get Started</span>
                         <span className="sm:hidden">Start</span>
@@ -666,7 +424,7 @@ const Navigation = () => {
               <Button
                 type="button"
                 size="sm"
-                className="hidden lg:flex bg-linear-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs sm:text-sm px-3 sm:px-4 shadow-lg"
+                className="hidden lg:flex bg-primary hover:bg-primary/90 text-white text-xs sm:text-sm px-3 sm:px-4 shadow-lg"
                 onClick={() => (window.location.href = "/drdeshmukh")}
               >
                 <Phone className="size-3 mr-1" />
@@ -677,7 +435,7 @@ const Navigation = () => {
               <Button
                 type="button"
                 size="sm"
-                className="lg:hidden bg-linear-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs px-3 py-2 h-8 shadow-lg touch-manipulation"
+                className="lg:hidden bg-primary hover:bg-primary/90 text-white text-xs px-3 py-2 h-8 shadow-lg touch-manipulation"
                 onClick={() => (window.location.href = "/drdeshmukh")}
               >
                 <Phone className="size-3 mr-1" />
@@ -694,7 +452,7 @@ const Navigation = () => {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="lg:hidden size-10 p-0 touch-manipulation hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                    className="lg:hidden size-10 p-0 touch-manipulation hover:bg-primary/8"
                     aria-label="Toggle mobile menu"
                   >
                     <Menu className="size-4 text-gray-700 dark:text-gray-300" />
@@ -705,8 +463,8 @@ const Navigation = () => {
                   side="left"
                   className="w-[min(22rem,calc(100vw-1rem))] max-w-none gap-0 p-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700"
                 >
-                  <SheetHeader className="shrink-0 p-6 pr-12 border-b border-gray-200 dark:border-gray-700 bg-linear-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20">
-                    <SheetTitle className="text-left text-lg font-bold text-orange-600 dark:text-orange-400 leading-tight tracking-wide flex items-center gap-x-3 min-w-0">
+                  <SheetHeader className="shrink-0 p-6 pr-12 border-b border-gray-200 dark:border-gray-700 bg-primary/5">
+                    <SheetTitle className="text-left text-lg font-bold text-primary leading-tight tracking-wide flex items-center gap-x-3 min-w-0">
                       <div className="relative size-9 flex items-center justify-center overflow-hidden shrink-0 rounded-xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
                         <Image
                           src="/assets/logo/logowithoutbackground.png"
@@ -739,17 +497,8 @@ const Navigation = () => {
                         {navItems.map((item) => (
                           <MobileNavMenuItem
                             key={item.name}
-                            item={item as NavigationItem & {
-                              hasDropdown?: boolean;
-                              subItems?: NavigationItem[];
-                            }}
+                            item={item}
                             pathname={pathname}
-                            isTreatmentsDropdownOpen={isTreatmentsDropdownOpen}
-                            onToggleTreatmentsDropdown={() =>
-                              setIsTreatmentsDropdownOpen(
-                                !isTreatmentsDropdownOpen
-                              )
-                            }
                             onSelect={() => setIsMobileMenuOpen(false)}
                           />
                         ))}
@@ -760,9 +509,9 @@ const Navigation = () => {
                     <div className="shrink-0 p-6 pt-5 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                       {isAuthenticated && session ? (
                         <div className="flex flex-col gap-y-4">
-                          <div className="flex items-center gap-x-2 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
-                            <User className="size-4 text-orange-600" />
-                            <span className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                          <div className="flex items-center gap-x-2 p-3 bg-primary/8 rounded-lg">
+                            <User className="size-4 text-primary" />
+                            <span className="text-sm font-medium text-primary">
                               {session.user.firstName || "User"}
                             </span>
                           </div>
@@ -772,7 +521,7 @@ const Navigation = () => {
                               setIsMobileMenuOpen(false);
                               handleDashboardNavigation();
                             }}
-                            className="bg-linear-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white h-12 text-base touch-manipulation shadow-md"
+                            className="bg-primary hover:bg-primary/90 text-white h-12 text-base touch-manipulation shadow-md"
                           >
                             <User className="size-4 mr-2" />
                             Dashboard
@@ -784,7 +533,7 @@ const Navigation = () => {
                               setIsMobileMenuOpen(false);
                               handleLogout();
                             }}
-                            className="border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 h-12 text-base touch-manipulation"
+                            className="border-rose-300 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 h-12 text-base touch-manipulation"
                           >
                             <LogOut className="size-4 mr-2" />
                             Logout
@@ -799,7 +548,7 @@ const Navigation = () => {
                               handleLogin();
                             }}
                             variant="outline"
-                            className="border-orange-300 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 h-12 text-base touch-manipulation"
+                            className="border-primary/35 text-primary hover:bg-primary/8 h-12 text-base touch-manipulation"
                           >
                             Login
                           </Button>
@@ -809,7 +558,7 @@ const Navigation = () => {
                               setIsMobileMenuOpen(false);
                               handleRegister();
                             }}
-                            className="bg-linear-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white h-12 text-base touch-manipulation shadow-md"
+                            className="bg-primary hover:bg-primary/90 text-white h-12 text-base touch-manipulation shadow-md"
                           >
                             Get Started
                           </Button>
@@ -823,7 +572,7 @@ const Navigation = () => {
                           setIsMobileMenuOpen(false);
                           window.location.href = "/drdeshmukh";
                         }}
-                        className="border-orange-300 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 h-12 text-base touch-manipulation mt-3 w-full"
+                        className="border-primary/35 text-primary hover:bg-primary/8 h-12 text-base touch-manipulation mt-3 w-full"
                       >
                         <Phone className="size-4 mr-2" />
                         {t("navigation.bookConsultation")}

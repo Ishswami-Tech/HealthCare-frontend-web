@@ -179,17 +179,17 @@ export default function ViddhaKarmaPage() {
         {/* Hero Section */}
         <section className="relative py-16 sm:py-20 md:py-24 lg:py-28 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-background via-background/98 to-muted/30"></div>
-          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-purple-500/5 to-indigo-500/10"></div>
-          <div className="absolute inset-0 bg-gradient-to-bl from-purple-400/3 via-transparent to-indigo-400/5"></div>
-          <div className="absolute top-20 left-8 size-20 bg-gradient-to-r from-purple-400/20 to-indigo-400/20 rounded-full blur-xl animate-pulse"></div>
-          <div className="absolute top-32 right-16 size-32 bg-gradient-to-r from-indigo-400/15 to-purple-400/15 rounded-full blur-2xl animate-pulse delay-1000"></div>
-          <div className="absolute bottom-24 left-1/3 size-24 bg-gradient-to-r from-purple-300/10 to-indigo-300/10 rounded-full blur-xl animate-pulse delay-2000"></div>
-          <div className="absolute top-1/2 right-1/4 size-16 bg-gradient-to-r from-purple-500/20 to-indigo-500/20 rounded-full blur-lg animate-pulse delay-3000"></div>
-          <div className="absolute top-16 right-8 size-12 border border-purple-400/20 rotate-45 animate-spin-slow"></div>
+          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-violet-500/5 to-indigo-500/10"></div>
+          <div className="absolute inset-0 bg-gradient-to-bl from-violet-400/3 via-transparent to-indigo-400/5"></div>
+          <div className="absolute top-20 left-8 size-20 bg-gradient-to-r from-violet-400/20 to-indigo-400/20 rounded-full blur-xl animate-pulse"></div>
+          <div className="absolute top-32 right-16 size-32 bg-gradient-to-r from-indigo-400/15 to-violet-400/15 rounded-full blur-2xl animate-pulse delay-1000"></div>
+          <div className="absolute bottom-24 left-1/3 size-24 bg-gradient-to-r from-violet-300/10 to-indigo-300/10 rounded-full blur-xl animate-pulse delay-2000"></div>
+          <div className="absolute top-1/2 right-1/4 size-16 bg-gradient-to-r from-violet-500/20 to-indigo-500/20 rounded-full blur-lg animate-pulse delay-3000"></div>
+          <div className="absolute top-16 right-8 size-12 border border-violet-400/20 rotate-45 animate-spin-slow"></div>
           <div className="absolute bottom-32 left-12 size-8 border border-indigo-400/20 rotate-12 animate-pulse"></div>
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="max-w-5xl mx-auto text-center">
-              <Badge className="bg-gradient-to-r from-purple-100 to-indigo-100 dark:from-purple-900/50 dark:to-indigo-900/50 text-purple-800 dark:text-purple-100 border-purple-200 dark:border-purple-700/60 glass interactive mb-8 px-6 py-3 text-sm font-medium">
+              <Badge className="bg-gradient-to-r from-violet-100 to-indigo-100 dark:from-violet-900/50 dark:to-indigo-900/50 text-violet-800 dark:text-violet-100 border-violet-200 dark:border-violet-700/60 glass interactive mb-8 px-6 py-3 text-sm font-medium">
                 <Zap className="size-4 mr-2" />
                 {t("viddhakarma.badge")}
               </Badge>
@@ -200,16 +200,16 @@ export default function ViddhaKarmaPage() {
                 {t("viddhakarma.subtitle")}
               </p>
               <div className="flex flex-wrap justify-center gap-4 mb-10">
-                <Badge className="bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/50 dark:to-emerald-900/50 text-green-800 dark:text-green-100 border-green-200 dark:border-green-700/60 glass interactive px-4 py-2">
+                <Badge className="bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/50 dark:to-emerald-900/50 text-emerald-800 dark:text-emerald-100 border-emerald-200 dark:border-emerald-700/60 glass interactive px-4 py-2">
                   <CheckCircle className="size-4 mr-2" />
                   89% {t("common.success")}{" "}
                   {t("agnikarma.comparison.successRate")}
                 </Badge>
-                <Badge className="bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-900/50 dark:to-cyan-900/50 text-blue-800 dark:text-blue-100 border-blue-200 dark:border-blue-700/60 glass interactive px-4 py-2">
+                <Badge className="bg-gradient-to-r from-sky-100 to-cyan-100 dark:from-sky-900/50 dark:to-cyan-900/50 text-sky-800 dark:text-sky-100 border-sky-200 dark:border-sky-700/60 glass interactive px-4 py-2">
                   <Target className="size-4 mr-2" />
                   107 Marma Points
                 </Badge>
-                <Badge className="bg-gradient-to-r from-purple-100 to-violet-100 dark:from-purple-900/50 dark:to-violet-900/50 text-purple-800 dark:text-purple-100 border-purple-200 dark:border-purple-700/60 glass interactive px-4 py-2">
+                <Badge className="bg-gradient-to-r from-violet-100 to-violet-100 dark:from-violet-900/50 dark:to-violet-900/50 text-violet-800 dark:text-violet-100 border-violet-200 dark:border-violet-700/60 glass interactive px-4 py-2">
                   <Shield className="size-4 mr-2" />
                   {t("common.scientificallyValidated")}
                 </Badge>
@@ -217,7 +217,7 @@ export default function ViddhaKarmaPage() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button
                   size="lg"
-                  className="bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 dark:from-purple-600 dark:to-indigo-700 dark:hover:from-purple-700 dark:hover:to-indigo-800 text-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300"
+                  className="bg-gradient-to-r from-violet-500 to-indigo-600 hover:from-violet-600 hover:to-indigo-700 dark:from-violet-600 dark:to-indigo-700 dark:hover:from-violet-700 dark:hover:to-indigo-800 text-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300"
                 >
                   {t("viddhakarma.cta.bookConsultation")}
                 </Button>
@@ -238,7 +238,7 @@ export default function ViddhaKarmaPage() {
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-6xl mx-auto">
               <div className="text-center mb-16">
-                <Badge className="bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-900/30 dark:to-cyan-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
+                <Badge className="bg-gradient-to-r from-sky-100 to-cyan-100 dark:from-sky-900/30 dark:to-cyan-900/30 text-sky-800 dark:text-sky-200 border-sky-200 dark:border-sky-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
                   <Brain className="size-4 mr-2" />
                   Advanced Techniques
                 </Badge>
@@ -256,7 +256,7 @@ export default function ViddhaKarmaPage() {
                     <div className="relative">
                       <div className="absolute top-4 right-4 size-20 border border-primary/20 rounded-full"></div>
                       <div className="absolute bottom-4 left-4 size-16 border border-secondary/20 rounded-full"></div>
-                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
+                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-violet-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
                         <Brain className="size-8 sm:w-10 sm:h-10 text-white" />
                       </div>
                     </div>
@@ -276,7 +276,7 @@ export default function ViddhaKarmaPage() {
                     <div className="relative">
                       <div className="absolute top-4 right-4 size-20 border border-primary/20 rounded-full"></div>
                       <div className="absolute bottom-4 left-4 size-16 border border-secondary/20 rounded-full"></div>
-                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-orange-500 to-red-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
+                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-amber-500 to-amber-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
                         <Award className="size-8 sm:w-10 sm:h-10 text-white" />
                       </div>
                     </div>
@@ -296,7 +296,7 @@ export default function ViddhaKarmaPage() {
                     <div className="relative">
                       <div className="absolute top-4 right-4 size-20 border border-primary/20 rounded-full"></div>
                       <div className="absolute bottom-4 left-4 size-16 border border-secondary/20 rounded-full"></div>
-                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
+                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
                         <CheckCircle className="size-8 sm:w-10 sm:h-10 text-white" />
                       </div>
                     </div>
@@ -316,7 +316,7 @@ export default function ViddhaKarmaPage() {
                     <div className="relative">
                       <div className="absolute top-4 right-4 size-20 border border-primary/20 rounded-full"></div>
                       <div className="absolute bottom-4 left-4 size-16 border border-secondary/20 rounded-full"></div>
-                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
+                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-cyan-500 to-sky-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
                         <Target className="size-8 sm:w-10 sm:h-10 text-white" />
                       </div>
                     </div>
@@ -336,11 +336,11 @@ export default function ViddhaKarmaPage() {
         </section>
 
         {/* Treatment Process */}
-        <section className="py-16 sm:py-20 md:py-24 bg-gradient-to-br from-muted/30 to-purple-50 dark:to-purple-900/10">
+        <section className="py-16 sm:py-20 md:py-24 bg-gradient-to-br from-muted/30 to-violet-50 dark:to-violet-900/10">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-6xl mx-auto">
               <div className="text-center mb-16">
-                <Badge className="bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/30 dark:to-emerald-900/30 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
+                <Badge className="bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-emerald-900/30 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
                   <Activity className="size-4 mr-2" />
                   Treatment Process
                 </Badge>
@@ -429,7 +429,7 @@ export default function ViddhaKarmaPage() {
                       <CardTitle className="text-xl text-foreground mb-2">
                         {application.category}
                       </CardTitle>
-                      <Badge className="bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/20 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800/30 w-fit">
+                      <Badge className="bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/20 dark:to-emerald-900/20 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/30 w-fit">
                         {application.successRate}% Success Rate
                       </Badge>
                     </CardHeader>
@@ -447,7 +447,7 @@ export default function ViddhaKarmaPage() {
                                   key={treatment}
                                   className="flex items-center gap-x-2"
                                 >
-                                  <CheckCircle className="size-4 text-green-500" />
+                                  <CheckCircle className="size-4 text-emerald-500" />
                                   <span className="text-muted-foreground">
                                     {treatment}
                                   </span>
@@ -475,7 +475,7 @@ export default function ViddhaKarmaPage() {
                                 "viddhakarma.specializedApplications.successRate"
                               )}
                             </span>
-                            <span className="text-sm font-bold text-green-600">
+                            <span className="text-sm font-bold text-emerald-600">
                               {application.successRate}%
                             </span>
                           </div>
@@ -494,11 +494,11 @@ export default function ViddhaKarmaPage() {
         </section>
 
         {/* Patient Success Stories */}
-        <section className="py-16 sm:py-20 md:py-24 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/10 dark:to-cyan-900/10">
+        <section className="py-16 sm:py-20 md:py-24 bg-gradient-to-br from-sky-50 to-cyan-50 dark:from-sky-900/10 dark:to-cyan-900/10">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-6xl mx-auto">
               <div className="text-center mb-16">
-                <Badge className="bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-900/30 dark:to-cyan-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
+                <Badge className="bg-gradient-to-r from-sky-100 to-cyan-100 dark:from-sky-900/30 dark:to-cyan-900/30 text-sky-800 dark:text-sky-200 border-sky-200 dark:border-sky-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
                   <Heart className="size-4 mr-2" />
                   {t("viddhakarma.patientSuccessStories.title")}
                 </Badge>
@@ -518,23 +518,23 @@ export default function ViddhaKarmaPage() {
                   >
                     <CardContent className="p-6">
                       <div className="text-center">
-                        <div className="size-12 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <div className="size-12 bg-gradient-to-r from-sky-500 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-4">
                           <Heart className="size-6 text-white" />
                         </div>
                         <h3 className="text-lg font-semibold text-foreground mb-3">
                           {application.category}
                         </h3>
-                        <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800/30">
-                          <p className="text-sm text-blue-800 dark:text-blue-200 font-medium leading-relaxed mb-3">
+                        <div className="bg-gradient-to-r from-sky-50 to-cyan-50 dark:from-sky-900/20 dark:to-cyan-900/20 rounded-lg p-4 border border-sky-200 dark:border-sky-800/30">
+                          <p className="text-sm text-sky-800 dark:text-sky-200 font-medium leading-relaxed mb-3">
                             &ldquo;{application.benefits}&rdquo;
                           </p>
-                          <div className="flex items-center justify-center gap-x-4 text-xs text-blue-600">
+                          <div className="flex items-center justify-center gap-x-4 text-xs text-sky-600">
                             <span className="flex items-center">
-                              <div className="size-2 bg-green-500 rounded-full mr-1"></div>
+                              <div className="size-2 bg-emerald-500 rounded-full mr-1"></div>
                               {application.successRate}% Success
                             </span>
                             <span className="flex items-center">
-                              <div className="size-2 bg-orange-500 rounded-full mr-1"></div>
+                              <div className="size-2 bg-amber-500 rounded-full mr-1"></div>
                               {application.treatments.length} Treatments
                             </span>
                           </div>
@@ -549,11 +549,11 @@ export default function ViddhaKarmaPage() {
         </section>
 
         {/* Advanced Techniques */}
-        <section className="py-16 sm:py-20 md:py-24 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/10 dark:to-indigo-900/10">
+        <section className="py-16 sm:py-20 md:py-24 bg-gradient-to-br from-violet-50 to-indigo-50 dark:from-violet-900/10 dark:to-indigo-900/10">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-6xl mx-auto">
               <div className="text-center mb-16">
-                <Badge className="bg-gradient-to-r from-purple-100 to-indigo-100 dark:from-purple-900/30 dark:to-indigo-900/30 text-purple-800 dark:text-purple-200 border-purple-200 dark:border-purple-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
+                <Badge className="bg-gradient-to-r from-violet-100 to-indigo-100 dark:from-violet-900/30 dark:to-indigo-900/30 text-violet-800 dark:text-violet-200 border-violet-200 dark:border-violet-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
                   <Award className="size-4 mr-2" />
                   Advanced Techniques
                 </Badge>
@@ -600,11 +600,11 @@ export default function ViddhaKarmaPage() {
         </section>
 
         {/* Treatment Packages */}
-        <section className="py-16 sm:py-20 md:py-24 bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-900/10 dark:to-red-900/10">
+        <section className="py-16 sm:py-20 md:py-24 bg-gradient-to-br from-amber-50 to-amber-50 dark:from-amber-900/10 dark:to-rose-900/10">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-6xl mx-auto">
               <div className="text-center mb-16">
-                <Badge className="bg-gradient-to-r from-orange-100 to-red-100 dark:from-orange-900/30 dark:to-red-900/30 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
+                <Badge className="bg-gradient-to-r from-amber-100 to-amber-100 dark:from-amber-900/30 dark:to-rose-900/30 text-amber-800 dark:text-amber-200 border-amber-200 dark:border-amber-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
                   <Star className="size-4 mr-2" />
                   Treatment Packages
                 </Badge>
@@ -622,7 +622,7 @@ export default function ViddhaKarmaPage() {
                     <CardTitle className="text-lg text-foreground">
                       {t("viddhakarma.treatmentPackages.essential.title")}
                     </CardTitle>
-                    <div className="text-2xl font-bold text-purple-600">
+                    <div className="text-2xl font-bold text-violet-600">
                       {t("viddhakarma.treatmentPackages.essential.sessions")}
                     </div>
                   </CardHeader>
@@ -634,27 +634,27 @@ export default function ViddhaKarmaPage() {
                       <span className="text-sm text-muted-foreground">
                         {t("viddhakarma.treatmentPackages.successRate")}
                       </span>
-                      <span className="font-bold text-green-600">
+                      <span className="font-bold text-emerald-600">
                         {t(
                           "viddhakarma.treatmentPackages.essential.successRate"
                         )}
                       </span>
                     </div>
-                    <Button className="w-full bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 dark:from-purple-600 dark:to-indigo-700 dark:hover:from-purple-700 dark:hover:to-indigo-800 text-white">
+                    <Button className="w-full bg-gradient-to-r from-violet-500 to-indigo-600 hover:from-violet-600 hover:to-indigo-700 dark:from-violet-600 dark:to-indigo-700 dark:hover:from-violet-700 dark:hover:to-indigo-800 text-white">
                       {t("viddhakarma.treatmentPackages.choosePackage")}
                     </Button>
                   </CardContent>
                 </Card>
 
                 <Card className="hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-visible glass card-hover group relative">
-                  <Badge className="absolute -top-3.5 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-orange-500 to-red-500 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-md z-10">
+                  <Badge className="absolute -top-3.5 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-500 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-md z-10">
                     {t("viddhakarma.treatmentPackages.comprehensive.badge")}
                   </Badge>
                   <CardHeader className="text-center">
                     <CardTitle className="text-lg text-foreground">
                       {t("viddhakarma.treatmentPackages.comprehensive.title")}
                     </CardTitle>
-                    <div className="text-2xl font-bold text-purple-600">
+                    <div className="text-2xl font-bold text-violet-600">
                       {t(
                         "viddhakarma.treatmentPackages.comprehensive.sessions"
                       )}
@@ -670,13 +670,13 @@ export default function ViddhaKarmaPage() {
                       <span className="text-sm text-muted-foreground">
                         {t("viddhakarma.treatmentPackages.successRate")}
                       </span>
-                      <span className="font-bold text-green-600">
+                      <span className="font-bold text-emerald-600">
                         {t(
                           "viddhakarma.treatmentPackages.comprehensive.successRate"
                         )}
                       </span>
                     </div>
-                    <Button className="w-full bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 dark:from-orange-600 dark:to-red-700 dark:hover:from-orange-700 dark:hover:to-red-800 text-white">
+                    <Button className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-rose-700 dark:from-amber-600 dark:to-rose-700 dark:hover:from-amber-700 dark:hover:to-rose-800 text-white">
                       {t("viddhakarma.treatmentPackages.choosePackage")}
                     </Button>
                   </CardContent>
@@ -687,7 +687,7 @@ export default function ViddhaKarmaPage() {
                     <CardTitle className="text-lg text-foreground">
                       {t("viddhakarma.treatmentPackages.advanced.title")}
                     </CardTitle>
-                    <div className="text-2xl font-bold text-purple-600">
+                    <div className="text-2xl font-bold text-violet-600">
                       {t("viddhakarma.treatmentPackages.advanced.sessions")}
                     </div>
                   </CardHeader>
@@ -699,27 +699,27 @@ export default function ViddhaKarmaPage() {
                       <span className="text-sm text-muted-foreground">
                         {t("viddhakarma.treatmentPackages.successRate")}
                       </span>
-                      <span className="font-bold text-green-600">
+                      <span className="font-bold text-emerald-600">
                         {t(
                           "viddhakarma.treatmentPackages.advanced.successRate"
                         )}
                       </span>
                     </div>
-                    <Button className="w-full bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 dark:from-purple-600 dark:to-indigo-700 dark:hover:from-purple-700 dark:hover:to-indigo-800 text-white">
+                    <Button className="w-full bg-gradient-to-r from-violet-500 to-indigo-600 hover:from-violet-600 hover:to-indigo-700 dark:from-violet-600 dark:to-indigo-700 dark:hover:from-violet-700 dark:hover:to-indigo-800 text-white">
                       {t("viddhakarma.treatmentPackages.choosePackage")}
                     </Button>
                   </CardContent>
                 </Card>
 
-                <Card className="hover:shadow-xl transition-all duration-500 bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/10 dark:to-orange-900/10 shadow-2xl border border-border/50 overflow-visible glass card-hover group relative">
-                  <Badge className="absolute -top-3.5 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-amber-500 to-yellow-500 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-md z-10">
+                <Card className="hover:shadow-xl transition-all duration-500 bg-gradient-to-br from-amber-50 to-amber-50 dark:from-amber-900/10 dark:to-amber-900/10 shadow-2xl border border-border/50 overflow-visible glass card-hover group relative">
+                  <Badge className="absolute -top-3.5 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-500 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-md z-10">
                     {t("viddhakarma.treatmentPackages.holistic.badge")}
                   </Badge>
                   <CardHeader className="text-center">
                     <CardTitle className="text-lg text-foreground">
                       {t("viddhakarma.treatmentPackages.holistic.title")}
                     </CardTitle>
-                    <div className="text-2xl font-bold text-purple-600">
+                    <div className="text-2xl font-bold text-violet-600">
                       {t("viddhakarma.treatmentPackages.holistic.sessions")}
                     </div>
                   </CardHeader>
@@ -731,13 +731,13 @@ export default function ViddhaKarmaPage() {
                       <span className="text-sm text-muted-foreground">
                         {t("viddhakarma.treatmentPackages.successRate")}
                       </span>
-                      <span className="font-bold text-green-600">
+                      <span className="font-bold text-emerald-600">
                         {t(
                           "viddhakarma.treatmentPackages.holistic.successRate"
                         )}
                       </span>
                     </div>
-                    <Button className="w-full bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 dark:from-yellow-600 dark:to-orange-700 dark:hover:from-yellow-700 dark:hover:to-orange-800 text-white">
+                    <Button className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 dark:from-amber-600 dark:to-amber-700 dark:hover:from-amber-700 dark:hover:to-amber-800 text-white">
                       {t("viddhakarma.treatmentPackages.choosePackage")}
                     </Button>
                   </CardContent>
@@ -748,32 +748,32 @@ export default function ViddhaKarmaPage() {
         </section>
 
         {/* Call to Action */}
-        <section className="py-16 sm:py-20 md:py-24 bg-gradient-to-r from-purple-600 to-indigo-700 dark:from-purple-700 dark:to-indigo-800">
+        <section className="py-16 sm:py-20 md:py-24 bg-gradient-to-r from-violet-600 to-indigo-700 dark:from-violet-700 dark:to-indigo-800">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-4xl mx-auto text-center text-white">
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-semibold mb-6">
                 {t("viddhakarma.cta.title")}
               </h2>
-              <p className="text-xl text-purple-100 dark:text-purple-200 mb-8 leading-relaxed">
+              <p className="text-xl text-violet-100 dark:text-violet-200 mb-8 leading-relaxed">
                 {t("viddhakarma.cta.subtitle")}
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button
                   size="lg"
-                  className="bg-white text-purple-600 hover:bg-purple-600 hover:text-white border border-transparent hover:border-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
+                  className="bg-white text-violet-600 hover:bg-violet-600 hover:text-white border border-transparent hover:border-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
                 >
                   {t("viddhakarma.cta.bookConsultation")}
                 </Button>
                 <Button
                   size="lg"
-                  className="bg-white text-purple-600 hover:bg-purple-600 hover:text-white border border-transparent hover:border-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
+                  className="bg-white text-violet-600 hover:bg-violet-600 hover:text-white border border-transparent hover:border-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
                 >
                   {t("viddhakarma.cta.freeAssessment")}
                 </Button>
               </div>
 
-              <div className="mt-8 flex flex-wrap justify-center gap-6 text-purple-100 dark:text-purple-200">
+              <div className="mt-8 flex flex-wrap justify-center gap-6 text-violet-100 dark:text-violet-200">
                 <div className="flex items-center gap-x-2">
                   <Target className="size-4" />
                   <span>107 Marma Points</span>

@@ -1,818 +1,1085 @@
 "use client";
 
+import Image from "next/image";
 
-import { useTranslation } from "@/lib/i18n/context";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import {
+  BookOpen,
+  Accessibility,
+  Activity,
+  Bone,
+  CalendarDays,
+  Check,
+  ChevronRight,
+  ClipboardList,
+  FileSearch,
+  Clock,
   Flame,
-  CheckCircle,
+  Flower2,
+  Footprints,
+  HeartPulse,
+  Leaf,
+  Heart,
+  Microscope,
+  Quote,
+  Hand,
+  MoveVertical,
+  Shield,
+  ShieldCheck,
+  Spline,
+  Sparkles,
   Star,
   Target,
-  Zap,
-  Shield,
-  Award,
   TrendingUp,
-  Heart,
+  Users,
+  Zap,
+  type LucideIcon,
 } from "lucide-react";
-import { LanguageSwitcher } from "@/components/ui/language-switcher";
-import { CompactThemeSwitcher } from "@/components/theme/ThemeSwitcher";
+import { m } from "motion/react";
+import { Progress } from "@/components/ui/progress";
 import { PageTransition } from "@/components/ui/animated-wrapper";
-import { getIconColorScheme } from "@/lib/config/color-palette";
+import { useTranslation } from "@/lib/i18n/context";
+import { cn } from "@/lib/utils";
+import { BookVideoCta } from "@/components/home/BookVideoCta";
+import { HomeLinkButton } from "@/components/home/HomeLinkButton";
+import { SectionHeading, SectionIndex } from "@/components/home/SectionHeading";
+import {
+  CountUp,
+  HOME_EASE,
+  HomeMotionProvider,
+  Reveal,
+  RevealGroup,
+  RevealItem,
+} from "@/components/home/home-motion";
+import { HOME_LINKS } from "@/components/home/home-links";
+import {
+  ACCENTS,
+  CARD,
+  CARD_INTERACTIVE,
+  CONTAINER,
+  DISPLAY_LG,
+  DISPLAY_MD,
+  DISPLAY_XL,
+  HEADING_GAP,
+  HOVER_CARD_LIFT,
+  HOVER_TRANSITION,
+  HOVER_TRANSITION_CHILD,
+  SECTION_Y,
+  STATUS,
+  SURFACE,
+  THERAPY_ACCENT,
+  type AccentName,
+  type StatusName,
+} from "@/lib/design/tokens";
 
-export default function AgnikarmaPage() {
-  const { t } = useTranslation();
+/** Agnikarma owns the amber accent everywhere it appears. */
+const ACCENT: AccentName = THERAPY_ACCENT.agnikarma;
+const accent = ACCENTS[ACCENT];
 
-  const processSteps = [
-    {
-      step: 1,
-      title: t("agnikarma.processSteps.steps.1.title"),
-      description: t("agnikarma.processSteps.steps.1.description"),
-      icon: Target,
-      colorScheme: getIconColorScheme("Target"),
-    },
-    {
-      step: 2,
-      title: t("agnikarma.processSteps.steps.2.title"),
-      description: t("agnikarma.processSteps.steps.2.description"),
-      icon: Flame,
-      colorScheme: getIconColorScheme("Flame"),
-    },
-    {
-      step: 3,
-      title: t("agnikarma.processSteps.steps.3.title"),
-      description: t("agnikarma.processSteps.steps.3.description"),
-      icon: Zap,
-      colorScheme: getIconColorScheme("Zap"),
-    },
-    {
-      step: 4,
-      title: t("agnikarma.processSteps.steps.4.title"),
-      description: t("agnikarma.processSteps.steps.4.description"),
-      icon: Heart,
-      colorScheme: getIconColorScheme("Heart"),
-    },
-    {
-      step: 5,
-      title: t("agnikarma.processSteps.steps.5.title"),
-      description: t("agnikarma.processSteps.steps.5.description"),
-      icon: Shield,
-      colorScheme: getIconColorScheme("Shield"),
-    },
-  ];
+/** The health assessment lives on the homepage, so it needs an absolute hash. */
+const ASSESSMENT_HREF = "/#health-assessment";
 
-  const conditionsData = [
+/** Hero photograph. Replace the file to change the image; no code change needed. */
+const HERO_IMAGE = "/assets/treatments/agnikarma-brow-marma.webp";
+
+const HEADLINE_SUCCESS_RATE = 92;
+
+/**
+ * Hero entrance runs from CSS (tw-animate-css) rather than scroll reveals, so
+ * the above-the-fold content is painted and animating from the server HTML
+ * instead of waiting on hydration.
+ */
+const ENTER = "animate-in fade-in slide-in-from-bottom-5 fill-mode-both duration-700 ease-out";
+
+type Translate = (path: string) => string;
+type TranslateArray = (path: string) => string[];
+
+/* -------------------------------------------------------------------------- */
+/*  Data                                                                       */
+/* -------------------------------------------------------------------------- */
+
+const FOUNDATION_PILLARS = [
+  { key: "ancientText", icon: BookOpen, tint: "amber", image: "/assets/treatments/agnikarma-ancient-texts.webp" },
+  { key: "modernValidation", icon: Microscope, tint: "emerald", image: "/assets/treatments/agnikarma-modern-validation.webp" },
+  { key: "precisionTechnology", icon: Target, tint: "violet", image: "/assets/treatments/agnikarma-clinic-heat.webp" },
+  { key: "zeroSideEffects", icon: Shield, tint: "teal", image: "/assets/treatments/agnikarma-zero-side-effects.webp" },
+] as const satisfies readonly { key: string; icon: LucideIcon; tint: AccentName; image: string }[];
+
+const ADVANTAGES = [
+  { key: "instantResults", icon: Zap, tint: "amber" },
+  { key: "precisionTargeting", icon: Target, tint: "violet" },
+  { key: "zeroSideEffects", icon: Shield, tint: "emerald" },
+  { key: "costEffective", icon: TrendingUp, tint: "sky" },
+] as const satisfies readonly { key: string; icon: LucideIcon; tint: AccentName }[];
+
+const CONDITION_KEYS = [
+  { key: "chronicKneePain", successRate: 95 },
+  { key: "sciatica", successRate: 92 },
+  { key: "frozenShoulder", successRate: 88 },
+  { key: "tennisElbow", successRate: 94 },
+  { key: "plantarFasciitis", successRate: 90 },
+  { key: "cervicalSpondylosis", successRate: 87 },
+  { key: "arthritis", successRate: 89 },
+] as const;
+
+interface Condition {
+  key: string;
+  condition: string;
+  successRate: number;
+  avgSessions: string;
+  recoveryTime: string;
+  patientStory: string;
+}
+
+function buildConditions(t: Translate): Condition[] {
+  return CONDITION_KEYS.map(({ key, successRate }) => ({
+    key,
+    successRate,
+    condition: t(`agnikarma.conditions.${key}.condition`),
+    avgSessions: t(`agnikarma.conditions.${key}.avgSessions`),
+    recoveryTime: t(`agnikarma.conditions.${key}.recoveryTime`),
+    patientStory: t(`agnikarma.conditions.${key}.patientStory`),
+  }));
+}
+
+/**
+ * Comparison rows. `tone` carries the clinical judgement, so it maps to a
+ * STATUS token rather than a decorative accent.
+ */
+interface ComparisonRow {
+  method: string;
+  duration: string;
+  successRate: number;
+  sideEffects: string;
+  cost: string;
+  tone: StatusName;
+  isAgnikarma?: boolean;
+}
+
+function buildComparison(t: Translate): ComparisonRow[] {
+  return [
     {
-      condition: t("agnikarma.conditions.chronicKneePain.condition"),
-      successRate: 95,
-      avgSessions: t("agnikarma.conditions.chronicKneePain.avgSessions"),
-      recoveryTime: t("agnikarma.conditions.chronicKneePain.recoveryTime"),
-      patientStory: t("agnikarma.conditions.chronicKneePain.patientStory"),
-    },
-    {
-      condition: t("agnikarma.conditions.sciatica.condition"),
+      method: t("agnikarma.comparison.agnikarma"),
+      duration: `3-5 ${t("agnikarma.comparison.sessions")}`,
       successRate: 92,
-      avgSessions: t("agnikarma.conditions.sciatica.avgSessions"),
-      recoveryTime: t("agnikarma.conditions.sciatica.recoveryTime"),
-      patientStory: t("agnikarma.conditions.sciatica.patientStory"),
+      sideEffects: t("agnikarma.advantages.zeroSideEffects.title"),
+      cost: t("agnikarma.advantages.costEffective.title"),
+      tone: "success",
+      isAgnikarma: true,
     },
     {
-      condition: t("agnikarma.conditions.frozenShoulder.condition"),
-      successRate: 88,
-      avgSessions: t("agnikarma.conditions.frozenShoulder.avgSessions"),
-      recoveryTime: t("agnikarma.conditions.frozenShoulder.recoveryTime"),
-      patientStory: t("agnikarma.conditions.frozenShoulder.patientStory"),
+      method: t("agnikarma.comparison.surgery"),
+      duration: `6-12 ${t("agnikarma.comparison.months")}`,
+      successRate: 70,
+      sideEffects: t("agnikarma.comparison.highRisk"),
+      cost: t("agnikarma.comparison.veryHigh"),
+      tone: "danger",
     },
     {
-      condition: t("agnikarma.conditions.tennisElbow.condition"),
-      successRate: 94,
-      avgSessions: t("agnikarma.conditions.tennisElbow.avgSessions"),
-      recoveryTime: t("agnikarma.conditions.tennisElbow.recoveryTime"),
-      patientStory: t("agnikarma.conditions.tennisElbow.patientStory"),
+      method: t("agnikarma.comparison.medications"),
+      duration: t("agnikarma.comparison.ongoing"),
+      successRate: 60,
+      sideEffects: t("agnikarma.comparison.multiple"),
+      cost: t("agnikarma.comparison.highOngoing"),
+      tone: "danger",
     },
     {
-      condition: t("agnikarma.conditions.plantarFasciitis.condition"),
-      successRate: 90,
-      avgSessions: t("agnikarma.conditions.plantarFasciitis.avgSessions"),
-      recoveryTime: t("agnikarma.conditions.plantarFasciitis.recoveryTime"),
-      patientStory: t("agnikarma.conditions.plantarFasciitis.patientStory"),
-    },
-    {
-      condition: t("agnikarma.conditions.cervicalSpondylosis.condition"),
-      successRate: 87,
-      avgSessions: t("agnikarma.conditions.cervicalSpondylosis.avgSessions"),
-      recoveryTime: t("agnikarma.conditions.cervicalSpondylosis.recoveryTime"),
-      patientStory: t("agnikarma.conditions.cervicalSpondylosis.patientStory"),
-    },
-    {
-      condition: t("agnikarma.conditions.arthritis.condition"),
-      successRate: 89,
-      avgSessions: t("agnikarma.conditions.arthritis.avgSessions"),
-      recoveryTime: t("agnikarma.conditions.arthritis.recoveryTime"),
-      patientStory: t("agnikarma.conditions.arthritis.patientStory"),
+      method: t("agnikarma.comparison.physiotherapy"),
+      duration: `6-18 ${t("agnikarma.comparison.months")}`,
+      successRate: 50,
+      sideEffects: t("agnikarma.comparison.minimal"),
+      cost: t("agnikarma.comparison.moderate"),
+      tone: "warning",
     },
   ];
+}
 
-  const advantages = [
-    {
-      title: t("agnikarma.advantages.instantResults.title"),
-      description: t("agnikarma.advantages.instantResults.description"),
-      icon: Zap,
-      colorScheme: getIconColorScheme("Zap"),
-    },
-    {
-      title: t("agnikarma.advantages.precisionTargeting.title"),
-      description: t("agnikarma.advantages.precisionTargeting.description"),
-      icon: Target,
-      colorScheme: getIconColorScheme("Target"),
-    },
-    {
-      title: t("agnikarma.advantages.zeroSideEffects.title"),
-      description: t("agnikarma.advantages.zeroSideEffects.description"),
-      icon: Shield,
-      colorScheme: getIconColorScheme("Shield"),
-    },
-    {
-      title: t("agnikarma.advantages.costEffective.title"),
-      description: t("agnikarma.advantages.costEffective.description"),
-      icon: TrendingUp,
-      colorScheme: getIconColorScheme("TrendingUp"),
-    },
+/* -------------------------------------------------------------------------- */
+/*  Hero                                                                       */
+/* -------------------------------------------------------------------------- */
+
+function Hero({ t }: { t: Translate }) {
+  /* The title is one string; accent the final word so the treatment name reads
+     as display type without hard-coding an English split. */
+  const titleWords = t("agnikarma.title").trim().split(/\s+/);
+  const titleTail = titleWords.length > 1 ? titleWords[titleWords.length - 1] : "";
+  const titleLead = titleWords.length > 1 ? titleWords.slice(0, -1).join(" ") : titleWords.join(" ");
+
+  const features = [
+    { icon: Zap, label: t("agnikarma.advantages.instantResults.title") },
+    { icon: Leaf, label: t("agnikarma.advantages.zeroSideEffects.title") },
+    { icon: Target, label: t("agnikarma.advantages.precisionTargeting.title") },
+    { icon: TrendingUp, label: t("agnikarma.advantages.costEffective.title") },
+  ];
+
+  const stats = [
+    { icon: Users, value: "5000+", label: t("stats.livesTransformed") },
+    { icon: Shield, value: `${HEADLINE_SUCCESS_RATE}%`, label: t("common.successRate") },
+    { icon: Leaf, value: "100%", label: t("hero.natural") },
+  ];
+
+  const assurances = [
+    { icon: Leaf, label: t("hero.natural") },
+    { icon: Shield, label: t("hero.noSideEffects") },
+    { icon: Sparkles, label: t("hero.provenResults") },
   ];
 
   return (
-    <PageTransition>
-      <div className="min-h-screen">
-        {/* Language and Theme Switchers */}
-        <div className="fixed top-3 right-3 sm:top-4 sm:right-4 z-50 flex gap-2">
-          <LanguageSwitcher variant="compact" />
-          <CompactThemeSwitcher />
-        </div>
+    <section className="relative isolate overflow-hidden bg-[#1b1008]">
+      {/* Photographic backdrop. The gradient underneath carries the hero on its
+          own, so a slow or missing image degrades to a deliberate dark field. */}
+      <div aria-hidden="true" className="absolute inset-0 -z-20 bg-linear-to-br from-[#2a1709] via-[#1b1008] to-[#0d0804]" />
+      <Image
+        src={HERO_IMAGE}
+        alt=""
+        aria-hidden="true"
+        fill
+        priority
+        sizes="100vw"
+        className="-z-10 object-cover object-[82%_center] sm:object-[78%_center] lg:object-[72%_center]"
+      />
 
-        {/* Hero Section */}
-        <section className="relative py-16 sm:py-20 md:py-24 lg:py-28 overflow-hidden">
-          {/* Animated Background Elements */}
-          <div className="absolute inset-0 bg-gradient-to-br from-background via-background/98 to-muted/30"></div>
-          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-orange-500/5 to-red-500/10"></div>
-          <div className="absolute inset-0 bg-gradient-to-bl from-orange-400/3 via-transparent to-red-400/5"></div>
+      {/* Readability scrim: dark on the left where the copy sits, clear on the
+          right where the photograph's subject is. */}
+      <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[#140c06]/78 lg:hidden" />
+      <div aria-hidden="true" className="absolute inset-0 -z-10 hidden bg-linear-to-r from-[#140c06] via-[#140c06]/85 to-transparent lg:block" />
+      <div aria-hidden="true" className="absolute inset-0 -z-10 bg-linear-to-t from-[#140c06] via-transparent to-[#140c06]/55" />
 
-          {/* Floating Elements */}
-          <div className="absolute top-20 left-8 size-20 bg-gradient-to-r from-orange-400/20 to-red-400/20 rounded-full blur-xl animate-pulse"></div>
-          <div className="absolute top-32 right-16 size-32 bg-gradient-to-r from-red-400/15 to-orange-400/15 rounded-full blur-2xl animate-pulse delay-1000"></div>
-          <div className="absolute bottom-24 left-1/3 size-24 bg-gradient-to-r from-orange-300/10 to-red-300/10 rounded-full blur-xl animate-pulse delay-2000"></div>
-          <div className="absolute top-1/2 right-1/4 size-16 bg-gradient-to-r from-orange-500/20 to-red-500/20 rounded-full blur-lg animate-pulse delay-3000"></div>
+      <div className={cn(CONTAINER, "relative py-14 sm:py-16 lg:py-24")}>
+        <div className="max-w-2xl lg:max-w-[54%]">
+          <div className={ENTER}>
+            <span className="inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/15 px-3.5 py-1.5 font-heading text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-200 backdrop-blur">
+              <Flame className="size-3.5" aria-hidden="true" />
+              {t("agnikarma.badge")}
+            </span>
 
-          {/* Geometric Shapes */}
-          <div className="absolute top-16 right-8 size-12 border border-orange-400/20 rotate-45 animate-spin-slow"></div>
-          <div className="absolute bottom-32 left-12 size-8 border border-red-400/20 rotate-12 animate-pulse"></div>
+            <h1 className={cn(DISPLAY_XL, "mt-6 text-white")}>
+              <span className="block">{titleLead}</span>
+              {titleTail ? (
+                <span className="block bg-linear-to-r from-amber-300 via-amber-400 to-orange-400 bg-clip-text text-transparent">
+                  {titleTail}
+                </span>
+              ) : null}
+            </h1>
 
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <div className="max-w-5xl mx-auto text-center">
-              <Badge className="bg-gradient-to-r from-orange-100 to-red-100 dark:from-orange-900/50 dark:to-red-900/50 text-orange-800 dark:text-orange-100 border-orange-200 dark:border-orange-700/60 glass interactive mb-8 px-6 py-3 text-sm font-medium">
-                <Flame className="size-4 mr-2" />
-                {t("agnikarma.badge")}
-              </Badge>
-
-              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-5xl xl:text-6xl font-playfair font-semibold text-foreground mb-8 gradient-text leading-tight">
-                {t("agnikarma.title")}
-              </h1>
-
-              <p className="text-xl sm:text-2xl text-muted-foreground mb-10 leading-relaxed max-w-4xl mx-auto">
-                {t("agnikarma.subtitle")}
-              </p>
-
-              <div className="flex flex-wrap justify-center gap-4 mb-10">
-                <Badge className="bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/50 dark:to-emerald-900/50 text-green-800 dark:text-green-100 border-green-200 dark:border-green-700/60 glass interactive px-4 py-2">
-                  <CheckCircle className="size-4 mr-2" />
-                  92% {t("common.success")}{" "}
-                  {t("agnikarma.comparison.successRate")}
-                </Badge>
-                <Badge className="bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-900/50 dark:to-cyan-900/50 text-blue-800 dark:text-blue-100 border-blue-200 dark:border-blue-700/60 glass interactive px-4 py-2">
-                  <Zap className="size-4 mr-2" />
-                  {t("agnikarma.advantages.instantResults.title")}
-                </Badge>
-                <Badge className="bg-gradient-to-r from-purple-100 to-violet-100 dark:from-purple-900/50 dark:to-violet-900/50 text-purple-800 dark:text-purple-100 border-purple-200 dark:border-purple-700/60 glass interactive px-4 py-2">
-                  <Shield className="size-4 mr-2" />
-                  {t("agnikarma.advantages.zeroSideEffects.title")}
-                </Badge>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button
-                  size="lg"
-                  className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 dark:from-orange-600 dark:to-red-700 dark:hover:from-orange-700 dark:hover:to-red-800 text-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300"
-                >
-                  {t("agnikarma.cta.bookSession")}
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="border-2 border-primary/30 text-primary hover:bg-primary/10 text-lg px-10 py-4 interactive"
-                >
-                  {t("agnikarma.cta.freeAssessment")}
-                </Button>
-              </div>
-            </div>
+            <p className="mt-5 font-heading text-xl font-medium text-white/90 sm:text-2xl">
+              {t("agnikarma.subtitle")}
+            </p>
+            <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-white/65">
+              {t("agnikarma.advantages.subtitle")}
+            </p>
           </div>
-        </section>
 
-        {/* Scientific Foundation */}
-        <section className="py-16 sm:py-20 md:py-24 bg-gradient-to-b from-background to-muted/20">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-6xl mx-auto">
-              <div className="text-center mb-20">
-                <Badge className="bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-900/30 dark:to-cyan-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
-                  <Award className="size-4 mr-2" />
-                  {t("agnikarma.scientificFoundation.title")}
-                </Badge>
-                <h2 className="text-4xl md:text-5xl lg:text-6xl font-playfair font-semibold text-foreground mb-6 gradient-text">
-                  {t("agnikarma.scientificFoundation.title")}
-                </h2>
-                <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-                  {t("agnikarma.scientificFoundation.subtitle")}
-                </p>
+          {/* Feature row */}
+          <div className={cn(ENTER, "mt-9 grid grid-cols-2 gap-5 delay-200 sm:grid-cols-4 sm:gap-4")}>
+            {features.map(({ icon: Icon, label }, featureIndex) => (
+              <div key={label} style={{ animationDelay: `${260 + featureIndex * 70}ms` }} className={ENTER}>
+                <div className="flex flex-col items-center gap-2.5 text-center sm:items-start sm:text-left">
+                  <span className="flex size-11 items-center justify-center rounded-full border border-amber-400/35 bg-amber-500/10 text-amber-300">
+                    <Icon className="size-5" aria-hidden="true" />
+                  </span>
+                  <span className="font-heading text-[13px] font-semibold leading-snug text-white/90">{label}</span>
+                </div>
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
-                <Card className="text-center hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-hidden glass card-hover group">
-                  <CardContent className="p-6 sm:p-8">
-                    <div className="relative">
-                      <div className="absolute top-4 right-4 size-20 border border-primary/20 rounded-full"></div>
-                      <div className="absolute bottom-4 left-4 size-16 border border-secondary/20 rounded-full"></div>
-
-                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
-                        <Award className="size-8 sm:w-10 sm:h-10 text-white" />
-                      </div>
-                    </div>
-                    <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-3 sm:mb-4 gradient-text">
-                      {t("agnikarma.scientificFoundation.ancientText.title")}
-                    </h3>
-                    <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-                      {t(
-                        "agnikarma.scientificFoundation.ancientText.description"
-                      )}
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card className="text-center hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-hidden glass card-hover group">
-                  <CardContent className="p-6 sm:p-8">
-                    <div className="relative">
-                      <div className="absolute top-4 right-4 size-20 border border-primary/20 rounded-full"></div>
-                      <div className="absolute bottom-4 left-4 size-16 border border-secondary/20 rounded-full"></div>
-
-                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
-                        <CheckCircle className="size-8 sm:w-10 sm:h-10 text-white" />
-                      </div>
-                    </div>
-                    <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-3 sm:mb-4 gradient-text">
-                      {t(
-                        "agnikarma.scientificFoundation.modernValidation.title"
-                      )}
-                    </h3>
-                    <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-                      {t(
-                        "agnikarma.scientificFoundation.modernValidation.description"
-                      )}
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card className="text-center hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-hidden glass card-hover group">
-                  <CardContent className="p-6 sm:p-8">
-                    <div className="relative">
-                      <div className="absolute top-4 right-4 size-20 border border-primary/20 rounded-full"></div>
-                      <div className="absolute bottom-4 left-4 size-16 border border-secondary/20 rounded-full"></div>
-
-                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-orange-500 to-red-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
-                        <Target className="size-8 sm:w-10 sm:h-10 text-white" />
-                      </div>
-                    </div>
-                    <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-3 sm:mb-4 gradient-text">
-                      {t(
-                        "agnikarma.scientificFoundation.precisionTechnology.title"
-                      )}
-                    </h3>
-                    <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-                      {t(
-                        "agnikarma.scientificFoundation.precisionTechnology.description"
-                      )}
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card className="text-center hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-hidden glass card-hover group">
-                  <CardContent className="p-6 sm:p-8">
-                    <div className="relative">
-                      <div className="absolute top-4 right-4 size-20 border border-primary/20 rounded-full"></div>
-                      <div className="absolute bottom-4 left-4 size-16 border border-secondary/20 rounded-full"></div>
-
-                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
-                        <Shield className="size-8 sm:w-10 sm:h-10 text-white" />
-                      </div>
-                    </div>
-                    <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-3 sm:mb-4 gradient-text">
-                      {t(
-                        "agnikarma.scientificFoundation.zeroSideEffects.title"
-                      )}
-                    </h3>
-                    <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-                      {t(
-                        "agnikarma.scientificFoundation.zeroSideEffects.description"
-                      )}
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+            ))}
           </div>
-        </section>
 
-        {/* How It Works */}
-        <section className="py-16 sm:py-20 md:py-24 bg-gradient-to-br from-muted/30 to-orange-50 dark:to-orange-900/10">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-6xl mx-auto">
-              <div className="text-center mb-20">
-                <Badge className="bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/30 dark:to-emerald-900/30 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
-                  <Flame className="size-4 mr-2" />
-                  {t("agnikarma.processSteps.title")}
-                </Badge>
-                <h2 className="text-4xl md:text-5xl lg:text-6xl font-playfair font-semibold text-foreground mb-6 gradient-text">
-                  {t("agnikarma.processSteps.title")}
-                </h2>
-                <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-                  {t("agnikarma.processSteps.subtitle")}
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-y-6 sm:gap-y-8">
-                {processSteps.map((step) => {
-                  const IconComponent = step.icon;
-
-                  return (
-                    <Card
-                      key={step.step}
-                      className="bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-hidden glass card-hover group hover:shadow-3xl transition-all duration-500"
-                    >
-                      <CardContent className="p-0">
-                        <div className="grid grid-cols-1 lg:grid-cols-4">
-                          <div
-                            className={`bg-gradient-to-br ${step.colorScheme.gradient} text-white p-6 sm:p-8 flex flex-col justify-center relative overflow-hidden shadow-lg`}
-                          >
-                            <div className="absolute top-4 right-4 size-32 border border-white/30 rounded-full"></div>
-                            <div className="absolute bottom-4 left-4 size-24 border border-white/30 rounded-full"></div>
-
-                            <div className="text-center lg:text-left relative z-10">
-                              <div className="text-4xl sm:text-5xl font-bold mb-3 text-white drop-shadow-lg bg-black/20 rounded-full size-16 sm:w-20 sm:h-20 flex items-center justify-center mx-auto lg:mx-0">
-                                {step.step}
-                              </div>
-                              <div className="size-16 sm:w-20 sm:h-20 bg-white/30 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto lg:mx-0 mb-4 shadow-lg">
-                                <IconComponent className="size-8 sm:w-10 sm:h-10 text-white drop-shadow-md" />
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="lg:col-span-3 p-6 sm:p-8 flex flex-col justify-center">
-                            <h3 className="text-2xl sm:text-3xl font-semibold text-foreground mb-4 gradient-text">
-                              {step.title}
-                            </h3>
-                            <p className="text-lg sm:text-xl text-muted-foreground leading-relaxed">
-                              {step.description}
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            </div>
+          <div className={cn(ENTER, "mt-9 flex flex-col items-stretch gap-3 delay-[560ms] sm:flex-row sm:items-center")}>
+            <BookVideoCta
+              label={t("agnikarma.cta.bookSession")}
+              className="w-full bg-linear-to-r from-amber-500 to-orange-500 text-white shadow-[0_14px_34px_-12px_rgba(245,158,11,0.75)] hover:from-amber-500 hover:to-orange-600 sm:w-auto"
+            />
+            <HomeLinkButton
+              href={ASSESSMENT_HREF}
+              variant="inverseOutline"
+              size="lg"
+              icon={ClipboardList}
+              className="w-full sm:w-auto"
+            >
+              {t("agnikarma.cta.freeAssessment")}
+            </HomeLinkButton>
           </div>
-        </section>
 
-        {/* Conditions & Success Rates */}
-        <section className="py-16 sm:py-20 md:py-24 bg-gradient-to-br from-muted/30 to-primary/10">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-6xl mx-auto">
-              <div className="text-center mb-20">
-                <Badge className="bg-gradient-to-r from-primary/10 to-secondary/10 text-primary border-primary/20 glass interactive mb-6 px-4 py-2">
-                  <Heart className="size-4 mr-2" />
-                  {t("agnikarma.conditions.title")}
-                </Badge>
-                <h2 className="text-4xl md:text-5xl lg:text-6xl font-playfair font-semibold text-foreground mb-6 gradient-text">
-                  {t("agnikarma.conditions.title")}
-                </h2>
-                <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-                  {t("agnikarma.conditions.subtitle")}
-                </p>
-              </div>
-
-              {/* Desktop Table View */}
-              <div className="hidden lg:block overflow-x-auto">
-                <div className="min-w-full">
-                  <div className="grid gap-4 sm:gap-6">
-                    {/* Table Header */}
-                    <div className="grid grid-cols-5 gap-4 p-4 sm:p-6 bg-gradient-to-r from-orange-500 to-red-600 dark:from-orange-600 dark:to-red-700 text-white rounded-xl font-semibold text-sm sm:text-base shadow-lg">
-                      <div>{t("agnikarma.comparison.condition")}</div>
-                      <div className="text-center">
-                        {t("agnikarma.comparison.successRate")}
-                      </div>
-                      <div className="text-center">
-                        {t("agnikarma.comparison.avgSessions")}
-                      </div>
-                      <div className="text-center">
-                        {t("agnikarma.comparison.recoveryTime")}
-                      </div>
-                      <div className="text-center">
-                        {t("agnikarma.comparison.patientStory")}
-                      </div>
-                    </div>
-
-                    {/* Table Rows */}
-                    {conditionsData.map((item) => (
-                      <Card
-                        key={item.condition}
-                        className="hover:shadow-xl transition-all duration-300 bg-card/80 backdrop-blur-sm shadow-lg border border-border/50 glass card-hover"
-                      >
-                        <CardContent className="p-4 sm:p-6">
-                          <div className="grid grid-cols-5 gap-4 items-center text-sm sm:text-base">
-                            <div className="font-semibold text-foreground">
-                              {item.condition}
-                            </div>
-                            <div className="text-center">
-                              <div className="flex items-center justify-center gap-x-1 sm:gap-x-2">
-                                <Progress
-                                  value={Number(item.successRate)}
-                                  className="w-12 h-2 sm:w-16 sm:h-2"
-                                />
-                                <span className="font-bold text-green-600">
-                                  {item.successRate}%
-                                </span>
-                              </div>
-                            </div>
-                            <div className="text-center text-muted-foreground">
-                              {item.avgSessions}
-                            </div>
-                            <div className="text-center text-muted-foreground">
-                              {item.recoveryTime}
-                            </div>
-                            <div className="text-center">
-                              <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-lg p-2 border border-blue-200 dark:border-blue-800/30">
-                                <div className="flex items-center justify-center mb-1">
-                                  <Heart className="size-3 text-blue-600 mr-1" />
-                                  <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
-                                    Success Story
-                                  </span>
-                                </div>
-                                <p className="text-xs text-blue-800 dark:text-blue-200 font-medium leading-relaxed">
-                                  {item.patientStory}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+          {/* Figure bar */}
+          <div className={cn(ENTER, "mt-9 delay-[660ms]")}>
+            <dl className="grid max-w-xl grid-cols-1 gap-px overflow-hidden rounded-2xl border border-white/12 bg-white/10 sm:grid-cols-3">
+              {stats.map(({ icon: Icon, value, label }) => (
+                <div key={label} className="flex items-center gap-3 bg-[#140c06]/70 px-4 py-3.5 backdrop-blur">
+                  <Icon className="size-5 shrink-0 text-amber-300" aria-hidden="true" />
+                  <div className="min-w-0">
+                    <dt className="sr-only">{label}</dt>
+                    <dd className="home-display font-heading text-lg font-semibold leading-none text-white">{value}</dd>
+                    <p className="mt-1 text-[11px] leading-tight text-white/60">{label}</p>
                   </div>
                 </div>
-              </div>
-
-              {/* Mobile Card View */}
-              <div className="flex flex-col lg:hidden gap-y-4">
-                {conditionsData.map((item) => (
-                  <Card
-                    key={item.condition}
-                    className="hover:shadow-xl transition-all duration-300 bg-card/80 backdrop-blur-sm shadow-lg border border-border/50 glass card-hover"
-                  >
-                    <CardContent className="p-6">
-                      <div className="gap-y-4">
-                        {/* Condition Title */}
-                        <div className="text-center">
-                          <h3 className="text-lg font-semibold text-foreground mb-2">
-                            {item.condition}
-                          </h3>
-                        </div>
-
-                        {/* Success Rate */}
-                        <div className="text-center">
-                          <div className="flex items-center justify-center gap-x-2 mb-1">
-                            <Progress
-                              value={Number(item.successRate)}
-                              className="w-20 h-3"
-                            />
-                            <span className="font-bold text-green-600 text-lg">
-                              {item.successRate}%
-                            </span>
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {t("agnikarma.comparison.successRate")}
-                          </p>
-                        </div>
-
-                        {/* Sessions and Recovery Time */}
-                        <div className="grid grid-cols-2 gap-4 text-center">
-                          <div>
-                            <p className="font-semibold text-foreground">
-                              {item.avgSessions}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {t("agnikarma.comparison.avgSessions")}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="font-semibold text-foreground">
-                              {item.recoveryTime}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {t("agnikarma.comparison.recoveryTime")}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Patient Story */}
-                        <div className="text-center pt-3">
-                          <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-lg p-3 border border-blue-200 dark:border-blue-800/30">
-                            <div className="flex items-center justify-center mb-2">
-                              <Heart className="size-4 text-blue-600 mr-2" />
-                              <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
-                                Patient Success Story
-                              </span>
-                            </div>
-                            <p className="text-sm text-blue-800 dark:text-blue-200 font-medium leading-relaxed">
-                              {item.patientStory}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
+              ))}
+            </dl>
           </div>
-        </section>
 
-        {/* Patient Success Stories */}
-        <section className="py-16 sm:py-20 md:py-24 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/10 dark:to-cyan-900/10">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-6xl mx-auto">
-              <div className="text-center mb-16">
-                <Badge className="bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-900/30 dark:to-cyan-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
-                  <Heart className="size-4 mr-2" />
-                  Patient Success Stories
-                </Badge>
-                <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-semibold text-foreground mb-6 gradient-text">
-                  Real Results, Real Stories
-                </h2>
-                <p className="text-lg md:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">
-                  Discover how Agnikarma has transformed lives and brought
-                  relief to patients suffering from various conditions.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {conditionsData.map((item) => (
-                  <Card
-                    key={item.condition}
-                    className="hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-lg border border-border/50 overflow-hidden glass card-hover group"
-                  >
-                    <CardContent className="p-6">
-                      <div className="text-center">
-                        <div className="size-12 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <Heart className="size-6 text-white" />
-                        </div>
-                        <h3 className="text-lg font-semibold text-foreground mb-3">
-                          {item.condition}
-                        </h3>
-                        <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800/30">
-                          <p className="text-sm text-blue-800 dark:text-blue-200 font-medium leading-relaxed mb-3">
-                            &ldquo;{item.patientStory}&rdquo;
-                          </p>
-                          <div className="flex items-center justify-center gap-x-4 text-xs text-blue-600">
-                            <span className="flex items-center">
-                              <div className="size-2 bg-green-500 rounded-full mr-1"></div>
-                              {item.successRate}% Success
-                            </span>
-                            <span className="flex items-center">
-                              <div className="size-2 bg-orange-500 rounded-full mr-1"></div>
-                              {item.avgSessions}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
+          {/* Assurances sit with the copy — the photograph's half stays clear. */}
+          <div className={cn(ENTER, "mt-4 flex flex-wrap gap-2 delay-[760ms]")}>
+            {assurances.map(({ icon: Icon, label }) => (
+              <span
+                key={label}
+                className="inline-flex items-center gap-2 rounded-full border border-amber-300/25 bg-amber-400/10 px-3 py-1.5 text-[11px] font-medium text-amber-100"
+              >
+                <Icon className="size-3.5" aria-hidden="true" />
+                {label}
+              </span>
+            ))}
           </div>
-        </section>
-
-        {/* Why Agnikarma is Superior */}
-        <section className="py-16 sm:py-20 md:py-24 bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-900/10 dark:to-red-900/10">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-6xl mx-auto">
-              <div className="text-center mb-20">
-                <Badge className="bg-gradient-to-r from-orange-100 to-red-100 dark:from-orange-900/30 dark:to-red-900/30 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
-                  <Star className="size-4 mr-2" />
-                  {t("agnikarma.advantages.title")}
-                </Badge>
-                <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-semibold text-foreground mb-6 gradient-text">
-                  {t("agnikarma.advantages.title")}
-                </h2>
-                <p className="text-lg md:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">
-                  {t("agnikarma.advantages.subtitle")}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10">
-                {advantages.map((advantage) => {
-                  const IconComponent = advantage.icon;
-
-                  return (
-                    <Card
-                      key={advantage.title}
-                      className="text-center hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-hidden glass card-hover group"
-                    >
-                      <CardContent className="p-8 sm:p-10">
-                        <div className="relative">
-                          <div className="absolute top-4 right-4 size-20 border border-primary/20 rounded-full"></div>
-                          <div className="absolute bottom-4 left-4 size-16 border border-secondary/20 rounded-full"></div>
-
-                          <div
-                            className={`size-16 sm:w-20 sm:h-20 bg-gradient-to-r ${advantage.colorScheme.gradient} rounded-full flex items-center justify-center mx-auto mb-6 sm:mb-8 relative z-10`}
-                          >
-                            <IconComponent className="size-8 sm:w-10 sm:h-10 text-white" />
-                          </div>
-                        </div>
-                        <h3 className="text-xl sm:text-2xl font-semibold text-foreground mb-4 sm:mb-6 gradient-text">
-                          {advantage.title}
-                        </h3>
-                        <p className="text-base sm:text-lg text-muted-foreground leading-relaxed">
-                          {advantage.description}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-
-              {/* Comparison Table */}
-              <div className="mt-16 sm:mt-20">
-                <Card className="bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-hidden glass">
-                  <CardHeader className="text-center pb-8">
-                    <CardTitle className="text-2xl sm:text-3xl font-playfair font-bold text-foreground gradient-text">
-                      {t("agnikarma.comparison.title")}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm sm:text-base">
-                        <thead>
-                          <tr className="border-b border-border">
-                            <th className="text-left py-4 sm:py-6 px-4 sm:px-6 font-semibold text-foreground">
-                              {t("agnikarma.comparison.treatmentMethod")}
-                            </th>
-                            <th className="text-center py-4 sm:py-6 px-4 sm:px-6 font-semibold text-foreground">
-                              {t("agnikarma.comparison.duration")}
-                            </th>
-                            <th className="text-center py-4 sm:py-6 px-4 sm:px-6 font-semibold text-foreground">
-                              {t("agnikarma.comparison.successRate")}
-                            </th>
-                            <th className="text-center py-4 sm:py-6 px-4 sm:px-6 font-semibold text-foreground">
-                              {t("agnikarma.comparison.sideEffects")}
-                            </th>
-                            <th className="text-center py-4 sm:py-6 px-4 sm:px-6 font-semibold text-foreground">
-                              {t("agnikarma.comparison.cost")}
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr className="border-b border-border bg-orange-50 dark:bg-orange-900/10">
-                            <td className="py-4 sm:py-6 px-4 sm:px-6 font-semibold text-orange-600">
-                              {t("agnikarma.comparison.agnikarma")}
-                            </td>
-                            <td className="text-center py-4 sm:py-6 px-4 sm:px-6 text-green-600 font-semibold">
-                              3-5 {t("agnikarma.comparison.sessions")}
-                            </td>
-                            <td className="text-center py-4 sm:py-6 px-4 sm:px-6 text-green-600 font-semibold">
-                              92%
-                            </td>
-                            <td className="text-center py-4 sm:py-6 px-4 sm:px-6 text-green-600 font-semibold">
-                              {t("agnikarma.advantages.zeroSideEffects.title")}
-                            </td>
-                            <td className="text-center py-4 sm:py-6 px-4 sm:px-6 text-green-600 font-semibold">
-                              {t("agnikarma.advantages.costEffective.title")}
-                            </td>
-                          </tr>
-                          <tr className="border-b border-border">
-                            <td className="py-4 sm:py-6 px-4 sm:px-6">
-                              {t("agnikarma.comparison.surgery")}
-                            </td>
-                            <td className="text-center py-4 sm:py-6 px-4 sm:px-6 text-muted-foreground">
-                              6-12 {t("agnikarma.comparison.months")}
-                            </td>
-                            <td className="text-center py-4 sm:py-6 px-4 sm:px-6 text-muted-foreground">
-                              70%
-                            </td>
-                            <td className="text-center py-4 sm:py-6 px-4 sm:px-6 text-red-600">
-                              {t("agnikarma.comparison.highRisk")}
-                            </td>
-                            <td className="text-center py-4 sm:py-6 px-4 sm:px-6 text-red-600">
-                              {t("agnikarma.comparison.veryHigh")}
-                            </td>
-                          </tr>
-                          <tr className="border-b border-border">
-                            <td className="py-4 sm:py-6 px-4 sm:px-6">
-                              {t("agnikarma.comparison.medications")}
-                            </td>
-                            <td className="text-center py-4 sm:py-6 px-4 sm:px-6 text-muted-foreground">
-                              {t("agnikarma.comparison.ongoing")}
-                            </td>
-                            <td className="text-center py-4 sm:py-6 px-4 sm:px-6 text-muted-foreground">
-                              60%
-                            </td>
-                            <td className="text-center py-4 sm:py-6 px-4 sm:px-6 text-red-600">
-                              {t("agnikarma.comparison.multiple")}
-                            </td>
-                            <td className="text-center py-4 sm:py-6 px-4 sm:px-6 text-red-600">
-                              {t("agnikarma.comparison.highOngoing")}
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="py-4 sm:py-6 px-4 sm:px-6">
-                              {t("agnikarma.comparison.physiotherapy")}
-                            </td>
-                            <td className="text-center py-4 sm:py-6 px-4 sm:px-6 text-muted-foreground">
-                              6-18 {t("agnikarma.comparison.months")}
-                            </td>
-                            <td className="text-center py-4 sm:py-6 px-4 sm:px-6 text-muted-foreground">
-                              50%
-                            </td>
-                            <td className="text-center py-4 sm:py-6 px-4 sm:px-6 text-yellow-600">
-                              {t("agnikarma.comparison.minimal")}
-                            </td>
-                            <td className="text-center py-4 sm:py-6 px-4 sm:px-6 text-yellow-600">
-                              {t("agnikarma.comparison.moderate")}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Call to Action */}
-        <section className="py-16 sm:py-20 md:py-24 bg-gradient-to-r from-orange-600 to-red-700 dark:from-orange-700 dark:to-red-800">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-4xl mx-auto text-center text-white">
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-playfair font-semibold mb-6 sm:mb-8">
-                {t("agnikarma.cta.title")}
-              </h2>
-              <p className="text-xl sm:text-2xl text-orange-100 dark:text-orange-200 mb-8 sm:mb-10 px-4">
-                {t("agnikarma.cta.subtitle")}
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button
-                  size="lg"
-                  className="bg-white text-orange-600 hover:bg-orange-600 hover:text-white border border-transparent hover:border-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
-                >
-                  {t("agnikarma.cta.bookSession")}
-                </Button>
-                <Button
-                  size="lg"
-                  className="bg-white text-orange-600 hover:bg-orange-600 hover:text-white border border-transparent hover:border-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
-                >
-                  {t("agnikarma.cta.freeAssessment")}
-                </Button>
-              </div>
-
-              <div className="mt-8 sm:mt-10 flex flex-wrap justify-center gap-6 sm:gap-8 text-orange-100 dark:text-orange-200 text-base sm:text-lg">
-                <div className="flex items-center gap-x-2">
-                  <Zap className="size-4" />
-                  <span>{t("agnikarma.cta.features.instantRelief")}</span>
-                </div>
-                <div className="flex items-center gap-x-2">
-                  <Shield className="size-4" />
-                  <span>{t("agnikarma.cta.features.zeroSideEffects")}</span>
-                </div>
-                <div className="flex items-center gap-x-2">
-                  <Star className="size-4" />
-                  <span>{t("agnikarma.cta.features.successRate")}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+        </div>
       </div>
-    </PageTransition>
+    </section>
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Scientific foundation                                                      */
+/* -------------------------------------------------------------------------- */
+
+function ScientificFoundation({ t }: { t: Translate }) {
+  /* Two-tone display title: accent the final word without hard-coding a split. */
+  const words = t("agnikarma.scientificFoundation.title").trim().split(/\s+/);
+  const tail = words.length > 1 ? words[words.length - 1] : "";
+  const lead = words.length > 1 ? words.slice(0, -1).join(" ") : words.join(" ");
+
+  return (
+    <section className={cn(SURFACE.parchment, SECTION_Y)}>
+      <div className={CONTAINER}>
+        {/* Header: title block left, lede right behind a hairline rule. */}
+        <Reveal>
+          <div className="grid gap-8 lg:grid-cols-12 lg:gap-12">
+            <div className="lg:col-span-7">
+              <SectionIndex value="01" />
+              <span className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-600/20 bg-emerald-600/10 px-3.5 py-1.5 font-heading text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-800 dark:text-emerald-300">
+                <Leaf className="size-3.5" aria-hidden="true" />
+                {t("agnikarma.scientificFoundation.title")}
+              </span>
+
+              <h2 className={cn(DISPLAY_LG, "mt-5 text-emerald-950 dark:text-emerald-50")}>
+                {lead}
+                {tail ? (
+                  <>
+                    {" "}
+                    <span className="text-amber-600 dark:text-amber-400">{tail}</span>
+                  </>
+                ) : null}
+              </h2>
+              <p className="mt-3 font-heading text-lg font-medium text-stone-500 dark:text-stone-400 sm:text-xl">
+                {t("agnikarma.scientificFoundation.subtitle")}
+              </p>
+            </div>
+
+            <div className="flex items-start gap-5 lg:col-span-5">
+              <span aria-hidden="true" className="hidden w-px self-stretch bg-amber-900/15 dark:bg-amber-100/15 lg:block" />
+              <Flower2 className="mt-1 hidden size-6 shrink-0 text-amber-600 dark:text-amber-400 lg:block" aria-hidden="true" />
+              <p className="text-[15px] leading-relaxed text-stone-600 dark:text-stone-300">
+                {t("agnikarma.scientificFoundation.description")}
+              </p>
+            </div>
+          </div>
+        </Reveal>
+
+        {/* Pillar cards: tinted frame, numbered, photo-footed. */}
+        <RevealGroup className={cn(HEADING_GAP, "grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4")}>
+          {FOUNDATION_PILLARS.map(({ key, icon: Icon, tint, image }, index) => {
+            const tone = ACCENTS[tint];
+            return (
+              <RevealItem key={key} className="h-full">
+                <article
+                  className={cn(
+                    "group relative flex h-full flex-col overflow-hidden rounded-[1.5rem] border bg-card", HOVER_TRANSITION, HOVER_CARD_LIFT, "hover:shadow-[0_28px_56px_-28px_rgba(10,70,52,0.4)]",
+                    tone.border
+                  )}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={cn("pointer-events-none absolute inset-x-0 top-0 h-40 bg-linear-to-b opacity-30", tone.soft)}
+                  />
+
+                  {/* Only the copy is padded — the photograph bleeds to the card edge. */}
+                  <div className="relative z-10 flex flex-1 flex-col p-5 pb-6">
+                    <div className="flex items-start justify-between gap-3">
+                      <span className={cn("flex size-11 items-center justify-center rounded-xl", HOVER_TRANSITION_CHILD, "group-hover:scale-105", tone.plate)}>
+                        <Icon className="size-5" aria-hidden="true" />
+                      </span>
+                      <span className={cn("home-display font-heading text-xl font-semibold tabular-nums opacity-50", tone.text)}>
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                    </div>
+
+                    <h3 className={cn(DISPLAY_MD, "mt-4 text-base text-foreground")}>
+                      {t(`agnikarma.scientificFoundation.${key}.title`)}
+                    </h3>
+                    <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
+                      {t(`agnikarma.scientificFoundation.${key}.description`)}
+                    </p>
+                  </div>
+
+                  {/* The photograph tucks up behind the copy and dissolves into the
+                      card, so there is no hard seam between text and image. */}
+                  <div className="relative -mt-16 h-56 shrink-0">
+                    <Image
+                      src={image}
+                      alt=""
+                      aria-hidden="true"
+                      fill
+                      sizes="(min-width: 1024px) 20rem, (min-width: 640px) 45vw, 90vw"
+                      className="object-cover transition-transform duration-700 group-hover:scale-105 [mask-image:linear-gradient(to_bottom,transparent_0%,rgba(0,0,0,0.25)_26%,black_58%)]"
+                    />
+                  </div>
+                </article>
+              </RevealItem>
+            );
+          })}
+        </RevealGroup>
+      </div>
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Process                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/** The five steps alternate emerald / amber, badge through to footer rule. */
+const PROCESS_STEPS = [
+  { icon: FileSearch, tint: "emerald" },
+  { icon: Leaf, tint: "amber" },
+  { icon: Flame, tint: "emerald" },
+  { icon: HeartPulse, tint: "amber" },
+  { icon: ShieldCheck, tint: "emerald" },
+] as const satisfies readonly { icon: LucideIcon; tint: AccentName }[];
+
+/** Hand-drawn-feeling wave that threads the five step badges together. */
+function ProcessConnector() {
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 hidden h-20 -translate-y-1/2 lg:block">
+      <svg className="size-full" viewBox="0 0 1000 80" preserveAspectRatio="none" fill="none">
+        <defs>
+          <linearGradient id="agnikarma-process-wave" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="oklch(0.62 0.16 150)" />
+            <stop offset="22%" stopColor="oklch(0.62 0.16 150)" />
+            <stop offset="30%" stopColor="oklch(0.70 0.16 62)" />
+            <stop offset="45%" stopColor="oklch(0.70 0.16 62)" />
+            <stop offset="52%" stopColor="oklch(0.62 0.16 150)" />
+            <stop offset="65%" stopColor="oklch(0.62 0.16 150)" />
+            <stop offset="72%" stopColor="oklch(0.70 0.16 62)" />
+            <stop offset="86%" stopColor="oklch(0.70 0.16 62)" />
+            <stop offset="93%" stopColor="oklch(0.62 0.16 150)" />
+            <stop offset="100%" stopColor="oklch(0.62 0.16 150)" />
+          </linearGradient>
+        </defs>
+        <m.path
+          d="M 100,40 C 160,0 240,0 300,40 S 440,80 500,40 S 640,0 700,40 S 840,80 900,40"
+          stroke="url(#agnikarma-process-wave)"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          opacity="0.55"
+          vectorEffect="non-scaling-stroke"
+          initial={{ pathLength: 0 }}
+          whileInView={{ pathLength: 1 }}
+          viewport={{ once: true, amount: 0.6 }}
+          transition={{ duration: 1.6, ease: HOME_EASE }}
+        />
+      </svg>
+
+      {/* Chevrons mark the hand-off between one step and the next, landing just
+          behind the wave as it draws past them. */}
+      {[20, 40, 60, 80].map((left, index) => (
+        <m.span
+          key={left}
+          style={{ left: `${left}%` }}
+          className="absolute top-1/2 flex size-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-border/70 bg-card text-muted-foreground shadow-[0_6px_16px_-8px_rgba(10,70,52,0.5)]"
+          initial={{ opacity: 0, scale: 0.4 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true, amount: 0.6 }}
+          transition={{ duration: 0.45, ease: HOME_EASE, delay: 0.45 + index * 0.3 }}
+        >
+          <ChevronRight className="size-4" />
+        </m.span>
+      ))}
+    </div>
+  );
+}
+
+function Process({ t }: { t: Translate }) {
+  const words = t("agnikarma.processSteps.title").trim().split(/\s+/);
+  const tail = words.length > 1 ? words[words.length - 1] : "";
+  const lead = words.length > 1 ? words.slice(0, -1).join(" ") : words.join(" ");
+
+  return (
+    <section className={cn(SURFACE.parchment, SECTION_Y, "relative isolate overflow-hidden")}>
+      {/* Soft botanical wash in the corners. */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute -left-24 -top-20 size-80 rounded-full bg-emerald-200/25 blur-3xl dark:bg-emerald-900/20" />
+        <div className="absolute -right-24 top-10 size-80 rounded-full bg-amber-200/30 blur-3xl dark:bg-amber-900/20" />
+        <div className="home-dotgrid absolute inset-0 text-amber-800 [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,black,transparent)]" />
+      </div>
+
+      <div className={CONTAINER}>
+        <Reveal className="flex flex-col items-center text-center">
+          {/* Eyebrow flanked by rules */}
+          <div className="flex w-full max-w-lg items-center gap-4">
+            <span className="h-px flex-1 bg-linear-to-r from-transparent to-emerald-700/25" />
+            <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-emerald-600/20 bg-emerald-600/10 px-4 py-1.5 font-heading text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-800 dark:text-emerald-300">
+              <Leaf className="size-3.5" aria-hidden="true" />
+              {t("agnikarma.processSteps.title")}
+            </span>
+            <span className="h-px flex-1 bg-linear-to-l from-transparent to-emerald-700/25" />
+          </div>
+
+          <h2 className={cn(DISPLAY_LG, "mt-6 text-emerald-950 dark:text-emerald-50")}>
+            {lead}
+            {tail ? (
+              <>
+                {" "}
+                <span className="text-amber-600 dark:text-amber-400">{tail}</span>
+              </>
+            ) : null}
+          </h2>
+          <p className="mt-3 font-heading text-lg font-medium text-stone-500 dark:text-stone-400 sm:text-xl">
+            {t("agnikarma.processSteps.subtitle")}
+          </p>
+
+          {/* Lotus divider */}
+          <div className="mt-5 flex w-full max-w-xs items-center gap-3" aria-hidden="true">
+            <span className="h-px flex-1 bg-linear-to-r from-transparent to-amber-600/35" />
+            <Flower2 className="size-5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <span className="h-px flex-1 bg-linear-to-l from-transparent to-amber-600/35" />
+          </div>
+        </Reveal>
+
+        <div className="relative mt-20">
+          <ProcessConnector />
+
+          <RevealGroup stagger={0.12} className="grid grid-cols-1 gap-x-4 gap-y-16 sm:grid-cols-2 lg:grid-cols-5">
+            {PROCESS_STEPS.map(({ icon: Icon, tint }, index) => {
+              const step = index + 1;
+              const tone = ACCENTS[tint];
+              const isEmerald = tint === "emerald";
+
+              return (
+                <RevealItem key={step} className="h-full">
+                  <article
+                    className={cn(
+                      "group relative flex h-full flex-col items-center rounded-[1.5rem] border border-transparent px-5 pb-6 pt-12 text-center", HOVER_TRANSITION, HOVER_CARD_LIFT, "hover:shadow-[0_28px_56px_-28px_rgba(10,70,52,0.35)]",
+                      isEmerald
+                        ? "bg-linear-to-b from-emerald-50/80 to-transparent dark:from-emerald-950/30"
+                        : "bg-linear-to-b from-amber-50/80 to-transparent dark:from-amber-950/30"
+                    )}
+                  >
+                    {/* Numbered badge straddling the card's top edge */}
+                    <m.span
+                      className={cn(
+                        "home-display absolute -top-7 left-1/2 flex size-14 items-center justify-center rounded-full bg-linear-to-br font-heading text-base font-semibold text-white shadow-[0_10px_24px_-10px_rgba(10,70,52,0.7)] ring-4 ring-[#faf8f2] dark:ring-[oklch(0.19_0.012_75)]",
+                        isEmerald ? "from-emerald-600 to-emerald-700" : "from-amber-500 to-orange-600"
+                      )}
+                      initial={{ opacity: 0, scale: 0.3, x: "-50%" }}
+                      whileInView={{ opacity: 1, scale: 1, x: "-50%" }}
+                      viewport={{ once: true, amount: 0.5 }}
+                      transition={{ type: "spring", stiffness: 320, damping: 18, delay: 0.2 + index * 0.3 }}
+                    >
+                      {String(step).padStart(2, "0")}
+                    </m.span>
+
+                    {/* Icon in a ringed plate */}
+                    <span className={cn("relative flex size-24 items-center justify-center rounded-full", tone.soft)}>
+                      <svg
+                        aria-hidden="true"
+                        viewBox="0 0 100 100"
+                        fill="none"
+                        className={cn("absolute inset-0 size-full -rotate-[55deg]", tone.text)}
+                      >
+                        <circle
+                          cx="50"
+                          cy="50"
+                          r="46"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeDasharray="196 93"
+                          opacity="0.55"
+                        />
+                        <circle cx="50" cy="4" r="3.5" fill="currentColor" />
+                      </svg>
+                      <Icon className={cn("size-10", tone.text)} aria-hidden="true" />
+                    </span>
+
+                    <h3 className={cn(DISPLAY_MD, "mt-6 text-base text-emerald-950 dark:text-emerald-50")}>
+                      {t(`agnikarma.processSteps.steps.${step}.title`)}
+                    </h3>
+                    <span
+                      aria-hidden="true"
+                      className={cn("mt-3 h-0.5 w-10 rounded-full", isEmerald ? "bg-emerald-600" : "bg-amber-600")}
+                    />
+
+                    <p className="mt-4 flex-1 text-[13px] leading-relaxed text-stone-600 dark:text-stone-300">
+                      {t(`agnikarma.processSteps.steps.${step}.description`)}
+                    </p>
+
+                    <span
+                      aria-hidden="true"
+                      className={cn("mt-6 h-0.5 w-10 rounded-full opacity-60", isEmerald ? "bg-emerald-600" : "bg-amber-600")}
+                    />
+                  </article>
+                </RevealItem>
+              );
+            })}
+          </RevealGroup>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Conditions and success rates                                               */
+/* -------------------------------------------------------------------------- */
+
+/** Splits "3-5 sessions" into its figure and its unit so each can be sized. */
+function splitValueUnit(text: string): { value: string; unit: string } {
+  const trimmed = text.trim();
+  const gap = trimmed.indexOf(" ");
+  if (gap === -1) return { value: trimmed, unit: "" };
+  return { value: trimmed.slice(0, gap).replace("-", "\u2013"), unit: trimmed.slice(gap + 1) };
+}
+
+/** Each condition keeps its own glyph so the rows are scannable. */
+const CONDITION_ICONS: Record<string, LucideIcon> = {
+  chronicKneePain: Bone,
+  sciatica: Spline,
+  frozenShoulder: Accessibility,
+  tennisElbow: Activity,
+  plantarFasciitis: Footprints,
+  cervicalSpondylosis: MoveVertical,
+  arthritis: Hand,
+};
+
+function ConditionRow({ item, t }: { item: Condition; t: Translate }) {
+  const Icon = CONDITION_ICONS[item.key] ?? Bone;
+  const sessions = splitValueUnit(item.avgSessions);
+  const recovery = splitValueUnit(item.recoveryTime);
+
+  return (
+    <article
+      className={cn(
+        "group flex flex-col gap-4 rounded-[1.25rem] border border-border/60 bg-card p-4 shadow-[0_1px_2px_rgba(16,40,32,0.04)] sm:flex-row sm:items-center sm:gap-5 sm:p-5",
+        HOVER_TRANSITION,
+        HOVER_CARD_LIFT,
+        "hover:shadow-[0_22px_44px_-26px_rgba(10,70,52,0.35)]"
+      )}
+    >
+      <span
+        className={cn(
+          "flex size-14 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+          HOVER_TRANSITION_CHILD,
+          "group-hover:scale-105"
+        )}
+      >
+        <Icon className="size-7" aria-hidden="true" />
+      </span>
+
+      {/* Name + success meter */}
+      <div className="min-w-0 flex-1">
+        <h3 className={cn(DISPLAY_MD, "text-base text-foreground sm:text-lg")}>{item.condition}</h3>
+        <p className="mt-1 text-[11px] text-muted-foreground">{t("common.successRate")}</p>
+        <div className="mt-1.5 flex items-center gap-3">
+          <Progress value={item.successRate} className="h-2 flex-1" />
+          <span className={cn("home-display font-heading text-sm font-semibold tabular-nums", STATUS.success.text)}>
+            {item.successRate}%
+          </span>
+        </div>
+      </div>
+
+      {/* Sessions + recovery, hairline-separated */}
+      <dl className="flex shrink-0 divide-x divide-border/60 border-t border-border/60 pt-3 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
+        <div className="flex flex-1 items-center gap-2.5 pr-4 sm:pr-5">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+            <CalendarDays className="size-4" aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <dt className="whitespace-nowrap text-[11px] leading-tight text-muted-foreground">{t("agnikarma.comparison.avgSessions")}</dt>
+            <dd className="home-display font-heading text-base font-semibold leading-tight text-foreground">
+              {sessions.value}
+            </dd>
+            <p className="whitespace-nowrap text-[11px] leading-tight text-muted-foreground">{sessions.unit}</p>
+          </div>
+        </div>
+
+        <div className="flex flex-1 items-center gap-2.5 pl-4 sm:pl-5">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300">
+            <Clock className="size-4" aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <dt className="whitespace-nowrap text-[11px] leading-tight text-muted-foreground">{t("agnikarma.comparison.recoveryTime")}</dt>
+            <dd className={cn("home-display font-heading text-base font-semibold leading-tight", accent.text)}>
+              {recovery.value}
+            </dd>
+            <p className="whitespace-nowrap text-[11px] leading-tight text-muted-foreground">{recovery.unit}</p>
+          </div>
+        </div>
+      </dl>
+    </article>
+  );
+}
+
+function Conditions({
+  t,
+  tArray,
+  conditions,
+}: {
+  t: Translate;
+  tArray: TranslateArray;
+  conditions: Condition[];
+}) {
+  const words = t("agnikarma.conditions.title").trim().split(/\s+/);
+  const tail = words.length > 1 ? words[words.length - 1] : "";
+  const lead = words.length > 1 ? words.slice(0, -1).join(" ") : words.join(" ");
+  const assurancePoints = tArray("agnikarma.conditions.assurance.points");
+
+  return (
+    <section className={cn(SURFACE.parchment, SECTION_Y, "relative isolate overflow-hidden")}>
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute -bottom-24 -left-20 size-96 rounded-full bg-emerald-200/25 blur-3xl dark:bg-emerald-900/20" />
+        <div className="absolute -right-20 top-0 size-80 rounded-full bg-amber-200/20 blur-3xl dark:bg-amber-900/15" />
+      </div>
+
+      <div className={cn(CONTAINER, "grid gap-10 lg:grid-cols-12 lg:gap-12")}>
+        {/* Standfirst */}
+        <Reveal className="lg:col-span-4 lg:sticky lg:top-28 lg:self-start">
+          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-600/20 bg-emerald-600/10 px-3.5 py-1.5 font-heading text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-800 dark:text-emerald-300">
+            <Leaf className="size-3.5" aria-hidden="true" />
+            {t("agnikarma.conditions.title")}
+          </span>
+
+          <h2 className={cn(DISPLAY_LG, "mt-5 text-emerald-950 dark:text-emerald-50")}>
+            <span className="block">{lead}</span>
+            {tail ? <span className="block text-amber-600 dark:text-amber-400">{tail}</span> : null}
+          </h2>
+
+          <p className="mt-3 font-heading text-lg font-medium text-stone-500 dark:text-stone-400">
+            {t("agnikarma.conditions.subtitle")}
+          </p>
+          <span aria-hidden="true" className="mt-5 block h-0.5 w-14 rounded-full bg-amber-500" />
+          <p className="mt-5 text-[15px] leading-relaxed text-stone-600 dark:text-stone-300">
+            {t("agnikarma.conditions.description")}
+          </p>
+
+          {/* Assurance panel */}
+          <div className="mt-8 rounded-[1.5rem] border border-emerald-600/15 bg-emerald-50/70 p-5 dark:bg-emerald-950/30">
+            <div className="flex items-center gap-4">
+              <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-emerald-600/15 text-emerald-700 dark:text-emerald-300">
+                <Flower2 className="size-6" aria-hidden="true" />
+              </span>
+              <p className={cn(DISPLAY_MD, "text-base text-emerald-950 dark:text-emerald-50")}>
+                {t("agnikarma.conditions.assurance.title")}
+              </p>
+            </div>
+
+            <ul className="mt-5 flex flex-col gap-3">
+              {assurancePoints.map((point) => (
+                <li key={point} className="flex items-center gap-3 text-[13px] text-stone-700 dark:text-stone-200">
+                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-600/15 text-emerald-700 dark:text-emerald-300">
+                    <Check className="size-3" aria-hidden="true" />
+                  </span>
+                  {point}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </Reveal>
+
+        {/* Condition rows */}
+        <RevealGroup stagger={0.07} className="flex flex-col gap-3.5 lg:col-span-8">
+          {conditions.map((item) => (
+            <RevealItem key={item.key}>
+              <ConditionRow item={item} t={t} />
+            </RevealItem>
+          ))}
+        </RevealGroup>
+      </div>
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Patient stories                                                            */
+/* -------------------------------------------------------------------------- */
+
+function PatientStories({ t, conditions }: { t: Translate; conditions: Condition[] }) {
+  return (
+    <section className={cn("relative", SECTION_Y)}>
+      <div className={CONTAINER}>
+        <Reveal>
+          <SectionHeading
+            align="split"
+            index="04"
+            eyebrow="Patient Success Stories"
+            icon={Heart}
+            title="Real Results, Real Stories"
+            description="Discover how Agnikarma has transformed lives and brought relief to patients suffering from various conditions."
+          />
+        </Reveal>
+
+        <RevealGroup className={cn(HEADING_GAP, "grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3")}>
+          {conditions.map((item) => (
+            <RevealItem key={item.key} className="h-full">
+              <figure className={cn(CARD, CARD_INTERACTIVE, "group flex h-full flex-col p-5 sm:p-6")}>
+                <Quote className={cn("size-7 opacity-40", accent.text)} aria-hidden="true" />
+                <blockquote className="mt-3 flex-1 text-[14px] leading-relaxed text-foreground">
+                  &ldquo;{item.patientStory}&rdquo;
+                </blockquote>
+                <figcaption className="mt-5 border-t border-border/70 pt-4">
+                  <p className="font-heading text-[13px] font-semibold text-foreground">{item.condition}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className={cn("size-1.5 rounded-full", STATUS.success.dot)} aria-hidden="true" />
+                      {item.successRate}% {t("common.success")}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className={cn("size-1.5 rounded-full", STATUS.warning.dot)} aria-hidden="true" />
+                      {item.avgSessions}
+                    </span>
+                  </div>
+                </figcaption>
+              </figure>
+            </RevealItem>
+          ))}
+        </RevealGroup>
+      </div>
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Advantages + comparison                                                    */
+/* -------------------------------------------------------------------------- */
+
+function Advantages({ t, comparison }: { t: Translate; comparison: ComparisonRow[] }) {
+  const headers = [
+    t("agnikarma.comparison.treatmentMethod"),
+    t("agnikarma.comparison.duration"),
+    t("common.successRate"),
+    t("agnikarma.comparison.sideEffects"),
+    t("agnikarma.comparison.cost"),
+  ];
+
+  return (
+    <section className={cn(SURFACE.raised, SECTION_Y)}>
+      <div className={CONTAINER}>
+        <Reveal>
+          <SectionHeading
+            align="split"
+            index="05"
+            eyebrow={t("agnikarma.advantages.title")}
+            icon={Star}
+            title={t("agnikarma.advantages.title")}
+            description={t("agnikarma.advantages.subtitle")}
+          />
+        </Reveal>
+
+        <RevealGroup className={cn(HEADING_GAP, "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4")}>
+          {ADVANTAGES.map(({ key, icon: Icon, tint }) => {
+            const tone = ACCENTS[tint];
+            return (
+              <RevealItem key={key} className="h-full">
+                <div className={cn(CARD, CARD_INTERACTIVE, "group flex h-full flex-col p-5 sm:p-6")}>
+                  <span
+                    className={cn(
+                      "flex size-12 items-center justify-center rounded-2xl", HOVER_TRANSITION_CHILD, "group-hover:scale-105",
+                      tone.plate
+                    )}
+                  >
+                    <Icon className="size-6" aria-hidden="true" />
+                  </span>
+                  <h3 className={cn(DISPLAY_MD, "mt-4 text-base text-foreground sm:text-lg")}>
+                    {t(`agnikarma.advantages.${key}.title`)}
+                  </h3>
+                  <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
+                    {t(`agnikarma.advantages.${key}.description`)}
+                  </p>
+                </div>
+              </RevealItem>
+            );
+          })}
+        </RevealGroup>
+
+        {/* Modality comparison */}
+        <Reveal className="mt-10">
+          <h3 className={cn(DISPLAY_LG, "text-center text-foreground")}>{t("agnikarma.comparison.title")}</h3>
+
+          <div className={cn(CARD, "mt-7 hidden shadow-[0_24px_52px_-34px_rgba(10,70,52,0.4)] md:block")}>
+            <table className="w-full text-sm">
+              <thead className="bg-[oklch(0.22_0.045_163)] text-white">
+                <tr>
+                  {headers.map((header, index) => (
+                    <th
+                      key={header}
+                      scope="col"
+                      className={cn(
+                        "py-4 font-heading text-[10px] font-semibold uppercase tracking-[0.18em]",
+                        index === 0 ? "px-5 pl-6 text-left" : "px-5 text-center last:pr-6"
+                      )}
+                    >
+                      {header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/70">
+                {comparison.map((row) => {
+                  const tone = STATUS[row.tone];
+                  return (
+                    <tr
+                      key={row.method}
+                      className={cn(
+                        "transition-colors duration-300",
+                        row.isAgnikarma ? cn(accent.soft, "font-medium") : "hover:bg-primary/5"
+                      )}
+                    >
+                      <th
+                        scope="row"
+                        className={cn(
+                          "px-5 py-4 pl-6 text-left font-semibold",
+                          row.isAgnikarma ? accent.text : "text-foreground"
+                        )}
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          {row.isAgnikarma ? <Flame className="size-4" aria-hidden="true" /> : null}
+                          {row.method}
+                        </span>
+                      </th>
+                      <td className="px-5 py-4 text-center text-[13px] text-muted-foreground">{row.duration}</td>
+                      <td className={cn("px-5 py-4 text-center font-heading text-[13px] font-semibold tabular-nums", tone.text)}>
+                        {row.successRate}%
+                      </td>
+                      <td className={cn("px-5 py-4 text-center text-[13px]", tone.text)}>{row.sideEffects}</td>
+                      <td className={cn("px-5 py-4 pr-6 text-center text-[13px]", tone.text)}>{row.cost}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-7 grid grid-cols-1 gap-4 sm:grid-cols-2 md:hidden">
+            {comparison.map((row) => {
+              const tone = STATUS[row.tone];
+              return (
+                <div
+                  key={row.method}
+                  className={cn(CARD, "flex flex-col p-5", row.isAgnikarma && cn(accent.border, "ring-1", accent.soft))}
+                >
+                  <p
+                    className={cn(
+                      "inline-flex items-center gap-2 font-heading text-sm font-semibold",
+                      row.isAgnikarma ? accent.text : "text-foreground"
+                    )}
+                  >
+                    {row.isAgnikarma ? <Flame className="size-4" aria-hidden="true" /> : null}
+                    {row.method}
+                  </p>
+                  <dl className="mt-3 flex flex-col gap-2 text-[13px]">
+                    {[
+                      { label: headers[1], value: row.duration },
+                      { label: headers[2], value: `${row.successRate}%` },
+                      { label: headers[3], value: row.sideEffects },
+                      { label: headers[4], value: row.cost },
+                    ].map((cell) => (
+                      <div key={cell.label} className="flex items-center justify-between gap-3">
+                        <dt className="text-muted-foreground">{cell.label}</dt>
+                        <dd className={cn("font-medium", tone.text)}>{cell.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              );
+            })}
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Closing CTA                                                                */
+/* -------------------------------------------------------------------------- */
+
+function ClosingCta({ t }: { t: Translate }) {
+  const features = [
+    { icon: Zap, label: t("agnikarma.cta.features.instantRelief") },
+    { icon: Shield, label: t("agnikarma.cta.features.zeroSideEffects") },
+    { icon: Star, label: t("agnikarma.cta.features.successRate") },
+  ];
+
+  return (
+    <section className={cn(SURFACE.ink, SECTION_Y, "home-grain")}>
+      <div aria-hidden="true" className="home-aurora absolute inset-0 -z-10 opacity-55" />
+      <div
+        aria-hidden="true"
+        className="home-dotgrid absolute inset-0 -z-10 text-white [mask-image:radial-gradient(ellipse_70%_60%_at_50%_100%,black,transparent)]"
+      />
+
+      <div className={cn(CONTAINER, "relative max-w-4xl text-center")}>
+        <Reveal>
+          <h2 className={cn(DISPLAY_LG, "text-white")}>{t("agnikarma.cta.title")}</h2>
+          <p className="mx-auto mt-4 max-w-2xl text-[15px] leading-relaxed text-white/75 sm:text-lg">
+            {t("agnikarma.cta.subtitle")}
+          </p>
+        </Reveal>
+
+        <Reveal delay={0.1} className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <BookVideoCta variant="inverse" label={t("agnikarma.cta.bookSession")} />
+          <HomeLinkButton href={ASSESSMENT_HREF} variant="inverseOutline" size="lg" icon={ClipboardList}>
+            {t("agnikarma.cta.freeAssessment")}
+          </HomeLinkButton>
+        </Reveal>
+
+        <RevealGroup className="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {features.map(({ icon: Icon, label }) => (
+            <RevealItem key={label}>
+              <div className="flex items-center justify-center gap-2.5 rounded-2xl border border-white/12 bg-white/[0.06] px-4 py-3 text-[13px] font-medium text-white/85">
+                <Icon className="size-4 shrink-0 text-emerald-300" aria-hidden="true" />
+                {label}
+              </div>
+            </RevealItem>
+          ))}
+        </RevealGroup>
+
+        <Reveal className="mt-8">
+          <HomeLinkButton href={HOME_LINKS.treatments} variant="inverseOutline" size="sm">
+            {t("common.learnMore")}
+          </HomeLinkButton>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Page                                                                       */
+/* -------------------------------------------------------------------------- */
+
+export default function AgnikarmaPage() {
+  const { t, tArray } = useTranslation();
+  const conditions = buildConditions(t);
+  const comparison = buildComparison(t);
+
+  return (
+    <PageTransition>
+      <HomeMotionProvider>
+        <div className="overflow-x-clip font-body">
+          <Hero t={t} />
+          <ScientificFoundation t={t} />
+          <Process t={t} />
+          <Conditions t={t} tArray={tArray} conditions={conditions} />
+          <PatientStories t={t} conditions={conditions} />
+          <Advantages t={t} comparison={comparison} />
+          <ClosingCta t={t} />
+        </div>
+      </HomeMotionProvider>
+    </PageTransition>
+  );
+}

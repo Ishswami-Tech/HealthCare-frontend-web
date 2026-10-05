@@ -29,7 +29,7 @@ export function CompactThemeSwitcher({ className }: ThemeSwitcherProps) {
       onClick={() => setTheme(isDark ? "light" : "dark")}
       className={cn(
         "relative flex items-center justify-center size-8 rounded-full transition-all duration-300 ease-in-out",
-        "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1",
+        "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1",
         "bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300",
         className
       )}

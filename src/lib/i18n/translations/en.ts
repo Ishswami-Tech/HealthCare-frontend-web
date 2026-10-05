@@ -47,6 +47,8 @@ export const en: TranslationKeys = {
     register: 'Register',
     successRate: 'Success Rate',
     duration: 'Duration',
+    play: 'Play',
+    pause: 'Pause',
     sessions: 'sessions',
     program: 'program',
     treatments: 'treatments',
@@ -128,7 +130,7 @@ export const en: TranslationKeys = {
     healthAssessmentText: 'Health Assessment',
     govCertified: 'Gov Certified',
     iso9001Short: 'ISO 9001',
-    ratingShort: '4.9â˜…',
+    ratingShort: '4.9★',
     natural: '100% Natural',
     noSideEffects: 'No Side Effects',
     provenResults: 'Proven Results',
@@ -149,7 +151,7 @@ export const en: TranslationKeys = {
     trustIndicators: {
       governmentCertified: 'Gov Certified',
       iso9001: 'ISO 9001',
-      rating: '4.9â˜…',
+      rating: '4.9★',
       liveActivity: 'Live Activity',
       highDemand: 'High Demand',
       peopleViewing: '153 people viewing',
@@ -1911,6 +1913,7 @@ export const en: TranslationKeys = {
     scientificFoundation: {
       title: 'Scientific Foundation',
       subtitle: 'Ancient Wisdom Meets Modern Validation',
+      description: 'Agnikarma bridges the time-tested principles of Ayurveda with modern scientific research, offering a safe, effective and natural solution for musculoskeletal conditions.',
       ancientText: {
         title: 'Ancient Ayurvedic Texts',
         description: 'Agnikarma is mentioned in classical texts like Charaka Samhita and Sushruta Samhita as a precise thermal therapy for musculoskeletal conditions.'
@@ -1957,6 +1960,15 @@ export const en: TranslationKeys = {
     conditions: {
       title: 'Conditions Treated',
       subtitle: 'Proven Results for Various Musculoskeletal Conditions',
+      description: 'Through the power of traditional Agnikarma and Ayurvedic principles, we provide effective, natural and long-lasting relief from chronic musculoskeletal conditions.',
+      assurance: {
+        title: 'Natural Healing, Lasting Relief',
+        points: [
+          'Minimal discomfort',
+          'Non-surgical approach',
+          'Improved mobility & quality of life'
+        ]
+      },
       chronicKneePain: {
         condition: 'Chronic Knee Pain',
         successRate: '95%',

@@ -371,24 +371,35 @@ export function ServicesCatalog({
     },
   ];
 
+  /**
+   * Service colours resolve to the six project accents (see
+   * `@/lib/design/tokens`). Legacy names kept as aliases so existing service
+   * definitions keep working without a data migration.
+   */
   const getColorClasses = (color: string) => {
-    const colorMap = {
-      green: "bg-green-50 border-green-200 text-green-800",
-      purple: "bg-purple-50 border-purple-200 text-purple-800",
-      orange: "bg-orange-50 border-orange-200 text-orange-800",
-      indigo: "bg-indigo-50 border-indigo-200 text-indigo-800",
-      blue: "bg-blue-50 border-blue-200 text-blue-800",
-      cyan: "bg-cyan-50 border-cyan-200 text-cyan-800",
-      red: "bg-red-50 border-red-200 text-red-800",
-      teal: "bg-teal-50 border-teal-200 text-teal-800",
-      pink: "bg-pink-50 border-pink-200 text-pink-800",
-      yellow: "bg-yellow-50 border-yellow-200 text-yellow-800",
-      rose: "bg-rose-50 border-rose-200 text-rose-800",
-      amber: "bg-amber-50 border-amber-200 text-amber-800",
-      violet: "bg-violet-50 border-violet-200 text-violet-800",
+    const ACCENT_CLASSES = {
       emerald: "bg-emerald-50 border-emerald-200 text-emerald-800",
+      teal: "bg-teal-50 border-teal-200 text-teal-800",
+      sky: "bg-sky-50 border-sky-200 text-sky-800",
+      violet: "bg-violet-50 border-violet-200 text-violet-800",
+      amber: "bg-amber-50 border-amber-200 text-amber-800",
+      rose: "bg-rose-50 border-rose-200 text-rose-800",
+    } as const;
+
+    const ALIAS: Record<string, keyof typeof ACCENT_CLASSES> = {
+      green: "emerald",
+      cyan: "teal",
+      blue: "sky",
+      indigo: "violet",
+      purple: "violet",
+      orange: "amber",
+      yellow: "amber",
+      red: "rose",
+      pink: "rose",
     };
-    return colorMap[color as keyof typeof colorMap] || colorMap.green;
+
+    const key = color in ACCENT_CLASSES ? (color as keyof typeof ACCENT_CLASSES) : ALIAS[color];
+    return ACCENT_CLASSES[key ?? "emerald"];
   };
 
   const gridClasses = {
@@ -477,7 +488,7 @@ export function ServicesCatalog({
               <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
                 <div
                   className={cn(
-                    "p-3 sm:p-4 rounded-2xl shadow-lg transition-all duration-300 group-hover:scale-110",
+                    "p-3 sm:p-4 rounded-2xl shadow-lg hover-child group-hover:scale-105",
                     getColorClasses(service.color)
                   )}
                 >

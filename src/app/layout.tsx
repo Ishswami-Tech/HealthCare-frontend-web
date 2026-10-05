@@ -114,11 +114,14 @@ export default async function RootLayout({
         <link rel="dns-prefetch" href="//www.google-analytics.com" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* Newsreader carries the `ital` axis so the homepage's display
+            italics render in the real cut rather than a synthesised slant,
+            which at 4rem reads as a rendering fault. */}
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Poppins:wght@500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Sora:wght@300..800&display=swap"
         />
-        <style>{`:root{--font-care-head:"Poppins",ui-sans-serif,system-ui,sans-serif;--font-care-body:"DM Sans",ui-sans-serif,system-ui,sans-serif;--font-care-script:"Caveat",ui-serif,cursive}`}</style>
+        <style>{`:root{--font-care-head:"Sora",ui-sans-serif,system-ui,sans-serif;--font-care-body:"Sora",ui-sans-serif,system-ui,sans-serif;--font-care-script:"Caveat",ui-serif,cursive}`}</style>
 
         <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
       </head>

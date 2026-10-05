@@ -152,7 +152,7 @@ const Footer = () => {
               ))}
             </ul>
 
-            <h4 className="font-semibold text-lg mb-4 mt-8 text-orange-400">
+            <h4 className="font-semibold text-lg mb-4 mt-8 text-primary">
               {t("footer.services.title")}
             </h4>
             <ul className="space-y-3">

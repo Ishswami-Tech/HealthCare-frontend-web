@@ -47,6 +47,8 @@ export const hi: TranslationKeys = {
     register: 'रजिस्टर',
     successRate: 'सफलता दर',
     duration: 'अवधि',
+    play: 'चलाएँ',
+    pause: 'रोकें',
     sessions: 'सत्र',
     program: 'कार्यक्रम',
     treatments: 'उपचार',

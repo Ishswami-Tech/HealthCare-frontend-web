@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "../styles/patient-portal.css";
+@import "../styles/home.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -46,6 +47,9 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
   --font-serif: var(--font-serif);
+  --font-heading: var(--font-care-head);
+  --font-body: var(--font-care-body);
+  --font-script: var(--font-care-script);
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -1209,19 +1213,64 @@ html {
   backdrop-filter: blur(16px);
 }
 
-/* Card hover effects */
+/* ---------------------------------------------------------------------------
+   Hover motion — the CSS half of the two tiers defined in
+   src/lib/design/tokens.ts (HOVER_TRANSITION / HOVER_CARD_LIFT and
+   CONTROL_TRANSITION / CONTROL_LIFT). Pages that compose Tailwind classes
+   import the tokens; pages built on these legacy utility classes get the same
+   curve, duration and distance from here. Keep the two in step — the numbers
+   below are the tokens', written out.
+
+   `translate` is a property of its own, not part of `transform`, and it is the
+   one being animated here, so it has to be named in transition-property.
+   --------------------------------------------------------------------------- */
+
+/* Tier 1 — cards and other read surfaces: 4px, 650ms, 90ms before it starts
+   so a pointer crossing the card on its way elsewhere never moves it. */
 .card-hover {
-  @apply transition-all duration-200 ease-in-out;
+  transition-property: translate, scale, transform, box-shadow, border-color,
+    background-color, opacity;
+  transition-duration: 650ms;
+  transition-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transition-delay: 0ms;
 }
 
 .card-hover:hover {
-  @apply shadow-lg transform scale-[1.02];
+  @apply shadow-lg;
+  translate: 0 -4px;
+  transition-delay: 90ms;
 }
 
-/* Interactive elements */
+/* An icon plate, glyph or heading that moves with the card it sits in. Shares
+   tier 1's clock so the card reads as one object instead of a pile of parts
+   each animating on its own schedule. Needs Tailwind's `group` on the card. */
+.hover-child {
+  transition-property: translate, scale, transform, opacity, color,
+    background-color, border-color, box-shadow;
+  transition-duration: 650ms;
+  transition-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transition-delay: 0ms;
+}
+
+.group:hover .hover-child {
+  transition-delay: 90ms;
+}
+
+/* Tier 2 — controls: half the distance, half the time, no enter delay, and it
+   sits back down under a press. */
 .interactive {
-  @apply transition-all duration-200 ease-in-out;
-  @apply hover:scale-105 active:scale-95;
+  transition-property: translate, scale, transform, box-shadow,
+    background-color, border-color, color;
+  transition-duration: 300ms;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.interactive:hover {
+  translate: 0 -2px;
+}
+
+.interactive:active {
+  translate: 0 0;
 }
 
 /* Gradient text utility */

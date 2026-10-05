@@ -109,7 +109,7 @@ export default function GalleryPage() {
                 href="https://instagram.com/drchandrakumardeshmukh"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 flex items-center gap-2 interactive"
+                className="bg-gradient-to-r from-rose-500 to-rose-600 text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 flex items-center gap-2 interactive"
               >
                 <Instagram className="size-5" />
                 {t("gallery.followInstagram")}
@@ -174,7 +174,7 @@ export default function GalleryPage() {
               href="https://instagram.com/drchandrakumardeshmukh"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 interactive"
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-rose-500 to-rose-600 text-white px-8 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 interactive"
             >
               <Instagram className="size-5" />
               {t("gallery.viewMoreInstagram")}
