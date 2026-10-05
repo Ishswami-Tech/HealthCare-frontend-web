@@ -105,59 +105,52 @@ export function AppointmentExpiryCountdown({
   const isUrgent = !isExpired && diffMs <= 60 * 60_000; // <1h left
   const isWarning = !isExpired && !isUrgent && diffMs <= 3 * 60 * 60_000; // <3h left
 
+  // Same colours as the status tags: rose once expired, amber when close, slate otherwise.
   const palette = isExpired
     ? {
         icon: AlertTriangle,
-        iconClass: "text-red-600 dark:text-red-400",
-        containerClass:
-          "border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300",
+        containerClass: "bg-[#ffe4e6] text-[#be123c] dark:bg-rose-500/15 dark:text-rose-300",
         label: "Expired",
       }
     : isUrgent
     ? {
         icon: AlertTriangle,
-        iconClass: "text-amber-700 dark:text-amber-300",
-        containerClass:
-          "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200",
+        containerClass: "bg-[#fef3c7] text-[#92400e] dark:bg-amber-500/15 dark:text-amber-300",
         label: `Expires in ${remainingLabel}`,
       }
     : isWarning
     ? {
         icon: Clock,
-        iconClass: "text-amber-700 dark:text-amber-300",
-        containerClass:
-          "border-amber-200 bg-amber-50/70 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200",
+        containerClass: "bg-[#fef3c7] text-[#92400e] dark:bg-amber-500/15 dark:text-amber-300",
         label: `Expires in ${remainingLabel}`,
       }
     : {
         icon: Clock,
-        iconClass: "text-slate-600 dark:text-slate-300",
-        containerClass:
-          "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-300",
+        containerClass: "bg-[#f1f5f9] text-[#334155] dark:bg-slate-500/20 dark:text-slate-300",
         label: `Expires in ${remainingLabel}`,
       };
 
   const Icon = palette.icon;
   const sizing =
     variant === "compact"
-      ? "h-5 px-2 text-[10px] gap-1"
-      : "h-6 px-2.5 text-[11px] gap-1.5";
+      ? "gap-1 rounded-[8px] px-2 py-1 text-[11px] leading-none"
+      : "gap-1.5 rounded-[10px] px-2.5 py-[7px] text-xs";
 
   return (
     <span
-      className={`inline-flex items-center rounded-full border font-medium ${sizing} ${palette.containerClass}`}
+      className={`inline-flex items-center whitespace-nowrap font-semibold ${sizing} ${palette.containerClass}`}
       title={
         formattedTime
           ? isExpired
             ? `Expired at ${formattedTime} IST`
-            : `Backend will expire this appointment at ${formattedTime} IST${
-                windowMinutes ? ` (${windowMinutes}m window)` : ""
+            : `This visit expires at ${formattedTime} IST${
+                windowMinutes ? ` (${windowMinutes} minute window)` : ""
               }`
           : undefined
       }
     >
-      <Icon className={`size-3 ${palette.iconClass}`} />
-      <span className="font-semibold tracking-wide">
+      <Icon className={variant === "compact" ? "size-3 shrink-0" : "size-3.5 shrink-0"} strokeWidth={2.2} aria-hidden="true" />
+      <span>
         {isExpired
           ? formattedTime
             ? `Expired at ${formattedTime}`

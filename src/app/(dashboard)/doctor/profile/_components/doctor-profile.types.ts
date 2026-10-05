@@ -68,10 +68,24 @@ export interface DoctorProfileStats {
 }
 
 export interface DoctorReview {
+  id?: string;
   patientName: string;
+  /** 1 to 5. */
   rating: number;
   review: string;
+  /** ISO date; "" when unknown. */
   date: string;
+}
+
+/** What the Reviews tab needs from `useDoctorReviews`. */
+export interface DoctorProfileReviewsState {
+  reviews: DoctorReview[];
+  isLoading: boolean;
+  /** The request failed and there is nothing to show. */
+  loadFailed: boolean;
+  /** The server has no reviews service yet (the request answered "not found"). */
+  notAvailable?: boolean;
+  onRetry?: () => void;
 }
 
 export interface SaveProfileMutation {
@@ -89,4 +103,5 @@ export interface DoctorProfileUser {
   firstName?: string | null;
   lastName?: string | null;
   email?: string | null;
+  profilePicture?: string | null;
 }

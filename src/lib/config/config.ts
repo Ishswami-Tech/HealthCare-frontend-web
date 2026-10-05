@@ -455,6 +455,7 @@ export const API_ENDPOINTS = {
     SCAN_QR: '/appointments/check-in/scan-qr',
     START: (id: string) => `/appointments/${id}/start-consultation`,
     COMPLETE: (id: string) => `/appointments/${id}/complete`,
+    COMPLETE_BULK: '/appointments/complete/bulk',
     RESCHEDULE: (id: string) => `/appointments/${id}/reschedule`,
     DOCTOR_AVAILABILITY: (doctorId: string) => `/appointments/doctor/${doctorId}/availability`,
     UPDATE_AVAILABILITY: (doctorId: string) => `/appointments/doctor/${doctorId}/availability`,
@@ -555,6 +556,8 @@ export const API_ENDPOINTS = {
         `/pharmacy/prescriptions/${prescriptionId}/payment-summary`,
       PROCESS_PAYMENT: (prescriptionId: string) =>
         `/pharmacy/prescriptions/${prescriptionId}/process-payment`,
+      RECORD_CASH_PAYMENT: (prescriptionId: string) =>
+        `/pharmacy/prescriptions/${prescriptionId}/record-cash-payment`,
     },
     INVENTORY: {
       UPDATE: (clinicId: string, medicineId: string) => `/clinics/${clinicId}/pharmacy/inventory/${medicineId}`,
@@ -821,8 +824,15 @@ export const API_ENDPOINTS = {
       MARK_PAID: (id: string) => `/billing/invoices/${id}/mark-paid`,
       GENERATE_PDF: (id: string) => `/billing/invoices/${id}/generate-pdf`,
       SEND_WHATSAPP: (id: string) => `/billing/invoices/${id}/send-whatsapp`,
-      DOWNLOAD: (fileName: string) => `/api/billing/invoices/download/${fileName}`,
+      // Next.js proxy route (src/app/api/billing/invoices/[id]/download) — keyed by invoice id.
+      DOWNLOAD: (id: string) => `/api/billing/invoices/${id}/download`,
+      // Offline collection at the desk (cash / UPI / card): creates a COMPLETED payment.
+      RECORD_PAYMENT: (id: string) => `/billing/invoices/${id}/record-payment`,
     },
+    // Per-patient Bill History (consultation + pharmacy + other invoices and their payments)
+    PATIENT_BILLS: (patientId: string) => `/billing/patients/${patientId}/bills`,
+    // Consultation fee invoice for an OPD visit (idempotent per visit)
+    VISIT_CONSULTATION_INVOICE: (visitId: string) => `/billing/visits/${visitId}/consultation-invoice`,
     PAYMENTS: {
       BASE: '/billing/payments',
       CREATE: '/billing/payments',
@@ -841,6 +851,7 @@ export const API_ENDPOINTS = {
       PROCESS_PAYMENT: (id: string) => `/billing/appointments/${id}/process-payment`,
       PAYOUT_STATUS: (id: string) => `/billing/appointments/${id}/payout-status`,
       RELEASE_PAYOUT: (id: string) => `/billing/appointments/${id}/release-payout`,
+      MANUAL_RECONCILE: (id: string) => `/billing/appointments/${id}/manual-reconcile`,
     },
     ANALYTICS: {
       REVENUE: '/billing/analytics/revenue',
@@ -848,6 +859,48 @@ export const API_ENDPOINTS = {
     },
   },
   
+  // OPD registration / per-visit case-sheet
+  PATIENT_VISITS: {
+    CREATE: '/patient-visits',
+    GET: (visitId: string) => `/patient-visits/${visitId}`,
+    UPDATE: (visitId: string) => `/patient-visits/${visitId}`,
+    LIST_BY_PATIENT: (patientId: string) => `/patient-visits/patient/${patientId}`,
+    CASE_SHEET: (visitId: string) => `/patient-visits/${visitId}/case-sheet`,
+    VITALS_EXAMINATION: (visitId: string) => `/patient-visits/${visitId}/vitals-examination`,
+    CLASSICAL_EXAMS: (visitId: string) => `/patient-visits/${visitId}/classical-exams`,
+    // Therapy / Panchakarma (visit_therapy_plans / visit_therapy_sessions)
+    THERAPY_PLANS: (visitId: string) => `/patient-visits/${visitId}/therapy-plans`,
+    THERAPY_PLAN: (planId: string) => `/patient-visits/therapy-plans/${planId}`,
+    THERAPY_SESSIONS: (planId: string) => `/patient-visits/therapy-plans/${planId}/sessions`,
+    THERAPY_SESSION: (sessionId: string) => `/patient-visits/therapy-sessions/${sessionId}`,
+    THERAPY_PROGRESS: (patientId: string) => `/patient-visits/patient/${patientId}/therapy-progress`,
+    THERAPY_MY_SESSIONS: '/patient-visits/therapy/my-sessions',
+    THERAPISTS: '/patient-visits/therapists',
+    // Diet chart (Take / Avoid / Occasional, en/gu/hi/mr)
+    DIET_CHART: (visitId: string) => `/patient-visits/${visitId}/diet-chart`,
+    DIET_CHART_FOODS: '/patient-visits/diet-chart-foods',
+    DIET_CHART_FOOD: (foodId: string) => `/patient-visits/diet-chart-foods/${foodId}`,
+  },
+
+  // Investigations & Documents (patient_documents; private storage)
+  PATIENT_DOCUMENTS: {
+    UPLOAD: (category: 'investigations' | 'documents') => `/patient-documents/${category}`,
+    LIST_BY_PATIENT: (patientId: string) => `/patient-documents/patient/${patientId}`,
+    LIST_BY_VISIT: (visitId: string) => `/patient-documents/visit/${visitId}`,
+    URL: (documentId: string) => `/patient-documents/${documentId}/url`,
+    CONTENT: (documentId: string) => `/patient-documents/${documentId}/content`,
+    UPDATE: (documentId: string) => `/patient-documents/${documentId}`,
+    DELETE: (documentId: string) => `/patient-documents/${documentId}`,
+  },
+
+  // Family members (dependents under a head-of-family patient)
+  FAMILY_MEMBERS: {
+    CREATE: '/family-members',
+    LIST_BY_PATIENT: (patientId: string) => `/family-members/patient/${patientId}`,
+    UPDATE: (id: string) => `/family-members/${id}`,
+    DELETE: (id: string) => `/family-members/${id}`,
+  },
+
   // EHR Endpoints
   EHR: {
     BASE: '/ehr',
@@ -857,6 +910,12 @@ export const API_ENDPOINTS = {
       GET_BY_USER: (userId: string) => `/ehr/medical-history/${userId}`,
       UPDATE: (id: string) => `/ehr/medical-history/${id}`,
       DELETE: (id: string) => `/ehr/medical-history/${id}`,
+    },
+    FAMILY_HISTORY: {
+      CREATE: '/ehr/family-history',
+      GET_BY_USER: (userId: string) => `/ehr/family-history/${userId}`,
+      UPDATE: (id: string) => `/ehr/family-history/${id}`,
+      DELETE: (id: string) => `/ehr/family-history/${id}`,
     },
     LAB_REPORTS: {
       CREATE: '/ehr/lab-reports',
@@ -1157,12 +1216,12 @@ export const API_ENDPOINTS = {
   
   // Clinic Communication Endpoints
   CLINIC_COMMUNICATION: {
-    BASE: (clinicId: string) => `/clinics/${clinicId}/communication`,
-    GET: (clinicId: string) => `/clinics/${clinicId}/communication`,
-    CREATE: (clinicId: string) => `/clinics/${clinicId}/communication`,
-    UPDATE: (clinicId: string, id: string) => `/clinics/${clinicId}/communication/${id}`,
-    DELETE: (clinicId: string, id: string) => `/clinics/${clinicId}/communication/${id}`,
-    TEST: (clinicId: string) => `/clinics/${clinicId}/communication/test`,
+    GET: (clinicId: string) => `/clinics/${clinicId}/communication/config`,
+    UPDATE: (clinicId: string) => `/clinics/${clinicId}/communication/config`,
+    UPDATE_SES: (clinicId: string) => `/clinics/${clinicId}/communication/ses`,
+    TEST_EMAIL: (clinicId: string) => `/clinics/${clinicId}/communication/test-email`,
+    TEST_WHATSAPP: (clinicId: string) => `/clinics/${clinicId}/communication/test-whatsapp`,
+    TEST_SMS: (clinicId: string) => `/clinics/${clinicId}/communication/test-sms`,
   },
 
   // Logging Endpoints

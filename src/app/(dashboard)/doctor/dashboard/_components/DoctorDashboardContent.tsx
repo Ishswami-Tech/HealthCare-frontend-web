@@ -1,85 +1,83 @@
 "use client";
 
+import { CircleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Users, Video } from "lucide-react";
+import { EmptyBlock, Surface } from "@/components/tbd";
 import { QuickPrescriptionModal } from "@/components/doctor/QuickPrescriptionModal";
-import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
-import { DoctorDashboardSummaryCard } from "./DoctorDashboardSummaryCard";
-import { DoctorDashboardScheduleCard } from "./DoctorDashboardScheduleCard";
-import { DoctorDashboardSidebar } from "./DoctorDashboardSidebar";
+import { DoctorDashboardView } from "./DoctorDashboardView";
 import { useDoctorDashboardData } from "./useDoctorDashboardData";
 
 export default function DoctorDashboardContent() {
   const data = useDoctorDashboardData();
 
-  if (
-    data.isAppointmentsPending &&
-    data.appointmentsArray.length === 0 &&
-    !data.hasAppointmentsLoadedForSession
-  ) {
-  }
-
   if (data.appointmentsError && data.appointmentsArray.length === 0) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center p-6 text-center">
-        <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-red-100 text-red-600">
-          <AlertCircle className="size-8" />
-        </div>
-        <h3 className="mb-2 text-xl font-semibold text-foreground">Workspace Connection Issue</h3>
-        <p className="mb-6 max-w-sm text-muted-foreground">
-          We could not load your appointments. Please check your connection and try again.
-        </p>
-        <Button onClick={() => window.location.reload()} variant="outline">
-          Refresh Workspace
-        </Button>
-      </div>
+      <Surface flush className="mx-auto mt-10 w-full max-w-xl" role="alert">
+        <EmptyBlock
+          icon={CircleAlert}
+          title="We could not load your appointments"
+          description="Please check your connection and try again."
+          action={
+            <Button size="md" variant="outline" onClick={() => window.location.reload()}>
+              Refresh
+            </Button>
+          }
+        />
+      </Surface>
     );
   }
 
+  const isLoadingAppointments =
+    data.isAppointmentsPending && data.appointmentsArray.length === 0 && !data.hasAppointmentsLoadedForSession;
+  const modalAppointment = data.prescriptionAppointment;
+  const isModalForConsult = Boolean(modalAppointment && modalAppointment.id === data.activeConsult?.id);
+
   return (
-    <DashboardPageShell>
-      <DashboardPageHeader
-        eyebrow="Doctor Dashboard"
-        title={`Welcome, Dr. ${data.displayDoctorName}`}
-        description={`Today is ${data.dashboardTodayLabel || "today"}. Manage your video visits and prescriptions from one workspace.`}
-        meta={data.meta}
-        actions={[
-          {
-            label: "Appointments",
-            href: "/doctor/appointments",
-            icon: <Video className="size-4" />,
-          },
-          {
-            label: "Patient Directory",
-            href: "/doctor/patients",
-            icon: <Users className="size-4" />,
-          },
-        ]}
+    <>
+      <DoctorDashboardView
+        dateLabel={data.dashboardTodayLabel}
+        doctorName={data.displayDoctorName}
+        counts={{
+          today: data.appointmentCounts.all,
+          confirmed: data.appointmentCounts.confirmed,
+          inQueue: data.queueLines.length,
+          completed: data.appointmentCounts.completed,
+        }}
+        completedVisit={data.lastCompletedVisit}
+        openVideoVisits={data.openVideoVisits}
+        nowMs={data.nowMs}
+        consult={
+          data.isConsultInProgress && data.activeConsult
+            ? {
+                appointment: data.activeConsult,
+                elapsedLabel: data.consultElapsedLabel,
+                notes: data.consultSummary,
+                confirmSkipMedicine: data.prescriptionModal.skipMedicineSelected,
+              }
+            : null
+        }
+        nextPatient={data.nextPatient}
+        rows={data.filteredTodayRows}
+        filter={data.appointmentFilter}
+        filterCounts={data.appointmentCounts}
+        isLoadingAppointments={isLoadingAppointments}
+        queueLines={data.queueLines}
+        isStartPending={data.isStartPending}
+        isCompletePending={data.isCompletePending}
+        isPrescriptionOpen={data.prescriptionModal.isOpen}
+        onFilterChange={data.onAppointmentFilterChange}
+        onStartConsultation={data.onStartConsultation}
+        onStartAppointment={data.onStartAppointment}
+        onJoinVideoSession={data.onJoinVideoSession}
+        onOpenPrescription={data.onOpenPrescription}
+        onOpenPrescriptionForConsult={data.onOpenPrescriptionForConsult}
+        onOpenEhr={data.onOpenEhr}
+        onCompleteAppointment={data.onCompleteAppointment}
+        onConsultNotesChange={data.onConsultSummaryChange}
+        onToggleSkipMedicine={data.onToggleSkipMedicine}
+        onCancelSkipMedicine={data.onCancelSkipMedicine}
+        onCompleteWithoutMedicine={data.onCompleteWithoutMedicine}
       />
-
-      <DoctorDashboardSummaryCard dashboardTodayLabel={data.dashboardTodayLabel} stats={data.stats} />
-
-      <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-4">
-        <div className="flex flex-col gap-y-4 lg:col-span-3">
-          <DoctorDashboardScheduleCard
-            appointments={data.appointmentTimeline}
-            onJoinVideoSession={data.onJoinVideoSession}
-            onStartConsultationForAppointment={data.onStartConsultation}
-            onOpenPrescription={data.onOpenPrescription}
-            onOpenEhr={data.onOpenEhr}
-            onCompleteAppointment={data.onCompleteAppointment}
-            isStartPending={data.isStartPending}
-            isCompletePending={data.isCompletePending}
-          />
-        </div>
-
-        <DoctorDashboardSidebar
-          onNavigateAppointments={data.onNavigateAppointments}
-          onNavigatePatients={data.onNavigatePatients}
-          onNavigateDailySummary={data.onNavigateAppointments}
-          onNavigateNoShow={data.onNavigateAppointments}
-        />
-      </div>
 
       <QuickPrescriptionModal
         isOpen={data.prescriptionModal.isOpen}
@@ -87,8 +85,17 @@ export default function DoctorDashboardContent() {
         appointmentId={data.prescriptionModal.activeAppointmentId || ""}
         patientId={data.prescriptionModal.activePatient?.id || ""}
         patientName={data.prescriptionModal.activePatient?.name || ""}
-        doctorId={data.userId}
+        doctorId={data.doctorEntityId}
+        patientSummary={modalAppointment?.patientMeta || ""}
+        visitLabel={
+          modalAppointment
+            ? `${modalAppointment.isVideo ? "Video call" : "In-clinic"} · ${modalAppointment.timeLabel}`
+            : ""
+        }
+        visitStatus={modalAppointment?.statusEnum || ""}
+        consultationNotes={isModalForConsult ? data.consultSummary : ""}
+        onSaved={data.onPrescriptionSaved}
       />
-    </DashboardPageShell>
+    </>
   );
 }

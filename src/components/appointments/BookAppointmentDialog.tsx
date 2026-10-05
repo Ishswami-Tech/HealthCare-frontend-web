@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { logger } from "@/lib/utils/logger";
 import {
   useState,
@@ -21,7 +20,6 @@ import type {
 } from "@/types/appointment.types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PaymentButton } from "@/components/payments/PaymentButton";
@@ -52,6 +50,7 @@ import {
   useQuickRegisterPatient,
 } from "@/hooks/query/usePatients";
 import { useUserProfile } from "@/hooks/query/useUsers";
+import { useMyFamilyMembers } from "@/hooks/query/useMyFamilyMembers";
 import { Role } from "@/types/auth.types";
 import {
   useAppointmentServices,
@@ -92,15 +91,43 @@ import { theme } from "@/lib/utils/theme-utils";
 import { cn } from "@/lib/utils";
 import { formatISODateInIST } from "@/lib/utils/date-time";
 import { resolveDisplayNameAndInitials } from "@/lib/utils/display-name";
+import { formatDoctorDisplayName } from "@/lib/utils/appointmentUtils";
 import { format } from "date-fns";
 import { AppointmentStepWrapper } from "@/components/appointments/AppointmentStepWrapper";
+import {
+  BookingDoctorPage,
+  BookingDoctorPhoto,
+  BookingEmpty,
+  BookingGroupLabel,
+  BookingHelpLine,
+  BookingLoading,
+  BookingNotice,
+  BookingReviewStepView,
+  BookingSkeletonRows,
+  BookingSlotStepView,
+  BookingStepper,
+  BookingSuccessStepView,
+  bookingOptionClass,
+  buildSlotPeriods,
+  downloadBookingCalendarFile,
+  formatRupees,
+  formatSlotLabel,
+  readBookedSlots,
+  shortBookingRef,
+  summarizeWorkingHours,
+  type BookingDetail,
+  type BookingDoctorInfo,
+  type BookingHoursRow,
+  type BookingLayout,
+  type BookingVisitForProps,
+} from "@/components/appointments/booking";
+import { IconBox, Note, Pill, SectionTitle } from "@/components/tbd";
 import { syncAppointmentInCache } from "@/lib/utils/appointment-cache";
 import {
   Activity,
   Plus,
   Leaf,
   Waves,
-  Clock,
   Search,
   Flame,
   Heart,
@@ -116,18 +143,12 @@ import {
   RefreshCw,
   Stethoscope,
   CalendarIcon,
-  Sun,
-  CloudSun,
-  Moon,
-  QrCode,
   Download,
   Check,
   ArrowRight,
   Video,
   MapPin,
   Building,
-  Wifi,
-  WifiOff,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
@@ -171,6 +192,8 @@ interface BookAppointmentDialogProps {
   initialServiceId?: string;
   initialDoctorId?: string;
   initialPatientId?: string;
+  /** Patients only: open with this family member chosen under "Who is this visit for?". */
+  initialFamilyMemberId?: string;
   /** When true, forces VIDEO mode and skips mode selection step */
   videoOnly?: boolean;
 }
@@ -304,6 +327,8 @@ function groupSlotsByPeriod(slots: string[]) {
 const STEP_ORDER = [
   "mode",
   "service",
+  // Staff only, video flow: the patient picker (the Service step holds it in the other flows).
+  "patient",
   "doctor",
   "date",
   "slot",
@@ -315,6 +340,7 @@ type WizardStepId = (typeof STEP_ORDER)[number];
 const STEP_LABELS: Record<WizardStepId, string> = {
   mode: "Consultation",
   service: "Service",
+  patient: "Patient",
   doctor: "Doctor",
   date: "Date",
   slot: "Time",
@@ -330,76 +356,32 @@ interface BookAppointmentStepBarProps {
   activeSteps: readonly WizardStepId[];
   step: number;
   goToStep: (nextStepId: WizardStepId) => void;
+  /** Patient page layout: date + time on one step (no separate calendar step). */
+  mergeDateAndTimeStep?: boolean;
+}
+
+function stepBarLabel(stepId: WizardStepId, mergeDateAndTimeStep: boolean): string {
+  if (mergeDateAndTimeStep && stepId === "slot") {
+    return "Date & time";
+  }
+  return STEP_LABELS[stepId];
 }
 
 function BookAppointmentStepBar({
   activeSteps,
   step,
   goToStep,
+  mergeDateAndTimeStep = false,
 }: BookAppointmentStepBarProps) {
-  return (
-    <div className="w-full min-w-0 px-0.5 sm:px-1">
-      <div className="flex w-full min-w-0 items-start">
-        {activeSteps.map((stepId, i) => {
-          const s = i + 1;
-          const done = step > s;
-          const active = step === s;
-          return (
-            <div key={stepId} className="relative flex min-w-0 flex-1 flex-col items-center">
-              {i < activeSteps.length - 1 && (
-                <div className="absolute top-[11px] left-[calc(50%+16px)] w-[calc(100%-32px)] sm:top-[13px] sm:left-[calc(50%+20px)] sm:w-[calc(100%-40px)] h-[2px] rounded-full bg-muted/70 z-0">
-                  <div
-                    className="h-full rounded-full bg-primary transition-all duration-300"
-                    style={{
-                      width: `${step > i + 1 ? 100 : step === i + 1 ? 50 : 0}%`,
-                    }}
-                  />
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={() => goToStep(stepId)}
-                className="relative z-10 flex min-w-0 flex-col items-center gap-1 text-center outline-none sm:gap-1.5"
-              >
-                <div
-                  className={`size-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all sm:size-7 sm:text-xs ${
-                    done
-                      ? "bg-primary text-primary-foreground"
-                      : active
-                        ? "bg-primary text-primary-foreground ring-4 ring-primary/20"
-                        : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {done ? <Check className="size-3.5" /> : s}
-                </div>
-                <span
-                  className={`hidden w-full max-w-[60px] truncate text-[9px] font-semibold uppercase tracking-wider sm:block sm:text-[10px] ${
-                    active
-                      ? "text-primary"
-                      : done
-                        ? "text-primary/60"
-                        : "text-muted-foreground"
-                  }`}
-                >
-                  {STEP_LABELS[stepId]}
-                </span>
-              </button>
-            </div>
-          );
-        })}
-      </div>
+  // The "Done" screen is not drawn as a step (board DocAppointmentDialogs3).
+  const visibleSteps = activeSteps
+    .filter((stepId) => stepId !== "success")
+    .map((stepId) => ({ id: stepId, label: stepBarLabel(stepId, mergeDateAndTimeStep) }));
 
-      {/* Support banner for video appointments */}
-      <div className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-amber-50 to-orange-50 px-3 py-2 text-xs text-amber-800 dark:from-amber-950/30 dark:to-orange-950/30 dark:text-amber-200 sm:text-sm">
-        <span>Need help?</span>
-        <a
-          href="tel:+917218378311"
-          className="font-semibold text-amber-700 underline-offset-2 hover:underline dark:text-amber-300"
-        >
-          Call +91 7218378311
-        </a>
-        <span>for booking assistance</span>
-      </div>
+  return (
+    <div className="flex w-full min-w-0 flex-col gap-1.5">
+      <BookingStepper steps={visibleSteps} current={step} onStepClick={goToStep} />
+      <BookingHelpLine />
     </div>
   );
 }
@@ -454,85 +436,78 @@ function BookAppointmentStep1({
   setConsultationMode,
 }: BookAppointmentStep1Props) {
   return (
-    <div className="flex flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-[640px] flex-col gap-5">
       {consultationMode === "VIDEO" ? (
-        <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+        <Note tone="blue" icon={Video}>
           Video consultations do not require a physical location.
-        </div>
+        </Note>
       ) : isPatientClinicStillResolving ? (
-        <div className="text-center py-6 border border-dashed rounded-xl text-muted-foreground text-sm">
-          <Loader2 className="size-7 mx-auto mb-2 opacity-60 animate-spin" />
+        <BookingLoading className="rounded-2xl border border-dashed border-line">
           Resolving your clinic
-        </div>
+        </BookingLoading>
       ) : profileCompletionBlocked ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="mt-0.5 size-5 shrink-0" />
-            <div className="flex flex-col gap-y-1">
-              <p className="font-semibold">Complete your profile first</p>
-              <p className="text-xs text-amber-800/90 dark:text-amber-200/90">
-                We need your profile details before loading locations or
-                doctors.
-              </p>
-              <p className="text-xs text-amber-800/80 dark:text-amber-200/80">
-                You will be redirected to the profile completion page.
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                className="mt-2 h-9 rounded-lg"
-                onClick={() => {
-                  handleOpenChange(false);
-                  replace(profileCompletionRedirectUrl);
-                }}
-              >
-                Complete profile
-              </Button>
-            </div>
-          </div>
-        </div>
+        <BookingNotice
+          tone="amber"
+          icon={AlertTriangle}
+          title="Complete your profile first"
+          actions={
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                handleOpenChange(false);
+                replace(profileCompletionRedirectUrl);
+              }}
+            >
+              Complete profile
+            </Button>
+          }
+        >
+          <p className="m-0 text-xs">
+            We need your profile details before loading locations or doctors.
+          </p>
+          <p className="m-0 text-xs opacity-90">
+            You will be redirected to the profile completion page.
+          </p>
+        </BookingNotice>
       ) : (
         <div className="flex flex-col gap-2">
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-            Visit Location
-          </p>
+          <BookingGroupLabel>Visit Location</BookingGroupLabel>
           {((locationsLoading || allLocationsLoading) &&
             locations.length === 0) ||
           !activeLocationsFetched ||
           !allLocationsFetched ? (
-            <div className="text-center py-6 border border-dashed rounded-xl text-muted-foreground text-sm">
-              <Building className="size-7 mx-auto mb-2 opacity-30" />
+            <BookingLoading className="rounded-2xl border border-dashed border-line">
               Loading locations
-            </div>
+            </BookingLoading>
           ) : locations.length === 0 ? (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
-              <div className="flex items-start gap-3">
-                <Building className="mt-0.5 size-5 shrink-0" />
-                <div className="flex flex-col gap-y-1">
-                  <p className="font-semibold">Clinic unavailable</p>
-                  <p className="text-xs text-amber-800/90 dark:text-amber-200/90">
-                    {clinicName
-                      ? `${clinicName} has no active locations configured yet.`
-                      : "No active locations are configured for this clinic yet."}
-                  </p>
-                  <p className="text-xs text-amber-800/80 dark:text-amber-200/80">
-                    Please contact the clinic or try again later.
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="mt-2 h-9 rounded-lg"
-                    onClick={() => handleOpenChange(false)}
-                  >
-                    Close
-                  </Button>
-                </div>
-              </div>
-            </div>
+            <BookingNotice
+              tone="amber"
+              icon={Building}
+              title="Clinic unavailable"
+              actions={
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleOpenChange(false)}
+                >
+                  Close
+                </Button>
+              }
+            >
+              <p className="m-0 text-xs">
+                {clinicName
+                  ? `${clinicName} has no active locations configured yet.`
+                  : "No active locations are configured for this clinic yet."}
+              </p>
+              <p className="m-0 text-xs opacity-90">
+                Please contact the clinic or try again later.
+              </p>
+            </BookingNotice>
           ) : (
             <div className="flex flex-col gap-y-2">
               {hasOnlyInactiveLocations && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                <div className="rounded-xl border border-[#fcd34d] bg-[#fffbeb] px-3 py-2 text-xs text-[#92400e] dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
                   No active locations are configured yet. Showing all clinic
                   locations so booking can continue.
                 </div>
@@ -541,6 +516,7 @@ function BookAppointmentStep1({
                 <button
                   key={loc.id}
                   type="button"
+                  aria-pressed={selectedLocationId === loc.id}
                   onClick={() => {
                     setSelectedLocationId(loc.id);
                     setSelectedDoctorId("");
@@ -548,40 +524,34 @@ function BookAppointmentStep1({
                     setSelectedSlot("");
                     setTimeout(goNext, 150);
                   }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
-                    selectedLocationId === loc.id
-                      ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                      : "border-border bg-card hover:border-primary/30 hover:bg-muted/30"
-                  }`}
+                  className={bookingOptionClass(
+                    selectedLocationId === loc.id,
+                    "flex items-center gap-3 px-4 py-3",
+                  )}
                 >
-                  <div
-                    className={`size-9 rounded-xl flex items-center justify-center shrink-0 ${
-                      selectedLocationId === loc.id
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    <MapPin className="size-4" />
-                  </div>
+                  <IconBox
+                    icon={MapPin}
+                    tone="mint"
+                    size={38}
+                    solid={selectedLocationId === loc.id}
+                  />
                   <div className="flex-1 min-w-0">
-                    <p
-                      className={`font-semibold text-sm ${selectedLocationId === loc.id ? "text-primary" : ""}`}
-                    >
+                    <p className="m-0 text-sm font-bold text-ink">
                       {loc.name || loc.address || "Location"}
                     </p>
                     {loc.address && loc.name && (
-                      <p className="text-xs text-muted-foreground truncate">
+                      <p className="m-0 truncate text-xs text-ink-muted">
                         {loc.address}
                       </p>
                     )}
                     {loc.isActive === false && (
-                      <p className="mt-1 text-[11px] font-medium text-amber-700">
+                      <p className="m-0 mt-1 text-[11px] font-semibold text-[#b45309] dark:text-amber-300">
                         Inactive location
                       </p>
                     )}
                   </div>
                   {selectedLocationId === loc.id && (
-                    <Check className="size-4 text-primary shrink-0" />
+                    <Check className="size-4 shrink-0 text-brand" />
                   )}
                 </button>
               ))}
@@ -591,29 +561,35 @@ function BookAppointmentStep1({
       )}
 
       <div className="flex flex-col gap-2">
-        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-          Consultation Mode
-        </p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <BookingGroupLabel>Consultation Mode</BookingGroupLabel>
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           {(
             [
               {
                 value: "IN_PERSON",
-                label: "In-Person",
+                label: "In-Clinic",
                 desc: "Visit the clinic",
-                icon: <Building className="size-5" />,
+                icon: (
+                  <Building
+                    className="size-[22px] text-[#059669] dark:text-emerald-300"
+                    strokeWidth={2.2}
+                  />
+                ),
               },
               {
                 value: "VIDEO",
-                label: "Video Call",
+                label: "Video",
                 desc: "Remote consultation",
-                icon: <Video className="size-5" />,
+                icon: (
+                  <Video className="size-[22px] fill-[#4f46e5] text-[#4f46e5] dark:fill-indigo-400 dark:text-indigo-400" />
+                ),
               },
             ] as const
           ).map(({ value, label, desc, icon }) => (
             <button
               key={value}
               type="button"
+              aria-pressed={consultationMode === value}
               onClick={() => {
                 setConsultationMode(value);
                 if (value === "VIDEO") {
@@ -629,29 +605,14 @@ function BookAppointmentStep1({
                 setSelectedSlot("");
                 setTimeout(goNext, 150);
               }}
-              className={`flex flex-col items-center gap-2 px-4 py-4 rounded-xl border transition-all ${
-                consultationMode === value
-                  ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                  : "border-border bg-card hover:border-primary/30 hover:bg-muted/30"
-              }`}
+              className={bookingOptionClass(
+                consultationMode === value,
+                "flex min-h-24 flex-col items-start justify-center gap-1 px-3.5 py-3",
+              )}
             >
-              <div
-                className={`size-10 rounded-xl flex items-center justify-center ${
-                  consultationMode === value
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {icon}
-              </div>
-              <div className="text-center">
-                <p
-                  className={`text-sm font-semibold ${consultationMode === value ? "text-primary" : ""}`}
-                >
-                  {label}
-                </p>
-                <p className="text-[11px] text-muted-foreground">{desc}</p>
-              </div>
+              {icon}
+              <span className="text-sm font-bold text-ink">{label}</span>
+              <span className="text-xs text-ink-muted">{desc}</span>
             </button>
           ))}
         </div>
@@ -675,15 +636,29 @@ interface QuickPatientDraft {
   currentMedications: string;
 }
 
-interface BookAppointmentStep2ServiceProps {
-  visibleServices: AppointmentServiceDefinition[];
-  serviceFilter: string;
-  setServiceFilter: React.Dispatch<React.SetStateAction<string>>;
-  servicesLoading: boolean;
+/**
+ * True when a row of the clinic patient list is the selected patient. The picker stores the
+ * patient's user id; callers that open the dialog for a known patient (`initialPatientId`)
+ * pass the patient-record id. Both mean the same person.
+ */
+function isSelectedBookingPatient(
+  patient: { userId?: unknown; id?: unknown; patientId?: unknown } | null | undefined,
+  selectedPatientId: string,
+): boolean {
+  if (!patient || !selectedPatientId) {
+    return false;
+  }
+  return (
+    patient.userId === selectedPatientId ||
+    patient.id === selectedPatientId ||
+    patient.patientId === selectedPatientId
+  );
+}
+
+interface BookAppointmentPatientPickerProps {
   newPatient: QuickPatientDraft;
   setNewPatient: React.Dispatch<React.SetStateAction<QuickPatientDraft>>;
   quickRegisterPatientMutation: ReturnType<typeof useQuickRegisterPatient>;
-  isPrivilegedScheduler: boolean;
   showQuickCreatePatient: boolean;
   setShowQuickCreatePatient: React.Dispatch<React.SetStateAction<boolean>>;
   patientSearch: string;
@@ -693,11 +668,6 @@ interface BookAppointmentStep2ServiceProps {
   filteredPatientsList: any[];
   selectedPatientId: string;
   setSelectedPatientId: React.Dispatch<React.SetStateAction<string>>;
-  selectedServiceId: string;
-  setSelectedServiceId: React.Dispatch<React.SetStateAction<string>>;
-  setSelectedDoctorId: React.Dispatch<React.SetStateAction<string>>;
-  setSelectedDate: React.Dispatch<React.SetStateAction<Date | undefined>>;
-  setSelectedSlot: React.Dispatch<React.SetStateAction<string>>;
   setRecentlyCreatedPatient: React.Dispatch<
     React.SetStateAction<{
       id: string;
@@ -712,18 +682,17 @@ interface BookAppointmentStep2ServiceProps {
   >;
   queryClient: ReturnType<typeof useQueryClient>;
   selectedPatient: { displayName: string; phone?: string } | null;
-  goNext: () => void;
 }
 
-function BookAppointmentStep2Service({
-  visibleServices,
-  serviceFilter,
-  setServiceFilter,
-  servicesLoading,
+/**
+ * Staff only: search, pick or quick-register the patient the visit is booked for.
+ * One picker, shown on the Service step (in-clinic flow) and on the Patient step (video flow,
+ * which has no Service step). Both write the same `selectedPatientId`.
+ */
+function BookAppointmentPatientPicker({
   newPatient,
   setNewPatient,
   quickRegisterPatientMutation,
-  isPrivilegedScheduler,
   showQuickCreatePatient,
   setShowQuickCreatePatient,
   patientSearch,
@@ -733,27 +702,12 @@ function BookAppointmentStep2Service({
   filteredPatientsList,
   selectedPatientId,
   setSelectedPatientId,
-  selectedServiceId,
-  setSelectedServiceId,
-  setSelectedDoctorId,
-  setSelectedDate,
-  setSelectedSlot,
   setRecentlyCreatedPatient,
   showQuickCreateAdditionalDetails,
   setShowQuickCreateAdditionalDetails,
   queryClient,
   selectedPatient,
-  goNext,
-}: BookAppointmentStep2ServiceProps) {
-  const categories = [
-    "All",
-    ...Array.from(new Set(visibleServices.map((t) => t.category))),
-  ];
-  const filtered =
-    serviceFilter === "All"
-      ? visibleServices
-      : visibleServices.filter((t) => t.category === serviceFilter);
-
+}: BookAppointmentPatientPickerProps) {
   const handleCreateQuickPatient = async () => {
     const firstName = newPatient.firstName.trim();
     const lastName = newPatient.lastName.trim();
@@ -869,420 +823,526 @@ function BookAppointmentStep2Service({
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <p className="text-sm text-muted-foreground">
+    <div className="flex flex-col gap-y-3 rounded-2xl border border-hair bg-[#f8fafc] p-4 dark:bg-well/50">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <BookingGroupLabel>Select Patient</BookingGroupLabel>
+          <p className="m-0 mt-1 text-sm text-ink-muted">
+            Search an existing patient or register a new one before booking.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setShowQuickCreatePatient((value) => !value)}
+          className="gap-2 self-start"
+        >
+          <UserPlus className="size-4" />
+          {showQuickCreatePatient ? "Close quick add" : "Register Patient"}
+        </Button>
+      </div>
+
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
+        <Input
+          value={patientSearch}
+          onChange={(event) => setPatientSearch(event.target.value)}
+          placeholder="Search by patient name, phone, or email"
+          className="h-11 pl-10"
+        />
+      </div>
+
+      {locationsFetching && locations.length > 0 && (
+        <p className="m-0 text-xs text-ink-muted">
+          Refreshing location data in the background.
+        </p>
+      )}
+
+      <div className="flex max-h-60 flex-col gap-y-2 overflow-y-auto pr-1">
+        {filteredPatientsList.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-line bg-card px-4 py-6 text-center text-sm text-ink-muted">
+            No patient matches the search.
+          </div>
+        ) : (
+          filteredPatientsList.map((patient: any) => {
+            const patientId = patient.userId || patient.id;
+            const isSelected = isSelectedBookingPatient(patient, selectedPatientId);
+            return (
+              <button
+                key={patientId}
+                type="button"
+                onClick={() => {
+                  setSelectedPatientId(patientId);
+                  setRecentlyCreatedPatient(null);
+                }}
+                aria-pressed={isSelected}
+                className={bookingOptionClass(
+                  isSelected,
+                  "flex items-center gap-3 px-4 py-3",
+                )}
+              >
+                <div
+                  className={`flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-extrabold ${
+                    isSelected
+                      ? "bg-[#047857] text-white"
+                      : "bg-well text-ink-muted"
+                  }`}
+                >
+                  {String(patient.displayName || "P")
+                    .charAt(0)
+                    .toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="m-0 truncate text-sm font-bold text-ink">
+                    {patient.displayName}
+                  </p>
+                  <p className="m-0 truncate text-xs text-ink-muted">
+                    {patient.phone || "No phone"}
+                    {patient.email ? ` - ${patient.email}` : ""}
+                  </p>
+                </div>
+                {isSelected && (
+                  <Check className="size-4 shrink-0 text-brand" />
+                )}
+              </button>
+            );
+          })
+        )}
+      </div>
+
+      {showQuickCreatePatient && (
+        <Card className="rounded-[20px] border border-line bg-card shadow-card">
+          <CardContent className="flex flex-col gap-y-4 p-4">
+            <div className="flex items-start gap-3">
+              <IconBox icon={User} tone="mint" size={36} />
+              <div>
+                <p className="m-0 text-sm font-bold text-ink">Register Patient</p>
+                <p className="m-0 text-xs text-ink-muted">
+                  This creates the patient identity and profile, then
+                  returns you to booking.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="flex flex-col gap-y-2">
+                <Label className="text-[13px] font-bold text-ink">
+                  First name
+                </Label>
+                <Input
+                  value={newPatient.firstName}
+                  onChange={(event) =>
+                    setNewPatient((current) => ({
+                      ...current,
+                      firstName: event.target.value,
+                    }))
+                  }
+                  placeholder="John"
+                />
+              </div>
+              <div className="flex flex-col gap-y-2">
+                <Label className="text-[13px] font-bold text-ink">
+                  Last name
+                </Label>
+                <Input
+                  value={newPatient.lastName}
+                  onChange={(event) =>
+                    setNewPatient((current) => ({
+                      ...current,
+                      lastName: event.target.value,
+                    }))
+                  }
+                  placeholder="Doe"
+                />
+              </div>
+              <div className="flex flex-col gap-y-2">
+                <Label className="text-[13px] font-bold text-ink">
+                  Phone
+                </Label>
+                <Input
+                  value={newPatient.phone}
+                  onChange={(event) =>
+                    setNewPatient((current) => ({
+                      ...current,
+                      phone: event.target.value,
+                    }))
+                  }
+                  placeholder="+91 98765 43210"
+                />
+              </div>
+              <div className="flex flex-col gap-y-2">
+                <Label className="text-[13px] font-bold text-ink">
+                  Email
+                </Label>
+                <Input
+                  type="email"
+                  value={newPatient.email}
+                  onChange={(event) =>
+                    setNewPatient((current) => ({
+                      ...current,
+                      email: event.target.value,
+                    }))
+                  }
+                  placeholder="patient@example.com"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-dashed border-[#a7f3d0] bg-[#ecfdf5] px-3 py-2 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+              <div>
+                <p className="m-0 text-sm font-bold text-[#065f46] dark:text-emerald-200">
+                  Additional Details
+                </p>
+                <p className="m-0 text-[11px] text-[#047857] dark:text-emerald-300/80">
+                  Optional DOB, gender, address, emergency contact, and
+                  medical notes.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  setShowQuickCreateAdditionalDetails((current) => !current)
+                }
+                className="shrink-0 gap-2 text-brand hover:bg-mint hover:text-brand-dark"
+              >
+                {showQuickCreateAdditionalDetails ? (
+                  <>
+                    Hide
+                    <ChevronUp className="size-4" />
+                  </>
+                ) : (
+                  <>
+                    Show
+                    <ChevronDown className="size-4" />
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {showQuickCreateAdditionalDetails && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="flex flex-col gap-y-2">
+                  <Label className="text-[13px] font-bold text-ink">
+                    Date of birth
+                  </Label>
+                  <Input
+                    type="date"
+                    value={newPatient.dateOfBirth}
+                    onChange={(event) =>
+                      setNewPatient((current) => ({
+                        ...current,
+                        dateOfBirth: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-y-2">
+                  <Label className="text-[13px] font-bold text-ink">
+                    Gender
+                  </Label>
+                  <Select
+                    value={newPatient.gender}
+                    onValueChange={(value: string) =>
+                      setNewPatient((current) => ({
+                        ...current,
+                        gender: value,
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="MALE">Male</SelectItem>
+                      <SelectItem value="FEMALE">Female</SelectItem>
+                      <SelectItem value="OTHER">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-y-2 sm:col-span-2">
+                  <Label className="text-[13px] font-bold text-ink">
+                    Address
+                  </Label>
+                  <Textarea
+                    value={newPatient.address}
+                    onChange={(event) =>
+                      setNewPatient((current) => ({
+                        ...current,
+                        address: event.target.value,
+                      }))
+                    }
+                    placeholder="Street, city, state"
+                    className="min-h-20"
+                  />
+                </div>
+                <div className="flex flex-col gap-y-2">
+                  <Label className="text-[13px] font-bold text-ink">
+                    Emergency contact
+                  </Label>
+                  <Input
+                    value={newPatient.emergencyContact}
+                    onChange={(event) =>
+                      setNewPatient((current) => ({
+                        ...current,
+                        emergencyContact: event.target.value,
+                      }))
+                    }
+                    placeholder="Contact name"
+                  />
+                </div>
+                <div className="flex flex-col gap-y-2">
+                  <Label className="text-[13px] font-bold text-ink">
+                    Emergency phone
+                  </Label>
+                  <Input
+                    value={newPatient.emergencyPhone}
+                    onChange={(event) =>
+                      setNewPatient((current) => ({
+                        ...current,
+                        emergencyPhone: event.target.value,
+                      }))
+                    }
+                    placeholder="+91 98765 43210"
+                  />
+                </div>
+                <div className="flex flex-col gap-y-2 sm:col-span-2">
+                  <Label className="text-[13px] font-bold text-ink">
+                    Medical history
+                  </Label>
+                  <Textarea
+                    value={newPatient.medicalHistory}
+                    onChange={(event) =>
+                      setNewPatient((current) => ({
+                        ...current,
+                        medicalHistory: event.target.value,
+                      }))
+                    }
+                    placeholder="Known conditions, surgeries, or observations"
+                    className="min-h-20"
+                  />
+                </div>
+                <div className="flex flex-col gap-y-2">
+                  <Label className="text-[13px] font-bold text-ink">
+                    Allergies
+                  </Label>
+                  <Input
+                    value={newPatient.allergies}
+                    onChange={(event) =>
+                      setNewPatient((current) => ({
+                        ...current,
+                        allergies: event.target.value,
+                      }))
+                    }
+                    placeholder="Comma separated"
+                  />
+                </div>
+                <div className="flex flex-col gap-y-2">
+                  <Label className="text-[13px] font-bold text-ink">
+                    Current medications
+                  </Label>
+                  <Textarea
+                    value={newPatient.currentMedications}
+                    onChange={(event) =>
+                      setNewPatient((current) => ({
+                        ...current,
+                        currentMedications: event.target.value,
+                      }))
+                    }
+                    placeholder="Current medications"
+                    className="min-h-20"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowQuickCreatePatient(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="gap-2"
+                onClick={handleCreateQuickPatient}
+                disabled={quickRegisterPatientMutation.isPending}
+              >
+                {quickRegisterPatientMutation.isPending ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    Creating
+                  </>
+                ) : (
+                  <>
+                    <Plus className="size-4" />
+                    Register Patient
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {selectedPatient ? (
+        <div className="rounded-xl border border-[#a7f3d0] bg-[#ecfdf5] px-4 py-3 text-sm text-[#065f46] dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+          <span className="font-bold">
+            Booking for {selectedPatient.displayName}
+          </span>
+          {selectedPatient.phone ? (
+            <span className="ml-2 opacity-80">
+              - {selectedPatient.phone}
+            </span>
+          ) : null}
+        </div>
+      ) : selectedPatientId ? (
+        // Opened for a known patient who is not in the loaded list (or the list is still loading).
+        <div className="rounded-xl border border-[#a7f3d0] bg-[#ecfdf5] px-4 py-3 text-sm text-[#065f46] dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+          <span className="font-bold">A patient is already selected for this booking.</span>
+          <span className="ml-2 opacity-80">Pick another patient to change it.</span>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-dashed border-line bg-card px-4 py-3 text-sm text-ink-muted">
+          Select or create a patient to continue booking.
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Staff, video flow: choose the patient first (the video flow has no Service step). */
+function BookAppointmentStepPatient(pickerProps: BookAppointmentPatientPickerProps) {
+  return (
+    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-4">
+      <p className="m-0 text-sm font-medium text-ink-muted">
+        Who is this video appointment for?
+      </p>
+      <BookAppointmentPatientPicker {...pickerProps} />
+    </div>
+  );
+}
+
+interface BookAppointmentStep2ServiceProps {
+  visibleServices: AppointmentServiceDefinition[];
+  serviceFilter: string;
+  setServiceFilter: React.Dispatch<React.SetStateAction<string>>;
+  servicesLoading: boolean;
+  newPatient: QuickPatientDraft;
+  setNewPatient: React.Dispatch<React.SetStateAction<QuickPatientDraft>>;
+  quickRegisterPatientMutation: ReturnType<typeof useQuickRegisterPatient>;
+  isPrivilegedScheduler: boolean;
+  showQuickCreatePatient: boolean;
+  setShowQuickCreatePatient: React.Dispatch<React.SetStateAction<boolean>>;
+  patientSearch: string;
+  setPatientSearch: React.Dispatch<React.SetStateAction<string>>;
+  locationsFetching: boolean;
+  locations: any[];
+  filteredPatientsList: any[];
+  selectedPatientId: string;
+  setSelectedPatientId: React.Dispatch<React.SetStateAction<string>>;
+  selectedServiceId: string;
+  setSelectedServiceId: React.Dispatch<React.SetStateAction<string>>;
+  setSelectedDoctorId: React.Dispatch<React.SetStateAction<string>>;
+  setSelectedDate: React.Dispatch<React.SetStateAction<Date | undefined>>;
+  setSelectedSlot: React.Dispatch<React.SetStateAction<string>>;
+  setRecentlyCreatedPatient: React.Dispatch<
+    React.SetStateAction<{
+      id: string;
+      displayName: string;
+      phone?: string;
+      email?: string;
+    } | null>
+  >;
+  showQuickCreateAdditionalDetails: boolean;
+  setShowQuickCreateAdditionalDetails: React.Dispatch<
+    React.SetStateAction<boolean>
+  >;
+  queryClient: ReturnType<typeof useQueryClient>;
+  selectedPatient: { displayName: string; phone?: string } | null;
+  goNext: () => void;
+}
+
+function BookAppointmentStep2Service({
+  visibleServices,
+  serviceFilter,
+  setServiceFilter,
+  servicesLoading,
+  newPatient,
+  setNewPatient,
+  quickRegisterPatientMutation,
+  isPrivilegedScheduler,
+  showQuickCreatePatient,
+  setShowQuickCreatePatient,
+  patientSearch,
+  setPatientSearch,
+  locationsFetching,
+  locations,
+  filteredPatientsList,
+  selectedPatientId,
+  setSelectedPatientId,
+  selectedServiceId,
+  setSelectedServiceId,
+  setSelectedDoctorId,
+  setSelectedDate,
+  setSelectedSlot,
+  setRecentlyCreatedPatient,
+  showQuickCreateAdditionalDetails,
+  setShowQuickCreateAdditionalDetails,
+  queryClient,
+  selectedPatient,
+  goNext,
+}: BookAppointmentStep2ServiceProps) {
+  const categories = [
+    "All",
+    ...Array.from(new Set(visibleServices.map((t) => t.category))),
+  ];
+  const filtered =
+    serviceFilter === "All"
+      ? visibleServices
+      : visibleServices.filter((t) => t.category === serviceFilter);
+
+  return (
+    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-4">
+      <p className="m-0 text-sm font-medium text-ink-muted">
         What type of consultation do you need?
       </p>
       {isPrivilegedScheduler && (
-        <div className="flex flex-col gap-y-3 rounded-2xl border border-border bg-muted/20 p-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Select Patient
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Search an existing patient or register a new one before booking.
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowQuickCreatePatient((value) => !value)}
-              className="gap-2 self-start"
-            >
-              <UserPlus className="size-4" />
-              {showQuickCreatePatient ? "Close quick add" : "Register Patient"}
-            </Button>
-          </div>
-
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={patientSearch}
-              onChange={(event) => setPatientSearch(event.target.value)}
-              placeholder="Search by patient name, phone, or email"
-              className="h-11 pl-10"
-            />
-          </div>
-
-          {locationsFetching && locations.length > 0 && (
-            <p className="text-xs text-muted-foreground">
-              Refreshing location data in the background.
-            </p>
-          )}
-
-          <div className="flex max-h-60 flex-col gap-y-2 overflow-y-auto pr-1">
-            {filteredPatientsList.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-background/60 px-4 py-6 text-center text-sm text-muted-foreground">
-                No patient matches the search.
-              </div>
-            ) : (
-              filteredPatientsList.map((patient: any) => {
-                const patientId = patient.userId || patient.id;
-                const isSelected = selectedPatientId === patientId;
-                return (
-                  <button
-                    key={patientId}
-                    type="button"
-                    onClick={() => {
-                      setSelectedPatientId(patientId);
-                      setRecentlyCreatedPatient(null);
-                    }}
-                    className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all ${
-                      isSelected
-                        ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30"
-                        : "border-border bg-card hover:border-emerald-300 hover:bg-muted/30"
-                    }`}
-                  >
-                    <div
-                      className={`flex size-10 shrink-0 items-center justify-center rounded-full ${
-                        isSelected
-                          ? "bg-emerald-600 text-white"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {String(patient.displayName || "P")
-                        .charAt(0)
-                        .toUpperCase()}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className={`truncate font-semibold ${isSelected ? "text-emerald-700 dark:text-emerald-300" : ""}`}
-                      >
-                        {patient.displayName}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {patient.phone || "No phone"}
-                        {patient.email ? ` - ${patient.email}` : ""}
-                      </p>
-                    </div>
-                    {isSelected && (
-                      <Check className="size-4 text-emerald-600" />
-                    )}
-                  </button>
-                );
-              })
-            )}
-          </div>
-
-          {showQuickCreatePatient && (
-            <Card className="border-emerald-200/70 bg-background/80 shadow-sm dark:border-emerald-900/50">
-              <CardContent className="flex flex-col gap-y-4 p-4">
-                <div className="flex items-start gap-3">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300">
-                    <User className="size-4" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">Register Patient</p>
-                    <p className="text-xs text-muted-foreground">
-                      This creates the patient identity and profile, then
-                      returns you to booking.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="flex flex-col gap-y-2">
-                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      First name
-                    </Label>
-                    <Input
-                      value={newPatient.firstName}
-                      onChange={(event) =>
-                        setNewPatient((current) => ({
-                          ...current,
-                          firstName: event.target.value,
-                        }))
-                      }
-                      placeholder="John"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-y-2">
-                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Last name
-                    </Label>
-                    <Input
-                      value={newPatient.lastName}
-                      onChange={(event) =>
-                        setNewPatient((current) => ({
-                          ...current,
-                          lastName: event.target.value,
-                        }))
-                      }
-                      placeholder="Doe"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-y-2">
-                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Phone
-                    </Label>
-                    <Input
-                      value={newPatient.phone}
-                      onChange={(event) =>
-                        setNewPatient((current) => ({
-                          ...current,
-                          phone: event.target.value,
-                        }))
-                      }
-                      placeholder="+91 98765 43210"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-y-2">
-                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Email
-                    </Label>
-                    <Input
-                      type="email"
-                      value={newPatient.email}
-                      onChange={(event) =>
-                        setNewPatient((current) => ({
-                          ...current,
-                          email: event.target.value,
-                        }))
-                      }
-                      placeholder="patient@example.com"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between rounded-xl border border-dashed border-emerald-200 bg-emerald-50/60 px-3 py-2 dark:border-emerald-900/50 dark:bg-emerald-950/20">
-                  <div>
-                    <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">
-                      Additional Details
-                    </p>
-                    <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80">
-                      Optional DOB, gender, address, emergency contact, and
-                      medical notes.
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      setShowQuickCreateAdditionalDetails((current) => !current)
-                    }
-                    className="h-8 gap-2 rounded-lg px-3 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 dark:text-emerald-200 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-100"
-                  >
-                    {showQuickCreateAdditionalDetails ? (
-                      <>
-                        Hide
-                        <ChevronUp className="size-4" />
-                      </>
-                    ) : (
-                      <>
-                        Show
-                        <ChevronDown className="size-4" />
-                      </>
-                    )}
-                  </Button>
-                </div>
-
-                {showQuickCreateAdditionalDetails && (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="flex flex-col gap-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Date of birth
-                      </Label>
-                      <Input
-                        type="date"
-                        value={newPatient.dateOfBirth}
-                        onChange={(event) =>
-                          setNewPatient((current) => ({
-                            ...current,
-                            dateOfBirth: event.target.value,
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="flex flex-col gap-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Gender
-                      </Label>
-                      <Select
-                        value={newPatient.gender}
-                        onValueChange={(value: string) =>
-                          setNewPatient((current) => ({
-                            ...current,
-                            gender: value,
-                          }))
-                        }
-                      >
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Select gender" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="MALE">Male</SelectItem>
-                          <SelectItem value="FEMALE">Female</SelectItem>
-                          <SelectItem value="OTHER">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex flex-col gap-y-2 sm:col-span-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Address
-                      </Label>
-                      <Textarea
-                        value={newPatient.address}
-                        onChange={(event) =>
-                          setNewPatient((current) => ({
-                            ...current,
-                            address: event.target.value,
-                          }))
-                        }
-                        placeholder="Street, city, state"
-                        className="min-h-20"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Emergency contact
-                      </Label>
-                      <Input
-                        value={newPatient.emergencyContact}
-                        onChange={(event) =>
-                          setNewPatient((current) => ({
-                            ...current,
-                            emergencyContact: event.target.value,
-                          }))
-                        }
-                        placeholder="Contact name"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Emergency phone
-                      </Label>
-                      <Input
-                        value={newPatient.emergencyPhone}
-                        onChange={(event) =>
-                          setNewPatient((current) => ({
-                            ...current,
-                            emergencyPhone: event.target.value,
-                          }))
-                        }
-                        placeholder="+91 98765 43210"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-y-2 sm:col-span-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Medical history
-                      </Label>
-                      <Textarea
-                        value={newPatient.medicalHistory}
-                        onChange={(event) =>
-                          setNewPatient((current) => ({
-                            ...current,
-                            medicalHistory: event.target.value,
-                          }))
-                        }
-                        placeholder="Known conditions, surgeries, or observations"
-                        className="min-h-20"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Allergies
-                      </Label>
-                      <Input
-                        value={newPatient.allergies}
-                        onChange={(event) =>
-                          setNewPatient((current) => ({
-                            ...current,
-                            allergies: event.target.value,
-                          }))
-                        }
-                        placeholder="Comma separated"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Current medications
-                      </Label>
-                      <Textarea
-                        value={newPatient.currentMedications}
-                        onChange={(event) =>
-                          setNewPatient((current) => ({
-                            ...current,
-                            currentMedications: event.target.value,
-                          }))
-                        }
-                        placeholder="Current medications"
-                        className="min-h-20"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowQuickCreatePatient(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="button"
-                    className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
-                    onClick={handleCreateQuickPatient}
-                    disabled={quickRegisterPatientMutation.isPending}
-                  >
-                    {quickRegisterPatientMutation.isPending ? (
-                      <>
-                        <Loader2 className="size-4 animate-spin" />
-                        Creating
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="size-4" />
-                        Register Patient
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {selectedPatient ? (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
-              <span className="font-semibold">
-                Booking for {selectedPatient.displayName}
-              </span>
-              {selectedPatient.phone ? (
-                <span className="ml-2 opacity-80">
-                  - {selectedPatient.phone}
-                </span>
-              ) : null}
-            </div>
-          ) : (
-            <div className="rounded-xl border border-dashed border-border bg-background/60 px-4 py-3 text-sm text-muted-foreground">
-              Select or create a patient to continue booking.
-            </div>
-          )}
-        </div>
+        <BookAppointmentPatientPicker
+          newPatient={newPatient}
+          setNewPatient={setNewPatient}
+          quickRegisterPatientMutation={quickRegisterPatientMutation}
+          showQuickCreatePatient={showQuickCreatePatient}
+          setShowQuickCreatePatient={setShowQuickCreatePatient}
+          patientSearch={patientSearch}
+          setPatientSearch={setPatientSearch}
+          locationsFetching={locationsFetching}
+          locations={locations}
+          filteredPatientsList={filteredPatientsList}
+          selectedPatientId={selectedPatientId}
+          setSelectedPatientId={setSelectedPatientId}
+          setRecentlyCreatedPatient={setRecentlyCreatedPatient}
+          showQuickCreateAdditionalDetails={showQuickCreateAdditionalDetails}
+          setShowQuickCreateAdditionalDetails={setShowQuickCreateAdditionalDetails}
+          queryClient={queryClient}
+          selectedPatient={selectedPatient}
+        />
       )}
-      {servicesLoading ? (
-        <div className="flex flex-col gap-y-2">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div
-              key={index}
-              className="h-16 rounded-xl bg-muted animate-pulse"
-            />
-          ))}
-        </div>
-      ) : null}
+      {servicesLoading ? <BookingSkeletonRows rows={4} /> : null}
       <div className="flex gap-2 overflow-x-auto pb-1 scroll-smooth">
         {categories.map((cat) => (
           <button
             key={cat}
             type="button"
             onClick={() => setServiceFilter(cat)}
-            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+            aria-pressed={serviceFilter === cat}
+            className={`inline-flex min-h-[38px] shrink-0 items-center whitespace-nowrap rounded-xl px-3.5 text-[13px] transition-colors ${
               serviceFilter === cat
-                ? "bg-primary text-primary-foreground border-primary"
-                : "border-border bg-card hover:border-primary/40"
+                ? "bg-[#047857] font-bold text-white shadow-[0_6px_14px_rgba(4,120,87,0.22)]"
+                : "border border-line bg-card font-semibold text-ink hover:bg-mint-soft"
             }`}
           >
             {cat}
@@ -1291,10 +1351,11 @@ function BookAppointmentStep2Service({
       </div>
       <div className="flex flex-col gap-y-2">
         {!servicesLoading && filtered.length === 0 ? (
-          <div className="text-center py-10 text-muted-foreground border border-dashed rounded-xl">
-            <Activity className="size-8 mx-auto mb-2 opacity-30" />
-            <p className="text-sm">No services available for this mode</p>
-          </div>
+          <BookingEmpty
+            icon={Activity}
+            tone="slate"
+            title="No services available for this mode"
+          />
         ) : null}
         {filtered.map((t) => (
           <button
@@ -1307,11 +1368,11 @@ function BookAppointmentStep2Service({
               setSelectedSlot("");
               setTimeout(goNext, 150);
             }}
-            className={`w-full text-left p-4 rounded-2xl border transition-all group ${
-              selectedServiceId === t.treatmentType
-                ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                : "border-border bg-card hover:border-primary/30 hover:bg-muted/30"
-            }`}
+            aria-pressed={selectedServiceId === t.treatmentType}
+            className={bookingOptionClass(
+              selectedServiceId === t.treatmentType,
+              "p-4",
+            )}
           >
             <div className="flex items-start gap-3">
               <div
@@ -1321,14 +1382,14 @@ function BookAppointmentStep2Service({
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2 mb-1">
-                  <p className="font-semibold text-sm">
+                  <p className="m-0 text-sm font-bold text-ink">
                     {t.label || t.treatmentType}
                   </p>
                   {selectedServiceId === t.treatmentType && (
-                    <Check className="size-4 text-primary" />
+                    <Check className="size-4 shrink-0 text-brand" />
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground line-clamp-2">
+                <p className="m-0 text-xs text-ink-muted line-clamp-2">
                   {t.description || ""}
                 </p>
               </div>
@@ -1375,167 +1436,105 @@ function BookAppointmentStep2({
   goBack,
   onHardRefresh,
 }: BookAppointmentStep2Props) {
+  const refreshActions = (
+    <>
+      <Button type="button" onClick={onHardRefresh} disabled={doctorsRefreshing}>
+        {doctorsRefreshing ? (
+          <Loader2 className="size-4 animate-spin" />
+        ) : (
+          <RefreshCw className="size-4" />
+        )}
+        {doctorsRefreshing ? "Refreshing..." : "Hard refresh"}
+      </Button>
+      <Button type="button" variant="outline" onClick={goBack}>
+        Back
+      </Button>
+    </>
+  );
+  const refreshingLine = doctorsRefreshing ? (
+    <div className="mt-1 flex items-center gap-2 text-xs font-semibold">
+      <Loader2 className="size-4 animate-spin" />
+      Refreshing doctors from the server...
+    </div>
+  ) : null;
+
   return (
-    <div className="flex flex-col gap-3">
-      <p className="text-sm text-muted-foreground">
+    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-3">
+      <p className="m-0 text-sm font-medium text-ink-muted">
         Choose your preferred doctor
       </p>
       {doctorsLoading || !doctorsFetched ? (
-        <div className="flex flex-col gap-y-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-16 rounded-xl bg-muted animate-pulse" />
-          ))}
-        </div>
+        <BookingSkeletonRows rows={4} />
       ) : doctorsErrorMessage && doctorsList.length === 0 ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50/80 p-4 text-sm text-red-900 dark:border-red-900 dark:bg-red-950/30 dark:text-red-100">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="mt-0.5 size-5 shrink-0" />
-            <div className="flex flex-col gap-y-1">
-              <p className="font-semibold">Unable to load doctors</p>
-              <p className="text-xs text-red-800/90 dark:text-red-200/90">
-                The server did not return a usable doctor list. This is usually a temporary network, auth, or cache issue.
-              </p>
-              <p className="text-xs text-red-800/80 dark:text-red-200/80">
-                {doctorsErrorMessage}
-              </p>
-              <p className="text-xs text-red-800/80 dark:text-red-200/80">
-                Hard refresh clears the local cache and retries the clinic API.
-              </p>
-              {doctorsRefreshing && (
-                <div className="mt-1 flex items-center gap-2 text-xs font-medium text-red-800 dark:text-red-200">
-                  <Loader2 className="size-4 animate-spin" />
-                  Refreshing doctors from the server...
-                </div>
-              )}
-              <div className="mt-2 flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="default"
-                  className="h-9 rounded-lg"
-                  onClick={onHardRefresh}
-                  disabled={doctorsRefreshing}
-                >
-                  {doctorsRefreshing ? (
-                    <Loader2 className="mr-1 size-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="mr-1 size-4" />
-                  )}
-                  {doctorsRefreshing ? "Refreshing..." : "Hard refresh"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-9 rounded-lg"
-                  onClick={goBack}
-                >
-                  Back
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <BookingNotice
+          tone="rose"
+          icon={AlertTriangle}
+          title="Unable to load doctors"
+          actions={refreshActions}
+        >
+          <p className="m-0 text-xs">
+            The server did not return a usable doctor list. This is usually a temporary network, auth, or cache issue.
+          </p>
+          <p className="m-0 text-xs opacity-90">{doctorsErrorMessage}</p>
+          <p className="m-0 text-xs opacity-90">
+            Hard refresh clears the local cache and retries the clinic API.
+          </p>
+          {refreshingLine}
+        </BookingNotice>
       ) : doctorsList.length === 0 ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
-          <div className="flex items-start gap-3">
-            <User className="mt-0.5 size-5 shrink-0" />
-            <div className="flex flex-col gap-y-1">
-              <p className="font-semibold">No doctors available</p>
-              <p className="text-xs text-amber-800/90 dark:text-amber-200/90">
-                {selectedLocationId
-                  ? "This location does not currently have any bookable doctors for the selected mode."
-                  : consultationMode === "VIDEO"
-                    ? "No doctors are currently available for video appointments."
-                    : "No doctors are currently available for this clinic."}
-              </p>
-              <p className="text-xs text-amber-800/80 dark:text-amber-200/80">
-                If doctors should be available, the list may be stale. Hard refresh to reload.
-              </p>
-              {doctorsRefreshing && (
-                <div className="mt-1 flex items-center gap-2 text-xs font-medium text-amber-800 dark:text-amber-200">
-                  <Loader2 className="size-4 animate-spin" />
-                  Refreshing doctors from the server...
-                </div>
-              )}
-              <div className="mt-2 flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="default"
-                  className="h-9 rounded-lg"
-                  onClick={onHardRefresh}
-                  disabled={doctorsRefreshing}
-                >
-                  {doctorsRefreshing ? (
-                    <Loader2 className="mr-1 size-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="mr-1 size-4" />
-                  )}
-                  {doctorsRefreshing ? "Refreshing..." : "Hard refresh"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-9 rounded-lg"
-                  onClick={goBack}
-                >
-                  Back
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <BookingNotice
+          tone="amber"
+          icon={User}
+          title="No doctors available"
+          actions={refreshActions}
+        >
+          <p className="m-0 text-xs">
+            {selectedLocationId
+              ? "This location does not currently have any bookable doctors for the selected mode."
+              : consultationMode === "VIDEO"
+                ? "No doctors are currently available for video appointments."
+                : "No doctors are currently available for this clinic."}
+          </p>
+          <p className="m-0 text-xs opacity-90">
+            If doctors should be available, the list may be stale. Hard refresh to reload.
+          </p>
+          {refreshingLine}
+        </BookingNotice>
       ) : (
         <div className="flex flex-col gap-y-2">
           {doctorsList.map((doctor: any) => (
             <button
               key={doctor.id}
               type="button"
+              aria-pressed={selectedDoctorId === doctor.id}
               onClick={() => {
                 setSelectedDoctorId(doctor.id);
                 setSelectedDate(getTodayIST());
                 setSelectedSlot("");
                 setTimeout(goNext, 150);
               }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
-                selectedDoctorId === doctor.id
-                  ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                  : "border-border bg-card hover:border-primary/30 hover:bg-muted/30"
-              }`}
+              className={bookingOptionClass(
+                selectedDoctorId === doctor.id,
+                "flex items-center gap-3.5 px-4 py-3",
+              )}
             >
-              <div
-                className={`relative size-11 overflow-hidden rounded-full flex items-center justify-center shrink-0 text-sm font-bold ${
-                  selectedDoctorId === doctor.id
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {doctor.image ? (
-                  <Image
-                    src={doctor.image}
-                    alt=""
-                    fill
-                    sizes="44px"
-                    className="object-cover"
-                  />
-                ) : (
-                  (doctor.name || "D").charAt(0)
-                )}
-              </div>
+              <BookingDoctorPhoto
+                name={doctor.name || "D"}
+                image={doctor.image || undefined}
+                sizes="48px"
+                className="size-12"
+              />
               <div className="flex-1 min-w-0">
-                <p
-                  className={`font-semibold text-sm ${selectedDoctorId === doctor.id ? "text-primary" : ""}`}
-                >
+                <p className="m-0 truncate text-[15px] font-bold text-ink">
                   {doctor.name}
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="m-0 truncate text-[13px] text-ink-muted">
                   {doctor.specialization || "General Physician"}
                 </p>
               </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span className="size-2 rounded-full bg-green-500" />
-                <span className="text-xs text-green-600 font-medium">
-                  Available
-                </span>
-              </div>
+              <Pill tone="green" dot className="shrink-0">
+                Available
+              </Pill>
             </button>
           ))}
         </div>
@@ -1549,6 +1548,10 @@ interface BookAppointmentStep3Props {
   setSelectedSlot: React.Dispatch<React.SetStateAction<string>>;
   goNext: () => void;
   isClinicClosedDate: (date: Date) => boolean;
+  layout: BookingLayout;
+  doctorInfo: BookingDoctorInfo | null;
+  doctorHours: BookingHoursRow[];
+  doctorHoursTag?: string | undefined;
 }
 
 function BookAppointmentStep3({
@@ -1557,13 +1560,14 @@ function BookAppointmentStep3({
   setSelectedSlot,
   goNext,
   isClinicClosedDate,
+  layout,
+  doctorInfo,
+  doctorHours,
+  doctorHoursTag,
 }: BookAppointmentStep3Props) {
-  return (
-    <div className="flex min-h-0 w-full flex-col gap-3">
-      <p className="shrink-0 text-sm text-muted-foreground">
-        Pick your preferred appointment date
-      </p>
-      <div className="book-dialog-calendar-container flex w-full max-w-full justify-center px-1 sm:px-0">
+  const calendar = (
+    <>
+      <div className="book-dialog-calendar-container flex w-full max-w-full justify-center">
         <style dangerouslySetInnerHTML={{ __html: `
           .book-dialog-calendar-container .rdp-week,
           .book-dialog-calendar-container .rdp-weekdays {
@@ -1601,17 +1605,42 @@ function BookAppointmentStep3({
                 date.getDate() < todayIST.getDate());
             return isPastDate || isClinicClosedDate(date);
           }}
-          className="border border-border/50 shadow-sm p-2 sm:p-3 mx-auto w-full max-w-[22rem] [--cell-size:1.875rem] sm:[--cell-size:2.25rem] text-sm [&_.rdp-caption_label]:text-sm [&_.rdp-button]:text-sm"
+          className="mx-auto w-full max-w-[22rem] rounded-2xl border border-line bg-card p-2 text-sm shadow-none dark:bg-card sm:p-3 [--cell-size:1.875rem] sm:[--cell-size:2.25rem] [&_.rdp-caption_label]:text-sm [&_.rdp-button]:text-sm"
         />
       </div>
       {selectedDate && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-primary/5 border border-primary/20 max-w-sm mx-auto w-full justify-center mt-2">
-          <CalendarIcon className="size-4 text-primary shrink-0" />
-          <span className="text-sm font-semibold">
+        <div className="mx-auto flex w-full max-w-[22rem] items-center justify-center gap-2 rounded-xl border border-[#a7f3d0] bg-[#ecfdf5] px-4 py-3 dark:border-emerald-900 dark:bg-emerald-950/30">
+          <CalendarIcon className="size-4 shrink-0 text-[#047857] dark:text-emerald-300" />
+          <span className="text-sm font-bold text-[#065f46] dark:text-emerald-200">
             {format(selectedDate, "EEEE, d MMMM yyyy")}
           </span>
         </div>
       )}
+    </>
+  );
+
+  if (layout === "page") {
+    return (
+      <BookingDoctorPage
+        doctor={doctorInfo}
+        hours={doctorHours}
+        hoursTag={doctorHoursTag}
+      >
+        <SectionTitle
+          title="Select date"
+          description="Pick your preferred appointment date"
+        />
+        {calendar}
+      </BookingDoctorPage>
+    );
+  }
+
+  return (
+    <div className="flex min-h-0 w-full flex-col gap-3">
+      <p className="m-0 shrink-0 text-sm font-medium text-ink-muted">
+        Pick your preferred appointment date
+      </p>
+      {calendar}
     </div>
   );
 }
@@ -1635,9 +1664,21 @@ interface BookAppointmentStep4Props {
   restrictions: { reason?: string };
   availabilityError: unknown;
   setSelectedSlot: React.Dispatch<React.SetStateAction<string>>;
-  selectedDoctor?: { name?: string } | null;
   selectedSlotLabel: string;
+  // Presentation only
+  layout: BookingLayout;
+  doctorInfo: BookingDoctorInfo | null;
+  doctorHours: BookingHoursRow[];
+  /** Slots already taken, drawn struck through. Never selectable. */
+  bookedSlots: string[];
+  /** Patients only: the fee from the existing calculation ("₹600"). */
+  feeLabel: string | null;
+  setSelectedDate: React.Dispatch<React.SetStateAction<Date | undefined>>;
+  isDateDisabled: (date: Date) => boolean;
 }
+
+/** Number of day buttons in the date strip above the slots. */
+const DATE_STRIP_DAYS = 6;
 
 function BookAppointmentStep4({
   consultationMode,
@@ -1658,360 +1699,96 @@ function BookAppointmentStep4({
   restrictions,
   availabilityError,
   setSelectedSlot,
-  selectedDoctor,
   selectedSlotLabel,
+  layout,
+  doctorInfo,
+  doctorHours,
+  bookedSlots,
+  feeLabel,
+  setSelectedDate,
+  isDateDisabled,
 }: BookAppointmentStep4Props) {
-  const periods = [
-    {
-      key: "morning" as const,
-      label: "Morning",
-      icon: <Sun className="size-4" />,
-      range: "Before 12pm",
-      slots: slotGroups.morning,
-    },
-    {
-      key: "afternoon" as const,
-      label: "Afternoon",
-      icon: <CloudSun className="size-4" />,
-      range: "12pm - 5pm",
-      slots: slotGroups.afternoon,
-    },
-    {
-      key: "evening" as const,
-      label: "Evening",
-      icon: <Moon className="size-4" />,
-      range: "After 5pm",
-      slots: slotGroups.evening,
-    },
-  ];
-  const visiblePeriods = periods.filter((period) => period.slots.length > 0);
   const hasAvailabilityError = Boolean(availabilityError);
+  const periods = buildSlotPeriods(
+    slotGroups,
+    bookedSlots,
+    appointmentDurationMinutes,
+  );
+  // Same order of checks as before: nothing chosen yet, loading, no slots, slots.
+  const status = !shouldLoadAvailability
+    ? "idle"
+    : showAvailabilityLoader
+      ? "loading"
+      : effectiveSlots.length === 0
+        ? "empty"
+        : "ready";
 
-  if (consultationMode === "VIDEO") {
-    return (
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col rounded-xl border bg-slate-50/80 dark:bg-slate-900/40 border-slate-200/80 dark:border-slate-800 p-3 gap-y-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground">
-                Select 1 slot
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                15 min call within clinic video hours.
-              </p>
-            </div>
-            <div className="shrink-0 rounded-md bg-primary/12 text-primary px-2.5 py-1 text-[11px] font-bold border border-primary/15">
-              {selectedSlot ? "1/1" : "0/1"}
-            </div>
-          </div>
-
-          {showLiveSyncBanner ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-semibold",
-                  liveSyncClasses,
-                )}
-              >
-                {liveSyncMode === "live" ? (
-                  <Wifi className="size-3.5" />
-                ) : (
-                  <WifiOff className="size-3.5" />
-                )}
-                {liveSyncLabel}
-              </span>
-              <span className="text-[11px] text-muted-foreground">
-                {liveSyncDescription}
-              </span>
-            </div>
-          ) : null}
-
-          <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
-            <span className="inline-flex items-center gap-1 font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 px-2 py-1 rounded-full border border-blue-200/70 dark:border-blue-900">
-              <Video className="size-3" /> Video
-            </span>
-            <span className="inline-flex items-center gap-1 font-medium bg-slate-50 text-slate-700 dark:bg-slate-950/40 dark:text-slate-300 px-2 py-1 rounded-full border border-slate-200/70 dark:border-slate-800">
-              <Clock className="size-3" />
-              {clinicVideoCallWindow
-                ? `${clinicVideoCallWindow.start}-${clinicVideoCallWindow.end}`
-                : "Hours loading"}
-            </span>
-            <span className="inline-flex items-center gap-1 font-medium bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300 px-2 py-1 rounded-full border border-violet-200/70 dark:border-violet-900">
-              <CalendarIcon className="size-3" />{" "}
-              {selectedDate ? format(selectedDate, "d MMM") : ""}
-            </span>
-            <span className="inline-flex items-center gap-1 font-medium bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 px-2 py-1 rounded-full border border-amber-200/70 dark:border-amber-900">
-              <Clock className="size-3" /> {appointmentDurationMinutes} min
-            </span>
-            {selectedSlot ? (
-              <span className="inline-flex items-center gap-1 font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 px-2 py-1 rounded-full border border-emerald-200/70 dark:border-emerald-900">
-                <CheckCircle className="size-3" /> Selected {selectedSlot}
-              </span>
-            ) : null}
-          </div>
-
-          {clinicVideoCallWindow ? (
-            <p className="text-[11px] text-muted-foreground">
-              Video slots are available only within{" "}
-              {clinicVideoCallWindow.start} - {clinicVideoCallWindow.end}.
-            </p>
-          ) : null}
-
-          {selectedSlot ? (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 dark:border-emerald-900 dark:bg-emerald-950/30 px-3 py-2">
-              <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-200">
-                <CheckCircle className="size-4" />
-                <span className="text-sm font-semibold">
-                  Selected slot: {selectedSlot}
-                </span>
-              </div>
-              <p className="mt-1 text-[11px] text-emerald-700 dark:text-emerald-300">
-                {selectedDate ? format(selectedDate, "d MMM yyyy") : ""} {" "}
-                {appointmentDurationMinutes} min video call
-              </p>
-            </div>
-          ) : null}
-
-          {selectedSlot && (
-            <button
-              type="button"
-              onClick={() => setSelectedSlot("")}
-              className="text-[11px] font-semibold text-primary hover:underline"
-            >
-              Clear selected slot
-            </button>
-          )}
-        </div>
-
-        {!shouldLoadAvailability ? (
-          <div className="flex flex-col items-center py-10 text-muted-foreground text-center border border-dashed rounded-xl">
-            <Video className="size-8 mb-2 opacity-20" />
-            <p className="text-sm font-medium">
-              Select a doctor and date to load availability
-            </p>
-            <p className="text-xs mt-1 opacity-60">
-              Availability will appear automatically once the doctor, clinic,
-              and date are selected.
-            </p>
-          </div>
-        ) : showAvailabilityLoader ? (
-          <div className="flex items-center gap-2 py-6 text-muted-foreground text-sm justify-center">
-            <Loader2 className="size-5 animate-spin" /> Checking video
-            availability
-          </div>
-        ) : effectiveSlots.length === 0 ? (
-          <div className="flex flex-col items-center py-10 text-muted-foreground text-center border border-dashed rounded-xl">
-            <Video className="size-8 mb-2 opacity-20" />
-            <p className="text-sm font-medium">
-              {consultationBlocked
-                ? "Video consultation currently unavailable"
-                : "No video slots available"}
-            </p>
-            <p className="text-xs mt-1 opacity-60">
-              {consultationBlocked
-                ? restrictions.reason ||
-                  "Clinic/doctor settings currently block this consultation type"
-                : "Try a different date or doctor"}
-            </p>
-            {clinicVideoCallWindow && (
-              <p className="text-xs mt-2 p-2 bg-amber-500/10 rounded-md text-amber-600 border border-amber-500/20 max-w-[90%] text-center">
-                Video hours: {clinicVideoCallWindow.start} - {clinicVideoCallWindow.end}
-              </p>
-            )}
-            {hasAvailabilityError && (
-              <p className="text-xs mt-4 p-2 bg-red-500/10 rounded-md text-red-500 border border-red-500/20 max-w-[90%] text-center">
-                Error: {(availabilityError as any).message || "Unknown error"}
-              </p>
-            )}
-          </div>
-        ) : (
-          <div className="flex flex-col gap-y-4">
-            {visiblePeriods.map((period) => (
-              <div
-                key={period.key}
-                className="transition-all duration-200 ease-out"
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-muted-foreground">{period.icon}</span>
-                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                    {period.label}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">
-                    ({period.range})
-                  </span>
-                  <span className="ml-auto text-[10px] bg-muted px-1.5 py-0.5 rounded-md text-muted-foreground">
-                    {period.slots.length} slots
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                  {period.slots.map((slot) => {
-                    const isSelected = selectedSlot === slot;
-
-                    return (
-                      <button
-                        key={slot}
-                        type="button"
-                        aria-pressed={isSelected}
-                        onClick={() => {
-                          setSelectedSlot(slot);
-                        }}
-                        className={`py-2 px-2 rounded-lg border transition-all text-center flex flex-col items-center gap-0.5 ${
-                          isSelected
-                            ? "bg-primary text-primary-foreground border-primary shadow-md ring-2 ring-primary/30 scale-[1.01]"
-                            : "bg-card border-border hover:border-primary/40 hover:bg-primary/5"
-                        }`}
-                      >
-                        <span className="text-xs font-semibold">{slot}</span>
-                        <span
-                          className={`text-[9px] font-medium ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}
-                        >
-                          {isSelected
-                            ? `Selected  ${appointmentDurationMinutes} min`
-                            : `${appointmentDurationMinutes} min`}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+  // Date strip: six days from today, or from the chosen day when it is further away.
+  const todayIST = getTodayIST();
+  const lastStripDay = new Date(
+    todayIST.getFullYear(),
+    todayIST.getMonth(),
+    todayIST.getDate() + DATE_STRIP_DAYS - 1,
+  );
+  const stripStart =
+    selectedDate && selectedDate.getTime() > lastStripDay.getTime()
+      ? selectedDate
+      : todayIST;
+  const stripDays = Array.from({ length: DATE_STRIP_DAYS }, (_, index) => {
+    const date = new Date(
+      stripStart.getFullYear(),
+      stripStart.getMonth(),
+      stripStart.getDate() + index,
     );
-  }
+    return { date, disabled: isDateDisabled(date) };
+  });
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <p className="text-sm text-muted-foreground">
-          Available slots for{" "}
-          <span className="font-semibold text-foreground">
-            {selectedDoctor?.name}
-          </span>{" "}
-          on{" "}
-          <span className="font-semibold text-foreground">
-            {selectedDate ? format(selectedDate, "d MMM") : ""}
-          </span>
-        </p>
-        {showLiveSyncBanner ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-semibold",
-                liveSyncClasses,
-              )}
-            >
-              {liveSyncMode === "live" ? (
-                <Wifi className="size-3.5" />
-              ) : (
-                <WifiOff className="size-3.5" />
-              )}
-              {liveSyncLabel}
-            </span>
-            <span className="text-[11px] text-muted-foreground">
-              {liveSyncDescription}
-            </span>
-          </div>
-        ) : null}
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-md">
-            <Clock className="size-3" /> {appointmentDurationMinutes} min per
-            slot
-          </span>
-          <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-md">
-            20 slots / hour
-          </span>
-          {selectedSlot ? (
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-md">
-              <CheckCircle className="size-3" /> {selectedSlotLabel}
-            </span>
-          ) : null}
-        </div>
-      </div>
-
-      {!shouldLoadAvailability ? (
-        <div className="flex flex-col items-center py-10 text-muted-foreground text-center border border-dashed rounded-xl">
-          <Clock className="size-8 mb-2 opacity-20" />
-          <p className="text-sm font-medium">
-            Select a doctor and date to load availability
-          </p>
-          <p className="text-xs mt-1 opacity-60">
-            Availability will appear automatically once the doctor, clinic, and
-            date are selected.
-          </p>
-        </div>
-      ) : showAvailabilityLoader ? (
-        <div className="flex items-center gap-2 py-6 text-muted-foreground text-sm justify-center">
-          <Loader2 className="size-5 animate-spin" /> Checking availability
-        </div>
-      ) : effectiveSlots.length === 0 ? (
-        <div className="flex flex-col items-center py-10 text-muted-foreground text-center border border-dashed rounded-xl">
-          <Clock className="size-8 mb-2 opacity-20" />
-          <p className="text-sm font-medium">
-            {consultationBlocked
-              ? "Consultation currently unavailable"
-              : "No slots available"}
-          </p>
-          <p className="text-xs mt-1 opacity-60">
-            {consultationBlocked
-              ? restrictions.reason ||
-                "Clinic/doctor settings currently block this consultation type"
-              : "Try a different date or doctor"}
-          </p>
-          {hasAvailabilityError && (
-            <p className="text-xs mt-4 p-2 bg-red-500/10 rounded-md text-red-500 border border-red-500/20 max-w-[90%] text-center">
-              Error: {(availabilityError as any).message || "Unknown error"}
-            </p>
-          )}
-        </div>
-      ) : (
-        <div className="flex flex-col gap-y-4">
-          {visiblePeriods.map((period) => (
-            <div
-              key={period.key}
-              className="transition-all duration-200 ease-out"
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-muted-foreground">{period.icon}</span>
-                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                  {period.label}
-                </span>
-                <span className="text-[10px] text-muted-foreground">
-                  ({period.range})
-                </span>
-                <span className="ml-auto text-[10px] bg-muted px-1.5 py-0.5 rounded-md text-muted-foreground">
-                  {period.slots.length} slots
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                {period.slots.map((slot) => (
-                  <button
-                    key={slot}
-                    type="button"
-                    onClick={() => {
-                      setSelectedSlot(slot);
-                    }}
-                    className={`py-2 px-2 rounded-xl border transition-all text-center flex flex-col items-center gap-0.5 ${
-                      selectedSlot === slot
-                        ? "bg-primary text-primary-foreground border-primary shadow-md ring-2 ring-primary/20"
-                        : "bg-card border-border hover:border-primary/50 hover:bg-primary/5"
-                    }`}
-                  >
-                    <span className="text-xs font-semibold">{slot}</span>
-                    <span
-                      className={`text-[9px] font-medium ${selectedSlot === slot ? "text-primary-foreground/70" : "text-muted-foreground"}`}
-                    >
-                      {appointmentDurationMinutes} min
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+    <BookingSlotStepView
+      layout={layout}
+      mode={consultationMode}
+      doctor={doctorInfo}
+      hours={doctorHours}
+      dateStrip={{
+        days: stripDays,
+        selected: selectedDate,
+        monthLabel: format(selectedDate ?? stripStart, "MMMM yyyy"),
+        onSelect: (date) => {
+          setSelectedDate(date);
+          setSelectedSlot("");
+        },
+      }}
+      dateShort={selectedDate ? format(selectedDate, "d MMM") : ""}
+      dateLong={selectedDate ? format(selectedDate, "d MMM yyyy") : ""}
+      durationMinutes={appointmentDurationMinutes}
+      status={status}
+      blocked={consultationBlocked}
+      blockedReason={restrictions.reason}
+      errorMessage={
+        hasAvailabilityError
+          ? (availabilityError as any).message || "Unknown error"
+          : undefined
+      }
+      videoWindow={clinicVideoCallWindow}
+      periods={periods}
+      selectedSlot={selectedSlot}
+      selectedSlotChip={selectedSlotLabel}
+      onSelectSlot={(slot) => {
+        setSelectedSlot(slot);
+      }}
+      onClearSlot={() => setSelectedSlot("")}
+      liveSync={
+        showLiveSyncBanner
+          ? {
+              mode: liveSyncMode,
+              label: liveSyncLabel,
+              description: liveSyncDescription,
+              className: liveSyncClasses,
+            }
+          : null
+      }
+      feeLabel={feeLabel}
+    />
   );
 }
 
@@ -2040,6 +1817,18 @@ interface BookAppointmentStep5Props {
   setChiefComplaint: React.Dispatch<React.SetStateAction<string>>;
   urgency: string;
   setUrgency: React.Dispatch<React.SetStateAction<string>>;
+  // Presentation only
+  layout: BookingLayout;
+  doctorInfo: BookingDoctorInfo | null;
+  /** Patient layout: the signed-in person's name. */
+  bookingForName: string;
+  /** Patients, video: choose the patient or a family member. */
+  visitFor?: BookingVisitForProps | undefined;
+  /** The chosen family member ("Sunita Sharma (Mother)"); empty when the visit is for the patient. */
+  visitForName: string;
+  locationName: string;
+  /** The amber book / pay button, also shown in the footer on small screens. */
+  confirmAction: React.ReactNode;
 }
 
 function BookAppointmentStep5({
@@ -2067,214 +1856,104 @@ function BookAppointmentStep5({
   setChiefComplaint,
   urgency,
   setUrgency,
+  layout,
+  doctorInfo,
+  bookingForName,
+  visitFor,
+  visitForName,
+  locationName,
+  confirmAction,
 }: BookAppointmentStep5Props) {
+  const isPageLayout = layout === "page";
+  // The existing gateway button: same props and callbacks, only the look changed.
+  const payButton =
+    bookedAppointmentId && requiresVideoPayment && !videoPaymentCompleted ? (
+      <PaymentButton
+        appointmentId={bookedAppointmentId}
+        appointmentType="VIDEO_CALL"
+        clinicId={activeClinicId}
+        amount={videoPaymentAmount}
+        description={selectedService?.label || "Video consultation"}
+        className="h-[50px] w-full rounded-[14px] text-[15px]"
+        disabled={!acceptedVideoPaymentPolicy}
+        autoStart={acceptedVideoPaymentPolicy}
+        onSuccess={() => {
+          setRequiresVideoPayment(false);
+          setVideoPaymentCompleted(true);
+          setAcceptedVideoPaymentPolicy(false);
+        }}
+      >
+        {acceptedVideoPaymentPolicy ? "Pay now" : "Accept policy to pay"}
+      </PaymentButton>
+    ) : null;
+
+  const doctorName = selectedDoctor?.name
+    ? formatDoctorDisplayName(selectedDoctor.name)
+    : undefined;
+  const reviewDoctor: BookingDoctorInfo | null = isPageLayout
+    ? doctorInfo
+    : doctorName
+      ? {
+          name: doctorName,
+          subtitle: selectedDoctor?.specialization || "General Physician",
+        }
+      : null;
+  const isPatientInPerson =
+    userRole === "PATIENT" && consultationMode === "IN_PERSON";
+
   return (
-    <div className="flex flex-col gap-3 sm:gap-4">
-      <p className="text-sm text-muted-foreground">
-        Review your appointment before confirming
-      </p>
-
-      <div className="rounded-2xl border bg-muted/30 divide-y overflow-hidden">
-        {[
-          ...(userRole === "RECEPTIONIST"
-            ? [
-                {
-                  label: "Patient",
-                  value: selectedPatient?.displayName || "Select patient",
-                },
-              ]
-            : []),
-          {
-            label: "Service",
-            value: selectedService?.label,
-            sub: selectedService?.category,
-          },
-          {
-            label: "Doctor",
-            value: selectedDoctor?.name,
-            sub: selectedDoctor?.specialization || "General Physician",
-          },
-          {
-            label: "Date",
-            value: selectedDate
-              ? format(selectedDate, "EEEE, d MMMM yyyy")
-              : "",
-          },
-          { label: "Time", value: selectedSlot },
-          { label: "Duration", value: `${appointmentDurationMinutes} min` },
-        ].map(({ label, value, sub }) => (
-          <div
-            key={label}
-            className="flex flex-col gap-1 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-4 sm:py-3"
-          >
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:w-16 shrink-0">
-              {label}
-            </span>
-            <div className="flex-1 text-left sm:text-right">
-              <p className="text-sm font-semibold break-words">
-                {value}
-              </p>
-              {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {consultationMode === "VIDEO" && shouldCollectVideoPayment && (
-        <div className="flex flex-col rounded-2xl border border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30 p-4 gap-y-2">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">
-              Video visit fee
-            </p>
-            <p className="text-lg font-bold text-foreground">
-              Rs. {videoPaymentAmount.toFixed(0)}
-            </p>
-          </div>
-          <p className="text-xs text-emerald-700 dark:text-emerald-300">
-            Accept the booking terms below, then confirm to create the
-            appointment and open payment.
-          </p>
-          <div className="rounded-xl border border-amber-200 bg-white/80 dark:border-amber-900 dark:bg-amber-950/20 p-3">
-            <div className="flex items-start gap-3">
-              <Checkbox
-                id="video-payment-policy"
-                checked={acceptedVideoPaymentPolicy}
-                onCheckedChange={(checked) =>
-                  setAcceptedVideoPaymentPolicy(checked === true)
-                }
-                className="mt-0.5"
-              />
-              <div className="flex flex-col gap-y-1">
-                <Label
-                  htmlFor="video-payment-policy"
-                  className="text-sm font-semibold leading-snug text-foreground"
-                >
-                  I accept the video appointment terms and privacy policy
-                </Label>
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                  Video appointment payments are non-refundable. If you miss the
-                  appointment, you must rebook a new slot.
-                </p>
-                <p className="text-[11px] leading-relaxed text-muted-foreground">
-                  Read our{" "}
-                  <Link
-                    href="/terms"
-                    prefetch={false}
-                    className="font-medium text-primary underline underline-offset-4"
-                  >
-                    Terms
-                  </Link>{" "}
-                  and{" "}
-                  <Link
-                    href="/privacy"
-                    prefetch={false}
-                    className="font-medium text-primary underline underline-offset-4"
-                  >
-                    Privacy Policy
-                  </Link>
-                  .
-                </p>
-              </div>
-            </div>
-          </div>
-          {bookedAppointmentId &&
-          requiresVideoPayment &&
-          !videoPaymentCompleted ? (
-            <PaymentButton
-              appointmentId={bookedAppointmentId}
-              appointmentType="VIDEO_CALL"
-              clinicId={activeClinicId}
-              amount={videoPaymentAmount}
-              description={selectedService?.label || "Video consultation"}
-              className="w-full"
-              disabled={!acceptedVideoPaymentPolicy}
-              autoStart={acceptedVideoPaymentPolicy}
-              onSuccess={() => {
-                setRequiresVideoPayment(false);
-                setVideoPaymentCompleted(true);
-                setAcceptedVideoPaymentPolicy(false);
-              }}
-            >
-              {acceptedVideoPaymentPolicy ? "Pay now" : "Accept policy to pay"}
-            </PaymentButton>
-          ) : null}
-        </div>
-      )}
-
-      {needsSubscriptionPlan && (
-        <div
-          className={`flex flex-col rounded-2xl border p-4 gap-y-2 ${
-            needsSubscriptionPlan
-              ? "border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30"
-              : "border-blue-200 bg-blue-50/70 dark:border-blue-900 dark:bg-blue-950/30"
-          }`}
-        >
-          <p
-            className={`text-sm font-semibold ${
-              needsSubscriptionPlan
-                ? "text-amber-800 dark:text-amber-200"
-                : "text-blue-800 dark:text-blue-200"
-            }`}
-          >
-            {isSubscriptionGateLoading
-              ? "Checking your plan"
-              : needsSubscriptionPlan
-                ? "Plan required"
-                : "Plan check"}
-          </p>
-          <p
-            className={`text-xs ${
-              needsSubscriptionPlan
-                ? "text-amber-700 dark:text-amber-300"
-                : "text-blue-700 dark:text-blue-300"
-            }`}
-          >
-            {isSubscriptionGateLoading
-              ? "We're checking your plan before booking this in-person appointment."
-              : needsSubscriptionPlan
-                ? "You need an active plan for this clinic to continue."
-                : "We'll verify your plan before confirming this appointment."}
-          </p>
-        </div>
-      )}
-
-      <div className="flex flex-col gap-y-3">
-        <div>
-          <label
-            htmlFor="book-appointment-chief-complaint"
-            className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block"
-          >
-            Chief Complaint
-          </label>
-          <Textarea
-            id="book-appointment-chief-complaint"
-            value={chiefComplaint}
-            onChange={(e) => setChiefComplaint(e.target.value)}
-            placeholder="Briefly describe your symptoms or reason for visit..."
-            className="text-sm resize-none h-20"
-          />
-        </div>
-        <div className="">
-          <label
-            htmlFor="book-appointment-urgency"
-            className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block"
-          >
-            Urgency
-          </label>
-          <div className="mb-4">       <Select value={urgency} onValueChange={setUrgency} >
-            <SelectTrigger id="book-appointment-urgency" className="h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Low"> Low - Routine checkup</SelectItem>
-              <SelectItem value="Normal"> Normal - Regular visit</SelectItem>
-              <SelectItem value="High"> High - Urgent care needed</SelectItem>
-            </SelectContent>
-          </Select></div>
-   
-        </div>
-      </div>
-    </div>
+    <BookingReviewStepView
+      layout={layout}
+      mode={consultationMode}
+      doctor={reviewDoctor}
+      serviceLabel={selectedService?.label}
+      serviceCategory={selectedService?.category}
+      patientName={
+        userRole === "RECEPTIONIST"
+          ? selectedPatient?.displayName || "Select patient"
+          : selectedPatient?.displayName
+      }
+      forPerson={
+        isPageLayout && bookingForName
+          ? { name: bookingForName, relation: "You" }
+          : undefined
+      }
+      visitFor={isPageLayout ? visitFor : undefined}
+      visitForName={
+        isPageLayout && visitFor ? visitForName || bookingForName || undefined : undefined
+      }
+      dateLabel={
+        selectedDate
+          ? format(selectedDate, isPageLayout ? "EEE, d MMM yyyy" : "EEEE, d MMMM yyyy")
+          : ""
+      }
+      timeLabel={isPageLayout ? formatSlotLabel(selectedSlot, "12h") : selectedSlot}
+      durationMinutes={appointmentDurationMinutes}
+      locationName={locationName || undefined}
+      chiefComplaint={chiefComplaint}
+      onChiefComplaintChange={setChiefComplaint}
+      urgency={urgency}
+      onUrgencyChange={setUrgency}
+      payment={
+        consultationMode === "VIDEO" && shouldCollectVideoPayment
+          ? {
+              amountLabel: formatRupees(videoPaymentAmount),
+              accepted: acceptedVideoPaymentPolicy,
+              onAcceptedChange: setAcceptedVideoPaymentPolicy,
+              payButton,
+            }
+          : undefined
+      }
+      plan={
+        isPatientInPerson
+          ? {
+              loading: isSubscriptionGateLoading,
+              required: needsSubscriptionPlan,
+            }
+          : undefined
+      }
+      confirmAction={isPageLayout ? confirmAction : undefined}
+    />
   );
 }
 
@@ -2296,7 +1975,23 @@ interface BookAppointmentStep6Props {
   postBookingLabel: string;
   paymentExpiresAt?: string | null;
   paymentWindowMinutes?: number | null;
+  // Presentation only
+  layout: BookingLayout;
+  doctorInfo: BookingDoctorInfo | null;
+  bookedAppointmentId: string;
+  /** Who the visit is for (shown on the card). */
+  patientName: string;
+  appointmentDurationMinutes: number;
+  /** Patients only, after an online payment ("₹600"). */
+  paidAmountLabel: string | null;
+  locationName: string;
+  locationAddress: string;
+  /** Patients get "Go to Home"; staff get "Done". */
+  isPatientUser: boolean;
 }
+
+const PATIENT_HOME_ROUTE = "/patient/dashboard";
+const PATIENT_PAYMENTS_ROUTE = "/patient/payments";
 
 function BookAppointmentStep6({
   consultationMode,
@@ -2316,120 +2011,132 @@ function BookAppointmentStep6({
   postBookingLabel,
   paymentExpiresAt,
   paymentWindowMinutes,
+  layout,
+  doctorInfo,
+  bookedAppointmentId,
+  patientName,
+  appointmentDurationMinutes,
+  paidAmountLabel,
+  locationName,
+  locationAddress,
+  isPatientUser,
 }: BookAppointmentStep6Props) {
   const isVideoMode = consultationMode === "VIDEO";
+  const paymentPending = isVideoMode && requiresVideoPayment && !videoPaymentCompleted;
+  const paid = isVideoMode && videoPaymentCompleted && Boolean(paidAmountLabel);
+  const doctorName = selectedDoctor?.name
+    ? formatDoctorDisplayName(selectedDoctor.name)
+    : "doctor";
+  const slotLabel = selectedSlot
+    ? formatSlotLabel(selectedSlot, layout === "page" ? "12h" : "24h")
+    : "None";
+  const bookingRef = shortBookingRef(bookedAppointmentId);
+  const when = `${selectedDate ? format(selectedDate, "EEE, d MMM") : ""} · ${slotLabel}`;
+
+  const details: BookingDetail[] = isVideoMode
+    ? [
+        { label: "Date & time", value: when },
+        ...(patientName ? [{ label: "Patient", value: patientName }] : []),
+        ...(bookingRef ? [{ label: "Booking ID", value: bookingRef }] : []),
+        paid && paidAmountLabel
+          ? { label: "Amount paid", value: paidAmountLabel, tone: "brand" as const }
+          : {
+              label: "Video hours",
+              value: clinicVideoCallWindow
+                ? `${clinicVideoCallWindow.start} - ${clinicVideoCallWindow.end}`
+                : "Set by the clinic",
+            },
+      ]
+    : [
+        { label: "When", value: when },
+        ...(locationName ? [{ label: "Where", value: locationName }] : []),
+        { label: "Service", value: selectedService?.label || "Appointment" },
+      ];
+
+  const closeAndGo = (route: string) => {
+    handleOpenChange(false);
+    if (pathname !== route) {
+      push(route);
+    }
+  };
 
   return (
-    <div className="flex flex-col items-center gap-5 py-2">
-      <div className="size-14 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-        <Check className="size-7 text-green-600 dark:text-green-400" />
-      </div>
-      <div className="text-center">
-        <h3 className="text-lg font-semibold">
-          {isVideoMode && requiresVideoPayment && !videoPaymentCompleted
-            ? "Complete Payment"
-            : isVideoMode
-              ? "Congratulations! Appointment confirmed"
-              : "Appointment Booked!"}
-        </h3>
-        <p className="text-sm text-muted-foreground mt-1">
-          {isVideoMode && requiresVideoPayment && !videoPaymentCompleted
-            ? "Your selected time is saved. Pay below to book the video appointment."
-            : isVideoMode
-              ? "Your payment is complete and the appointment is confirmed."
-              : "Your appointment has been booked successfully."}
-        </p>
-      </div>
-
-      {isVideoMode ? (
-        <div className="flex flex-col items-center gap-3 p-4 rounded-2xl border bg-card w-full max-w-sm">
-          <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-            <Video className="size-4" />
-            {requiresVideoPayment && !videoPaymentCompleted
-              ? "Payment required"
-              : "Video Appointment Ready"}
-          </div>
-          <p className="text-xs text-muted-foreground text-center">
-            {requiresVideoPayment && !videoPaymentCompleted
-              ? "Your appointment is created. Complete payment from the confirm screen to finish booking."
-              : "Your video appointment is booked. You can track the status from your appointments page."}
-          </p>
-          <div className="w-full rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 p-3 text-center text-sm text-blue-700 dark:text-blue-300">
-            Selected slot: {selectedSlot || "None"}
-          </div>
-          <div className="w-full rounded-xl border border-slate-200 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-950/30 p-3 text-center text-xs text-slate-700 dark:text-slate-300">
-            {clinicVideoCallWindow
-              ? `Video hours: ${clinicVideoCallWindow.start} - ${clinicVideoCallWindow.end}`
-              : "Video hours are configured at the clinic level."}
-          </div>
-          {requiresVideoPayment && !videoPaymentCompleted && paymentExpiresAt && (
-            <PaymentCountdown
-              paymentExpiresAt={paymentExpiresAt}
-              paymentWindowMinutes={paymentWindowMinutes}
-              className="mt-2 w-full"
-              showCompletePaymentCta={false}
-            />
-          )}
-        </div>
-      ) : (
-        <div className="flex flex-col gap-3 p-4 rounded-2xl border bg-card w-full max-w-sm">
-          <div className="flex justify-center size-12 rounded-full bg-blue-100 dark:bg-blue-900/30 items-center mx-auto mb-1">
-            <QrCode className="size-6 text-blue-600 dark:text-blue-400" />
-          </div>
-          <div className="text-center">
-            <h4 className="text-base font-semibold text-foreground">
-              Check-in QR
-            </h4>
-            <p className="text-xs text-muted-foreground mt-1">
-              {selectedService?.label || "Appointment"} with{" "}
-              {selectedDoctor?.name || "doctor"} on{" "}
-              {selectedDate ? format(selectedDate, "d MMM") : ""}
-            </p>
-          </div>
-          <div className="rounded-xl border border-dashed bg-muted/20 p-4 text-center">
-            <div className="text-sm font-medium text-muted-foreground">
-              QR code will appear here
-            </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            {isPatientInPersonFlow && (
-              <Button
-                className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 text-white font-semibold shadow-glow-subtle transition-all active:scale-95"
-                onClick={() => {
-                  handleOpenChange(false);
-                  if (pathname !== patientCheckInRoute) {
-                    push(patientCheckInRoute);
-                  }
-                }}
-              >
-                Open Check-in Page
-              </Button>
-            )}
-
-            {!isVideoMode && (
-              <Button
-                variant={isPatientInPersonFlow ? "outline" : "default"}
-                className={`w-full h-12 rounded-xl font-semibold transition-all active:scale-95 ${
-                  isPatientInPersonFlow
-                    ? "border-border/50 hover:bg-accent/50"
-                    : "bg-primary hover:bg-primary/90 text-white shadow-glow-subtle hover:shadow-glow-medium"
-                }`}
-                onClick={() => {
-                  handleOpenChange(false);
-                  if (pathname !== postBookingRoute) {
-                    push(postBookingRoute);
-                  }
-                }}
-              >
-                {isPatientInPersonFlow
-                  ? "View Check-in Status"
-                  : postBookingLabel}
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+    <BookingSuccessStepView
+      mode={consultationMode}
+      paymentPending={paymentPending}
+      paid={paid}
+      doctor={
+        doctorInfo ??
+        (selectedDoctor?.name ? { name: doctorName } : null)
+      }
+      subtitle={
+        isVideoMode
+          ? "Video Consultation"
+          : `In-clinic${bookingRef ? ` · Booking ${bookingRef}` : ""}`
+      }
+      details={details}
+      cardAction={
+        paid && isPatientUser ? (
+          <Button variant="soft" size="lg" asChild>
+            <Link href={PATIENT_PAYMENTS_ROUTE} prefetch={false}>
+              View payments
+            </Link>
+          </Button>
+        ) : undefined
+      }
+      countdown={
+        paymentPending && paymentExpiresAt ? (
+          <PaymentCountdown
+            paymentExpiresAt={paymentExpiresAt}
+            paymentWindowMinutes={paymentWindowMinutes}
+            className="mt-2 w-full"
+            showCompletePaymentCta={false}
+          />
+        ) : undefined
+      }
+      onAddToCalendar={
+        isVideoMode && selectedDate && selectedSlot
+          ? () => {
+              const saved = downloadBookingCalendarFile({
+                day: format(selectedDate, "yyyy-MM-dd"),
+                slot: selectedSlot,
+                durationMinutes: appointmentDurationMinutes,
+                title: `Video visit with ${doctorName}`,
+                description: "TestByDoctor video appointment",
+                uid: bookedAppointmentId,
+              });
+              if (!saved) {
+                showErrorToast("Could not create the calendar file.");
+              }
+            }
+          : undefined
+      }
+      directionsHref={
+        !isVideoMode && locationAddress
+          ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(locationAddress)}`
+          : undefined
+      }
+      checkInAction={
+        !isVideoMode && isPatientInPersonFlow
+          ? {
+              label: "Open Check-in Page",
+              onClick: () => closeAndGo(patientCheckInRoute),
+            }
+          : undefined
+      }
+      primaryAction={
+        isVideoMode
+          ? isPatientUser
+            ? { label: "Go to Home", onClick: () => closeAndGo(PATIENT_HOME_ROUTE) }
+            : { label: "Done", onClick: () => handleOpenChange(false) }
+          : {
+              label: isPatientInPersonFlow
+                ? "View Check-in Status"
+                : postBookingLabel,
+              onClick: () => closeAndGo(postBookingRoute),
+            }
+      }
+    />
   );
 }
 
@@ -2588,6 +2295,7 @@ export function BookAppointmentDialog({
   initialServiceId,
   initialDoctorId,
   initialPatientId,
+  initialFamilyMemberId,
   videoOnly = true,
 }: BookAppointmentDialogProps) {
   const { push, replace } = useRouter();
@@ -2630,18 +2338,19 @@ export function BookAppointmentDialog({
   const activeClinicId =
     resolvedClinicId || clinicFallbackId;  // Always allow fallback for all roles
 
-  // DEBUG: Log clinicId resolution
-  console.log('[BookAppointmentDialog] ClinicId resolution:', {
-    propsClinicId: clinicId,
-    sessionClinicId,
-    safeContextClinicId,
-    currentClinicId,
-    myClinicId,
-    clinicFallbackId,
-    authClinicId,
-    resolvedClinicId,
-    activeClinicId
-  });
+  if (APP_CONFIG.ENVIRONMENT === "development") {
+    console.log('[BookAppointmentDialog] ClinicId resolution:', {
+      propsClinicId: clinicId,
+      sessionClinicId,
+      safeContextClinicId,
+      currentClinicId,
+      myClinicId,
+      clinicFallbackId,
+      authClinicId,
+      resolvedClinicId,
+      activeClinicId
+    });
+  }
 
   type BookingFlowState = {
     step: number;
@@ -3009,11 +2718,24 @@ export function BookAppointmentDialog({
     allergies: "",
     currentMedications: "",
   });
+  // "Who is this visit for?" (patients only): "" = the patient, otherwise a family member's id.
+  const [visitForMemberId, setVisitForMemberId] = useState(
+    initialFamilyMemberId || "",
+  );
+  // Follow the prop when the page opens the dialog for another family member.
+  const [seenInitialFamilyMemberId, setSeenInitialFamilyMemberId] = useState(
+    initialFamilyMemberId,
+  );
+  if (seenInitialFamilyMemberId !== initialFamilyMemberId) {
+    setSeenInitialFamilyMemberId(initialFamilyMemberId);
+    setVisitForMemberId(initialFamilyMemberId || "");
+  }
   const resetBookingFlowState = useCallback(() => {
     dispatchBookingFlow({
       type: "resetBookingFlow",
       payload: createBookingFlowState(),
     });
+    setVisitForMemberId(initialFamilyMemberId || "");
     setNewPatient({
       firstName: "",
       lastName: "",
@@ -3030,7 +2752,7 @@ export function BookAppointmentDialog({
     });
     setBookedPaymentExpiresAt(null);
     setBookedPaymentWindowMinutes(null);
-  }, [createBookingFlowState]);
+  }, [createBookingFlowState, initialFamilyMemberId]);
   const isPrivilegedScheduler = [
     "RECEPTIONIST",
     "DOCTOR",
@@ -3049,6 +2771,32 @@ export function BookAppointmentDialog({
   const shouldLoadServices = dialogOpen;
   const shouldLoadPatients =
     dialogOpen && isPrivilegedScheduler && !!activeClinicId;
+  // Family members of the signed-in patient. Optional: when the list is empty or cannot be read
+  // the visit is for the patient, and booking carries on as before.
+  // `familyMemberId` is part of the appointment create DTO used by the video flow only; the
+  // patient in-clinic flow books through the subscription endpoint, which has no such field.
+  const isPatientBooker = userRole === "PATIENT";
+  const canChooseFamilyMember = isPatientBooker && consultationMode === "VIDEO";
+  const familyClinicId = sessionClinicId || currentClinicId || "";
+  const {
+    data: myFamilyMembers,
+    isFetching: familyMembersFetching,
+    error: familyMembersError,
+  } = useMyFamilyMembers(familyClinicId, {
+    enabled: dialogOpen && canChooseFamilyMember,
+  });
+  const familyMemberOptions = useMemo(
+    () =>
+      canChooseFamilyMember && Array.isArray(myFamilyMembers)
+        ? myFamilyMembers.filter((member) => member.isActive !== false)
+        : [],
+    [canChooseFamilyMember, myFamilyMembers],
+  );
+  const familyMembersLoading =
+    canChooseFamilyMember && familyMembersFetching && myFamilyMembers === undefined;
+  const visitForMember =
+    familyMemberOptions.find((member) => member.id === visitForMemberId) ?? null;
+  const visitForFamilyMemberId = visitForMember?.id || "";
   const quickRegisterPatientMutation = useQuickRegisterPatient();
   const resolveAppointmentId = useCallback((appointment: unknown) => {
     if (!appointment || typeof appointment !== "object") {
@@ -3742,8 +3490,8 @@ export function BookAppointmentDialog({
 
   const selectedPatient = useMemo(
     () =>
-      patientsList.find(
-        (patient: any) => (patient.userId || patient.id) === selectedPatientId,
+      patientsList.find((patient: any) =>
+        isSelectedBookingPatient(patient, selectedPatientId),
       ) ||
       (recentlyCreatedPatient?.id === selectedPatientId
         ? recentlyCreatedPatient
@@ -3841,13 +3589,30 @@ export function BookAppointmentDialog({
         return consultationMode !== "VIDEO";
       }
 
+      // Staff choose the patient on the Service step. The video flow skips that step, so it
+      // gets its own Patient step. Patients book for themselves and never see it.
+      if (stepId === "patient") {
+        return isPrivilegedScheduler && consultationMode === "VIDEO";
+      }
+
       if (stepId === "doctor") {
         return hasMultipleDoctors;
       }
 
+      // Patients pick date on the same screen as time (date strip + slots).
+      if (stepId === "date") {
+        return isPrivilegedScheduler;
+      }
+
       return true;
     });
-  }, [consultationMode, doctorsList.length, doctorsLoading, videoOnly]);
+  }, [
+    consultationMode,
+    doctorsList.length,
+    doctorsLoading,
+    isPrivilegedScheduler,
+    videoOnly,
+  ]);
 
   const currentStep = Math.max(1, Math.min(step, activeSteps.length || 1));
   const currentStepIndex = currentStep - 1;
@@ -4344,6 +4109,13 @@ export function BookAppointmentDialog({
       return;
     }
 
+    // Staff book for someone else: a patient must be chosen first.
+    if (isPrivilegedScheduler && !resolvedBookingPatientId) {
+      showErrorToast("Please select a patient before confirming.");
+      goToStep(consultationMode === "VIDEO" ? "patient" : "service");
+      return;
+    }
+
     const patientBillingRoute = "/patient/payments";
     const redirectToBillingTab = (
       tab: "plans" | "subscriptions" | "payments",
@@ -4399,15 +4171,15 @@ export function BookAppointmentDialog({
           }
         }
 
-        const cachedProfile = queryClient.getQueryData<Record<string, unknown>>([
-          "userProfile",
-        ]);
-        const refreshedProfile =
-          cachedProfile ||
-          ((await queryClient.fetchQuery({
-            queryKey: ["userProfile"],
-            queryFn: async () => await getUserProfile(),
-          })) as Record<string, unknown> | undefined);
+        // updateUserProfile above may have just created the patient record, so
+        // the cached ["userProfile"] entry (populated by useUserProfile while
+        // this dialog is open) predates it and carries no patient.id. Always
+        // re-read; staleTime 0 stops fetchQuery from serving that stale entry.
+        const refreshedProfile = (await queryClient.fetchQuery({
+          queryKey: ["userProfile"],
+          queryFn: async () => await getUserProfile(),
+          staleTime: 0,
+        })) as Record<string, unknown> | undefined;
 
         bookingPatientId =
           (refreshedProfile as any)?.patient?.id ||
@@ -4527,6 +4299,9 @@ export function BookAppointmentDialog({
           type: finalAppointmentType,
           ...(chiefComplaint ? { notes: chiefComplaint } : {}),
           priority: "NORMAL",
+          ...(visitForFamilyMemberId
+            ? { familyMemberId: visitForFamilyMemberId }
+            : {}),
         });
 
         logger.info(
@@ -4588,7 +4363,7 @@ export function BookAppointmentDialog({
 
         onBooked?.();
         showSuccessToast(
-          `Video appointment booked with ${selectedDoctor?.name || "doctor"}` +
+          `Video appointment booked with ${selectedDoctor?.name ? formatDoctorDisplayName(selectedDoctor.name) : "doctor"}` +
             (selectedDate ? ` for ${format(selectedDate, "d MMM yyyy")}` : "") +
             (shouldCollectVideoPayment
               ? " and awaiting payment completion."
@@ -4759,7 +4534,7 @@ export function BookAppointmentDialog({
       }
       onBooked?.();
       showSuccessToast(
-        `Appointment booked${selectedDoctor?.name ? ` with ${selectedDoctor.name}` : ""}` +
+        `Appointment booked${selectedDoctor?.name ? ` with ${formatDoctorDisplayName(selectedDoctor.name)}` : ""}` +
           (selectedDate ? ` on ${format(selectedDate, "d MMM yyyy")}` : "") +
           ".",
         { id: "booking-success" },
@@ -4878,6 +4653,9 @@ export function BookAppointmentDialog({
     selectedDoctor?.name,
     setStep,
     activeSteps.length,
+    isPrivilegedScheduler,
+    goToStep,
+    visitForFamilyMemberId,
   ]);
 
   // Navigation
@@ -4895,13 +4673,19 @@ export function BookAppointmentDialog({
         !!selectedServiceId && (!isPrivilegedScheduler || !!selectedPatientId)
       );
     }
+    if (currentStepId === "patient") {
+      return !!selectedPatientId;
+    }
     if (currentStepId === "doctor") {
       return !!resolvedDoctorId || doctorsList.length === 1;
     }
     if (currentStepId === "date") {
       return !!selectedDate && !isBookingDateDisabled(selectedDate);
     }
-    if (currentStepId === "slot") return !!activeSelectedSlot;
+    if (currentStepId === "slot") {
+      const hasDate = !!selectedDate && !isBookingDateDisabled(selectedDate);
+      return hasDate && !!activeSelectedSlot;
+    }
     return true;
   }, [
     consultationMode,
@@ -4954,6 +4738,200 @@ export function BookAppointmentDialog({
   // }, [bookedAppointmentId, session, selectedDoctor, selectedDate, selectedSlot]);
 
   // const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`;
+  // ── Presentation only ────────────────────────────────────────────────────
+  // Values for the restyled steps. No booking rule, payload or payment reads them.
+  // Each step starts at the top of the scroll area (matters on phones, where steps are long).
+  const stepScrollRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    stepScrollRef.current?.scrollTo({ top: 0 });
+  }, [currentStepId]);
+  const bookingLayout: BookingLayout = isPrivilegedScheduler ? "compact" : "page";
+  const isPageLayout = bookingLayout === "page";
+  const selectedLocation = (locations as any[]).find(
+    (loc) => loc.id === resolvedLocationId,
+  );
+  const bookingLocationName =
+    consultationMode === "VIDEO"
+      ? ""
+      : String(selectedLocation?.name || selectedLocation?.address || "");
+  const bookingLocationAddress =
+    consultationMode === "VIDEO"
+      ? ""
+      : [selectedLocation?.name, selectedLocation?.address, selectedLocation?.city]
+          .filter(Boolean)
+          .join(", ");
+  const doctorExperienceYears = Number(selectedDoctor?.experience);
+  const doctorRating = Number(selectedDoctor?.rating);
+  const doctorInfo: BookingDoctorInfo | null = selectedDoctor
+    ? {
+        name: formatDoctorDisplayName(selectedDoctor.name) || "Doctor",
+        subtitle: [
+          selectedDoctor.specialization || "General Physician",
+          selectedDoctor.qualification,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        image: selectedDoctor.image || undefined,
+        locationName:
+          (consultationMode === "VIDEO"
+            ? clinicName || myClinic?.name
+            : bookingLocationName) || undefined,
+        stats: [
+          ...(Number.isFinite(doctorExperienceYears) && doctorExperienceYears > 0
+            ? [{ value: `${doctorExperienceYears}+`, label: "Years" }]
+            : []),
+          ...(Number.isFinite(doctorRating) && doctorRating > 0
+            ? [{ value: doctorRating.toFixed(1), label: "Rating" }]
+            : []),
+        ],
+      }
+    : null;
+  const doctorHours: BookingHoursRow[] = [
+    ...summarizeWorkingHours(selectedDoctor?.workingHours),
+    ...(consultationMode === "VIDEO" && clinicVideoCallWindow
+      ? [
+          {
+            label: "Video consults",
+            value: `${clinicVideoCallWindow.start} – ${clinicVideoCallWindow.end}`,
+          },
+        ]
+      : []),
+  ];
+  const doctorHoursTag =
+    consultationMode === "VIDEO" && clinicVideoCallWindow ? "Video" : undefined;
+  const bookedSlotsForDisplay = readBookedSlots(availability);
+  const sessionDisplayName = resolveDisplayNameAndInitials({
+    firstName: session?.user?.firstName,
+    lastName: session?.user?.lastName,
+    name: session?.user?.name,
+    email: session?.user?.email,
+  }).displayName;
+  const bookingForName = sessionDisplayName === "User" ? "" : sessionDisplayName;
+  // "Who is this visit for?" on the Confirm step, and the chosen person's name.
+  const visitForMemberName = visitForMember
+    ? String(
+        visitForMember.name ||
+          `${visitForMember.firstName || ""} ${visitForMember.lastName || ""}`,
+      ).trim()
+    : "";
+  const visitForMemberLabel = visitForMember
+    ? [visitForMemberName, visitForMember.relation ? `(${visitForMember.relation})` : ""]
+        .filter(Boolean)
+        .join(" ")
+    : "";
+  const visitFor: BookingVisitForProps | undefined = canChooseFamilyMember
+    ? {
+        options: [
+          {
+            id: "",
+            name: session?.user?.firstName?.trim() || bookingForName || "Me",
+            fullName: bookingForName || undefined,
+            relation: "Myself",
+          },
+          ...familyMemberOptions.map((member) => ({
+            id: member.id,
+            name:
+              member.firstName?.trim() ||
+              String(member.name || "").trim() ||
+              "Family member",
+            fullName:
+              String(
+                member.name || `${member.firstName || ""} ${member.lastName || ""}`,
+              ).trim() || undefined,
+            relation: member.relation || "Family",
+          })),
+        ],
+        selectedId: visitForFamilyMemberId,
+        onSelect: setVisitForMemberId,
+        // Once the appointment exists (waiting for payment) the person cannot change.
+        locked: !!bookedAppointmentId,
+        loading: familyMembersLoading,
+        note:
+          visitForMemberId && !visitForMember && !familyMembersLoading
+            ? familyMembersError
+              ? "We could not load your family list, so this visit is for you."
+              : "That family member is not on your list, so this visit is for you."
+            : undefined,
+        addHref: "/patient/family",
+      }
+    : undefined;
+  const bookedPatientName = isPrivilegedScheduler
+    ? String(selectedPatient?.displayName || "")
+    : visitForMemberLabel || bookingForName;
+  // Fee shown to patients only, straight from the existing calculation.
+  const feeLabel = shouldCollectVideoPayment
+    ? formatRupees(videoPaymentAmount)
+    : null;
+  const displayTitle = !isPageLayout
+    ? stepTitle
+    : currentStepId === "date" || currentStepId === "slot"
+      ? "Your Doctor"
+      : currentStepId === "confirm"
+        ? "Review & Confirm"
+        : stepTitle;
+
+  // The book / pay button (amber). Same conditions and handler as before; it is drawn in the
+  // footer and, on wide patient screens, inside the payment summary card.
+  const renderConfirmButton = (size: "md" | "xl", className?: string) => {
+    const isVideoPaymentPending =
+      consultationMode === "VIDEO" &&
+      shouldCollectVideoPayment &&
+      !!bookedAppointmentId &&
+      requiresVideoPayment &&
+      !videoPaymentCompleted;
+    const isVideoConfirmDisabled =
+      consultationMode === "VIDEO"
+        ? shouldCollectVideoPayment
+          ? !acceptedVideoPaymentPolicy || isBooking || isVideoPaymentPending
+          : isBooking
+        : isCreatingInPersonAppointment || isSubscriptionGateLoading;
+    const confirmLabel = isVideoPaymentPending
+      ? "Payment in progress"
+      : consultationMode === "VIDEO"
+        ? shouldCollectVideoPayment
+          ? `Confirm & Pay ${formatRupees(videoPaymentAmount)}`
+          : "Book Video Appointment"
+        : needsSubscriptionPlan
+          ? "Choose plan to continue"
+          : "Confirm & Book";
+    const paysOnline = consultationMode === "VIDEO" && shouldCollectVideoPayment;
+
+    return (
+      <Button
+        variant="action"
+        size={size}
+        onClick={handleBook}
+        disabled={isVideoConfirmDisabled}
+        className={cn(
+          "h-auto whitespace-normal py-2 leading-tight",
+          size === "xl" ? "min-h-[54px]" : "min-h-11",
+          className,
+        )}
+      >
+        {(
+          consultationMode === "VIDEO"
+            ? isBooking
+            : isCreatingInPersonAppointment || isSubscriptionGateLoading
+        ) ? (
+          <>
+            <Loader2 className="size-4 animate-spin" />
+            {consultationMode === "VIDEO"
+              ? "Preparing appointment..."
+              : "Checking plan..."}
+          </>
+        ) : paysOnline ? (
+          <>
+            {confirmLabel} <ArrowRight className="size-4" />
+          </>
+        ) : (
+          <>
+            <Check className="size-4" /> {confirmLabel}
+          </>
+        )}
+      </Button>
+    );
+  };
+
   const RenderStep2 = BookAppointmentStep2;
 
   const RenderStep3 = BookAppointmentStep3;
@@ -5035,6 +5013,34 @@ export function BookAppointmentDialog({
             />
           </AppointmentStepWrapper>
         );
+      case "patient":
+        return (
+          <AppointmentStepWrapper className="min-h-full">
+            <BookAppointmentStepPatient
+              newPatient={newPatient}
+              setNewPatient={setNewPatient}
+              quickRegisterPatientMutation={quickRegisterPatientMutation}
+              showQuickCreatePatient={showQuickCreatePatient}
+              setShowQuickCreatePatient={setShowQuickCreatePatient}
+              patientSearch={patientSearch}
+              setPatientSearch={setPatientSearch}
+              locationsFetching={locationsFetching}
+              locations={locations as any[]}
+              filteredPatientsList={filteredPatientsList}
+              selectedPatientId={selectedPatientId}
+              setSelectedPatientId={setSelectedPatientId}
+              setRecentlyCreatedPatient={setRecentlyCreatedPatient}
+              showQuickCreateAdditionalDetails={
+                showQuickCreateAdditionalDetails
+              }
+              setShowQuickCreateAdditionalDetails={
+                setShowQuickCreateAdditionalDetails
+              }
+              queryClient={queryClient}
+              selectedPatient={selectedPatient}
+            />
+          </AppointmentStepWrapper>
+        );
       case "doctor":
         return (
           <AppointmentStepWrapper className="min-h-full">
@@ -5065,6 +5071,10 @@ export function BookAppointmentDialog({
               setSelectedSlot={setSelectedSlot}
               goNext={goNext}
               isClinicClosedDate={isBookingDateDisabled}
+              layout={bookingLayout}
+              doctorInfo={doctorInfo}
+              doctorHours={doctorHours}
+              doctorHoursTag={doctorHoursTag}
             />
           </AppointmentStepWrapper>
         );
@@ -5090,8 +5100,14 @@ export function BookAppointmentDialog({
               restrictions={restrictions}
               availabilityError={availabilityError}
               setSelectedSlot={setSelectedSlot}
-              selectedDoctor={selectedDoctor}
               selectedSlotLabel={selectedSlotLabel}
+              layout={bookingLayout}
+              doctorInfo={doctorInfo}
+              doctorHours={doctorHours}
+              bookedSlots={bookedSlotsForDisplay}
+              feeLabel={feeLabel}
+              setSelectedDate={setSelectedDate}
+              isDateDisabled={isBookingDateDisabled}
             />
           </AppointmentStepWrapper>
         );
@@ -5123,6 +5139,13 @@ export function BookAppointmentDialog({
               setChiefComplaint={setChiefComplaint}
               urgency={urgency}
               setUrgency={setUrgency}
+              layout={bookingLayout}
+              doctorInfo={doctorInfo}
+              bookingForName={bookingForName}
+              visitFor={visitFor}
+              visitForName={visitForMemberLabel}
+              locationName={bookingLocationName}
+              confirmAction={renderConfirmButton("xl", "w-full")}
             />
           </AppointmentStepWrapper>
         );
@@ -5148,6 +5171,15 @@ export function BookAppointmentDialog({
               postBookingLabel={postBookingLabel}
               paymentExpiresAt={bookedPaymentExpiresAt}
               paymentWindowMinutes={bookedPaymentWindowMinutes}
+              layout={bookingLayout}
+              doctorInfo={doctorInfo}
+              bookedAppointmentId={bookedAppointmentId}
+              patientName={bookedPatientName}
+              appointmentDurationMinutes={appointmentDurationMinutes}
+              paidAmountLabel={feeLabel}
+              locationName={bookingLocationName}
+              locationAddress={bookingLocationAddress}
+              isPatientUser={userRole === "PATIENT"}
             />
           </AppointmentStepWrapper>
         );
@@ -5159,7 +5191,7 @@ export function BookAppointmentDialog({
       {!hideTrigger && (
         <DialogTrigger asChild>
           {trigger || (
-            <Button className="flex items-center gap-2 rounded-xl border border-amber-400 bg-amber-600 p-6 font-semibold text-white shadow-[0_8px_20px_rgba(217,119,6,0.22)] transition-all hover:-translate-y-0.5 hover:border-amber-500 hover:bg-amber-700 hover:shadow-[0_12px_28px_rgba(217,119,6,0.28)] active:scale-95 focus-visible:ring-2 focus-visible:ring-amber-300 dark:border-amber-700 dark:bg-amber-600 dark:shadow-[0_8px_20px_rgba(245,158,11,0.15)] dark:hover:bg-amber-500">
+            <Button variant="action" size="md">
               <Plus className="size-5" />
               Book Video Appointment
             </Button>
@@ -5167,26 +5199,36 @@ export function BookAppointmentDialog({
         </DialogTrigger>
       )}
 
+      {/* Full-height sheet on phones; a centred dialog from 640 px up. Patients get the wide
+          page-like layout of the boards, staff the narrow dialog. */}
       <DialogContent
-      className="
-        top-0 left-0 h-[100dvh] w-[100vw] max-w-none translate-x-0 translate-y-0
-        flex flex-col gap-0 overflow-hidden rounded-none border-0 p-0
-        md:top-1/2 md:left-1/2 md:h-[90dvh] md:w-[min(78vw,48rem)] md:max-w-2xl
-        lg:top-1/2 lg:left-1/2 lg:h-[90dvh] lg:w-[min(66vw,42rem)] lg:max-w-xl
-        sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:border
-      "
+        className={cn(
+          "top-0 left-0 flex h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none p-0",
+          "sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[20px]",
+          isPageLayout
+            ? "sm:h-[min(88dvh,720px)] sm:w-[min(94vw,640px)] sm:max-w-none lg:w-[min(94vw,980px)]"
+            : "sm:h-auto sm:max-h-[92dvh] sm:min-h-[min(92dvh,560px)] sm:w-[min(94vw,560px)] sm:max-w-none",
+        )}
       >
         {/* Header */}
-        <div className="px-3 sm:px-5 pt-3 sm:pt-4 pb-2 sm:pb-3 border-b shrink-0">
-          <DialogHeader className="text-left w-full min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <DialogTitle className="min-w-0 truncate text-base font-bold sm:text-lg">
-                {stepTitle}
+        <div
+          className={cn(
+            "shrink-0 px-3.5 pt-3.5 sm:px-5 sm:pt-4",
+            isSuccessStep ? "pb-2.5" : "border-b border-hair pb-2.5",
+          )}
+        >
+          <DialogHeader className="w-full min-w-0 text-left">
+            <div className="flex min-h-8 flex-wrap items-center gap-2">
+              <DialogTitle
+                className={cn(
+                  "min-w-0 truncate",
+                  isPageLayout && "sm:text-lg sm:tracking-[-0.2px]",
+                )}
+              >
+                {displayTitle}
               </DialogTitle>
               {consultationMode === "VIDEO" && (
-                <span className="inline-flex w-fit items-center rounded-md border border-amber-300 bg-amber-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-                  Video booking flow
-                </span>
+                <Pill tone="amber">Video booking flow</Pill>
               )}
             </div>
 
@@ -5198,11 +5240,12 @@ export function BookAppointmentDialog({
 
           {/* Step bar hide on success screen */}
           {!isSuccessStep && (
-            <div className="mt-2 overflow-x-auto pb-1 sm:mt-3">
+            <div className="mt-2.5 w-full min-w-0">
               <BookAppointmentStepBar
                 activeSteps={activeSteps}
                 step={step}
                 goToStep={goToStep}
+                mergeDateAndTimeStep={isPageLayout}
               />
             </div>
           )}
@@ -5210,12 +5253,14 @@ export function BookAppointmentDialog({
 
         {/* Content — keep scrollable on all steps/devices (incl. iOS) */}
         <div
+          ref={stepScrollRef}
           className={cn(
-            "min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 py-3 sm:px-5 sm:py-4",
+            "min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3.5 py-3 sm:px-5 sm:py-3.5",
             "[-webkit-overflow-scrolling:touch] touch-pan-y",
-            // Extra bottom space so calendar/footer content isn't clipped under sticky actions
-            "pb-6 sm:pb-4",
+            "pb-4",
+            isPageLayout && "tbd-wash",
           )}
+          {...(isPageLayout ? { "data-tone": "sky" } : {})}
         >
           <LazyMotion features={domAnimation}>
             <AnimatePresence mode="wait" initial={false}>
@@ -5238,11 +5283,12 @@ export function BookAppointmentDialog({
 
         {/* Footer hide on success screen */}
         {!isSuccessStep && (
-          <div className="px-3 sm:px-6 py-3 sm:py-4 border-t bg-background flex flex-row gap-2.5 items-center sm:gap-4 shrink-0">
+          <div className="flex shrink-0 flex-row items-center gap-2 border-t border-hair bg-[#f8fafc] px-3.5 py-2.5 dark:bg-well/40 sm:px-5">
             <Button
               variant="outline"
+              size="md"
               onClick={step > 1 ? goBack : () => handleOpenChange(false)}
-              className="h-11 flex-auto px-6 rounded-xl border-border/50 transition-all active:scale-95 gap-2 sm:flex-none sm:w-auto"
+              className="max-sm:flex-auto"
               disabled={pendingStepNavigation === "backward"}
             >
               {pendingStepNavigation === "backward" ? (
@@ -5256,9 +5302,10 @@ export function BookAppointmentDialog({
 
             {currentStepId !== "confirm" ? (
               <Button
+                size="md"
                 onClick={goNext}
                 disabled={!canNext}
-                className="h-11 flex-auto px-8 rounded-xl font-semibold bg-primary hover:bg-primary/90 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2 sm:flex-none sm:w-auto"
+                className="max-sm:flex-auto"
               >
                 {pendingStepNavigation === "forward" ? (
                   <Loader2 className="size-4 animate-spin" />
@@ -5269,58 +5316,11 @@ export function BookAppointmentDialog({
                 )}
               </Button>
             ) : (
-              (() => {
-                const isVideoPaymentPending =
-                  consultationMode === "VIDEO" &&
-                  shouldCollectVideoPayment &&
-                  !!bookedAppointmentId &&
-                  requiresVideoPayment &&
-                  !videoPaymentCompleted;
-                const isVideoConfirmDisabled =
-                  consultationMode === "VIDEO"
-                    ? shouldCollectVideoPayment
-                      ? !acceptedVideoPaymentPolicy ||
-                        isBooking ||
-                        isVideoPaymentPending
-                      : isBooking
-                    : isCreatingInPersonAppointment ||
-                      isSubscriptionGateLoading;
-                const confirmLabel = isVideoPaymentPending
-                  ? "Payment in progress"
-                  : consultationMode === "VIDEO"
-                    ? shouldCollectVideoPayment
-                      ? `Create appointment and pay Rs. ${videoPaymentAmount.toFixed(0)}`
-                      : "Book Video Appointment"
-                    : needsSubscriptionPlan
-                      ? "Choose plan to continue"
-                      : "Confirm & Book";
-
-                return (
-                  <Button
-                    onClick={handleBook}
-                    disabled={isVideoConfirmDisabled}
-                    className="min-h-11 h-auto py-2 whitespace-normal leading-tight flex-auto px-4 sm:px-8 rounded-xl font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2 sm:flex-none sm:w-auto"
-                  >
-                    {(
-                      consultationMode === "VIDEO"
-                        ? isBooking
-                        : isCreatingInPersonAppointment ||
-                          isSubscriptionGateLoading
-                    ) ? (
-                      <>
-                        <Loader2 className="size-4 animate-spin" />
-                        {consultationMode === "VIDEO"
-                          ? "Preparing appointment..."
-                          : "Checking plan..."}
-                      </>
-                    ) : (
-                      <>
-                        <Check className="size-4" /> {confirmLabel}
-                      </>
-                    )}
-                  </Button>
-                );
-              })()
+              // On wide patient screens the same button sits in the payment summary card.
+              renderConfirmButton(
+                "md",
+                cn("max-sm:flex-auto", isPageLayout && "lg:hidden"),
+              )
             )}
           </div>
         )}

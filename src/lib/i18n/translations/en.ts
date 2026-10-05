@@ -76,6 +76,8 @@ export const en: TranslationKeys = {
   },
   dashboard: {
     welcomeBack: 'Welcome Back',
+    hello: 'Hi',
+    howAreYouFeeling: 'how are you feeling today?',
     overview: 'Here is what is happening with your health today.',
     bookAppointment: 'Book Appointment',
   },
@@ -841,7 +843,7 @@ export const en: TranslationKeys = {
     name: 'Dr.Chandrakumar Deshmukh',
     address: 'Moraya Ganapati Mandir Road, Gandhi Peth, Chinchwad Gaon, Chinchwad, Pimpri-Chinchwad, Maharashtra, India',
     phone: '+91 9860370961, +91 79 7254 8944',
-    whatsapp: '9860370961',
+    whatsapp: '7972548944',
     email: 'drchandrakumardeshmukh@gmail.com',
     timings: 'Clinic Timings',
     mondayToFriday: 'Chinchwad - 12 pm to 6 pm (day OPD), 10 pm to 11.45 pm (night OPD)',

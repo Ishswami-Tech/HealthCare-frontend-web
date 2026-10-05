@@ -1,5 +1,6 @@
 "use client";
 
+import { Calendar, ScanQrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -9,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { IconBox } from "@/components/tbd";
 
 type PatientQrGateDialogProps = {
   open: boolean;
@@ -20,32 +22,41 @@ type PatientQrGateDialogProps = {
   onBookAppointment?: () => void;
 };
 
+/**
+ * Shown when a patient taps "check in" without an in-clinic visit. Check-in with the clinic QR
+ * is only for in-clinic visits; a video visit never needs it.
+ */
 export function PatientQrGateDialog({
   open,
   onOpenChange,
-  title = "You need an in-person appointment",
-  description = "QR scan is available only for in-person visits. Book an appointment first, then return here to scan the clinic QR.",
+  title = "You need an in-clinic visit",
+  description = "Check-in with the clinic QR is only for in-clinic visits. Book a visit first, then scan the QR at the clinic.",
   closeLabel = "Close",
-  bookLabel = "Book Video Appointment",
+  bookLabel = "Book a visit",
   onBookAppointment,
 }: PatientQrGateDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+        <DialogHeader className="gap-2.5">
+          <IconBox icon={ScanQrCode} tone="mint" size={44} className="max-sm:mx-auto" />
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <DialogFooter className="gap-2 sm:justify-end">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="gap-2.5 sm:justify-end">
+          <Button variant="outline" size="md" onClick={() => onOpenChange(false)}>
             {closeLabel}
           </Button>
+          {/* Booking is the amber action. */}
           <Button
+            variant="action"
+            size="md"
             onClick={() => {
               onOpenChange(false);
               onBookAppointment?.();
             }}
           >
+            <Calendar aria-hidden="true" />
             {bookLabel}
           </Button>
         </DialogFooter>

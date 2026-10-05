@@ -61,7 +61,7 @@ export function MobileBottomBar({ links }: MobileBottomBarProps) {
       aria-label="Mobile dashboard navigation"
       className="fixed inset-x-0 bottom-0 z-50 lg:hidden"
     >
-      <div className="border-t border-border/70 bg-background/95 backdrop-blur-md shadow-[0_-8px_30px_rgba(0,0,0,0.08)]">
+      <div className="rounded-t-[26px] border-t border-hair bg-card/95 backdrop-blur-md shadow-[0_-8px_30px_rgba(15,27,45,0.08)]">
         <div
           className="grid items-stretch gap-1 px-2 py-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]"
           style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}
@@ -74,14 +74,18 @@ export function MobileBottomBar({ links }: MobileBottomBarProps) {
               <Link
                 key={link.href}
                 href={link.href}
-                prefetch
+                // Same fix as the desktop GlobalSidebar/Sidebar.tsx: this bar is
+                // always-visible on mobile, so Next's default viewport prefetch
+                // fired a full RSC data fetch for every tab (dashboard/
+                // appointments/health/payments) concurrently on every page load.
+                prefetch={false}
                 scroll={false}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-2 min-h-11 text-[10px] font-medium transition-colors",
+                  "flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-2 min-h-11 text-[10px] font-semibold transition-colors",
                   isActive
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    ? "bg-mint text-brand font-bold"
+                    : "text-ink-muted hover:bg-mint-soft hover:text-ink"
                 )}
               >
                 <Icon className="size-4.5 shrink-0" />

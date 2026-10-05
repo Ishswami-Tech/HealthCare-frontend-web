@@ -279,6 +279,19 @@ export function useAuth() {
         return;
       }
 
+        // GET /clinics/:id is SUPER_ADMIN | CLINIC_ADMIN | PATIENT only.
+        // Doctors/staff must use /clinics/my-clinic (already prefetched below).
+        const roleKey = String(
+          useAuthStore.getState().session?.user?.role || '',
+        )
+          .trim()
+          .toUpperCase()
+          .replace(/\s+/g, '_');
+        const canFetchClinicById =
+          roleKey === 'SUPER_ADMIN' ||
+          roleKey === 'CLINIC_ADMIN' ||
+          roleKey === 'PATIENT';
+
         await Promise.allSettled([
           queryClient.prefetchQuery({
             queryKey: ['myClinic', authScope],
@@ -287,7 +300,10 @@ export function useAuth() {
           }),
           queryClient.prefetchQuery({
             queryKey: ['current-clinic', normalizedClinicId, authScope],
-            queryFn: async () => getClinicById(normalizedClinicId),
+            queryFn: async () =>
+              canFetchClinicById
+                ? getClinicById(normalizedClinicId)
+                : getMyClinic(),
             staleTime: 30 * 1000,
           }),
           queryClient.prefetchQuery({

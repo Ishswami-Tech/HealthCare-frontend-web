@@ -86,11 +86,11 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
     <LazyMotion features={domAnimation}>
       <header
         className={cn(
-          "sticky top-0 z-40 w-full border-b border-border bg-card",
+          "sticky top-0 z-40 w-full",
           className,
         )}
       >
-        <div className="flex h-14 w-full items-center gap-3 px-4 sm:px-6 md:h-16 md:px-8">
+        <div className="flex h-14 w-full items-center gap-2.5 px-4 sm:px-6 md:h-[68px] md:px-8">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             {showSidebarTrigger && (
               <SidebarTrigger className="-ml-1 size-8 shrink-0 md:hidden" />
@@ -101,7 +101,7 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
                 key={pageTitle}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="truncate text-sm font-semibold tracking-tight text-foreground md:text-base"
+                className="truncate text-sm font-bold text-ink-soft md:text-[15px]"
               >
                 {pageTitle}
               </m.h1>
@@ -109,23 +109,22 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
             {children}
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-2 sm:gap-2.5">
             {mounted ? (
               <>
                 <div className="hidden items-center lg:flex">
                   <MinimalStatusIndicator />
                 </div>
 
-                <NotificationBell className="size-9 rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground" />
+                <NotificationBell className="size-10 rounded-xl border border-line bg-card text-ink shadow-none transition-colors hover:bg-mint-soft hover:text-ink dark:bg-card dark:hover:bg-accent" />
 
-                <CompactThemeSwitcher />
+                <CompactThemeSwitcher className="size-10 rounded-xl border border-line bg-card text-ink shadow-none transition-colors hover:bg-mint-soft hover:text-ink dark:bg-card dark:hover:bg-accent" />
 
                 <LanguageSwitcher
                   variant="compact"
                   size="icon"
                   showFlag={true}
                   showLabel={false}
-                  className="size-9 rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                 />
 
                 {displayUser && (
@@ -133,11 +132,11 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
                     <DropdownMenuTrigger asChild>
                       <button
                         type="button"
-                        className="flex items-center gap-2.5 rounded-xl border border-border bg-card py-1 pl-1 pr-2 text-left transition-colors hover:bg-accent sm:pr-3"
+                        className="flex min-h-11 items-center gap-2.5 rounded-[14px] border border-line bg-card py-1 pl-1.5 pr-2 text-left transition-colors hover:bg-mint-soft sm:pr-3"
                       >
                         <span
                           className={cn(
-                            "relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-linear-to-br text-[11px] font-bold text-white",
+                            "relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-linear-to-br text-[11px] font-bold text-white",
                             getAvatarGradient(displayUser.initials),
                           )}
                         >
@@ -155,14 +154,14 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
                           )}
                         </span>
                         <span className="hidden min-w-0 flex-col leading-tight sm:flex">
-                          <span className="truncate text-[13px] font-semibold text-foreground">
+                          <span className="truncate text-[13px] font-bold text-ink">
                             {displayUser.name}
                           </span>
-                          <span className="truncate text-[11px] capitalize text-muted-foreground">
+                          <span className="truncate text-[11px] capitalize text-ink-muted">
                             {displayUser.role.replace(/_/g, " ").toLowerCase()}
                           </span>
                         </span>
-                        <ChevronDown className="hidden size-4 shrink-0 text-muted-foreground sm:block" />
+                        <ChevronDown className="hidden size-4 shrink-0 text-ink-muted sm:block" />
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent

@@ -1,231 +1,77 @@
-"use client";
-
-import { useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { DataTable } from "@/components/ui/data-table";
-import { Activity, CheckCircle, Clock, Play, Users } from "lucide-react";
-import type { ColumnDef } from "@tanstack/react-table";
-import type { CanonicalQueueEntry } from "@/types/queue.types";
-import { getQueuePatientDisplayName, getQueueStatusLabel } from "@/lib/queue/queue-adapter";
-import type { DoctorQueueSection } from "./doctor-dashboard.logic";
-import { getDoctorQueueLaneLabel } from "./doctor-dashboard.logic";
+import Link from "next/link";
+import { ArrowRight, Clock, Users } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button-utils";
+import { cn } from "@/lib/utils";
+import { EmptyBlock, LiveTag, Pill, Surface } from "@/components/tbd";
+import type { DoctorQueueLine } from "./doctor-dashboard.logic";
 
 interface DoctorDashboardQueueCardProps {
-  doctorQueueSections: DoctorQueueSection[];
-  resolvedActiveDoctorQueueLane: string;
-  activeDoctorQueueSection: DoctorQueueSection | undefined;
-  selectedDoctorQueueItems: CanonicalQueueEntry[];
-  highlightedQueuePatient: CanonicalQueueEntry | null;
-  onSelectQueueLane: (lane: string) => void;
-  onViewQueue: () => void;
+  /** In-clinic, checked-in patients in the order they will be seen. */
+  lines: DoctorQueueLine[];
 }
 
-function getStatusColor(status: string) {
-  switch (status) {
-    case "WAITING":
-      return "bg-yellow-100 text-yellow-800";
-    case "IN_PROGRESS":
-      return "bg-blue-100 text-blue-800";
-    case "CONFIRMED":
-      return "bg-green-100 text-green-800";
-    case "COMPLETED":
-      return "bg-gray-100 text-gray-800";
-    default:
-      return "bg-gray-100 text-gray-800";
-  }
-}
+const STATUS_PILL: Record<DoctorQueueLine["status"], { tone: "blue" | "green" | "amber"; label: string }> = {
+  IN_PROGRESS: { tone: "blue", label: "In progress" },
+  CHECKED_IN: { tone: "green", label: "Checked in" },
+  QUEUED: { tone: "amber", label: "Queued" },
+};
 
-function getStatusIcon(status: string) {
-  switch (status) {
-    case "WAITING":
-      return <Clock className="size-4" />;
-    case "IN_PROGRESS":
-      return <Play className="size-4" />;
-    case "CONFIRMED":
-      return <Users className="size-4" />;
-    case "COMPLETED":
-      return <CheckCircle className="size-4" />;
-    default:
-      return <Activity className="size-4" />;
-  }
-}
-
-export function DoctorDashboardQueueCard({
-  doctorQueueSections,
-  resolvedActiveDoctorQueueLane,
-  activeDoctorQueueSection,
-  selectedDoctorQueueItems,
-  highlightedQueuePatient,
-  onSelectQueueLane,
-  onViewQueue,
-}: DoctorDashboardQueueCardProps) {
-  const liveQueueColumns = useMemo<ColumnDef<CanonicalQueueEntry>[]>(
-    () => [
-      {
-        accessorKey: "patientName",
-        header: "Patient",
-        cell: ({ row }) => {
-          const queueItem = row.original;
-          const queueLabel = getDoctorQueueLaneLabel(queueItem);
-
-          return (
-            <div className="flex items-center gap-3">
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-                <Users className="size-4" />
-              </div>
-              <div className="min-w-0">
-                <div className="truncate text-sm font-semibold text-foreground">
-                  {getQueuePatientDisplayName(queueItem)}
-                </div>
-                <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
-                    {queueLabel}
-                  </Badge>
-                  <span className="text-muted-foreground/80">#{queueItem.position || 0}</span>
-                </div>
-              </div>
-            </div>
-          );
-        },
-      },
-      {
-        accessorKey: "doctorName",
-        header: "Doctor",
-        cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.doctorName || "Assigned doctor pending"}</span>,
-      },
-      {
-        accessorKey: "status",
-        header: "Status",
-        cell: ({ row }) => (
-          <Badge
-            className={`${getStatusColor(row.original.status)} flex w-max items-center justify-center gap-1 whitespace-nowrap border px-2 py-0.5 text-[10px] font-semibold`}
-          >
-            {getStatusIcon(row.original.status)}
-            {getQueueStatusLabel(row.original)}
-          </Badge>
-        ),
-      },
-      {
-        id: "waitTime",
-        header: "Wait Time",
-        cell: ({ row }) => {
-          const waitValue = row.original.estimatedWaitTime || row.original.waitTime;
-          if (!waitValue) return <span className="text-muted-foreground">-</span>;
-          return (
-            <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-              <Clock className="size-3" />
-              {waitValue}m
-            </span>
-          );
-        },
-      },
-    ],
-    []
-  );
-
+/** Right rail "Live Queue": read only, the queue itself is worked from the Queue page. */
+export function DoctorDashboardQueueCard({ lines }: DoctorDashboardQueueCardProps) {
   return (
-    <Card className="overflow-hidden border-l-2 border-l-emerald-400 shadow-sm">
-      <CardHeader className="flex flex-col gap-3 border-b border-border bg-muted/40 px-4 pb-4 pt-4 dark:bg-muted/20 sm:flex-row sm:items-end sm:justify-between">
-        <CardTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
-          <div className="flex size-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-            <Activity className="size-4" />
-          </div>
-          Live Queue
-        </CardTitle>
-        <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto">
-          <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium text-muted-foreground">
-            <span className="rounded-full border border-border bg-background px-2.5 py-1">Direct treatment lanes</span>
-            <span className="rounded-full border border-border bg-background px-2.5 py-1">Live queue snapshot</span>
-            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
-              Read only
-            </span>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-            onClick={onViewQueue}
-          >
-            View Queue Workspace
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-y-3 p-3 sm:p-4">
-        {highlightedQueuePatient ? (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3 shadow-sm dark:border-emerald-900 dark:bg-emerald-950/40">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
-                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300">
-                  Next patient
-                </div>
-                <div className="mt-1 truncate text-lg font-semibold text-foreground">
-                  {getQueuePatientDisplayName(highlightedQueuePatient)}
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <Badge variant="outline" className="border-emerald-200 bg-white text-emerald-700 dark:border-emerald-900 dark:bg-muted/20 dark:text-emerald-200">
-                    {getDoctorQueueLaneLabel(highlightedQueuePatient)}
-                  </Badge>
-                  <span>{highlightedQueuePatient.doctorName || "Assigned doctor pending"}</span>
-                  <span className="text-muted-foreground/60">·</span>
-                  <span>Queue #{highlightedQueuePatient.position || 0}</span>
-                </div>
-              </div>
-              <Badge
-                variant="outline"
-                className="shrink-0 border-emerald-200 bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white dark:border-emerald-700 dark:bg-emerald-500"
-              >
-                {getQueueStatusLabel(highlightedQueuePatient)}
-              </Badge>
-            </div>
-          </div>
-        ) : null}
+    <Surface as="section" className="gap-2.5 p-[18px]" aria-label="Live queue">
+      <div className="flex items-center gap-2.5">
+        <h2 className="m-0 flex-1 text-base font-bold text-ink">Live Queue</h2>
+        <LiveTag>Live</LiveTag>
+      </div>
+      <p className="m-0 text-[13px] font-medium text-ink-muted">
+        Checked-in patients, in the order they will be seen.
+      </p>
 
-        <div className="flex flex-wrap gap-2">
-          {doctorQueueSections.map((section) => (
-            <Badge
-              key={section.key}
-              asChild
-              variant="outline"
-              className={`cursor-pointer gap-2 px-3 py-2 text-sm font-semibold shadow-sm transition ${
-                resolvedActiveDoctorQueueLane === section.key
-                  ? "border-emerald-500 bg-emerald-600 text-white shadow-md ring-1 ring-emerald-300 dark:border-emerald-400 dark:bg-emerald-500 dark:text-white"
-                  : "border-border bg-background text-foreground hover:bg-muted/40"
-              }`}
-            >
-              <button type="button" onClick={() => onSelectQueueLane(section.key)}>
-                <span className="truncate font-semibold">{section.title}</span>
-                <span className="rounded-md bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
-                  {section.items.length}
-                </span>
-              </button>
-            </Badge>
-          ))}
-        </div>
-
-        <div className="flex items-center justify-between rounded-xl border border-border bg-background px-3 py-2">
-          <div className="min-w-0">
-            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-600">
-              Selected lane
-            </div>
-            <div className="mt-1 truncate text-sm font-semibold text-foreground">
-              {activeDoctorQueueSection?.title || "Live queue"}
-            </div>
-          </div>
-          <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
-            {selectedDoctorQueueItems.length}
-          </Badge>
-        </div>
-
-        <DataTable
-          columns={liveQueueColumns}
-          data={selectedDoctorQueueItems}
-          pageSize={5}
-          emptyMessage="No active queue entries right now."
-          compact
+      {lines.length === 0 ? (
+        <EmptyBlock
+          icon={Users}
+          title="No one is waiting"
+          description="Patients show here after they check in at the clinic."
+          className="px-2 py-6"
         />
-      </CardContent>
-    </Card>
+      ) : (
+        <ol className="m-0 flex list-none flex-col p-0">
+          {lines.map((line) => {
+            const pill = STATUS_PILL[line.status];
+            return (
+              <li key={line.key} className="flex items-center gap-3 border-b border-hair py-[11px] last:border-b-0">
+                <span
+                  className="flex size-7 shrink-0 items-center justify-center rounded-full bg-well text-xs font-extrabold text-ink-soft"
+                  aria-label={`Position ${line.position}`}
+                >
+                  {line.position}
+                </span>
+                <span className="flex min-w-0 flex-1 flex-col gap-px">
+                  <span className="truncate text-sm font-bold text-ink">{line.patientName}</span>
+                  <span className="truncate text-xs text-ink-muted">{line.label}</span>
+                </span>
+                <span className="flex shrink-0 flex-col items-end gap-1">
+                  <Pill tone={pill.tone}>{pill.label}</Pill>
+                  {line.status === "IN_PROGRESS" ? (
+                    <span className="text-xs text-ink-muted">Now</span>
+                  ) : line.waitMinutes !== null ? (
+                    <span className="inline-flex items-center gap-1 whitespace-nowrap text-xs font-semibold text-ink-soft">
+                      <Clock className="size-3" strokeWidth={2.4} aria-hidden="true" />
+                      {line.waitMinutes} min
+                    </span>
+                  ) : null}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+
+      <Link href="/queue" className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full px-3.5")}>
+        Open queue
+        <ArrowRight aria-hidden="true" />
+      </Link>
+    </Surface>
   );
 }

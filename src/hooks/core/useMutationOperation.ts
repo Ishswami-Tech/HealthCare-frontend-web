@@ -34,6 +34,16 @@ export interface MutationOperationOptions<TData, TVariables, TError = Error> {
   errorMessage?: string;
   /** Query keys to invalidate on success */
   invalidateQueries?: (string | string[])[];
+  /**
+   * refetchType passed to each invalidateQueries() call. Defaults to
+   * React Query's own default ('active') to preserve existing behavior for
+   * every caller of this shared hook. Pass 'none' when invalidating a large
+   * number of query-key families (e.g. appointment mutations invalidating
+   * ~27 families at once) so mounted-but-currently-inactive queries don't
+   * all refetch simultaneously - they'll still refetch on next use since
+   * they're marked stale, just not all at once on this mutation.
+   */
+  invalidateRefetchType?: "active" | "inactive" | "all" | "none";
   /** Callback on success */
   onSuccess?: (data: TData, variables: TVariables) => void | Promise<void>;
   /** Callback on error */
@@ -75,6 +85,7 @@ export function useMutationOperation<TData, TVariables, TError = Error>(
     successMessage,
     errorMessage,
     invalidateQueries = [],
+    invalidateRefetchType,
     onSuccess,
     onError,
     showToast = true,
@@ -106,6 +117,7 @@ export function useMutationOperation<TData, TVariables, TError = Error>(
             queryClientRef.current.invalidateQueries({
               queryKey: Array.isArray(queryKey) ? queryKey : [queryKey],
               exact: false,
+              ...(invalidateRefetchType ? { refetchType: invalidateRefetchType } : {}),
             })
           )
         );

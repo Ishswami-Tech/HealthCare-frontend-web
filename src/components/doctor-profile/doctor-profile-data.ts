@@ -33,7 +33,7 @@ export const DOCTOR = {
   socialLinks: {
     instagram: "https://instagram.com/drchandrakumardeshmukh",
     youtube: HOME_LINKS.youtube,
-    whatsapp: "https://wa.me/919860370961",
+    whatsapp: "https://wa.me/917972548944",
     email: "mailto:info@viddhakarma.com",
   },
 } as const;

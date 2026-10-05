@@ -35,10 +35,11 @@ export {
   useCurrentClinicId,
   useClinicStats,
   useClinicCommunicationConfig,
-  useCreateClinicCommunicationConfig,
   useUpdateClinicCommunicationConfig,
-  useDeleteClinicCommunicationConfig,
-  useTestClinicCommunication,
+  useUpdateClinicSesConfig,
+  useTestClinicEmailConfig,
+  useTestClinicWhatsAppConfig,
+  useTestClinicSmsConfig,
 } from './useClinics';
 
 // Patients - export specific

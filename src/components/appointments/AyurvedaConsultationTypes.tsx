@@ -84,15 +84,15 @@ export default function AyurvedaConsultationTypes({
   return (
     <div className="flex flex-col gap-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-semibold mb-2">{t("consultations.selectType")}</h2>
-        <p className="text-gray-600">
+        <h2 className="m-0 mb-2 text-2xl font-extrabold tracking-[-0.4px] text-ink">{t("consultations.selectType")}</h2>
+        <p className="m-0 text-sm text-ink-muted">
           {t("consultations.selectDescription")}
         </p>
       </div>
 
       {Object.entries(groupedConsultations).map(([category, consultations]) => (
         <div key={category} className="flex flex-col gap-y-3">
-          <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">
+          <h3 className="m-0 border-b border-hair pb-2 text-base font-bold text-ink">
             {category.replace(/_/g, " ")} {t("consultations.treatments")}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -114,12 +114,12 @@ export default function AyurvedaConsultationTypes({
       ))}
 
       {selectedType && consultationDetailsByType[selectedType] && (
-        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="mt-6 rounded-2xl border border-[#a7f3d0] bg-[#ecfdf5] p-4 text-[#065f46] dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
           <div className="flex items-center gap-2 mb-2">
             <TherapyBadge type={selectedType} />
-            <span className="font-medium">{t("consultations.selected")}: {consultationDetailsByType[selectedType].name}</span>
+            <span className="font-bold">{t("consultations.selected")}: {consultationDetailsByType[selectedType].name}</span>
           </div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm">
             <p>{t("consultations.duration")}: {consultationDetailsByType[selectedType].duration} {t("common.minutes")}</p>
             {showPricing && consultationDetailsByType[selectedType].price && (
               <p>{t("consultations.price")}: ₹{consultationDetailsByType[selectedType].price}</p>

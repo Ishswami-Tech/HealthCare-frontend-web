@@ -16,7 +16,7 @@ import { useMutationOperation } from "../core/useMutationOperation";
 import { useOptimisticMutation } from "../core/useOptimisticMutation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
-import { TOAST_IDS, useToast } from '../utils/use-toast';
+import { TOAST_IDS, useToast, showWarningToast } from '../utils/use-toast';
 import { sanitizeErrorMessage } from '@/lib/utils/error-handler';
 import { useAuth } from '../auth/useAuth';
 import { Role } from '@/types/auth.types';
@@ -46,6 +46,7 @@ import {
     updateAppointmentStatus, // Consolidated status update
     startConsultation,
     completeAppointment,
+  bulkCompleteAppointments,
   bulkUpdateAppointmentStatus,
   cancelAppointment,
   testAppointmentContext,
@@ -394,6 +395,8 @@ export const useAppointments = (
 
     const response = await clinicApiClient.getAppointments({
       ...(filters.clinicId ? { clinicId: filters.clinicId } : {}),
+      ...(filters.patientId ? { patientId: filters.patientId } : {}),
+      ...(filters.doctorId ? { doctorId: filters.doctorId } : {}),
       ...(statusParam ? { status: statusParam } : {}),
       ...(filters.date ? { date: filters.date } : {}),
       ...(filters.startDate ? { startDate: filters.startDate } : {}),
@@ -708,6 +711,11 @@ export const useUpdateAppointment = () => {
       // overwritten by the subsequent refetch, so we drop them to avoid
       // both double-work and stale-data windows.
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // 27 query-key families invalidated at once here - refetchType: 'none'
+      // marks them stale without forcing every mounted-but-inactive query to
+      // refetch simultaneously on this one mutation (they still refetch
+      // normally next time they're actually used).
+      invalidateRefetchType: 'none',
       onSuccess: (updatedAppointment) => {
         const appointmentId = String((updatedAppointment as any)?.appointmentId || (updatedAppointment as any)?.id || '');
         if (!appointmentId) {
@@ -751,6 +759,11 @@ export const useCancelAppointment = () => {
       // appointment-surface query family. Avoids double-invalidation and
       // ensures counselor/therapist dashboards see the cancellation.
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // 27 query-key families invalidated at once here - refetchType: 'none'
+      // marks them stale without forcing every mounted-but-inactive query to
+      // refetch simultaneously on this one mutation (they still refetch
+      // normally next time they're actually used).
+      invalidateRefetchType: 'none',
       onError: (error: Error) => {
         logger.error('Failed to cancel appointment', error, { component: 'useAppointments' });
       },
@@ -781,6 +794,11 @@ export const useConfirmAppointment = () => {
       loadingMessage: 'Confirming appointment...',
       successMessage: 'Appointment confirmed successfully',
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // 27 query-key families invalidated at once here - refetchType: 'none'
+      // marks them stale without forcing every mounted-but-inactive query to
+      // refetch simultaneously on this one mutation (they still refetch
+      // normally next time they're actually used).
+      invalidateRefetchType: 'none',
     }
   );
 };
@@ -916,6 +934,11 @@ export const useCheckInAppointment = () => {
       loadingMessage: 'Checking in patient...',
       successMessage: 'Patient check-in confirmed successfully',
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // 27 query-key families invalidated at once here - refetchType: 'none'
+      // marks them stale without forcing every mounted-but-inactive query to
+      // refetch simultaneously on this one mutation (they still refetch
+      // normally next time they're actually used).
+      invalidateRefetchType: 'none',
     }
   );
 };
@@ -1131,6 +1154,11 @@ export const useForceCheckInAppointment = () => {
       loadingMessage: 'Checking in patient...',
       successMessage: 'Patient check-in confirmed successfully',
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // 27 query-key families invalidated at once here - refetchType: 'none'
+      // marks them stale without forcing every mounted-but-inactive query to
+      // refetch simultaneously on this one mutation (they still refetch
+      // normally next time they're actually used).
+      invalidateRefetchType: 'none',
     }
   );
 };
@@ -1159,6 +1187,96 @@ export const useMarkAppointmentNoShow = () => {
       loadingMessage: "Marking appointment as no-show...",
       successMessage: "Appointment marked as no-show",
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // 27 query-key families invalidated at once here - refetchType: 'none'
+      // marks them stale without forcing every mounted-but-inactive query to
+      // refetch simultaneously on this one mutation (they still refetch
+      // normally next time they're actually used).
+      invalidateRefetchType: 'none',
+    }
+  );
+};
+
+/**
+ * Hook for setting an appointment to an arbitrary status (clinic-admin
+ * management views). For specific workflows with their own side effects,
+ * prefer the dedicated hooks (`useMarkAppointmentNoShow`,
+ * `useCheckInAppointment`, etc.) — this is the general-purpose escape hatch.
+ */
+export const useUpdateAppointmentStatus = () => {
+  const { hasPermission } = useRBAC();
+
+  return useMutationOperation<{ success: boolean }, { appointmentId: string; status: string }>(
+    async ({ appointmentId, status }) => {
+      if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
+        throw new Error("Insufficient permissions to update appointment");
+      }
+
+      const result = await updateAppointmentStatus(appointmentId, { status });
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      return { success: true };
+    },
+    {
+      toastId: TOAST_IDS.APPOINTMENT.UPDATE,
+      loadingMessage: "Updating appointment status...",
+      successMessage: "Appointment status updated",
+      invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // 27 query-key families invalidated at once here - refetchType: 'none'
+      // marks them stale without forcing every mounted-but-inactive query to
+      // refetch simultaneously on this one mutation (they still refetch
+      // normally next time they're actually used).
+      invalidateRefetchType: 'none',
+    }
+  );
+};
+
+/**
+ * Bulk-complete a set of selected appointments in one request, using the
+ * dedicated backend batch endpoint (POST /appointments/complete/bulk) rather
+ * than looping individual status-update calls per appointment.
+ */
+export const useBulkCompleteAppointments = () => {
+  const { hasPermission } = useRBAC();
+
+  return useMutationOperation<
+    { completed: number; failed: number },
+    { appointmentIds: string[]; doctorId?: string; notes?: string }
+  >(
+    async ({ appointmentIds, doctorId, notes }) => {
+      if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
+        throw new Error("Insufficient permissions to complete appointments");
+      }
+
+      const result = await bulkCompleteAppointments({ appointmentIds, doctorId, notes });
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      return { completed: result.completed ?? 0, failed: result.failed ?? 0 };
+    },
+    {
+      toastId: TOAST_IDS.APPOINTMENT.UPDATE,
+      loadingMessage: "Completing selected appointments...",
+      successMessage: "Selected appointments completed",
+      invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // 27 query-key families invalidated at once here - refetchType: 'none'
+      // marks them stale without forcing every mounted-but-inactive query to
+      // refetch simultaneously on this one mutation (they still refetch
+      // normally next time they're actually used).
+      invalidateRefetchType: 'none',
+      onSuccess: (data) => {
+        if (data.failed > 0) {
+          showWarningToast(
+            `${data.completed} completed, ${data.failed} failed`,
+            {
+              id: TOAST_IDS.APPOINTMENT.UPDATE,
+              description: "The failed appointments are still selected — check their status and retry.",
+            }
+          );
+        }
+      },
     }
   );
 };
@@ -1193,6 +1311,11 @@ export const useReassignAppointmentDoctor = () => {
       loadingMessage: "Reassigning appointment...",
       successMessage: "Appointment reassigned successfully",
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // 27 query-key families invalidated at once here - refetchType: 'none'
+      // marks them stale without forcing every mounted-but-inactive query to
+      // refetch simultaneously on this one mutation (they still refetch
+      // normally next time they're actually used).
+      invalidateRefetchType: 'none',
       showLoading: false,
     }
   );
@@ -1408,28 +1531,91 @@ export const useMyAppointments = (filters?: {
   const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
   const userId = session?.user?.id;
   const userRole = session?.user?.role;
+  // Backend `@Roles(Role.PATIENT)` on GET /appointments/my-appointments — staff
+  // callers get 403 Forbidden. Doctors/admins must use the clinic appointments list.
+  const isPatientRole = String(userRole || '').toUpperCase() === Role.PATIENT;
 
   const hasSocketFailed = connectionStatus !== 'connected';
 
   const query = useQueryData(
     ['myAppointments', userId, userRole, filters],
     async (): Promise<any> => {
-      // ✅ Server-action path — this reads the session cookie on the server,
-      // which is more resilient than the client token store on WebKit/iPhone.
-      const result = await getMyAppointmentsServerAction({
-        ...(filters?.clinicId ? { clinicId: filters.clinicId } : {}),
+      const buildFilterParams = () => ({
         ...(filters?.status ? { status: Array.isArray(filters.status) ? filters.status.join(',') : filters.status } : {}),
         ...(filters?.date ? { date: filters.date } : {}),
         ...(filters?.startDate ? { startDate: filters.startDate } : {}),
         ...(filters?.endDate ? { endDate: filters.endDate } : {}),
-        ...(filters?.page ? { page: filters.page } : {}),
-        ...(filters?.limit ? { limit: filters.limit } : {}),
+        page: filters?.page ?? 1,
+        limit: filters?.limit ?? 100,
       });
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch appointments');
+
+      let successfulResult: { appointments?: unknown; data?: unknown; meta?: unknown };
+
+      // ✅ Fast path — direct client-side fetch. Every one of these hooks used
+      // to go through a Server Action, but Next.js's App Router dispatches
+      // *all* Server Actions through one global, startTransition-wrapped
+      // action queue (see next/dist/client/app-call-server.js -> callServer ->
+      // dispatchAppRouterAction) - it serializes them regardless of which
+      // component or hook triggered the call. On a page with several
+      // independent data hooks, that turned N logically-parallel requests
+      // into one strictly sequential chain (confirmed: appointments/profile/
+      // clinic calls on the same page ran back-to-back with ~0ms gaps between
+      // them, summing to 6-20+ seconds instead of capping at the slowest
+      // single call). This hook is already gated on `!!userId` from the same
+      // synced session that holds the client access token, so the token is
+      // reliably present here - falling back to the Server Action only
+      // covers the genuine edge case (WebKit/iPhone session not yet synced
+      // client-side) the original implementation was guarding against.
+      // The session's access_token is passed explicitly rather than relying on
+      // clinicApiClient's own internal lookup (which reads from the Zustand
+      // auth store): that store is synced from this same `session` value via
+      // a separate useEffect one render behind, so on a cold/fresh page load
+      // the store can still be empty at the exact moment this queryFn runs
+      // even though `session.access_token` itself is already available here.
+      const accessToken = (session as { access_token?: string } | null | undefined)?.access_token;
+      try {
+        if (!accessToken) {
+          throw new Error('NO_CLIENT_TOKEN');
+        }
+        const clinicHeaders: Record<string, string> = { Authorization: `Bearer ${accessToken}` };
+        if (filters?.clinicId) {
+          clinicHeaders['X-Clinic-ID'] = filters.clinicId;
+        }
+        const response = await clinicApiClient.get<{
+          data?: unknown[] | { appointments?: unknown[]; pagination?: unknown };
+          appointments?: unknown[];
+          pagination?: unknown;
+          meta?: unknown;
+        }>(API_ENDPOINTS.APPOINTMENTS.MY_APPOINTMENTS, buildFilterParams(), { headers: clinicHeaders });
+        if (response.statusCode === 403 && !response.data) {
+          throw new Error('PROFILE_INCOMPLETE');
+        }
+        if (!response.data) {
+          throw new Error('No appointment data available');
+        }
+        successfulResult = response.data as typeof successfulResult;
+      } catch (fastPathError) {
+        if (fastPathError instanceof Error && fastPathError.message === 'PROFILE_INCOMPLETE') {
+          throw new Error('Profile incomplete. Please complete your profile to access appointments.');
+        }
+        // Fall back to the resilient server-action path.
+        const result = await getMyAppointmentsServerAction({
+          ...(filters?.clinicId ? { clinicId: filters.clinicId } : {}),
+          ...(filters?.status ? { status: Array.isArray(filters.status) ? filters.status.join(',') : filters.status } : {}),
+          ...(filters?.date ? { date: filters.date } : {}),
+          ...(filters?.startDate ? { startDate: filters.startDate } : {}),
+          ...(filters?.endDate ? { endDate: filters.endDate } : {}),
+          ...(filters?.page ? { page: filters.page } : {}),
+          ...(filters?.limit ? { limit: filters.limit } : {}),
+        });
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to fetch appointments');
+        }
+        successfulResult = result as typeof successfulResult;
       }
-      const successfulResult = result as any;
-      const appointments = extractAppointments(successfulResult.appointments ?? successfulResult.data);
+      const appointments = extractAppointments(
+        (successfulResult as any).appointments ?? (successfulResult as any).data
+      );
       const sessionKey = useAuthStore.getState().session?.session_id || String(userId || '') + '|' + String(userRole || '');
       markAppointmentsLoadedOnce(sessionKey);
       return {
@@ -1438,11 +1624,15 @@ export const useMyAppointments = (filters?: {
         data: {
           appointments,
         },
-        meta: successfulResult.meta,
+        meta: (successfulResult as any).meta,
       } as any;
     },
     {
-      enabled: (options?.enabled ?? true) && !!userId && hasPermission(Permission.VIEW_APPOINTMENTS),
+      enabled:
+        (options?.enabled ?? true) &&
+        !!userId &&
+        isPatientRole &&
+        hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 0,
       gcTime: 5 * 60 * 1000,
       refetchOnMount: 'always',
@@ -1759,7 +1949,15 @@ export const useAppointmentStats = () => {
       // to the revalidation storm (every refetch fired an RSC POST that
       // re-rendered the route subtree). The backend scope handles
       // clinic-scoped filtering server-side from the access token.
-      const response = await clinicApiClient.getAppointments();
+      // `limit` is a guardrail, not a real fix: this hook currently has no
+      // callers anywhere in the app, and was previously calling
+      // getAppointments() with zero params at all - unbounded, on a 15s
+      // poll. If/when this gets wired into a dashboard, it would flood the
+      // backend with a full unbounded appointment scan just to read
+      // .length off 4 counts. A dedicated backend stats/count endpoint
+      // would be the real fix; this bound is the minimum needed so this
+      // isn't a landmine in the meantime.
+      const response = await clinicApiClient.getAppointments({ limit: 500 });
       if (!response.success) {
         throw new Error(response.error || response.message || 'Failed to fetch appointments');
       }
@@ -1823,6 +2021,11 @@ export const useProcessCheckIn = () => {
       loadingMessage: 'Confirming patient arrival...',
       successMessage: 'Patient confirmed and added to queue successfully',
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // 27 query-key families invalidated at once here - refetchType: 'none'
+      // marks them stale without forcing every mounted-but-inactive query to
+      // refetch simultaneously on this one mutation (they still refetch
+      // normally next time they're actually used).
+      invalidateRefetchType: 'none',
     }
   );
 };
@@ -2018,6 +2221,11 @@ export const useRescheduleAppointment = () => {
       loadingMessage: 'Rescheduling appointment...',
       successMessage: 'Appointment rescheduled successfully',
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // 27 query-key families invalidated at once here - refetchType: 'none'
+      // marks them stale without forcing every mounted-but-inactive query to
+      // refetch simultaneously on this one mutation (they still refetch
+      // normally next time they're actually used).
+      invalidateRefetchType: 'none',
     }
   );
 };
@@ -2045,6 +2253,11 @@ export const useRejectVideoProposal = () => {
       loadingMessage: 'Rejecting proposal...',
       successMessage: 'Proposal rejected successfully',
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // 27 query-key families invalidated at once here - refetchType: 'none'
+      // marks them stale without forcing every mounted-but-inactive query to
+      // refetch simultaneously on this one mutation (they still refetch
+      // normally next time they're actually used).
+      invalidateRefetchType: 'none',
     }
   );
 };
@@ -2107,6 +2320,11 @@ export const useScanLocationQrAndCheckIn = () => {
       loadingMessage: 'Checking you in...',
       successMessage: 'Check-in successful',
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // 27 query-key families invalidated at once here - refetchType: 'none'
+      // marks them stale without forcing every mounted-but-inactive query to
+      // refetch simultaneously on this one mutation (they still refetch
+      // normally next time they're actually used).
+      invalidateRefetchType: 'none',
       showToast: false,
     }
   );
@@ -2154,7 +2372,12 @@ export async function prefetchMyAppointments(
 ) {
   const { userId, userRole, clinicId, hasPermission, filters } = options;
 
-  if (!userId || !hasPermission(Permission.VIEW_APPOINTMENTS)) {
+  // Patient-only endpoint — never prefetch for doctors/staff (403 Forbidden).
+  if (
+    !userId ||
+    String(userRole || '').toUpperCase() !== Role.PATIENT ||
+    !hasPermission(Permission.VIEW_APPOINTMENTS)
+  ) {
     return;
   }
 
@@ -2245,7 +2468,11 @@ export async function prefetchAppointments(
     filters?: { clinicId?: string; doctorId?: string; startDate?: string; endDate?: string; limit?: number };
   }
 ) {
-  const resolvedFilters = options.filters ?? {};
+  const resolvedFilters = {
+    ...(options.filters ?? {}),
+    ...(options.clinicId ? { clinicId: options.clinicId } : {}),
+    ...(options.doctorId ? { doctorId: options.doctorId } : {}),
+  };
   const queryKey = serializeAppointmentQueryKey(options.clinicId, resolvedFilters);
 
   try {

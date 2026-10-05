@@ -1,236 +1,130 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, CheckCircle, Clock, Pill, TrendingUp } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { usePrescriptions, useInventory, usePharmacyStats, useMedicineDeskQueue } from "@/hooks/query/usePharmacy";
+import { useRecordCashPrescriptionPayment } from "@/hooks/query/usePatientVisits";
+import { API_ENDPOINTS } from "@/lib/config/config";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
-import { getQueuePositionLabel, normalizeQueueEntry } from "@/lib/queue/queue-adapter";
-import { SkeletonList } from "@/components/ui/loading";
-import { StatCardSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
-import { PharmacistDashboardHeader } from "./PharmacistDashboardHeader";
-import { PharmacistDashboardStatsGrid } from "./PharmacistDashboardStatsGrid";
-import { PharmacistDashboardQueueCard } from "./PharmacistDashboardQueueCard";
-import { PharmacistDashboardInventoryAlerts } from "./PharmacistDashboardInventoryAlerts";
-import { PharmacistDashboardOperations } from "./PharmacistDashboardOperations";
+import { resolveDisplayNameAndInitials } from "@/lib/utils/display-name";
+import { PharmacistDashboardView } from "./PharmacistDashboardView";
+import {
+  buildCashRecordedNotice,
+  buildDeskQueue,
+  buildInventorySummary,
+  buildPharmacyStats,
+  todayLabel,
+  unwrapList,
+  type CashRecordedNotice,
+  type DeskQueueItem,
+} from "./pharmacist-dashboard.logic";
 
-type PrescriptionData = {
-  id: string;
-  status?: string;
-  paymentStatus?: string;
-};
+function errorText(error: unknown): string | null {
+  if (!error) return null;
+  if (error instanceof Error && error.message) return error.message;
+  return typeof error === "string" && error ? error : "Please try again.";
+}
 
-type InventoryData = {
-  id?: string;
-  name?: string;
-  medicineName?: string;
-  currentStock?: number;
-  quantity?: number;
-  minStock?: number;
-  minThreshold?: number;
-  unit?: string;
-};
-
-type QueueItem = {
-  id: string;
-  patientName: string;
-  medicines: unknown[];
-  priority: string;
-  status: string;
-};
-
+/** Data container: reads the pharmacy hooks and hands plain props to `PharmacistDashboardView`. */
 export default function PharmacistDashboardContent() {
-  const { push } = useRouter();
   const { session } = useAuth();
   const user = session?.user;
   const clinicId = user?.clinicId;
   const [searchTerm, setSearchTerm] = useState("");
+  const [cashPaymentTarget, setCashPaymentTarget] = useState<DeskQueueItem | null>(null);
+  const [cashPaymentError, setCashPaymentError] = useState<string | null>(null);
+  const [cashRecorded, setCashRecorded] = useState<CashRecordedNotice | null>(null);
 
   useWebSocketQuerySync();
 
-  const { data: prescriptionsData = [], isPending: prescriptionsPending } = usePrescriptions(clinicId || "", {
+  const { data: prescriptionsData, isPending: prescriptionsPending } = usePrescriptions(clinicId || "", {
     limit: 100,
   });
-  const { data: inventoryData = [], isPending: inventoryPending } = useInventory(clinicId || "", {
+  const {
+    data: inventoryData,
+    isPending: inventoryPending,
+    error: inventoryError,
+  } = useInventory(clinicId || "", {
     limit: 100,
   });
   const { data: pharmacyStats } = usePharmacyStats(clinicId || "");
-  const { data: medicineDeskQueue = [] } = useMedicineDeskQueue(clinicId || "", !!clinicId);
+  const {
+    data: medicineDeskQueue,
+    isPending: queuePending,
+    error: queueError,
+    refetch: refetchQueue,
+  } = useMedicineDeskQueue(clinicId || "", !!clinicId);
 
-  const prescriptions = useMemo(
-    () => (Array.isArray(prescriptionsData) ? prescriptionsData : (prescriptionsData as any)?.prescriptions || []),
-    [prescriptionsData]
+  const queue = useMemo(() => buildDeskQueue(medicineDeskQueue), [medicineDeskQueue]);
+  const inventory = useMemo(() => buildInventorySummary(inventoryData), [inventoryData]);
+  const stats = useMemo(
+    () => buildPharmacyStats(prescriptionsData, inventory, pharmacyStats),
+    [inventory, pharmacyStats, prescriptionsData],
   );
-  const inventory = useMemo(
-    () => (Array.isArray(inventoryData) ? inventoryData : (inventoryData as any)?.inventory || []),
-    [inventoryData]
-  );
 
-  const stats = useMemo(() => {
-    const pendingStatuses = new Set(["PENDING"]);
-    const dispensedStatuses = new Set(["FILLED", "DISPENSED", "COMPLETED"]);
+  const recordCashPayment = useRecordCashPrescriptionPayment();
+  const recordedBy = user ? resolveDisplayNameAndInitials(user).displayName : "";
 
-    let pendingPrescriptions = 0;
-    let awaitingPayment = 0;
-    let dispensedToday = 0;
+  const handleOpenCashPayment = useCallback((item: DeskQueueItem) => {
+    setCashPaymentError(null);
+    setCashPaymentTarget(item);
+  }, []);
 
-    for (const prescription of prescriptions as PrescriptionData[]) {
-      const status = String(prescription.status || "").toUpperCase();
-      const paymentStatus = String(prescription.paymentStatus || "PENDING").toUpperCase();
+  const handleCloseCashPayment = useCallback(() => {
+    setCashPaymentTarget(null);
+    setCashPaymentError(null);
+  }, []);
 
-      if (pendingStatuses.has(status)) {
-        pendingPrescriptions += 1;
-        if (paymentStatus !== "PAID") {
-          awaitingPayment += 1;
-        }
-      }
-
-      if (dispensedStatuses.has(status)) {
-        dispensedToday += 1;
-      }
-    }
-
-    const lowStockItems = (inventory as InventoryData[]).reduce((count, item) => {
-      return (item.currentStock || item.quantity || 0) < (item.minStock || item.minThreshold || 0)
-        ? count + 1
-        : count;
-    }, 0);
-
-    return {
-      pendingPrescriptions,
-      awaitingPayment,
-      dispensedToday,
-      lowStockItems,
-      monthlyDispensed: (pharmacyStats as any)?.monthlyDispensed || 0,
-    };
-  }, [inventory, pharmacyStats, prescriptions]);
-
-  const processedQueue = useMemo<QueueItem[]>(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
-    return (Array.isArray(medicineDeskQueue) ? medicineDeskQueue : []).reduce<QueueItem[]>((items, prescription: any) => {
-      if (!prescription?.id) return items;
-
-      const entry = normalizeQueueEntry(prescription);
-      const item = {
-        id: entry.entryId,
-        patientName: entry.patientName || "Unknown Patient",
-        medicines: prescription.medicines || prescription.medicineNames || [],
-        priority: prescription.priority || "normal",
-        status:
-          Boolean(entry.readyForHandover) || String(entry.paymentStatus).toUpperCase() === "PAID"
-            ? "ready_to_dispense"
-            : "awaiting_payment",
-      };
-
-      if (!normalizedSearch || item.patientName.toLowerCase().includes(normalizedSearch)) {
-        items.push(item);
-      }
-
-      return items;
-    }, []);
-  }, [medicineDeskQueue, searchTerm]);
-
-  const handleOpenPrescription = useCallback(
-    (prescriptionId: string) => {
-      if (prescriptionId === "all") {
-        push("/pharmacist/prescriptions");
+  // Runs only when the pharmacist presses "Mark paid — cash" in the confirm dialog.
+  const handleConfirmCashPayment = useCallback(
+    async (item: DeskQueueItem) => {
+      if (!clinicId) {
+        setCashPaymentError("No clinic is selected for your account.");
         return;
       }
-      push(`/pharmacist/prescriptions?prescriptionId=${prescriptionId}`);
+      setCashPaymentError(null);
+      try {
+        const result = await recordCashPayment.mutateAsync({ clinicId, prescriptionId: item.id });
+        setCashRecorded(buildCashRecordedNotice(item, result, recordedBy));
+        setCashPaymentTarget(null);
+      } catch (error) {
+        setCashPaymentError(errorText(error));
+      }
     },
-    [push]
+    [clinicId, recordCashPayment, recordedBy],
   );
 
-  const handleDispensePrescription = useCallback(
-    (prescriptionId: string) => {
-      push(`/pharmacist/prescriptions?prescriptionId=${prescriptionId}`);
-    },
-    [push]
-  );
+  const handlePrintInvoice = useCallback((invoiceId: string) => {
+    window.open(API_ENDPOINTS.BILLING.INVOICES.DOWNLOAD(invoiceId), "_blank", "noopener,noreferrer");
+  }, []);
 
-  const isInitialLoading = (prescriptionsPending || inventoryPending) && prescriptions.length === 0 && inventory.length === 0;
+  const hasPrescriptions = unwrapList(prescriptionsData, "prescriptions").length > 0;
+  const isInitialLoading =
+    (prescriptionsPending || inventoryPending) && !hasPrescriptions && inventory.totalMedicines === 0;
 
   return (
-    <div className="gap-y-4 p-4 sm:gap-y-5 sm:p-6">
-      <PharmacistDashboardHeader
-        onFindMedicine={() => push("/pharmacist/inventory")}
-        onAddStock={() => push("/pharmacist/inventory?action=add")}
-        searchTerm={searchTerm}
-        onSearchTermChange={setSearchTerm}
-      />
-
-      {isInitialLoading ? (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
-          <StatCardSkeleton icon={<Pill className="size-4" />} label="Pending" />
-          <StatCardSkeleton icon={<Clock className="size-4" />} label="Payment Due" />
-          <StatCardSkeleton icon={<CheckCircle className="size-4" />} label="Dispensed" />
-          <StatCardSkeleton icon={<AlertTriangle className="size-4" />} label="Low Stock" />
-          <StatCardSkeleton icon={<TrendingUp className="size-4" />} label="Monthly" />
-        </div>
-      ) : (
-        <PharmacistDashboardStatsGrid
-          pendingPrescriptions={stats.pendingPrescriptions}
-          awaitingPayment={stats.awaitingPayment}
-          dispensedToday={stats.dispensedToday}
-          lowStockItems={stats.lowStockItems}
-          monthlyDispensed={stats.monthlyDispensed}
-        />
-      )}
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {isInitialLoading ? (
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-sm font-medium uppercase tracking-tight text-slate-500">
-                Today&apos;s Queue
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="gap-y-3">
-              <SkeletonList items={4} />
-            </CardContent>
-          </Card>
-        ) : (
-          <PharmacistDashboardQueueCard
-            queueItems={processedQueue}
-            searchTerm={searchTerm}
-            onSearchTermChange={setSearchTerm}
-            onOpenPrescription={handleOpenPrescription}
-            onDispensePrescription={handleDispensePrescription}
-          />
-        )}
-
-        <div className="gap-y-6">
-          {isInitialLoading ? (
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-sm font-medium uppercase tracking-tight text-slate-500">
-                  Inventory Alerts
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="gap-y-3">
-                <SkeletonList items={3} />
-              </CardContent>
-            </Card>
-          ) : (
-            <PharmacistDashboardInventoryAlerts
-              inventoryItems={inventory as InventoryData[]}
-              lowStockCount={stats.lowStockItems}
-              onRestock={(itemId, itemName) =>
-                push(`/pharmacist/inventory?action=add&item=${encodeURIComponent(itemId || itemName)}`)
-              }
-            />
-          )}
-
-          <PharmacistDashboardOperations
-            onOpenInventory={() => push("/pharmacist/inventory")}
-            onOpenAnalytics={() => push("/pharmacist/inventory")}
-            onOpenHistory={() => push("/pharmacist/prescriptions")}
-            onOpenExpiry={() => push("/pharmacist/inventory?filter=expiring")}
-          />
-        </div>
-      </div>
-    </div>
+    <PharmacistDashboardView
+      dateLabel={todayLabel()}
+      stats={stats}
+      statsLoading={isInitialLoading}
+      queue={queue}
+      queueLoading={queuePending && queue.length === 0}
+      queueError={errorText(queueError)}
+      onRetryQueue={() => void refetchQueue()}
+      searchTerm={searchTerm}
+      onSearchTermChange={setSearchTerm}
+      inventory={inventory}
+      inventoryLoading={inventoryPending && inventory.totalMedicines === 0}
+      inventoryError={errorText(inventoryError)}
+      onPrintInvoice={handlePrintInvoice}
+      onRecordCashPayment={handleOpenCashPayment}
+      cashPaymentTarget={cashPaymentTarget}
+      isRecordingCashPayment={recordCashPayment.isPending}
+      cashPaymentError={cashPaymentError}
+      onConfirmCashPayment={(item) => void handleConfirmCashPayment(item)}
+      onCloseCashPayment={handleCloseCashPayment}
+      cashRecorded={cashRecorded}
+      onDismissCashRecorded={() => setCashRecorded(null)}
+    />
   );
 }

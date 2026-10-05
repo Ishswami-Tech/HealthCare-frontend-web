@@ -8,7 +8,7 @@ import { TOAST_IDS } from '../utils/use-toast';
 import { CACHE_TIMES, GC_TIMES } from './config';
 import { useAuth } from '@/hooks/auth/useAuth';
 import { clinicApiClient } from '@/lib/api/client';
-import { API_ENDPOINTS } from '@/lib/config/config';
+import { API_ENDPOINTS, APP_CONFIG } from '@/lib/config/config';
 import { getDoctors as getDoctorsServerAction } from '@/lib/actions/doctors.server';
 import { resolveDisplayNameAndInitials } from '@/lib/utils/display-name';
 import { usePatientStore } from '@/stores';
@@ -162,10 +162,12 @@ export const useDoctors = (clinicId: string, filters?: {
           delete (fallbackFilters as { locationId?: string }).locationId;
           const fallbackDoctors = await queryDoctors(fallbackFilters);
           if (fallbackDoctors.length > 0) {
-            console.log(
-              '[useDoctors] Location fallback recovered clinic-wide doctors:',
-              fallbackDoctors.length,
-            );
+            if (APP_CONFIG.ENVIRONMENT === "development") {
+              console.log(
+                '[useDoctors] Location fallback recovered clinic-wide doctors:',
+                fallbackDoctors.length,
+              );
+            }
             doctors = fallbackDoctors;
           }
         } catch (fallbackError) {
@@ -173,7 +175,9 @@ export const useDoctors = (clinicId: string, filters?: {
         }
       }
 
-      console.log('[useDoctors] Received doctors:', doctors.length, 'doctors');
+      if (APP_CONFIG.ENVIRONMENT === "development") {
+        console.log('[useDoctors] Received doctors:', doctors.length, 'doctors');
+      }
       return doctors;
     } catch (error) {
       if (isSessionInvalidError(error)) {
@@ -407,6 +411,11 @@ export const useDoctorSpecializations = () => {
       throw error;
     }
   }, {
+    // Reference/enum-like catalog of specialization categories - it does not
+    // change per request, so avoid refetching it on every focus/reconnect.
+    staleTime: CACHE_TIMES.VERY_LONG,
+    gcTime: GC_TIMES.STATIC,
+    refetchOnWindowFocus: false,
     retry: doctorQueryRetry,
   });
 };

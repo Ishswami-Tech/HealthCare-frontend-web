@@ -583,7 +583,10 @@ export default function ClinicAdminDashboard() {
     }
 
     const unpaidMedicineCount = medicineDeskItems.filter(
-      (item: any) => !item.readyForHandover && item.paymentStatus !== "PAID"
+      (item: any) =>
+        !item.readyForHandover &&
+        item.paymentStatus !== "PAID" &&
+        !["EXPIRED", "CANCELLED"].includes(String(item.paymentStatus).toUpperCase())
     ).length;
     if (unpaidMedicineCount > 0) {
       alerts.push({
@@ -623,19 +626,19 @@ export default function ClinicAdminDashboard() {
               Sync
             </Button>
             <Button asChild variant="outline" className="h-9 items-center gap-2 border-border bg-card px-4 font-semibold text-foreground shadow-sm hover:bg-muted">
-              <Link href="/clinic-admin/staff" prefetch={false}>
+              <Link href="/clinic-admin/staff">
                 <UserPlus className="size-4" />
                 Staff
               </Link>
             </Button>
             <Button asChild className="h-9 items-center gap-2 bg-emerald-600 px-4 font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 active:scale-95">
-              <Link href="/clinic-admin/schedule" prefetch={false}>
+              <Link href="/clinic-admin/schedule">
                 <CalendarDays className="size-4" />
                 Schedule
               </Link>
             </Button>
             <Button asChild variant="outline" className="h-9 items-center gap-2 border-border bg-card px-4 font-semibold text-foreground shadow-sm hover:bg-muted">
-              <Link href="/queue" prefetch={false}>
+              <Link href="/queue">
                 <Activity className="size-4" />
                 Queue
               </Link>
@@ -674,7 +677,7 @@ export default function ClinicAdminDashboard() {
                 size="sm"
                 className="h-8 gap-2 border-border bg-muted/30 px-3 text-xs font-semibold text-foreground hover:bg-muted"
               >
-                <Link href={link.href} prefetch={false}>
+                <Link href={link.href}>
                   <link.icon className="size-4" />
                   {link.label}
                 </Link>
@@ -772,7 +775,7 @@ export default function ClinicAdminDashboard() {
             icon: Activity,
             color: "text-amber-600",
             bg: "bg-amber-500/10",
-            trend: `${medicineDeskItems.filter((item: any) => item.paymentStatus !== "PAID").length} unpaid`,
+            trend: `${medicineDeskItems.filter((item: any) => item.paymentStatus !== "PAID" && !["EXPIRED", "CANCELLED"].includes(String(item.paymentStatus).toUpperCase())).length} unpaid`,
             isUp: medicineDeskItems.filter((item: any) => item.paymentStatus === "PAID").length > 0
           }
         ].map((item) => (
@@ -833,7 +836,7 @@ export default function ClinicAdminDashboard() {
               <Badge variant="outline" className="border-indigo-200 bg-white text-indigo-700">Reception {staffSummary.reception}</Badge>
             </div>
             <Button asChild variant="link" className="mt-2 h-auto p-0 text-xs font-semibold text-indigo-700 hover:no-underline">
-              <Link href="/clinic-admin/staff" prefetch={false}>Open staff page</Link>
+              <Link href="/clinic-admin/staff">Open staff page</Link>
             </Button>
           </div>
 
@@ -850,7 +853,7 @@ export default function ClinicAdminDashboard() {
               <Badge variant="outline" className="border-emerald-200 bg-white text-emerald-700">Paused {inactiveLocationCount}</Badge>
             </div>
             <Button asChild variant="link" className="mt-2 h-auto p-0 text-xs font-semibold text-emerald-700 hover:no-underline">
-              <Link href="/clinic-admin/locations" prefetch={false}>Open locations page</Link>
+              <Link href="/clinic-admin/locations">Open locations page</Link>
             </Button>
           </div>
 
@@ -867,7 +870,7 @@ export default function ClinicAdminDashboard() {
               <Badge variant="outline" className="border-sky-200 bg-white text-sky-700">Specialties {doctorRosterSummary.specialties}</Badge>
             </div>
             <Button asChild variant="link" className="mt-2 h-auto p-0 text-xs font-semibold text-sky-700 hover:no-underline">
-              <Link href="/clinic-admin/schedule" prefetch={false}>Open schedule page</Link>
+              <Link href="/clinic-admin/schedule">Open schedule page</Link>
             </Button>
           </div>
 
@@ -888,7 +891,7 @@ export default function ClinicAdminDashboard() {
               </Badge>
             </div>
             <Button asChild variant="link" className="mt-2 h-auto p-0 text-xs font-semibold text-violet-700 hover:no-underline">
-              <Link href="/clinic-admin/settings" prefetch={false}>Open settings page</Link>
+              <Link href="/clinic-admin/settings">Open settings page</Link>
             </Button>
           </div>
         </CardContent>
@@ -1220,7 +1223,7 @@ export default function ClinicAdminDashboard() {
             )}
             <div className="mt-3 flex justify-center border-t pt-3">
               <Button asChild variant="link" className="text-xs font-semibold uppercase text-primary hover:no-underline">
-                <Link href="/clinic-admin/schedule" prefetch={false}>View Staff Schedule</Link>
+                <Link href="/clinic-admin/schedule">View Staff Schedule</Link>
               </Button>
             </div>
           </CardContent>
@@ -1265,12 +1268,16 @@ export default function ClinicAdminDashboard() {
                           <TableCell className="text-right">
                             <Badge
                               className={
-                                item.paymentStatus === "PAID"
-                                  ? "bg-emerald-500 text-white"
-                                  : "bg-amber-500 text-white"
+                                ["EXPIRED", "CANCELLED"].includes(String(item.paymentStatus).toUpperCase())
+                                  ? "bg-slate-400 text-white"
+                                  : item.paymentStatus === "PAID"
+                                    ? "bg-emerald-500 text-white"
+                                    : "bg-amber-500 text-white"
                               }
                             >
-                              {item.paymentStatus === "PAID" ? "Payment verified" : "Payment pending"}
+                              {["EXPIRED", "CANCELLED"].includes(String(item.paymentStatus).toUpperCase())
+                                ? String(item.paymentStatus).charAt(0) + String(item.paymentStatus).slice(1).toLowerCase()
+                                : item.paymentStatus === "PAID" ? "Payment verified" : "Payment pending"}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right text-sm font-medium text-muted-foreground">

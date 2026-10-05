@@ -1,8 +1,8 @@
-﻿"use client";
+"use client";
 
 import type * as React from "react";
 import { useState } from "react";
-import { Download, AlertCircle } from "lucide-react";
+import { CircleAlert, Download } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -14,7 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { IconBox, Note } from "@/components/tbd";
 
 interface DataExportModalProps {
   dataType: "profile" | "medical-records" | "prescriptions";
@@ -52,33 +52,20 @@ function DataExportModal({
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Download className="size-5" />
+          <DialogTitle className="flex items-center gap-3">
+            <IconBox icon={Download} size={36} />
             Export {getDataTypeName()}
           </DialogTitle>
-          <DialogDescription>
-            Download your {getDataTypeName().toLowerCase()} in your preferred
-            format
-          </DialogDescription>
+          <DialogDescription>Get a copy of your {getDataTypeName().toLowerCase()}.</DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-y-4 py-4">
-          <Alert>
-            <AlertCircle className="size-4" />
-            <AlertDescription className="text-sm">
-              Data export is not connected in this build. Use the profile page
-              actions only after the backend export endpoint is enabled.
-            </AlertDescription>
-          </Alert>
-        </div>
+        <Note tone="amber" icon={CircleAlert}>
+          Downloading your data is not available yet. To get a copy now, ask the clinic.
+        </Note>
 
         <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => handleOpenChange(false)}
-          >
-            Cancel
+          <Button type="button" variant="outline" size="md" onClick={() => handleOpenChange(false)}>
+            Close
           </Button>
         </DialogFooter>
       </DialogContent>

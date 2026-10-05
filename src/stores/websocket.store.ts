@@ -71,6 +71,8 @@ function buildConnectionKey(args: {
   ].join('|');
 }
 
+const managerCleanup = new WeakMap<Socket, () => void>();
+
 export const useWebSocketStore = create<WebSocketState>()(
   devtools(
     (set, get) => ({
@@ -119,6 +121,7 @@ export const useWebSocketStore = create<WebSocketState>()(
         }
 
         if (currentSocket) {
+          managerCleanup.get(currentSocket)?.();
           try {
             currentSocket.removeAllListeners();
           } catch {
@@ -157,12 +160,36 @@ export const useWebSocketStore = create<WebSocketState>()(
             withCredentials: true,
             ...(Object.keys(auth).length ? { auth } : {}),
             ...(Object.keys(query).length ? { query } : {}),
-            autoConnect: true,
+            autoConnect: false,
             reconnection: autoReconnect,
             reconnectionAttempts,
             reconnectionDelay,
             reconnectionDelayMax: 5000,
             timeout: 20000,
+          });
+
+          let recoveringAuth = false;
+          const handleAuthError = (error: Error) => {
+            if (recoveringAuth || get().socket !== socket) return;
+            recoveringAuth = true;
+            socket.disconnect();
+            set((state) => ({
+              isConnected: false,
+              connectionStatus: 'error',
+              error: error.message || 'Authentication failed',
+              connectionMetrics: {
+                ...state.connectionMetrics,
+                lastDisconnectReason: 'auth_expired',
+              },
+            }));
+            onAuthError?.(error);
+          };
+
+          // Register recovery before connecting: the gateway can reject auth immediately.
+          socket.on('token_expired', (data: { canReconnect?: boolean; message?: string }) => {
+            if (data?.canReconnect === true) {
+              handleAuthError(new Error(data.message || 'Access token has expired'));
+            }
           });
 
           // Connection event handlers
@@ -176,6 +203,7 @@ export const useWebSocketStore = create<WebSocketState>()(
               connectionMetrics: {
                 ...state.connectionMetrics,
                 totalConnections: state.connectionMetrics.totalConnections + 1,
+                lastDisconnectReason: undefined,
               },
             }));
             if (typeof options.onConnect === 'function') {
@@ -203,23 +231,7 @@ export const useWebSocketStore = create<WebSocketState>()(
             const message = String(error?.message || '');
             const isAuthError = /jwt expired|token has expired|access token has expired|please refresh|authentication required|no token or session/i.test(message);
             if (isAuthError) {
-              try {
-                socket.disconnect();
-              } catch {
-                // Ignore disconnect errors during auth recovery.
-              }
-              if (onAuthError) {
-                onAuthError(error);
-              }
-              set({
-                isConnected: false,
-                connectionStatus: 'error',
-                error: message || 'Authentication failed',
-                connectionMetrics: {
-                  ...get().connectionMetrics,
-                  lastDisconnectReason: 'auth_expired',
-                },
-              });
+              handleAuthError(error);
               return;
             }
 
@@ -234,11 +246,12 @@ export const useWebSocketStore = create<WebSocketState>()(
             }));
           });
 
-          socket.on('reconnect', (attemptNumber) => {
-            // WebSocket reconnected successfully
+          const onReconnect = (attemptNumber: number) => {
+            if (get().socket !== socket) return;
+            // The transport recovered; the socket's connect event confirms namespace connection.
             set((state) => ({
-              isConnected: true,
-              connectionStatus: 'connected',
+              isConnected: false,
+              connectionStatus: 'reconnecting',
               error: null,
               lastActivity: new Date(),
               connectionMetrics: {
@@ -249,30 +262,45 @@ export const useWebSocketStore = create<WebSocketState>()(
                 lastDisconnectReason: undefined,
               },
             }));
-          });
+          };
 
-          socket.on('reconnect_attempt', (_attemptNumber) => {
+          const onReconnectAttempt = () => {
+            if (get().socket !== socket) return;
             // WebSocket reconnection attempt
             set({
               connectionStatus: 'reconnecting',
               error: null,
             });
-          });
+          };
 
-          socket.on('reconnect_error', (error) => {
+          const onReconnectError = (error: Error) => {
+            if (get().socket !== socket) return;
             set({
               isConnected: false,
               connectionStatus: 'error',
               error: `Reconnection failed: ${error.message}`,
             });
-          });
+          };
 
-          socket.on('reconnect_failed', () => {
+          const onReconnectFailed = () => {
+            if (get().socket !== socket) return;
             set({
               isConnected: false,
               connectionStatus: 'error',
               error: 'Failed to reconnect after maximum attempts',
             });
+          };
+
+          socket.io.on('reconnect', onReconnect);
+          socket.io.on('reconnect_attempt', onReconnectAttempt);
+          socket.io.on('reconnect_error', onReconnectError);
+          socket.io.on('reconnect_failed', onReconnectFailed);
+          managerCleanup.set(socket, () => {
+            socket.io.off('reconnect', onReconnect);
+            socket.io.off('reconnect_attempt', onReconnectAttempt);
+            socket.io.off('reconnect_error', onReconnectError);
+            socket.io.off('reconnect_failed', onReconnectFailed);
+            managerCleanup.delete(socket);
           });
 
           // Message tracking
@@ -287,6 +315,7 @@ export const useWebSocketStore = create<WebSocketState>()(
           });
 
           set({ socket, connectionKey });
+          socket.connect();
 
         } catch (error) {
           set({
@@ -299,9 +328,12 @@ export const useWebSocketStore = create<WebSocketState>()(
       disconnect: () => {
         const socket = get().socket;
         if (socket) {
+          managerCleanup.get(socket)?.();
+          socket.removeAllListeners();
           socket.disconnect();
           set({
             socket: null,
+            connectionKey: null,
             isConnected: false,
             connectionStatus: 'disconnected',
             error: null,

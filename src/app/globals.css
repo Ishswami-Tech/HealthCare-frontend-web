@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "../styles/patient-portal.css";
 @import "../styles/home.css";
+@import "../styles/tbd.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -74,41 +75,40 @@
 }
 
 :root {
-  --background: oklch(
-    0.982 0.008 150
-  ); /* Ultra-light emerald canvas — cards float above */
-  --foreground: oklch(0.15 0 0);
-  --card: oklch(1 0 0); /* Pure White cards — pop off canvas */
-  --card-foreground: oklch(0.15 0 0);
-  --popover: oklch(1 0 0); /* Pure White popovers */
-  --popover-foreground: oklch(0.15 0 0);
-  --primary: oklch(0.62 0.16 150); /* Emerald Green */
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.975 0.005 150); /* Very light emerald tint */
-  --secondary-foreground: oklch(0.2 0 0);
-  --muted: oklch(0.975 0.005 150); /* Very light emerald tint */
-  --muted-foreground: oklch(0.55 0 0);
-  --accent: oklch(0.975 0.005 150);
-  --accent-foreground: oklch(0.2 0 0);
-  --destructive: oklch(0.57 0.2 27);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.9 0.005 150); /* Faintly emerald-tinted border */
-  --input: oklch(0.92 0.004 150);
-  --ring: oklch(0.62 0.16 150); /* Emerald focus ring */
+  /* TestByDoctor light theme — values from the approved designs (see styles/tbd.css). */
+  --background: #f4f9f6; /* mint page colour — cards float above */
+  --foreground: #0f1b2d;
+  --card: #ffffff;
+  --card-foreground: #0f1b2d;
+  --popover: #ffffff;
+  --popover-foreground: #0f1b2d;
+  --primary: #047857; /* emerald — main buttons */
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f1b2d;
+  --muted: #f1f5f9;
+  --muted-foreground: #4b5a6e;
+  --accent: #ecfdf5;
+  --accent-foreground: #065f46;
+  --destructive: #e11d48;
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #047857;
   --chart-1: oklch(0.45 0.15 260);
   --chart-2: oklch(0.65 0.15 200);
   --chart-3: oklch(0.75 0.15 150);
   --chart-4: oklch(0.85 0.15 100);
   --chart-5: oklch(0.9 0.15 50);
-  --sidebar: oklch(0.978 0.007 150);
-  --sidebar-foreground: oklch(0.15 0 0);
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f1b2d;
   --sidebar-primary: oklch(0.2 0 0);
   --sidebar-primary-foreground: oklch(0.98 0 0);
-  --sidebar-accent: oklch(0.96 0 0);
-  --sidebar-accent-foreground: oklch(0.2 0 0);
-  --sidebar-border: oklch(0.92 0 0);
-  --sidebar-ring: oklch(0.62 0.16 150);
-  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --sidebar-accent: #ecfdf5;
+  --sidebar-accent-foreground: #065f46;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #047857;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Newsreader", ui-serif, Georgia, Cambria, Times New Roman, Times, serif;
   --font-mono:
     "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
@@ -187,7 +187,7 @@
   --sidebar-accent-foreground: oklch(0.95 0 0);
   --sidebar-border: oklch(0.2 0 0);
   --sidebar-ring: oklch(0.62 0.16 150);
-  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Newsreader", ui-serif, Georgia, Cambria, Times New Roman, Times, serif;
   --font-mono:
     "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
@@ -1878,7 +1878,7 @@ html5-qrcode {
     min-height: 100svh;
     overflow: hidden;
     background-color: #30471f;
-    background-image: url('/assets/auth-login-mobile-single-background-new-logo.webp');
+    background-image: url('/assets/auth-login-mobile-textless.webp');
     background-position: center top;
     background-repeat: no-repeat;
     /* Preserve the artwork ratio; extend it only when a short phone needs more scrolling. */
@@ -1894,6 +1894,29 @@ html5-qrcode {
     display: block;
     height: calc(var(--auth-scene-width) * 0.84 + clamp(24px, 4vw, 40px));
     max-height: none;
+  }
+
+  .auth-mobile-heading {
+    position: absolute;
+    top: 20vw;
+    inset-inline: 6%;
+    text-align: center;
+    font-family: var(--font-sans);
+    color: #075735;
+  }
+
+  .auth-mobile-heading p {
+    font-size: clamp(14px, 3.8vw, 26px);
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .auth-mobile-heading h1 {
+    margin-block: 5px;
+    font-size: clamp(24px, 6.5vw, 60px);
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
   }
 
   .auth-mobile-login-form {
@@ -1983,5 +2006,100 @@ html5-qrcode {
 @media (min-width: 1367px), (min-width: 1024px) and (orientation: landscape) {
   .auth-mobile-login-scale {
     translate: -7vw;
+  }
+}
+
+/* Portrait tablets use the same compact card as phones, even above the lg breakpoint. */
+@media (min-width: 768px) and (max-width: 1366px) and (orientation: portrait) {
+  .auth-page-scroll {
+    /* Align the portrait with the form while keeping both edges covered. */
+    background-size: 104% max(100%, 222.47vw);
+    background-position: right top;
+  }
+
+  .auth-page-scroll::before {
+    /* The logo is part of the artwork; reposition only its small upper region. */
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: inherit;
+    background-size: inherit;
+    background-repeat: no-repeat;
+    background-position: calc(100% + 1.2vw) top;
+    mask-image: radial-gradient(ellipse 11vw 11vw at 50% 10vw, black 80%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 11vw 11vw at 50% 10vw, black 80%, transparent 100%);
+  }
+
+  .auth-page-scroll .auth-mobile-hero {
+    height: calc(var(--auth-scene-width) * 0.80 + 16px);
+  }
+
+  .auth-page-scroll .auth-mobile-heading h1 {
+    font-size: clamp(40px, 5.2vw, 54px);
+    line-height: 1.12;
+  }
+
+  .auth-page-scroll .auth-mobile-heading p {
+    font-size: 22px;
+  }
+
+  .auth-page-scroll .auth-mobile-login-scale,
+  .auth-page-scroll [data-auth-step] {
+    max-width: 640px;
+  }
+
+  .auth-page-scroll [data-auth-step] > [data-slot="card"] {
+    gap: 0;
+    padding-block: 0;
+  }
+
+  .auth-page-scroll [data-auth-step="identifier"] [data-slot="card-header"] {
+    display: none;
+  }
+
+  .auth-page-scroll [data-auth-step] [data-slot="card-content"] {
+    padding: 24px 28px;
+  }
+
+  .auth-page-scroll [data-auth-step="identifier"] button {
+    min-height: 44px;
+  }
+
+  .auth-page-scroll [data-auth-step="identifier"] input {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .auth-page-scroll .auth-mobile-login-form {
+    padding-bottom: max(32px, env(safe-area-inset-bottom));
+  }
+}
+
+/* Give tablet landscape forms their own column instead of shifting them over the portrait. */
+@media (min-width: 1024px) and (max-width: 1600px) and (orientation: landscape) {
+  .auth-page-scroll {
+    height: auto;
+    min-height: 100svh;
+    overflow-y: auto;
+  }
+
+  .auth-page-scroll .auth-desktop-panel {
+    width: 60%;
+    flex-shrink: 0;
+  }
+
+  .auth-page-scroll .auth-mobile-login-form {
+    height: auto;
+    min-width: 0;
+    padding: 24px;
+  }
+
+  .auth-page-scroll .auth-mobile-login-scale {
+    width: 100%;
+    max-width: 480px;
+    flex: none;
+    scale: 1;
+    translate: none;
   }
 }

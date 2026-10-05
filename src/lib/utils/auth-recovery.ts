@@ -80,13 +80,6 @@ export function isSessionInvalidError(error: unknown): boolean {
     return false;
   }
 
-  // Also check for network errors that might occur after logout
-  // (e.g., "Failed to fetch" when server is unavailable)
-  const networkPatterns = ["failed to fetch", "fetch failed", "network error", "net::"];
-  if (networkPatterns.some(pattern => message.includes(pattern))) {
-    return true;
-  }
-
   return [
     "no token provided",
     "authentication required",
@@ -117,6 +110,14 @@ export function getJwtExpiryEpochMs(token: string): number | null {
   }
 }
 
+// Added on top of the lead time (never subtracted) so tokens issued in the
+// same window - e.g. everyone who logged in via a shared login page, or all
+// staff at shift start - don't force-reconnect their sockets in lockstep at
+// the exact same second. This only makes the refresh fire earlier/never
+// later than before, so the "always refresh before expiry" guarantee is
+// unaffected.
+const JWT_REFRESH_JITTER_MAX_MS = 30 * 1000;
+
 export function getJwtRefreshDelayMs(
   token: string,
   leadTimeMs: number = DEFAULT_JWT_REFRESH_LEAD_MS
@@ -126,29 +127,38 @@ export function getJwtRefreshDelayMs(
     return null;
   }
 
-  return Math.max(expiryMs - Date.now() - leadTimeMs, 0);
+  const jitterMs = Math.floor(Math.random() * JWT_REFRESH_JITTER_MAX_MS);
+  return Math.max(expiryMs - Date.now() - leadTimeMs - jitterMs, 0);
 }
 
 export async function refreshClientSessionForRealtime(
   context: string
 ): Promise<Session | null> {
   const authStore = useAuthStore.getState();
+  const originalSession = authStore.session;
   authStore.setRefreshing(true);
 
   try {
     const refreshedSession = await refreshToken();
+    const currentSession = useAuthStore.getState().session;
+    if (!currentSession || currentSession.user?.id !== originalSession?.user?.id) {
+      return null;
+    }
     if (refreshedSession?.access_token) {
       authStore.setSession(refreshedSession);
       return refreshedSession;
     }
 
+    // The server action returns null only when the refresh session is invalid;
+    // temporary failures throw and must remain retryable.
+    triggerClientAuthRecovery();
     return null;
   } catch (error) {
     if (process.env.NODE_ENV === "development") {
       // Keep logs quiet in production unless the caller wants to surface the failure.
       console.warn(`[${context}] realtime auth refresh failed`, error);
     }
-    return null;
+    throw error;
   } finally {
     authStore.setRefreshing(false);
   }

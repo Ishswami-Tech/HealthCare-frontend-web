@@ -2,6 +2,7 @@
 
 import React from "react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   FileText,
@@ -12,14 +13,24 @@ import {
   Share2,
   Users,
 } from "lucide-react";
-import { LazyMotion, domAnimation, m } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
-import { useAppointmentServices } from "@/hooks/query/useAppointments";
+import { useAppointment, useAppointmentServices } from "@/hooks/query/useAppointments";
+import { useCurrentClinicId } from "@/hooks/query/useClinics";
+import { useCurrentDoctorEntityId } from "@/hooks/query/useDoctors";
+import { QuickPrescriptionModal, type PrescriptionSavedResult } from "@/components/doctor/QuickPrescriptionModal";
+import {
+  getVideoCallExitRoute,
+  isCompletedVisitStatus,
+  isDoctorRole,
+  isPatientRole,
+  type VideoCallExitReason,
+} from "@/components/video/daily-in-app-call-utils";
+import { formatTimeInIST } from "@/lib/utils/date-time";
 import { cn } from "@/lib/utils";
 import {
   getAppointmentDoctorName,
@@ -46,14 +57,14 @@ const DailyCallSurface = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full w-full min-h-[100dvh] items-center justify-center bg-[#111315] px-6 text-center text-white">
+      <div role="status" className="flex h-full w-full min-h-[100dvh] items-center justify-center bg-[#0b1220] px-6 text-center text-white">
         <div className="flex flex-col items-center gap-y-4 max-w-xs w-full">
           <div className="relative mx-auto size-14">
-            <div className="h-full w-full animate-spin rounded-full border-2 border-[#8ab4f8]/20 border-t-[#8ab4f8]" />
+            <div className="h-full w-full animate-spin rounded-full border-2 border-[#a5b4fc]/20 border-t-[#a5b4fc]" />
           </div>
           <div>
-            <p className="text-[16px] font-medium text-white">Loading video engine…</p>
-            <p className="mt-1 text-[13px] text-[#9aa0a6]">Setting up your secure session.</p>
+            <p className="text-[16px] font-semibold text-white">Loading video engine…</p>
+            <p className="mt-1 text-[13px] text-[#9aa7bd]">Setting up your secure session.</p>
           </div>
         </div>
       </div>
@@ -163,6 +174,66 @@ async function loadRoomData(appointmentId: string): Promise<RoomData> {
   };
 }
 
+/** How often a patient's screen checks whether the doctor has completed the visit. */
+const VISIT_STATUS_CHECK_MS = 15_000;
+
+/** Text value of a field on an appointment, whatever shape the record has. */
+function readAppointmentText(appointment: unknown, key: string): string {
+  if (!appointment || typeof appointment !== "object") return "";
+  const value = (appointment as Record<string, unknown>)[key];
+  return typeof value === "string" || typeof value === "number" ? String(value).trim() : "";
+}
+
+/** The patient's record id on an appointment (`patientId`, or the nested patient's id). */
+function readAppointmentPatientId(appointment: unknown): string {
+  const direct = readAppointmentText(appointment, "patientId");
+  if (direct) return direct;
+  if (!appointment || typeof appointment !== "object") return "";
+  return readAppointmentText((appointment as Record<string, unknown>).patient, "id");
+}
+
+/**
+ * The prescription dialog for the doctor in a call. Same dialog and props as the doctor
+ * dashboard: saving sends the medicines to the pharmacy, saves the visit and completes it.
+ */
+function DoctorCallPrescription({
+  isOpen,
+  onClose,
+  appointmentId,
+  patientId,
+  patientName,
+  visitLabel,
+  visitStatus,
+  onSaved,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  appointmentId: string;
+  patientId: string;
+  patientName: string;
+  visitLabel: string;
+  visitStatus: string;
+  onSaved: (result: PrescriptionSavedResult) => void;
+}) {
+  const clinicId = useCurrentClinicId();
+  // Prescription.doctorId is a foreign key to the Doctor entity, not the User id.
+  const { doctorId: doctorEntityId } = useCurrentDoctorEntityId(clinicId || "");
+
+  return (
+    <QuickPrescriptionModal
+      isOpen={isOpen}
+      onClose={onClose}
+      appointmentId={appointmentId}
+      patientId={patientId}
+      patientName={patientName}
+      doctorId={doctorEntityId}
+      visitLabel={visitLabel}
+      visitStatus={visitStatus}
+      onSaved={onSaved}
+    />
+  );
+}
+
 function EmptyState({ title, description }: { title: string; description: string }) {
   return (
     <div className="flex min-h-[180px] items-center justify-center rounded-lg bg-[#f8f9fa] border border-[#dadce0] p-6 text-center">
@@ -180,12 +251,22 @@ export function VideoAppointmentRoomWorkspace({
   access,
   onLeave,
 }: RoomProps) {
+  const { replace } = useRouter();
   const { data: appointmentServices = [] } = useAppointmentServices();
   const [loadError, setLoadError] = React.useState<string | null>(null);
-  const [activePanel, setActivePanel] = React.useState<MeetPanel | null>(null);
+  const isPatientViewer = isPatientRole(viewerRole);
+  const isDoctorViewer = isDoctorRole(viewerRole);
+  // The patient screen shows the chat next to the video on wide screens (as in the design).
+  const [activePanel, setActivePanel] = React.useState<MeetPanel | null>(() =>
+    isPatientViewer && typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches
+      ? "chat"
+      : null
+  );
   const [isInviteMenuOpen, setIsInviteMenuOpen] = React.useState(false);
+  const [isPrescriptionOpen, setIsPrescriptionOpen] = React.useState(false);
 
   const appointmentId = String(appointment.appointmentId || appointment.id || "");
+  const { data: appointmentRecord, refetch: refetchAppointment } = useAppointment(appointmentId);
   const viewState = getAppointmentViewState(appointment);
   const doctorName = getAppointmentDoctorName(appointment);
   const patientName = getAppointmentPatientName(appointment);
@@ -213,7 +294,12 @@ export function VideoAppointmentRoomWorkspace({
   const currentUserDisplayName = React.useMemo(() => {
     const role = viewerRoleNormalized;
     if (role === "patient") return patientName || "Patient";
-    if (role === "doctor" || role.includes("doctor") || role.includes("assistant") || role.includes("therapist")) {
+    if (
+      role === "doctor" ||
+      role?.includes("doctor") ||
+      role?.includes("assistant") ||
+      role?.includes("therapist")
+    ) {
       return doctorName || "Doctor";
     }
     return doctorName || patientName || "Participant";
@@ -304,6 +390,74 @@ export function VideoAppointmentRoomWorkspace({
     };
   }, [refreshRoomData]);
 
+  // ── Leaving the call ──────────────────────────────────────────────────────
+  // Leaving never completes a visit. Where the person lands depends on who they are and why
+  // the call screen closes; roles without a rule keep the page's own exit (`onLeave`).
+  const hasExitedRef = React.useRef(false);
+  const handleCallExit = React.useCallback(
+    (reason: VideoCallExitReason = "left") => {
+      // Automatic exits (visit completed, call dropped) happen once; the Leave button always works.
+      if (hasExitedRef.current && reason !== "left") return;
+      hasExitedRef.current = true;
+      const route = getVideoCallExitRoute(appointmentId, viewerRole, reason);
+      if (route) {
+        replace(route);
+        return;
+      }
+      onLeave?.();
+    },
+    [appointmentId, onLeave, replace, viewerRole]
+  );
+
+  // Patient: when the doctor completes the visit, show the visit summary.
+  const isVisitCompleted =
+    isCompletedVisitStatus((appointmentRecord as { status?: unknown } | undefined)?.status) ||
+    isCompletedVisitStatus(appointment.status);
+  React.useEffect(() => {
+    if (isPatientViewer && isVisitCompleted) {
+      handleCallExit("completed");
+    }
+  }, [handleCallExit, isPatientViewer, isVisitCompleted]);
+
+  React.useEffect(() => {
+    if (!isPatientViewer) return;
+    const interval = window.setInterval(() => {
+      void refetchAppointment();
+    }, VISIT_STATUS_CHECK_MS);
+    return () => window.clearInterval(interval);
+  }, [isPatientViewer, refetchAppointment]);
+
+  // Patient: the call ended by itself. If the doctor completed the visit, show the summary;
+  // otherwise say the call dropped and offer to rejoin. Other roles keep their screen.
+  const handleCallEnded = React.useCallback(async () => {
+    if (!isPatientViewer) return;
+    let completed = false;
+    try {
+      const result = await refetchAppointment();
+      completed = isCompletedVisitStatus((result.data as { status?: unknown } | undefined)?.status);
+    } catch {
+      completed = false;
+    }
+    handleCallExit(completed ? "completed" : "dropped");
+  }, [handleCallExit, isPatientViewer, refetchAppointment]);
+
+  // ── Doctor actions in the call ────────────────────────────────────────────
+  const patientRecordId = readAppointmentPatientId(appointment);
+  const caseSheetHref =
+    isDoctorViewer && patientRecordId ? `/doctor/patients/${encodeURIComponent(patientRecordId)}` : undefined;
+  const visitStartLabel = formatTimeInIST(
+    readAppointmentText(appointment, "scheduledStartTime") || readAppointmentText(appointment, "startTime")
+  );
+  const handlePrescriptionSaved = React.useCallback(
+    (result: PrescriptionSavedResult) => {
+      // "Save and complete" completed the visit, so the call ends for the doctor too.
+      if (result.appointmentCompleted) {
+        handleCallExit("completed");
+      }
+    },
+    [handleCallExit]
+  );
+
   const panelTitle = React.useMemo(() => {
     switch (activePanel) {
       case "people":
@@ -324,31 +478,33 @@ export function VideoAppointmentRoomWorkspace({
 
 
   return (
-    <div className="relative h-[100dvh] overflow-hidden bg-[#111315] p-0 text-white">
+    <div className="relative h-[100dvh] overflow-hidden bg-[#0b1220] p-0 text-white">
       <div className="relative z-10 flex h-full w-full flex-col gap-0 overflow-hidden">
         {loadError && (
           <div className="px-3 pt-3">
-            <div className="rounded-2xl bg-red-500/10 px-4 py-3 text-sm text-red-100">{loadError}</div>
+            <div role="alert" className="rounded-2xl bg-red-500/10 px-4 py-3 text-sm text-red-100">{loadError}</div>
           </div>
         )}
 
         {access.provider === "daily" ? (
-          <LazyMotion features={domAnimation}>
-            <m.div layout className="relative flex flex-1 min-h-0 overflow-hidden">
+          <div className="relative flex flex-1 min-h-0 overflow-hidden">
             <DailyCallSurface
               access={access}
               appointmentId={appointmentId}
               appointmentTitle={appointmentTitle}
               activePanel={activePanel}
               viewerRole={viewerAccessLabel}
-              onLeave={onLeave}
+              onLeave={handleCallExit}
+              onCallEnded={handleCallEnded}
+              caseSheetHref={caseSheetHref}
+              onPrescribe={isDoctorViewer && patientRecordId ? () => setIsPrescriptionOpen(true) : undefined}
               displayName={currentUserDisplayName}
               remoteNameFallback={remoteNameFallback}
               userData={dailyRoomUserData}
               onOpenPanel={setActivePanel}
             />
             {process.env.NODE_ENV === "development" && (
-              <div className="absolute bottom-6 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-2">
+              <div className="absolute left-1/2 top-3 z-20 flex -translate-x-1/2 flex-col-reverse items-center gap-2">
                 {isInviteMenuOpen && (
                   <div className="flex items-center gap-2 rounded-full border border-white/10 bg-[#1e1f20]/92 p-2 shadow-xl backdrop-blur-md">
                     <Button
@@ -362,7 +518,7 @@ export function VideoAppointmentRoomWorkspace({
                     {onLeave && (
                       <Button
                         variant="outline"
-                        onClick={onLeave}
+                        onClick={() => handleCallExit("left")}
                         className="gap-2 rounded-full border-white/10 bg-transparent text-white hover:bg-white/10"
                       >
                         <ArrowLeft className="size-4" />
@@ -381,8 +537,7 @@ export function VideoAppointmentRoomWorkspace({
                 </Button>
               </div>
             )}
-            </m.div>
-          </LazyMotion>
+          </div>
         ) : (
           <div className="flex min-h-[calc(100dvh-1.5rem)] flex-col gap-4 bg-[#f8f9fa] p-4 text-[#202124]">
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] bg-white px-4 py-3 shadow-sm border border-[#e8eaed]">
@@ -423,7 +578,7 @@ export function VideoAppointmentRoomWorkspace({
                 {onLeave && (
                   <Button
                     variant="outline"
-                    onClick={onLeave}
+                    onClick={() => handleCallExit("left")}
                     className="gap-2 rounded-full border-[#e8eaed] bg-white text-[#202124] hover:bg-[#f8f9fa]"
                   >
                     <ArrowLeft className="size-4" />
@@ -475,12 +630,15 @@ export function VideoAppointmentRoomWorkspace({
                       <span className="text-[#5f6368]">Duration</span>
                       <span className="font-semibold text-[#202124]">{appointmentDuration ? `${appointmentDuration} min` : "TBD"}</span>
                     </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[#5f6368]">Fee</span>
-                      <span className="font-semibold text-[#202124]">
-                        {serviceFee > 0 ? `₹${serviceFee.toLocaleString("en-IN")}` : "Complimentary"}
-                      </span>
-                    </div>
+                    {/* Doctors see no money amounts. */}
+                    {!isDoctorViewer && (
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-[#5f6368]">Fee</span>
+                        <span className="font-semibold text-[#202124]">
+                          {serviceFee > 0 ? `₹${serviceFee.toLocaleString("en-IN")}` : "Complimentary"}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-[#5f6368]">Status</span>
                       <span className="font-semibold text-[#202124]">{viewState.normalizedStatus}</span>
@@ -493,6 +651,21 @@ export function VideoAppointmentRoomWorkspace({
         )}
       </div>
 
+      {isDoctorViewer && patientRecordId ? (
+        <DoctorCallPrescription
+          isOpen={isPrescriptionOpen}
+          onClose={() => setIsPrescriptionOpen(false)}
+          appointmentId={appointmentId}
+          patientId={patientRecordId}
+          patientName={patientName}
+          visitLabel={visitStartLabel ? `Video call · ${visitStartLabel}` : "Video call"}
+          visitStatus={String(appointment.status || "")
+            .trim()
+            .toUpperCase()
+            .replace(/-/g, "_")}
+          onSaved={handlePrescriptionSaved}
+        />
+      ) : null}
     </div>
   );
 }

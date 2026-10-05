@@ -325,20 +325,25 @@ export const useCreateMedicine = () => {
     }: {
       clinicId: string;
       name: string;
-      genericName?: string;
       manufacturer: string;
-      category: string;
+      /** Sent to the backend as `type` (TABLET, SYRUP, CAPSULE, INJECTION, CREAM, DROPS, OTHER). */
       dosageForm: string;
-      strength: string;
-      packSize: number;
       unitPrice: number;
       stockQuantity: number;
-      minStockLevel: number;
-      maxStockLevel: number;
       expiryDate: string;
-      batchNumber: string;
-      prescriptionRequired: boolean;
+      minStockLevel?: number;
       description?: string;
+      /** Dosage instructions. */
+      instructions?: string;
+      supplierId?: string;
+      // Not stored by the backend yet — optional, never sent.
+      genericName?: string;
+      category?: string;
+      strength?: string;
+      packSize?: number;
+      maxStockLevel?: number;
+      batchNumber?: string;
+      prescriptionRequired?: boolean;
       sideEffects?: string[];
       contraindications?: string[];
       storageConditions?: string;
@@ -374,7 +379,7 @@ export const useUpdateMedicine = () => {
       toastId: TOAST_IDS.MEDICINE.UPDATE,
       loadingMessage: "Updating medicine...",
       successMessage: "Medicine updated successfully",
-      invalidateQueries: [["medicines"], ["inventory"], ["pharmacyStats"], ["pharmacyBatchAudit"]],
+      invalidateQueries: [["medicines"], ["inventory"], ["pharmacyStats"], ["pharmacyBatchAudit"], ["medicine"]],
     },
   );
 };
@@ -397,7 +402,7 @@ export const useDeleteMedicine = () => {
       toastId: TOAST_IDS.MEDICINE.DELETE,
       loadingMessage: "Deleting medicine...",
       successMessage: "Medicine deleted successfully",
-      invalidateQueries: [["medicines"], ["inventory"], ["pharmacyStats"], ["pharmacyBatchAudit"]],
+      invalidateQueries: [["medicines"], ["inventory"], ["pharmacyStats"], ["pharmacyBatchAudit"], ["medicine"]],
     },
   );
 };
@@ -546,7 +551,7 @@ export const useUpdateInventory = () => {
       toastId: TOAST_IDS.PHARMACY.INVENTORY_UPDATE,
       loadingMessage: "Updating inventory...",
       successMessage: "Inventory updated successfully",
-      invalidateQueries: [["inventory"], ["medicines"], ["pharmacyStats"], ["pharmacyBatchAudit"]],
+      invalidateQueries: [["inventory"], ["medicines"], ["pharmacyStats"], ["pharmacyBatchAudit"], ["medicine"]],
     },
   );
 };
@@ -566,7 +571,7 @@ export const useCreatePharmacyOrder = () => {
       medicines: {
         medicineId: string;
         quantity: number;
-        unitPrice: number;
+        unitPrice?: number;
       }[];
       expectedDeliveryDate?: string;
       notes?: string;

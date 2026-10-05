@@ -61,13 +61,13 @@ export default function FinanceBillingDashboard() {
       .filter((payment) => payment.status === "COMPLETED")
       .reduce((sum, payment) => sum + payment.amount, 0);
 
-    const pendingInvoices = invoiceList.filter((invoice) => invoice.status === "OPEN").length;
+    const pendingInvoices = invoiceList.filter((invoice) => invoice.status === "PENDING").length;
     const paidInvoices = invoiceList.filter((invoice) => invoice.status === "PAID").length;
 
     const overdueInvoices = invoiceList.filter((invoice) => {
       const dueDate = invoice.dueDate ? new Date(invoice.dueDate) : null;
       return (
-        (invoice.status === "OPEN" || invoice.status === "OVERDUE") &&
+        invoice.status === "PENDING" &&
         dueDate !== null &&
         !!currentTimestampMs &&
         dueDate.getTime() < currentTimestampMs

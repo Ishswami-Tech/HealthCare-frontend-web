@@ -52,7 +52,18 @@ export function StoreProvider({ children }: StoreProviderProps) {
       email: authUser.email ?? undefined,
       name: authUser.name || `${authUser.firstName || ''} ${authUser.lastName || ''}`.trim(),
       role: authUser.role as AppUser['role'],
-      clinicId: authUser.clinicId ?? '',
+      // Patients (and some other roles) carry their clinic on `primaryClinicId`
+      // rather than `clinicId` — every other call site that reads the session
+      // (e.g. getMyAppointments in appointments.server.ts) already falls back
+      // to it. This mapping didn't, so `useAppStore().user.clinicId` stayed ''
+      // for those users — and WebSocketProvider derives its `tenantId` from
+      // exactly this field, with no other fallback (`currentClinic` is never
+      // set anywhere in the app), so the socket never got a tenant to connect
+      // with.
+      clinicId:
+        authUser.clinicId ??
+        (authUser as { primaryClinicId?: string }).primaryClinicId ??
+        '',
       clinicName: authUser.clinicName ?? '',
       avatarUrl: authUser.profilePicture ?? '',
       permissions: [],

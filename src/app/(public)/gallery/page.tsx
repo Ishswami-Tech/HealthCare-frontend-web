@@ -201,7 +201,7 @@ export default function GalleryPage() {
               {t("gallery.cta.shareStory")}
             </Link>
             <a
-              href="https://wa.me/9860370961?text=I would like to share my healing story"
+              href="https://wa.me/917972548944?text=I would like to share my healing story"
               target="_blank"
               rel="noopener noreferrer"
               className="border-2 border-primary-foreground text-primary-foreground hover:bg-primary-foreground hover:text-primary px-8 py-4 rounded-lg font-semibold text-lg transition-colors interactive"

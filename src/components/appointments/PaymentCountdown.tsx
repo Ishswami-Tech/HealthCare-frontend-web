@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Clock, AlertTriangle, Hourglass } from "lucide-react";
 import { useCountdown } from "@/hooks/utils";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface PaymentCountdownProps {
@@ -29,10 +30,11 @@ interface PaymentCountdownProps {
 const URGENT_THRESHOLD_SECONDS = 60; // last minute -> red, full attention
 
 /**
- * Renders a live "Appointment will be cancelled in MM:SS" banner for video
- * appointments that are still in PENDING (i.e. created, payment window
- * started, payment not yet completed). Visually escalates to red in the
- * final minute so patients are nudged to act before the deadline.
+ * Renders a live "Pay within MM:SS" banner for video appointments that are
+ * still in PENDING (i.e. created, payment window started, payment not yet
+ * completed). Visually escalates to red in the final minute so patients are
+ * nudged to act before the deadline. Renders nothing when the appointment
+ * carries no deadline.
  */
 export function PaymentCountdown({
   paymentExpiresAt,
@@ -48,47 +50,51 @@ export function PaymentCountdown({
       ? paymentWindowMinutes * 60_000
       : null;
   const countdown = useCountdown(paymentExpiresAt, windowMs);
+  const hasDeadline = Boolean(paymentExpiresAt) && Number.isFinite(Date.parse(String(paymentExpiresAt)));
 
-  // Fire onExpire exactly once when the timer crosses zero.
+  // Fire onExpire exactly once when the timer crosses zero. Without a deadline there is
+  // nothing to wait for, so nothing fires.
+  const expiredFor = useRef<string | null>(null);
   useEffect(() => {
-    if (countdown.isExpired && onExpire) {
-      onExpire();
-    }
-  }, [countdown.isExpired, onExpire]);
+    if (!hasDeadline || !countdown.isExpired || !onExpire) return;
+    const key = String(paymentExpiresAt);
+    if (expiredFor.current === key) return;
+    expiredFor.current = key;
+    onExpire();
+  }, [hasDeadline, countdown.isExpired, onExpire, paymentExpiresAt]);
+
+  if (!hasDeadline) return null;
 
   const isUrgent = countdown.msRemaining > 0 && countdown.msRemaining <= URGENT_THRESHOLD_SECONDS * 1000;
   const isLastFiveMinutes =
     countdown.msRemaining > 0 && countdown.msRemaining <= 5 * 60_000;
 
-  const palette = isUrgent
-    ? {
-        ring: "border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/30",
-        text: "text-red-800 dark:text-red-200",
-        sub: "text-red-700 dark:text-red-300",
-        bar: "bg-red-500",
-        icon: "text-red-600 dark:text-red-400",
-        Icon: AlertTriangle,
-        label: "Hurry!",
-      }
-    : isLastFiveMinutes
+  // Red in the last minute and once the window has closed, amber in the last five
+  // minutes, blue before that.
+  const palette =
+    isUrgent || countdown.isExpired
       ? {
-          ring: "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30",
-          text: "text-amber-900 dark:text-amber-200",
-          sub: "text-amber-700 dark:text-amber-300",
-          bar: "bg-amber-500",
-          icon: "text-amber-600 dark:text-amber-400",
-          Icon: Clock,
-          label: "Almost out of time",
+          box: "bg-[#fff1f2] text-[#9f1239] dark:bg-rose-950/30 dark:text-rose-200",
+          bar: "bg-[#e11d48]",
+          icon: "text-[#e11d48] dark:text-rose-300",
+          Icon: AlertTriangle,
+          label: "Hurry, almost out of time",
         }
-      : {
-          ring: "border-sky-300 bg-sky-50 dark:border-sky-800 dark:bg-sky-950/30",
-          text: "text-sky-900 dark:text-sky-200",
-          sub: "text-sky-700 dark:text-sky-300",
-          bar: "bg-sky-500",
-          icon: "text-sky-600 dark:text-sky-400",
-          Icon: Hourglass,
-          label: "Payment window open",
-        };
+      : isLastFiveMinutes
+        ? {
+            box: "bg-[#fffbeb] text-[#92400e] dark:bg-amber-950/30 dark:text-amber-200",
+            bar: "bg-[#f59e0b]",
+            icon: "text-[#d97706] dark:text-amber-300",
+            Icon: Clock,
+            label: "Almost out of time",
+          }
+        : {
+            box: "bg-[#eef6ff] text-[#1e3a8a] dark:bg-blue-950/30 dark:text-blue-200",
+            bar: "bg-[#3b82f6]",
+            icon: "text-[#2563eb] dark:text-blue-300",
+            Icon: Hourglass,
+            label: "Payment window open",
+          };
 
   const { Icon } = palette;
 
@@ -98,70 +104,51 @@ export function PaymentCountdown({
       aria-live="polite"
       aria-label={
         countdown.isExpired
-          ? "Payment window expired"
-          : `Appointment will be cancelled in ${countdown.formatted}`
+          ? "Payment window closed"
+          : `Pay within ${countdown.formatted} to keep this visit`
       }
-      className={cn(
-        "rounded-lg border p-3 shadow-sm",
-        palette.ring,
-        className
-      )}
+      className={cn("rounded-[14px] px-3.5 py-3", palette.box, className)}
     >
       <div className="flex items-start gap-3">
-        <div className={cn("mt-0.5 shrink-0", palette.icon)}>
-          <Icon className="size-5" aria-hidden="true" />
-        </div>
+        <Icon className={cn("mt-0.5 size-[18px] shrink-0", palette.icon)} strokeWidth={2.2} aria-hidden="true" />
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <p className={cn("text-xs font-semibold uppercase tracking-wide", palette.sub)}>
-              {countdown.isExpired ? "Payment window expired" : palette.label}
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <p className="m-0 text-[11px] font-extrabold uppercase tracking-[0.4px]">
+              {countdown.isExpired ? "Payment window closed" : palette.label}
             </p>
             {!countdown.isExpired && (
-              <p
-                className={cn(
-                  "font-mono text-lg font-bold tabular-nums leading-none",
-                  palette.text
-                )}
-              >
-                {countdown.formatted}
-              </p>
+              <p className="m-0 text-lg font-extrabold tabular-nums leading-none">{countdown.formatted}</p>
             )}
           </div>
-          <p className={cn("mt-1 text-sm font-medium", palette.text)}>
+          <p className="m-0 mt-1 text-[13px] font-medium leading-snug">
             {countdown.isExpired
-              ? "Your appointment has been auto-cancelled. Please book a new slot."
-              : `Complete payment within ${countdown.formatted} or this appointment will be auto-cancelled.`}
+              ? "This visit was not paid in time. Please book a new slot."
+              : `Pay within ${countdown.formatted} or this visit is cancelled automatically.`}
           </p>
 
-          {/* Progress bar — shows the shrinking window visually. */}
+          {/* Progress bar: shows the shrinking window. */}
           {!countdown.isExpired && windowMs && (
             <div
-              className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-200/70 dark:bg-slate-800/60"
+              className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-black/10 dark:bg-white/10"
               aria-hidden="true"
             >
               <div
-                className={cn("h-full transition-all duration-1000 ease-linear", palette.bar)}
+                className={cn("h-full rounded-full transition-all duration-1000 ease-linear", palette.bar)}
                 style={{ width: `${Math.max(2, (1 - countdown.progress) * 100)}%` }}
               />
             </div>
           )}
 
           {showCompletePaymentCta && onCompletePayment && !countdown.isExpired && (
-            <button
-              type="button"
+            <Button
+              variant="action"
+              size="md"
               onClick={onCompletePayment}
               disabled={ctaDisabled}
-              className={cn(
-                "mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold shadow-sm transition",
-                isUrgent
-                  ? "bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
-                  : isLastFiveMinutes
-                    ? "bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
-                    : "bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-50"
-              )}
+              className="mt-3 w-full"
             >
-              Complete Payment Now
-            </button>
+              Pay now
+            </Button>
           )}
         </div>
       </div>

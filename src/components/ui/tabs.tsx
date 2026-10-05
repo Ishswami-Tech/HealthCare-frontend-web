@@ -34,7 +34,7 @@ function TabsList({
     <TabsPrimitive.List
       data-slot="tabs-list"
       className={cn(
-        "scrollbar-hide inline-flex w-full max-w-full items-stretch justify-start gap-1 overflow-x-auto rounded-lg border border-border bg-muted/60 p-1",
+        "scrollbar-hide inline-flex max-w-full items-stretch justify-start gap-1 self-start overflow-x-auto rounded-[13px] bg-[#e8eef5] p-1 dark:bg-white/10",
         className
       )}
       {...props}
@@ -50,11 +50,11 @@ function TabsTrigger({
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        "group/tab inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md px-3.5 py-2 text-[13px] font-semibold text-muted-foreground transition-colors",
+        "group/tab inline-flex min-h-[38px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-[10px] px-[18px] text-sm font-medium text-ink-soft transition-colors",
         "hover:text-foreground",
         "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-500/40",
         "disabled:pointer-events-none disabled:opacity-50",
-        "data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-sm",
+        "data-[state=active]:bg-card data-[state=active]:font-bold data-[state=active]:text-brand data-[state=active]:shadow-[0_1px_3px_rgba(15,27,45,0.12)]",
         "[&>svg]:size-4 [&>svg]:shrink-0",
         className
       )}
@@ -75,8 +75,8 @@ function TabsCount({
     <span
       data-slot="tabs-count"
       className={cn(
-        "inline-flex min-w-5 items-center justify-center rounded-sm bg-foreground/10 px-1.5 py-0.5 font-mono text-[11px] font-semibold leading-none text-current",
-        "group-data-[state=active]/tab:bg-white/25",
+        "inline-flex h-5 min-w-[22px] items-center justify-center rounded-full bg-[#dbe3ec] px-1.5 text-[11px] font-extrabold leading-none text-ink-soft dark:bg-white/10",
+        "group-data-[state=active]/tab:bg-mint group-data-[state=active]/tab:text-brand-dark",
         className
       )}
       {...props}

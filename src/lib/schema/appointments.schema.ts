@@ -47,6 +47,16 @@ export const completeAppointmentSchema = z.object({
   followUpNotes: z.string().max(1000).optional(),
 });
 
+export const bulkCompleteAppointmentsSchema = z.object({
+  appointmentIds: z
+    .array(z.string().uuid())
+    .min(1, 'At least one appointment is required')
+    .max(50, 'At most 50 appointments can be completed in one bulk request'),
+  doctorId: z.string().uuid().optional(),
+  notes: z.string().max(1000).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
 export const rescheduleAppointmentSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format (YYYY-MM-DD)'),
   time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Invalid time format (HH:MM)'),

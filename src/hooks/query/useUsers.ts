@@ -22,8 +22,33 @@ export const useUserProfile = (
   options?: { enabled?: boolean }
 ) => {
   const { isConnected } = useWebSocketStatus();
+  const { session } = useAuth();
+  const accessToken = (session as { access_token?: string } | null | undefined)?.access_token;
   return useQueryData(['userProfile'], async () => {
     try {
+      // ✅ Fast path — direct client-side fetch. Server Actions all funnel
+      // through Next's single global action-dispatch queue (see the same
+      // rationale in useMyAppointments), so this used to serialize behind
+      // every other Server-Action-based hook on the page even though it has
+      // no real dependency on them. The token is passed explicitly from this
+      // hook's own `session` rather than relying on clinicApiClient's internal
+      // Zustand-store lookup, which can still be empty on a cold page load
+      // even though `session.access_token` is already available here (the
+      // store is synced from this same session one render behind). Falls
+      // back to the Server Action (which reads the session cookie
+      // server-side) if the client-side call fails for any reason.
+      if (accessToken) {
+        try {
+          const response = await clinicApiClient.get(API_ENDPOINTS.USERS.PROFILE, undefined, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (response.data) {
+            return response.data;
+          }
+        } catch {
+          // fall through to server action below
+        }
+      }
       return await getUserProfile();
     } catch (error) {
       if (isSessionInvalidError(error)) {
@@ -126,7 +151,8 @@ export const useUser = (id: string) => {
 export const useUpdateUser = () => {
   return useMutationOperation<{ status: number; data: Record<string, unknown> }, { id: string; data: Record<string, unknown> }>(
     async ({ id, data }) => {
-      return { status: 200, data: (await clinicApiClient.put(API_ENDPOINTS.USERS.UPDATE(id), data)).data as Record<string, unknown> };
+      // Backend exposes PATCH /user/:id (there is no PUT); PUT returned 404 "Cannot PUT".
+      return { status: 200, data: (await clinicApiClient.patch(API_ENDPOINTS.USERS.UPDATE(id), data)).data as Record<string, unknown> };
     },
     {
       toastId: TOAST_IDS.USER.UPDATE,

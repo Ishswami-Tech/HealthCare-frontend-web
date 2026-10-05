@@ -30,6 +30,7 @@ import { usePrefetchAppointmentsForRole } from "@/hooks/query/useAppointments";
 import { usePrefetchPatientDashboardSummary } from "@/hooks/query/usePatientDashboardSummary";
 import { DashboardPageSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { resolveDisplayNameAndInitials } from "@/lib/utils/display-name";
+import { washToneForPath } from "@/components/tbd/wash";
 const DashboardShellContext = createContext<boolean>(false);
 
 const DASHBOARD_ROUTE_TITLES: Record<string, string> = {
@@ -40,6 +41,31 @@ const DASHBOARD_ROUTE_TITLES: Record<string, string> = {
   "/patient/health": "Health",
   "/patient/dashboard": "Home",
 };
+
+/**
+ * Page name shown at the left of the header when a route has no explicit title:
+ * the last meaningful part of the path ("/doctor/patients/abc" -> "EHR").
+ */
+const ROUTE_TITLE_RULES: Array<[RegExp, string]> = [
+  [/\/patients\/[^/]+\/visits\/[^/]+\/diet-chart/, "Diet Chart"],
+  [/^\/doctor\/patients\/[^/]+/, "EHR"],
+  [/\/settings\/sessions/, "Sessions"],
+  [/\/(no-show)(\/|$)/, "Missed Appointments"],
+  [/\/appointments(\/|$)/, "Appointments"],
+  [/\/patients(\/|$)/, "Patients"],
+  [/^\/queue(\/|$)/, "Queue"],
+  [/\/prescriptions(\/|$)/, "Prescriptions"],
+  [/^\/pharmacy(\/|$)|\/inventory(\/|$)/, "Inventory"],
+  [/^\/billing(\/|$)/, "Billing"],
+  [/\/profile(\/|$)/, "Profile"],
+  [/\/settings(\/|$)/, "Settings"],
+  [/\/dashboard(\/|$)/, "Dashboard"],
+];
+
+function titleForPath(pathname?: string | null): string | undefined {
+  const path = String(pathname ?? "");
+  return ROUTE_TITLE_RULES.find(([pattern]) => pattern.test(path))?.[1];
+}
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -71,7 +97,6 @@ export function DashboardLayout({
   const { session, isPending } = useAuth();
   const storeSession = useAuthStore((state) => state.session);
   const effectiveSession = session ?? storeSession;
-  const [authBootstrapTimedOut, setAuthBootstrapTimedOut] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   // Keep last known user so soft navigations never blank the sidebar if auth
   // state briefly flickers while React Query/session hooks settle.
@@ -131,7 +156,9 @@ export function DashboardLayout({
   // Get current path for route-based protection
   const pathname = usePathname();
   const resolvedPageTitle =
-    title !== "Dashboard" ? title : DASHBOARD_ROUTE_TITLES[pathname] || title;
+    title !== "Dashboard"
+      ? title
+      : DASHBOARD_ROUTE_TITLES[pathname] || titleForPath(pathname) || title;
 
   // Check role access (Component Props)
   const hasRoleAccess = useMemo(() => {
@@ -152,21 +179,10 @@ export function DashboardLayout({
   // Overall access check
   const hasAccess = hasRoleAccess && hasRouteRoleAccess && hasPermissionAccess;
 
-  useEffect(() => {
-    if (user || effectiveSession || !isPending) {
-      setAuthBootstrapTimedOut(false);
-      return;
-    }
-
-    const timeout = window.setTimeout(() => {
-      setAuthBootstrapTimedOut(true);
-    }, 2500);
-
-    return () => window.clearTimeout(timeout);
-  }, [effectiveSession, isPending, user]);
-
   const redirectTarget = useMemo(() => {
-    if (isPending && !authBootstrapTimedOut) return null;
+    // Never treat a slow session bootstrap as logged-out. Payment returns and
+    // cold loads can take longer than a fixed timeout while refresh is in flight.
+    if (isPending) return null;
     if (!user) {
       const loginUrl = new URL(ROUTES.LOGIN, "http://local");
       if (pathname) {
@@ -200,7 +216,6 @@ export function DashboardLayout({
     return null;
   }, [
     isPending,
-    authBootstrapTimedOut,
     user,
     pathname,
     hasAccess,
@@ -208,6 +223,7 @@ export function DashboardLayout({
     currentUserProfile,
     isUserProfilePending,
     normalizedUserRole,
+    effectiveSession?.user,
   ]);
 
   // ─── Fetch User Profile (React Query) ──────────────────────────────────────
@@ -269,7 +285,7 @@ export function DashboardLayout({
   // already have a session in memory. That flash made soft navigations look
   // like full page refreshes.
   if (!user) {
-    if ((!isPending || authBootstrapTimedOut) && redirectTarget) {
+    if (!isPending && redirectTarget) {
       return <RouteRedirect target={redirectTarget} />;
     }
 
@@ -341,10 +357,14 @@ export function DashboardLayout({
             role: String(userDisplayData?.role || ""),
           }}
         >
-          <div className="flex flex-col h-full bg-background overflow-hidden text-neutral-900 dark:text-neutral-50">
-            <Header className="bg-transparent border-b border-muted transition-none" />
-            <main className="flex-1 overflow-auto bg-muted/30">
-              <div className="mx-auto w-full max-w-[1180px] px-4 pt-5 pb-24 sm:px-6 md:px-8 md:pt-[26px] lg:pb-16">
+          {/* Section wash behind the header and the page; the tone follows the route. */}
+          <div
+            className="tbd-wash flex flex-col h-full overflow-hidden text-ink"
+            data-tone={washToneForPath(pathname)}
+          >
+            <Header className="bg-transparent transition-none" />
+            <main className="flex-1 overflow-auto">
+              <div className="mx-auto w-full max-w-[1160px] px-4 pt-1 pb-24 sm:px-6 md:px-8 lg:pb-10">
                 {showPermissionWarnings && title.toLowerCase().includes("appointment") && !appointmentPermissions.canViewAppointments && (
                   <Alert className="mb-4 bg-yellow-50 border-yellow-200">
                     <AlertTriangle className="size-4 text-yellow-600" />

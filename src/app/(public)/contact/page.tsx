@@ -248,7 +248,7 @@ export default function ContactPage() {
   };
 
   const handleWhatsAppSupport = () => {
-    const whatsappPhone = t("clinic.whatsapp") || "9860370961";
+    const whatsappPhone = t("clinic.whatsapp") || "7972548944";
     const cleanPhoneNumber = whatsappPhone.replace(/[\s\-\(\)]/g, "");
     const defaultMessage =
       language === "hi"

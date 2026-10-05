@@ -33,8 +33,9 @@ import {
   scanQRSchema, 
   createAppointmentSchema, 
   updateAppointmentSchema, 
-  completeAppointmentSchema, 
+  completeAppointmentSchema,
   updateAppointmentStatusSchema,
+  bulkCompleteAppointmentsSchema,
   rescheduleAppointmentSchema,
   rejectVideoProposalSchema
 } from '@/lib/schema/appointments.schema';
@@ -226,6 +227,62 @@ export async function completeAppointment(
 }
 
 /**
+ * Mark multiple selected appointments as completed in one call.
+ * Used by the doctor/receptionist appointments list bulk-action bar.
+ */
+export async function bulkCompleteAppointments(data: {
+  appointmentIds: string[];
+  doctorId?: string;
+  notes?: string;
+  metadata?: Record<string, unknown>;
+}) {
+  try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
+    const validatedData = bulkCompleteAppointmentsSchema.parse(data);
+
+    const [{ data: result }, { ipAddress, userAgent }] = await Promise.all([
+      authenticatedApi<{ completed: number; failed: number }>(API_ENDPOINTS.APPOINTMENTS.COMPLETE_BULK, {
+        method: 'POST',
+        body: JSON.stringify(validatedData),
+      }),
+      getClientInfo(),
+    ]);
+
+    await auditLog({
+      userId: session.user.id,
+      action: 'APPOINTMENT_BULK_COMPLETED',
+      resource: 'APPOINTMENT',
+      resourceId: validatedData.appointmentIds.join(','),
+      result: 'SUCCESS',
+      riskLevel: 'LOW',
+      ipAddress,
+      userAgent,
+      sessionId: session.session_id,
+      metadata: {
+        appointmentIds: validatedData.appointmentIds,
+        completed: result.completed,
+        failed: result.failed,
+      },
+    });
+
+    revalidatePath('/doctor/dashboard');
+    revalidatePath('/doctor/appointments');
+    revalidatePath('/appointments');
+    revalidateCache('appointments');
+    revalidateCache('myAppointments');
+    revalidateCache('queue');
+    revalidateCache('queue-status');
+
+    return { success: true, completed: result.completed, failed: result.failed };
+  } catch (error) {
+    logger.error('Failed to bulk complete appointments', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to bulk complete appointments' };
+  }
+}
+
+/**
  * Cancel an appointment using the dedicated ownership-aware backend route.
  */
 export async function cancelAppointment(id: string, reason?: string) {
@@ -280,7 +337,10 @@ export async function createAppointment(data: CreateAppointmentData): Promise<{
   code?: string;
 }> {
   try {
-    const validatedData = createAppointmentSchema.parse(data);
+    // `familyMemberId` (optional, CreateAppointmentDto): who the visit is for when it is not the patient.
+    const validatedData = createAppointmentSchema
+      .extend({ familyMemberId: z.string().uuid().optional() })
+      .parse(data);
     const session = await getServerSession();
     if (!session?.user) return { success: false, error: 'Unauthorized' };
     const { user, session_id: sessionId } = session;

@@ -86,7 +86,7 @@ function HeaderActions({
               asChild
               variant={action.variant ?? "outline"}
               disabled={action.disabled}
-              className="h-9 rounded-lg px-3.5 text-[13.5px] font-semibold"
+              size="md"
             >
               <a href={action.href}>{content}</a>
             </Button>
@@ -99,7 +99,7 @@ function HeaderActions({
             variant={action.variant ?? "outline"}
             onClick={action.onClick}
             disabled={action.disabled}
-            className="h-9 rounded-lg px-3.5 text-[13.5px] font-semibold"
+            size="md"
           >
             {content}
           </Button>
@@ -119,53 +119,35 @@ export function DashboardPageHeader({
   actionsSlot,
   showArt = false,
 }: DashboardPageHeaderProps) {
+  // Page banner from the designs: light mint-to-cream card, eyebrow, title, one line of
+  // text, optional tags and actions. `showArt` adds the doctor artwork on large screens.
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-emerald-100 bg-linear-to-r from-emerald-50/90 via-emerald-50/40 to-card shadow-sm dark:border-emerald-950/60 dark:from-emerald-950/40 dark:via-emerald-950/15 dark:to-card">
+    <header className="tbd-hero">
       {showArt ? (
         <DashboardHeroArt className="pointer-events-none absolute right-4 bottom-0 hidden h-full max-h-full object-contain lg:block" />
-      ) : (
-        /* Decorative leaf motif — drawn, not an asset, so it themes cleanly. */
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 240 200"
-          className="pointer-events-none absolute -right-6 -top-10 hidden h-[150%] w-auto text-emerald-500/10 lg:block dark:text-emerald-400/10"
-        >
-          <path
-            fill="currentColor"
-            d="M120 20c60 0 100 40 100 90s-40 90-100 90S20 160 20 110 60 20 120 20Z"
-            opacity="0.5"
-          />
-          <path
-            fill="currentColor"
-            d="M186 40c6 44-22 78-66 84 2-46 26-76 66-84ZM60 150c28-38 56-54 96-66-26 40-56 60-96 66Z"
-          />
-        </svg>
-      )}
+      ) : null}
 
       <div
         className={cn(
-          "relative flex flex-col gap-5 px-5 py-6 sm:px-7 sm:py-7 lg:flex-row lg:items-end lg:justify-between lg:gap-8",
+          "relative flex flex-col gap-5 p-[26px] lg:flex-row lg:items-end lg:justify-between lg:gap-6",
           // leave room for the artwork so the copy never runs under it
           showArt && "lg:pr-[21rem]",
         )}
       >
-        <div className="flex min-w-0 flex-1 flex-col">
-          <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <span className="text-[11px] font-extrabold uppercase tracking-[1.2px] text-brand">
             {eyebrow}
           </span>
-          <h1 className="mt-2 max-w-2xl text-[26px] font-bold leading-[1.12] tracking-tight text-foreground text-balance sm:text-[32px]">
+          <h1 className="max-w-2xl text-[26px] font-extrabold leading-tight tracking-[-0.5px] text-ink text-balance">
             {title}
           </h1>
-          <p
-            className="mt-2 max-w-2xl text-[15px] leading-relaxed text-muted-foreground"
-            suppressHydrationWarning
-          >
+          <p className="max-w-[620px] text-sm text-ink-muted" suppressHydrationWarning>
             {description}
           </p>
-          {meta ? <div className="mt-3 flex flex-wrap items-center gap-2">{meta}</div> : null}
+          {meta ? <div className="mt-1 flex flex-wrap items-center gap-2">{meta}</div> : null}
         </div>
         <HeaderActions actions={actions} actionsSlot={actionsSlot} />
       </div>
-    </div>
+    </header>
   );
 }

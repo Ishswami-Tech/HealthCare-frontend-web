@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 
 const BRAND_NAME = baseSEO.siteName;
 const BRAND_TITLE = "Dr Chandrakumar Deshmukh";
-const OG_IMAGE = "/assets/og/og-image.png";
+const OG_IMAGE = "/assets/og/og-image.jpg";
 const SITE_DESCRIPTION =
   "Experience authentic Ayurvedic care in Chinchwad, Pune with Panchakarma, Agnikarma, Viddha Karma, appointments, and secure patient workflows.";
 
@@ -58,7 +58,7 @@ export const metadata = {
   metadataBase: getMetadataBaseUrl(),
   icons: {
     icon: "/favicon.ico",
-    apple: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
     shortcut: "/favicon.ico",
   },
   openGraph: {
@@ -114,12 +114,29 @@ export default async function RootLayout({
         <link rel="dns-prefetch" href="//www.google-analytics.com" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        {/* Newsreader carries the `ital` axis so the homepage's display
-            italics render in the real cut rather than a synthesised slant,
-            which at 4rem reads as a rendering fault. */}
+        {/*
+          Fonts are loaded via a manual Google Fonts stylesheet (not next/font),
+          so the browser doesn't know about this CSS request until the parser
+          reaches it. Preloading it lets the request start immediately,
+          in parallel with the preconnects above, instead of waiting for the
+          stylesheet link to be discovered and parsed.
+
+          One list for both sides of this merge: Sora and the italic Newsreader
+          axis are the redesigned public pages' faces, DM Sans / Plus Jakarta
+          Sans / Poppins are still referenced by the app screens that main
+          added, and dropping either set leaves one of them rendering in a
+          fallback. Newsreader carries the `ital` axis so the homepage's
+          display italics render in the real cut rather than a synthesised
+          slant, which at 4rem reads as a rendering fault.
+        */}
+        <link
+          rel="preload"
+          as="style"
+          href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@500;600;700&family=Sora:wght@300..800&display=swap"
+        />
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Sora:wght@300..800&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@500;600;700&family=Sora:wght@300..800&display=swap"
         />
         <style>{`:root{--font-care-head:"Sora",ui-sans-serif,system-ui,sans-serif;--font-care-body:"Sora",ui-sans-serif,system-ui,sans-serif;--font-care-script:"Caveat",ui-serif,cursive}`}</style>
 

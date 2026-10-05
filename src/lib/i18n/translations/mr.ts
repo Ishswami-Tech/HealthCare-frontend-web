@@ -76,6 +76,8 @@ export const mr: TranslationKeys = {
   },
   dashboard: {
     welcomeBack: 'पुन्हा स्वागत आहे',
+    hello: 'नमस्कार',
+    howAreYouFeeling: 'आज तुम्हाला कसे वाटत आहे?',
     overview: 'आज तुमच्या आरोग्याबद्दल काय घडत आहे.',
     bookAppointment: 'अपॉइंटमेंट बुक करा',
   },
@@ -119,7 +121,7 @@ export const mr: TranslationKeys = {
     name: 'श्री विश्वमूर्ति आयुर्वेदालय',
     address: 'मोरया गणपती मंदिर रोड, गांधी पेठ, चिंचवड गाव, चिंचवड, पिंपरी-चिंचवड, महाराष्ट्र, भारत',
     phone: '9860370961, 7709399925',
-    whatsapp: '9860370961',
+    whatsapp: '7972548944',
     email: 'drchandrakumardeshmukh@gmail.com',
     mondayToFriday: 'सोमवार - शुक्रवार: सकाळी 11:45 - रात्री 11:30',
     weekends: 'शनिवार आणि रविवार',

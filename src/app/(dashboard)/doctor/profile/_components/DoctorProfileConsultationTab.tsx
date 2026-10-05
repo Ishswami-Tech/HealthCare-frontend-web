@@ -1,10 +1,9 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Stethoscope } from "lucide-react";
+import { PROFILE_SWITCH, ProfileCard, ProfileField } from "./DoctorProfileParts";
 import type { DoctorProfileFormState } from "./doctor-profile.types";
 
 interface DoctorProfileConsultationTabProps {
@@ -16,110 +15,103 @@ export function DoctorProfileConsultationTab({
   profileData,
   updateConsultationSettings,
 }: DoctorProfileConsultationTabProps) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Stethoscope className="size-5" />
-          Consultation Settings
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-y-4">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div>
-            <Label htmlFor="consultationFee">Consultation Fee (₹)</Label>
-            <Input
-              id="consultationFee"
-              type="number"
-              value={profileData.consultationSettings.consultationFee}
-              onChange={(e) =>
-                updateConsultationSettings("consultationFee", e.target.value)
-              }
-            />
-          </div>
-          <div>
-            <Label htmlFor="followUpFee">Follow-up Fee (₹)</Label>
-            <Input
-              id="followUpFee"
-              type="number"
-              value={profileData.consultationSettings.followUpFee}
-              onChange={(e) =>
-                updateConsultationSettings("followUpFee", e.target.value)
-              }
-            />
-          </div>
-          <div>
-            <Label htmlFor="consultationDuration">Duration (minutes)</Label>
-            <Input
-              id="consultationDuration"
-              type="number"
-              value={profileData.consultationSettings.consultationDuration}
-              onChange={(e) =>
-                updateConsultationSettings("consultationDuration", e.target.value)
-              }
-            />
-          </div>
-        </div>
+  const settings = profileData.consultationSettings;
 
-        <div className="flex flex-col gap-y-4">
-          <SettingRow
-            label="Online Consultation"
-            description="Allow patients to book online consultations"
-            checked={profileData.consultationSettings.onlineConsultation}
-            onCheckedChange={(checked) =>
-              updateConsultationSettings("onlineConsultation", checked)
-            }
+  return (
+    <ProfileCard icon={Stethoscope} title="Consultation Settings" className="gap-3.5">
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+        <ProfileField label="Consultation Fee (₹)" htmlFor="consultationFee">
+          <Input
+            id="consultationFee"
+            type="number"
+            min={0}
+            inputMode="numeric"
+            value={settings.consultationFee}
+            onChange={(e) => updateConsultationSettings("consultationFee", e.target.value)}
           />
-          <SettingRow
-            label="Video Consultation"
-            description="Enable video calls for consultations"
-            checked={profileData.consultationSettings.videoConsultation}
-            onCheckedChange={(checked) =>
-              updateConsultationSettings("videoConsultation", checked)
-            }
+        </ProfileField>
+        <ProfileField label="Follow-up Fee (₹)" htmlFor="followUpFee">
+          <Input
+            id="followUpFee"
+            type="number"
+            min={0}
+            inputMode="numeric"
+            value={settings.followUpFee}
+            onChange={(e) => updateConsultationSettings("followUpFee", e.target.value)}
           />
-          <SettingRow
-            label="Home Visits"
-            description="Offer home visit services"
-            checked={profileData.consultationSettings.homeVisits}
-            onCheckedChange={(checked) =>
-              updateConsultationSettings("homeVisits", checked)
-            }
+        </ProfileField>
+        <ProfileField label="Duration (minutes)" htmlFor="consultationDuration">
+          <Input
+            id="consultationDuration"
+            type="number"
+            min={0}
+            inputMode="numeric"
+            value={settings.consultationDuration}
+            onChange={(e) => updateConsultationSettings("consultationDuration", e.target.value)}
           />
-          <SettingRow
-            label="Emergency Consultation"
-            description="Available for emergency consultations"
-            checked={profileData.consultationSettings.emergencyConsultation}
-            onCheckedChange={(checked) =>
-              updateConsultationSettings("emergencyConsultation", checked)
-            }
-          />
-        </div>
-      </CardContent>
-    </Card>
+        </ProfileField>
+      </div>
+
+      <div className="flex flex-col">
+        <SettingRow
+          id="onlineConsultation"
+          label="Online Consultation"
+          description="Allow patients to book online consultations"
+          checked={settings.onlineConsultation}
+          onCheckedChange={(checked) => updateConsultationSettings("onlineConsultation", checked)}
+        />
+        <SettingRow
+          id="videoConsultation"
+          label="Video Consultation"
+          description="Enable video calls for consultations"
+          checked={settings.videoConsultation}
+          onCheckedChange={(checked) => updateConsultationSettings("videoConsultation", checked)}
+        />
+        <SettingRow
+          id="homeVisits"
+          label="Home Visits"
+          description="Offer home visit services"
+          checked={settings.homeVisits}
+          onCheckedChange={(checked) => updateConsultationSettings("homeVisits", checked)}
+        />
+        <SettingRow
+          id="emergencyConsultation"
+          label="Emergency Consultation"
+          description="Available for emergency consultations"
+          checked={settings.emergencyConsultation}
+          onCheckedChange={(checked) => updateConsultationSettings("emergencyConsultation", checked)}
+        />
+      </div>
+    </ProfileCard>
   );
 }
 
 interface SettingRowProps {
+  id: string;
   label: string;
   description: string;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
 }
 
-function SettingRow({
-  label,
-  description,
-  checked,
-  onCheckedChange,
-}: SettingRowProps) {
+function SettingRow({ id, label, description, checked, onCheckedChange }: SettingRowProps) {
   return (
-    <div className="flex items-center justify-between">
-      <div>
-        <Label>{label}</Label>
-        <p className="text-sm text-gray-600">{description}</p>
+    <div className="flex items-center gap-4 border-b border-hair py-[13px] last:border-b-0 last:pb-0">
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <label htmlFor={id} className="text-sm font-bold text-ink">
+          {label}
+        </label>
+        <span id={`${id}-hint`} className="text-xs text-ink-muted">
+          {description}
+        </span>
       </div>
-      <Switch checked={checked} onCheckedChange={onCheckedChange} />
+      <Switch
+        id={id}
+        aria-describedby={`${id}-hint`}
+        className={PROFILE_SWITCH}
+        checked={checked}
+        onCheckedChange={onCheckedChange}
+      />
     </div>
   );
 }
