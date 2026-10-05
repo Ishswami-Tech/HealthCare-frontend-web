@@ -26,12 +26,19 @@ type CallbackState = {
   state: VerifyState;
   message: string;
   secondsLeft: number | null;
+  /** Overrides the default redirect path when set (e.g. pending → appointments). */
+  redirectHref: string | null;
 };
 
 type CallbackAction =
-  | { type: "FAILED"; message: string; secondsLeft?: number }
+  | { type: "FAILED"; message: string; secondsLeft?: number; redirectHref?: string }
   | { type: "PENDING"; message: string }
-  | { type: "SUCCESS"; message: string; secondsLeft: number }
+  | {
+      type: "SUCCESS";
+      message: string;
+      secondsLeft: number;
+      redirectHref?: string;
+    }
   | { type: "TICK" }
   | { type: "RESET_SECONDS" };
 
@@ -39,6 +46,7 @@ const initialCallbackState: CallbackState = {
   state: "loading",
   message: "Verifying payment...",
   secondsLeft: null,
+  redirectHref: null,
 };
 
 function normalizeBaseUrl(rawUrl: string, fallback: string): string {
@@ -83,6 +91,16 @@ function isVerifiedPaymentStatus(value: unknown): boolean {
   );
 }
 
+function isPendingPaymentStatus(value: unknown): boolean {
+  const status = normalizePaymentStatus(value);
+  return (
+    !status ||
+    ["pending", "processing", "initiated", "created", "active", "in_progress"].includes(
+      status,
+    )
+  );
+}
+
 function callbackReducer(
   state: CallbackState,
   action: CallbackAction,
@@ -93,18 +111,21 @@ function callbackReducer(
         state: "loading",
         message: action.message,
         secondsLeft: null,
+        redirectHref: null,
       };
     case "FAILED":
       return {
         state: "failed",
         message: action.message,
         secondsLeft: action.secondsLeft ?? 5,
+        redirectHref: action.redirectHref ?? null,
       };
     case "SUCCESS":
       return {
         state: "success",
         message: action.message,
         secondsLeft: action.secondsLeft,
+        redirectHref: action.redirectHref ?? null,
       };
     case "TICK":
       return {
@@ -124,7 +145,7 @@ function callbackReducer(
 function PaymentCallbackPageContent() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
-  const [{ state, message, secondsLeft }, dispatch] = useReducer(
+  const [{ state, message, secondsLeft, redirectHref }, dispatch] = useReducer(
     callbackReducer,
     initialCallbackState,
   );
@@ -273,6 +294,8 @@ function PaymentCallbackPageContent() {
     return "/patient/payments?tab=payments";
   }, [params.appointmentId, params.appointmentType]);
 
+  const effectiveRedirectPath = redirectHref || redirectPath;
+
   const hardRedirect = (url: string) => {
     if (typeof window === "undefined") {
       return;
@@ -360,6 +383,47 @@ function PaymentCallbackPageContent() {
             undefined;
 
           if (isVerifiedPaymentStatus(verifiedStatus)) break;
+
+          // Appointment bookings that are still PENDING should not sit on this
+          // waiting screen — send the patient to appointments where they can
+          // finish or track the visit.
+          const isAppointmentCallback =
+            Boolean(params.appointmentId) ||
+            params.appointmentType === "VIDEO_CALL" ||
+            Boolean(response.appointment);
+          if (isAppointmentCallback && isPendingPaymentStatus(verifiedStatus)) {
+            void Promise.all([
+              queryClient.invalidateQueries({
+                queryKey: ["myAppointments"],
+                exact: false,
+              }),
+              queryClient.invalidateQueries({
+                queryKey: ["appointments"],
+                exact: false,
+              }),
+              queryClient.invalidateQueries({
+                queryKey: ["video-appointments"],
+                exact: false,
+              }),
+              queryClient.invalidateQueries({
+                queryKey: ["userUpcomingAppointments"],
+                exact: false,
+              }),
+            ]).catch(() => undefined);
+
+            const pendingParams = new URLSearchParams({ paymentPending: "1" });
+            if (params.appointmentId) {
+              pendingParams.set("appointmentId", params.appointmentId);
+            }
+            dispatch({
+              type: "SUCCESS",
+              message:
+                "Payment is still pending. Redirecting to your appointments…",
+              secondsLeft: 4,
+              redirectHref: `/patient/appointments?${pendingParams.toString()}`,
+            });
+            return;
+          }
 
           if (Date.now() >= deadline) {
             throw new Error(
@@ -520,7 +584,7 @@ function PaymentCallbackPageContent() {
     return () => {
       cancelled = true;
     };
-  }, [invalidPayloadMessage, params, queryClient]);
+  }, [invalidPayloadMessage, params, queryClient, redirectPath]);
 
   useEffect(() => {
     if (state !== "success" && state !== "failed") {
@@ -535,7 +599,7 @@ function PaymentCallbackPageContent() {
     }
 
     if (secondsLeft <= 0) {
-      hardRedirect(redirectPath);
+      hardRedirect(effectiveRedirectPath);
       return;
     }
 
@@ -544,7 +608,7 @@ function PaymentCallbackPageContent() {
     }, 1000);
 
     return () => window.clearTimeout(timer);
-  }, [redirectPath, secondsLeft, state]);
+  }, [effectiveRedirectPath, secondsLeft, state]);
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center px-4">
@@ -565,15 +629,15 @@ function PaymentCallbackPageContent() {
           <div className="flex flex-col gap-y-3">
             <p className="text-sm text-red-600">
               {invalidPayloadDetails
-                ? `${invalidPayloadDetails} Redirecting to ${redirectPath.includes("/appointments") ? "appointments" : "billing"} within ${secondsLeft ?? 5} seconds.`
-                : `Payment failed or could not be verified. Redirecting to ${redirectPath.includes("/appointments") ? "appointments" : "billing"} within ${secondsLeft ?? 5} seconds.`}
+                ? `${invalidPayloadDetails} Redirecting to ${effectiveRedirectPath.includes("/appointments") ? "appointments" : "billing"} within ${secondsLeft ?? 5} seconds.`
+                : `Payment failed or could not be verified. Redirecting to ${effectiveRedirectPath.includes("/appointments") ? "appointments" : "billing"} within ${secondsLeft ?? 5} seconds.`}
             </p>
             <Button
               className="w-full"
-              onClick={() => hardRedirect(redirectPath)}
+              onClick={() => hardRedirect(effectiveRedirectPath)}
             >
               Go to{" "}
-              {redirectPath.includes("/appointments")
+              {effectiveRedirectPath.includes("/appointments")
                 ? "appointments"
                 : "billing"}{" "}
               now
@@ -583,19 +647,21 @@ function PaymentCallbackPageContent() {
         {state === "success" && (
           <div className="flex flex-col gap-y-3">
             <p className="text-sm font-medium text-primary">
-              Payment is confirmed. You will be redirected in {secondsLeft ?? 0}{" "}
-              seconds.
+              {redirectHref?.includes("paymentPending")
+                ? `You will be redirected to appointments in ${secondsLeft ?? 0} seconds.`
+                : `Payment is confirmed. You will be redirected in ${secondsLeft ?? 0} seconds.`}
             </p>
             <Button
               className="w-full"
-              onClick={() => hardRedirect(redirectPath)}
+              onClick={() => hardRedirect(effectiveRedirectPath)}
             >
               Go to{" "}
-              {params.appointmentType === "VIDEO_CALL"
-                ? "video appointments"
-                : params.appointmentId
-                  ? "appointments"
-                  : "billing"}
+              {effectiveRedirectPath.includes("/appointments")
+                ? "appointments"
+                : params.appointmentType === "VIDEO_CALL"
+                  ? "video appointments"
+                  : "billing"}{" "}
+              now
             </Button>
           </div>
         )}
