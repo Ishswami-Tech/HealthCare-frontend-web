@@ -1,5 +1,9 @@
 import { Metadata } from 'next';
+import { Monitor } from 'lucide-react';
 import { ActiveSessionsList } from '@/components/settings/ActiveSessionsList';
+import { DashboardPageShell } from '@/components/dashboard/DashboardPageShell';
+import { PageHead } from '@/components/tbd';
+import { SettingsSection } from '../_components/SettingsSection';
 
 export const metadata: Metadata = {
   title: 'Active Sessions',
@@ -8,18 +12,23 @@ export const metadata: Metadata = {
 
 export default function SessionsPage() {
   return (
-    <div className="container max-w-4xl py-8">
-      <div className="gap-y-6">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Active Sessions</h1>
-          <p className="text-muted-foreground mt-2">
-            Manage devices and sessions where you're currently logged in
-          </p>
-        </div>
+    <DashboardPageShell>
+      <PageHead
+        title="Active Sessions"
+        description="Manage devices and sessions where you're currently logged in"
+        backHref="/settings"
+        backLabel="Settings"
+      />
 
+      <SettingsSection
+        id="sessions"
+        icon={Monitor}
+        title="Signed-in devices"
+        description="Sign out a device you no longer use."
+        className="max-w-[640px] gap-1.5"
+      >
         <ActiveSessionsList />
-      </div>
-    </div>
+      </SettingsSection>
+    </DashboardPageShell>
   );
 }
-

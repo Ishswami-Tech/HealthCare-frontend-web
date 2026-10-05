@@ -49,10 +49,8 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // @ts-ignore
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  // eslint ignoreDuringBuilds removed — Next.js 16 dropped the eslint config key;
+  // lint via `npm run lint` (ESLint CLI) instead of next lint.
 
   /* =====================================================
    * Experimental (safe + useful)
@@ -73,9 +71,6 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "20mb",
     },
   },
-
-  // Soft-nav / proxy body for large multipart uploads (Next 16).
-  proxyClientMaxBodySize: "25mb",
 
   /* =====================================================
    * Images (unchanged functionality)

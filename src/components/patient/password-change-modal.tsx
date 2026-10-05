@@ -1,12 +1,11 @@
-﻿"use client";
+"use client";
 
 import type * as React from "react";
 import { useState } from "react";
-import { Lock, AlertCircle } from "lucide-react";
+import { CircleAlert, Loader2, Lock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { IconBox, Note } from "@/components/tbd";
 import { useAuth } from "@/hooks/auth/useAuth";
 
 interface PasswordChangeModalProps {
@@ -68,87 +67,69 @@ function PasswordChangeModal({
     }
   };
 
+  const fields = [
+    { id: "currentPassword", key: "currentPassword", label: "Current password", autoComplete: "current-password" },
+    { id: "newPassword", key: "newPassword", label: "New password", autoComplete: "new-password", hint: "At least 8 characters" },
+    { id: "confirmPassword", key: "confirmPassword", label: "Confirm new password", autoComplete: "new-password" },
+  ] as const;
+
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="sm:max-w-md">
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Lock className="size-5" />
-              Change Password
+            <DialogTitle className="flex items-center gap-3">
+              <IconBox icon={Lock} size={36} />
+              Change password
             </DialogTitle>
-            <DialogDescription>
-              Ensure your new password is strong and unique
-            </DialogDescription>
+            <DialogDescription>Choose a password that only you know.</DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-col gap-y-4 py-4">
+          <div className="flex flex-col gap-3.5">
+            {fields.map((field) => (
+              <div key={field.id} className="flex min-w-0 flex-col gap-1.5">
+                <label htmlFor={field.id} className="text-xs font-bold text-ink-soft">
+                  {field.label}
+                </label>
+                <Input
+                  id={field.id}
+                  type="password"
+                  autoComplete={field.autoComplete}
+                  value={formData[field.key]}
+                  onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })}
+                  required
+                  disabled={isChangingPassword}
+                  {...("hint" in field ? { minLength: 8, "aria-describedby": `${field.id}-hint` } : {})}
+                />
+                {"hint" in field ? (
+                  <p id={`${field.id}-hint`} className="m-0 text-xs text-ink-muted">
+                    {field.hint}
+                  </p>
+                ) : null}
+              </div>
+            ))}
+
             {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="size-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+              <Note tone="rose" icon={CircleAlert}>
+                <span role="alert">{error}</span>
+              </Note>
             )}
-
-            <div className="flex flex-col gap-y-2">
-              <Label htmlFor="currentPassword">Current Password</Label>
-              <Input
-                id="currentPassword"
-                type="password"
-                value={formData.currentPassword}
-                onChange={(e) =>
-                  setFormData({ ...formData, currentPassword: e.target.value })
-                }
-                required
-                disabled={isChangingPassword}
-              />
-            </div>
-
-            <div className="flex flex-col gap-y-2">
-              <Label htmlFor="newPassword">New Password</Label>
-              <Input
-                id="newPassword"
-                type="password"
-                value={formData.newPassword}
-                onChange={(e) =>
-                  setFormData({ ...formData, newPassword: e.target.value })
-                }
-                required
-                minLength={8}
-                disabled={isChangingPassword}
-              />
-              <p className="text-xs text-muted-foreground">
-                Minimum 8 characters
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-y-2">
-              <Label htmlFor="confirmPassword">Confirm New Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={formData.confirmPassword}
-                onChange={(e) =>
-                  setFormData({ ...formData, confirmPassword: e.target.value })
-                }
-                required
-                disabled={isChangingPassword}
-              />
-            </div>
           </div>
 
           <DialogFooter>
             <Button
               type="button"
               variant="outline"
+              size="md"
               onClick={() => handleOpenChange(false)}
               disabled={isChangingPassword}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isChangingPassword}>
-              {isChangingPassword ? "Changing..." : "Change Password"}
+            <Button type="submit" size="md" disabled={isChangingPassword}>
+              {isChangingPassword ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
+              {isChangingPassword ? "Changing…" : "Change password"}
             </Button>
           </DialogFooter>
         </form>

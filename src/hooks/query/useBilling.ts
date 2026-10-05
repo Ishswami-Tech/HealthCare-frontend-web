@@ -75,6 +75,20 @@ function unwrapList<T>(value: unknown, keys: string[]): T[] {
   return [];
 }
 
+type RawBillingPlan = Partial<BillingPlan> & {
+  amount?: number;
+  interval?: BillingPlan['billingCycle'];
+};
+
+// The backend returns `amount`/`interval`; the UI contract is `price`/`billingCycle`.
+function normalizeBillingPlan(raw: RawBillingPlan): BillingPlan {
+  return {
+    ...raw,
+    price: Number(raw.price ?? raw.amount ?? 0),
+    billingCycle: raw.billingCycle ?? raw.interval ?? 'MONTHLY',
+  } as BillingPlan;
+}
+
 function unwrapObject<T>(value: unknown, keys: string[]): T | undefined {
   if (!value || typeof value !== 'object') {
     return undefined;
@@ -137,7 +151,9 @@ export function useBillingPlans(clinicId?: string, enabled: boolean = true) {
         undefined,
         withClinicContext(clinicId),
       );
-      return unwrapList<BillingPlan>(result.data, ['plans', 'data', 'items', 'results']);
+      return unwrapList<RawBillingPlan>(result.data, ['plans', 'data', 'items', 'results']).map(
+        normalizeBillingPlan,
+      );
     },
     {
       enabled,
@@ -154,7 +170,9 @@ export function useBillingPlan(id: string) {
     ['billing-plan', id],
     async () => {
       const result = await clinicApiClient.get(API_ENDPOINTS.BILLING.PLANS.GET_BY_ID(id));
-      return (unwrapObject<BillingPlan>(result.data, ['plan']) ?? (result.data as BillingPlan | null)) ?? null;
+      const raw =
+        unwrapObject<RawBillingPlan>(result.data, ['plan']) ?? (result.data as RawBillingPlan | null);
+      return raw ? normalizeBillingPlan(raw) : null;
     },
     {
       enabled: !!id,

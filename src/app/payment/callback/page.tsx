@@ -479,9 +479,14 @@ function PaymentCallbackPageContent() {
         });
 
         if (isHandoff) {
+          // Prefer the current origin so local/dev sessions stay on the same
+          // host (and keep auth cookies) after payment returns.
           const appBaseUrl = normalizeBaseUrl(
-            process.env.NEXT_PUBLIC_APP_URL || "",
-            "https://www.viddhakarma.com",
+            typeof window !== "undefined" ? window.location.origin : "",
+            normalizeBaseUrl(
+              process.env.NEXT_PUBLIC_APP_URL || "",
+              "https://www.viddhakarma.com",
+            ),
           );
           const targetUrl = new URL(`${appBaseUrl}${redirectPath}`);
           targetUrl.searchParams.set("paymentVerified", "1");

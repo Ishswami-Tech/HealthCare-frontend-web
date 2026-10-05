@@ -1,31 +1,40 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { ColumnDef } from "@tanstack/react-table";
-import { Badge } from "@/components/ui/badge";
+import { useMemo, useState, type ReactNode } from "react";
+import { AlertCircle, RefreshCw } from "lucide-react";
+import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { DataTable } from "@/components/ui/data-table";
-import { Eye, Play, Video, CheckCircle, Phone, CalendarPlus, UserX } from "lucide-react";
-import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
-import { TableSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
-import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
-import { getAppointmentPatientName, getAppointmentViewState, getDisplayAppointmentDuration, getReceptionistAppointmentDateLabel, getReceptionistAppointmentTimeLabel, getAppointmentDateTimeValue, formatDateInIST, formatTimeInIST } from "@/lib/utils/appointmentUtils";
+import { Note } from "@/components/tbd";
 import { DoctorAppointmentsSummary } from "./DoctorAppointmentsSummary";
-import { DoctorAppointmentsDetailsDialog } from "./DoctorAppointmentsDetailsDialog";
-import type { DoctorAppointmentViewFilter, TransformedAppointment } from "../page";
+import { DoctorAppointmentsTable } from "./DoctorAppointmentsTable";
+import {
+  DoctorAppointmentsDetailsDialog,
+  type DoctorAppointmentDetailsTab,
+} from "./DoctorAppointmentsDetailsDialog";
+import type {
+  DoctorAppointmentDateFilter,
+  DoctorAppointmentViewFilter,
+  TransformedAppointment,
+} from "../page";
 
 interface Props {
   isLoadingAppointments: boolean;
+  /** The first load failed and there is nothing to show. */
+  appointmentsLoadFailed?: boolean;
+  retryLoadAppointments?: () => void;
   todayLabel: string;
   clinicId?: string | undefined;
   userId?: string | undefined;
   searchTerm: string;
   appointmentViewFilter: DoctorAppointmentViewFilter;
+  dateFilter: DoctorAppointmentDateFilter;
+  dateFrom: string;
+  dateTo: string;
   appointments: TransformedAppointment[];
   filteredAppointments: TransformedAppointment[];
   activeAppointmentsCount: number;
   inProgressAppointmentsCount: number;
+  confirmedAppointmentsCount: number;
   completedAppointmentsCount: number;
   cancelledAppointmentsCount: number;
   expiredAppointmentsCount: number;
@@ -38,80 +47,52 @@ interface Props {
   consultationNotes: string;
   setSearchTerm: (value: string) => void;
   setAppointmentViewFilter: (value: DoctorAppointmentViewFilter) => void;
+  setDateFilter: (value: DoctorAppointmentDateFilter) => void;
+  setDateRange: (from: string, to: string) => void;
   setSelectedAppointment: (value: TransformedAppointment | null) => void;
   setDiagnosis: (value: string) => void;
   setPrescription: (value: string) => void;
   setConsultationNotes: (value: string) => void;
   completeAppointmentPending: boolean;
   updateAppointmentPending: boolean;
+  startAppointmentPending?: boolean;
   openAppointmentDetails: (appointment: TransformedAppointment) => void;
   saveConsultationDraft: (appointmentId: string) => Promise<void>;
   completeConsultation: (appointmentId: string, data?: { diagnosis?: string; prescription?: string; notes?: string }) => Promise<void>;
+  /** "Complete" on a table row: completes that visit with its own notes. */
+  completeAppointmentFromRow: (appointment: TransformedAppointment) => Promise<void>;
   startConsultation: (appointmentId: string, doctorId: string, options?: { openVideoAfterStart?: boolean }) => Promise<void>;
   bulkCompleteSelected: (appointmentIds: string[]) => Promise<{ completed: number; failed: number } | undefined>;
   bulkCompletePending: boolean;
-}
-
-function getStatusColor(status: string) {
-  switch (status) {
-    case "PENDING":
-    case "RESCHEDULED":
-    case "ON_HOLD":
-    case "AWAITING_SLOT_CONFIRMATION":
-      return "bg-amber-100 text-amber-800";
-    case "IN_PROGRESS":
-      return "bg-blue-100 text-blue-800";
-    case "CONFIRMED":
-      return "bg-green-100 text-green-800";
-    case "SCHEDULED":
-      return "bg-gray-100 text-gray-800";
-    case "COMPLETED":
-      return "bg-purple-100 text-purple-800";
-    case "CANCELLED":
-      return "bg-rose-100 text-rose-800";
-    case "NO_SHOW":
-      return "bg-orange-100 text-orange-800";
-    case "EXPIRED":
-      return "bg-amber-100 text-amber-800";
-    default:
-      return "bg-gray-100 text-gray-800";
-  }
-}
-
-function getStatusLabel(status: string) {
-  return (
-    {
-      PENDING: "Pending",
-      RESCHEDULED: "Rescheduled",
-      ON_HOLD: "On Hold",
-      AWAITING_SLOT_CONFIRMATION: "Awaiting Slot",
-      IN_PROGRESS: "In Progress",
-      SCHEDULED: "Scheduled",
-      CONFIRMED: "Confirmed",
-      COMPLETED: "Completed",
-      CANCELLED: "Cancelled",
-      NO_SHOW: "No Show",
-      EXPIRED: "Expired",
-    }[status] || status
-  );
+  /** Design preview only: replaces the live connection tag in the banner. */
+  connectionSlot?: ReactNode;
+  /** Design preview only: the tab the details dialog opens on. */
+  initialDetailsTab?: DoctorAppointmentDetailsTab;
+  /** Design preview only: rows that start selected. */
+  initialSelectedIds?: string[];
 }
 
 export function DoctorAppointmentsContent(props: Props) {
   const {
     isLoadingAppointments,
+    appointmentsLoadFailed = false,
+    retryLoadAppointments,
     todayLabel,
     clinicId,
     userId,
     searchTerm,
     appointmentViewFilter,
-    appointments,
+    dateFilter,
+    dateFrom,
+    dateTo,
     filteredAppointments,
     activeAppointmentsCount,
     inProgressAppointmentsCount,
-  completedAppointmentsCount,
-  cancelledAppointmentsCount,
-  expiredAppointmentsCount,
-  noShowAppointmentsCount,
+    confirmedAppointmentsCount,
+    completedAppointmentsCount,
+    cancelledAppointmentsCount,
+    expiredAppointmentsCount,
+    noShowAppointmentsCount,
     totalAppointmentsCount,
     selectedAppointment,
     selectedAppointmentIsClosed,
@@ -120,21 +101,29 @@ export function DoctorAppointmentsContent(props: Props) {
     consultationNotes,
     setSearchTerm,
     setAppointmentViewFilter,
+    setDateFilter,
+    setDateRange,
     setSelectedAppointment,
     setDiagnosis,
     setPrescription,
     setConsultationNotes,
     completeAppointmentPending,
     updateAppointmentPending,
+    startAppointmentPending = false,
     openAppointmentDetails,
     saveConsultationDraft,
     completeConsultation,
+    completeAppointmentFromRow,
     startConsultation,
     bulkCompleteSelected,
     bulkCompletePending,
+    connectionSlot,
+    initialDetailsTab = "patient-info",
+    initialSelectedIds,
   } = props;
 
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set(initialSelectedIds ?? []));
+  const [detailsTab, setDetailsTab] = useState<DoctorAppointmentDetailsTab>(initialDetailsTab);
 
   const selectableIds = useMemo(
     () => new Set(filteredAppointments.filter((app) => app.status === "IN_PROGRESS").map((app) => app.id)),
@@ -170,149 +159,26 @@ export function DoctorAppointmentsContent(props: Props) {
     }
   };
 
-  const appointmentColumns = useMemo<ColumnDef<TransformedAppointment>[]>(
-    () => [
-      {
-        id: "select",
-        header: () => <span className="sr-only">Select</span>,
-        cell: ({ row }) => {
-          const app = row.original;
-          const isSelectable = app.status === "IN_PROGRESS";
-          return (
-            <Checkbox
-              checked={selectedIds.has(app.id)}
-              disabled={!isSelectable}
-              aria-label={`Select ${app.patientName} for bulk completion`}
-              onCheckedChange={(checked) => toggleSelected(app.id, checked === true)}
-            />
-          );
-        },
-      },
-      {
-        accessorKey: "patientName",
-        header: "Patient",
-        cell: ({ row }) => {
-          const app = row.original;
-          return (
-            <div className="min-w-0">
-              <div className="font-medium text-foreground">{app.patientName}</div>
-              <div className="text-xs text-muted-foreground">
-                {app.patientAge ? `${app.patientAge} years` : "Age not set"}
-                {app.patientGender ? `  ${app.patientGender}` : "  Unknown"}
-              </div>
-            </div>
-          );
-        },
-      },
-      {
-        accessorKey: "type",
-        header: "Type",
-        cell: ({ row }) => {
-          const app = row.original;
-          return (
-            <div className="flex flex-col gap-y-1">
-              <div className="text-sm font-medium text-foreground">{app.type}</div>
-              <div className="text-xs text-muted-foreground">
-                {app.appointmentDate}  {app.time}  {app.duration}
-              </div>
-            </div>
-          );
-        },
-      },
-      {
-        accessorKey: "status",
-        header: "Status",
-        cell: ({ row }) => <Badge className={getStatusColor(row.original.status)}>{getStatusLabel(row.original.status)}</Badge>,
-      },
-      {
-        accessorKey: "chiefComplaint",
-        header: "Details",
-        cell: ({ row }) => {
-          const app = row.original;
-          return (
-            <div className="flex min-w-0 flex-col gap-y-1">
-              <div className="text-sm text-foreground line-clamp-1">{app.chiefComplaint}</div>
-              <div className="text-xs text-muted-foreground">{app.patientPhone || app.patientEmail || "Not available"}</div>
-            </div>
-          );
-        },
-      },
-      {
-        id: "actions",
-        header: () => <div className="text-center">Actions</div>,
-        cell: ({ row }) => {
-          const app = row.original;
-          return (
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <Button variant="outline" size="sm" className="h-9 rounded-xl px-3" onClick={() => openAppointmentDetails(app)} aria-label={`View details for ${app.patientName}`}>
-                <Eye className="size-4" />
-              </Button>
-              {app.status === "CONFIRMED" && app.type === "VIDEO_CALL" && (
-                <Button size="sm" className="h-9 rounded-xl px-3 gap-2" onClick={() => { window.location.assign(buildVideoSessionRoute(app.id)); }}>
-                  <Play className="mr-1 size-4" />
-                  Join Session
-                </Button>
-              )}
-              {app.status === "CONFIRMED" && app.type !== "VIDEO_CALL" && (
-                <Button size="sm" className="h-9 rounded-xl px-3 gap-2" onClick={() => startConsultation(app.id, app.doctorId)}>
-                  <Play className="mr-1 size-4" />
-                  Start
-                </Button>
-              )}
-              {app.status === "IN_PROGRESS" && app.type === "VIDEO_CALL" && (
-                <>
-                  <Button variant="outline" size="sm" className="h-9 rounded-xl px-3 gap-2" onClick={() => { window.location.assign(buildVideoSessionRoute(app.id)); }}>
-                    <Video className="mr-1 size-4" />
-                    Open video
-                  </Button>
-                  <Button size="sm" className="h-9 rounded-xl px-3 gap-2" onClick={() => completeConsultation(app.id, { diagnosis, prescription, notes: consultationNotes })} disabled={completeAppointmentPending}>
-                    <CheckCircle className="mr-1 size-4" />
-                    Complete
-                  </Button>
-                </>
-              )}
-              {(app.status === "NO_SHOW" || app.status === "CANCELLED") && (
-                <>
-                  {app.patientPhone && (
-                    <Button asChild variant="outline" size="sm" className="h-9 rounded-xl px-3 gap-2">
-                      <a href={`tel:${app.patientPhone}`} aria-label={`Call ${app.patientName}`}>
-                        <Phone className="mr-1 size-4" />
-                        Call
-                      </a>
-                    </Button>
-                  )}
-                  <BookAppointmentDialog
-                    {...(clinicId ? { clinicId } : {})}
-                    {...(app.patientId ? { initialPatientId: app.patientId } : {})}
-                    initialDoctorId={app.doctorId}
-                    initialConsultationMode={app.type === "VIDEO_CALL" ? "VIDEO" : "IN_PERSON"}
-                    trigger={
-                      <Button size="sm" className="h-9 rounded-xl px-3 gap-2" aria-label={`Book again for ${app.patientName}`}>
-                        <CalendarPlus className="mr-1 size-4" />
-                        Book again
-                      </Button>
-                    }
-                  />
-                </>
-              )}
-            </div>
-          );
-        },
-      },
-    ],
-    [clinicId, completeAppointmentPending, completeConsultation, consultationNotes, diagnosis, openAppointmentDetails, prescription, selectedIds, startConsultation],
-  );
+  // The eye opens the dialog on "Patient Info"; "Prescribe" opens it on "Prescription".
+  const openDetails = (appointment: TransformedAppointment, tab: DoctorAppointmentDetailsTab = "patient-info") => {
+    setDetailsTab(tab);
+    openAppointmentDetails(appointment);
+  };
 
   return (
-    <>
+    <DashboardPageShell>
       <DoctorAppointmentsSummary
         todayLabel={todayLabel}
         clinicId={clinicId}
         userId={userId}
         searchTerm={searchTerm}
         appointmentViewFilter={appointmentViewFilter}
+        dateFilter={dateFilter}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
         activeAppointmentsCount={activeAppointmentsCount}
         inProgressAppointmentsCount={inProgressAppointmentsCount}
+        confirmedAppointmentsCount={confirmedAppointmentsCount}
         completedAppointmentsCount={completedAppointmentsCount}
         cancelledAppointmentsCount={cancelledAppointmentsCount}
         expiredAppointmentsCount={expiredAppointmentsCount}
@@ -320,42 +186,51 @@ export function DoctorAppointmentsContent(props: Props) {
         totalAppointmentsCount={totalAppointmentsCount}
         setSearchTerm={setSearchTerm}
         setAppointmentViewFilter={setAppointmentViewFilter}
+        setDateFilter={setDateFilter}
+        setDateRange={setDateRange}
         loading={isLoadingAppointments}
+        connectionSlot={connectionSlot}
       />
 
-      {isLoadingAppointments ? (
-        <TableSkeleton columns={["Patient", "Date", "Time", "Status", "Actions"]} rows={5} />
+      {appointmentsLoadFailed ? (
+        <Note tone="rose" icon={AlertCircle}>
+          <div className="flex flex-wrap items-center justify-between gap-3" role="alert">
+            <span>
+              <b className="font-bold">Appointments could not be loaded.</b> Check your connection and try again.
+            </span>
+            {retryLoadAppointments ? (
+              <Button variant="outline" onClick={retryLoadAppointments}>
+                <RefreshCw />
+                Try again
+              </Button>
+            ) : null}
+          </div>
+        </Note>
       ) : (
-        <DataTable
-          columns={appointmentColumns}
-          data={filteredAppointments}
-          emptyMessage={appointmentViewFilter === "NO_SHOW" ? "No missed appointments. Patients who do not turn up show here with Call and Book again." : "No appointments match this view"}
-          pageSize={10}
-          scrollable
-          toolbar={
-            selectedSelectableIds.length > 0 ? (
-              <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 px-4 py-2.5">
-                <span className="text-sm font-medium text-foreground">
-                  {selectedSelectableIds.length} appointment{selectedSelectableIds.length === 1 ? "" : "s"} selected
-                </span>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
-                    Clear
-                  </Button>
-                  <Button size="sm" className="gap-2" onClick={handleBulkComplete} disabled={bulkCompletePending}>
-                    <CheckCircle className="size-4" />
-                    Complete selected
-                  </Button>
-                </div>
-              </div>
-            ) : undefined
-          }
+        <DoctorAppointmentsTable
+          appointments={filteredAppointments}
+          appointmentViewFilter={appointmentViewFilter}
+          resetKey={`${appointmentViewFilter}|${dateFilter}|${dateFrom}|${dateTo}|${searchTerm}`}
+          clinicId={clinicId}
+          loading={isLoadingAppointments}
+          selectedIds={selectedIds}
+          selectedCount={selectedSelectableIds.length}
+          onToggleSelected={toggleSelected}
+          onClearSelection={() => setSelectedIds(new Set())}
+          onBulkComplete={handleBulkComplete}
+          bulkCompletePending={bulkCompletePending}
+          startAppointmentPending={startAppointmentPending}
+          completeAppointmentPending={completeAppointmentPending}
+          onOpenDetails={openDetails}
+          onStart={(appointment) => startConsultation(appointment.id, appointment.doctorId)}
+          onComplete={completeAppointmentFromRow}
         />
       )}
 
       <DoctorAppointmentsDetailsDialog
         selectedAppointment={selectedAppointment}
         selectedAppointmentIsClosed={selectedAppointmentIsClosed}
+        initialTab={detailsTab}
         diagnosis={diagnosis}
         prescription={prescription}
         consultationNotes={consultationNotes}
@@ -368,6 +243,6 @@ export function DoctorAppointmentsContent(props: Props) {
         saveConsultationDraft={saveConsultationDraft}
         completeConsultation={completeConsultation}
       />
-    </>
+    </DashboardPageShell>
   );
 }

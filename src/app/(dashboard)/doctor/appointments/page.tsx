@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useReducer } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardPageSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { useAuth } from "@/hooks/auth/useAuth";
@@ -25,7 +25,11 @@ import {
   formatTimeInIST,
   getReceptionistAppointmentDateLabel,
   getReceptionistAppointmentTimeLabel,
+  getAppointmentPaymentDisplayState,
+  getVideoSessionDecision,
+  VIDEO_JOIN_EARLY_WINDOW_MINUTES,
 } from "@/lib/utils/appointmentUtils";
+import { formatDateKeyInIST } from "@/lib/utils/date-time";
 import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 import { getDisplayAppointmentDuration } from "@/lib/utils/appointmentUtils";
 import type { AppointmentStatus } from "@/types/appointment.types";
@@ -52,6 +56,14 @@ export type DoctorAppointmentViewFilter =
   | typeof APPOINTMENT_STATUS.CANCELLED
   | typeof APPOINTMENT_STATUS.NO_SHOW
   | typeof APPOINTMENT_STATUS.EXPIRED;
+
+/** Date scope for the doctor appointments list. */
+export type DoctorAppointmentDateFilter =
+  | "ALL"
+  | "TODAY"
+  | "TOMORROW"
+  | "THIS_WEEK"
+  | "CUSTOM";
 
 function getDoctorAppointmentBucket(status: string): DoctorAppointmentViewFilter {
   switch (status) {
@@ -87,6 +99,51 @@ function matchesDoctorAppointmentViewFilter(
   return getDoctorAppointmentBucket(appointmentStatus) === viewFilter;
 }
 
+function shiftIstDateKey(dateKey: string, days: number): string {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  if (!year || !month || !day) return dateKey;
+  const utc = new Date(Date.UTC(year, month - 1, day + days));
+  return `${String(utc.getUTCFullYear()).padStart(4, "0")}-${String(utc.getUTCMonth() + 1).padStart(2, "0")}-${String(utc.getUTCDate()).padStart(2, "0")}`;
+}
+
+/** Monday–Sunday week that contains `dateKey` (IST calendar date). */
+function getIstWeekRange(dateKey: string): { start: string; end: string } {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  if (!year || !month || !day) {
+    return { start: dateKey, end: dateKey };
+  }
+  const probe = new Date(Date.UTC(year, month - 1, day));
+  // 0=Sun … 6=Sat → Monday-start offset
+  const weekday = probe.getUTCDay();
+  const mondayOffset = weekday === 0 ? -6 : 1 - weekday;
+  const start = shiftIstDateKey(dateKey, mondayOffset);
+  return { start, end: shiftIstDateKey(start, 6) };
+}
+
+function matchesDoctorAppointmentDateFilter(
+  appointmentDateKey: string,
+  dateFilter: DoctorAppointmentDateFilter,
+  dateFrom: string,
+  dateTo: string,
+  todayKey: string,
+): boolean {
+  if (dateFilter === "ALL") return true;
+  if (!appointmentDateKey) return false;
+  if (dateFilter === "TODAY") return appointmentDateKey === todayKey;
+  if (dateFilter === "TOMORROW") return appointmentDateKey === shiftIstDateKey(todayKey, 1);
+  if (dateFilter === "THIS_WEEK") {
+    const { start, end } = getIstWeekRange(todayKey);
+    return appointmentDateKey >= start && appointmentDateKey <= end;
+  }
+  if (dateFilter === "CUSTOM") {
+    if (!dateFrom && !dateTo) return true;
+    if (dateFrom && appointmentDateKey < dateFrom) return false;
+    if (dateTo && appointmentDateKey > dateTo) return false;
+    return true;
+  }
+  return true;
+}
+
 // Interface for the transformed appointment object
 export interface TransformedAppointment {
   id: string;
@@ -99,8 +156,19 @@ export interface TransformedAppointment {
   time: string;
   status: AppointmentStatus;
   type: string;
+  /** True for a video visit (`VIDEO_CALL`). */
+  isVideo: boolean;
+  /**
+   * The doctor may open the video room now: the visit is confirmed (or scheduled and paid)
+   * and `getVideoSessionDecision` says the join window is open.
+   */
+  canJoinVideo: boolean;
+  /** A confirmed video visit whose join window has not opened yet. */
+  joinOpensLater: boolean;
   duration: string;
   appointmentDate: string;
+  /** YYYY-MM-DD in IST — used by the date filter. */
+  appointmentDateKey: string;
   startTime?: string;
   createdAt?: string;
   patientPhone: string;
@@ -135,7 +203,13 @@ interface ConsultationDraftState {
 type DoctorAppointmentsState = {
   searchTerm: string;
   appointmentViewFilter: DoctorAppointmentViewFilter;
+  dateFilter: DoctorAppointmentDateFilter;
+  /** Inclusive YYYY-MM-DD range when dateFilter is CUSTOM. */
+  dateFrom: string;
+  dateTo: string;
   selectedAppointment: TransformedAppointment | null;
+  /** The visit the diagnosis / notes / prescription fields below were loaded for. */
+  draftAppointmentId: string | null;
   consultationNotes: string;
   prescription: string;
   diagnosis: string;
@@ -144,7 +218,10 @@ type DoctorAppointmentsState = {
 type DoctorAppointmentsAction =
   | { type: "setSearchTerm"; value: string }
   | { type: "setAppointmentViewFilter"; value: DoctorAppointmentViewFilter }
+  | { type: "setDateFilter"; value: DoctorAppointmentDateFilter }
+  | { type: "setDateRange"; from: string; to: string }
   | { type: "setSelectedAppointment"; value: TransformedAppointment | null }
+  | { type: "setDraftAppointmentId"; value: string | null }
   | { type: "setConsultationNotes"; value: string }
   | { type: "setPrescription"; value: string }
   | { type: "setDiagnosis"; value: string }
@@ -153,7 +230,11 @@ type DoctorAppointmentsAction =
 const initialDoctorAppointmentsState: DoctorAppointmentsState = {
   searchTerm: "",
   appointmentViewFilter: APPOINTMENT_STATUS.ALL,
+  dateFilter: "ALL",
+  dateFrom: "",
+  dateTo: "",
   selectedAppointment: null,
+  draftAppointmentId: null,
   consultationNotes: "",
   prescription: "",
   diagnosis: "",
@@ -168,8 +249,24 @@ function doctorAppointmentsReducer(
       return { ...state, searchTerm: action.value };
     case "setAppointmentViewFilter":
       return { ...state, appointmentViewFilter: action.value };
+    case "setDateFilter":
+      return {
+        ...state,
+        dateFilter: action.value,
+        dateFrom: action.value === "CUSTOM" ? state.dateFrom : "",
+        dateTo: action.value === "CUSTOM" ? state.dateTo : "",
+      };
+    case "setDateRange":
+      return {
+        ...state,
+        dateFrom: action.from,
+        dateTo: action.to,
+        dateFilter: action.from || action.to ? "CUSTOM" : state.dateFilter,
+      };
     case "setSelectedAppointment":
       return { ...state, selectedAppointment: action.value };
+    case "setDraftAppointmentId":
+      return { ...state, draftAppointmentId: action.value };
     case "setConsultationNotes":
       return { ...state, consultationNotes: action.value };
     case "setPrescription":
@@ -180,6 +277,7 @@ function doctorAppointmentsReducer(
       return {
         ...state,
         selectedAppointment: null,
+        draftAppointmentId: null,
         consultationNotes: "",
         prescription: "",
         diagnosis: "",
@@ -231,9 +329,8 @@ function extractAppointments(value: unknown): any[] {
   return [];
 }
 
-const WORKFLOW_ACTION_BUTTON_CLASS = "h-9 rounded-xl px-3 gap-2";
-const WORKFLOW_ICON_BUTTON_CLASS = "size-9 rounded-xl";
-const WORKFLOW_PANEL_CLASS = "rounded-2xl border border-border bg-muted/20 p-4";
+/** How often the video join window is checked again while the page stays open. */
+const JOIN_WINDOW_RECHECK_MS = 30_000;
 
 export default function DoctorAppointments() {
   const { push } = useRouter();
@@ -256,7 +353,11 @@ export default function DoctorAppointments() {
     {
       searchTerm,
       appointmentViewFilter,
+      dateFilter,
+      dateFrom,
+      dateTo,
       selectedAppointment,
+      draftAppointmentId,
       consultationNotes,
       prescription,
       diagnosis,
@@ -268,6 +369,14 @@ export default function DoctorAppointments() {
     dispatch({ type: "setSearchTerm", value });
   };
 
+  const setDateFilter = (value: DoctorAppointmentDateFilter) => {
+    dispatch({ type: "setDateFilter", value });
+  };
+
+  const setDateRange = (from: string, to: string) => {
+    dispatch({ type: "setDateRange", from, to });
+  };
+
   // Links such as the dashboard's "Missed Appointments" open a specific view
   // (`?view=NO_SHOW`). Read once after mount so server and first paint agree.
   useEffect(() => {
@@ -276,6 +385,7 @@ export default function DoctorAppointments() {
     const valid: DoctorAppointmentViewFilter[] = [
       APPOINTMENT_STATUS.ALL,
       "ACTIVE",
+      APPOINTMENT_STATUS.CONFIRMED,
       APPOINTMENT_STATUS.COMPLETED,
       APPOINTMENT_STATUS.CANCELLED,
       APPOINTMENT_STATUS.EXPIRED,
@@ -325,6 +435,20 @@ export default function DoctorAppointments() {
 
   const appointmentsData = realTimeAppointments.data;
   const isLoadingAppointments = realTimeAppointments.isFetching && !realTimeAppointments.data;
+  const appointmentsLoadFailed =
+    Boolean(realTimeAppointments.error) && !realTimeAppointments.data && !realTimeAppointments.isFetching;
+  const refetchAppointments = realTimeAppointments.refetch;
+  const retryLoadAppointments = useCallback(() => {
+    void refetchAppointments();
+  }, [refetchAppointments]);
+
+  // The video join window opens 15 minutes before the slot, so the Join button has to
+  // appear while the page is open. Re-evaluate the rows on a slow clock.
+  const [joinClock, setJoinClock] = useState(0);
+  useEffect(() => {
+    const timer = window.setInterval(() => setJoinClock((tick) => tick + 1), JOIN_WINDOW_RECHECK_MS);
+    return () => window.clearInterval(timer);
+  }, []);
 
   // Sync with WebSocket for real-time updates
   useWebSocketQuerySync();
@@ -344,6 +468,26 @@ export default function DoctorAppointments() {
         const displayDuration = getDisplayAppointmentDuration(app);
         const viewState = getAppointmentViewState(app);
         const appointmentDateTime = getAppointmentDateTimeValue(app);
+        const normalizedStatus = String(viewState.normalizedStatus || "").toUpperCase();
+        const rawType = String(app.type || app.appointmentType || "").toUpperCase();
+        const isVideo = rawType === "VIDEO_CALL";
+        // Same rule as the dashboard schedule card: confirmed, or scheduled and paid, and
+        // the join window is open.
+        const canJoinVideo =
+          isVideo &&
+          (normalizedStatus === APPOINTMENT_STATUS.CONFIRMED ||
+            (normalizedStatus === APPOINTMENT_STATUS.SCHEDULED &&
+              getAppointmentPaymentDisplayState(app).paymentCompleted)) &&
+          getVideoSessionDecision(app).canJoin;
+        const joinOpensAtMs = appointmentDateTime
+          ? appointmentDateTime.getTime() - VIDEO_JOIN_EARLY_WINDOW_MINUTES * 60_000
+          : null;
+        const joinOpensLater =
+          isVideo &&
+          !canJoinVideo &&
+          normalizedStatus === APPOINTMENT_STATUS.CONFIRMED &&
+          joinOpensAtMs !== null &&
+          Date.now() < joinOpensAtMs;
 
         return {
           id: app.id,
@@ -362,10 +506,18 @@ export default function DoctorAppointments() {
             : getReceptionistAppointmentTimeLabel(app as Record<string, unknown>),
           status: viewState.normalizedStatus as AppointmentStatus,
           type: app.type || app.appointmentType || "Consultation",
+          isVideo,
+          canJoinVideo,
+          joinOpensLater,
           duration: typeof displayDuration === "number" ? `${displayDuration} min` : "30 min",
           appointmentDate: appointmentDateTime
             ? formatDateInIST(appointmentDateTime, { weekday: "short", day: "2-digit", month: "short" })
             : getReceptionistAppointmentDateLabel(app as Record<string, unknown>),
+          appointmentDateKey: appointmentDateTime
+            ? formatDateKeyInIST(appointmentDateTime)
+            : app.startTime
+              ? formatDateKeyInIST(app.startTime)
+              : "",
           startTime: app.startTime || "",
           createdAt: app.createdAt || app.updatedAt || "",
           patientPhone: app.patient?.phone || "",
@@ -391,10 +543,29 @@ export default function DoctorAppointments() {
         const rightTime = new Date(right.startTime || right.createdAt || 0).getTime();
         return rightTime - leftTime;
       });
-  }, [appointmentsData]);
+    // joinClock only forces the join window to be checked again.
+  }, [appointmentsData, joinClock]);
+
+  const todayDateKey = useMemo(
+    () => formatDateKeyInIST(currentTimestamp ? new Date(currentTimestamp) : new Date()),
+    [currentTimestamp],
+  );
+
+  // Status counts follow the selected date scope so chips stay honest.
+  const dateScopedAppointments = useMemo(() => {
+    return appointments.filter((app: TransformedAppointment) =>
+      matchesDoctorAppointmentDateFilter(
+        app.appointmentDateKey,
+        dateFilter,
+        dateFrom,
+        dateTo,
+        todayDateKey,
+      ),
+    );
+  }, [appointments, dateFilter, dateFrom, dateTo, todayDateKey]);
 
   const filteredAppointments = useMemo(() => {
-    return appointments.filter((app: TransformedAppointment) => {
+    return dateScopedAppointments.filter((app: TransformedAppointment) => {
       const matchesSearch =
         !searchTerm ||
         app.patientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -405,34 +576,44 @@ export default function DoctorAppointments() {
 
       return matchesSearch && matchesStatus;
     });
-  }, [appointments, searchTerm, appointmentViewFilter]);
+  }, [dateScopedAppointments, searchTerm, appointmentViewFilter]);
 
   const completedAppointmentsCount = useMemo(
-    () => appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.COMPLETED).length,
-    [appointments]
+    () => dateScopedAppointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.COMPLETED).length,
+    [dateScopedAppointments]
   );
 
   const activeAppointmentsCount = useMemo(
-    () => appointments.filter((a: TransformedAppointment) => matchesDoctorAppointmentViewFilter(a.status, "ACTIVE")).length,
-    [appointments]
+    () => dateScopedAppointments.filter((a: TransformedAppointment) => matchesDoctorAppointmentViewFilter(a.status, "ACTIVE")).length,
+    [dateScopedAppointments]
+  );
+
+  const confirmedAppointmentsCount = useMemo(
+    () => dateScopedAppointments.filter((a: TransformedAppointment) => matchesDoctorAppointmentViewFilter(a.status, APPOINTMENT_STATUS.CONFIRMED)).length,
+    [dateScopedAppointments]
   );
 
   const cancelledAppointmentsCount = useMemo(
-    () => appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.CANCELLED).length,
-    [appointments]
+    () => dateScopedAppointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.CANCELLED).length,
+    [dateScopedAppointments]
   );
 
   const expiredAppointmentsCount = useMemo(
-    () => appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.EXPIRED).length,
-    [appointments]
+    () => dateScopedAppointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.EXPIRED).length,
+    [dateScopedAppointments]
   );
 
   const noShowAppointmentsCount = useMemo(
-    () => appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.NO_SHOW).length,
-    [appointments]
+    () => dateScopedAppointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.NO_SHOW).length,
+    [dateScopedAppointments]
   );
 
-  const totalAppointmentsCount = appointments.length;
+  const inProgressAppointmentsCount = useMemo(
+    () => dateScopedAppointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.IN_PROGRESS).length,
+    [dateScopedAppointments]
+  );
+
+  const totalAppointmentsCount = dateScopedAppointments.length;
   const selectedAppointmentIsClosed = selectedAppointment
     ? ["COMPLETED", "CANCELLED", "NO_SHOW", "EXPIRED"].includes(String(selectedAppointment.status))
     : false;
@@ -577,8 +758,26 @@ export default function DoctorAppointments() {
     [bulkCompleteMutation, user?.id]
   );
 
+  // "Complete" on a table row. The diagnosis / notes / prescription fields belong to the
+  // visit that was last opened in the details dialog, so they are sent only when they were
+  // loaded for this same visit. Any other row is completed with its own saved draft, never
+  // with another patient's notes.
+  const completeAppointmentFromRow = (appointment: TransformedAppointment) => {
+    if (draftAppointmentId === appointment.id) {
+      return completeConsultation(appointment.id, { diagnosis, prescription, notes: consultationNotes });
+    }
+
+    const draft = readConsultationDraftMetadata(appointment.metadata);
+    return completeConsultation(appointment.id, {
+      diagnosis: draft?.diagnosis ?? appointment.diagnosis ?? "",
+      prescription: draft?.prescription ?? appointment.prescription ?? "",
+      notes: draft?.notes ?? "",
+    });
+  };
+
   const openAppointmentDetails = (appointment: TransformedAppointment) => {
     setSelectedAppointment(appointment);
+    dispatch({ type: "setDraftAppointmentId", value: appointment.id });
 
     const draft = readConsultationDraftMetadata(appointment.metadata);
     setDiagnosis(draft?.diagnosis ?? appointment.diagnosis ?? "");
@@ -589,20 +788,26 @@ export default function DoctorAppointments() {
   return (
     <DoctorAppointmentsContent
       isLoadingAppointments={isLoadingAppointments}
+      appointmentsLoadFailed={appointmentsLoadFailed}
+      retryLoadAppointments={retryLoadAppointments}
       todayLabel={todayLabel}
       clinicId={clinicId}
       userId={user?.id}
       searchTerm={searchTerm}
       appointmentViewFilter={appointmentViewFilter}
+      dateFilter={dateFilter}
+      dateFrom={dateFrom}
+      dateTo={dateTo}
       appointments={appointments}
       filteredAppointments={filteredAppointments}
       activeAppointmentsCount={activeAppointmentsCount}
-        inProgressAppointmentsCount={appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.IN_PROGRESS).length}
-        completedAppointmentsCount={completedAppointmentsCount}
-        cancelledAppointmentsCount={cancelledAppointmentsCount}
-        expiredAppointmentsCount={expiredAppointmentsCount}
-        noShowAppointmentsCount={noShowAppointmentsCount}
-        totalAppointmentsCount={totalAppointmentsCount}
+      inProgressAppointmentsCount={inProgressAppointmentsCount}
+      confirmedAppointmentsCount={confirmedAppointmentsCount}
+      completedAppointmentsCount={completedAppointmentsCount}
+      cancelledAppointmentsCount={cancelledAppointmentsCount}
+      expiredAppointmentsCount={expiredAppointmentsCount}
+      noShowAppointmentsCount={noShowAppointmentsCount}
+      totalAppointmentsCount={totalAppointmentsCount}
       selectedAppointment={selectedAppointment}
       selectedAppointmentIsClosed={selectedAppointmentIsClosed}
       diagnosis={diagnosis}
@@ -610,6 +815,8 @@ export default function DoctorAppointments() {
       consultationNotes={consultationNotes}
       setSearchTerm={setSearchTerm}
       setAppointmentViewFilter={setAppointmentViewFilter}
+      setDateFilter={setDateFilter}
+      setDateRange={setDateRange}
       setSelectedAppointment={setSelectedAppointment}
       setDiagnosis={setDiagnosis}
       setPrescription={setPrescription}
@@ -619,14 +826,11 @@ export default function DoctorAppointments() {
       openAppointmentDetails={openAppointmentDetails}
       saveConsultationDraft={saveConsultationDraft}
       completeConsultation={completeConsultation}
+      completeAppointmentFromRow={completeAppointmentFromRow}
       startConsultation={startConsultation}
+      startAppointmentPending={startAppointmentMutation.isPending}
       bulkCompleteSelected={bulkCompleteSelected}
       bulkCompletePending={bulkCompleteMutation.isPending}
     />
   );
 }
-
-
-
-
-

@@ -11,8 +11,8 @@ import {
   getQueueStatusQueryKey,
   normalizeQueueStatusSnapshot,
 } from '@/lib/queue/queue-cache';
-import { getJwtRefreshDelayMs, refreshClientSessionForRealtime, refreshClientSessionOnce } from '@/lib/utils/auth-recovery';
-import { ROUTES } from '@/lib/config/routes';
+import { getJwtRefreshDelayMs, refreshClientSessionOnce } from '@/lib/utils/auth-recovery';
+import { createSocketAuthRecovery } from '@/lib/utils/socket-auth-recovery';
 // ✅ Consolidated: Import types from @/types (single source of truth)
 import type { Appointment } from '@/types/appointment.types';
 import type { BillingPlan, Invoice, Payment, Subscription } from '@/types/billing.types';
@@ -679,7 +679,9 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
 
   const subscriptionsRef = useRef<(() => void)[]>([]);
   const hasSyncedOnConnectRef = useRef(false);
-  const authRefreshInFlightRef = useRef(false);
+  const authRecoveryRef = useRef<ReturnType<typeof createSocketAuthRecovery> | null>(null);
+  const scheduleAuthRefreshRef = useRef<(token?: string) => void>(() => {});
+  const postAuthRefreshRef = useRef(false);
   const websocketUrl =
     APP_CONFIG.WEBSOCKET.URL ||
     APP_CONFIG.API.RAW_URL ||
@@ -1264,99 +1266,6 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
       );
     }
 
-    // Server emits 'token_expired' (e.g. { message, canReconnect: true }) when
-    // the access JWT expires mid-session. Refresh proactively so the socket
-    // reconnects without waiting for the first connect_error round-trip.
-    const unsubscribeTokenExpired = subscribe('token_expired', async (rawData: unknown) => {
-      const data = (rawData ?? {}) as { canReconnect?: boolean; message?: string };
-      if (data.canReconnect !== true) {
-        return;
-      }
-      if (authRefreshInFlightRef.current) {
-        return;
-      }
-      authRefreshInFlightRef.current = true;
-      try {
-        const refreshedSession = await refreshClientSessionOnce('appointment-live-ws');
-        if (!refreshedSession?.access_token) {
-          // Proactive refresh didn't return a token — schedule a
-          // bounded retry with exponential backoff so we don't
-          // hammer the auth endpoint after a transient failure.
-          scheduleTokenExpiredBackoffRetry(websocketUrl, {
-            tenantId,
-            userId: resolvedUserId,
-            onSuccess: (newToken) => scheduleAuthRefresh(newToken),
-            onConnect: registerRealtimeSubscriptions,
-            context: 'appointment-live-ws',
-            connect,
-          });
-          return;
-        }
-        connect(websocketUrl, {
-          tenantId,
-          userId: resolvedUserId,
-          token: refreshedSession.access_token,
-          withCredentials: true,
-          autoReconnect: true,
-          reconnectionAttempts: 5,
-          forceReconnect: true,
-          onConnect: registerRealtimeSubscriptions,
-          onAuthError: async () => {
-            // The refresh-token was also stale (or the new access token
-            // expired immediately). Fall back to the standard refresh path.
-            if (authRefreshInFlightRef.current) return;
-            authRefreshInFlightRef.current = true;
-            try {
-              if (shouldBypassAuthRefresh(refreshedSession.access_token)) {
-                return;
-              }
-              const failedRefreshSession = await refreshClientSessionOnce('appointment-live-ws');
-              if (!failedRefreshSession?.access_token) {
-                scheduleTokenExpiredBackoffRetry(websocketUrl, {
-                  tenantId,
-                  userId: resolvedUserId,
-                  onSuccess: (newToken) => scheduleAuthRefresh(newToken),
-                  onConnect: registerRealtimeSubscriptions,
-                  context: 'appointment-live-ws',
-                  connect,
-                });
-                return;
-              }
-              connect(websocketUrl, {
-                tenantId,
-                userId: resolvedUserId,
-                token: failedRefreshSession.access_token,
-                withCredentials: true,
-                autoReconnect: true,
-                reconnectionAttempts: 5,
-                forceReconnect: true,
-                onConnect: registerRealtimeSubscriptions,
-              });
-            } finally {
-              authRefreshInFlightRef.current = false;
-            }
-          },
-        });
-        scheduleAuthRefresh(refreshedSession.access_token);
-      } catch {
-        // Refresh threw — schedule a bounded retry with backoff
-        // instead of silently leaving the socket dead. Without
-        // this the user sees a stuck skeleton even though the
-        // server told us reconnection is allowed.
-        scheduleTokenExpiredBackoffRetry(websocketUrl, {
-          tenantId,
-          userId: resolvedUserId,
-          onSuccess: (newToken) => scheduleAuthRefresh(newToken),
-          onConnect: registerRealtimeSubscriptions,
-          context: 'appointment-live-ws',
-          connect,
-        });
-      } finally {
-        authRefreshInFlightRef.current = false;
-      }
-    });
-    unsubscribeCallbacks.push(unsubscribeTokenExpired);
-
     if (subscribeToQueues && clinicId) {
       const invalidateQueueQueries = (qc: QueryClient, payload?: Record<string, unknown>) => {
         const payloadLocationId =
@@ -1505,7 +1414,6 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
     // refetches. The realtime event handlers will keep it fresh afterwards.
     if (postAuthRefreshRef.current) {
       postAuthRefreshRef.current = false;
-      authFailureCountRef.current = 0;
       invalidateAppointmentQueryFamilies(queryClient);
     }
   }, [
@@ -1524,35 +1432,6 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
 
   const authRefreshTimerRef = useRef<number | null>(null);
 
-  // Circuit breaker: prevent auth-error storms when the refresh flow itself
-  // is broken (e.g. the user is logged out but the page hasn't unmounted yet,
-  // or a refresh token is invalid). Without this, every re-render of the
-  // hook re-attempts `connect()` -> backend logs "Token expired" repeatedly.
-  const authFailureCountRef = useRef(0);
-  const authCircuitOpenRef = useRef(false);
-  const authCircuitResetTimerRef = useRef<number | null>(null);
-  // Set when a `connect()` call follows a successful auth refresh. Cleared
-  // after the post-refresh `onConnect` runs a single coalesced refetch of the
-  // appointment caches so the UI reconciles without piling on background
-  // refetches.
-  const postAuthRefreshRef = useRef(false);
-
-  const tripAuthCircuit = useCallback((reason: string) => {
-    if (authCircuitOpenRef.current) return;
-    authCircuitOpenRef.current = true;
-    logger.warn('Socket auth circuit breaker tripped - pausing reconnect attempts', {
-      component: 'appointment-live-ws',
-      reason,
-    });
-    if (authCircuitResetTimerRef.current === null) {
-      authCircuitResetTimerRef.current = window.setTimeout(() => {
-        authCircuitOpenRef.current = false;
-        authFailureCountRef.current = 0;
-        authCircuitResetTimerRef.current = null;
-      }, 60_000);
-    }
-  }, []);
-
   const clearAuthRefreshTimer = useCallback(() => {
     if (authRefreshTimerRef.current !== null) {
       window.clearTimeout(authRefreshTimerRef.current);
@@ -1560,203 +1439,91 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
     }
   }, []);
 
-  const scheduleAuthRefresh = useCallback(
-    (accessToken?: string) => {
-      clearAuthRefreshTimer();
-      if (!accessToken) {
-        return;
-      }
-
-      const delayMs = getJwtRefreshDelayMs(accessToken);
-      if (delayMs === null) {
-        return;
-      }
-
-      authRefreshTimerRef.current = window.setTimeout(async () => {
-        if (authRefreshInFlightRef.current) {
-          return;
-        }
-
-        authRefreshInFlightRef.current = true;
-        try {
-          const refreshedSession = await refreshClientSessionOnce('appointment-live-ws');
-          if (!refreshedSession?.access_token) {
-            return;
-          }
-
-          postAuthRefreshRef.current = true;
-          connect(websocketUrl, {
-            tenantId,
-            userId: resolvedUserId,
-            token: refreshedSession.access_token,
-            withCredentials: true,
-            autoReconnect: true,
-            reconnectionAttempts: 5,
-            forceReconnect: true,
-            onConnect: registerRealtimeSubscriptions,
-            onAuthError: async () => {
-              if (authRefreshInFlightRef.current) return;
-              authRefreshInFlightRef.current = true;
-              try {
-                if (shouldBypassAuthRefresh(refreshedSession?.access_token)) {
-                  return;
-                }
-                const failedRefreshSession = await refreshClientSessionOnce('appointment-live-ws');
-                if (!failedRefreshSession?.access_token) {
-                  return;
-                }
-
-                postAuthRefreshRef.current = true;
-                connect(websocketUrl, {
-                  tenantId,
-                  userId: resolvedUserId,
-                  token: failedRefreshSession.access_token,
-                  withCredentials: true,
-                  autoReconnect: true,
-                  reconnectionAttempts: 5,
-                  forceReconnect: true,
-                  onConnect: registerRealtimeSubscriptions,
-                });
-              } catch (refreshError) {
-                logger.warn('Socket auth refresh failed', {
-                  component: 'appointment-live-ws',
-                  error: refreshError instanceof Error ? refreshError.message : String(refreshError),
-                });
-              } finally {
-                authRefreshInFlightRef.current = false;
-              }
-            },
-          });
-
-          scheduleAuthRefresh(refreshedSession.access_token);
-        } catch (refreshError) {
-          logger.warn('Scheduled socket auth refresh failed', {
-            component: 'appointment-live-ws',
-            error: refreshError instanceof Error ? refreshError.message : String(refreshError),
-          });
-        } finally {
-          authRefreshInFlightRef.current = false;
-        }
-      }, Math.max(delayMs, 5_000));
-    },
-    [clearAuthRefreshTimer, connect, registerRealtimeSubscriptions, tenantId, resolvedUserId, websocketUrl]
-  );
+  const scheduleAuthRefresh = useCallback((token?: string) => {
+    clearAuthRefreshTimer();
+    if (!token || !autoConnect || shouldBypassAuthRefresh(token)) return;
+    const delayMs = getJwtRefreshDelayMs(token);
+    if (delayMs === null) return;
+    authRefreshTimerRef.current = window.setTimeout(() => {
+      authRefreshTimerRef.current = null;
+      void authRecoveryRef.current?.recover();
+    }, Math.max(delayMs, 5_000));
+  }, [autoConnect, clearAuthRefreshTimer]);
 
   useEffect(() => {
     latestAccessTokenRef.current = accessToken;
-    if (!autoConnect) return;
+    scheduleAuthRefreshRef.current = scheduleAuthRefresh;
     scheduleAuthRefresh(accessToken);
-  }, [accessToken, autoConnect, scheduleAuthRefresh]);
+    return clearAuthRefreshTimer;
+  }, [accessToken, scheduleAuthRefresh, clearAuthRefreshTimer]);
 
-  // Initialize WebSocket connection - Real-time enabled
   useEffect(() => {
     if (!autoConnect) return;
+    const tokenForConnect = latestAccessTokenRef.current;
+    if (!tokenForConnect) {
+      disconnect();
+      clearError();
+      return;
+    }
 
-    // Create async function to handle WebSocket initialization
-    const initializeWebSocket = async () => {
-      try {
-        // ⚠️ SECURITY: Use APP_CONFIG instead of hardcoded URLs
-        const tokenForConnect = latestAccessTokenRef.current;
-        // TEMPORARY DIAGNOSTIC — remove once the socket-never-connects root
-        // cause is confirmed. Logs whether we actually have a token at the
-        // moment this effect runs, without ever logging the token itself.
-        // Field names deliberately avoid the substring "token" - the browser
-        // log reader used to debug this redacts any key containing it,
-        // which had been hiding these exact booleans from every prior check.
-        logger.warn('WS connect gate check', {
-          component: 'ws-diagnostic',
-          authReady: Boolean(tokenForConnect),
-          sessionHasAuth: hasAccessToken,
-          refVsSessionMismatch: Boolean(tokenForConnect) !== hasAccessToken,
-          autoConnect,
-          tenantId,
-          resolvedUserId,
-          websocketUrl,
-        });
-        if (!tokenForConnect) {
-          disconnect();
-          clearError();
-          return;
-        }
-
-        // Connect to main namespace
+    const onAuthError = () => {
+      if (!shouldBypassAuthRefresh(latestAccessTokenRef.current)) {
+        void authRecoveryRef.current?.recover();
+      }
+    };
+    const recovery = createSocketAuthRecovery({
+      refresh: async () => {
+        const refreshed = await refreshClientSessionOnce('appointment-live-ws');
+        return refreshed?.access_token ?? null;
+      },
+      onSuccess: (token) => {
+        latestAccessTokenRef.current = token;
+        postAuthRefreshRef.current = true;
         connect(websocketUrl, {
           tenantId,
           userId: resolvedUserId,
-          token: tokenForConnect,
+          token,
           withCredentials: true,
           autoReconnect: true,
           reconnectionAttempts: 5,
+          forceReconnect: true,
           onConnect: registerRealtimeSubscriptions,
-          onAuthError: async () => {
-            if (authCircuitOpenRef.current) {
-              return;
-            }
-            if (authRefreshInFlightRef.current) return;
-            authRefreshInFlightRef.current = true;
-            try {
-              if (shouldBypassAuthRefresh(tokenForConnect)) {
-                tripAuthCircuit('bypass');
-                return;
-              }
-              const refreshedSession = await refreshClientSessionOnce('appointment-live-ws');
-              if (!refreshedSession?.access_token) {
-                authFailureCountRef.current += 1;
-                if (authFailureCountRef.current >= 2) {
-                  tripAuthCircuit('refresh-returned-no-token');
-                }
-                return;
-              }
-
-              authFailureCountRef.current = 0;
-              postAuthRefreshRef.current = true;
-              connect(websocketUrl, {
-                tenantId,
-                userId: resolvedUserId,
-                token: refreshedSession.access_token,
-                withCredentials: true,
-                autoReconnect: true,
-                reconnectionAttempts: 5,
-                forceReconnect: true,
-                onConnect: registerRealtimeSubscriptions,
-              });
-            } catch (refreshError) {
-              authFailureCountRef.current += 1;
-              logger.warn('Socket auth refresh failed', {
-                component: 'appointment-live-ws',
-                error: refreshError instanceof Error ? refreshError.message : String(refreshError),
-                attempt: authFailureCountRef.current,
-              });
-              if (authFailureCountRef.current >= 2) {
-                tripAuthCircuit('refresh-threw');
-              }
-            } finally {
-              authRefreshInFlightRef.current = false;
-            }
-          },
+          onAuthError,
         });
-      } catch (error) {
-        logger.warn('Failed to initialize appointment websocket', {
-          component: 'appointment-live-ws',
-          error: error instanceof Error ? error.message : String(error),
+        scheduleAuthRefreshRef.current(token);
+      },
+      onExhausted: () => {
+        // A network outage must not log the user out. Leave an actionable retry state.
+        useWebSocketStore.setState({
+          connectionStatus: 'error',
+          error: 'Unable to refresh your session. Retry when your connection is available.',
         });
-      }
-    };
-
-    // Call the async function
-    initializeWebSocket();
+      },
+      schedule: (callback, delayMs) => window.setTimeout(callback, delayMs),
+      clear: (timer) => window.clearTimeout(timer),
+    });
+    authRecoveryRef.current = recovery;
+    connect(websocketUrl, {
+      tenantId,
+      userId: resolvedUserId,
+      token: tokenForConnect,
+      withCredentials: true,
+      autoReconnect: true,
+      reconnectionAttempts: 5,
+      onConnect: registerRealtimeSubscriptions,
+      onAuthError,
+    });
+    // Recreate the proactive timer if connection context changed without a token change.
+    scheduleAuthRefreshRef.current(tokenForConnect);
 
     return () => {
-      // Cleanup subscriptions
+      recovery.cancel();
+      if (authRecoveryRef.current === recovery) authRecoveryRef.current = null;
       clearAuthRefreshTimer();
-      if (authCircuitResetTimerRef.current !== null) {
-        window.clearTimeout(authCircuitResetTimerRef.current);
-        authCircuitResetTimerRef.current = null;
-      }
       subscriptionsRef.current.forEach((unsubscribe) => unsubscribe());
       subscriptionsRef.current = [];
     };
-  }, [hasAccessToken, autoConnect, tenantId, resolvedUserId, websocketUrl, connect, disconnect, clearError, clearAuthRefreshTimer, registerRealtimeSubscriptions, tripAuthCircuit]);
+  }, [hasAccessToken, autoConnect, tenantId, resolvedUserId, websocketUrl, connect, disconnect, clearError, clearAuthRefreshTimer, registerRealtimeSubscriptions]);
 
   // Refresh once on connect so missed payment/slot changes are reconciled from the backend snapshot.
   useEffect(() => {
@@ -1773,8 +1540,12 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
 
   // Utility functions
   const reconnect = useCallback(() => {
-    const { reconnect: reconnectSocket } = useWebSocketStore.getState();
-    reconnectSocket();
+    const state = useWebSocketStore.getState();
+    if (state.connectionMetrics.lastDisconnectReason === 'auth_expired') {
+      void authRecoveryRef.current?.recover();
+    } else {
+      state.reconnect();
+    }
   }, []);
 
   const emitEvent = useCallback((event: string, data: Record<string, unknown>) => {
@@ -1903,127 +1674,4 @@ export function useAppointmentWebSocketIntegration() {
     notifyAppointmentChange,
     isConnected,
   };
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// Module-level backoff helper for the proactive token-expired recovery path.
-// ────────────────────────────────────────────────────────────────────────────
-//
-// When the server emits `token_expired` we kick off a refresh + reconnect.
-// If that refresh fails (network blip, expired refresh token, etc.) we MUST
-// still retry — otherwise the user's socket stays dead and they see a
-// skeleton indefinitely. The previous implementation silently swallowed
-// the failure in a `catch {}` block.
-//
-// This helper schedules a bounded retry with exponential backoff (capped
-// at 30s) and a 4-attempt limit. The cap is on purpose: persistent
-// failures should surface as a real auth error so the user can re-login,
-// not spin in the background forever.
-//
-// We use a module-level timer reference (not a React ref) because this
-// can be called from a `subscribe('token_expired', ...)` callback that
-// lives outside the hook lifecycle. We deliberately do not track per-call
-// state because two near-simultaneous `token_expired` events should be
-// coalesced — if the socket is mid-refresh, we don't need a second one.
-
-interface BackoffRetryArgs {
-  tenantId?: string;
-  userId?: string;
-  context: string;
-  connect: (url: string, options: Record<string, unknown>) => void;
-  onConnect?: () => void;
-  onSuccess: (newToken: string) => void;
-}
-
-const BACKOFF_MAX_ATTEMPTS = 4;
-const BACKOFF_BASE_DELAY_MS = 2_000;
-const BACKOFF_MAX_DELAY_MS = 30_000;
-let tokenExpiredBackoffTimer: number | null = null;
-let tokenExpiredBackoffAttempts = 0;
-let tokenExpiredBackoffInFlight = false;
-
-function clearTokenExpiredBackoffTimer() {
-  if (tokenExpiredBackoffTimer !== null && typeof window !== 'undefined') {
-    window.clearTimeout(tokenExpiredBackoffTimer);
-  }
-  tokenExpiredBackoffTimer = null;
-}
-
-function scheduleTokenExpiredBackoffRetry(
-  websocketUrl: string,
-  args: BackoffRetryArgs
-) {
-  if (typeof window === 'undefined') return;
-  clearTokenExpiredBackoffTimer();
-
-  if (tokenExpiredBackoffAttempts >= BACKOFF_MAX_ATTEMPTS) {
-    // Out of retries — the user has been offline / auth-failing for
-    // a while. Force a hard redirect to the login screen so they can
-    // re-authenticate instead of staring at a stale skeleton. We use
-    // `window.location.assign` (full reload) rather than router push
-    // because we want to also wipe any in-memory auth state — that
-    // mirrors the pattern used by `useAuth.ts` after sign-out.
-    logger.warn('Socket token-expired recovery exhausted retries — forcing re-auth', {
-      component: args.context,
-      attempts: tokenExpiredBackoffAttempts,
-    });
-    tokenExpiredBackoffAttempts = 0;
-    tokenExpiredBackoffInFlight = false;
-    if (typeof window !== 'undefined') {
-      // Use a `reset` flag so the login page can show "Session
-      // expired — please sign in again" rather than the default
-      // auth landing copy. Same convention as `useAuth.ts`.
-      const resetFlag = 'reset=true';
-      const target =
-        ROUTES.LOGIN + (ROUTES.LOGIN.includes('?') ? '&' : '?') + resetFlag;
-      window.location.assign(target);
-    }
-    return;
-  }
-
-  // Exponential backoff: 2s, 4s, 8s, 16s — capped at 30s.
-  const delayMs = Math.min(
-    BACKOFF_BASE_DELAY_MS * 2 ** tokenExpiredBackoffAttempts,
-    BACKOFF_MAX_DELAY_MS
-  );
-  tokenExpiredBackoffAttempts += 1;
-
-  tokenExpiredBackoffTimer = window.setTimeout(() => {
-    tokenExpiredBackoffTimer = null;
-    if (tokenExpiredBackoffInFlight) return;
-    tokenExpiredBackoffInFlight = true;
-    void (async () => {
-      try {
-        const refreshed = await refreshClientSessionOnce(args.context);
-        if (!refreshed?.access_token) {
-          // Try again with the next backoff window.
-          scheduleTokenExpiredBackoffRetry(websocketUrl, args);
-          return;
-        }
-        // Reset the backoff on success — a fresh token puts us back in
-        // a stable state.
-        tokenExpiredBackoffAttempts = 0;
-        args.connect(websocketUrl, {
-          tenantId: args.tenantId,
-          userId: args.userId,
-          token: refreshed.access_token,
-          withCredentials: true,
-          autoReconnect: true,
-          reconnectionAttempts: 5,
-          forceReconnect: true,
-          onConnect: args.onConnect,
-        });
-        args.onSuccess(refreshed.access_token);
-      } catch (error) {
-        logger.warn('Token-expired backoff refresh failed', {
-          component: args.context,
-          attempt: tokenExpiredBackoffAttempts,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        scheduleTokenExpiredBackoffRetry(websocketUrl, args);
-      } finally {
-        tokenExpiredBackoffInFlight = false;
-      }
-    })();
-  }, delayMs);
 }

@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "../styles/patient-portal.css";
+@import "../styles/tbd.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -70,41 +71,40 @@
 }
 
 :root {
-  --background: oklch(
-    0.982 0.008 150
-  ); /* Ultra-light emerald canvas — cards float above */
-  --foreground: oklch(0.15 0 0);
-  --card: oklch(1 0 0); /* Pure White cards — pop off canvas */
-  --card-foreground: oklch(0.15 0 0);
-  --popover: oklch(1 0 0); /* Pure White popovers */
-  --popover-foreground: oklch(0.15 0 0);
-  --primary: oklch(0.62 0.16 150); /* Emerald Green */
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.975 0.005 150); /* Very light emerald tint */
-  --secondary-foreground: oklch(0.2 0 0);
-  --muted: oklch(0.975 0.005 150); /* Very light emerald tint */
-  --muted-foreground: oklch(0.55 0 0);
-  --accent: oklch(0.975 0.005 150);
-  --accent-foreground: oklch(0.2 0 0);
-  --destructive: oklch(0.57 0.2 27);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.9 0.005 150); /* Faintly emerald-tinted border */
-  --input: oklch(0.92 0.004 150);
-  --ring: oklch(0.62 0.16 150); /* Emerald focus ring */
+  /* TestByDoctor light theme — values from the approved designs (see styles/tbd.css). */
+  --background: #f4f9f6; /* mint page colour — cards float above */
+  --foreground: #0f1b2d;
+  --card: #ffffff;
+  --card-foreground: #0f1b2d;
+  --popover: #ffffff;
+  --popover-foreground: #0f1b2d;
+  --primary: #047857; /* emerald — main buttons */
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f1b2d;
+  --muted: #f1f5f9;
+  --muted-foreground: #4b5a6e;
+  --accent: #ecfdf5;
+  --accent-foreground: #065f46;
+  --destructive: #e11d48;
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #047857;
   --chart-1: oklch(0.45 0.15 260);
   --chart-2: oklch(0.65 0.15 200);
   --chart-3: oklch(0.75 0.15 150);
   --chart-4: oklch(0.85 0.15 100);
   --chart-5: oklch(0.9 0.15 50);
-  --sidebar: oklch(0.978 0.007 150);
-  --sidebar-foreground: oklch(0.15 0 0);
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f1b2d;
   --sidebar-primary: oklch(0.2 0 0);
   --sidebar-primary-foreground: oklch(0.98 0 0);
-  --sidebar-accent: oklch(0.96 0 0);
-  --sidebar-accent-foreground: oklch(0.2 0 0);
-  --sidebar-border: oklch(0.92 0 0);
-  --sidebar-ring: oklch(0.62 0.16 150);
-  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --sidebar-accent: #ecfdf5;
+  --sidebar-accent-foreground: #065f46;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #047857;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Newsreader", ui-serif, Georgia, Cambria, Times New Roman, Times, serif;
   --font-mono:
     "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
@@ -183,7 +183,7 @@
   --sidebar-accent-foreground: oklch(0.95 0 0);
   --sidebar-border: oklch(0.2 0 0);
   --sidebar-ring: oklch(0.62 0.16 150);
-  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Newsreader", ui-serif, Georgia, Cambria, Times New Roman, Times, serif;
   --font-mono:
     "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,

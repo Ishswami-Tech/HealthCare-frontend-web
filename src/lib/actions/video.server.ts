@@ -1263,3 +1263,137 @@ export async function terminateVideoSession(sessionId: string, reason?: string) 
   return runTerminateVideoSession(sessionId, reason);
 }
 
+
+// ===== POST-CALL: CONSULTATION SUMMARY AND RATING =====
+
+/** One note the doctor wrote during the video visit (GET /video/consultation/:appointmentId/summary → notes[]). */
+export interface VideoConsultationSummaryNote {
+  id: string;
+  consultationId?: string;
+  noteType?: string;
+  title?: string;
+  content?: string;
+  prescription?: {
+    medications?: Array<{
+      name?: string;
+      dosage?: string;
+      frequency?: string;
+      duration?: string;
+      instructions?: string;
+    }>;
+  } | null;
+  symptoms?: Array<{
+    symptom?: string;
+    severity?: string;
+    duration?: string;
+    notes?: string;
+  }> | null;
+  treatmentPlan?: {
+    diagnosis?: string;
+    treatment?: string;
+    followUp?: string;
+    recommendations?: string[];
+  } | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/** Response of GET /video/consultation/:appointmentId/summary. */
+export interface VideoConsultationSummary {
+  appointmentId: string;
+  consultationId: string | null;
+  /** Video consultation status (lower case), or the appointment status when no call was started. */
+  status: string;
+  appointmentStatus: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  scheduledDurationMinutes: number;
+  startTime: string | null;
+  endTime: string | null;
+  durationSeconds: number;
+  doctorName: string;
+  doctorSpecialization: string | null;
+  patientName: string;
+  participants: Array<{ userId: string; name: string; role: string }>;
+  rating: { average: number; count: number } | null;
+  myRating: { rating: number; comment?: string; ratedAt: string } | null;
+  notes: VideoConsultationSummaryNote[];
+}
+
+/** Response of POST /video/consultation/:appointmentId/rate. */
+export interface VideoConsultationRatingResult {
+  success: boolean;
+  rating: number;
+  comment?: string;
+  reviewId: string;
+}
+
+/**
+ * Get the post-call summary of a video visit.
+ * Backend: GET /video/consultation/:appointmentId/summary (patient, doctor, assistant doctor, clinic admin, super admin).
+ * Returns null when the appointment does not exist.
+ */
+export async function getConsultationSummary(
+  appointmentId: string,
+  clinicId?: string
+): Promise<VideoConsultationSummary | null> {
+  try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
+    const { data: response } = await authenticatedApi(
+      `${API_ENDPOINTS.VIDEO.BASE}/consultation/${encodeURIComponent(appointmentId)}/summary`,
+      {
+        cache: 'no-store',
+        ...(clinicId ? { clinicId } : {}),
+      }
+    );
+    if (!response || typeof response !== 'object') {
+      return null;
+    }
+    const summary = response as Partial<VideoConsultationSummary>;
+    return {
+      ...(summary as VideoConsultationSummary),
+      participants: Array.isArray(summary.participants) ? summary.participants : [],
+      notes: Array.isArray(summary.notes) ? summary.notes : [],
+    };
+  } catch (error) {
+    if (
+      isApiError(error) &&
+      (error.statusCode === 404 || error.code === 'DATABASE_RECORD_NOT_FOUND')
+    ) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+/**
+ * Save the patient's star rating for a video visit (a repeat submission updates the same review).
+ * Backend: POST /video/consultation/:appointmentId/rate (patient only; the visit must be in progress or completed).
+ */
+export async function rateConsultation(
+  appointmentId: string,
+  data: {
+    rating: number;
+    comment?: string;
+    consultationId?: string;
+  },
+  clinicId?: string
+) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+  const { data: response } = await authenticatedApi(
+    `${API_ENDPOINTS.VIDEO.BASE}/consultation/${encodeURIComponent(appointmentId)}/rate`,
+    {
+      method: 'POST',
+      body: JSON.stringify(data),
+      ...(clinicId ? { clinicId } : {}),
+    }
+  );
+  return response as VideoConsultationRatingResult;
+}

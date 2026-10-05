@@ -651,20 +651,47 @@ export async function getServerSession(): Promise<Session | null> {
       });
     }
 
-    if (!accessToken) {
+    const accessTokenExpiryMs = accessToken ? getJwtExpiryMs(accessToken) : null;
+    const accessTokenExpired =
+      !!accessToken &&
+      accessTokenExpiryMs !== null &&
+      accessTokenExpiryMs <= Date.now();
+
+    // After external payment redirects, the short-lived access token is often
+    // missing/expired while the refresh token is still valid. Restore the
+    // session instead of treating the user as logged out.
+    if (!accessToken || accessTokenExpired) {
+      if (refreshTokenValue) {
+        try {
+          const refreshed = await refreshToken();
+          if (refreshed?.access_token && refreshed.user) {
+            return refreshed;
+          }
+        } catch (refreshError) {
+          if (isTransientSessionError(refreshError)) {
+            throw refreshError;
+          }
+          logger.warn('getServerSession - refresh after missing/expired access token failed', {
+            error:
+              refreshError instanceof Error
+                ? refreshError
+                : new Error(String(refreshError)),
+          });
+        }
+      }
+
       if (process.env.NODE_ENV === 'development') {
         const now = Date.now();
         const lastLog = (global as unknown as Record<string, number>).__lastNoTokenLog || 0;
         if (now - lastLog > 500) {
           (global as unknown as Record<string, number>).__lastNoTokenLog = now;
-          logger.debug('getServerSession - No tokens found');
+          logger.debug('getServerSession - No usable access token', {
+            hadAccessToken: !!accessToken,
+            accessTokenExpired,
+            hasRefreshToken: !!refreshTokenValue,
+          });
         }
       }
-      return null;
-    }
-
-    const accessTokenExpiryMs = getJwtExpiryMs(accessToken);
-    if (accessTokenExpiryMs !== null && accessTokenExpiryMs <= Date.now()) {
       return null;
     }
 

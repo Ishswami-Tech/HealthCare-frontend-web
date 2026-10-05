@@ -30,7 +30,7 @@ export const DASHBOARD_SPACING = {
 
 /** Neutral surface shared by all dashboard panels. */
 export const DASHBOARD_SURFACE =
-  "rounded-2xl border border-border/70 bg-card shadow-[0_1px_2px_rgba(16,24,20,0.04)]";
+  "rounded-[20px] bg-card shadow-card dark:border dark:border-border/70";
 
 // ---------------------------------------------------------------------------
 // Card
@@ -73,23 +73,23 @@ export function DashboardCardHead({
   return (
     <header
       className={cn(
-        "flex flex-wrap items-center gap-3 border-b border-border/70",
+        "flex flex-wrap items-center gap-3 border-b border-hair",
         DASHBOARD_SPACING.cardHead,
         className,
       )}
     >
       <div className="flex min-w-0 flex-1 items-center gap-2.5">
         {icon ? (
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-mint text-brand">
             {icon}
           </span>
         ) : null}
         <div className="flex min-w-0 flex-col">
-          <h2 className="truncate text-[15px] font-bold tracking-tight text-foreground">
+          <h2 className="truncate text-base font-bold text-ink">
             {title}
           </h2>
           {description ? (
-            <p className="truncate text-[12.5px] text-muted-foreground">{description}</p>
+            <p className="truncate text-[13px] text-ink-muted">{description}</p>
           ) : null}
         </div>
       </div>
@@ -115,12 +115,12 @@ export function DashboardCardBody({
 export type DashboardStatTone = "brand" | "info" | "warn" | "violet" | "crit" | "plain";
 
 const STAT_TONES: Record<DashboardStatTone, string> = {
-  brand: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400",
+  brand: "bg-[#d1fae5] text-[#047857] dark:bg-emerald-950/50 dark:text-emerald-400",
   info: "bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400",
   warn: "bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400",
   violet: "bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-400",
   crit: "bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400",
-  plain: "bg-muted text-muted-foreground",
+  plain: "bg-[#d1fae5] text-[#047857] dark:bg-emerald-950/50 dark:text-emerald-400",
 };
 
 export interface DashboardStatItem {
@@ -155,7 +155,7 @@ export function DashboardStatStrip({
         : "sm:grid-cols-2 xl:grid-cols-4";
 
   return (
-    <div className={cn("grid grid-cols-2 gap-3.5", columnClass, className)}>
+    <div className={cn("grid grid-cols-2 gap-4", columnClass, className)}>
       {items.map((item) => (
         <DashboardStatCard
           key={item.label}
@@ -196,13 +196,13 @@ export function DashboardEmpty({
       )}
     >
       {icon ? (
-        <div className="flex size-11 items-center justify-center rounded-xl border border-border bg-muted text-muted-foreground">
+        <div className="flex size-12 items-center justify-center rounded-[14px] bg-mint text-brand">
           {icon}
         </div>
       ) : null}
-      <h3 className="font-serif text-lg font-medium text-foreground">{title}</h3>
+      <h3 className="text-base font-bold text-ink">{title}</h3>
       {description ? (
-        <p className="max-w-[46ch] text-[13.5px] leading-relaxed text-muted-foreground">
+        <p className="max-w-[46ch] text-[13.5px] leading-relaxed text-ink-muted">
           {description}
         </p>
       ) : null}
@@ -237,46 +237,42 @@ export function DashboardStatCard({
   href,
   className,
 }: DashboardStatCardProps) {
+  // Label, big number, small line under it; icon square on the right (design "kpi").
   const body = (
     <>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="truncate text-xs font-bold leading-tight text-ink-muted">{label}</span>
+        {isPending ? (
+          <Skeleton className="h-7 w-16 rounded-md" />
+        ) : (
+          <span className="truncate text-[26px] font-extrabold leading-[1.15] text-ink">
+            {value}
+          </span>
+        )}
+        {hint ? (
+          <span className="truncate text-xs leading-tight text-ink-muted">{hint}</span>
+        ) : null}
+      </span>
       {icon ? (
         <span
           className={cn(
-            "flex size-11 shrink-0 items-center justify-center rounded-xl",
+            "flex size-11 shrink-0 items-center justify-center rounded-[14px]",
             STAT_TONES[tone],
           )}
         >
           {icon}
         </span>
       ) : null}
-      <span className="flex min-w-0 flex-1 flex-col">
-        {isPending ? (
-          <Skeleton className="h-7 w-16 rounded-md" />
-        ) : (
-          <span className="truncate text-[26px] font-bold leading-none tracking-tight text-foreground">
-            {value}
-          </span>
-        )}
-        <span className="mt-1.5 truncate text-[12.5px] font-medium leading-tight text-muted-foreground">
-          {label}
-        </span>
-        {hint ? (
-          <span className="mt-0.5 truncate text-[11.5px] leading-tight text-muted-foreground/80">
-            {hint}
-          </span>
-        ) : null}
-      </span>
       {href ? (
-        <ChevronRight className="size-4 shrink-0 self-center text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+        <ChevronRight className="size-4 shrink-0 text-ink-muted transition-transform group-hover:translate-x-0.5" />
       ) : null}
     </>
   );
 
   const shell = cn(
-    DASHBOARD_SURFACE,
-    "group flex items-start gap-3.5 p-4 sm:p-[18px]",
+    "group flex items-center gap-3.5 rounded-[18px] bg-card px-[18px] py-4 shadow-card dark:border dark:border-border/70",
     href &&
-      "transition-colors hover:border-emerald-200 hover:bg-accent/30 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-500/40 dark:hover:border-emerald-900",
+      "transition-shadow hover:shadow-md focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-500/40",
     className,
   );
 
@@ -323,11 +319,11 @@ export function DashboardQuickAction({
         className,
       )}
     >
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
+      <span className="flex size-11 shrink-0 items-center justify-center rounded-[14px] bg-mint text-brand">
         {icon}
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-y-0.5">
-        <span className="truncate text-[13.5px] font-semibold text-foreground">{title}</span>
+        <span className="truncate text-sm font-bold text-ink">{title}</span>
         <span className="truncate text-xs leading-snug text-muted-foreground">
           {description}
         </span>

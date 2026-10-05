@@ -740,6 +740,15 @@ export class ApiClient {
         // Update session with new tokens
         await this.updateSession(tokens);
         } catch (error) {
+          // The shared refresh clears auth only for an invalid refresh session. Preserve
+          // the client session when a temporary failure interrupts renewal.
+          if (isClient && useAuthStore.getState().session?.access_token) {
+            throw error instanceof ApiError ? error : new ApiError(
+              error instanceof Error ? error.message : 'Session refresh is temporarily unavailable',
+              503,
+              ERROR_CODES.SYSTEM_ERROR
+            );
+          }
           // If refresh fails, clear session and throw
           await this.clearAuthSession();
           if (typeof window !== 'undefined') {

@@ -48,8 +48,8 @@ export default function ConsultationCard({
   return (
     <Card
       className={cn(
-        "cursor-pointer transition-all duration-200 hover:shadow-md",
-        isSelected && "ring-2 ring-blue-500 ring-offset-2 bg-blue-50",
+        "cursor-pointer transition-shadow duration-200 hover:shadow-md",
+        isSelected && "bg-mint-soft ring-2 ring-brand ring-offset-2 ring-offset-background",
         className
       )}
       onClick={() => onSelect(consultation.type)}
@@ -59,7 +59,7 @@ export default function ConsultationCard({
           <div className="flex items-center gap-3">
             <TherapyBadge type={consultation.type} />
             <div>
-              <CardTitle className="text-lg">{consultation.name}</CardTitle>
+              <CardTitle className="text-base font-bold text-ink">{consultation.name}</CardTitle>
               <div className="flex items-center gap-2 mt-1">
                 <Badge variant="outline" className="text-xs">
                   {consultation.duration} min
@@ -91,19 +91,19 @@ export default function ConsultationCard({
       </CardHeader>
 
       <CardContent className="pt-0">
-        <p className="text-gray-600 text-sm mb-3">
+        <p className="mb-3 text-sm text-ink-muted">
           {consultation.description}
         </p>
 
         {showDetails && isExpanded && (
-          <div className="flex flex-col gap-y-3 border-t pt-3">
+          <div className="flex flex-col gap-y-3 border-t border-hair pt-3">
             {consultation.prerequisites && consultation.prerequisites.length > 0 && (
               <div>
-                <h4 className="font-medium text-sm text-green-700 mb-1">{t("consultations.prerequisites")}:</h4>
-                <ul className="list-disc space-y-1 text-xs text-gray-600">
+                <h4 className="mb-1 text-sm font-bold text-brand-dark">{t("consultations.prerequisites")}:</h4>
+                <ul className="space-y-1 text-xs text-ink-muted">
                   {consultation.prerequisites.map((prereq) => (
                     <li key={prereq} className="flex items-start gap-1">
-                      <span className="text-green-600 mt-0.5">•</span>
+                      <span className="mt-0.5 text-brand" aria-hidden="true">•</span>
                       {prereq}
                     </li>
                   ))}
@@ -113,11 +113,11 @@ export default function ConsultationCard({
 
             {consultation.contraindications && consultation.contraindications.length > 0 && (
               <div>
-                <h4 className="font-medium text-sm text-red-700 mb-1">{t("consultations.contraindications")}:</h4>
-                <ul className="list-disc space-y-1 text-xs text-gray-600">
+                <h4 className="mb-1 text-sm font-bold text-[#be123c] dark:text-rose-300">{t("consultations.contraindications")}:</h4>
+                <ul className="space-y-1 text-xs text-ink-muted">
                   {consultation.contraindications.map((contra) => (
                     <li key={contra} className="flex items-start gap-1">
-                      <span className="text-red-600 mt-0.5">•</span>
+                      <span className="mt-0.5 text-[#e11d48] dark:text-rose-300" aria-hidden="true">•</span>
                       {contra}
                     </li>
                   ))}

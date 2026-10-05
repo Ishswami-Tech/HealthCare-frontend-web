@@ -916,17 +916,35 @@ export const useCurrentClinicId = () => {
   );
 };
 
+/** Roles allowed on GET /clinics/:id (backend @Roles). Everyone else uses /clinics/my-clinic. */
+function canFetchClinicById(role: string | undefined): boolean {
+  const key = String(role || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '_');
+  return key === 'SUPER_ADMIN' || key === 'CLINIC_ADMIN' || key === 'PATIENT';
+}
+
 // ✅ Current Clinic Hook
 export const useCurrentClinic = () => {
   const clinicId = useCurrentClinicId();
   const { isConnected } = useWebSocketStatus();
   const authScope = useClinicQueryScope();
   const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
+  const userRole = useAuthStore((state) => state.session?.user?.role);
   
   return useQueryData(
     ['current-clinic', clinicId, authScope],
     async () => {
       try {
+        // Doctors/staff get 403 on clinics/:id (ownership-scoped). Use my-clinic.
+        if (!canFetchClinicById(userRole)) {
+          const mine = await getMyClinic();
+          if (!mine) {
+            throw new Error('Failed to fetch clinic');
+          }
+          return mine;
+        }
         if (!clinicId) {
           throw new Error('No clinic ID available');
         }
@@ -943,7 +961,7 @@ export const useCurrentClinic = () => {
       }
     },
     {
-      enabled: !!clinicId,
+      enabled: canFetchClinicById(userRole) ? !!clinicId : !!userRole,
       staleTime: 5 * 60 * 1000, // 5 minutes
       refetchInterval: isAuthRefreshing || isConnected ? false : 300_000,
       // Keep previous clinic context visible during background refetches so

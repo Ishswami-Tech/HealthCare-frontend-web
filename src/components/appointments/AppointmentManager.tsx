@@ -1,716 +1,46 @@
 "use client";
 
-import { useState, useReducer, useCallback, useMemo, useEffect, useRef } from "react";
-import { APP_CONFIG } from "@/lib/config/config";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
-import { Calendar as CalendarPicker } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  CardFooter
-} from "@/components/ui/card";
-
-import { showErrorToast, showInfoToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
-import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
-import { useAuth } from "@/hooks/auth/useAuth";
-import { useQueryClient } from "@/hooks/core";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CreditCard, Plus, RefreshCw } from "lucide-react";
 import { useWebSocketStatus } from "@/app/providers/WebSocketProvider";
-import { useCurrentTimestamp } from "@/hooks/utils/useClientDate";
+import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
+import { PaymentButton } from "@/components/payments/PaymentButton";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/auth/useAuth";
 import {
+  useAppointments,
   useCancelAppointment,
   useMyAppointments,
-  useAppointments,
-  useProcessCheckIn,
-  useRescheduleAppointment,
   useRejectVideoProposal,
+  useRescheduleAppointment,
 } from "@/hooks/query/useAppointments";
+import { showErrorToast, showInfoToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import { useCurrentTimestamp } from "@/hooks/utils/useClientDate";
 import {
-  AppointmentWithRelations,
-} from "@/types/appointment.types";
-import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
-import { cn } from "@/lib/utils";
-import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
-import {
-  formatDateInIST,
   formatISODateInIST,
-  getAppointmentCounterpartyName,
-  getAppointmentPaymentDisplayState,
-  getAppointmentStatusBadgeLabel,
+  formatTimeInIST,
   getAppointmentDateTimeValue,
-  getDisplayAppointmentDuration,
-  getAppointmentViewState,
-  getVideoAppointmentJoinBlockedReason,
-  isVideoAppointmentPaymentCompleted,
-  isVideoAppointmentJoinable,
-  isTerminalAppointment,
-  isTerminalAppointmentStatus,
-  normalizeAppointmentStatus,
-  getAppointmentDoctorName,
-  getAppointmentPatientName,
-  normalizePatientAppointment,
-  getReceptionistAppointmentTimeLabel,
   getAppointmentPaymentAmount,
-  wasCancelledDueToPaymentFailure,
-  wasExpiredDueToPaymentFailure,
-  isAppointmentTimeSlotExpired,
-  canCancelAppointment,
-  canRescheduleAppointment,
-  toTitleCase,
+  getVideoAppointmentJoinBlockedReason,
+  isVideoAppointmentJoinable,
+  normalizePatientAppointment,
 } from "@/lib/utils/appointmentUtils";
-import {
-  Calendar,
-  Clock,
-  Stethoscope,
-  Video,
-  CheckCircle,
-  XCircle,
-  RefreshCw,
-  Loader2,
-  Search,
-  ChevronDown,
-  Activity,
-  Zap,
-  CalendarPlus,
-  Timer,
-  CreditCard,
-  X,
-} from "lucide-react";
-import { PaymentButton } from "@/components/payments/PaymentButton";
-import { PaymentCountdown } from "@/components/appointments/PaymentCountdown";
+import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
+import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 import { Role } from "@/types/auth.types";
-
-type StatusFilter =
-  | "ALL"
-  | "SCHEDULED"
-  | "CONFIRMED"
-  | "IN_PROGRESS"
-  | "COMPLETED"
-  | "CANCELLED"
-  | "NO_SHOW"
-  | "EXPIRED";
-
-const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string; bg: string }> = {
-  PENDING: { label: "Payment Pending", color: "text-amber-800 dark:text-amber-200", dot: "bg-amber-500", bg: "bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700" },
-  SCHEDULED: { label: "Scheduled", color: "text-blue-700 dark:text-blue-300", dot: "bg-blue-500", bg: "bg-blue-50 dark:bg-blue-950/30 border-blue-300 dark:border-blue-800" },
-  CONFIRMED: { label: "Confirmed", color: "text-green-700 dark:text-green-300", dot: "bg-green-500", bg: "bg-green-50 dark:bg-green-950/30 border-green-300 dark:border-green-800" },
-  IN_PROGRESS: { label: "In Progress", color: "text-purple-700 dark:text-purple-300", dot: "bg-purple-500", bg: "bg-purple-50 dark:bg-purple-950/30 border-purple-300 dark:border-purple-800" },
-  COMPLETED: { label: "Completed", color: "text-slate-700 dark:text-slate-300", dot: "bg-slate-500", bg: "bg-slate-50 dark:bg-slate-800/30 border-slate-300 dark:border-slate-600" },
-  CANCELLED: { label: "Cancelled", color: "text-red-700 dark:text-red-300", dot: "bg-red-500", bg: "bg-red-50 dark:bg-red-950/40 border-red-300 dark:border-red-700" },
-  NO_SHOW: { label: "No Show", color: "text-orange-700 dark:text-orange-300", dot: "bg-orange-400", bg: "bg-orange-50 dark:bg-orange-950/30 border-orange-300 dark:border-orange-800" },
-  EXPIRED: { label: "Expired", color: "text-amber-800 dark:text-amber-200", dot: "bg-amber-500", bg: "bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700" },
-};
-
-function getPaginationWindow(currentPage: number, totalPages: number): Array<number | "ellipsis"> {
-  if (totalPages <= 7) {
-    return Array.from({ length: totalPages }, (_, index) => index + 1);
-  }
-
-  const visible = new Set<number>([1, totalPages, currentPage]);
-  for (const offset of [-1, 1]) {
-    const page = currentPage + offset;
-    if (page > 1 && page < totalPages) {
-      visible.add(page);
-    }
-  }
-
-  return Array.from({ length: totalPages }, (_, index) => index + 1).reduce<Array<number | "ellipsis">>((pages, page) => {
-    if (!visible.has(page)) {
-      return pages;
-    }
-
-    const previous = pages[pages.length - 1];
-    if (typeof previous === "number" && page - previous > 1) {
-      pages.push("ellipsis");
-    }
-
-    pages.push(page);
-    return pages;
-  }, []);
-}
-
-function formatAppointmentManagerDate(date: string): string {
-  const parsed = new Date(date);
-  if (Number.isNaN(parsed.getTime())) return "Date TBD";
-  return formatDateInIST(parsed, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-interface StatCardProps {
-  label: string;
-  value: number;
-  icon: React.ReactNode;
-  iconBg: string;
-  iconBorder: string;
-  iconColor: string;
-  cardBorder: string;
-  cardHover: string;
-  className?: string;
-}
-
-function StatCard({
-  label,
-  value,
-  icon,
-  iconBg,
-  iconBorder,
-  iconColor,
-  cardBorder,
-  cardHover,
-  className,
-}: StatCardProps) {
-  return (
-    <div className={cn(`flex items-center gap-2 sm:gap-3 rounded-2xl border ${cardBorder} p-2 sm:p-4 transition-all ${cardHover} hover:shadow-sm`, className)}>
-      <div className={cn(`rounded-xl ${iconBg} border p-1.5 sm:p-2 ${iconBorder} ${iconColor}`)}>{icon}</div>
-      <div>
-        <p className="text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">{value}</p>
-        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
-      </div>
-    </div>
-  );
-}
-
-interface AppointmentCardProps {
-  apt: AppointmentWithRelations;
-  expandedCard: string | null;
-  checkInRoute: string;
-  cancellingAppointment: boolean;
-  reschedulingAppointment: boolean;
-  onCancelAppointment: (id: string) => void;
-  onReschedule: (apt: AppointmentWithRelations) => void;
-  handleJoinVideo: (appointment: any) => void;
-  onExpand: (id: string | null) => void;
-  onSelect: (apt: AppointmentWithRelations | null) => void;
-  onBookNew: (apt: AppointmentWithRelations | any) => void;
-  viewerRole?: string;
-}
-
-type AppointmentManagerState = {
-  searchQuery: string;
-  isRescheduleDialogOpen: boolean;
-  rescheduleData: { date: string; time: string };
-  isRejectDialogOpen: boolean;
-  rejectReason: string;
-  currentPage: number;
-  expandedCard: string | null;
-};
-
-type AppointmentManagerAction =
-  | { type: "setSearchQuery"; value: string }
-  | { type: "setIsRescheduleDialogOpen"; value: boolean }
-  | {
-    type: "setRescheduleData";
-    value:
-    | { date: string; time: string }
-    | ((prev: { date: string; time: string }) => { date: string; time: string });
-  }
-  | { type: "setIsRejectDialogOpen"; value: boolean }
-  | { type: "setRejectReason"; value: string }
-  | {
-    type: "setCurrentPage";
-    value: number | ((prev: number) => number);
-  }
-  | { type: "setExpandedCard"; value: string | null }
-  | { type: "resetRescheduleState" };
-
-const initialAppointmentManagerState: AppointmentManagerState = {
-  searchQuery: "",
-  isRescheduleDialogOpen: false,
-  rescheduleData: { date: "", time: "" },
-  isRejectDialogOpen: false,
-  rejectReason: "",
-  currentPage: 1,
-  expandedCard: null,
-};
-
-function appointmentManagerReducer(
-  state: AppointmentManagerState,
-  action: AppointmentManagerAction
-): AppointmentManagerState {
-  switch (action.type) {
-    case "setSearchQuery":
-      return { ...state, searchQuery: action.value };
-    case "setIsRescheduleDialogOpen":
-      return { ...state, isRescheduleDialogOpen: action.value };
-    case "setRescheduleData":
-      return {
-        ...state,
-        rescheduleData:
-          typeof action.value === "function"
-            ? action.value(state.rescheduleData)
-            : action.value,
-      };
-    case "setIsRejectDialogOpen":
-      return { ...state, isRejectDialogOpen: action.value };
-    case "setRejectReason":
-      return { ...state, rejectReason: action.value };
-    case "setCurrentPage":
-      return {
-        ...state,
-        currentPage:
-          typeof action.value === "function"
-            ? action.value(state.currentPage)
-            : action.value,
-      };
-    case "setExpandedCard":
-      return { ...state, expandedCard: action.value };
-    case "resetRescheduleState":
-      return {
-        ...state,
-        isRescheduleDialogOpen: false,
-        rescheduleData: { date: "", time: "" },
-        isRejectDialogOpen: false,
-        rejectReason: "",
-        expandedCard: null,
-      };
-    default:
-      return state;
-  }
-}
-
-function AppointmentCard({
-  apt,
-  expandedCard,
-  checkInRoute,
-  cancellingAppointment,
-  reschedulingAppointment,
-  onCancelAppointment,
-  onReschedule,
-  handleJoinVideo,
-  onExpand,
-  onSelect,
-  onBookNew,
-  viewerRole,
-}: AppointmentCardProps) {
-  const viewState = getAppointmentViewState(apt);
-  const effectiveStatus = viewState.normalizedStatus;
-  const cfg = (STATUS_CONFIG[effectiveStatus] ?? STATUS_CONFIG["SCHEDULED"]) as { label: string; color: string; dot: string; bg: string };
-  const statusLabel = viewState.displayStatusLabel;
-  const isExpanded = expandedCard === apt.id;
-  const appointmentDateTime = getAppointmentDateTimeValue(apt);
-  const normalizedAppointment = normalizePatientAppointment(apt);
-  const doctorName =
-    (apt as any).doctorLabel ||
-    getAppointmentDoctorName(apt) ||
-    normalizedAppointment.doctorName;
-  const patientName =
-    (apt as any).patientLabel ||
-    getAppointmentPatientName(apt);
-  const counterpartyName =
-    getAppointmentCounterpartyName(apt, viewerRole) ||
-    patientName ||
-    doctorName;
-  const locationName = (apt as any).locationLabel || normalizedAppointment.locationName;
-  const appointmentTypeLabel =
-    apt.type === "VIDEO_CALL"
-      ? "Video Consultation"
-      : apt.type === "IN_PERSON"
-        ? "In-Person Visit"
-        : String(apt.type || "Appointment").replace(/_/g, " ");
-  const isVideoAppointment = apt.type === "VIDEO_CALL";
-  const displayTimeLabel = getReceptionistAppointmentTimeLabel(
-    apt as unknown as Record<string, unknown>
-  );
-  const rawTimeValue = apt.time || "";
-  const normalizedDate = appointmentDateTime?.toISOString() || apt.date;
-  const displayDuration = getDisplayAppointmentDuration(apt);
-
-  // Auto-expand video appointments that are in PENDING (i.e. waiting on
-  // payment). The countdown timer is critical info the patient must see
-  // immediately — we don't want them to have to click into the card.
-  useEffect(() => {
-    if (
-      effectiveStatus === "PENDING" &&
-      isVideoAppointment &&
-      expandedCard !== apt.id &&
-      typeof onExpand === "function"
-    ) {
-      onExpand(apt.id);
-    }
-    // Intentionally only react to status / type changes — avoid loops when
-    // expandedCard changes due to user action.
-  }, [effectiveStatus, isVideoAppointment, expandedCard, apt.id, onExpand]);
-
-  const isCancelled = effectiveStatus === "CANCELLED" || effectiveStatus === "NO_SHOW" || effectiveStatus === "EXPIRED";
-  const isConfirmed = effectiveStatus === "CONFIRMED";
-  return (
-    <div className={`w-full overflow-visible rounded-2xl border transition-all duration-200 hover:shadow-md ${isCancelled
-      ? "bg-red-50/60 border-red-200/80 dark:bg-red-950/15 dark:border-red-900/50"
-      : isConfirmed
-        ? "bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900/60 hover:border-emerald-300"
-        : `bg-card border-border hover:border-emerald-200 ${isExpanded ? "shadow-md border-emerald-300" : ""}`
-      }`}>
-      {/* Card header */}
-      <button
-        type="button"
-        className="flex w-full cursor-pointer flex-col p-3 text-left sm:p-4"
-        onClick={() => {
-          onExpand(isExpanded ? null : apt.id);
-          onSelect(isExpanded ? null : apt);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            onExpand(isExpanded ? null : apt.id);
-            onSelect(isExpanded ? null : apt);
-          }
-        }}
-      >
-        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            {/* Avatar */}
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-100 text-sm font-bold text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/40 dark:text-emerald-300 sm:h-10 sm:w-10">
-              {toTitleCase(doctorName).charAt(0)}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold leading-tight">{toTitleCase(doctorName)}</p>
-              <div className="mt-0.5 flex flex-col gap-0.5 text-xs leading-tight opacity-60">
-                {patientName && (
-                  <p className="truncate">Patient: {toTitleCase(patientName)}</p>
-                )}
-                {!patientName && counterpartyName && counterpartyName !== doctorName && (
-                  <p className="truncate">Counterparty: {toTitleCase(counterpartyName)}</p>
-                )}
-                {!isVideoAppointment && locationName && locationName !== doctorName && (
-                  <p className="truncate">Location: {toTitleCase(locationName)}</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-1.5 shrink-0 self-start sm:self-auto">
-            {/* Status badge */}
-            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold shadow-sm ${cfg.bg} ${cfg.color} ${cfg.dot ? "" : "border-border"}`}>
-              <span className={`size-1.5 rounded-full ${cfg.dot}`} />
-              {toTitleCase(statusLabel)}
-            </span>
-            {/* Appointment type chip — replaces the duplicate "Video" badge.
-                Video calls get a subtle blue/cyan tint, in-person gets a
-                soft slate tint. Strong border keeps it readable. */}
-            {apt.type === "VIDEO_CALL" ? (
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-sky-300 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold capitalize text-sky-800 shadow-sm dark:border-sky-700 dark:bg-sky-950/30 dark:text-sky-200">
-                <Video className="size-3.5" />
-                {appointmentTypeLabel}
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold capitalize text-slate-700 shadow-sm dark:border-slate-600 dark:bg-slate-800/40 dark:text-slate-200">
-                <Stethoscope className="size-3.5" />
-                {appointmentTypeLabel}
-              </span>
-            )}
-            {apt.treatmentType && (
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-violet-300 bg-violet-50 px-2.5 py-1 text-[11px] font-semibold capitalize text-violet-800 shadow-sm dark:border-violet-700 dark:bg-violet-950/30 dark:text-violet-200">
-                <Activity className="size-3.5" />
-                {String(apt.treatmentType).replace(/_/g, " ").toLowerCase()}
-              </span>
-            )}
-            {/* Payment pending badge for video appointments awaiting payment */}
-            {isVideoAppointment && !viewState.paymentCompleted && !isCancelled && (
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-amber-400 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700 shadow-sm dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
-                <CreditCard className="size-3.5" />
-                Payment Pending
-              </span>
-            )}
-            <ChevronDown className={`size-4 opacity-40 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
-          </div>
-        </div>
-
-        {/* Date/time row */}
-        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] opacity-70">
-          <span className="flex items-center gap-1.5">
-            <Calendar className="size-3.5" />
-            {formatAppointmentManagerDate(normalizedDate)}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Clock className="size-3.5" />
-            {displayTimeLabel}
-          </span>
-          {displayDuration && (
-            <span className="flex items-center gap-1.5">
-              <Timer className="size-3.5" />
-              {displayDuration} min
-            </span>
-          )}
-        </div>
-      </button>
-
-      {/* Expanded details */}
-      {isExpanded && (
-        <div className="border-t border-border/60 bg-muted/30 p-3 sm:p-4">
-          {isVideoAppointment &&
-          !viewState.paymentCompleted &&
-          !isTerminalAppointmentStatus(effectiveStatus) ? (
-            // Payment not yet completed on a still-active video appointment.
-            // Keyed on paymentCompleted rather than effectiveStatus === "PENDING"
-            // since freshly-booked video appointments can carry other non-terminal
-            // statuses (e.g. SCHEDULED) while still awaiting payment — checking
-            // the literal status string here missed those and fell through to
-            // the generic branch below, which had no countdown and (wrongly)
-            // still offered "Cancel Appointment" on a slot that's already going
-            // to auto-expire in the payment window.
-            // Show a live countdown with a "Complete Payment" CTA so the patient
-            // can act before the backend auto-cancels the slot.
-            <div className="space-y-3">
-              <PaymentCountdown
-                paymentExpiresAt={viewState.paymentExpiresAt}
-                paymentWindowMinutes={viewState.paymentWindowMinutes}
-                onExpire={() => {
-                  // Refresh list once the deadline hits so the UI reflects the
-                  // now-cancelled appointment without a manual reload.
-                  try {
-                    (window as Window & { __refreshAppointments?: () => void })
-                      .__refreshAppointments?.();
-                  } catch {
-                    /* noop */
-                  }
-                }}
-                showCompletePaymentCta
-                onCompletePayment={() => {
-                  // Defer to the existing payment button so the same flow is used.
-                  const paymentButton = document.querySelector<HTMLButtonElement>(
-                    `[data-appointment-pay="${getEffectiveAppointmentId(apt)}"]`
-                  );
-                  paymentButton?.click();
-                }}
-                ctaDisabled={cancellingAppointment}
-              />
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-xs text-slate-600 dark:text-slate-400">
-                  Your video appointment slot is reserved. Once payment is complete, it will be confirmed and the doctor will see it on their dashboard.
-                </p>
-                <PaymentButton
-                  appointmentId={getEffectiveAppointmentId(apt)}
-                  amount={getAppointmentPaymentAmount(apt)}
-                  appointmentType="VIDEO_CALL"
-                  description={`Video consultation with ${doctorName || "doctor"}`}
-                  className="h-10 w-full justify-center sm:w-auto sm:px-5"
-                  data-appointment-pay={getEffectiveAppointmentId(apt)}
-                >
-                  <CreditCard className="mr-2 size-4" />
-                  Pay & Confirm
-                </PaymentButton>
-              </div>
-            </div>
-          ) : isTerminalAppointmentStatus(effectiveStatus) ? (
-            effectiveStatus === "EXPIRED" && wasExpiredDueToPaymentFailure(apt) ? (
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/30 dark:text-amber-200">
-                  <p className="font-semibold">Appointment Expired</p>
-                  <p className="mt-0.5">
-                    This appointment expired because payment was not completed within the 15-minute window.
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-10 w-full justify-center sm:w-auto sm:px-5"
-                  onClick={() => onBookNew(apt)}
-                  disabled={cancellingAppointment}
-                >
-                  <RefreshCw className="mr-2 size-4" />
-                  Book New Appointment
-                </Button>
-              </div>
-            ) : effectiveStatus === "EXPIRED" ? (
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/30 dark:text-amber-200">
-                  <p className="font-semibold">Appointment Expired</p>
-                  <p className="mt-0.5">
-                    This appointment expired because the time slot has passed. Please book a new appointment.
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-10 w-full justify-center sm:w-auto sm:px-5"
-                  onClick={() => onBookNew(apt)}
-                  disabled={cancellingAppointment}
-                >
-                  <RefreshCw className="mr-2 size-4" />
-                  Book New Appointment
-                </Button>
-              </div>
-            ) : effectiveStatus === "CANCELLED" && wasCancelledDueToPaymentFailure(apt) ? (
-              isAppointmentTimeSlotExpired(apt) ? (
-                // Expired slot: do NOT show retry payment; the backend will
-                // refuse the charge anyway. Offer "Book New" only.
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/30 dark:text-amber-200">
-                    <p className="font-semibold">Appointment Expired</p>
-                    <p className="mt-0.5">
-                      This {isVideoAppointment ? "video " : ""}appointment expired because payment was not completed in time, and the time slot has already passed.
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="h-10 w-full justify-center sm:w-auto sm:px-5"
-                    onClick={() => onBookNew(apt)}
-                    disabled={cancellingAppointment}
-                  >
-                    <RefreshCw className="mr-2 size-4" />
-                    Book New Appointment
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/30 dark:text-amber-200">
-                    <p className="font-semibold">Payment Not Completed</p>
-                    <p className="mt-0.5">
-                      {isVideoAppointment
-                        ? "This video appointment was cancelled because payment was not completed within the 3-hour window. You can still retry payment below before the slot begins."
-                        : "This appointment was cancelled because payment was not completed. You can retry payment for the same appointment below."}
-                    </p>
-                  </div>
-                  {isVideoAppointment ? (
-                    <PaymentButton
-                      appointmentId={getEffectiveAppointmentId(apt)}
-                      amount={getAppointmentPaymentAmount(apt)}
-                      appointmentType="VIDEO_CALL"
-                      description={`Video consultation with ${doctorName || "doctor"}`}
-                      className="h-10 w-full justify-center"
-                    >
-                      <RefreshCw className="mr-2 size-4" />
-                      Retry Payment
-                    </PaymentButton>
-                  ) : (
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="h-10 w-full justify-center"
-                      onClick={() => onBookNew(apt)}
-                      disabled={cancellingAppointment}
-                    >
-                      <RefreshCw className="mr-2 size-4" />
-                      Book New Appointment
-                    </Button>
-                  )}
-                </div>
-              )
-            ) : (
-              <p className="text-sm italic text-muted-foreground">
-                {effectiveStatus === "CANCELLED"
-                  ? "This appointment was cancelled. Book a new appointment to continue."
-                  : effectiveStatus === "COMPLETED"
-                    ? "This appointment has been completed."
-                    : effectiveStatus === "NO_SHOW"
-                      ? "Marked as no-show. Book a new appointment if you still need care."
-                      : effectiveStatus === "EXPIRED"
-                        ? "This appointment expired because the appointment time has passed. Please book a new appointment."
-                        : "No further actions available for this appointment."}
-              </p>
-            )
-          ) : (
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              {/* Details column (left) */}
-              <div className="space-y-2 min-w-0 flex-1">
-                {!isVideoAppointment && (
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Check-in Route</p>
-                    <p className="text-sm font-medium">{checkInRoute}</p>
-                  </div>
-                )}
-              </div>
-              {/* Action buttons column (right) */}
-              <div className="flex flex-col gap-2 sm:min-w-[200px] sm:max-w-[240px] sm:items-stretch">
-                {isVideoAppointment ? (
-                  <>
-                    {/* Payment is always complete by the time this branch renders —
-                        the pending-payment case is handled entirely by the
-                        countdown branch above. */}
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="h-10 w-full justify-center border-0 bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md transition-all hover:from-orange-600 hover:to-amber-600 hover:shadow-lg"
-                      onClick={() => handleJoinVideo(apt)}
-                    >
-                      <Video className="mr-2 size-4" />
-                      Join Video
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="h-10 w-full justify-center"
-                      onClick={() => onReschedule(apt)}
-                      disabled={
-                        reschedulingAppointment ||
-                        !canRescheduleAppointment(effectiveStatus)
-                      }
-                    >
-                      Reschedule
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="h-10 w-full justify-center border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-950/50"
-                      onClick={() => onCancelAppointment(apt.id)}
-                      disabled={
-                        cancellingAppointment ||
-                        !canCancelAppointment(effectiveStatus)
-                      }
-                    >
-                      <X className="mr-2 size-4" />
-                      Cancel Appointment
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="h-10 w-full justify-center"
-                      onClick={() => onReschedule(apt)}
-                      disabled={
-                        cancellingAppointment ||
-                        !canRescheduleAppointment(effectiveStatus)
-                      }
-                    >
-                      Reschedule
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="h-10 w-full justify-center border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-950/50"
-                      onClick={() => onCancelAppointment(apt.id)}
-                      disabled={
-                        cancellingAppointment ||
-                        !canCancelAppointment(effectiveStatus)
-                      }
-                    >
-                      <X className="mr-2 size-4" />
-                      Cancel Appointment
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
+import { AppointmentManagerView } from "./manager/AppointmentManagerView";
+import { CancelVisitDialog, DeclineSlotsDialog, RescheduleDialog } from "./manager/ManagerDialogs";
+import {
+  dedupeAppointments,
+  extractAppointmentList,
+  getEffectiveAppointmentId,
+  isPatientViewer,
+  toManagerVisit,
+  type Row,
+} from "./manager/managerData";
+import { PAY_CARD_CLASS, PAY_ROW_CLASS } from "./manager/payButton";
+import { useAppointmentsRefresh } from "./manager/useAppointmentsRefresh";
+import type { ManagerDateRange, ManagerPayRenderer, ManagerTab, ManagerVisitActions } from "./manager/types";
 
 interface AppointmentManagerProps {
   filterType?: "VIDEO_CALL" | "IN_PERSON";
@@ -730,26 +60,33 @@ interface AppointmentManagerProps {
    */
   isAppointmentsFetching?: boolean;
   onRefreshAppointments?: () => Promise<unknown> | unknown;
+  /** The error of the page's own appointments query, when the page passes `appointmentsData`. */
+  appointmentsError?: unknown;
+  /**
+   * Opens the page's own booking dialog. With it the empty states show "Book appointment"
+   * even when `hideBookButton` hides the manager's own title row.
+   */
+  onBookAppointment?: () => void;
+  /** The tab the list opens on (a deep link such as `?tab=past`). Default: upcoming. */
+  initialTab?: ManagerTab | undefined;
 }
 
-function getEffectiveAppointmentId(appointment: AppointmentWithRelations | any): string {
-  return String(appointment?.appointmentId || appointment?.id || "");
+/** HH:mm for the reschedule time field, from the visit's own time. */
+function rescheduleTimeValue(appointment: Row): string {
+  const raw = typeof appointment.time === "string" ? appointment.time.trim() : "";
+  if (/^\d{2}:\d{2}/.test(raw)) return raw.slice(0, 5);
+  const dateTime = getAppointmentDateTimeValue(appointment);
+  if (!dateTime) return raw;
+  // Some engines write midnight as "24:xx" in 24-hour time; a time field needs "00:xx".
+  return formatTimeInIST(dateTime, { hour: "2-digit", minute: "2-digit", hour12: false }).replace(/^24:/, "00:");
 }
 
-const STATUS_FILTER_TABS: Array<{ value: StatusFilter; label: string }> = [
-  { value: "ALL", label: "All" },
-  { value: "SCHEDULED", label: "Scheduled" },
-  { value: "CONFIRMED", label: "Confirmed" },
-  { value: "IN_PROGRESS", label: "In Progress" },
-  { value: "COMPLETED", label: "Completed" },
-  { value: "CANCELLED", label: "Cancelled" },
-  { value: "NO_SHOW", label: "No Show" },
-  { value: "EXPIRED", label: "Expired" },
-];
-
+/**
+ * Data and actions for the appointments list. The layout lives in `./manager/`
+ * (`AppointmentManagerView` and its parts), which only draws what it is given.
+ */
 export default function AppointmentManager({
   filterType,
-  defaultConsultationMode,
   isAdminView = false,
   clinicId: propClinicId,
   patientId: propPatientId,
@@ -759,6 +96,9 @@ export default function AppointmentManager({
   isAppointmentsPending: externalAppointmentsPending,
   isAppointmentsFetching: externalAppointmentsFetching,
   onRefreshAppointments,
+  appointmentsError: externalAppointmentsError,
+  onBookAppointment,
+  initialTab,
 }: AppointmentManagerProps = {}) {
   const { session } = useAuth();
   const user = session?.user;
@@ -780,453 +120,223 @@ export default function AppointmentManager({
     }
     return "/patient/check-in";
   }, [user?.role]);
+  // Staff lists (reception, clinic) lead with the patient's name and show the numbers.
+  const staffView = isAdminView || !isPatientViewer(user?.role, isAdminView);
+
+  // A slow clock, so "Starts in 25 minutes" and the join window stay true while the page is open.
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   // Real-time WebSocket integration
   const { isConnected, isRealTimeEnabled } = useWebSocketStatus();
 
-  const selectedAppointmentRef = useRef<AppointmentWithRelations | null>(null);
-  // Book-appointment dialog state (separate from reschedule dialog so cancelled
-  // appointments route users to the main booking flow with all the slots
-  // and doctor information pre-configured).
+  // Book-appointment dialog state (separate from the reschedule dialog, so a cancelled
+  // visit sends people to the main booking flow with the doctor and mode already chosen).
   const [isBookDialogOpen, setIsBookDialogOpen] = useState(false);
   const [bookPrefill, setBookPrefill] = useState<{
     doctorId?: string;
     consultationMode?: "IN_PERSON" | "VIDEO";
   } | null>(null);
-  const [isRefreshingAppointments, setIsRefreshingAppointments] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
-  const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: "", end: "" });
-  const [
-    {
-      searchQuery,
-      isRescheduleDialogOpen,
-      rescheduleData,
-      isRejectDialogOpen,
-      rejectReason,
-      currentPage,
-      expandedCard,
-    },
-    dispatch,
-  ] = useReducer(appointmentManagerReducer, initialAppointmentManagerState);
+  const [dateFilter, setDateFilter] = useState<ManagerDateRange>({ start: "", end: "" });
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [openDialog, setOpenDialog] = useState<"reschedule" | "cancel" | "decline" | null>(null);
+  const [rescheduleData, setRescheduleData] = useState<{ date: string; time: string }>({ date: "", time: "" });
+  const [rejectReason, setRejectReason] = useState("");
 
-  const setSearchQuery = (value: string) => dispatch({ type: "setSearchQuery", value });
-  const setIsRescheduleDialogOpen = (value: boolean) =>
-    dispatch({ type: "setIsRescheduleDialogOpen", value });
-  const setRescheduleData = (
-    value:
-      | { date: string; time: string }
-      | ((prev: { date: string; time: string }) => { date: string; time: string })
-  ) => dispatch({ type: "setRescheduleData", value });
-  const setIsRejectDialogOpen = (value: boolean) =>
-    dispatch({ type: "setIsRejectDialogOpen", value });
-  const setRejectReason = (value: string) => dispatch({ type: "setRejectReason", value });
-  const setCurrentPage = (
-    value: number | ((prev: number) => number)
-  ) => dispatch({ type: "setCurrentPage", value });
-  const setExpandedCard = (value: string | null) => dispatch({ type: "setExpandedCard", value });
-  const ITEMS_PER_PAGE = 5;
+  // ─── Data fetching ───────────────────────────────────────────────────────
 
-  //”€â”€â”€ Data Fetching”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-  // Choose hook based on view role
-  // Sanitize filters to avoid undefined properties breaking exactOptionalPropertyTypes
+  // Choose the hook by view. Filters carry only the keys that are set
+  // (exactOptionalPropertyTypes).
   const adminFilters = useMemo(() => {
     if (!isAdminView) return undefined;
-    const filters: any = {
+    return {
       clinicId: propClinicId || "",
+      ...(propPatientId ? { patientId: propPatientId } : {}),
+      ...(filterType ? { type: filterType } : {}),
+      ...(dateFilter.start ? { startDate: dateFilter.start } : {}),
+      ...(dateFilter.end ? { endDate: dateFilter.end } : {}),
     };
-    if (propPatientId) filters.patientId = propPatientId;
-    if (filterType) filters.type = filterType;
-    if (dateFilter.start) filters.startDate = dateFilter.start;
-    if (dateFilter.end) filters.endDate = dateFilter.end;
-    return filters;
   }, [isAdminView, propClinicId, propPatientId, filterType, dateFilter.start, dateFilter.end]);
 
   const personalFilters = useMemo(() => {
     if (isAdminView) return undefined;
-    const filters: any = {};
-    if (propClinicId) filters.clinicId = propClinicId;
-    if (dateFilter.start) filters.startDate = dateFilter.start;
-    if (dateFilter.end) filters.endDate = dateFilter.end;
+    const filters = {
+      ...(propClinicId ? { clinicId: propClinicId } : {}),
+      ...(dateFilter.start ? { startDate: dateFilter.start } : {}),
+      ...(dateFilter.end ? { endDate: dateFilter.end } : {}),
+    };
     return Object.keys(filters).length > 0 ? filters : undefined;
   }, [isAdminView, dateFilter.start, dateFilter.end, propClinicId]);
 
-  const adminAppointments = useAppointments(adminFilters, { enabled: isAdminView });
-  const myPersonalAppointments = useMyAppointments(personalFilters, { enabled: !isAdminView });
-  const queryClient = useQueryClient();
+  const isPatient = isPatientViewer(user?.role, isAdminView);
+  // Staff with isAdminView=false still need the clinic list — never my-appointments (403).
+  const staffListFilters = useMemo(() => {
+    if (isAdminView || isPatient) return undefined;
+    return {
+      clinicId: propClinicId || "",
+      ...(propPatientId ? { patientId: propPatientId } : {}),
+      ...(filterType ? { type: filterType } : {}),
+      ...(dateFilter.start ? { startDate: dateFilter.start } : {}),
+      ...(dateFilter.end ? { endDate: dateFilter.end } : {}),
+    };
+  }, [
+    isAdminView,
+    isPatient,
+    propClinicId,
+    propPatientId,
+    filterType,
+    dateFilter.start,
+    dateFilter.end,
+  ]);
+  const adminAppointments = useAppointments(adminFilters ?? staffListFilters, {
+    enabled: isAdminView || Boolean(staffListFilters),
+  });
+  // my-appointments is patient-only on the backend; never call it for staff roles.
+  const myPersonalAppointments = useMyAppointments(personalFilters, {
+    enabled: !isAdminView && isPatient,
+  });
+  const activeQuery = isAdminView || !isPatient ? adminAppointments : myPersonalAppointments;
 
   const { mutate: cancelAppointment, isPending: cancellingAppointment } = useCancelAppointment();
   const { mutate: rescheduleAppointment, isPending: reschedulingAppointment } = useRescheduleAppointment();
   const { mutate: rejectVideoProposal, isPending: rejectingProposal } = useRejectVideoProposal();
-  const { mutate: processCheckIn, isPending: processingCheckIn } = useProcessCheckIn();
 
+  const usesExternalData = externalAppointmentsData !== undefined;
   const appointmentsFetching =
-    externalAppointmentsFetching ??
-    externalAppointmentsPending ??
-    (isAdminView ? adminAppointments.isFetching : myPersonalAppointments.isFetching);
-  const isRefreshInProgress = appointmentsFetching || isRefreshingAppointments;
-  const isAppointmentsLoading =
-    externalAppointmentsPending ??
-    (isAdminView ? adminAppointments.isPending : myPersonalAppointments.isPending);
-  const refetch = isAdminView ? adminAppointments.refetch : myPersonalAppointments.refetch;
-  const rawData =
-    externalAppointmentsData !== undefined
-      ? externalAppointmentsData
-      : isAdminView
-        ? adminAppointments.data
-        : myPersonalAppointments.data;
+    externalAppointmentsFetching ?? externalAppointmentsPending ?? activeQuery.isFetching;
+  const isAppointmentsLoading = externalAppointmentsPending ?? activeQuery.isPending;
+  const refetch = activeQuery.refetch;
+  const rawData: unknown = usesExternalData ? externalAppointmentsData : activeQuery.data;
+  const loadError = usesExternalData ? externalAppointmentsError : activeQuery.error;
+  const errorMessage = loadError
+    ? sanitizeErrorMessage(loadError) || "Please check your connection and try again."
+    : null;
 
-  const fetchedAppointments = useMemo((): AppointmentWithRelations[] => {
-    let list: AppointmentWithRelations[] = [];
-    if (Array.isArray(rawData)) list = rawData;
-    else if (Array.isArray((rawData as any)?.data?.appointments)) list = (rawData as any).data.appointments;
-    else if (Array.isArray((rawData as any)?.appointments)) list = (rawData as any).appointments;
-    else if (Array.isArray((rawData as any)?.data)) list = (rawData as any).data;
+  // Patient lists come from /appointments/my-appointments and admin lists are fetched by
+  // clinic and patient, so both are already scoped by the server: no client-side filtering
+  // by patient here.
+  const appointments = useMemo((): Row[] => {
+    const deduped = dedupeAppointments(extractAppointmentList(rawData));
+    return filterType
+      ? deduped.filter((appointment) => normalizePatientAppointment(appointment).type === filterType)
+      : deduped;
+  }, [rawData, filterType]);
 
-    if (list.length === 0) return list;
-
-    // Deduplicate appointments that share the same doctor/patient/date/time/location.
-    // This guards against double-bookings created by payment retries
-    // or webhook replays returning the same logical slot multiple times.
-    const seen = new Map<string, AppointmentWithRelations>();
-    for (const apt of list) {
-      const record = apt as any;
-
-      // Build a composite key that includes all identifying attributes.
-      // This handles cases where IDs differ but the logical appointment is the same.
-      const doctor =
-        record?.doctor?.fullName ||
-        record?.doctor?.name ||
-        record?.doctorLabel ||
-        record?.doctorName ||
-        "doctor";
-      const patient =
-        record?.patient?.fullName ||
-        record?.patient?.name ||
-        record?.patientLabel ||
-        record?.patientName ||
-        "patient";
-      const date =
-        record?.date ||
-        record?.scheduledDate ||
-        record?.appointmentDate ||
-        "";
-      const time =
-        record?.time ||
-        record?.startTime ||
-        record?.scheduledStartTime ||
-        record?.slot ||
-        "";
-      const location =
-        record?.location?.name ||
-        record?.locationLabel ||
-        record?.locationName ||
-        "location";
-
-      const key = `${doctor}|${patient}|${date}|${time}|${location}`;
-
-      // Keep the first occurrence of this logical appointment.
-      // If IDs differ but the composite key matches, treat as duplicates.
-      if (!seen.has(key)) {
-        seen.set(key, apt);
-      }
+  const appointmentsById = useMemo(() => {
+    const map = new Map<string, Row>();
+    for (const appointment of appointments) {
+      const id = getEffectiveAppointmentId(appointment);
+      if (id && !map.has(id)) map.set(id, appointment);
     }
+    return map;
+  }, [appointments]);
 
-    const deduped = Array.from(seen.values());
+  const visits = useMemo(
+    () =>
+      Array.from(appointmentsById.values()).map((appointment) =>
+        toManagerVisit(appointment, { now: now ?? Date.now(), viewerRole: user?.role, staffView })
+      ),
+    [appointmentsById, now, user?.role, staffView]
+  );
+  const selectedVisit = useMemo(
+    () => (selectedId ? (visits.find((visit) => visit.id === selectedId) ?? null) : null),
+    [selectedId, visits]
+  );
 
-    // Optional: Log for debugging in browser console
-    if (APP_CONFIG.ENVIRONMENT === "development" && typeof window !== 'undefined' && list.length !== deduped.length) {
-      console.log(`[AppointmentManager] Deduped ${list.length} appointments to ${deduped.length}`);
-    }
-
-    return deduped;
-  }, [rawData]);
-
-  const allAppointments = fetchedAppointments;
-  const patientScopedAppointments = useMemo(() => {
-    // Admin views already fetch filtered by clinic/patient€” don't re-filter.
-    if (isAdminView) return allAppointments;
-
-    // Patient view uses /appointments/my-appointments (already server scoped).
-    // Do not perform client-side patientId/userId filtering here.
-    return allAppointments;
-  }, [allAppointments, isAdminView]);
-
-  const waitForWebsocketAppointmentUpdate = useCallback(async (timeoutMs: number) => {
-    const cache = queryClient.getQueryCache();
-    return await new Promise<boolean>((resolve) => {
-      let settled = false;
-
-      const finish = (value: boolean) => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        resolve(value);
-      };
-
-      const unsubscribe = cache.subscribe((event: any) => {
-        const queryKey = event?.query?.queryKey;
-        const firstKey = Array.isArray(queryKey) ? String(queryKey[0] || "") : "";
-        if (!["appointments", "appointment", "myAppointments", "userUpcomingAppointments", "appointmentStats"].includes(firstKey)) {
-          return;
-        }
-
-        if (event?.type === "updated") {
-          finish(true);
-        }
-      });
-
-      const timer = window.setTimeout(() => finish(false), timeoutMs);
-
-      const cleanup = () => {
-        window.clearTimeout(timer);
-        unsubscribe();
-      };
-    });
-  }, [queryClient]);
-
-  const handleRefreshAppointments = useCallback(async () => {
-    if (isRefreshingAppointments) {
-      return;
-    }
-
-    setIsRefreshingAppointments(true);
-    try {
-      if (isConnected) {
-        const websocketUpdated = await waitForWebsocketAppointmentUpdate(900);
-        if (websocketUpdated) {
-          return;
-        }
-      }
-
-      if (onRefreshAppointments) {
-        await onRefreshAppointments();
-        return;
-      }
-
-      await refetch();
-    } finally {
-      setIsRefreshingAppointments(false);
-    }
-  }, [
+  const { isRefreshing: isRefreshingAppointments, refresh: handleRefreshAppointments } = useAppointmentsRefresh({
     isConnected,
-    isRefreshingAppointments,
     onRefreshAppointments,
     refetch,
-    waitForWebsocketAppointmentUpdate,
-  ]);
+  });
+  const isRefreshInProgress = Boolean(appointmentsFetching) || isRefreshingAppointments;
 
-  // Expose a global hook so nested components (e.g. the live countdown
-  // in <PaymentCountdown>) can ask the manager to refresh the appointment
-  // list when the payment window expires. This avoids needing to thread
-  // callbacks through the entire tree.
-  useEffect(() => {
-    const w = window as Window & { __refreshAppointments?: () => void };
-    w.__refreshAppointments = () => {
-      void handleRefreshAppointments();
-    };
-    return () => {
-      if (w.__refreshAppointments) {
-        delete w.__refreshAppointments;
-      }
-    };
-  }, [handleRefreshAppointments]);
+  // ─── Actions ─────────────────────────────────────────────────────────────
 
-  const normalizedAppointments = useMemo(() => {
-    return patientScopedAppointments
-      .map((appointment) => {
-        const normalized = normalizePatientAppointment(appointment);
-        const viewState = getAppointmentViewState(appointment);
-        const paymentDisplay = getAppointmentPaymentDisplayState(appointment);
-        const isTerminalStatus = isTerminalAppointment(appointment);
-        const displayStatus =
-          viewState.isVideo && !paymentDisplay.paymentCompleted && !isTerminalStatus
-            ? "SCHEDULED"
-            : viewState.normalizedStatus;
-        return {
-          ...appointment,
-          status: displayStatus,
-          type: normalized.type,
-          location: {
-            ...(appointment.location || {}),
-            name: normalized.locationName,
-          },
-          doctorLabel: normalized.doctorName,
-          locationLabel: normalized.locationName,
-          normalizedDate: normalized.normalizedDate,
-          normalizedTime: normalized.normalizedTime,
-          appointmentDateTime: normalized.dateTime,
-        } as any;
-      })
-      .sort((a, b) => {
-        const aCancelled = normalizeAppointmentStatus(a.status) === "CANCELLED";
-        const bCancelled = normalizeAppointmentStatus(b.status) === "CANCELLED";
+  const closeDialog = useCallback(() => setOpenDialog(null), []);
 
-        if (aCancelled !== bCancelled) {
-          return aCancelled ? 1 : -1;
-        }
-
-        const aTime = a.appointmentDateTime?.getTime() ?? 0;
-        const bTime = b.appointmentDateTime?.getTime() ?? 0;
-        return bTime - aTime;
-      });
-  }, [patientScopedAppointments]);
-
-  const filteredAppointments = useMemo(() => {
-    const parseAppointmentDate = (value: string) => {
-      const parsed = new Date(value);
-      return Number.isNaN(parsed.getTime()) ? null : parsed;
-    };
-
-    const startDate = dateFilter.start ? parseAppointmentDate(`${dateFilter.start}T00:00:00`) : null;
-    const endDate = dateFilter.end ? parseAppointmentDate(`${dateFilter.end}T23:59:59.999`) : null;
-
-    return normalizedAppointments.filter(apt => {
-      const matchesType = !filterType || apt.type === filterType;
-      const matchesStatus =
-        statusFilter === "ALL"
-          ? true
-          : normalizeAppointmentStatus(apt.status) === statusFilter;
-      const q = searchQuery.toLowerCase();
-      const matchesSearch = !q ||
-        apt.doctorLabel.toLowerCase().includes(q) ||
-        apt.doctor?.user?.firstName?.toLowerCase().includes(q) ||
-        apt.doctor?.user?.lastName?.toLowerCase().includes(q) ||
-        (apt as any).doctorName?.toLowerCase().includes(q) ||
-        apt.locationLabel.toLowerCase().includes(q) ||
-        (apt as any).locationName?.toLowerCase().includes(q) ||
-        apt.status?.toLowerCase().includes(q) ||
-        (wasCancelledDueToPaymentFailure(apt) ? "payment failed".includes(q) : false);
-      const appointmentDate = apt.appointmentDateTime;
-      const matchesStartDate = !startDate || (appointmentDate !== null && appointmentDate >= startDate);
-      const matchesEndDate = !endDate || (appointmentDate !== null && appointmentDate <= endDate);
-      return matchesType && matchesStatus && matchesSearch && matchesStartDate && matchesEndDate;
-    });
-  }, [normalizedAppointments, statusFilter, searchQuery, dateFilter.start, dateFilter.end, filterType]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredAppointments.length / ITEMS_PER_PAGE));
-  const safeCurrentPage = Math.min(currentPage, totalPages);
-
-  // Stats
-  const stats = useMemo(() => {
-    const total = normalizedAppointments.length;
-    const upcoming = normalizedAppointments.filter(a => ["SCHEDULED", "CONFIRMED"].includes(a.status)).length;
-    const completed = normalizedAppointments.filter(a => a.status === "COMPLETED").length;
-    const inProgress = normalizedAppointments.filter(a => a.status === "IN_PROGRESS").length;
-    const terminal = normalizedAppointments.filter(a =>
-      ["CANCELLED", "NO_SHOW", "EXPIRED"].includes(a.status)
-    ).length;
-    return { total, upcoming, completed, inProgress, terminal };
-  }, [normalizedAppointments]);
-
-  const formatDate = (date: string) => {
-    const parsed = new Date(date);
-    if (Number.isNaN(parsed.getTime())) return "Date TBD";
-    return formatDateInIST(parsed, {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  };
-
-  const parseDateValue = (value: string) => {
-    if (!value) return undefined;
-    const parsed = new Date(`${value}T00:00:00`);
-    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
-  };
-
-  const formatDateValue = (value: string, placeholder: string) => {
-    const parsed = parseDateValue(value);
-    return parsed
-      ? formatDateInIST(parsed, {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      })
-      : placeholder;
-  };
-
-  const toDateString = (date?: Date) => {
-    if (!date) return "";
-    const year = date.getFullYear();
-    const month = `${date.getMonth() + 1}`.padStart(2, "0");
-    const day = `${date.getDate()}`.padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-
-
-  const handleCancelAppointment = useCallback((id: string) => {
-    cancelAppointment({ id, reason: "Cancelled via appointment manager" }, {
-      onSuccess: () => showSuccessToast("Appointment cancelled", { id: TOAST_IDS.APPOINTMENT.DELETE, description: "Your appointment has been cancelled." }),
+  const handleCancelAppointment = useCallback(() => {
+    if (!selectedId) return;
+    cancelAppointment({ id: selectedId, reason: "Cancelled via appointment manager" }, {
+      onSuccess: () => {
+        showSuccessToast("Appointment cancelled", { id: TOAST_IDS.APPOINTMENT.DELETE, description: "Your appointment has been cancelled." });
+        setOpenDialog(null);
+      },
       onError: (error: Error) => showErrorToast(sanitizeErrorMessage(error) || "Failed to cancel", { id: TOAST_IDS.APPOINTMENT.DELETE }),
     });
-  }, [cancelAppointment]);
+  }, [cancelAppointment, selectedId]);
 
-  // Opens the main booking dialog (not the reschedule dialog) with
-  // the cancelled appointment's doctor and mode pre-selected.
-  const handleOpenBookDialogFromCancelled = useCallback((apt: AppointmentWithRelations | any) => {
-    const doctorId =
-      (apt as any).doctorId ||
-      (apt as any).appointmentDoctorId ||
-      undefined;
-    const mode = apt.type === "VIDEO_CALL" ? "VIDEO" : "IN_PERSON";
-    setBookPrefill({ doctorId, consultationMode: mode });
+  // Opens the main booking dialog (not the reschedule dialog) with the closed visit's
+  // doctor and mode already chosen.
+  const handleBookAgain = useCallback((visitId: string) => {
+    const appointment = appointmentsById.get(visitId);
+    if (!appointment) return;
+    const doctorId = [appointment.doctorId, appointment.appointmentDoctorId].find(
+      (value): value is string => typeof value === "string" && value.length > 0
+    );
+    const mode = normalizePatientAppointment(appointment).isOnline ? "VIDEO" : "IN_PERSON";
+    setBookPrefill({ ...(doctorId ? { doctorId } : {}), consultationMode: mode });
     setIsBookDialogOpen(true);
-  }, []);
+  }, [appointmentsById]);
+
+  const handleOpenReschedule = useCallback((visitId: string) => {
+    const appointment = appointmentsById.get(visitId);
+    if (!appointment) return;
+    const dateTime = getAppointmentDateTimeValue(appointment);
+    const rawDate = typeof appointment.date === "string" ? appointment.date : "";
+    setSelectedId(visitId);
+    setRescheduleData({
+      date: dateTime ? formatISODateInIST(dateTime) : rawDate ? formatISODateInIST(rawDate) : "",
+      time: rescheduleTimeValue(appointment),
+    });
+    setOpenDialog("reschedule");
+  }, [appointmentsById]);
 
   const handleRescheduleSubmit = () => {
-    const selectedAppointment = selectedAppointmentRef.current;
-    if (!selectedAppointment) return;
-    const appointmentId = getEffectiveAppointmentId(selectedAppointment);
-    rescheduleAppointment({ id: appointmentId, data: { date: rescheduleData.date, time: rescheduleData.time } }, {
+    if (!selectedId) return;
+    rescheduleAppointment({ id: selectedId, data: { date: rescheduleData.date, time: rescheduleData.time } }, {
       onSuccess: () => {
         showSuccessToast("Appointment rescheduled", { id: TOAST_IDS.APPOINTMENT.UPDATE, description: "Your appointment has been rescheduled." });
-        setIsRescheduleDialogOpen(false);
+        setOpenDialog(null);
       },
       onError: (error: Error) => showErrorToast(sanitizeErrorMessage(error) || "Failed to reschedule", { id: TOAST_IDS.APPOINTMENT.UPDATE }),
     });
   };
 
   const handleRejectProposal = () => {
-    const selectedAppointment = selectedAppointmentRef.current;
-    if (!selectedAppointment) return;
-    const appointmentId = getEffectiveAppointmentId(selectedAppointment);
-    rejectVideoProposal({ id: appointmentId, reason: rejectReason }, {
+    if (!selectedId) return;
+    rejectVideoProposal({ id: selectedId, reason: rejectReason }, {
       onSuccess: () => {
         showSuccessToast("Proposal rejected", { id: TOAST_IDS.APPOINTMENT.UPDATE });
-        setIsRejectDialogOpen(false);
+        setOpenDialog(null);
         setRejectReason("");
-        selectedAppointmentRef.current = null;
+        setSelectedId(null);
       },
       onError: (error: Error) => showErrorToast(sanitizeErrorMessage(error) || "Failed to reject", { id: TOAST_IDS.APPOINTMENT.UPDATE }),
     });
   };
 
-  const handleJoinVideo = useCallback(async (appointment: any) => {
+  const handleJoinVideo = useCallback(async (visitId: string) => {
     try {
+      const appointment = appointmentsById.get(visitId);
       const appointmentId = getEffectiveAppointmentId(appointment);
-      if (!appointmentId) {
+      if (!appointment || !appointmentId) {
         showErrorToast("Missing appointment details for this video session.", {
           id: TOAST_IDS.VIDEO.ERROR,
         });
         return;
       }
 
-      let latestAppointment = appointment;
+      let latestAppointment: Row = appointment;
       if (!isVideoAppointmentJoinable(latestAppointment)) {
         const refreshedQuery = await refetch();
-        const refreshedAppointments = (() => {
-          const data = (refreshedQuery as any)?.data;
-          if (Array.isArray(data)) return data;
-          if (Array.isArray(data?.appointments)) return data.appointments;
-          if (Array.isArray(data?.data?.appointments)) return data.data.appointments;
-          if (Array.isArray(data?.data)) return data.data;
-          return [];
-        })();
-
         latestAppointment =
-          refreshedAppointments.find((item: any) => getEffectiveAppointmentId(item) === appointmentId) || appointment;
+          extractAppointmentList(refreshedQuery?.data).find(
+            (item) => getEffectiveAppointmentId(item) === appointmentId
+          ) || appointment;
       }
 
       if (!isVideoAppointmentJoinable(latestAppointment)) {
@@ -1243,7 +353,7 @@ export default function AppointmentManager({
         { id: TOAST_IDS.VIDEO.ERROR }
       );
     }
-  }, [refetch]);
+  }, [appointmentsById, refetch]);
 
   useEffect(() => {
     if (isRealTimeEnabled && isConnected && !hasShownRealtimeToastRef.current) {
@@ -1256,472 +366,153 @@ export default function AppointmentManager({
     }
   }, [isRealTimeEnabled, isConnected]);
 
-  if (isAppointmentsLoading) {
+  const actions = useMemo<ManagerVisitActions>(
+    () => ({
+      onJoin: (visitId) => void handleJoinVideo(visitId),
+      onReschedule: handleOpenReschedule,
+      onCancel: (visitId) => {
+        setSelectedId(visitId);
+        setOpenDialog("cancel");
+      },
+      onBookAgain: handleBookAgain,
+      onDeclineSlots: (visitId) => {
+        setSelectedId(visitId);
+        setRejectReason("");
+        setOpenDialog("decline");
+      },
+      // Refresh once the deadline hits, so the list shows the now-cancelled visit.
+      onPaymentWindowExpired: () => void handleRefreshAppointments(),
+    }),
+    [handleJoinVideo, handleOpenReschedule, handleBookAgain, handleRefreshAppointments]
+  );
+
+  // Paying keeps using the shared payment button; it is only dressed in amber here.
+  const renderPay: ManagerPayRenderer = (visit, intent) => {
+    const appointment = appointmentsById.get(visit.id);
+    if (!appointment) return null;
     return (
-      <div className="flex flex-col gap-y-4 p-6">
-        <div className="h-8 w-64 bg-muted animate-pulse rounded-lg" />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
-          {[1, 2, 3, 4].map(i => <div key={i} className="h-20 bg-muted animate-pulse rounded-2xl" />)}
-        </div>
-        {[1, 2, 3].map(i => <div key={i} className="h-24 bg-muted animate-pulse rounded-2xl" />)}
-      </div>
+      <PaymentButton
+        appointmentId={visit.id}
+        amount={getAppointmentPaymentAmount(appointment)}
+        appointmentType="VIDEO_CALL"
+        description={`Video consultation with ${visit.doctorName || "doctor"}`}
+        className={intent === "pay" ? PAY_CARD_CLASS : PAY_ROW_CLASS}
+      >
+        {intent === "pay" ? <CreditCard aria-hidden="true" /> : <RefreshCw aria-hidden="true" />}
+        {intent === "pay" ? "Pay now" : "Retry payment"}
+      </PaymentButton>
     );
-  }
+  };
+
+  const bookAction = onBookAppointment ? (
+    <Button variant="action" size="md" onClick={onBookAppointment}>
+      <Plus aria-hidden="true" />
+      Book appointment
+    </Button>
+  ) : !hideBookButton ? (
+    <Button
+      variant="action"
+      size="md"
+      onClick={() => {
+        setBookPrefill(null);
+        setIsBookDialogOpen(true);
+      }}
+    >
+      <Plus aria-hidden="true" />
+      Book appointment
+    </Button>
+  ) : undefined;
 
   return (
-    <Card className="mx-auto max-w-6xl overflow-hidden rounded-xl border border-border bg-card shadow-sm sm:rounded-2xl">
-      <CardHeader className="pb-1.5 sm:pb-2">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg font-bold sm:text-xl">
-            <div className="flex size-7 items-center justify-center rounded-lg bg-emerald-100 sm:h-8 sm:w-8">
-              <Calendar className="size-5 text-emerald-600" />
-            </div>
-            Current Appointments
-          </CardTitle>
-          <div className="flex w-full flex-wrap items-center justify-center gap-3 sm:justify-start lg:w-auto lg:justify-end">
-            {isRealTimeEnabled && (
-              <span className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${isConnected ? "border-green-200 bg-green-50 text-green-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
-                <span className={`size-1.5 rounded-full ${isConnected ? "bg-green-500 animate-pulse" : "bg-amber-500"}`} />
-                {isConnected ? "Live" : "Connecting…"}
-              </span>
-            )}
+    <>
+      <AppointmentManagerView
+        visits={visits}
+        now={now}
+        isLoading={Boolean(isAppointmentsLoading)}
+        errorMessage={errorMessage}
+        isRefreshing={isRefreshInProgress}
+        onRefresh={() => void handleRefreshAppointments()}
+        live={isRealTimeEnabled ? (isConnected ? "on" : "connecting") : null}
+        staffView={staffView}
+        dateRange={dateFilter}
+        onDateRangeChange={setDateFilter}
+        actions={actions}
+        renderPay={renderPay}
+        checkInHref={checkInRoute}
+        cancelling={cancellingAppointment}
+        rescheduling={reschedulingAppointment}
+        heading={
+          hideBookButton
+            ? undefined
+            : {
+                title: "Appointments",
+                action: (
+                  <BookAppointmentDialog
+                    defaultOpen={autoOpenBookDialog}
+                    {...(propClinicId ? { clinicId: propClinicId } : {})}
+                    {...(propPatientId ? { initialPatientId: propPatientId } : {})}
+                    trigger={
+                      <Button variant="action" size="md">
+                        <Plus aria-hidden="true" />
+                        Book appointment
+                      </Button>
+                    }
+                  />
+                ),
+              }
+        }
+        bookAction={bookAction}
+        initialTab={initialTab}
+      />
 
-            {!hideBookButton && (
-              <BookAppointmentDialog
-                defaultOpen={autoOpenBookDialog}
-                {...(propClinicId ? { clinicId: propClinicId } : {})}
-                {...(propPatientId ? { initialPatientId: propPatientId } : {})}
-                trigger={
-                  <Button
-                    className="order-last h-9 w-full gap-2 rounded-xl border-0 bg-gradient-to-r from-red-500 to-rose-600 px-4 text-sm font-bold text-white shadow-md transition-all active:scale-95 hover:from-red-600 hover:to-rose-700 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-red-500/30 sm:order-none sm:w-auto sm:px-5 animate-pulse"
-                  >
-                    <Video className="size-4" />
-                    Book Video Appointment
-                  </Button>
-                }
-              />
-            )}
+      <RescheduleDialog
+        open={openDialog === "reschedule"}
+        onOpenChange={(open) => (open ? setOpenDialog("reschedule") : closeDialog())}
+        visit={selectedVisit}
+        date={rescheduleData.date}
+        time={rescheduleData.time}
+        onDateChange={(date) => setRescheduleData((previous) => ({ ...previous, date }))}
+        onTimeChange={(time) => setRescheduleData((previous) => ({ ...previous, time }))}
+        minDate={rescheduleMinDate}
+        submitting={reschedulingAppointment}
+        onSubmit={handleRescheduleSubmit}
+      />
 
-            <Button
-              variant="outline"
-              onClick={() => void handleRefreshAppointments()}
-              className="h-9 gap-2 rounded-xl border-sky-200 bg-sky-50 px-4 py-2 text-sm text-sky-700 transition-all shadow-sm hover:bg-sky-100 hover:text-sky-800 dark:border-sky-900/70 dark:bg-sky-950/25 dark:text-sky-300 dark:hover:bg-sky-950/45"
-              disabled={isRefreshInProgress}
-              title="Refresh Appointments"
-            >
-              <span className="inline-flex size-5 items-center justify-center rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/60 dark:text-sky-200">
-                {isRefreshInProgress ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <RefreshCw className="size-3.5" />
-                )}
-              </span>
-              <span className="font-medium">Refresh</span>
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
+      <CancelVisitDialog
+        open={openDialog === "cancel"}
+        onOpenChange={(open) => (open ? setOpenDialog("cancel") : closeDialog())}
+        visit={selectedVisit}
+        submitting={cancellingAppointment}
+        onConfirm={handleCancelAppointment}
+      />
 
-      <CardContent className="flex flex-col gap-y-1 sm:gap-y-4 lg:gap-y-5">
-        {isRefreshingAppointments && (
-          <div className="flex items-center gap-2 rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-200">
-            <Loader2 className="size-4 animate-spin" />
-            <span>Refreshing appointments...</span>
-          </div>
-        )}
+      <DeclineSlotsDialog
+        open={openDialog === "decline"}
+        onOpenChange={(open) => (open ? setOpenDialog("decline") : closeDialog())}
+        visit={selectedVisit}
+        reason={rejectReason}
+        onReasonChange={setRejectReason}
+        submitting={rejectingProposal}
+        onSubmit={handleRejectProposal}
+      />
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4 lg:gap-4">
-          <StatCard
-            label="Total"
-            value={stats.total}
-            icon={<Stethoscope className="size-5" />}
-            iconBg="bg-blue-50 dark:bg-blue-950/30"
-            iconBorder="border-blue-100 dark:border-blue-900"
-            iconColor="text-blue-600"
-            cardBorder="border-blue-100 dark:border-blue-900"
-            cardHover="hover:border-blue-300"
-            className="bg-blue-50 dark:bg-blue-950/20"
-          />
-          <StatCard
-            label="Upcoming"
-            value={stats.upcoming}
-            icon={<Calendar className="size-5" />}
-            iconBg="bg-emerald-50 dark:bg-emerald-950/30"
-            iconBorder="border-emerald-100 dark:border-emerald-900"
-            iconColor="text-emerald-600"
-            cardBorder="border-emerald-100 dark:border-emerald-900"
-            cardHover="hover:border-emerald-300"
-            className="bg-emerald-50 dark:bg-emerald-950/20"
-          />
-          <StatCard
-            label="In Progress"
-            value={stats.inProgress}
-            icon={<Zap className="size-5" />}
-            iconBg="bg-amber-50 dark:bg-amber-950/30"
-            iconBorder="border-amber-100 dark:border-amber-900"
-            iconColor="text-amber-600"
-            cardBorder="border-amber-100 dark:border-amber-900"
-            cardHover="hover:border-amber-300"
-            className="bg-amber-50 dark:bg-amber-950/20"
-          />
-          <StatCard
-            label="Completed"
-            value={stats.completed}
-            icon={<CheckCircle className="size-5" />}
-            iconBg="bg-violet-50 dark:bg-violet-950/30"
-            iconBorder="border-violet-100 dark:border-violet-900"
-            iconColor="text-violet-600"
-            cardBorder="border-violet-100 dark:border-violet-900"
-            cardHover="hover:border-violet-300"
-            className="bg-violet-50 dark:bg-violet-950/20"
-          />
-        </div>
-
-        {/* Search and Filters (REPLICATING DASHBOARD EXACTLY) */}
-        <div className="mb-3 mt-4 flex flex-col gap-y-3.5 sm:mb-8 sm:mt-6 sm:gap-y-4">
-          {/* 1. Search Bar */}
-          <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by doctor, location..."
-              className="pl-10 h-11 border-muted/30 bg-muted/5 rounded-lg text-sm focus-visible:ring-primary shadow-sm w-full"
-            />
-          </div>
-
-          {/* Status filter — the shared Tabs component, not a hand-rolled copy of
-              its classes, so it stays in step with every other tab rail. */}
-          <Tabs
-            value={statusFilter}
-            onValueChange={(value) => setStatusFilter(value as StatusFilter)}
-          >
-            <TabsList>
-              {STATUS_FILTER_TABS.map(({ value, label }) => (
-                <TabsTrigger key={value} value={value}>
-                  {label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-
-          {/* 3. Default View Label */}
-          <p className="px-1 text-[13px] text-muted-foreground/80">
-            Default view shows all appointments, newest first.
-          </p>
-
-          {/* 4. Date Range Pickers (From date, To date) */}
-          <div className="mt-2 grid grid-cols-2 gap-2.5 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "h-9 w-full justify-between rounded-xl border-border/70 bg-background text-left text-sm font-medium shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50 dark:hover:border-emerald-900/50 dark:hover:bg-emerald-950/30 sm:w-44",
-                    !dateFilter.start && "text-muted-foreground"
-                  )}
-                >
-                  <Calendar className="mr-2 size-4 opacity-50 shrink-0" />
-                  <span className="truncate">{formatDateValue(dateFilter.start, "From date")}</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto rounded-2xl border border-border/60 bg-popover p-3 shadow-xl" align="start" sideOffset={8}>
-                <CalendarPicker
-                  mode="single"
-                  selected={parseDateValue(dateFilter.start)}
-                  onSelect={(date) => setDateFilter((p) => ({ ...p, start: toDateString(date) }))}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "h-9 w-full justify-between rounded-xl border-border/70 bg-background text-left text-sm font-medium shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50 dark:hover:border-emerald-900/50 dark:hover:bg-emerald-950/30 sm:w-44",
-                    !dateFilter.end && "text-muted-foreground"
-                  )}
-                >
-                  <Calendar className="mr-2 size-4 opacity-50 shrink-0" />
-                  <span className="truncate">{formatDateValue(dateFilter.end, "To date")}</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto rounded-2xl border border-border/60 bg-popover p-3 shadow-xl" align="start" sideOffset={8}>
-                <CalendarPicker
-                  mode="single"
-                  selected={parseDateValue(dateFilter.end)}
-                  onSelect={(date) => setDateFilter((p) => ({ ...p, end: toDateString(date) }))}
-                  disabled={(date) => {
-                    const startDate = parseDateValue(dateFilter.start);
-                    return !!startDate && date < startDate;
-                  }}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-
-            {(dateFilter.start || dateFilter.end || (statusFilter && statusFilter !== "SCHEDULED")) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setDateFilter({ start: "", end: "" });
-                  setStatusFilter("ALL");
-                  setSearchQuery("");
-                }}
-                className="col-span-2 sm:col-span-1 h-8 text-primary hover:bg-primary/5"
-              >
-                Clear Filters
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Appointments list */}
-        {filteredAppointments.length === 0 ? (
-          <div className="rounded-2xl border-2 border-dashed bg-muted/20 py-12 text-center">
-            <Calendar className="size-12 mx-auto mb-3 text-muted-foreground/40" />
-            <p className="font-semibold text-muted-foreground">
-              {allAppointments.length === 0 ? "No appointments yet" : "No appointments match your filters"}
-            </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              {allAppointments.length === 0
-                ? "Book your first appointment to get started"
-                : "Try adjusting the status filter or search query"}
-            </p>
-            {allAppointments.length === 0 && !hideBookButton && (
-              <BookAppointmentDialog
-                defaultOpen={autoOpenBookDialog}
-                {...(propClinicId ? { clinicId: propClinicId } : {})}
-                {...(propPatientId ? { initialPatientId: propPatientId } : {})}
-                trigger={
-                  <Button className="mt-4 gap-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 animate-pulse">
-                    <Video className="size-4" />
-                    Book Video Appointment
-                  </Button>
-                }
-              />
-            )}
-          </div>
-        ) : (
-          <div className="flex flex-col gap-y-2.5 sm:gap-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-muted-foreground">
-                Showing {filteredAppointments.length === 0 ? 0 : (safeCurrentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(safeCurrentPage * ITEMS_PER_PAGE, filteredAppointments.length)} of {filteredAppointments.length}
-              </p>
-            </div>
-            {filteredAppointments
-              .slice((safeCurrentPage - 1) * ITEMS_PER_PAGE, safeCurrentPage * ITEMS_PER_PAGE)
-              .map((apt) => (
-                <AppointmentCard
-                  key={apt.id}
-                  apt={apt}
-                  expandedCard={expandedCard}
-                  checkInRoute={checkInRoute}
-                  cancellingAppointment={cancellingAppointment}
-                  reschedulingAppointment={reschedulingAppointment}
-                  onCancelAppointment={handleCancelAppointment}
-                  handleJoinVideo={handleJoinVideo}
-                  onExpand={setExpandedCard}
-                  onSelect={(appointment) => {
-                    selectedAppointmentRef.current = appointment;
-                  }}
-                  onReschedule={(apt) => {
-                    selectedAppointmentRef.current = apt;
-                    setRescheduleData({
-                      date: formatISODateInIST(apt.date),
-                      time: apt.time || "",
-                    });
-                    setIsRescheduleDialogOpen(true);
-                  }}
-                  onBookNew={handleOpenBookDialogFromCancelled}
-                  viewerRole={user?.role}
-                />
-              ))}
-            {filteredAppointments.length > ITEMS_PER_PAGE && (
-              <div className="flex flex-wrap items-center justify-center gap-2 pt-3 sm:pt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={safeCurrentPage === 1}
-                  className="h-8 rounded-lg border-border/60 px-3 text-sm sm:h-9 sm:px-4"
-                >
-                  Prev
-                </Button>
-                <span className="hidden rounded-md border border-border/60 px-3 py-1 text-xs font-medium text-muted-foreground sm:inline-flex">
-                  Page {safeCurrentPage} of {totalPages}
-                </span>
-                {getPaginationWindow(safeCurrentPage, totalPages).map((page, index) =>
-                  page === "ellipsis" ? (
-                    <span key={`ellipsis-${index}`} className="px-1 text-sm text-muted-foreground">...
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={cn(
-                        "size-8 rounded-lg text-sm font-semibold transition-all sm:h-9 sm:w-9",
-                        page === safeCurrentPage
-                          ? "bg-emerald-600 text-white shadow-sm"
-                          : "border border-border/60 text-muted-foreground hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200"
-                      )}
-                    >
-                      {page}
-                    </button>
-                  )
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={safeCurrentPage === totalPages}
-                  className="h-8 rounded-lg border-border/60 px-3 text-sm sm:h-9 sm:px-4"
-                >
-                  Next
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Reschedule Dialog */}
-        <Dialog open={isRescheduleDialogOpen} onOpenChange={setIsRescheduleDialogOpen}>
-          <DialogContent className="sm:max-w-sm">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <RefreshCw className="size-5 text-primary" />
-                Reschedule Appointment
-              </DialogTitle>
-              <DialogDescription>
-                Choose a new date and time for your appointment.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex flex-col gap-y-4 py-2">
-              <div>
-                <span className="mb-1.5 block text-sm font-medium">New Date</span>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-between rounded-xl border-border/70 bg-background text-left font-medium shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50 dark:hover:border-emerald-900/50 dark:hover:bg-emerald-950/30",
-                        !rescheduleData.date && "text-muted-foreground"
-                      )}
-                    >
-                      <Calendar className="mr-2 size-4" />
-                      {formatDateValue(rescheduleData.date, "Pick a new date")}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto rounded-2xl border border-border/60 bg-popover p-3 shadow-xl" align="start" sideOffset={8} suppressHydrationWarning>
-                    <CalendarPicker
-                      mode="single"
-                      selected={parseDateValue(rescheduleData.date)}
-                      onSelect={(date) => setRescheduleData((p) => ({ ...p, date: toDateString(date) }))}
-                      disabled={(date) => !!rescheduleMinDate && date < rescheduleMinDate}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div>
-                <label htmlFor="appointment-reschedule-time" className="text-sm font-medium mb-1.5 block">
-                  New Time
-                </label>
-                <Input
-                  id="appointment-reschedule-time"
-                  type="time"
-                  value={rescheduleData.time}
-                  onChange={(e) => setRescheduleData(p => ({ ...p, time: e.target.value }))}
-                />
-              </div>
-            </div>
-            <DialogFooter className="gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setIsRescheduleDialogOpen(false)}
-                className="h-11 px-6 rounded-xl border-border/50 transition-all active:scale-95"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleRescheduleSubmit}
-                disabled={reschedulingAppointment || !rescheduleData.date || !rescheduleData.time}
-                className="h-11 px-8 rounded-xl font-semibold shadow-sm transition-all active:scale-95 bg-primary hover:bg-primary/90 text-white"
-              >
-                {reschedulingAppointment ? "Rescheduling..." : "Confirm Reschedule"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Reject Proposal Dialog */}
-        <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Reject Proposal</DialogTitle>
-              <DialogDescription>
-                Please provide a reason for rejecting the proposed time slots.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
-              <label htmlFor="reject-proposal-reason" className="text-sm font-medium mb-1.5 block">
-                Reason
-              </label>
-              <Textarea
-                id="reject-proposal-reason"
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="e.g., Only available in evenings"
-                className="mt-2 rounded-xl"
-              />
-            </div>
-            <DialogFooter className="gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setIsRejectDialogOpen(false)}
-                className="h-11 px-6 rounded-xl border-border/50 transition-all active:scale-95"
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleRejectProposal}
-                disabled={!rejectReason || rejectingProposal}
-                className="h-11 px-8 rounded-xl font-semibold shadow-sm transition-all active:scale-95"
-              >
-                {rejectingProposal ? "Rejecting..." : "Reject Proposal"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Main booking dialog (controlled) — opened when the user clicks
-          "Book New Appointment" on a cancelled appointment so they get the
-          full booking flow with all time slots and the doctor pre-filled. */}
-        <BookAppointmentDialog
-          hideTrigger
-          open={isBookDialogOpen}
-          onOpenChange={setIsBookDialogOpen}
-          {...(bookPrefill?.doctorId ? { initialDoctorId: bookPrefill.doctorId } : {})}
-          {...(bookPrefill?.consultationMode
-            ? { initialConsultationMode: bookPrefill.consultationMode }
-            : {})}
-          {...(propClinicId ? { clinicId: propClinicId } : {})}
-          {...(propPatientId ? { initialPatientId: propPatientId } : {})}
-          onBooked={() => {
-            setIsBookDialogOpen(false);
-            setBookPrefill(null);
-          }}
-        />
-      </CardContent>
-    </Card>
+      {/* Main booking dialog (controlled): opened by "Book again" on a closed visit, so
+          people get the full booking flow with the doctor already chosen. */}
+      <BookAppointmentDialog
+        hideTrigger
+        open={isBookDialogOpen}
+        onOpenChange={setIsBookDialogOpen}
+        {...(bookPrefill?.doctorId ? { initialDoctorId: bookPrefill.doctorId } : {})}
+        {...(bookPrefill?.consultationMode
+          ? { initialConsultationMode: bookPrefill.consultationMode }
+          : {})}
+        {...(propClinicId ? { clinicId: propClinicId } : {})}
+        {...(propPatientId ? { initialPatientId: propPatientId } : {})}
+        onBooked={() => {
+          setIsBookDialogOpen(false);
+          setBookPrefill(null);
+        }}
+      />
+    </>
   );
 }
-
-
-

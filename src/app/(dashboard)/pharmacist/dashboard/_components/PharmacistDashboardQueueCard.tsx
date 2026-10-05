@@ -1,186 +1,197 @@
 "use client";
 
-import type { ColumnDef } from "@tanstack/react-table";
-import { ArrowRight, Banknote, Eye, Check, Pill, Printer, Search } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
+import Link from "next/link";
+import { ArrowRight, Check, CircleAlert, Eye, Pill as PillIcon, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DataTable } from "@/components/ui/data-table";
-import { Input } from "@/components/ui/input";
-
-type PrescriptionQueueItem = {
-  id: string;
-  patientName: string;
-  medicines: unknown[];
-  priority: string;
-  status: string;
-  invoiceId?: string | null;
-};
+import { SkeletonList } from "@/components/ui/loading";
+import { CellTitle, EmptyBlock, GridHead, GridRow, Pill, SearchBox, Surface } from "@/components/tbd";
+import {
+  DESK_STATE_LABEL,
+  DESK_STATE_TONE,
+  canDispense,
+  isUrgent,
+  itemsLabel,
+  moneyLine,
+  sentTimeLabel,
+  type DeskQueueItem,
+} from "./pharmacist-dashboard.logic";
 
 interface PharmacistDashboardQueueCardProps {
-  queueItems: PrescriptionQueueItem[];
+  /** Rows to show (already filtered by the search box). */
+  queueItems: DeskQueueItem[];
+  /** Size of the whole queue, before the search filter. */
+  totalCount: number;
   searchTerm: string;
   onSearchTermChange: (value: string) => void;
-  onOpenPrescription: (prescriptionId: string) => void;
-  onDispensePrescription: (prescriptionId: string) => void;
-  /** Record an over-the-counter cash payment so the entry becomes dispensable. */
-  onRecordCashPayment?: (prescriptionId: string) => void;
+  /** Link to the dispensing screen for a prescription. */
+  prescriptionHref: (prescriptionId: string) => string;
+  /** Link to the full prescriptions list. */
+  allPrescriptionsHref: string;
+  /** Opens the "Record cash payment" dialog so the entry becomes dispensable. */
+  onRecordCashPayment?: (item: DeskQueueItem) => void;
   isRecordingCashPayment?: boolean;
-  /** Opens the pharmacy invoice PDF for a paid/dispensed queue entry. */
+  /** Opens the pharmacy invoice PDF for a paid queue entry. */
   onPrintInvoice?: (invoiceId: string) => void;
+  loading?: boolean;
+  errorMessage?: string | null;
+  onRetry?: () => void;
 }
 
+const COLUMNS = "1.2fr 0.8fr 156px 206px";
+const PAGE_SIZE = 5;
+
+/** The medicine-desk queue: every prescription with its state and the one right action. */
 export function PharmacistDashboardQueueCard({
   queueItems,
+  totalCount,
   searchTerm,
   onSearchTermChange,
-  onOpenPrescription,
-  onDispensePrescription,
+  prescriptionHref,
+  allPrescriptionsHref,
   onRecordCashPayment,
   isRecordingCashPayment = false,
   onPrintInvoice,
+  loading = false,
+  errorMessage = null,
+  onRetry,
 }: PharmacistDashboardQueueCardProps) {
-  const prescriptionColumns: ColumnDef<PrescriptionQueueItem>[] = [
-    {
-      accessorKey: "patientName",
-      header: "Patient",
-      cell: ({ row }) => <div className="font-medium">{row.getValue("patientName")}</div>,
-    },
-    {
-      accessorKey: "priority",
-      header: "Priority",
-      cell: ({ row }) => {
-        const priority = ((row.getValue("priority") as string) || "normal").toLowerCase();
-        const colors: Record<string, string> = {
-          urgent: "bg-red-100 text-red-800",
-          high: "bg-orange-100 text-orange-800",
-          normal: "bg-blue-100 text-blue-800",
-        };
-        return <Badge className={colors[priority] || "bg-slate-100"}>{priority.toUpperCase()}</Badge>;
-      },
-    },
-    {
-      accessorKey: "medicines",
-      header: "Medicines",
-      cell: ({ row }) => {
-        const medicines = row.getValue("medicines") as unknown[];
-        return (
-          <div className="text-xs text-muted-foreground">
-            {Array.isArray(medicines) ? medicines.length : 0} items
-          </div>
-        );
-      },
-    },
-    {
-      accessorKey: "status",
-      header: "Status",
-      cell: ({ row }) => {
-        const status = row.getValue("status") as string;
-        const isReady = status === "ready_to_dispense";
-        const isExpired = status === "payment_expired";
-        return (
-          <Badge
-            variant={isReady ? "default" : "secondary"}
-            className={
-              isExpired
-                ? "border-none bg-slate-300 text-slate-700 shadow-none"
-                : isReady
-                  ? "border-none bg-emerald-600 shadow-none hover:bg-emerald-700"
-                  : "border-none bg-blue-100 text-blue-800 shadow-none"
-            }
-          >
-            {isExpired ? "PAYMENT EXPIRED" : isReady ? "READY" : "AWAITING PAYMENT"}
-          </Badge>
-        );
-      },
-    },
-    {
-      id: "actions",
-      header: "Actions",
-      cell: ({ row }) => (
-        <div className="flex gap-2">
-          <Button
-            size="icon"
-            variant="outline"
-            className="size-8"
-            onClick={() => onOpenPrescription(row.original.id)}
-          >
-            <Eye className="size-4" />
-          </Button>
-          {row.getValue("status") === "awaiting_payment" && onRecordCashPayment && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 gap-1 text-xs"
-              disabled={isRecordingCashPayment}
-              onClick={() => onRecordCashPayment(row.original.id)}
-              title="Record cash payment received at the counter"
-            >
-              <Banknote className="size-4" />
-              Mark paid — cash
-            </Button>
-          )}
-          {row.getValue("status") === "ready_to_dispense" && (
-            <Button
-              size="icon"
-              className="size-8 bg-emerald-600 hover:bg-emerald-700"
-              onClick={() => onDispensePrescription(row.original.id)}
-              title="Dispense prescription"
-            >
-              <Check className="size-4" />
-            </Button>
-          )}
-          {row.getValue("status") === "ready_to_dispense" && row.original.invoiceId && onPrintInvoice && (
-            <Button
-              size="icon"
-              variant="outline"
-              className="size-8"
-              onClick={() => onPrintInvoice(row.original.invoiceId as string)}
-              title="Print pharmacy invoice"
-            >
-              <Printer className="size-4" />
-            </Button>
-          )}
-        </div>
-      ),
-    },
-  ];
+  const [showAll, setShowAll] = useState(false);
+  const searching = searchTerm.trim().length > 0;
+  const rows = showAll || searching ? queueItems : queueItems.slice(0, PAGE_SIZE);
+  const hidden = queueItems.length - rows.length;
 
   return (
-    <Card className="lg:col-span-2">
-      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <CardTitle className="flex items-center gap-2">
-          <Pill className="size-5 text-emerald-600" />
+    <Surface flush as="section" aria-labelledby="pharmacy-queue-title">
+      <div className="flex flex-col gap-3 border-b border-hair px-5 py-3.5 sm:flex-row sm:items-center">
+        <h2 id="pharmacy-queue-title" className="m-0 flex-1 whitespace-nowrap text-base font-bold text-ink">
           Prescription Queue
-        </CardTitle>
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1 text-emerald-600 sm:w-auto"
-            onClick={() => onOpenPrescription("all")}
-          >
-            See all <ArrowRight className="size-3" />
-          </Button>
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
-            <Input
-              placeholder="Search patient..."
-              className="h-9 pl-8"
-              value={searchTerm}
-              onChange={(e) => onSearchTermChange(e.target.value)}
-            />
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <DataTable
-          columns={prescriptionColumns}
-          data={queueItems}
-          pageSize={5}
-          emptyMessage="No pending prescriptions in the queue"
+        </h2>
+        <SearchBox
+          value={searchTerm}
+          onChange={onSearchTermChange}
+          placeholder="Search patient..."
+          ariaLabel="Search patient in the queue"
+          className="sm:w-[260px]"
         />
-      </CardContent>
-    </Card>
+      </div>
+
+      {loading ? (
+        <div className="p-5" aria-busy="true">
+          <SkeletonList items={4} />
+        </div>
+      ) : errorMessage ? (
+        <EmptyBlock
+          icon={CircleAlert}
+          title="The queue could not be loaded"
+          description={errorMessage}
+          action={
+            onRetry ? (
+              <Button variant="outline" onClick={onRetry}>
+                Try again
+              </Button>
+            ) : undefined
+          }
+        />
+      ) : rows.length === 0 ? (
+        <EmptyBlock
+          icon={PillIcon}
+          title={searching ? "No patient matches your search" : "No pending prescriptions in the queue"}
+          description={
+            searching
+              ? "Check the spelling or clear the search to see the whole queue."
+              : "Prescriptions sent by doctors show here until they are dispensed."
+          }
+        />
+      ) : (
+        <div role="table" aria-label="Prescription queue">
+          <GridHead columns={COLUMNS} labels={["Patient", "Medicines", "Status", "Actions"]} />
+          {rows.map((item) => {
+            const href = prescriptionHref(item.id);
+            const sentTime = sentTimeLabel(item.sentAt);
+            return (
+              <GridRow key={item.id} columns={COLUMNS} className="lg:min-h-16">
+                <CellTitle
+                  title={item.patientName}
+                  description={[item.reference, sentTime].filter(Boolean).join(" · ")}
+                />
+                <CellTitle title={itemsLabel(item.itemsCount)} description={moneyLine(item)} />
+                <div className="flex flex-row flex-wrap items-start gap-1 lg:flex-col">
+                  <Pill tone={DESK_STATE_TONE[item.state]}>{DESK_STATE_LABEL[item.state]}</Pill>
+                  {isUrgent(item) ? <Pill tone="rose">Urgent</Pill> : null}
+                </div>
+                <div className="flex items-center gap-2">
+                  {canDispense(item) ? (
+                    <Button asChild>
+                      <Link
+                        href={href}
+                        title={item.state === "partially_dispensed" ? "Finish dispensing" : "Dispense prescription"}
+                      >
+                        <Check aria-hidden="true" />
+                        Dispense
+                      </Link>
+                    </Button>
+                  ) : null}
+                  {item.state === "awaiting_payment" && onRecordCashPayment ? (
+                    <Button
+                      variant="action"
+                      disabled={isRecordingCashPayment}
+                      onClick={() => onRecordCashPayment(item)}
+                      title="Record cash payment received at the counter"
+                    >
+                      Mark paid — cash
+                    </Button>
+                  ) : null}
+                  {canDispense(item) && item.invoiceId && onPrintInvoice ? (
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() => onPrintInvoice(item.invoiceId as string)}
+                      aria-label={`Print pharmacy invoice for ${item.patientName}`}
+                      title="Print pharmacy invoice"
+                    >
+                      <Printer aria-hidden="true" />
+                    </Button>
+                  ) : null}
+                  <Button asChild size="icon" variant="outline">
+                    <Link href={href} aria-label={`View prescription for ${item.patientName}`} title="View prescription">
+                      <Eye aria-hidden="true" />
+                    </Link>
+                  </Button>
+                </div>
+              </GridRow>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hair px-5 py-3 text-[13px] text-ink-muted">
+        <span>
+          {loading || errorMessage
+            ? "Medicine desk queue"
+            : searching
+              ? `${queueItems.length} of ${totalCount} ${totalCount === 1 ? "prescription" : "prescriptions"} match`
+              : `${totalCount} ${totalCount === 1 ? "prescription" : "prescriptions"} in the queue`}
+        </span>
+        <span className="flex items-center gap-4">
+          {hidden > 0 ? (
+            <button
+              type="button"
+              className="text-[13px] font-bold text-ink hover:text-brand-dark focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40"
+              onClick={() => setShowAll(true)}
+            >
+              Show {hidden} more
+            </button>
+          ) : null}
+          <Link
+            href={allPrescriptionsHref}
+            className="inline-flex items-center gap-1 text-[13px] font-bold text-brand hover:text-brand-dark"
+          >
+            See all
+            <ArrowRight className="size-3.5" strokeWidth={2.4} aria-hidden="true" />
+          </Link>
+        </span>
+      </div>
+    </Surface>
   );
 }

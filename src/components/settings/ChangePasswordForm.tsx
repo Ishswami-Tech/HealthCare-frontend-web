@@ -4,12 +4,75 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Loader2, CheckCircle2, CircleAlert, Eye, EyeOff } from 'lucide-react';
+import { Note } from '@/components/tbd';
 import { useAuth } from '@/hooks/auth/useAuth';
 import { getDashboardByRole } from '@/lib/config/routes';
 import { Role } from '@/types/auth.types';
+
+type PasswordField = 'current' | 'new' | 'confirm';
+
+const FIELD_LABEL = 'text-xs font-bold text-ink-soft';
+
+function PasswordInput({
+  id,
+  name,
+  label,
+  placeholder,
+  autoComplete,
+  minLength,
+  hint,
+  visible,
+  disabled,
+  onToggle,
+}: {
+  id: string;
+  name: string;
+  label: string;
+  placeholder?: string;
+  autoComplete: string;
+  minLength?: number;
+  hint?: string;
+  visible: boolean;
+  disabled: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <label htmlFor={id} className={FIELD_LABEL}>
+        {label}
+      </label>
+      <div className="relative">
+        <Input
+          id={id}
+          name={name}
+          type={visible ? 'text' : 'password'}
+          required
+          autoComplete={autoComplete}
+          placeholder={placeholder}
+          disabled={disabled}
+          className="pr-11"
+          {...(minLength ? { minLength } : {})}
+          {...(hint ? { 'aria-describedby': `${id}-hint` } : {})}
+        />
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label={`${visible ? 'Hide' : 'Show'} ${label.toLowerCase()}`}
+          aria-pressed={visible}
+          className="absolute right-1.5 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-lg text-ink-muted transition-colors hover:text-ink focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40"
+        >
+          {visible ? <EyeOff className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
+        </button>
+      </div>
+      {hint ? (
+        <p id={`${id}-hint`} className="m-0 text-xs text-ink-muted">
+          {hint}
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 export function ChangePasswordForm() {
   const { push } = useRouter();
@@ -18,18 +81,23 @@ export function ChangePasswordForm() {
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [showPasswords, setShowPasswords] = useState({
+  const [showPasswords, setShowPasswords] = useState<Record<PasswordField, boolean>>({
     current: false,
     new: false,
     confirm: false,
   });
+
+  const toggle = (field: PasswordField) => () =>
+    setShowPasswords((prev) => ({ ...prev, [field]: !prev[field] }));
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError('');
     setSuccess(false);
 
-    const formData = new FormData(e.currentTarget);
+    // Keep the form: the event no longer points at it once the request has finished.
+    const form = e.currentTarget;
+    const formData = new FormData(form);
     const newPassword = formData.get('newPassword') as string;
     const confirmPassword = formData.get('confirmPassword') as string;
 
@@ -40,7 +108,7 @@ export function ChangePasswordForm() {
     }
 
     const currentPassword = formData.get('currentPassword') as string;
-    
+
     if (newPassword.length < 8) {
       setError('Password must be at least 8 characters long');
       return;
@@ -52,12 +120,12 @@ export function ChangePasswordForm() {
         newPassword: newPassword,
       });
       setSuccess(true);
-      e.currentTarget.reset();
-      
+      form.reset();
+
       // Redirect to dashboard after 2 seconds
       setTimeout(() => {
-        const dashboardRoute = user?.role 
-          ? getDashboardByRole(user.role as Role) 
+        const dashboardRoute = user?.role
+          ? getDashboardByRole(user.role as Role)
           : '/';
         push(dashboardRoute);
       }, 2000);
@@ -67,107 +135,65 @@ export function ChangePasswordForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="gap-y-4 max-w-md">
-      <div className="gap-y-2">
-        <Label htmlFor="currentPassword">Current Password</Label>
-        <div className="relative">
-          <Input
-            id="currentPassword"
-            name="currentPassword"
-            type={showPasswords.current ? 'text' : 'password'}
-            required
-            autoComplete="current-password"
-            disabled={isChangingPassword}
-            className="pr-10"
-          />
-          <button
-            type="button"
-            onClick={() => setShowPasswords(prev => ({ ...prev, current: !prev.current }))}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-          >
-            {showPasswords.current ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-          </button>
-        </div>
-      </div>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
+      <PasswordInput
+        id="currentPassword"
+        name="currentPassword"
+        label="Current Password"
+        autoComplete="current-password"
+        visible={showPasswords.current}
+        disabled={isChangingPassword}
+        onToggle={toggle('current')}
+      />
 
-      <div className="gap-y-2">
-        <Label htmlFor="newPassword">New Password</Label>
-        <div className="relative">
-          <Input
-            id="newPassword"
-            name="newPassword"
-            type={showPasswords.new ? 'text' : 'password'}
-            required
-            autoComplete="new-password"
-            minLength={8}
-            disabled={isChangingPassword}
-            className="pr-10"
-          />
-          <button
-            type="button"
-            onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-          >
-            {showPasswords.new ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-          </button>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Must be at least 8 characters long
-        </p>
-      </div>
+      <PasswordInput
+        id="newPassword"
+        name="newPassword"
+        label="New Password"
+        placeholder="Enter a new password"
+        autoComplete="new-password"
+        minLength={8}
+        hint="Must be at least 8 characters long"
+        visible={showPasswords.new}
+        disabled={isChangingPassword}
+        onToggle={toggle('new')}
+      />
 
-      <div className="gap-y-2">
-        <Label htmlFor="confirmPassword">Confirm New Password</Label>
-        <div className="relative">
-          <Input
-            id="confirmPassword"
-            name="confirmPassword"
-            type={showPasswords.confirm ? 'text' : 'password'}
-            required
-            autoComplete="new-password"
-            disabled={isChangingPassword}
-            className="pr-10"
-          />
-          <button
-            type="button"
-            onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-          >
-            {showPasswords.confirm ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-          </button>
-        </div>
-      </div>
+      <PasswordInput
+        id="confirmPassword"
+        name="confirmPassword"
+        label="Confirm New Password"
+        placeholder="Re-enter the new password"
+        autoComplete="new-password"
+        visible={showPasswords.confirm}
+        disabled={isChangingPassword}
+        onToggle={toggle('confirm')}
+      />
 
       {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="size-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <Note tone="rose" icon={CircleAlert}>
+          <span role="alert">{error}</span>
+        </Note>
       )}
 
       {success && (
-        <Alert className="border-green-200 bg-green-50 text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-100">
-          <CheckCircle2 className="size-4 text-green-600 dark:text-green-400" />
-          <AlertDescription>
-            Password changed successfully! Redirecting…
-          </AlertDescription>
-        </Alert>
+        <Note tone="green" icon={CheckCircle2}>
+          <span role="status">Password changed successfully! Redirecting…</span>
+        </Note>
       )}
 
-      <Button type="submit" disabled={isChangingPassword} className="w-full sm:w-auto">
-        {isChangingPassword ? (
-          <>
-            <Loader2 className="mr-2 size-4 animate-spin" />
-            Changing Password…
-          </>
-        ) : (
-          'Change Password'
-        )}
-      </Button>
+      <div>
+        <Button type="submit" size="md" disabled={isChangingPassword} className="w-full sm:w-auto">
+          {isChangingPassword ? (
+            <>
+              <Loader2 className="animate-spin" aria-hidden="true" />
+              Changing Password…
+            </>
+          ) : (
+            'Change Password'
+          )}
+        </Button>
+      </div>
     </form>
   );
 }
-
-
-
-

@@ -337,7 +337,10 @@ export async function createAppointment(data: CreateAppointmentData): Promise<{
   code?: string;
 }> {
   try {
-    const validatedData = createAppointmentSchema.parse(data);
+    // `familyMemberId` (optional, CreateAppointmentDto): who the visit is for when it is not the patient.
+    const validatedData = createAppointmentSchema
+      .extend({ familyMemberId: z.string().uuid().optional() })
+      .parse(data);
     const session = await getServerSession();
     if (!session?.user) return { success: false, error: 'Unauthorized' };
     const { user, session_id: sessionId } = session;
