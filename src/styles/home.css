@@ -1,0 +1,426 @@
+/* ============================================================================
+   HOMEPAGE VISUAL SYSTEM
+   Textures, sweeps and masks that Tailwind utilities cannot express cleanly.
+   Consumed by the components in `src/components/home/`.
+   ========================================================================== */
+
+/* Fine film grain so large flat surfaces do not read as plastic. */
+.home-grain {
+  position: relative;
+}
+
+.home-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.4;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+}
+
+/* Soft emerald mesh used behind the hero and the dark conversion bands. */
+.home-aurora::before {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+  background:
+    radial-gradient(42% 38% at 18% 14%, oklch(0.72 0.14 160 / 0.38), transparent 70%),
+    radial-gradient(38% 42% at 82% 24%, oklch(0.68 0.12 195 / 0.32), transparent 72%),
+    radial-gradient(46% 40% at 52% 92%, oklch(0.74 0.11 140 / 0.26), transparent 70%);
+  filter: blur(18px);
+}
+
+/* Diagonal light sweep on primary call-to-action buttons. */
+.home-sheen {
+  position: relative;
+  overflow: hidden;
+}
+
+.home-sheen::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -140%;
+  width: 60%;
+  pointer-events: none;
+  transform: skewX(-20deg);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.32), transparent);
+  transition: left 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.home-sheen:hover::after,
+.home-sheen:focus-visible::after {
+  left: 140%;
+}
+
+/* Fades the leading and trailing edge of horizontal marquees. */
+.home-fade-x {
+  mask-image: linear-gradient(to right, transparent, black 7%, black 93%, transparent);
+}
+
+/* Hairline rule that dissolves towards its end — used beside section eyebrows. */
+.home-rule {
+  height: 1px;
+  background: linear-gradient(to right, currentColor, transparent);
+  opacity: 0.28;
+}
+
+/* Thin highlight along the top edge of elevated cards. */
+.home-topline::before {
+  content: "";
+  position: absolute;
+  inset-inline: 1.5rem;
+  top: 0;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(to right, transparent, oklch(1 0 0 / 0.75), transparent);
+}
+
+.dark .home-topline::before {
+  background: linear-gradient(to right, transparent, oklch(1 0 0 / 0.14), transparent);
+}
+
+/* ---------------------------------------------------------------------------
+   BOTANICAL CANVAS
+   Soft herbal wash for light sections that want atmosphere rather than a flat
+   card surface. Built from the theme's own `--primary`, so it follows the
+   palette into dark mode instead of pinning a light-only green.
+   ------------------------------------------------------------------------ */
+.home-botanical {
+  background:
+    radial-gradient(
+      58% 46% at 50% 0%,
+      color-mix(in oklab, var(--primary) 7%, transparent),
+      transparent 72%
+    ),
+    linear-gradient(
+      to bottom,
+      var(--background) 0%,
+      color-mix(in oklab, var(--primary) 5%, var(--background)) 46%,
+      var(--background) 100%
+    );
+}
+
+/* ---------------------------------------------------------------------------
+   SOFT MESH CANVAS
+   Two faint pools in opposite corners. Sibling of `.home-botanical` — that one
+   is a top-down herbal wash, this one is cornered and carries a second hue, so
+   two light sections in the same page do not read as the same band repeated.
+   ------------------------------------------------------------------------ */
+.home-mesh {
+  background:
+    radial-gradient(
+      42% 46% at 6% 94%,
+      color-mix(in oklab, var(--primary) 10%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(38% 42% at 94% 4%, oklch(0.72 0.1 292 / 0.13), transparent 72%),
+    var(--background);
+}
+
+/* Dotted blueprint grid for editorial backdrops. */
+.home-dotgrid {
+  background-image: radial-gradient(currentColor 1px, transparent 1px);
+  background-size: 22px 22px;
+  opacity: 0.12;
+}
+
+/* Sora sets wide by default — pull display sizes back optically. */
+.home-display {
+  letter-spacing: -0.03em;
+  font-feature-settings: "ss01";
+}
+
+/* ---------------------------------------------------------------------------
+   HERO PHOTOGRAPH BAND
+   Below lg the hero is portrait and the photographs are 16:9, so filling the
+   whole section crops them to a narrow vertical sliver. The picture instead
+   takes a band at the top, at an aspect it can fill, and the copy runs below
+   it on plain canvas. `--home-hero-band` drives both the band height and the
+   column's top padding so the two cannot drift apart.
+   ------------------------------------------------------------------------ */
+.home-hero {
+  --home-hero-band: clamp(8.5rem, 36vw, 13rem);
+
+  /*
+   * Height of the chrome above the hero — the trust bar plus the sticky nav
+   * in `Navigation.tsx`. The hero subtracts it so the section lands on one
+   * screen instead of running past the fold. Measured, not guessed: keep it
+   * in step if the nav's `h-16 md:h-20` or the trust bar's padding changes.
+   */
+  --home-header-h: 124px;
+
+  /*
+   * Display sizes and column padding live here rather than in the component
+   * because they have to answer to viewport HEIGHT, not just width, for the
+   * section to land on one screen. A width-only `clamp` hits its cap on a
+   * 1440x800 laptop exactly as it does on a 1440x1080 one, which is what left
+   * the hero overrunning the fold on shorter windows.
+   */
+  --home-hero-display: clamp(2rem, 1.3rem + 3.4vw, 3.6rem);
+  --home-hero-display-solo: clamp(2.5rem, 1.6rem + 4.2vw, 4.4rem);
+  --home-hero-pad-y: 0px;
+
+  /*
+   * VERTICAL RHYTHM — four steps, not one uniform gap.
+   *
+   * Every block in the column used to sit 16-20px from its neighbour, which
+   * is why the hero read as a list of unrelated fragments: the eye had no way
+   * to tell that the tagline belongs to the headline but the figures do not.
+   * The scale below groups them — 1 inside an idea, 2 between lines of one
+   * idea, 3 between groups, 4 before the evidence plate — and shrinks as a
+   * set on short windows so the proportions survive a 1366x768 laptop.
+   */
+  --hero-gap-1: 0.5rem;
+  --hero-gap-2: 0.875rem;
+  --hero-gap-3: 1.5rem;
+  --hero-gap-4: 1.75rem;
+}
+
+@media (min-width: 64rem) {
+  .home-hero {
+    --home-hero-band: 0px;
+    --home-header-h: 128px;
+    --home-hero-pad-y: clamp(1.5rem, 3.4vh, 2.75rem);
+
+    /*
+     * A notch tighter than the stacked phone layout. The desktop column has
+     * horizontal room to separate ideas, so it needs less vertical air — and
+     * the 22px this saves is what keeps the whole section inside one screen
+     * on a 1440x900 display instead of hanging 20px past the fold.
+     */
+    --hero-gap-2: 0.8125rem;
+    --hero-gap-3: 1.25rem;
+    --hero-gap-4: 1.5rem;
+  }
+}
+
+/* Short laptop windows — 1440x800 and the like. */
+@media (min-width: 64rem) and (max-height: 54rem) {
+  .home-hero {
+    --home-hero-display: clamp(1.9rem, 1rem + 2.6vw, 2.9rem);
+    --home-hero-display-solo: clamp(2.1rem, 1.3rem + 3.2vw, 3.5rem);
+    --home-hero-pad-y: clamp(1rem, 2.4vh, 1.75rem);
+
+    --hero-gap-1: 0.4375rem;
+    --hero-gap-2: 0.75rem;
+    --hero-gap-3: 1.125rem;
+    --hero-gap-4: 1.375rem;
+  }
+}
+
+/* Shorter still — 1366x768, and any window a user has dragged down. */
+@media (min-width: 64rem) and (max-height: 49rem) {
+  .home-hero {
+    --home-hero-display: clamp(1.7rem, 0.9rem + 2.1vw, 2.45rem);
+    --home-hero-display-solo: clamp(1.95rem, 1.2rem + 2.7vw, 3rem);
+    --home-hero-pad-y: clamp(0.75rem, 1.7vh, 1.25rem);
+
+    --hero-gap-1: 0.375rem;
+    --hero-gap-2: 0.625rem;
+    --hero-gap-3: 0.875rem;
+    --hero-gap-4: 1rem;
+  }
+}
+
+/* Dissolves the band's lower edge into the canvas instead of ending on a line. */
+.home-hero-band-fade {
+  background: linear-gradient(
+    to bottom,
+    transparent 34%,
+    color-mix(in oklab, var(--background) 28%, transparent) 58%,
+    color-mix(in oklab, var(--background) 72%, transparent) 82%,
+    var(--background) 100%
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   HERO SCRIM (lg and up)
+   A flat white wash over the deliberately dark left third of these
+   photographs reads as a grey slab. Frosted glass lifts luminance enough to
+   carry dark text while keeping the picture's real colour and shape, and the
+   long multi-stop mask lets it dissolve rather than ending on a hard diagonal.
+   ------------------------------------------------------------------------ */
+.home-hero-scrim {
+  backdrop-filter: blur(16px) saturate(130%);
+  -webkit-backdrop-filter: blur(16px) saturate(130%);
+  background: linear-gradient(
+    100deg,
+    color-mix(in oklab, var(--background) 94%, transparent) 0%,
+    color-mix(in oklab, var(--background) 90%, transparent) 30%,
+    color-mix(in oklab, var(--background) 76%, transparent) 46%,
+    color-mix(in oklab, var(--background) 46%, transparent) 60%,
+    color-mix(in oklab, var(--background) 16%, transparent) 74%,
+    transparent 88%
+  );
+  -webkit-mask-image: linear-gradient(
+    100deg,
+    #000 0%, #000 32%, rgb(0 0 0 / 0.9) 46%,
+    rgb(0 0 0 / 0.7) 57%, rgb(0 0 0 / 0.42) 67%,
+    rgb(0 0 0 / 0.18) 77%, transparent 90%
+  );
+  mask-image: linear-gradient(
+    100deg,
+    #000 0%, #000 32%, rgb(0 0 0 / 0.9) 46%,
+    rgb(0 0 0 / 0.7) 57%, rgb(0 0 0 / 0.42) 67%,
+    rgb(0 0 0 / 0.18) 77%, transparent 90%
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   HERO MOTION
+   Four loops, all slow enough to be felt rather than watched, and all gated
+   behind `prefers-reduced-motion` at the foot of this file.
+   ------------------------------------------------------------------------ */
+
+/*
+ * Ken Burns. Sits on a wrapper INSIDE the crossfading element, never on the
+ * element itself — Motion writes `transform` inline there, and a CSS
+ * animation on the same node would fight it for the property.
+ */
+@keyframes home-hero-drift {
+  from {
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.08) translate3d(0, -1.5%, 0);
+  }
+}
+
+.home-hero-drift {
+  animation: home-hero-drift 24s cubic-bezier(0.33, 0, 0.67, 1) forwards;
+  will-change: transform;
+}
+
+/* Emerald mesh that drifts behind the frosted scrim, so the left column has
+   a slowly breathing ground instead of a static wash. */
+.home-hero-aura::before {
+  content: "";
+  position: absolute;
+  inset: -30%;
+  pointer-events: none;
+  background:
+    radial-gradient(36% 44% at 22% 28%, oklch(0.74 0.12 162 / 0.3), transparent 68%),
+    radial-gradient(32% 38% at 8% 78%, oklch(0.7 0.1 192 / 0.22), transparent 70%);
+  filter: blur(42px);
+  animation: home-hero-aura 28s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@keyframes home-hero-aura {
+  from {
+    transform: translate3d(-2%, -1.5%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(3%, 2%, 0) scale(1.1);
+  }
+}
+
+/*
+ * Slide change. The copy wrapper is remounted when it becomes active, so the
+ * children replay this one-shot ladder — the headline leads, the supporting
+ * lines follow it up. Hidden sizer slides never carry the class, so the
+ * reserved height is unaffected.
+ */
+@keyframes home-hero-copy-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+
+.home-hero-copy-in > * {
+  animation: home-hero-copy-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.home-hero-copy-in > *:nth-child(2) {
+  animation-delay: 0.07s;
+}
+
+.home-hero-copy-in > *:nth-child(3) {
+  animation-delay: 0.14s;
+}
+
+.home-hero-copy-in > *:nth-child(4) {
+  animation-delay: 0.21s;
+}
+
+/* Scroll cue at the foot of the full-height desktop hero. */
+@keyframes home-hero-cue {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0.45;
+  }
+  50% {
+    transform: translate3d(0, 5px, 0);
+    opacity: 1;
+  }
+}
+
+.home-hero-cue {
+  animation: home-hero-cue 2.4s ease-in-out infinite;
+}
+
+/* Marker block that wipes in behind the hero's payoff phrase. */
+.home-mark {
+  position: relative;
+  display: inline-block;
+}
+
+.home-mark::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: -0.1em;
+  right: -0.1em;
+  bottom: 0.08em;
+  height: 0.32em;
+  border-radius: 2px;
+  background: color-mix(in oklab, var(--primary) 18%, transparent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: home-mark-in 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.8s forwards;
+}
+
+@keyframes home-mark-in {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-mark::before {
+    animation: none;
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-sheen::after {
+    display: none;
+  }
+
+  /* Every hero loop resolves to its resting frame rather than animating. */
+  .home-hero-drift,
+  .home-hero-aura::before,
+  .home-hero-cue,
+  .home-hero-copy-in > * {
+    animation: none;
+  }
+
+  .home-hero-copy-in > * {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}

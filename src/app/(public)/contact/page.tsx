@@ -377,7 +377,7 @@ export default function ContactPage() {
               <div className="animate-fade-in-down">
                 <div className="relative inline-block">
                   <div className="absolute inset-0 bg-linear-to-r from-primary/20 to-secondary/20 rounded-full blur-xl animate-pulse"></div>
-                  <Badge className="relative bg-linear-to-r from-primary/20 to-primary/15 dark:from-primary/30 dark:to-primary/20 text-primary dark:text-primary-foreground border-primary/40 dark:border-primary/50 glass shadow-lg hover:shadow-xl transition-all duration-300 px-6 py-3 text-sm font-semibold hover:scale-105 hover:-translate-y-1">
+                  <Badge className="relative bg-linear-to-r from-primary/20 to-primary/15 dark:from-primary/30 dark:to-primary/20 text-primary dark:text-primary-foreground border-primary/40 dark:border-primary/50 glass shadow-lg hover:shadow-xl interactive px-6 py-3 text-sm font-semibold">
                     <Heart className="size-5 mr-2 animate-pulse" />
                     {t("contact.badge")}
                   </Badge>
@@ -401,15 +401,15 @@ export default function ContactPage() {
 
               <div className="animate-fade-in-up delay-600">
                 <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
-                <Badge className="bg-linear-to-r from-emerald-100 to-emerald-50 dark:from-emerald-900/50 dark:to-emerald-800/40 text-emerald-800 dark:text-emerald-100 border-emerald-200 dark:border-emerald-700/60 glass interactive hover:scale-105 transition-all duration-300 px-3 py-2 shadow-sm hover:shadow-md dark:shadow-emerald-900/20">
+                <Badge className="bg-linear-to-r from-emerald-100 to-emerald-50 dark:from-emerald-900/50 dark:to-emerald-800/40 text-emerald-800 dark:text-emerald-100 border-emerald-200 dark:border-emerald-700/60 glass interactive interactive px-3 py-2 shadow-sm hover:shadow-md dark:shadow-emerald-900/20">
                     <CheckCircle className="size-4 mr-2" />
                     {t("contact.badges.support24x7")}
                   </Badge>
-                <Badge className="bg-linear-to-r from-blue-100 to-blue-50 dark:from-blue-900/50 dark:to-blue-800/40 text-blue-800 dark:text-blue-100 border-blue-200 dark:border-blue-700/60 glass interactive hover:scale-105 transition-all duration-300 px-3 py-2 shadow-sm hover:shadow-md dark:shadow-blue-900/20">
+                <Badge className="bg-linear-to-r from-sky-100 to-sky-50 dark:from-sky-900/50 dark:to-sky-800/40 text-sky-800 dark:text-sky-100 border-sky-200 dark:border-sky-700/60 glass interactive interactive px-3 py-2 shadow-sm hover:shadow-md dark:shadow-sky-900/20">
                     <Star className="size-4 mr-2" />
                     {t("contact.badges.patientRating")}
                   </Badge>
-                <Badge className="bg-linear-to-r from-purple-100 to-purple-50 dark:from-purple-900/50 dark:to-purple-800/40 text-purple-800 dark:text-purple-100 border-purple-200 dark:border-purple-700/60 glass interactive hover:scale-105 transition-all duration-300 px-3 py-2 shadow-sm hover:shadow-md dark:shadow-purple-900/20">
+                <Badge className="bg-linear-to-r from-violet-100 to-violet-50 dark:from-violet-900/50 dark:to-violet-800/40 text-violet-800 dark:text-violet-100 border-violet-200 dark:border-violet-700/60 glass interactive interactive px-3 py-2 shadow-sm hover:shadow-md dark:shadow-violet-900/20">
                     <User className="size-4 mr-2" />
                     {t("contact.badges.expertConsultation")}
                   </Badge>
@@ -443,12 +443,12 @@ export default function ContactPage() {
                         className="animate-fade-in-up"
                         style={{ animationDelay: `${index * 150}ms` }}
                       >
-                        <Card className="group text-center hover:shadow-xl dark:hover:shadow-2xl transition-all duration-300 border-0 bg-linear-to-br from-card/90 to-muted/30 dark:from-card/95 dark:to-muted/40 glass backdrop-blur-sm hover:scale-110 hover:-translate-y-3 relative overflow-hidden">
+                        <Card className="group text-center hover:shadow-xl dark:hover:shadow-2xl card-hover border-0 bg-linear-to-br from-card/90 to-muted/30 dark:from-card/95 dark:to-muted/40 glass backdrop-blur-sm relative overflow-hidden">
                           <div className="absolute inset-0 bg-linear-to-br from-primary/5 to-secondary/5 dark:from-primary/10 dark:to-secondary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                           <CardContent className="p-4 lg:p-6">
                             <div className="relative mb-4">
                               <div
-                                className={`size-14 bg-linear-to-r ${action.colorScheme.gradient} rounded-xl flex items-center justify-center mx-auto shadow-md group-hover:shadow-lg transition-all duration-300 group-hover:scale-110`}
+                                className={`size-14 bg-linear-to-r ${action.colorScheme.gradient} rounded-xl flex items-center justify-center mx-auto shadow-md group-hover:shadow-lg hover-child group-hover:scale-105`}
                               >
                                 <IconComponent className="size-7 text-white" />
                               </div>
@@ -462,7 +462,7 @@ export default function ContactPage() {
                             </p>
                             <Button
                               onClick={action.onClick}
-                              className={`bg-linear-to-r ${action.colorScheme.gradient} hover:${action.colorScheme.hover} text-white w-full py-2 text-sm font-semibold rounded-xl shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105`}
+                              className={`bg-linear-to-r ${action.colorScheme.gradient} hover:${action.colorScheme.hover} text-white w-full py-2 text-sm font-semibold rounded-xl shadow-sm hover:shadow-md interactive`}
                             >
                               {action.action}
                             </Button>
@@ -580,7 +580,7 @@ export default function ContactPage() {
                           <Button
                             type="submit"
                             disabled={submitContactFormMutation.isPending}
-                            className="w-full bg-linear-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground py-2 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 hover:scale-[1.02] font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full bg-linear-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground py-2 rounded-lg shadow-sm hover:shadow-md card-hover font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {submitContactFormMutation.isPending ? (
                               <>
@@ -610,12 +610,12 @@ export default function ContactPage() {
                           className="animate-fade-in-up w-full min-w-0"
                           style={{ animationDelay: `${index * 150}ms` }}
                         >
-                          <Card className="group w-full min-w-0 max-w-full overflow-hidden bg-linear-to-br from-card/80 to-muted/20 dark:from-card/90 dark:to-muted/30 border-primary/20 dark:border-primary/30 shadow-md glass backdrop-blur-sm hover:shadow-lg dark:hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+                          <Card className="group w-full min-w-0 max-w-full overflow-hidden bg-linear-to-br from-card/80 to-muted/20 dark:from-card/90 dark:to-muted/30 border-primary/20 dark:border-primary/30 shadow-md glass backdrop-blur-sm hover:shadow-lg dark:hover:shadow-xl card-hover">
                             <CardContent className="p-4">
                               <div className="flex items-start gap-x-4">
                                 <div className="relative shrink-0">
                                   <div
-                                    className={`size-10 bg-linear-to-r ${info.colorScheme.gradient} rounded-xl flex items-center justify-center shrink-0 shadow-md group-hover:shadow-lg transition-all duration-300 group-hover:scale-110`}
+                                    className={`size-10 bg-linear-to-r ${info.colorScheme.gradient} rounded-xl flex items-center justify-center shrink-0 shadow-md group-hover:shadow-lg hover-child group-hover:scale-105`}
                                   >
                                     <IconComponent className="size-5 text-white" />
                                   </div>
@@ -654,11 +654,11 @@ export default function ContactPage() {
                         animationDelay: `${contactInfo.length * 150}ms`,
                       }}
                     >
-                      <Card className="group w-full min-w-0 max-w-full overflow-hidden bg-linear-to-br from-destructive/10 to-destructive/5 dark:from-destructive/20 dark:to-destructive/10 border-destructive/30 dark:border-destructive/40 shadow-md glass backdrop-blur-sm hover:shadow-lg dark:hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+                      <Card className="group w-full min-w-0 max-w-full overflow-hidden bg-linear-to-br from-destructive/10 to-destructive/5 dark:from-destructive/20 dark:to-destructive/10 border-destructive/30 dark:border-destructive/40 shadow-md glass backdrop-blur-sm hover:shadow-lg dark:hover:shadow-xl card-hover">
                         <CardContent className="p-4">
                           <div className="flex items-start gap-x-4">
                             <div className="relative shrink-0">
-                              <div className="size-10 bg-linear-to-r from-destructive to-destructive/80 rounded-xl flex items-center justify-center shrink-0 shadow-md group-hover:shadow-lg transition-all duration-300 group-hover:scale-110">
+                              <div className="size-10 bg-linear-to-r from-destructive to-destructive/80 rounded-xl flex items-center justify-center shrink-0 shadow-md group-hover:shadow-lg hover-child group-hover:scale-105">
                                 <Phone className="size-5 text-white" />
                               </div>
                               <div className="absolute inset-0 bg-linear-to-r from-destructive/30 to-destructive/20 rounded-xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -672,7 +672,7 @@ export default function ContactPage() {
                               </p>
                               <Button
                                 onClick={handleEmergencyCall}
-                                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground py-2 px-3 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105 font-semibold text-xs"
+                                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground py-2 px-3 rounded-lg shadow-sm hover:shadow-md interactive font-semibold text-xs"
                               >
                                 <Phone className="size-4 mr-2" />
                                 {t("contact.emergency.action")}

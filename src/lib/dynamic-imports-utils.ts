@@ -44,15 +44,15 @@ export function preloadRouteComponents(pathname: string) {
   switch (pathname) {
     case '/':
       preloadComponents([
-        () => import('@/components/ayurveda/TreatmentOverview'),
-        () => import('@/components/ayurveda/HealthAssessment'),
-        () => import('@/components/ayurveda/TestimonialsSection'),
+        () => import('@/components/home/HomeTreatments'),
+        () => import('@/components/home/HomeHealthAssessment'),
+        () => import('@/components/home/HomeTestimonials'),
       ]);
       break;
     case '/treatments':
       preloadComponents([
-        () => import('@/components/ayurveda/TreatmentOverview'),
-        () => import('@/components/ayurveda/TrustBuilding'),
+        () => import('@/components/home/HomeTreatments'),
+        () => import('@/components/home/HomeTrust'),
       ]);
       break;
     case '/contact':

@@ -1,85 +1,57 @@
+"use client";
+
 /**
- * Dynamic import utilities for Next.js 15 with enhanced code splitting
- * Optimizes bundle size and loading performance
+ * Dynamic imports for the public homepage.
+ * Below-the-fold sections are code-split and rendered on the client once
+ * `LazySection` scrolls them into view.
  */
 
-import React from "react";
-import dynamic from "next/dynamic";
 import { createDynamicComponent } from "@/lib/dynamic-imports-utils";
-import {
-  SectionSkeleton,
-  CardSkeleton,
-  FormSkeleton,
-} from "@/lib/dynamic-imports-skeletons";
+import { SectionSkeleton } from "@/lib/dynamic-imports-skeletons";
 
-// Critical components (loaded immediately)
-export const HeroSection = dynamic(
-  () => import("@/components/ayurveda/HeroSection"),
-  {
-    ssr: true, // Server-side render for SEO
-    loading: () => (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 dark:from-gray-900 dark:to-gray-800 animate-pulse">
-        <div className="container mx-auto px-4 py-20">
-          <div className="text-center">
-            <div className="h-12 bg-orange-200 dark:bg-gray-700 rounded w-3/4 mx-auto mb-6"></div>
-            <div className="h-6 bg-orange-200 dark:bg-gray-700 rounded w-1/2 mx-auto mb-8"></div>
-            <div className="flex justify-center gap-4">
-              <div className="h-12 bg-orange-300 dark:bg-gray-600 rounded w-32"></div>
-              <div className="h-12 bg-orange-300 dark:bg-gray-600 rounded w-32"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    ),
-  }
+const LAZY_OPTIONS = { ssr: false, loading: SectionSkeleton } as const;
+
+export const HomeSpecializations = createDynamicComponent(
+  () => import("@/components/home/HomeSpecializations"),
+  LAZY_OPTIONS
 );
 
-export const StatsSection = dynamic(
-  () => import("@/components/ayurveda/StatsSection"),
-  {
-    ssr: true,
-    loading: () => (
-      <div className="py-20 bg-gray-50 dark:bg-gray-900 animate-pulse">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            {[1, 2, 3, 4].map((i) => (
-              <CardSkeleton key={i} />
-            ))}
-          </div>
-        </div>
-      </div>
-    ),
-  }
+export const HomeHealthAssessment = createDynamicComponent(
+  () => import("@/components/home/HomeHealthAssessment"),
+  LAZY_OPTIONS
 );
 
-// Non-critical components (lazy loaded)
-export const TreatmentOverview = createDynamicComponent(
-  () => import("@/components/ayurveda/TreatmentOverview"),
-  { ssr: false, loading: SectionSkeleton }
+export const HomeTreatments = createDynamicComponent(
+  () => import("@/components/home/HomeTreatments"),
+  LAZY_OPTIONS
 );
 
-export const HealthAssessment = createDynamicComponent(
-  () => import("@/components/ayurveda/HealthAssessment"),
-  {
-    ssr: false,
-    loading: FormSkeleton,
-  }
+export const HomeTestimonials = createDynamicComponent(
+  () => import("@/components/home/HomeTestimonials"),
+  LAZY_OPTIONS
 );
 
-export const TestimonialsSection = createDynamicComponent(
-  () => import("@/components/ayurveda/TestimonialsSection"),
-  { ssr: false, loading: SectionSkeleton }
+export const HomeTrust = createDynamicComponent(
+  () => import("@/components/home/HomeTrust"),
+  LAZY_OPTIONS
 );
 
-export const TrustBuilding = createDynamicComponent(
-  () => import("@/components/ayurveda/TrustBuilding"),
-  { ssr: false, loading: SectionSkeleton }
+export const HomeCertifications = createDynamicComponent(
+  () => import("@/components/home/HomeCertifications"),
+  LAZY_OPTIONS
 );
 
-export const ComprehensiveCTA = createDynamicComponent(
-  () => import("@/components/ayurveda/ComprehensiveCTA"),
-  { ssr: false, loading: SectionSkeleton }
+export const HomeCarePaths = createDynamicComponent(
+  () => import("@/components/home/HomeCarePaths"),
+  LAZY_OPTIONS
 );
 
+export const HomeContactChannels = createDynamicComponent(
+  () => import("@/components/home/HomeContactChannels"),
+  LAZY_OPTIONS
+);
 
-
+export const HomeFinalCta = createDynamicComponent(
+  () => import("@/components/home/HomeFinalCta"),
+  LAZY_OPTIONS
+);

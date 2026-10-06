@@ -41,7 +41,7 @@ export function ThemeSwitcher({ className }: ThemeSwitcherProps) {
               onClick={() => setTheme(themeOption.value)}
               className={cn(
                 "relative flex items-center justify-center size-10 rounded-md transition-all duration-200",
-                "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800",
+                "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-gray-800",
                 isActive
                   ? `${themeOption.activeColor} shadow-sm`
                   : `text-gray-400 ${themeOption.hoverColor}`

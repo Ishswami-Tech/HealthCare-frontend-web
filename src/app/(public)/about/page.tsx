@@ -39,10 +39,10 @@ function AchievementCard({ achievement }: { achievement: AchievementItem }) {
   return (
     <div className="group relative">
       <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl blur-lg group-hover:blur-xl transition-all duration-500"></div>
-      <div className="relative text-center glass p-4 rounded-xl interactive hover:scale-110 hover:-translate-y-2 transition-all duration-300 bg-gradient-to-br from-background/60 to-muted/40 dark:from-background/70 dark:to-muted/50 border border-border/30 dark:border-border/40 shadow-lg hover:shadow-xl">
+      <div className="relative text-center glass p-4 rounded-xl card-hover bg-gradient-to-br from-background/60 to-muted/40 dark:from-background/70 dark:to-muted/50 border border-border/30 dark:border-border/40 shadow-lg hover:shadow-xl">
         <div className="flex items-center justify-center gap-x-3 mb-3">
           <IconComponent
-            className={`size-6 ${achievement.colorScheme.text} group-hover:scale-125 transition-transform duration-300`}
+            className={`size-6 ${achievement.colorScheme.text} hover-child group-hover:scale-105`}
           />
           <span
             className={`font-bold text-2xl ${achievement.colorScheme.text} gradient-text`}
@@ -190,7 +190,7 @@ export default function AboutPage() {
               <div className="animate-fade-in-down mb-8">
                 <div className="inline-block relative">
                   <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-full blur-xl animate-pulse"></div>
-                  <Badge className="relative bg-gradient-to-r from-primary/20 to-primary/15 dark:from-primary/30 dark:to-primary/20 text-primary dark:text-primary-foreground border-primary/40 dark:border-primary/50 glass shadow-lg hover:shadow-xl transition-all duration-300 px-6 py-3 text-sm font-semibold hover:scale-105 hover:-translate-y-1">
+                  <Badge className="relative bg-gradient-to-r from-primary/20 to-primary/15 dark:from-primary/30 dark:to-primary/20 text-primary dark:text-primary-foreground border-primary/40 dark:border-primary/50 glass shadow-lg hover:shadow-xl interactive px-6 py-3 text-sm font-semibold">
                     <Heart className="size-5 mr-3 animate-pulse" />
                     {t("about.hero.badge")}
                   </Badge>
@@ -219,22 +219,22 @@ export default function AboutPage() {
                 <div className="flex flex-wrap justify-center gap-6 sm:gap-8">
                   <div className="group relative">
                     <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/20 to-emerald-600/20 rounded-2xl blur-lg group-hover:blur-xl transition-all duration-500"></div>
-                    <Badge className="relative bg-gradient-to-r from-emerald-100 to-emerald-50 dark:from-emerald-900/50 dark:to-emerald-800/40 text-emerald-800 dark:text-emerald-100 border-emerald-300 dark:border-emerald-600/60 glass interactive hover:scale-110 hover:-translate-y-2 transition-all duration-300 px-6 py-3 shadow-lg hover:shadow-xl dark:shadow-emerald-900/30 text-sm font-semibold">
-                      <CheckCircle className="size-5 mr-3 group-hover:scale-110 transition-transform duration-300" />
+                    <Badge className="relative bg-gradient-to-r from-emerald-100 to-emerald-50 dark:from-emerald-900/50 dark:to-emerald-800/40 text-emerald-800 dark:text-emerald-100 border-emerald-300 dark:border-emerald-600/60 glass card-hover px-6 py-3 shadow-lg hover:shadow-xl dark:shadow-emerald-900/30 text-sm font-semibold">
+                      <CheckCircle className="size-5 mr-3 hover-child group-hover:scale-105" />
                       {t("about.hero.certifications.governmentCertified")}
                     </Badge>
                   </div>
                   <div className="group relative">
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-400/20 to-blue-600/20 rounded-2xl blur-lg group-hover:blur-xl transition-all duration-500"></div>
-                    <Badge className="relative bg-gradient-to-r from-blue-100 to-blue-50 dark:from-blue-900/50 dark:to-blue-800/40 text-blue-800 dark:text-blue-100 border-blue-300 dark:border-blue-600/60 glass interactive hover:scale-110 hover:-translate-y-2 transition-all duration-300 px-6 py-3 shadow-lg hover:shadow-xl dark:shadow-blue-900/30 text-sm font-semibold">
-                      <Shield className="size-5 mr-3 group-hover:scale-110 transition-transform duration-300" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-sky-400/20 to-sky-600/20 rounded-2xl blur-lg group-hover:blur-xl transition-all duration-500"></div>
+                    <Badge className="relative bg-gradient-to-r from-sky-100 to-sky-50 dark:from-sky-900/50 dark:to-sky-800/40 text-sky-800 dark:text-sky-100 border-sky-300 dark:border-sky-600/60 glass card-hover px-6 py-3 shadow-lg hover:shadow-xl dark:shadow-sky-900/30 text-sm font-semibold">
+                      <Shield className="size-5 mr-3 hover-child group-hover:scale-105" />
                       {t("about.hero.certifications.iso9001")}
                     </Badge>
                   </div>
                   <div className="group relative">
-                    <div className="absolute inset-0 bg-gradient-to-r from-purple-400/20 to-purple-600/20 rounded-2xl blur-lg group-hover:blur-xl transition-all duration-500"></div>
-                    <Badge className="relative bg-gradient-to-r from-purple-100 to-purple-50 dark:from-purple-900/50 dark:to-purple-800/40 text-purple-800 dark:text-purple-100 border-purple-300 dark:border-purple-600/60 glass interactive hover:scale-110 hover:-translate-y-2 transition-all duration-300 px-6 py-3 shadow-lg hover:shadow-xl dark:shadow-purple-900/30 text-sm font-semibold">
-                      <Award className="size-5 mr-3 group-hover:scale-110 transition-transform duration-300" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-violet-400/20 to-violet-600/20 rounded-2xl blur-lg group-hover:blur-xl transition-all duration-500"></div>
+                    <Badge className="relative bg-gradient-to-r from-violet-100 to-violet-50 dark:from-violet-900/50 dark:to-violet-800/40 text-violet-800 dark:text-violet-100 border-violet-300 dark:border-violet-600/60 glass card-hover px-6 py-3 shadow-lg hover:shadow-xl dark:shadow-violet-900/30 text-sm font-semibold">
+                      <Award className="size-5 mr-3 hover-child group-hover:scale-105" />
                       {t("about.hero.certifications.teachingHospital")}
                     </Badge>
                   </div>
@@ -268,7 +268,7 @@ export default function AboutPage() {
                     <div className="flex flex-col gap-y-4 sm:gap-y-5 text-muted-foreground leading-relaxed animate-fade-in-left delay-200">
                       <div className="group relative">
                         <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl blur-lg group-hover:blur-xl transition-all duration-500"></div>
-                        <div className="relative p-6 rounded-2xl bg-gradient-to-br from-card/60 to-muted/40 dark:from-card/70 dark:to-muted/50 border border-border/30 dark:border-border/40 glass hover:shadow-lg dark:hover:shadow-xl transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1">
+                        <div className="relative p-6 rounded-2xl bg-gradient-to-br from-card/60 to-muted/40 dark:from-card/70 dark:to-muted/50 border border-border/30 dark:border-border/40 glass hover:shadow-lg dark:hover:shadow-xl card-hover">
                           <div className="flex items-start gap-x-4">
                             <div className="size-10 bg-gradient-to-r from-primary to-primary/80 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
                               <span className="text-2xl">🌱</span>
@@ -282,7 +282,7 @@ export default function AboutPage() {
 
                       <div className="group relative">
                         <div className="absolute inset-0 bg-gradient-to-r from-secondary/10 to-accent/10 rounded-3xl blur-lg group-hover:blur-xl transition-all duration-500"></div>
-                        <div className="relative p-6 rounded-2xl bg-gradient-to-br from-card/60 to-muted/40 dark:from-card/70 dark:to-muted/50 border border-border/30 dark:border-border/40 glass hover:shadow-lg dark:hover:shadow-xl transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1">
+                        <div className="relative p-6 rounded-2xl bg-gradient-to-br from-card/60 to-muted/40 dark:from-card/70 dark:to-muted/50 border border-border/30 dark:border-border/40 glass hover:shadow-lg dark:hover:shadow-xl card-hover">
                           <div className="flex items-start gap-x-4">
                             <div className="size-12 bg-gradient-to-r from-secondary to-secondary/80 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
                               <span className="text-2xl">🏥</span>
@@ -296,7 +296,7 @@ export default function AboutPage() {
 
                       <div className="group relative">
                         <div className="absolute inset-0 bg-gradient-to-r from-accent/10 to-primary/10 rounded-3xl blur-lg group-hover:blur-xl transition-all duration-500"></div>
-                        <div className="relative p-6 rounded-2xl bg-gradient-to-br from-card/60 to-muted/40 dark:from-card/70 dark:to-muted/50 border border-border/30 dark:border-border/40 glass hover:shadow-lg dark:hover:shadow-xl transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1">
+                        <div className="relative p-6 rounded-2xl bg-gradient-to-br from-card/60 to-muted/40 dark:from-card/70 dark:to-muted/50 border border-border/30 dark:border-border/40 glass hover:shadow-lg dark:hover:shadow-xl card-hover">
                           <div className="flex items-start gap-x-4">
                             <div className="size-12 bg-gradient-to-r from-accent to-accent/80 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
                               <span className="text-2xl">💎</span>
@@ -310,7 +310,7 @@ export default function AboutPage() {
 
                       <div className="group relative">
                         <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 rounded-3xl blur-lg group-hover:blur-xl transition-all duration-500"></div>
-                        <div className="relative p-6 rounded-2xl bg-gradient-to-br from-card/60 to-muted/40 dark:from-card/70 dark:to-muted/50 border border-border/30 dark:border-border/40 glass hover:shadow-lg dark:hover:shadow-xl transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1">
+                        <div className="relative p-6 rounded-2xl bg-gradient-to-br from-card/60 to-muted/40 dark:from-card/70 dark:to-muted/50 border border-border/30 dark:border-border/40 glass hover:shadow-lg dark:hover:shadow-xl card-hover">
                           <div className="flex items-start gap-x-4">
                             <div className="size-12 bg-gradient-to-r from-primary via-secondary to-accent rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
                               <span className="text-2xl">🏆</span>
@@ -327,7 +327,7 @@ export default function AboutPage() {
                   {/* Mission & Achievements Card */}
                   <div className="relative animate-fade-in-right">
                     <div className="absolute inset-0 bg-gradient-to-r from-primary/15 to-secondary/15 dark:from-primary/25 dark:to-secondary/25 rounded-2xl blur-2xl"></div>
-                    <Card className="relative bg-gradient-to-br from-card/90 to-muted/30 dark:from-card/95 dark:to-muted/40 border-primary/30 dark:border-primary/40 shadow-lg dark:shadow-xl glass backdrop-blur-sm hover:shadow-xl dark:hover:shadow-2xl transition-all duration-300 hover:scale-[1.02]">
+                    <Card className="relative bg-gradient-to-br from-card/90 to-muted/30 dark:from-card/95 dark:to-muted/40 border-primary/30 dark:border-primary/40 shadow-lg dark:shadow-xl glass backdrop-blur-sm hover:shadow-xl dark:hover:shadow-2xl card-hover">
                       <CardContent className="p-6 lg:p-8">
                         <div className="text-center">
                           {/* Enhanced Mission Icon */}
@@ -396,7 +396,7 @@ export default function AboutPage() {
                         className="animate-fade-in-up"
                         style={{ animationDelay: `${index * 150}ms` }}
                       >
-                        <Card className="group text-center hover:shadow-xl dark:hover:shadow-2xl transition-all duration-300 border-0 bg-gradient-to-br from-card/90 to-muted/30 dark:from-card/95 dark:to-muted/40 glass backdrop-blur-sm hover:scale-110 hover:-translate-y-3 relative overflow-hidden">
+                        <Card className="group text-center hover:shadow-xl dark:hover:shadow-2xl card-hover border-0 bg-gradient-to-br from-card/90 to-muted/30 dark:from-card/95 dark:to-muted/40 glass backdrop-blur-sm relative overflow-hidden">
                           {/* Card Background Effect */}
                           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 dark:from-primary/10 dark:to-secondary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
 
@@ -406,13 +406,13 @@ export default function AboutPage() {
                               <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
 
                               <div
-                                className={`relative size-20 bg-gradient-to-r ${value.colorScheme.gradient} rounded-2xl flex items-center justify-center mx-auto shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-125 group-hover:rotate-6`}
+                                className={`relative size-20 bg-gradient-to-r ${value.colorScheme.gradient} rounded-2xl flex items-center justify-center mx-auto shadow-lg group-hover:shadow-xl hover-child group-hover:scale-105 group-hover:rotate-6`}
                               >
-                                <IconComponent className="size-10 text-white group-hover:scale-110 transition-transform duration-300" />
+                                <IconComponent className="size-10 text-white hover-child group-hover:scale-105" />
                               </div>
                             </div>
 
-                            <h3 className="text-xl font-semibold text-foreground mb-4 gradient-text group-hover:scale-105 transition-transform duration-300">
+                            <h3 className="text-xl font-semibold text-foreground mb-4 gradient-text hover-child group-hover:scale-105">
                               {value.title}
                             </h3>
 
@@ -469,8 +469,8 @@ export default function AboutPage() {
                         {/* Enhanced Timeline Node */}
                         <div className="flex-shrink-0 relative z-10">
                           <div className="absolute inset-0 bg-gradient-to-r from-primary/30 to-secondary/30 rounded-full blur-xl animate-pulse"></div>
-                          <div className="relative size-16 bg-gradient-to-r from-primary via-primary/90 to-secondary rounded-full flex items-center justify-center shadow-lg hover:scale-125 transition-all duration-300 border-4 border-background/50 group">
-                            <span className="text-white font-bold text-sm group-hover:scale-110 transition-transform duration-300">
+                          <div className="relative size-16 bg-gradient-to-r from-primary via-primary/90 to-secondary rounded-full flex items-center justify-center shadow-lg interactive border-4 border-background/50 group">
+                            <span className="text-white font-bold text-sm hover-child group-hover:scale-105">
                               {milestone.year}
                             </span>
                           </div>
@@ -479,14 +479,14 @@ export default function AboutPage() {
 
                         {/* Enhanced Timeline Card */}
                         <div className="flex-1 min-w-0">
-                          <Card className="group bg-gradient-to-br from-card/90 to-muted/30 dark:from-card/95 dark:to-muted/40 border-primary/30 dark:border-primary/40 glass backdrop-blur-sm hover:shadow-xl dark:hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] hover:-translate-y-2 relative overflow-hidden">
+                          <Card className="group bg-gradient-to-br from-card/90 to-muted/30 dark:from-card/95 dark:to-muted/40 border-primary/30 dark:border-primary/40 glass backdrop-blur-sm hover:shadow-xl dark:hover:shadow-2xl card-hover relative overflow-hidden">
                             {/* Card Background Effect */}
                             <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-secondary/5 dark:from-primary/10 dark:to-secondary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
 
                             <CardContent className="relative p-6">
                               <div className="flex items-center gap-x-4 mb-6">
                                 <div className="size-3 bg-gradient-to-r from-primary to-secondary rounded-full animate-pulse"></div>
-                                <h3 className="text-2xl font-semibold text-foreground gradient-text group-hover:scale-105 transition-transform duration-300">
+                                <h3 className="text-2xl font-semibold text-foreground gradient-text hover-child group-hover:scale-105">
                                   {milestone.event}
                                 </h3>
                               </div>
@@ -510,9 +510,9 @@ export default function AboutPage() {
 
         {/* Call to Action Section */}
         <LazySection fallback={<SectionSkeleton />}>
-          <section className="relative py-12 sm:py-16 md:py-20 lg:py-24 bg-gradient-to-br from-orange-500 via-orange-400 to-orange-300 dark:from-orange-600 dark:via-orange-500 dark:to-orange-400 overflow-hidden">
+          <section className="relative py-12 sm:py-16 md:py-20 lg:py-24 bg-gradient-to-br from-amber-500 via-amber-400 to-amber-300 dark:from-amber-600 dark:via-amber-500 dark:to-amber-400 overflow-hidden">
             {/* Advanced Background Effects */}
-            <div className="absolute inset-0 bg-gradient-to-r from-orange-400/20 to-orange-300/20 dark:from-orange-500/30 dark:to-orange-400/30"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-amber-400/20 to-amber-300/20 dark:from-amber-500/30 dark:to-amber-400/30"></div>
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white/15 via-transparent to-transparent"></div>
             <div className="absolute inset-0">
               <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-transparent via-white/8 to-transparent"></div>
@@ -539,14 +539,14 @@ export default function AboutPage() {
                   <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center mb-12">
                     <Button
                       size="lg"
-                      className="bg-orange-600 text-white hover:bg-orange-700 text-base px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 font-semibold"
+                      className="bg-amber-600 text-white hover:bg-amber-700 text-base px-8 py-3 rounded-xl shadow-lg hover:shadow-xl interactive font-semibold"
                     >
                       {t("navigation.bookConsultation")}
                     </Button>
                     <Button
                       size="lg"
                       variant="outline"
-                      className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-orange-600 text-base px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 font-semibold"
+                      className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-amber-600 text-base px-8 py-3 rounded-xl shadow-lg hover:shadow-xl interactive font-semibold"
                     >
                       Free Health Assessment
                     </Button>
@@ -555,20 +555,20 @@ export default function AboutPage() {
 
                 <div className="animate-fade-in-up delay-600">
                   <div className="flex flex-wrap justify-center gap-4 text-white/90">
-                    <div className="flex items-center gap-x-3 bg-green-400 dark:bg-green-500 rounded-full px-6 py-3 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105">
-                      <CheckCircle className="size-6 text-green-700 dark:text-green-800" />
+                    <div className="flex items-center gap-x-3 bg-emerald-400 dark:bg-emerald-500 rounded-full px-6 py-3 shadow-md hover:shadow-lg interactive">
+                      <CheckCircle className="size-6 text-emerald-700 dark:text-emerald-800" />
                       <span className="font-semibold text-white text-base">
                         Government Certified
                       </span>
                     </div>
-                    <div className="flex items-center gap-x-3 bg-blue-400 dark:bg-blue-500 rounded-full px-6 py-3 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105">
-                      <Shield className="size-6 text-blue-700 dark:text-blue-800" />
+                    <div className="flex items-center gap-x-3 bg-sky-400 dark:bg-sky-500 rounded-full px-6 py-3 shadow-md hover:shadow-lg interactive">
+                      <Shield className="size-6 text-sky-700 dark:text-sky-800" />
                       <span className="font-semibold text-white text-base">
                         ISO 9001:2015
                       </span>
                     </div>
-                    <div className="flex items-center gap-x-3 bg-pink-400 dark:bg-pink-500 rounded-full px-6 py-3 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105">
-                      <Award className="size-6 text-pink-700 dark:text-pink-800" />
+                    <div className="flex items-center gap-x-3 bg-rose-400 dark:bg-rose-500 rounded-full px-6 py-3 shadow-md hover:shadow-lg interactive">
+                      <Award className="size-6 text-rose-700 dark:text-rose-800" />
                       <span className="font-semibold text-white text-base">
                         Teaching Hospital
                       </span>

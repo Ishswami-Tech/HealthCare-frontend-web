@@ -157,7 +157,7 @@ export function YouTubeVideo({
           <button
             type="button"
             onClick={isPlaying ? handlePause : handlePlay}
-            className="bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full p-4 transition-all transform hover:scale-110"
+            className="bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full p-4 interactive"
             aria-label={isPlaying ? "Pause video" : "Play video"}
           >
             {isPlaying ? (

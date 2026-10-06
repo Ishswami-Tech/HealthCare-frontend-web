@@ -79,7 +79,7 @@ export function WhatsAppButton({
         <button type="button"
           onClick={handleWhatsAppClick}
           className={cn(
-            "fixed z-50 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-110",
+            "fixed z-50 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-lg hover:shadow-xl interactive",
             positionClasses[position],
             showText ? "px-4 py-3" : "p-4",
             className
@@ -129,7 +129,7 @@ export function WhatsAppButton({
     <button type="button"
       onClick={handleWhatsAppClick}
       className={cn(
-        "inline-flex items-center gap-3 px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg",
+        "inline-flex items-center gap-3 px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium interactive shadow-md hover:shadow-lg",
         className
       )}
       aria-label={t("common.whatsappMessage")}

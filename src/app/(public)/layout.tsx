@@ -41,6 +41,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         phoneNumber={t("clinic.whatsapp")}
         variant="floating"
         position="bottom-right"
+        className="max-lg:[body:has(#home-mobile-cta-bar)_&]:hidden"
       />
     </div>
   );

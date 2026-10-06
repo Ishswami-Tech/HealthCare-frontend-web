@@ -96,22 +96,22 @@ export default function PanchakarmaPage() {
         <section className="relative py-8 sm:py-12 md:py-16 lg:py-20 overflow-hidden">
           {/* Animated Background Elements */}
           <div className="absolute inset-0 bg-gradient-to-br from-background via-background/98 to-muted/30"></div>
-          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-blue-500/5 to-cyan-500/10"></div>
-          <div className="absolute inset-0 bg-gradient-to-bl from-blue-400/3 via-transparent to-cyan-400/5"></div>
+          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-sky-500/5 to-cyan-500/10"></div>
+          <div className="absolute inset-0 bg-gradient-to-bl from-sky-400/3 via-transparent to-cyan-400/5"></div>
 
           {/* Floating Elements */}
-          <div className="absolute top-20 left-8 size-20 bg-gradient-to-r from-blue-400/20 to-cyan-400/20 rounded-full blur-xl animate-pulse"></div>
-          <div className="absolute top-32 right-16 size-32 bg-gradient-to-r from-cyan-400/15 to-blue-400/15 rounded-full blur-2xl animate-pulse delay-1000"></div>
-          <div className="absolute bottom-24 left-1/3 size-24 bg-gradient-to-r from-blue-300/10 to-cyan-300/10 rounded-full blur-xl animate-pulse delay-2000"></div>
-          <div className="absolute top-1/2 right-1/4 size-16 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-full blur-lg animate-pulse delay-3000"></div>
+          <div className="absolute top-20 left-8 size-20 bg-gradient-to-r from-sky-400/20 to-cyan-400/20 rounded-full blur-xl animate-pulse"></div>
+          <div className="absolute top-32 right-16 size-32 bg-gradient-to-r from-cyan-400/15 to-sky-400/15 rounded-full blur-2xl animate-pulse delay-1000"></div>
+          <div className="absolute bottom-24 left-1/3 size-24 bg-gradient-to-r from-sky-300/10 to-cyan-300/10 rounded-full blur-xl animate-pulse delay-2000"></div>
+          <div className="absolute top-1/2 right-1/4 size-16 bg-gradient-to-r from-sky-500/20 to-cyan-500/20 rounded-full blur-lg animate-pulse delay-3000"></div>
 
           {/* Geometric Shapes */}
-          <div className="absolute top-16 right-8 size-12 border border-blue-400/20 rotate-45 animate-spin-slow"></div>
+          <div className="absolute top-16 right-8 size-12 border border-sky-400/20 rotate-45 animate-spin-slow"></div>
           <div className="absolute bottom-32 left-12 size-8 border border-cyan-400/20 rotate-12 animate-pulse"></div>
 
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="max-w-5xl mx-auto text-center">
-              <Badge className="bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-900/20 dark:to-cyan-900/20 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800/30 glass interactive mb-8 px-6 py-3 text-sm font-medium">
+              <Badge className="bg-gradient-to-r from-sky-100 to-cyan-100 dark:from-sky-900/20 dark:to-cyan-900/20 text-sky-800 dark:text-sky-200 border-sky-200 dark:border-sky-800/30 glass interactive mb-8 px-6 py-3 text-sm font-medium">
                 <Droplets className="size-4 mr-2" />
                 {t("panchakarma.badge")}
               </Badge>
@@ -125,15 +125,15 @@ export default function PanchakarmaPage() {
               </p>
 
               <div className="flex flex-wrap justify-center gap-3 mb-6">
-                <Badge className="bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/20 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800/30 glass interactive px-4 py-2">
+                <Badge className="bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/20 dark:to-emerald-900/20 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/30 glass interactive px-4 py-2">
                   <CheckCircle className="size-4 mr-2" />
                   95% {t("common.successRate")}
                 </Badge>
-                <Badge className="bg-gradient-to-r from-purple-100 to-violet-100 dark:from-purple-900/20 dark:to-violet-900/20 text-purple-800 dark:text-purple-200 border-purple-200 dark:border-purple-800/30 glass interactive px-4 py-2">
+                <Badge className="bg-gradient-to-r from-violet-100 to-violet-100 dark:from-violet-900/20 dark:to-violet-900/20 text-violet-800 dark:text-violet-200 border-violet-200 dark:border-violet-800/30 glass interactive px-4 py-2">
                   <Users className="size-4 mr-2" />
                   2000+ {t("common.patients")} {t("common.treated")}
                 </Badge>
-                <Badge className="bg-gradient-to-r from-yellow-100 to-amber-100 dark:from-yellow-900/20 dark:to-amber-900/20 text-yellow-800 dark:text-yellow-200 border-yellow-200 dark:border-yellow-800/30 glass interactive px-4 py-2">
+                <Badge className="bg-gradient-to-r from-amber-100 to-amber-100 dark:from-amber-900/20 dark:to-amber-900/20 text-amber-800 dark:text-amber-200 border-amber-200 dark:border-amber-800/30 glass interactive px-4 py-2">
                   <Award className="size-4 mr-2" />
                   {t("common.scientificallyValidated")}
                 </Badge>
@@ -142,7 +142,7 @@ export default function PanchakarmaPage() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button
                   size="lg"
-                  className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 dark:from-blue-600 dark:to-cyan-700 dark:hover:from-blue-700 dark:hover:to-cyan-800 text-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300"
+                  className="bg-gradient-to-r from-sky-500 to-cyan-600 hover:from-sky-600 hover:to-cyan-700 dark:from-sky-600 dark:to-cyan-700 dark:hover:from-sky-700 dark:hover:to-cyan-800 text-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300"
                 >
                   {t("panchakarma.cta.bookProgram")}
                 </Button>
@@ -163,7 +163,7 @@ export default function PanchakarmaPage() {
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-6xl mx-auto">
               <div className="text-center mb-12">
-                <Badge className="bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-900/30 dark:to-cyan-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800/50 glass interactive mb-4 px-4 py-2 text-sm font-medium shadow-md">
+                <Badge className="bg-gradient-to-r from-sky-100 to-cyan-100 dark:from-sky-900/30 dark:to-cyan-900/30 text-sky-800 dark:text-sky-200 border-sky-200 dark:border-sky-800/50 glass interactive mb-4 px-4 py-2 text-sm font-medium shadow-md">
                   <Droplets className="size-4 mr-2" />
                   {t("panchakarma.whatIs.title")}
                 </Badge>
@@ -182,7 +182,7 @@ export default function PanchakarmaPage() {
                       <div className="absolute top-4 right-4 size-20 border border-primary/20 rounded-full"></div>
                       <div className="absolute bottom-4 left-4 size-16 border border-secondary/20 rounded-full"></div>
 
-                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
+                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-sky-500 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
                         <Leaf className="size-8 sm:w-10 sm:h-10 text-white" />
                       </div>
                     </div>
@@ -201,7 +201,7 @@ export default function PanchakarmaPage() {
                       <div className="absolute top-4 right-4 size-20 border border-primary/20 rounded-full"></div>
                       <div className="absolute bottom-4 left-4 size-16 border border-secondary/20 rounded-full"></div>
 
-                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-orange-500 to-red-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
+                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-amber-500 to-amber-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
                         <Target className="size-8 sm:w-10 sm:h-10 text-white" />
                       </div>
                     </div>
@@ -220,7 +220,7 @@ export default function PanchakarmaPage() {
                       <div className="absolute top-4 right-4 size-20 border border-primary/20 rounded-full"></div>
                       <div className="absolute bottom-4 left-4 size-16 border border-secondary/20 rounded-full"></div>
 
-                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
+                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
                         <Heart className="size-8 sm:w-10 sm:h-10 text-white" />
                       </div>
                     </div>
@@ -239,7 +239,7 @@ export default function PanchakarmaPage() {
                       <div className="absolute top-4 right-4 size-20 border border-primary/20 rounded-full"></div>
                       <div className="absolute bottom-4 left-4 size-16 border border-secondary/20 rounded-full"></div>
 
-                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
+                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-violet-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
                         <Shield className="size-8 sm:w-10 sm:h-10 text-white" />
                       </div>
                     </div>
@@ -258,7 +258,7 @@ export default function PanchakarmaPage() {
                 <Card className="bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-hidden glass">
                   <CardContent className="p-8 sm:p-12">
                     <div className="text-center">
-                      <div className="size-24 sm:w-32 sm:h-32 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-6 sm:mb-8">
+                      <div className="size-24 sm:w-32 sm:h-32 bg-gradient-to-r from-sky-500 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-6 sm:mb-8">
                         <Droplets className="size-12 sm:w-16 sm:h-16 text-white" />
                       </div>
                       <h3 className="text-2xl sm:text-3xl font-semibold text-foreground mb-4 sm:mb-6 gradient-text">
@@ -269,7 +269,7 @@ export default function PanchakarmaPage() {
                       </p>
                       <div className="grid grid-cols-2 gap-6 sm:gap-8 max-w-md mx-auto">
                         <div className="text-center">
-                          <div className="text-3xl sm:text-4xl font-bold text-blue-600 dark:text-blue-400 mb-2">
+                          <div className="text-3xl sm:text-4xl font-bold text-sky-600 dark:text-sky-400 mb-2">
                             21
                           </div>
                           <div className="text-sm sm:text-base text-muted-foreground">
@@ -277,7 +277,7 @@ export default function PanchakarmaPage() {
                           </div>
                         </div>
                         <div className="text-center">
-                          <div className="text-3xl sm:text-4xl font-bold text-blue-600 dark:text-blue-400 mb-2">
+                          <div className="text-3xl sm:text-4xl font-bold text-sky-600 dark:text-sky-400 mb-2">
                             95%
                           </div>
                           <div className="text-sm sm:text-base text-muted-foreground">
@@ -294,11 +294,11 @@ export default function PanchakarmaPage() {
         </section>
 
         {/* Benefits Section */}
-        <section className="py-8 sm:py-12 md:py-16 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/10 dark:to-cyan-900/10">
+        <section className="py-8 sm:py-12 md:py-16 bg-gradient-to-br from-sky-50 to-cyan-50 dark:from-sky-900/10 dark:to-cyan-900/10">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-6xl mx-auto">
               <div className="text-center mb-12">
-                <Badge className="bg-gradient-to-r from-emerald-100 to-green-100 dark:from-emerald-900/30 dark:to-green-900/30 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
+                <Badge className="bg-gradient-to-r from-emerald-100 to-emerald-100 dark:from-emerald-900/30 dark:to-emerald-900/30 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
                   <Heart className="size-4 mr-2" />
                   {t("panchakarma.benefits.title")}
                 </Badge>
@@ -313,11 +313,11 @@ export default function PanchakarmaPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12 items-center mb-12">
                 <div>
                   <div className="relative">
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-2xl blur-xl"></div>
-                    <div className="relative bg-gradient-to-br from-blue-100 to-cyan-100 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-2xl p-6 sm:p-8">
-                      <div className="aspect-video bg-gradient-to-br from-blue-200 to-cyan-200 dark:from-blue-800/30 dark:to-cyan-800/30 rounded-xl flex items-center justify-center mb-4">
+                    <div className="absolute inset-0 bg-gradient-to-r from-sky-500/20 to-cyan-500/20 rounded-2xl blur-xl"></div>
+                    <div className="relative bg-gradient-to-br from-sky-100 to-cyan-100 dark:from-sky-900/20 dark:to-cyan-900/20 rounded-2xl p-6 sm:p-8">
+                      <div className="aspect-video bg-gradient-to-br from-sky-200 to-cyan-200 dark:from-sky-800/30 dark:to-cyan-800/30 rounded-xl flex items-center justify-center mb-4">
                         <div className="text-center">
-                          <Droplets className="size-16 sm:w-20 sm:h-20 text-blue-600 dark:text-blue-400 mx-auto mb-4" />
+                          <Droplets className="size-16 sm:w-20 sm:h-20 text-sky-600 dark:text-sky-400 mx-auto mb-4" />
                           <p className="text-sm text-muted-foreground">
                             Panchakarma Treatment Process
                           </p>
@@ -339,7 +339,7 @@ export default function PanchakarmaPage() {
                             key={benefit}
                             className="flex items-center gap-x-3"
                           >
-                            <CheckCircle className="size-5 text-green-500 flex-shrink-0" />
+                            <CheckCircle className="size-5 text-emerald-500 flex-shrink-0" />
                             <span className="text-muted-foreground">
                               {benefit}
                             </span>
@@ -352,7 +352,7 @@ export default function PanchakarmaPage() {
 
                 <div className="flex flex-col gap-y-6">
                   <div className="flex items-start gap-x-4">
-                    <div className="size-10 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center flex-shrink-0">
+                    <div className="size-10 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full flex items-center justify-center flex-shrink-0">
                       <Heart className="size-5 text-white" />
                     </div>
                     <div>
@@ -366,7 +366,7 @@ export default function PanchakarmaPage() {
                   </div>
 
                   <div className="flex items-start gap-x-4">
-                    <div className="size-10 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
+                    <div className="size-10 bg-gradient-to-r from-violet-500 to-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
                       <Shield className="size-5 text-white" />
                     </div>
                     <div>
@@ -380,7 +380,7 @@ export default function PanchakarmaPage() {
                   </div>
 
                   <div className="flex items-start gap-x-4">
-                    <div className="size-10 bg-gradient-to-r from-orange-500 to-red-600 rounded-full flex items-center justify-center flex-shrink-0">
+                    <div className="size-10 bg-gradient-to-r from-amber-500 to-amber-600 rounded-full flex items-center justify-center flex-shrink-0">
                       <Target className="size-5 text-white" />
                     </div>
                     <div>
@@ -404,7 +404,7 @@ export default function PanchakarmaPage() {
                     description: t(
                       "panchakarma.benefits.naturalHealing.description"
                     ),
-                    color: "from-green-500 to-emerald-600",
+                    color: "from-emerald-500 to-teal-600",
                   },
                   {
                     icon: Star,
@@ -412,7 +412,7 @@ export default function PanchakarmaPage() {
                     description: t(
                       "panchakarma.benefits.longTermResults.description"
                     ),
-                    color: "from-yellow-500 to-orange-600",
+                    color: "from-amber-500 to-amber-600",
                   },
                   {
                     icon: Award,
@@ -420,7 +420,7 @@ export default function PanchakarmaPage() {
                     description: t(
                       "panchakarma.benefits.provenEfficacy.description"
                     ),
-                    color: "from-blue-500 to-cyan-600",
+                    color: "from-sky-500 to-cyan-600",
                   },
                 ].map((benefit) => {
                   const IconComponent = benefit.icon;
@@ -455,11 +455,11 @@ export default function PanchakarmaPage() {
         </section>
 
         {/* Process Timeline */}
-        <section className="py-8 sm:py-12 md:py-16 bg-gradient-to-br from-muted/30 to-blue-50 dark:to-blue-900/10">
+        <section className="py-8 sm:py-12 md:py-16 bg-gradient-to-br from-muted/30 to-sky-50 dark:to-sky-900/10">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-6xl mx-auto">
               <div className="text-center mb-12">
-                <Badge className="bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/30 dark:to-emerald-900/30 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
+                <Badge className="bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-emerald-900/30 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
                   <Clock className="size-4 mr-2" />
                   {t("panchakarma.phases.title")}
                 </Badge>
@@ -515,7 +515,7 @@ export default function PanchakarmaPage() {
                                 key={activity}
                                 className="flex items-start gap-x-2 sm:gap-x-3"
                               >
-                                <CheckCircle className="size-4 sm:w-5 sm:h-5 text-green-500 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                                <CheckCircle className="size-4 sm:w-5 sm:h-5 text-emerald-500 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
                                 <span className="text-muted-foreground dark:text-muted-foreground/90 text-sm sm:text-base">
                                   {activity}
                                 </span>
@@ -533,11 +533,11 @@ export default function PanchakarmaPage() {
         </section>
 
         {/* Process Gallery */}
-        <section className="py-8 sm:py-12 md:py-16 bg-gradient-to-br from-muted/30 to-blue-50 dark:to-blue-900/10">
+        <section className="py-8 sm:py-12 md:py-16 bg-gradient-to-br from-muted/30 to-sky-50 dark:to-sky-900/10">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-6xl mx-auto">
               <div className="text-center mb-12">
-                <Badge className="bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-900/30 dark:to-cyan-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
+                <Badge className="bg-gradient-to-r from-sky-100 to-cyan-100 dark:from-sky-900/30 dark:to-cyan-900/30 text-sky-800 dark:text-sky-200 border-sky-200 dark:border-sky-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
                   <Droplets className="size-4 mr-2" />
                   {t("panchakarma.processGallery.title")}
                 </Badge>
@@ -598,9 +598,9 @@ export default function PanchakarmaPage() {
                     key={process.title}
                     className="overflow-hidden hover:shadow-lg transition-all duration-300 bg-card/80 backdrop-blur-sm shadow-lg border border-border/30 glass card-hover group"
                   >
-                    <div className="aspect-video bg-gradient-to-br from-blue-200 to-cyan-200 dark:from-blue-800/30 dark:to-cyan-800/30 flex items-center justify-center">
+                    <div className="aspect-video bg-gradient-to-br from-sky-200 to-cyan-200 dark:from-sky-800/30 dark:to-cyan-800/30 flex items-center justify-center">
                       <div className="text-center">
-                        <Droplets className="size-12 text-blue-600 dark:text-blue-400 mx-auto mb-2" />
+                        <Droplets className="size-12 text-sky-600 dark:text-sky-400 mx-auto mb-2" />
                         <p className="text-sm text-muted-foreground">
                           {process.image}
                         </p>
@@ -649,7 +649,7 @@ export default function PanchakarmaPage() {
                         <span className="gradient-text">
                           {condition.category}
                         </span>
-                        <Badge className="bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/20 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800/30 text-xs sm:text-sm">
+                        <Badge className="bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/20 dark:to-emerald-900/20 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/30 text-xs sm:text-sm">
                           {condition.successRate}% {t("common.success")}
                         </Badge>
                       </CardTitle>
@@ -661,7 +661,7 @@ export default function PanchakarmaPage() {
                             key={item}
                             className="flex items-center gap-x-3"
                           >
-                            <CheckCircle className="size-4 sm:w-5 sm:h-5 text-green-500 dark:text-green-400 flex-shrink-0" />
+                            <CheckCircle className="size-4 sm:w-5 sm:h-5 text-emerald-500 dark:text-emerald-400 flex-shrink-0" />
                             <span className="text-muted-foreground dark:text-muted-foreground/90 text-sm sm:text-base">
                               {item}
                             </span>
@@ -681,7 +681,7 @@ export default function PanchakarmaPage() {
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-4xl mx-auto">
               <div className="text-center mb-12">
-                <Badge className="bg-gradient-to-r from-orange-100 to-red-100 dark:from-orange-900/30 dark:to-red-900/30 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
+                <Badge className="bg-gradient-to-r from-amber-100 to-amber-100 dark:from-amber-900/30 dark:to-rose-900/30 text-amber-800 dark:text-amber-200 border-amber-200 dark:border-amber-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
                   <Award className="size-4 mr-2" />
                   {t("panchakarma.faq.title")}
                 </Badge>
@@ -736,32 +736,32 @@ export default function PanchakarmaPage() {
         </section>
 
         {/* Call to Action */}
-        <section className="py-8 sm:py-12 md:py-16 bg-gradient-to-r from-blue-600 to-cyan-700 dark:from-blue-700 dark:to-cyan-800">
+        <section className="py-8 sm:py-12 md:py-16 bg-gradient-to-r from-sky-600 to-cyan-700 dark:from-sky-700 dark:to-cyan-800">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-4xl mx-auto text-center text-white">
               <h2 className="text-2xl sm:text-3xl md:text-4xl font-playfair font-semibold mb-4 sm:mb-6">
                 {t("panchakarma.cta.title")}
               </h2>
-              <p className="text-lg sm:text-xl text-blue-100 dark:text-blue-200 mb-6 sm:mb-8 px-4">
+              <p className="text-lg sm:text-xl text-sky-100 dark:text-sky-200 mb-6 sm:mb-8 px-4">
                 {t("panchakarma.cta.subtitle")}
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button
                   size="lg"
-                  className="bg-white text-blue-600 hover:bg-blue-600 hover:text-white border border-transparent hover:border-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
+                  className="bg-white text-sky-600 hover:bg-sky-600 hover:text-white border border-transparent hover:border-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
                 >
                   {t("panchakarma.cta.bookProgram")}
                 </Button>
                 <Button
                   size="lg"
-                  className="bg-white text-blue-600 hover:bg-blue-600 hover:text-white border border-transparent hover:border-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
+                  className="bg-white text-sky-600 hover:bg-sky-600 hover:text-white border border-transparent hover:border-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
                 >
                   {t("panchakarma.cta.freeConsultation")}
                 </Button>
               </div>
 
-              <div className="mt-6 sm:mt-8 flex flex-wrap justify-center gap-4 sm:gap-6 text-blue-100 dark:text-blue-200 text-sm sm:text-base">
+              <div className="mt-6 sm:mt-8 flex flex-wrap justify-center gap-4 sm:gap-6 text-sky-100 dark:text-sky-200 text-sm sm:text-base">
                 <div className="flex items-center gap-x-2">
                   <Star className="size-4" />
                   <span>{t("panchakarma.cta.features.successRate")}</span>

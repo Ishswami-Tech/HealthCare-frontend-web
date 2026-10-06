@@ -1,21 +1,25 @@
-import { Suspense } from "react";
-import { generateMetadata as generateSEOMetadata } from "@/lib/config/seo";
-import { pageSEO } from "@/lib/config/seo";
+import { generateMetadata as generateSEOMetadata, pageSEO } from "@/lib/config/seo";
 import { PageTransition } from "@/components/ui/animated-wrapper";
 import { LazySection } from "@/components/ui/lazy-section";
+import { AuthRedirect } from "@/components/auth/AuthRedirect";
+import HomeHero from "@/components/home/HomeHero";
+import HomeStats from "@/components/home/HomeStats";
+import HomeWhyChooseUs from "@/components/home/HomeWhyChooseUs";
+import HomeMobileCtaBar from "@/components/home/HomeMobileCtaBar";
+import { HomeMotionProvider } from "@/components/home/home-motion";
+import { HEALTH_ASSESSMENT_SECTION_ID } from "@/components/home/home-links";
 import {
-  HeroSection,
-  StatsSection,
-  TreatmentOverview,
-  HealthAssessment,
-  TestimonialsSection,
-  TrustBuilding,
-  ComprehensiveCTA,
+  HomeCarePaths,
+  HomeCertifications,
+  HomeContactChannels,
+  HomeFinalCta,
+  HomeHealthAssessment,
+  HomeSpecializations,
+  HomeTestimonials,
+  HomeTreatments,
+  HomeTrust,
 } from "@/lib/dynamic-imports";
 import { SectionSkeleton } from "@/lib/dynamic-imports-skeletons";
-import WhyChooseUsSection from "@/components/ayurveda/WhyChooseUsSection";
-import SpecializationsSection from "@/components/ayurveda/SpecializationsSection";
-import { AuthRedirect } from "@/components/auth/AuthRedirect";
 
 // Generate SEO metadata using our SEO utility
 export const metadata = generateSEOMetadata({
@@ -26,63 +30,59 @@ export const metadata = generateSEOMetadata({
   image: "/assets/og/og-image.jpg",
 });
 
-// Preload components for better UX
-if (typeof window !== "undefined") {
-  // Preload non-critical components after initial load
-  setTimeout(() => {
-    import("@/components/ayurveda/TreatmentOverview");
-    import("@/components/ayurveda/HealthAssessment");
-  }, 1000);
-}
-
 export default function AyurvedaHomePage() {
   return (
     <PageTransition>
-      <div className="overflow-hidden">
-        {/* Critical above-the-fold content - load immediately */}
-        <AuthRedirect />
-        <HeroSection />
-        <StatsSection />
+      <HomeMotionProvider>
+        <div className="overflow-x-clip font-body">
+          {/* Above-the-fold content renders immediately */}
+          <AuthRedirect />
+          <HomeHero />
+          <HomeStats />
+          <HomeWhyChooseUs />
 
-        {/* Why Choose Us Section - load immediately after hero */}
-        <WhyChooseUsSection />
+          {/* Below-the-fold sections are code-split and mounted when scrolled into view */}
+          <LazySection fallback={<SectionSkeleton />}>
+            <HomeSpecializations />
+          </LazySection>
 
-        {/* Quick Overview Section */}
-        <LazySection fallback={<SectionSkeleton />}>
-          <SpecializationsSection />
-        </LazySection>
+          <div id={HEALTH_ASSESSMENT_SECTION_ID} className="scroll-mt-24">
+            <LazySection fallback={<SectionSkeleton />}>
+              <HomeHealthAssessment />
+            </LazySection>
+          </div>
 
-        {/* Non-critical content - lazy load with intersection observer */}
-        <LazySection fallback={<SectionSkeleton />}>
-          <Suspense fallback={<SectionSkeleton />}>
-            <HealthAssessment />
-          </Suspense>
-        </LazySection>
+          <LazySection fallback={<SectionSkeleton />}>
+            <HomeTreatments />
+          </LazySection>
 
-        <LazySection fallback={<SectionSkeleton />}>
-          <Suspense fallback={<SectionSkeleton />}>
-            <TreatmentOverview />
-          </Suspense>
-        </LazySection>
+          <LazySection fallback={<SectionSkeleton />}>
+            <HomeTestimonials />
+          </LazySection>
 
-        <LazySection fallback={<SectionSkeleton />}>
-          <Suspense fallback={<SectionSkeleton />}>
-            <TestimonialsSection />
-          </Suspense>
-        </LazySection>
+          <LazySection fallback={<SectionSkeleton />}>
+            <HomeTrust />
+          </LazySection>
 
-        <LazySection fallback={<SectionSkeleton />}>
-          <Suspense fallback={<SectionSkeleton />}>
-            <TrustBuilding />
-          </Suspense>
-        </LazySection>
+          <LazySection fallback={<SectionSkeleton />}>
+            <HomeCertifications />
+          </LazySection>
 
-        <LazySection fallback={<SectionSkeleton />}>
-          <Suspense fallback={<SectionSkeleton />}>
-            <ComprehensiveCTA />
-          </Suspense>
-        </LazySection>
-      </div>
+          <LazySection fallback={<SectionSkeleton />}>
+            <HomeCarePaths />
+          </LazySection>
+
+          <LazySection fallback={<SectionSkeleton />}>
+            <HomeContactChannels />
+          </LazySection>
+
+          <LazySection fallback={<SectionSkeleton />}>
+            <HomeFinalCta />
+          </LazySection>
+
+          <HomeMobileCtaBar />
+        </div>
+      </HomeMotionProvider>
     </PageTransition>
   );
 }
