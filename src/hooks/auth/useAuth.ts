@@ -10,7 +10,7 @@ import { useGlobalLoading } from '@/hooks/utils/useGlobalLoading';
 import { logger } from '@/lib/utils/logger';
 import { useAuthStore, resetAllStores } from '@/stores';
 import { RedirectContext } from '@/lib/utils/redirect';
-import { isSessionInvalidError } from '@/lib/utils/auth-recovery';
+import { isSessionInvalidError, JWT_REFRESH_LEAD_MS } from '@/lib/utils/auth-recovery';
 import {
   login as loginAction,
   verifyOTP as verifyOTPAction,
@@ -61,7 +61,10 @@ import {
 } from '@/lib/utils/otp-verification-lock';
 
 // Constants
-const TOKEN_REFRESH_THRESHOLD = 60 * 60 * 1000; // 60 minutes - refresh tokens that expire within 1 hour
+// Refresh when the access token is inside the same lead window the realtime scheduler uses
+// (auth-recovery). The old 60-minute threshold exceeded the 15-minute token lifetime, so every
+// session bootstrap fired an extra refresh round trip.
+const TOKEN_REFRESH_THRESHOLD = JWT_REFRESH_LEAD_MS;
 // SESSION_REFRESH_INTERVAL and MAX_RETRY_ATTEMPTS removed - not used
 
 // Types

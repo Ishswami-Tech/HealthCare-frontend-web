@@ -163,17 +163,36 @@ function cookieOptions(): Partial<ResponseCookie> {
   };
 }
 
-function sessionTokenOptions(): Partial<ResponseCookie> {
+// Backend token lifetimes (JwtAuthService defaults): access 15 minutes, refresh 7 days. These
+// cookies used to outlive their tokens by a wide margin (5 hours / 30 days), so the browser kept
+// presenting a dead refresh token for weeks and every attempt surfaced as "session expired".
+const ACCESS_TOKEN_FALLBACK_MAX_AGE_SECONDS = 15 * 60;
+const ACCESS_TOKEN_COOKIE_GRACE_SECONDS = 60;
+const REFRESH_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
+
+/**
+ * Access-token cookie lifetime: the JWT's own remaining life plus a short grace, so the cookie
+ * disappears when the token does instead of carrying an expired token around for hours.
+ */
+function sessionTokenOptions(accessToken?: string): Partial<ResponseCookie> {
+  const expiryMs = accessToken ? getJwtExpiryMs(accessToken) : null;
+  const remainingSeconds =
+    expiryMs !== null
+      ? Math.floor((expiryMs - Date.now()) / 1000)
+      : ACCESS_TOKEN_FALLBACK_MAX_AGE_SECONDS;
   return {
     ...cookieOptions(),
-    maxAge: 60 * 60 * 5,
+    maxAge: Math.max(
+      ACCESS_TOKEN_COOKIE_GRACE_SECONDS,
+      remainingSeconds + ACCESS_TOKEN_COOKIE_GRACE_SECONDS
+    ),
   };
 }
 
 function refreshTokenOptions(): Partial<ResponseCookie> {
   return {
     ...cookieOptions(),
-    maxAge: 60 * 60 * 24 * 30,
+    maxAge: REFRESH_TOKEN_MAX_AGE_SECONDS,
   };
 }
 
@@ -983,7 +1002,7 @@ export async function setSession(data: {
           cookieStore.set({
              name: 'access_token',
              value: accessTokenValue,
-             ...sessionTokenOptions(),
+             ...sessionTokenOptions(accessTokenValue),
           });
        }
        if (refreshTokenValue) {
@@ -1074,7 +1093,7 @@ export async function setSession(data: {
   cookieStore.set({
     name: 'access_token',
     value: accessTokenValue,
-    ...sessionTokenOptions(),
+    ...sessionTokenOptions(accessTokenValue),
   });
   
   cookieStore.set({
@@ -1777,7 +1796,7 @@ async function setAuthCookies(data: {
     cookieStore.set({
       name: 'access_token',
       value: accessTokenValue,
-      ...sessionTokenOptions(),
+      ...sessionTokenOptions(accessTokenValue),
     });
   }
 
