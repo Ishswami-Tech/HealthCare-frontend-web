@@ -110,7 +110,7 @@ export function DoctorDashboardScheduleCard({
       ) : (
         <div role="table" aria-label="Today's appointments">
           <GridHead columns={COLUMNS} labels={["Patient", "Time", "Status", "Actions"]} />
-          {rows.map(({ appointment, hint, action }) => (
+          {rows.map(({ appointment, hint, action, canCompleteDirectly }) => (
             <GridRow key={appointment.id} columns={COLUMNS} className="lg:min-h-16">
               <CellTitle
                 left={<VisitIcon isVideo={appointment.isVideo} />}
@@ -168,7 +168,9 @@ export function DoctorDashboardScheduleCard({
                     Prescribe
                   </Button>
                 ) : null}
-                {action === "COMPLETE" || (action === "PRESCRIBE" && appointment.id !== activeConsultId) ? (
+                {action === "COMPLETE" ||
+                canCompleteDirectly ||
+                (action === "PRESCRIBE" && appointment.id !== activeConsultId) ? (
                   <Button disabled={isCompletePending} onClick={() => onCompleteAppointment(appointment.id)}>
                     {isCompletePending ? (
                       <Loader2 className="animate-spin" aria-hidden="true" />

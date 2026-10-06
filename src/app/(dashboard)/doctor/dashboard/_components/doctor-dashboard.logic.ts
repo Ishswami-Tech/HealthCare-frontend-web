@@ -56,6 +56,12 @@ export interface DoctorTodayRow {
   /** Second line under the time: check-in, join or completion state. */
   hint: { text: string; tone: "ok" | "muted" } | null;
   action: DoctorTodayRowAction;
+  /**
+   * A confirmed video visit the doctor may complete directly, alongside (or instead of) joining:
+   * video visits have no in-progress hop for the doctor, and the backend accepts
+   * CONFIRMED -> COMPLETED once the join window has opened.
+   */
+  canCompleteDirectly?: boolean;
 }
 
 /** The join state of a video visit, from `getVideoSessionDecision` on the full appointment. */
@@ -449,8 +455,13 @@ export function buildDoctorTodayRow(
 
   if (appointment.isVideo) {
     const joinable = status === "CONFIRMED" || (status === "SCHEDULED" && appointment.paymentCompleted);
+    const opensAtMs = getVideoJoinOpensAtMs(appointment);
+    const closesAtMs = getVideoVisitClosesAtMs(appointment);
+    // Same rule as the backend: a confirmed video visit is completable once its join window has
+    // opened, whether or not the call is (or still can be) joined from here.
+    const canCompleteDirectly = status === "CONFIRMED" && opensAtMs !== null && nowMs >= opensAtMs;
     if (joinable && videoJoin?.canJoin) {
-      return { appointment, hint: { text: "Join is open", tone: "ok" }, action: "JOIN" };
+      return { appointment, hint: { text: "Join is open", tone: "ok" }, action: "JOIN", canCompleteDirectly };
     }
     if (!joinable && status !== "SCHEDULED" && status !== "PENDING") {
       return { appointment, hint: null, action: "NONE" };
@@ -458,15 +469,13 @@ export function buildDoctorTodayRow(
     if (videoJoin?.paymentPending || appointment.paymentPending) {
       return { appointment, hint: { text: "Payment not confirmed", tone: "muted" }, action: "NONE" };
     }
-    const opensAtMs = getVideoJoinOpensAtMs(appointment);
-    const closesAtMs = getVideoVisitClosesAtMs(appointment);
     if (opensAtMs !== null && nowMs < opensAtMs) {
       return { appointment, hint: { text: `Join opens ${formatClock(opensAtMs)}`, tone: "muted" }, action: "NONE" };
     }
     if (closesAtMs !== null && nowMs > closesAtMs) {
-      return { appointment, hint: { text: "Join window closed", tone: "muted" }, action: "NONE" };
+      return { appointment, hint: { text: "Join window closed", tone: "muted" }, action: "NONE", canCompleteDirectly };
     }
-    return { appointment, hint: { text: "Join is not open yet", tone: "muted" }, action: "NONE" };
+    return { appointment, hint: { text: "Join is not open yet", tone: "muted" }, action: "NONE", canCompleteDirectly };
   }
 
   const checkedInAt = formatClock(appointment.checkedInAt);

@@ -7,7 +7,7 @@ import { useAuthStore } from "@/stores/auth.store";
 import type { Session } from "@/types/auth.types";
 import { resetAllStores } from "@/stores";
 
-const DEFAULT_JWT_REFRESH_LEAD_MS = 2 * 60 * 1000;
+export const JWT_REFRESH_LEAD_MS = 2 * 60 * 1000;
 
 type AuthLikeError = {
   message?: string;
@@ -120,7 +120,7 @@ const JWT_REFRESH_JITTER_MAX_MS = 30 * 1000;
 
 export function getJwtRefreshDelayMs(
   token: string,
-  leadTimeMs: number = DEFAULT_JWT_REFRESH_LEAD_MS
+  leadTimeMs: number = JWT_REFRESH_LEAD_MS
 ): number | null {
   const expiryMs = getJwtExpiryEpochMs(token);
   if (!expiryMs) {

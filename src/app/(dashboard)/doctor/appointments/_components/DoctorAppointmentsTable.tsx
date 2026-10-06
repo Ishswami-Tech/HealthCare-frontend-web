@@ -58,6 +58,15 @@ interface DoctorAppointmentsTableProps {
   onComplete: (appointment: TransformedAppointment) => void;
 }
 
+/**
+ * A confirmed video visit the doctor completes directly: there is no in-progress hop to take.
+ * The backend allows CONFIRMED -> COMPLETED for a video visit once its join window has opened,
+ * which is exactly when `joinOpensLater` turns false.
+ */
+export function canCompleteConfirmedVideoVisit(appointment: TransformedAppointment): boolean {
+  return appointment.status === "CONFIRMED" && appointment.isVideo && !appointment.joinOpensLater;
+}
+
 function RowActions({
   appointment: app,
   clinicId,
@@ -116,6 +125,19 @@ function RowActions({
           {startAppointmentPending ? <Loader2 className="animate-spin" /> : <Play />}
           Start
         </Button>
+      ) : null}
+
+      {canCompleteConfirmedVideoVisit(app) ? (
+        <>
+          <Button variant="soft" onClick={() => onOpenDetails(app, "prescription")}>
+            <PillIcon />
+            Prescribe
+          </Button>
+          <Button onClick={() => onComplete(app)} disabled={completeAppointmentPending}>
+            {completeAppointmentPending ? <Loader2 className="animate-spin" /> : <CheckCircle />}
+            Complete
+          </Button>
+        </>
       ) : null}
 
       {app.status === "IN_PROGRESS" ? (
@@ -303,7 +325,7 @@ export function DoctorAppointmentsTable({
           </div>
         ) : (
           pageRows.map((app) => {
-            const isSelectable = app.status === "IN_PROGRESS";
+            const isSelectable = app.status === "IN_PROGRESS" || canCompleteConfirmedVideoVisit(app);
             const isSelected = selectedIds.has(app.id);
             const patientAvatar = <InitialsAvatar name={app.patientName} size={38} />;
             return (
