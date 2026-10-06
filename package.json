@@ -104,7 +104,9 @@
     "postcss": "8.5.26",
     "protobufjs": "7.6.5",
     "semver": "7.7.3",
-    "sharp": "0.35.4",
+    "sharp": "0.35.5",
+
+    "source-map-js": "1.2.2",
     "ws": "8.21.0"
   },
   "devDependencies": {
