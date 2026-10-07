@@ -1,6 +1,6 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
-import { Clock, MapPin } from "lucide-react";
+import { Award, Building2, Clock, GraduationCap, Languages, MapPin } from "lucide-react";
 import { EmptyBlock, Pill, Surface } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import type { BookingDoctorInfo, BookingHoursRow } from "./types";
@@ -96,6 +96,12 @@ export function BookingDoctorProfile({
             {doctor.name}
           </span>
           {doctor.subtitle ? <span className="text-sm text-ink-soft">{doctor.subtitle}</span> : null}
+          {doctor.clinicName ? (
+            <span className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-soft">
+              <Building2 className="size-3.5 shrink-0" strokeWidth={2} aria-hidden="true" />
+              <span className="min-w-0 break-words">{doctor.clinicName}</span>
+            </span>
+          ) : null}
           {doctor.locationName ? (
             <span className="flex items-center gap-1.5 text-[13px] text-ink-soft">
               <MapPin className="size-3.5 shrink-0" strokeWidth={2} aria-hidden="true" />
@@ -125,7 +131,41 @@ export function BookingDoctorProfile({
           ))}
         </div>
       ) : null}
+      <BookingDoctorAbout doctor={doctor} />
     </Surface>
+  );
+}
+
+/** Education, languages and the doctor's recognitions; renders only what the doctor entered. */
+function BookingDoctorAbout({ doctor }: { doctor: BookingDoctorInfo }) {
+  const highlights = doctor.highlights ?? [];
+  const languages = doctor.languages ?? [];
+  if (!doctor.education && highlights.length === 0 && languages.length === 0) return null;
+  return (
+    <div className="mt-1 flex flex-col gap-2.5 border-t border-line pt-3.5">
+      {doctor.education ? (
+        <p className="flex items-start gap-2 text-[13px] text-ink-soft">
+          <GraduationCap className="mt-0.5 size-4 shrink-0 text-brand" strokeWidth={2} aria-hidden="true" />
+          <span className="min-w-0 break-words">{doctor.education}</span>
+        </p>
+      ) : null}
+      {languages.length > 0 ? (
+        <p className="flex items-start gap-2 text-[13px] text-ink-soft">
+          <Languages className="mt-0.5 size-4 shrink-0 text-brand" strokeWidth={2} aria-hidden="true" />
+          <span className="min-w-0 break-words">{languages.join(" · ")}</span>
+        </p>
+      ) : null}
+      {highlights.length > 0 ? (
+        <ul className="flex flex-col gap-1.5">
+          {highlights.map((line) => (
+            <li key={line} className="flex items-start gap-2 text-[13px] leading-snug text-ink">
+              <Award className="mt-0.5 size-4 shrink-0 text-brand" strokeWidth={2} aria-hidden="true" />
+              <span className="min-w-0 break-words">{line}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   );
 }
 

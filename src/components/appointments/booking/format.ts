@@ -78,3 +78,11 @@ export function summarizeWorkingHours(workingHours: unknown): Array<{ label: str
     value: row.value,
   }));
 }
+
+/** A profile list field (string, array or empty) as trimmed, non-empty lines. */
+export function toTextList(value: unknown): string[] {
+  const items = Array.isArray(value) ? value : typeof value === "string" ? [value] : [];
+  return items
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter((item) => item.length > 0);
+}

@@ -32,7 +32,7 @@ import {
   prefetchAppointments,
   prefetchMyAppointments,
 } from "@/hooks/query/useAppointments";
-import { useCurrentClinicId } from "@/hooks/query/useClinics";
+import { useCurrentClinicId, useMyClinic } from "@/hooks/query/useClinics";
 import {
   Dialog,
   DialogContent,
@@ -147,6 +147,8 @@ function portalLabel(role?: string): string {
 
 const Logo = memo(function Logo({ role }: { role?: string }) {
   const portal = portalLabel(role);
+  const { data: myClinic } = useMyClinic();
+  const brandName = myClinic?.name?.trim() || "TestByDoctor";
   return (
     <Link href="/" prefetch={false} className="flex min-w-0 items-center gap-2.5">
       <BrandMark />
@@ -158,7 +160,7 @@ const Logo = memo(function Logo({ role }: { role?: string }) {
         className="flex min-w-0 flex-col justify-center leading-[1.15]"
       >
         <span className="truncate text-base font-extrabold tracking-[-0.3px] text-sidebar-foreground">
-          TestByDoctor
+          {brandName}
         </span>
         {portal ? (
           <span className="truncate text-[10.5px] font-bold tracking-[0.4px] text-brand">{portal}</span>
