@@ -64,7 +64,7 @@ interface DoctorAppointmentsTableProps {
  * which is exactly when `joinOpensLater` turns false.
  */
 export function canCompleteConfirmedVideoVisit(appointment: TransformedAppointment): boolean {
-  return appointment.status === "CONFIRMED" && appointment.isVideo && !appointment.joinOpensLater;
+  return appointment.status === "CONFIRMED" && appointment.isVideo && appointment.joinWindowOpen;
 }
 
 function RowActions({
