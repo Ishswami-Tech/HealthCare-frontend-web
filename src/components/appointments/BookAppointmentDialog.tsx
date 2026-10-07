@@ -111,6 +111,7 @@ import {
   buildSlotPeriods,
   downloadBookingCalendarFile,
   formatRupees,
+  toTextList,
   formatSlotLabel,
   readBookedSlots,
   shortBookingRef,
@@ -4772,10 +4773,11 @@ export function BookAppointmentDialog({
           .filter(Boolean)
           .join(" · "),
         image: selectedDoctor.image || undefined,
-        locationName:
-          (consultationMode === "VIDEO"
-            ? clinicName || myClinic?.name
-            : bookingLocationName) || undefined,
+        locationName: bookingLocationName || undefined,
+        clinicName: clinicName || myClinic?.name || undefined,
+        highlights: toTextList(selectedDoctor.certifications),
+        education: toTextList(selectedDoctor.education).join(", ") || undefined,
+        languages: toTextList(selectedDoctor.languages),
         stats: [
           ...(Number.isFinite(doctorExperienceYears) && doctorExperienceYears > 0
             ? [{ value: `${doctorExperienceYears}+`, label: "Years" }]
