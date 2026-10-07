@@ -1030,7 +1030,11 @@ export async function rescheduleAppointment(id: string, data: any) {
     return { success: true, appointment };
   } catch (error) {
     logger.error('Failed to reschedule appointment', error instanceof Error ? error : new Error(String(error)));
-    return { success: false, error: 'Failed to reschedule appointment' };
+    // The backend's own reason (slot taken, visit not movable, window closed) tells the patient
+    // what to do next; a generic line does not.
+    const reason =
+      isApiError(error) && (error as { name?: string }).name !== 'ZodError' ? error.message : '';
+    return { success: false, error: reason || 'Failed to reschedule appointment' };
   }
 }
 
