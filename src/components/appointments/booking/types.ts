@@ -13,6 +13,13 @@ export interface BookingDoctorInfo {
   subtitle?: string | undefined;
   image?: string | undefined;
   locationName?: string | undefined;
+  /** The clinic the doctor practises at. */
+  clinicName?: string | undefined;
+  /** Awards and recognitions, one line each (the doctor's certifications). */
+  highlights?: string[] | undefined;
+  /** Where the doctor trained, as the doctor entered it. */
+  education?: string | undefined;
+  languages?: string[] | undefined;
   /** Small number tiles under the name. Only real values; leave out what is unknown. */
   stats?: Array<{ value: string; label: string }> | undefined;
 }
