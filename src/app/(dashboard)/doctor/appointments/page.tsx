@@ -165,6 +165,12 @@ export interface TransformedAppointment {
   canJoinVideo: boolean;
   /** A confirmed video visit whose join window has not opened yet. */
   joinOpensLater: boolean;
+  /**
+   * The join window of a video visit has opened (scheduled start minus the early-join
+   * allowance). False when the row has no usable schedule, so a confirmed video visit without a
+   * time never offers Complete; the backend applies the same gate and fails closed.
+   */
+  joinWindowOpen: boolean;
   duration: string;
   appointmentDate: string;
   /** YYYY-MM-DD in IST — used by the date filter. */
@@ -488,6 +494,7 @@ export default function DoctorAppointments() {
           normalizedStatus === APPOINTMENT_STATUS.CONFIRMED &&
           joinOpensAtMs !== null &&
           Date.now() < joinOpensAtMs;
+        const joinWindowOpen = isVideo && joinOpensAtMs !== null && Date.now() >= joinOpensAtMs;
 
         return {
           id: app.id,
@@ -509,6 +516,7 @@ export default function DoctorAppointments() {
           isVideo,
           canJoinVideo,
           joinOpensLater,
+          joinWindowOpen,
           duration: typeof displayDuration === "number" ? `${displayDuration} min` : "30 min",
           appointmentDate: appointmentDateTime
             ? formatDateInIST(appointmentDateTime, { weekday: "short", day: "2-digit", month: "short" })
