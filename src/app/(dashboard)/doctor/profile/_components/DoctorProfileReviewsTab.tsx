@@ -44,8 +44,10 @@ export function DoctorProfileReviewsTab({
   loadFailed,
   notAvailable = false,
   onRetry,
+  stats = null,
+  onPageChange,
 }: DoctorProfileReviewsTabProps) {
-  const summary = summarizeReviews(reviews);
+  const summary = summarizeReviews(reviews, stats);
 
   return (
     <div className="flex flex-col gap-5">
@@ -58,7 +60,7 @@ export function DoctorProfileReviewsTab({
               <span className="text-[34px] font-extrabold leading-none text-ink">{summary.average}</span>
               <Stars rating={summary.stars} size="size-4" />
               <span className="text-xs text-ink-muted">
-                From {summary.count === 1 ? "the latest review" : `the latest ${summary.count} reviews`}
+                {summary.count === 1 ? "From 1 review" : `From ${summary.count} reviews`}
               </span>
             </div>
             <ul className="m-0 flex min-w-0 flex-1 list-none flex-col gap-1.5 p-0">
@@ -73,6 +75,11 @@ export function DoctorProfileReviewsTab({
                   <span className="w-6 shrink-0 text-right font-semibold">{row.count}</span>
                 </li>
               ))}
+              {summary.breakdownBasedOn < summary.count ? (
+                <li className="text-[11px] text-ink-muted">
+                  Star counts cover the {summary.breakdownBasedOn} reviews loaded on this page.
+                </li>
+              ) : null}
             </ul>
           </div>
         ) : (
@@ -134,6 +141,29 @@ export function DoctorProfileReviewsTab({
             })}
           </ul>
         )}
+        {onPageChange && stats && stats.totalPages > 1 ? (
+          <nav className="mt-3.5 flex items-center justify-between gap-3" aria-label="Reviews pages">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={stats.page <= 1 || isLoading}
+              onClick={() => onPageChange(stats.page - 1)}
+            >
+              Previous
+            </Button>
+            <span className="text-xs text-ink-muted" aria-live="polite">
+              Page {stats.page} of {stats.totalPages} ({stats.total} reviews)
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={stats.page >= stats.totalPages || isLoading}
+              onClick={() => onPageChange(stats.page + 1)}
+            >
+              Next
+            </Button>
+          </nav>
+        ) : null}
       </ProfileCard>
     </div>
   );

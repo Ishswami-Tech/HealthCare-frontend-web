@@ -1,4 +1,5 @@
 import type { useUpdateUserProfile } from "@/hooks/query/useUsers";
+import type { ReviewStats } from "./doctor-profile.logic";
 
 export interface DoctorProfilePersonalInfo {
   firstName: string;
@@ -86,6 +87,10 @@ export interface DoctorProfileReviewsState {
   /** The server has no reviews service yet (the request answered "not found"). */
   notAvailable?: boolean;
   onRetry?: () => void;
+  /** The server's average, count and page numbers over all reviews. */
+  stats?: ReviewStats | null;
+  /** When set, the list shows page controls. */
+  onPageChange?: (page: number) => void;
 }
 
 export interface SaveProfileMutation {
