@@ -157,33 +157,6 @@ export async function deletePatient(patientId: string) {
 }
 
 /**
- * Get patient appointments
- */
-export async function getPatientAppointments(patientId: string, filters?: {
-  status?: string;
-  startDate?: string;
-  endDate?: string;
-  doctorId?: string;
-  limit?: number;
-}) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-
-  const params = new URLSearchParams();
-  if (filters) {
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, String(value));
-    });
-  }
-  
-  const endpoint = `${API_ENDPOINTS.PATIENTS.APPOINTMENTS(patientId)}${params.toString() ? `?${params.toString()}` : ''}`;
-  const { data } = await authenticatedApi(endpoint);
-  return data;
-}
-
-/**
  * Get patient medical history
  */
 export async function getPatientMedicalHistory(_clinicId: string, patientId: string, filters?: {
@@ -341,19 +314,6 @@ export async function addPatientLabResult(patientId: string, labData: {
 }
 
 /**
- * Get patient statistics
- */
-export async function getPatientStats(patientId: string) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-
-  const { data } = await authenticatedApi(API_ENDPOINTS.PATIENTS.STATS(patientId));
-  return data;
-}
-
-/**
  * Search patients
  */
 export async function searchPatients(query: string, filters?: {
@@ -376,37 +336,6 @@ export async function searchPatients(query: string, filters?: {
   }
   
   const { data } = await authenticatedApi(`${API_ENDPOINTS.PATIENTS.SEARCH}?${params.toString()}`);
-  return data;
-}
-
-/**
- * Get patient timeline
- */
-export async function getPatientTimeline(patientId: string, filters?: {
-  startDate?: string;
-  endDate?: string;
-  eventTypes?: string[];
-  limit?: number;
-}) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-
-  const params = new URLSearchParams();
-  if (filters) {
-    if (filters.eventTypes) {
-      filters.eventTypes.forEach(type => params.append('eventTypes', type));
-    }
-    Object.entries(filters).forEach(([key, value]) => {
-      if (key !== 'eventTypes' && value) {
-        params.append(key, Array.isArray(value) ? value.join(',') : String(value));
-      }
-    });
-  }
-  
-  const endpoint = `${API_ENDPOINTS.PATIENTS.TIMELINE(patientId)}${params.toString() ? `?${params.toString()}` : ''}`;
-  const { data } = await authenticatedApi(endpoint);
   return data;
 }
 
@@ -435,41 +364,25 @@ export async function exportPatientData(filters: {
 }
 
 /**
- * Get patient care plan
- */
-export async function getPatientCarePlan(patientId: string) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-
-  const { data } = await authenticatedApi(API_ENDPOINTS.PATIENTS.CARE_PLAN.GET(patientId));
-  return data;
-}
-
-/**
- * Update patient care plan
+ * Update the patient's care plan (PUT /ehr/clinic/patients/:patientId/care-plan, clinical staff only).
  */
 export async function updatePatientCarePlan(patientId: string, carePlanData: {
-  goals?: string[];
-  interventions?: string[];
-  medications?: {
-    name: string;
-    dosage: string;
-    frequency: string;
-    startDate: string;
-    endDate?: string;
-  }[];
-  followUpInstructions?: string;
-  nextAppointment?: string;
-  doctorId: string;
+  title?: string;
+  status?: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
+  summary?: string;
+  goals?: { text: string; done?: boolean }[];
+  interventions?: { text: string; done?: boolean }[];
+  dietNotes?: string;
+  lifestyleNotes?: string;
+  /** ISO date. */
+  nextReviewDate?: string;
 }) {
   const session = await getServerSession();
   if (!session?.user?.id) {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  const { data } = await authenticatedApi(API_ENDPOINTS.PATIENTS.CARE_PLAN.UPDATE(patientId), {
+  const { data } = await authenticatedApi(API_ENDPOINTS.EHR_CLINIC.PATIENT_CARE_PLAN(patientId), {
     method: 'PUT',
     body: JSON.stringify(carePlanData),
   });

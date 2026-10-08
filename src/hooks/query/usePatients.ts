@@ -90,21 +90,18 @@ export const usePatient = (clinicId: string, patientId: string) => {
  */
 export const usePatientAppointments = (patientId: string, filters?: {
   status?: string;
-  startDate?: string;
-  endDate?: string;
-  doctorId?: string;
+  page?: number;
   limit?: number;
 }) => {
   const { isConnected } = useWebSocketStatus();
   return useQueryData(['patientAppointments', patientId, filters], async () => {
     const params = {
       ...(filters?.status ? { status: filters.status } : {}),
-      ...(filters?.startDate ? { startDate: filters.startDate } : {}),
-      ...(filters?.endDate ? { endDate: filters.endDate } : {}),
-      ...(filters?.doctorId ? { doctorId: filters.doctorId } : {}),
+      ...(typeof filters?.page === 'number' ? { page: filters.page } : {}),
       ...(typeof filters?.limit === 'number' ? { limit: filters.limit } : {}),
     };
-    return (await clinicApiClient.get(API_ENDPOINTS.PATIENTS.APPOINTMENTS(patientId), params)).data;
+    // Clinical staff only: GET /ehr/clinic/patients/:patientId/appointments -> { data, meta }.
+    return (await clinicApiClient.get(API_ENDPOINTS.EHR_CLINIC.PATIENT_APPOINTMENTS(patientId), params)).data;
   }, {
     enabled: !!patientId,
     refetchInterval: isConnected ? false : 30_000,
@@ -197,49 +194,13 @@ export const usePatientLabResults = (patientId: string, filters?: {
 };
 
 /**
- * Hook to get patient statistics
- */
-export const usePatientStats = (patientId: string) => {
-  const { isConnected } = useWebSocketStatus();
-  return useQueryData(['patientStats', patientId], async () => {
-    return (await clinicApiClient.get(API_ENDPOINTS.PATIENTS.STATS(patientId))).data;
-  }, {
-    enabled: !!patientId,
-    refetchInterval: isConnected ? false : 60_000,
-  });
-};
-
-/**
- * Hook to get patient timeline
- */
-export const usePatientTimeline = (patientId: string, filters?: {
-  startDate?: string;
-  endDate?: string;
-  eventTypes?: string[];
-  limit?: number;
-}) => {
-  const { isConnected } = useWebSocketStatus();
-  return useQueryData(['patientTimeline', patientId, filters], async () => {
-    const params = {
-      ...(filters?.startDate ? { startDate: filters.startDate } : {}),
-      ...(filters?.endDate ? { endDate: filters.endDate } : {}),
-      ...(filters?.eventTypes ? { eventTypes: filters.eventTypes.join(',') } : {}),
-      ...(typeof filters?.limit === 'number' ? { limit: filters.limit } : {}),
-    };
-    return (await clinicApiClient.get(API_ENDPOINTS.PATIENTS.TIMELINE(patientId), params)).data;
-  }, {
-    enabled: !!patientId,
-    refetchInterval: isConnected ? false : 60_000,
-  });
-};
-
-/**
- * Hook to get patient care plan
+ * Hook to get a patient's care plan (GET /ehr/clinic/patients/:patientId/care-plan).
+ * Answers one plan object: { exists, title, status, summary, goals: [{ text, done }], ... }.
  */
 export const usePatientCarePlan = (patientId: string) => {
   const { isConnected } = useWebSocketStatus();
   return useQueryData(['patientCarePlan', patientId], async () => {
-    return (await clinicApiClient.get(API_ENDPOINTS.PATIENTS.CARE_PLAN.GET(patientId))).data;
+    return (await clinicApiClient.get(API_ENDPOINTS.EHR_CLINIC.PATIENT_CARE_PLAN(patientId))).data;
   }, {
     enabled: !!patientId,
     refetchInterval: isConnected ? false : 120_000,
@@ -625,18 +586,14 @@ export const useUpdatePatientCarePlan = () => {
     async ({ patientId, carePlanData }: {
     patientId: string;
     carePlanData: {
-      goals?: string[];
-      interventions?: string[];
-      medications?: {
-        name: string;
-        dosage: string;
-        frequency: string;
-        startDate: string;
-        endDate?: string;
-      }[];
-      followUpInstructions?: string;
-      nextAppointment?: string;
-      doctorId: string;
+      title?: string;
+      status?: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
+      summary?: string;
+      goals?: { text: string; done?: boolean }[];
+      interventions?: { text: string; done?: boolean }[];
+      dietNotes?: string;
+      lifestyleNotes?: string;
+      nextReviewDate?: string;
     };
   }) => {
       return await updatePatientCarePlan(patientId, carePlanData);
@@ -645,7 +602,7 @@ export const useUpdatePatientCarePlan = () => {
       toastId: TOAST_IDS.PATIENT.UPDATE,
       loadingMessage: 'Updating patient care plan...',
       successMessage: 'Patient care plan updated successfully',
-      invalidateQueries: [['patientCarePlan'], ['patientTimeline'], ['patientStats']],
+      invalidateQueries: [['patientCarePlan']],
     }
   );
 };
