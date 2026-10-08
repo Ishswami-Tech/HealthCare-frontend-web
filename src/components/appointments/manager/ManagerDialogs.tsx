@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Note } from "@/components/tbd";
 import { APPOINTMENT_MAX_RESCHEDULES } from "@/lib/utils/appointmentUtils";
+import { BookingSlotGroups } from "@/components/appointments/booking/BookingSlotGroups";
+import type { BookingSlotPeriod } from "@/components/appointments/booking/types";
 import { DateField } from "./ManagerFilters";
 import type { ManagerVisit } from "./types";
 
@@ -36,6 +38,9 @@ export function RescheduleDialog({
   onDateChange,
   onTimeChange,
   minDate,
+  slotPeriods,
+  slotsLoading = false,
+  slotsError = null,
   submitting,
   onSubmit,
 }: {
@@ -48,19 +53,27 @@ export function RescheduleDialog({
   onTimeChange: (value: string) => void;
   /** Days before this one cannot be picked. */
   minDate: Date | null;
+  /**
+   * The open slots of the chosen day, grouped by period (the doctor's availability for this
+   * visit type and location). Without it the dialog falls back to a free time field.
+   */
+  slotPeriods?: BookingSlotPeriod[] | undefined;
+  slotsLoading?: boolean;
+  slotsError?: string | null;
   submitting: boolean;
   onSubmit: () => void;
 }) {
+  const useSlotGrid = slotPeriods !== undefined;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Reschedule visit</DialogTitle>
           <DialogDescription>Choose a new date and time.</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">
           <VisitLine visit={visit} />
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={useSlotGrid ? "flex flex-col gap-3" : "grid gap-3 sm:grid-cols-2"}>
             <div className="flex flex-col gap-1.5">
               <span id="appointment-reschedule-date-label" className="text-[13px] font-semibold text-ink">
                 New date
@@ -74,17 +87,34 @@ export function RescheduleDialog({
                 className="w-full"
               />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="appointment-reschedule-time" className="text-[13px] font-semibold text-ink">
-                New time
-              </label>
-              <Input
-                id="appointment-reschedule-time"
-                type="time"
-                value={time}
-                onChange={(event) => onTimeChange(event.target.value)}
-              />
-            </div>
+            {useSlotGrid ? (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[13px] font-semibold text-ink">New time</span>
+                {!date ? (
+                  <p className="m-0 text-[13px] text-ink-muted">Pick a date to see the open times.</p>
+                ) : slotsLoading ? (
+                  <p className="m-0 text-[13px] text-ink-muted" role="status">Loading open times…</p>
+                ) : slotPeriods.length > 0 ? (
+                  <BookingSlotGroups periods={slotPeriods} selected={time} onSelect={onTimeChange} columnsClassName="grid-cols-4" />
+                ) : (
+                  <p className="m-0 text-[13px] text-ink-muted">
+                    {slotsError ?? "No open times on this day. Try another date."}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="appointment-reschedule-time" className="text-[13px] font-semibold text-ink">
+                  New time
+                </label>
+                <Input
+                  id="appointment-reschedule-time"
+                  type="time"
+                  value={time}
+                  onChange={(event) => onTimeChange(event.target.value)}
+                />
+              </div>
+            )}
           </div>
           {visit?.rescheduleHint ? (
             <Note tone="blue">

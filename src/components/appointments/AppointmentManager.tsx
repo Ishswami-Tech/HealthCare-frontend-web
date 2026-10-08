@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useAppointments,
   useCancelAppointment,
+  useDoctorAvailability,
   useMyAppointments,
   useRejectVideoProposal,
   useRescheduleAppointment,
@@ -25,9 +26,11 @@ import {
   isVideoAppointmentJoinable,
   normalizePatientAppointment,
 } from "@/lib/utils/appointmentUtils";
+import { extractAvailabilitySlots, groupSlotsByPeriod } from "@/lib/utils/availabilitySlots";
 import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 import { Role } from "@/types/auth.types";
+import { buildSlotPeriods } from "./booking/slotDisplay";
 import { AppointmentManagerView } from "./manager/AppointmentManagerView";
 import { CancelVisitDialog, DeclineSlotsDialog, RescheduleDialog } from "./manager/ManagerDialogs";
 import {
@@ -247,6 +250,33 @@ export default function AppointmentManager({
     [selectedId, visits]
   );
 
+  // The open times of the chosen day, for the visit's own doctor, location and type (video or in-person).
+  const rescheduleAppointmentRow = selectedId ? appointmentsById.get(selectedId) : undefined;
+  const rescheduleDoctorId = String(rescheduleAppointmentRow?.doctorId ?? "");
+  const rescheduleClinicId = String(rescheduleAppointmentRow?.clinicId ?? propClinicId ?? (user as { clinicId?: string } | undefined)?.clinicId ?? "");
+  const rescheduleLocationId = String(rescheduleAppointmentRow?.locationId ?? "");
+  const rescheduleIsVideo = selectedVisit?.kind === "video";
+  const canLoadRescheduleSlots = Boolean(rescheduleDoctorId && rescheduleClinicId);
+  const {
+    data: rescheduleAvailability,
+    isPending: rescheduleSlotsPending,
+    error: rescheduleSlotsError,
+  } = useDoctorAvailability(
+    rescheduleClinicId,
+    rescheduleDoctorId,
+    rescheduleData.date,
+    rescheduleIsVideo ? undefined : rescheduleLocationId || undefined,
+    rescheduleIsVideo ? "VIDEO_CALL" : "IN_PERSON",
+    { enabled: openDialog === "reschedule" && canLoadRescheduleSlots && Boolean(rescheduleData.date) },
+  );
+  const reschedulePeriods = useMemo(
+    () =>
+      canLoadRescheduleSlots
+        ? buildSlotPeriods(groupSlotsByPeriod(extractAvailabilitySlots(rescheduleAvailability)), [], 0)
+        : undefined,
+    [canLoadRescheduleSlots, rescheduleAvailability]
+  );
+
   const { isRefreshing: isRefreshingAppointments, refresh: handleRefreshAppointments } = useAppointmentsRefresh({
     isConnected,
     onRefreshAppointments,
@@ -290,7 +320,8 @@ export default function AppointmentManager({
     setSelectedId(visitId);
     setRescheduleData({
       date: dateTime ? formatISODateInIST(dateTime) : rawDate ? formatISODateInIST(rawDate) : "",
-      time: rescheduleTimeValue(appointment),
+      // With a doctor to look up, the new time is picked from the open slots; otherwise it is typed.
+      time: appointment.doctorId ? "" : rescheduleTimeValue(appointment),
     });
     setOpenDialog("reschedule");
   }, [appointmentsById]);
@@ -471,9 +502,12 @@ export default function AppointmentManager({
         visit={selectedVisit}
         date={rescheduleData.date}
         time={rescheduleData.time}
-        onDateChange={(date) => setRescheduleData((previous) => ({ ...previous, date }))}
+        onDateChange={(date) => setRescheduleData({ date, time: "" })}
         onTimeChange={(time) => setRescheduleData((previous) => ({ ...previous, time }))}
         minDate={rescheduleMinDate}
+        slotPeriods={reschedulePeriods}
+        slotsLoading={rescheduleSlotsPending && Boolean(rescheduleData.date)}
+        slotsError={rescheduleSlotsError instanceof Error ? sanitizeErrorMessage(rescheduleSlotsError) : null}
         submitting={reschedulingAppointment}
         onSubmit={handleRescheduleSubmit}
       />
