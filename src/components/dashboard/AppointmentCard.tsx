@@ -24,6 +24,8 @@ import {
   formatAppointmentDate, 
   getAppointmentViewState,
   canRescheduleAppointment,
+  APPOINTMENT_MAX_RESCHEDULES,
+  getAppointmentRescheduleCount,
   getAppointmentStatusDisplayName,
   isVideoAppointmentJoinable,
   getReceptionistAppointmentTimeLabel,
@@ -240,6 +242,7 @@ function AppointmentCardComponent({
           )}
 
           {canRescheduleAppointment(normalizedStatus, normalizedType === "VIDEO" || normalizedType === "VIDEO_CALL") &&
+            getAppointmentRescheduleCount(appointment) < APPOINTMENT_MAX_RESCHEDULES &&
             onReschedule && (
             <Button
               variant="outline"
