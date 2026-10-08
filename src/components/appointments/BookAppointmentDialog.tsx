@@ -2339,20 +2339,6 @@ export function BookAppointmentDialog({
   const activeClinicId =
     resolvedClinicId || clinicFallbackId;  // Always allow fallback for all roles
 
-  if (APP_CONFIG.ENVIRONMENT === "development") {
-    console.log('[BookAppointmentDialog] ClinicId resolution:', {
-      propsClinicId: clinicId,
-      sessionClinicId,
-      safeContextClinicId,
-      currentClinicId,
-      myClinicId,
-      clinicFallbackId,
-      authClinicId,
-      resolvedClinicId,
-      activeClinicId
-    });
-  }
-
   type BookingFlowState = {
     step: number;
     serviceFilter: string;
@@ -2774,10 +2760,10 @@ export function BookAppointmentDialog({
     dialogOpen && isPrivilegedScheduler && !!activeClinicId;
   // Family members of the signed-in patient. Optional: when the list is empty or cannot be read
   // the visit is for the patient, and booking carries on as before.
-  // `familyMemberId` is part of the appointment create DTO used by the video flow only; the
-  // patient in-clinic flow books through the subscription endpoint, which has no such field.
+  // `familyMemberId` is accepted by the appointment create DTO (video and plain in-clinic) and by
+  // the subscription in-clinic booking DTO, so a patient can book any visit for a dependent.
   const isPatientBooker = userRole === "PATIENT";
-  const canChooseFamilyMember = isPatientBooker && consultationMode === "VIDEO";
+  const canChooseFamilyMember = isPatientBooker;
   const familyClinicId = sessionClinicId || currentClinicId || "";
   const {
     data: myFamilyMembers,
@@ -3012,20 +2998,6 @@ export function BookAppointmentDialog({
     return null;
   }, [currentClinic, myClinic]);
 
-  if (APP_CONFIG.ENVIRONMENT === "development") {
-    console.log("[BookAppointmentDialog] Schedule settings source:", {
-      hasMyClinicSettings: !!myClinic?.settings,
-      hasCurrentClinicSettings: !!(currentClinic as { settings?: unknown } | null)
-        ?.settings,
-      hasOperatingWindows: !!resolvedAppointmentSettings?.operatingWindowsByDay,
-      operatingDayKeys: resolvedAppointmentSettings?.operatingWindowsByDay
-        ? Object.keys(
-            resolvedAppointmentSettings.operatingWindowsByDay as object,
-          )
-        : [],
-    });
-  }
-
   const clinicVideoCallWindow = useMemo(() => {
     const normalizeWindowTime = (value: unknown): string | null => {
       if (typeof value !== "string") return null;
@@ -3246,32 +3218,6 @@ export function BookAppointmentDialog({
     userRole === "PATIENT" &&
     videoPaymentAmount > 0;
 
-  if (APP_CONFIG.ENVIRONMENT === "development") {
-    console.log('[BookAppointmentDialog] Video payment state:', {
-      consultationMode,
-      userRole,
-      selectedServiceId,
-      selectedService: selectedService?.label || 'none',
-      videoPaymentAmount,
-      shouldCollectVideoPayment,
-      visibleServicesCount: visibleServices.length,
-      visibleServicesTreatmentTypes: visibleServices.map(s => s.treatmentType),
-      allServicesCount: appointmentServices.length,
-      allServicesTreatmentTypes: (appointmentServices as AppointmentServiceDefinition[]).map(s => s.treatmentType),
-    });
-    console.log('[BookAppointmentDialog] Appointment services:', {
-      servicesLoading,
-      servicesCount: appointmentServices.length,
-      services: (appointmentServices as AppointmentServiceDefinition[]).map(s => ({
-        treatmentType: s.treatmentType,
-        label: s.label,
-        active: s.active,
-        appointmentModes: s.appointmentModes,
-        videoConsultationFee: s.videoConsultationFee,
-      }))
-    });
-  }
-
   const doctorsList: any[] = useMemo(() => {
     // Backend returns [{ doctor: { id, user: { id, name, email } } }]
     const normalize = (raw: any[]) =>
@@ -3303,16 +3249,6 @@ export function BookAppointmentDialog({
     const raw = (doctorsData as any)?.doctors || [];
     return normalize(raw);
   }, [doctorsData]);
-
-  if (APP_CONFIG.ENVIRONMENT === "development") {
-    console.log('[BookAppointmentDialog] doctorsData raw:', {
-      type: typeof doctorsData,
-      isArray: Array.isArray(doctorsData),
-      hasData: !!(doctorsData as any)?.data,
-      doctorsCount: Array.isArray(doctorsData) ? doctorsData.length : ((doctorsData as any)?.data ? ((doctorsData as any).data.doctors?.length || (doctorsData as any).data.length || 'unknown') : 'no data'),
-      firstFew: Array.isArray(doctorsData) ? doctorsData.slice(0, 2) : ((doctorsData as any)?.data?.doctors?.slice(0, 2) || (doctorsData as any)?.data?.slice(0, 2))
-    });
-  }
 
   const doctorsErrorMessage = useMemo(() => {
     if (!doctorsError || doctorsLoading || !doctorsFetched) {
@@ -3378,23 +3314,6 @@ export function BookAppointmentDialog({
     setSelectedDate,
     setSelectedSlot,
   ]);
-
-  if (APP_CONFIG.ENVIRONMENT === "development") {
-    console.log('[BookAppointmentDialog] doctors state:', {
-      doctorsListLength: doctorsList.length,
-      doctorsLoading,
-      doctorsFetched,
-      doctorsError: doctorsError instanceof Error ? doctorsError.message : String(doctorsError),
-      doctorsErrorMessage,
-      shouldLoadDoctors,
-      dialogOpen,
-      activeClinicId,
-      consultationMode,
-      resolvedLocationId,
-      resolvedDoctorId,
-      selectedDoctor: selectedDoctor?.name || 'none'
-    });
-  }
 
   const dateString = useMemo(
     () => (selectedDate ? formatDateIST(selectedDate) : ""),
@@ -3914,26 +3833,6 @@ export function BookAppointmentDialog({
     refetchAvailability,
   ]);
 
-  if (APP_CONFIG.ENVIRONMENT === "development") {
-    console.log('[BookAppointmentDialog] Availability state:', {
-      resolvedDoctorId,
-      dateString,
-      shouldLoadAvailability,
-      consultationMode,
-      rawSlots: slots.length,
-      effectiveSlots: effectiveSlots.length,
-      backendVideoWindow: backendVideoCallWindow,
-      clinicVideoWindow: clinicVideoCallWindow,
-      availabilityKeys: availability ? Object.keys(availability) : null,
-      availabilityAvailableSlots: (availability as any)?.availableSlots,
-      availabilityBookedSlots: (availability as any)?.bookedSlots,
-      availabilityVideoWindow: (availability as any)?.videoCallWindow,
-      availabilityRestrictions: (availability as any)?.restrictions,
-      availabilityLoading,
-      availabilityError: availabilityError instanceof Error ? availabilityError.message : String(availabilityError)
-    });
-  }
-
   useEffect(() => {
     if (!dialogOpen || !isConnected || !resolvedDoctorId || !dateString) {
       return;
@@ -4440,6 +4339,7 @@ export function BookAppointmentDialog({
           treatmentType: selectedService.treatmentType,
           priority: urgency.toUpperCase(),
           notes: chiefComplaint || selectedService.label,
+          ...(visitForFamilyMemberId ? { familyMemberId: visitForFamilyMemberId } : {}),
         });
         apptId =
           (atomicResult as any)?.appointment?.id ||
@@ -4483,6 +4383,7 @@ export function BookAppointmentDialog({
           notes: chiefComplaint || selectedService.label,
           priority: urgency.toUpperCase() as any,
           patientId: bookingPatientId,
+          ...(visitForFamilyMemberId ? { familyMemberId: visitForFamilyMemberId } : {}),
         };
 
         logger.info("[BookAppointmentDialog] Creating appointment", {
