@@ -18,7 +18,7 @@ import {
   RupeeField,
   fieldAria,
 } from "./PharmacyDialogParts";
-import { dayLabel, formatRupees, todayKey, type MedicineRow } from "./pharmacy-inventory.logic";
+import { dayLabel, formatRupees, todayKey, tomorrowKey, type MedicineRow } from "./pharmacy-inventory.logic";
 import {
   RECEIVE_BATCH_DEFAULTS,
   adjustBatchSchema,
@@ -297,7 +297,7 @@ function ReceiveForm({
           <Field label="Expiry date" htmlFor={id("expiryDate")} error={errors.expiryDate?.message}>
             <Input
               type="date"
-              min={todayKey()}
+              min={tomorrowKey()}
               {...register("expiryDate")}
               {...fieldAria(id("expiryDate"), errors.expiryDate?.message)}
             />

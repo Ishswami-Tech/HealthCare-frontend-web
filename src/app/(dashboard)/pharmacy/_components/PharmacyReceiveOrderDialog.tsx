@@ -14,7 +14,7 @@ import {
   PharmacyDialogBody,
   RupeeField,
 } from "./PharmacyDialogParts";
-import { formatRupees, orderTone, todayKey, type OrderRow } from "./pharmacy-inventory.logic";
+import { formatRupees, orderTone, tomorrowKey, type OrderRow } from "./pharmacy-inventory.logic";
 import {
   receiveOrderSchema,
   type ReceiveOrderRow,
@@ -35,6 +35,15 @@ export function receiveOrderRows(order: OrderRow): ReceiveOrderRow[] {
       expiryDate: "",
       unitCost: "",
     }));
+}
+
+/**
+ * Identity of the form: the order plus what is still to arrive on each line. A fresher copy of the
+ * order with different outstanding quantities starts the rows over; an identical one keeps what was typed.
+ */
+export function receiveOrderFormKey(order: OrderRow): string {
+  const outstanding = order.lines.map((line) => `${line.id}:${line.outstanding}`).join("|");
+  return `${order.id}#${outstanding}`;
 }
 
 export interface PharmacyReceiveOrderDialogProps {
@@ -70,7 +79,7 @@ export function PharmacyReceiveOrderDialog({
     >
       {order ? (
         <ReceiveOrderForm
-          key={order.id}
+          key={receiveOrderFormKey(order)}
           order={order}
           isSaving={isSaving}
           errorMessage={errorMessage}
@@ -169,7 +178,7 @@ function ReceiveOrderForm({
                   />
                   <Input
                     type="date"
-                    min={todayKey()}
+                    min={tomorrowKey()}
                     aria-label={label("Expiry date")}
                     aria-invalid={rowErrors?.expiryDate ? true : undefined}
                     {...register(`rows.${index}.expiryDate`)}

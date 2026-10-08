@@ -606,3 +606,8 @@ export function buildAnalytics(
 export function todayKey(now: Date = new Date()): string {
   return formatDateKeyInIST(now);
 }
+
+/** Tomorrow's date as `yyyy-mm-dd` in IST: the earliest expiry date a stock batch accepts. */
+export function tomorrowKey(now: Date = new Date()): string {
+  return formatDateKeyInIST(new Date(now.getTime() + 86_400_000));
+}
