@@ -347,7 +347,7 @@ export function AppointmentManagerView({
           {pager}
         </>
       ) : tab === "past" ? (
-        <ManagerPastTable visits={paged.rows} footer={pager} />
+        <ManagerPastTable visits={paged.rows} footer={pager} onRate={actions.onRate} />
       ) : (
         <ManagerClosedTable visits={paged.rows} actions={actions} renderPay={renderPay} footer={pager} />
       )}
@@ -369,7 +369,7 @@ export function AppointmentManagerView({
               </Button>
             ) : null}
           </div>
-          <ManagerPastTable visits={past.slice(0, PAST_PREVIEW_SIZE)} />
+          <ManagerPastTable visits={past.slice(0, PAST_PREVIEW_SIZE)} onRate={actions.onRate} />
         </section>
       ) : null}
     </div>

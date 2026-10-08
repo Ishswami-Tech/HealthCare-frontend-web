@@ -316,6 +316,9 @@ export function toManagerVisit(appointment: Row, options: ManagerVisitOptions): 
   const canBookAgain = (status === "CANCELLED" || status === "NO_SHOW") && terminal && !canRetryPayment;
   // Booking saves the reason for the visit in `notes`.
   const reason = firstText(appointment.chiefComplaint, appointment.notes).split("\n")[0] ?? "";
+  // A completed in-clinic visit can be rated by the patient (POST /doctors/:id/reviews).
+  const rateDoctorId = firstText(appointment.doctorId, appointment.appointmentDoctorId) || null;
+  const canRate = viewerIsPatient && !isVideo && status === "COMPLETED" && Boolean(id) && Boolean(rateDoctorId);
   const summaryHref =
     tab === "past" && viewerIsPatient && id
       ? isVideo
@@ -380,6 +383,8 @@ export function toManagerVisit(appointment: Row, options: ManagerVisitOptions): 
     closedNote: terminal ? closedNote(appointment, status, isVideo, paymentFailure, slotPassed) : null,
     canBookAgain,
     canRetryPayment,
+    canRate,
+    rateDoctorId,
     summaryHref,
     summaryLabel: isVideo ? "Summary" : "Records",
   };
