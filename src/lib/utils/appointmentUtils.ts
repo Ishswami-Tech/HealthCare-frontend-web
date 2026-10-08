@@ -916,17 +916,37 @@ export const APPOINTMENT_CANCELABLE_STATUSES = new Set([
   'ON_HOLD', 'AWAITING_SLOT_CONFIRMATION', 'FOLLOW_UP_SCHEDULED',
 ]);
 
-/** Reschedule is only allowed for CONFIRMED appointments (backend enforces this strictly). */
+/** A video visit can be rescheduled only while it is CONFIRMED (paid, awaiting the call). */
 export const APPOINTMENT_RESCHEDULABLE_STATUSES = new Set([
-  'CONFIRMED', // includes PAID → CONFIRMED via normalization
+  "CONFIRMED", // includes PAID → CONFIRMED via normalization
+]);
+
+/**
+ * An in-person visit can be rescheduled in any state except these: finished, abandoned, or
+ * being consulted right now. The same list as the backend (reschedule-policy.ts).
+ */
+export const IN_PERSON_NON_RESCHEDULABLE_STATUSES = new Set([
+  "COMPLETED",
+  "CANCELLED",
+  "NO_SHOW",
+  "EXPIRED",
+  "IN_PROGRESS",
 ]);
 
 export function canCancelAppointment(status: unknown): boolean {
   return APPOINTMENT_CANCELABLE_STATUSES.has(normalizeAppointmentStatus(status));
 }
 
-export function canRescheduleAppointment(status: unknown): boolean {
-  return APPOINTMENT_RESCHEDULABLE_STATUSES.has(normalizeAppointmentStatus(status));
+/**
+ * Whether a visit of this status may be moved (before the move limit and the video window).
+ * Video: only CONFIRMED. In-person (the default is video, the stricter rule): any status but
+ * the IN_PERSON_NON_RESCHEDULABLE_STATUSES.
+ */
+export function canRescheduleAppointment(status: unknown, isVideo = true): boolean {
+  const normalized = normalizeAppointmentStatus(status);
+  return isVideo
+    ? APPOINTMENT_RESCHEDULABLE_STATUSES.has(normalized)
+    : normalized !== "" && !IN_PERSON_NON_RESCHEDULABLE_STATUSES.has(normalized);
 }
 
 /** A visit can be moved this many times (the backend's MAX_RESCHEDULES). */
@@ -945,7 +965,7 @@ export function getAppointmentRescheduleCount(appointment: any): number {
  */
 export function canRescheduleVideoAppointment(appointment: any, now = new Date()): boolean {
   const status = getAppointmentViewState(appointment).normalizedStatus.toUpperCase();
-  if (!canRescheduleAppointment(status)) {
+  if (!canRescheduleAppointment(status, true)) {
     return false;
   }
   if (getAppointmentRescheduleCount(appointment) >= APPOINTMENT_MAX_RESCHEDULES) {
@@ -953,6 +973,18 @@ export function canRescheduleVideoAppointment(appointment: any, now = new Date()
   }
   const window = getVideoJoinWindow(appointment);
   return !window.end || now <= window.end;
+}
+
+/**
+ * The in-person reschedule rule, the same as the backend: any status but completed,
+ * cancelled, no-show, expired or in progress, at most APPOINTMENT_MAX_RESCHEDULES times.
+ */
+export function canRescheduleInPersonAppointment(appointment: any): boolean {
+  const status = getAppointmentViewState(appointment).normalizedStatus.toUpperCase();
+  return (
+    canRescheduleAppointment(status, false) &&
+    getAppointmentRescheduleCount(appointment) < APPOINTMENT_MAX_RESCHEDULES
+  );
 }
 
 /**

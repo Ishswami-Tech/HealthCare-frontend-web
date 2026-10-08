@@ -23,6 +23,7 @@ import {
   getAppointmentStatusColor, 
   formatAppointmentDate, 
   getAppointmentViewState,
+  canRescheduleAppointment,
   getAppointmentStatusDisplayName,
   isVideoAppointmentJoinable,
   getReceptionistAppointmentTimeLabel,
@@ -238,7 +239,8 @@ function AppointmentCardComponent({
             </Button>
           )}
 
-          {normalizedStatus === "CONFIRMED" && onReschedule && (
+          {canRescheduleAppointment(normalizedStatus, normalizedType === "VIDEO" || normalizedType === "VIDEO_CALL") &&
+            onReschedule && (
             <Button
               variant="outline"
               size="sm"

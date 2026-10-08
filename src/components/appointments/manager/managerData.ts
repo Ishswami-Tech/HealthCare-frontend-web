@@ -4,7 +4,7 @@ import {
   APPOINTMENT_MAX_RESCHEDULES,
   canCancelAppointment,
   canCancelVideoAppointment,
-  canRescheduleAppointment,
+  canRescheduleInPersonAppointment,
   canRescheduleVideoAppointment,
   formatDateInIST,
   formatDoctorDisplayName,
@@ -295,13 +295,14 @@ export function toManagerVisit(appointment: Row, options: ManagerVisitOptions): 
 
   // ── moving and cancelling ──
   // A visit can be moved APPOINTMENT_MAX_RESCHEDULES times; the backend counts every type.
+  // Video: only while confirmed. In-person: any state but done, cancelled, no-show, expired or in progress.
   const movesUsed = getAppointmentRescheduleCount(appointment);
   const canReschedule =
     !terminal &&
     !unpaid &&
     (isVideo
       ? canRescheduleVideoAppointment(appointment, new Date(now))
-      : clinicStage === "upcoming" && canRescheduleAppointment(status) && movesUsed < APPOINTMENT_MAX_RESCHEDULES);
+      : canRescheduleInPersonAppointment(appointment));
   const changesLeft = Math.max(0, APPOINTMENT_MAX_RESCHEDULES - movesUsed);
   // A patient can never cancel a video visit; nobody cancels a paid one.
   const canCancel =

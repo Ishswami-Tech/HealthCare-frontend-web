@@ -1,4 +1,5 @@
 import {
+  canRescheduleInPersonAppointment,
   canRescheduleVideoAppointment,
   formatDateInIST,
   formatDoctorDisplayName,
@@ -237,8 +238,10 @@ export function toHomeVisit(appointment: Row, now: number): HomeVisit {
     joinAction: canJoin ? (decision?.action === "resume" ? "resume" : "join") : null,
     joinBlockedReason: canJoin ? null : (decision?.blockedReason ?? null),
     awaitingPayment: isVideo && viewState.awaitingPayment,
-    // A patient can never cancel a video visit; moving it follows the shared reschedule rule.
-    canReschedule: isVideo && canRescheduleVideoAppointment(appointment, new Date(now)),
+    // A patient can never cancel a video visit; moving a visit follows the shared reschedule rule.
+    canReschedule: isVideo
+      ? canRescheduleVideoAppointment(appointment, new Date(now))
+      : !isTerminalAppointment(appointment) && canRescheduleInPersonAppointment(appointment),
     clinicStage: isVideo
       ? "upcoming"
       : viewState.normalizedStatus.toUpperCase() === "IN_PROGRESS"
