@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useClinicContext } from "@/hooks/query/useClinics";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { Role } from "@/types/auth.types";
 import {
   useAdjustBatchStock,
   useCreateMedicine,
@@ -81,6 +83,8 @@ import {
 } from "./pharmacy-stock.logic";
 
 const NO_CLINIC = "No clinic is selected for your account.";
+/** The purchase-order and stats routes are for pharmacists and clinic admins; a super admin gets 403 from them. */
+const NOT_FOR_ROLE = "Purchase orders are not available for your role. A clinic admin or pharmacist can manage them.";
 
 function errorText(error: unknown): string | null {
   if (!error) return null;
@@ -106,6 +110,8 @@ export default function PharmacyInventoryContent() {
   const { clinicId } = useClinicContext();
   const scopedClinicId = clinicId || "";
   const permissions = usePharmacyPermissions();
+  const { session } = useAuth();
+  const ordersAllowed = String(session?.user?.role ?? "").toUpperCase() !== Role.SUPER_ADMIN;
   const canManage = permissions.canManageInventory;
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -155,7 +161,7 @@ export default function PharmacyInventoryContent() {
     isPending: ordersPending,
     error: ordersError,
     refetch: refetchOrders,
-  } = usePharmacyOrders(scopedClinicId, { limit: 50 });
+  } = usePharmacyOrders(scopedClinicId, { limit: 50, enabled: ordersAllowed });
   const {
     data: salesReport,
     isPending: salesPending,
@@ -167,7 +173,7 @@ export default function PharmacyInventoryContent() {
     limit: 100,
     enabled: !!clinicId && permissions.canManagePrescriptions,
   });
-  const { data: pharmacyStats } = usePharmacyStats(scopedClinicId, statsPeriod);
+  const { data: pharmacyStats } = usePharmacyStats(scopedClinicId, statsPeriod, { enabled: ordersAllowed });
 
   const supplierNames = useMemo(() => supplierNameMap(suppliersData), [suppliersData]);
   const overview = useMemo(() => buildInventoryOverview(medicinesData, supplierNames), [medicinesData, supplierNames]);
@@ -358,8 +364,8 @@ export default function PharmacyInventoryContent() {
       suppliersError={errorText(suppliersError)}
       onRetrySuppliers={() => void refetchSuppliers()}
       orders={orders}
-      ordersLoading={!!clinicId && ordersPending}
-      ordersError={errorText(ordersError)}
+      ordersLoading={ordersAllowed && !!clinicId && ordersPending}
+      ordersError={ordersAllowed ? errorText(ordersError) : NOT_FOR_ROLE}
       onRetryOrders={() => void refetchOrders()}
       dialogOrder={dialogOrder}
       dialogOrderRefreshing={orderFetching}
