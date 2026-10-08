@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyBlock, Kpi, ListRow, PageHero, SectionTitle, Surface } from "@/components/tbd";
 import { useMyDoctorEarnings } from "@/hooks/query/useDoctors";
 import { formatDateInIST, formatISODateInIST } from "@/lib/utils/date-time";
-import { asEarnings, formatInr } from "./earnings.logic";
+import { asEarnings, formatInr, inclusiveDayCount, MAX_EARNINGS_RANGE_DAYS } from "./earnings.logic";
 
 type Range = { from: string; to: string };
 
@@ -23,9 +23,14 @@ export default function DoctorEarnings() {
   const [range, setRange] = useState<Range>({ from: "", to: "" });
   useEffect(() => setRange(currentMonthRange()), []);
 
-  const { data, isPending, error, refetch } = useMyDoctorEarnings(range);
-  const earnings = useMemo(() => asEarnings(data), [data]);
   const rangeInvalid = Boolean(range.from && range.to && range.from > range.to);
+  const dayCount = range.from && range.to && !rangeInvalid ? inclusiveDayCount(range.from, range.to) : null;
+  const rangeTooLong = dayCount !== null && dayCount > MAX_EARNINGS_RANGE_DAYS;
+  // An impossible range is not sent: the route would answer 400.
+  const { data, isPending, error, refetch } = useMyDoctorEarnings(
+    rangeInvalid || rangeTooLong ? { from: "", to: "" } : range,
+  );
+  const earnings = useMemo(() => asEarnings(data), [data]);
   const loading = !range.from || (isPending && !error);
 
   return (
@@ -40,13 +45,18 @@ export default function DoctorEarnings() {
               value={range.from}
               placeholder="From"
               ariaLabel="From date"
-              onChange={(from) => setRange((previous) => ({ ...previous, from }))}
+              onChange={(from) => {
+                // Clearing a day would switch the query off for good; keep the last valid day.
+                if (from) setRange((previous) => ({ ...previous, from }));
+              }}
             />
             <DateField
               value={range.to}
               placeholder="To"
               ariaLabel="To date"
-              onChange={(to) => setRange((previous) => ({ ...previous, to }))}
+              onChange={(to) => {
+                if (to) setRange((previous) => ({ ...previous, to }));
+              }}
             />
           </div>
         }
@@ -59,6 +69,15 @@ export default function DoctorEarnings() {
             tone="amber"
             title="Check the dates"
             description="The first day must come before the last day."
+          />
+        </Surface>
+      ) : rangeTooLong ? (
+        <Surface>
+          <EmptyBlock
+            icon={CircleAlert}
+            tone="amber"
+            title="Pick a shorter range"
+            description={`Earnings can be shown for up to ${MAX_EARNINGS_RANGE_DAYS} days at a time.`}
           />
         </Surface>
       ) : error ? (
