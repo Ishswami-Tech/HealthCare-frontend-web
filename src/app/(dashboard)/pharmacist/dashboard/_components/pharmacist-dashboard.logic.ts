@@ -58,7 +58,8 @@ export interface PharmacyDashboardStats {
   paymentDue: number;
   dispensedToday: number;
   lowStock: number;
-  thisMonth: number;
+  /** Prescriptions dispensed this calendar month (`monthlyDispensed` of `GET /pharmacy/stats`); null until the stats arrive. */
+  thisMonth: number | null;
 }
 
 export interface StockAlert {
@@ -408,11 +409,9 @@ export function buildPharmacyStats(
   now: Date = new Date(),
 ): PharmacyDashboardStats {
   const todayKey = formatDateKeyInIST(now);
-  const monthKey = todayKey.slice(0, 7);
   let toFill = 0;
   let paymentDue = 0;
   let dispensedToday = 0;
-  let dispensedThisMonth = 0;
 
   for (const entry of unwrapList(prescriptionsData, "prescriptions")) {
     const prescription = asRecord(entry);
@@ -430,17 +429,16 @@ export function buildPharmacyStats(
       const handedOverAt = dispensedAt(prescription);
       const dayKey = handedOverAt ? formatDateKeyInIST(handedOverAt) : "";
       if (dayKey && dayKey === todayKey) dispensedToday += 1;
-      if (dayKey && dayKey.slice(0, 7) === monthKey) dispensedThisMonth += 1;
     }
   }
 
-  const monthlyFromApi = amount(asRecord(pharmacyStats).monthlyDispensed);
   return {
     toFill,
     paymentDue,
     dispensedToday,
     lowStock: inventory.alerts.length,
-    thisMonth: monthlyFromApi ?? dispensedThisMonth,
+    // The server counts the month; the 100 prescriptions this screen loads would undercount it.
+    thisMonth: amount(asRecord(pharmacyStats).monthlyDispensed),
   };
 }
 
