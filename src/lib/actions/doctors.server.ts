@@ -408,16 +408,31 @@ export async function getDoctorPerformanceMetrics(_doctorId: string, _filters?: 
 /**
  * Update doctor profile
  */
-export async function updateDoctorProfile(doctorId: string, profileData: {
-  bio?: string;
-  education?: string[];
+export async function updateDoctorProfile(doctorUserId: string, profileData: {
+  consultationFee?: number;
+  qualification?: string;
+  licenseNumber?: string;
+  education?: string;
   certifications?: string[];
   languages?: string[];
-  profilePicture?: string;
 }) {
-  void doctorId;
-  void profileData;
-  return unsupportedDoctorRoute('PATCH /doctors/:id/profile');
+  const session = await getServerSession();
+  if (!session?.user) return { success: false as const, error: 'Unauthorized' };
+  try {
+    // The doctor's own record: PATCH /doctors/:userId (the id is the doctor's User id).
+    await authenticatedApi(API_ENDPOINTS.DOCTORS.UPDATE(doctorUserId), {
+      method: 'PATCH',
+      body: JSON.stringify(profileData),
+    });
+    revalidateCache('doctors');
+    return { success: true as const };
+  } catch (error) {
+    logger.error('Failed to update doctor profile', error instanceof Error ? error : new Error(String(error)));
+    return {
+      success: false as const,
+      error: error instanceof Error && error.message ? error.message : 'Failed to update doctor profile',
+    };
+  }
 }
 
 /**

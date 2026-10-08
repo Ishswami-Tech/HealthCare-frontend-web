@@ -16,6 +16,7 @@ import type {
   DoctorProfileUser,
   SaveProfileMutation,
 } from "./doctor-profile.types";
+import { updateDoctorProfile } from "@/lib/actions/doctors.server";
 import { asRecord, educationList, stringList } from "./doctor-profile.logic";
 import { DoctorProfileOverviewCard } from "./DoctorProfileOverviewCard";
 import { DoctorProfilePersonalTab } from "./DoctorProfilePersonalTab";
@@ -300,6 +301,27 @@ export function DoctorProfileContent({
     };
   };
 
+  /** The fields that live on the doctor record, not the user: fee, education, certifications, languages. */
+  const buildDoctorRecordPayload = (data: DoctorProfileFormState) => {
+    const { professionalInfo, consultationSettings } = data;
+    const fee = Number(consultationSettings.consultationFee);
+    const education = professionalInfo.education
+      .map((entry) =>
+        [entry.degree, entry.institution, entry.year]
+          .map((part) => part.trim())
+          .filter(Boolean)
+          .join(", "),
+      )
+      .filter(Boolean)
+      .join("; ");
+    return {
+      ...(Number.isFinite(fee) && fee > 0 ? { consultationFee: fee } : {}),
+      ...(education ? { education } : {}),
+      certifications: professionalInfo.certifications.map((line) => line.trim()).filter(Boolean),
+      languages: professionalInfo.languagesSpoken.map((line) => line.trim()).filter(Boolean),
+    };
+  };
+
   const persistProfile = async (
     data: DoctorProfileFormState,
     options?: { stayOnTab?: ProfileTab; successMessage?: string },
@@ -313,6 +335,17 @@ export function DoctorProfileContent({
           id: TOAST_IDS.GLOBAL.ERROR,
         });
         return false;
+      }
+
+      // The user-profile route does not store these; they are saved on the doctor record.
+      if (user?.id) {
+        const doctorResult = await updateDoctorProfile(user.id, buildDoctorRecordPayload(data));
+        if (!doctorResult.success) {
+          showErrorToast(doctorResult.error || "Saved, but fees and credentials were not", {
+            id: TOAST_IDS.GLOBAL.ERROR,
+          });
+          return false;
+        }
       }
 
       const responseUser =

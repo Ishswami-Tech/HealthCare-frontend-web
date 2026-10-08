@@ -89,8 +89,10 @@ export const useCreatePrescription = () => {
  */
 export const useUpdatePrescription = () => {
   return useMutationOperation(
-    async ({ prescriptionId, updates }: { prescriptionId: string; updates: Partial<Prescription> }) => {
-      return await clinicApiClient.put(API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.UPDATE_STATUS(prescriptionId), updates);
+    async ({ prescriptionId, updates }: { prescriptionId: string; updates: { notes?: string; diagnosis?: string } }) => {
+      // The prescribing doctor edits notes / diagnosis here; status changes (dispense, cancel)
+      // belong to the pharmacist's route.
+      return await clinicApiClient.patch(API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.GET(prescriptionId), updates);
     },
     {
       toastId: TOAST_IDS.PRESCRIPTION.UPDATE,
@@ -109,27 +111,3 @@ export const useUpdatePrescription = () => {
   );
 };
 
-/**
- * Hook to delete a prescription
- */
-export const useDeletePrescription = () => {
-  return useMutationOperation(
-    async (prescriptionId: string) => {
-      return await clinicApiClient.delete(API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.GET(prescriptionId));
-    },
-    {
-      toastId: TOAST_IDS.PRESCRIPTION.DELETE,
-      loadingMessage: 'Deleting prescription...',
-      successMessage: 'Prescription deleted successfully',
-      invalidateQueries: [
-        ['prescriptions'],
-        ['patientPrescriptions'],
-        ['patient-prescriptions'],
-        ['medical-records'],
-        ['medicalRecords'],
-        ['ehr'],
-        ['ehrClinic'],
-      ],
-    }
-  );
-};

@@ -114,15 +114,17 @@ export async function startConsultation(
     const session = await getServerSession();
     if (!session?.user) return { success: false, error: 'Unauthorized' };
 
+    // There is no start route: the status route turns IN_PROGRESS into the start-consultation
+    // flow (check-in required for in-clinic visits). The doctor is the caller, so doctorId is not sent.
     const payload = {
-      doctorId: data.doctorId,
+      status: 'IN_PROGRESS',
       ...(data.consultationType ? { consultationType: data.consultationType } : {}),
       ...(data.notes ? { notes: data.notes } : {}),
     };
 
     const [{ data: appointment }, { ipAddress, userAgent }] = await Promise.all([
-      authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.START(id), {
-        method: 'POST',
+      authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.STATUS(id), {
+        method: 'PATCH',
         body: JSON.stringify(payload),
       }),
       getClientInfo(),
@@ -290,7 +292,7 @@ export async function cancelAppointment(id: string, reason?: string) {
     const session = await getServerSession();
     if (!session?.user) return { success: false, error: 'Unauthorized' };
 
-    const [_cancelResult, { ipAddress, userAgent }] = await Promise.all([
+    const [cancelResult, { ipAddress, userAgent }] = await Promise.all([
       authenticatedApi(API_ENDPOINTS.APPOINTMENTS.DELETE(id), {
         method: 'DELETE',
         body: JSON.stringify({
@@ -299,6 +301,14 @@ export async function cancelAppointment(id: string, reason?: string) {
       }),
       getClientInfo(),
     ]);
+    // The backend answers 200 with success:false when the visit cannot be cancelled in its
+    // current state; that is a refusal, not a cancellation.
+    if (cancelResult.success === false) {
+      return {
+        success: false,
+        error: cancelResult.message || 'This appointment cannot be cancelled.',
+      };
+    }
     await auditLog({
       userId: session.user.id,
       action: 'APPOINTMENT_CANCELLED',

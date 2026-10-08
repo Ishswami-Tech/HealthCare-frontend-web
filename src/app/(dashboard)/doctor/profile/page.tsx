@@ -34,6 +34,7 @@ export default function DoctorProfile() {
       user={
         user
           ? {
+              id: user.id ?? null,
               firstName: user.firstName ?? null,
               lastName: user.lastName ?? null,
               email: user.email ?? null,

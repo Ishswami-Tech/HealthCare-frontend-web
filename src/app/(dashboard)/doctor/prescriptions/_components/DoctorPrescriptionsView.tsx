@@ -5,7 +5,6 @@ import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { Button } from "@/components/ui/button";
 import { EmptyBlock, Kpi, PageHero, SearchBox, SectionTitle, SegTabs, Surface } from "@/components/tbd";
 import { DoctorPrescriptionCard } from "./DoctorPrescriptionCard";
-import { DoctorPrescriptionDeleteDialog } from "./DoctorPrescriptionDeleteDialog";
 import { DoctorPrescriptionDialog } from "./DoctorPrescriptionDialog";
 import {
   prescriptionsCountLabel,
@@ -30,24 +29,17 @@ export interface DoctorPrescriptionsViewProps {
   filterStatus: DoctorPrescriptionFilter;
   onSearchChange: (value: string) => void;
   onFilterChange: (value: DoctorPrescriptionFilter) => void;
-  createDisabled?: boolean;
   editDisabled?: boolean;
-  deleteDisabled?: boolean;
   onCreate: () => void;
   onEdit: (prescription: DoctorPrescriptionRow) => void;
   onDownload: (prescription: DoctorPrescriptionRow) => void;
-  onDelete: (prescription: DoctorPrescriptionRow) => void;
   dialogOpen: boolean;
-  dialogMode: "create" | "edit";
   form: DoctorPrescriptionEditForm;
   isSaving?: boolean;
   onFormChange: (value: Partial<DoctorPrescriptionEditForm>) => void;
   onSave: () => void;
   onDialogOpenChange: (open: boolean) => void;
-  deleteTarget: DoctorPrescriptionRow | null;
-  isDeleting?: boolean;
-  onConfirmDelete: () => void;
-  onCancelDelete: () => void;
+
 }
 
 const FILTER_OPTIONS: Array<{ value: DoctorPrescriptionFilter; label: string }> = [
@@ -126,24 +118,16 @@ export function DoctorPrescriptionsView({
   filterStatus,
   onSearchChange,
   onFilterChange,
-  createDisabled = false,
   editDisabled = false,
-  deleteDisabled = false,
   onCreate,
   onEdit,
   onDownload,
-  onDelete,
   dialogOpen,
-  dialogMode,
   form,
   isSaving = false,
   onFormChange,
   onSave,
   onDialogOpenChange,
-  deleteTarget,
-  isDeleting = false,
-  onConfirmDelete,
-  onCancelDelete,
 }: DoctorPrescriptionsViewProps) {
   const filtersActive = searchQuery.trim() !== "" || filterStatus !== "all";
 
@@ -154,7 +138,7 @@ export function DoctorPrescriptionsView({
         title="Prescriptions"
         description={PAGE_DESCRIPTION}
         actions={
-          <Button size="md" onClick={onCreate} disabled={createDisabled || isLoading}>
+          <Button size="md" onClick={onCreate} disabled={isLoading}>
             <Plus aria-hidden="true" />
             New Prescription
           </Button>
@@ -276,10 +260,8 @@ export function DoctorPrescriptionsView({
                     key={prescription.id}
                     prescription={prescription}
                     editDisabled={editDisabled}
-                    deleteDisabled={deleteDisabled}
                     onDownload={onDownload}
                     onEdit={onEdit}
-                    onDelete={onDelete}
                   />
                 ))}
               </div>
@@ -290,7 +272,6 @@ export function DoctorPrescriptionsView({
 
       <DoctorPrescriptionDialog
         open={dialogOpen}
-        mode={dialogMode}
         form={form}
         isSaving={isSaving}
         onFormChange={onFormChange}
@@ -298,12 +279,6 @@ export function DoctorPrescriptionsView({
         onOpenChange={onDialogOpenChange}
       />
 
-      <DoctorPrescriptionDeleteDialog
-        prescription={deleteTarget}
-        isDeleting={isDeleting}
-        onConfirm={onConfirmDelete}
-        onClose={onCancelDelete}
-      />
     </DashboardPageShell>
   );
 }

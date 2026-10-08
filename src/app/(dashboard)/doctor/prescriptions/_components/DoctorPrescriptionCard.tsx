@@ -1,4 +1,4 @@
-import { Calendar, Download, Pencil, Pill as PillIcon, Trash2, User } from "lucide-react";
+import { Calendar, Download, Pencil, Pill as PillIcon, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InitialsAvatar, Pill, statusLabel, statusTone } from "@/components/tbd";
 import {
@@ -10,10 +10,8 @@ import {
 export interface DoctorPrescriptionCardProps {
   prescription: DoctorPrescriptionRow;
   editDisabled?: boolean;
-  deleteDisabled?: boolean;
   onDownload: (prescription: DoctorPrescriptionRow) => void;
   onEdit: (prescription: DoctorPrescriptionRow) => void;
-  onDelete: (prescription: DoctorPrescriptionRow) => void;
 }
 
 const FIELD_LABEL = "text-xs font-bold text-ink-soft";
@@ -22,10 +20,8 @@ const FIELD_LABEL = "text-xs font-bold text-ink-soft";
 export function DoctorPrescriptionCard({
   prescription,
   editDisabled = false,
-  deleteDisabled = false,
   onDownload,
   onEdit,
-  onDelete,
 }: DoctorPrescriptionCardProps) {
   const dateLabel = prescriptionDateLabel(prescription.date);
   const patientRef = shortPatientId(prescription.patientId);
@@ -76,10 +72,6 @@ export function DoctorPrescriptionCard({
           <Button variant="soft" disabled={editDisabled} onClick={() => onEdit(prescription)}>
             <Pencil aria-hidden="true" />
             Edit
-          </Button>
-          <Button variant="danger" disabled={deleteDisabled} onClick={() => onDelete(prescription)}>
-            <Trash2 aria-hidden="true" />
-            Delete
           </Button>
         </div>
       </div>
