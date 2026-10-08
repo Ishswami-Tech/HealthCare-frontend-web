@@ -8,7 +8,6 @@ import { nowIso } from '@/lib/utils/date-time';
  * - Reading notifications (React Query + Zustand)
  * - Actions (mark as read, delete) via useMutationOperation
  * - Sending notifications (admin/testing only)
- * - Notification settings
  * 
  * Architecture:
  * - Backend: Creates, delivers (Push/Email/SMS/WhatsApp), stores notifications
@@ -33,12 +32,26 @@ import {
   markNotificationAsRead,
   markAllNotificationsAsRead,
   deleteNotification,
-  getMyNotificationPreferences,
-  updateNotificationPreferences,
 } from "@/lib/actions/notifications.server";
-import { TOAST_IDS } from "@/hooks/utils/use-toast";
 
 const SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+const NOTIFICATION_TYPES: ReadonlyArray<Notification["type"]> = [
+  "APPOINTMENT",
+  "PRESCRIPTION",
+  "REMINDER",
+  "SYSTEM",
+  "MARKETING",
+];
+
+function toNotificationType(...candidates: unknown[]): Notification["type"] {
+  for (const candidate of candidates) {
+    const value = String(candidate ?? "").toUpperCase();
+    const match = NOTIFICATION_TYPES.find((type) => type === value);
+    if (match) return match;
+  }
+  return "SYSTEM";
+}
 
 // ===== READING NOTIFICATIONS =====
 
@@ -93,7 +106,8 @@ export function useNotifications(enabled: boolean = true) {
     return backendNotifications.map((n: any) => ({
       id: n.id || n.notificationId || `notif-${Date.now()}-${Math.random()}`,
       userId: n.userId || session?.user?.id || "",
-      type: (n.type || n.category || "SYSTEM") as Notification["type"],
+      // The inbox row has a delivery `type` (EMAIL, PUSH...) and a `category` (APPOINTMENT...).
+      type: toNotificationType(n.category, n.type),
       title: n.title || n.subject || "Notification",
       message: n.message || n.body || n.content || "",
       data: n.data || n.metadata || {},
@@ -231,49 +245,3 @@ export function useNotifications(enabled: boolean = true) {
     refetch,
   };
 }
-
-
-
-// ===== NOTIFICATION SETTINGS HOOKS =====
-
-/**
- * Hook to get notification settings
- */
-export const useNotificationSettings = (userId?: string) => {
-  return useQueryData(
-    ['notificationSettings', userId],
-    async () => {
-      return await getMyNotificationPreferences(userId);
-    },
-    { enabled: !!userId || userId === undefined }
-  );
-};
-
-/**
- * Hook to update notification settings
- */
-export const useUpdateNotificationSettings = () => {
-  return useMutationOperation(
-    async (settings: {
-      email?: boolean;
-      sms?: boolean;
-      push?: boolean;
-      whatsapp?: boolean;
-      types?: {
-        appointments?: boolean;
-        prescriptions?: boolean;
-        reminders?: boolean;
-        marketing?: boolean;
-      };
-    }) => {
-      const result = await updateNotificationPreferences(settings);
-      return result;
-    },
-    {
-      toastId: TOAST_IDS.NOTIFICATION.PREFERENCE_UPDATE,
-      loadingMessage: 'Updating settings...',
-      successMessage: 'Notification settings updated successfully',
-      invalidateQueries: [['notificationSettings'], ['notifications']],
-    }
-  );
-};

@@ -347,6 +347,26 @@ export async function addDoctorReview(doctorUserId: string, reviewData: {
 }
 
 /**
+ * The signed-in doctor's own earnings (GET /analytics/doctor/me/earnings, paid consultations
+ * per IST day, net of refunds). Answers { from, to, currency, consultations, total, daily }.
+ */
+export async function getMyDoctorEarnings(range?: { from?: string; to?: string }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
+  const params = new URLSearchParams();
+  if (range?.from) params.append('from', range.from);
+  if (range?.to) params.append('to', range.to);
+  const query = params.toString();
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.ANALYTICS.DOCTOR_MY_EARNINGS}${query ? `?${query}` : ''}`, {
+    cache: 'no-store',
+  });
+  return data;
+}
+
+/**
  * Update doctor profile
  */
 export async function updateDoctorProfile(doctorUserId: string, profileData: {

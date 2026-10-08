@@ -8,7 +8,7 @@ import { logNotificationFetchWarning } from '@/lib/utils/notifications-logger';
 // ===== NOTIFICATIONS MANAGEMENT =====
 
 /**
- * Get user notifications (chat history)
+ * Get user notifications (GET /communication/history/:userId -> { notifications }, not the chat history)
  * Non-blocking - returns empty array on error to prevent page crashes
  */
 export async function getUserNotifications(userId?: string, filters?: {
@@ -36,8 +36,7 @@ export async function getUserNotifications(userId?: string, filters?: {
       });
     }
 
-    // Use correct CHAT.HISTORY endpoint
-    const endpoint = `${API_ENDPOINTS.COMMUNICATION.CHAT.HISTORY(userId)}${params.toString() ? `?${params.toString()}` : ''}`;
+    const endpoint = `${API_ENDPOINTS.COMMUNICATION.INBOX.LIST(userId)}${params.toString() ? `?${params.toString()}` : ''}`;
     const { data } = await authenticatedApi(endpoint);
     return data;
   } catch (error) {
@@ -60,7 +59,7 @@ export async function markNotificationAsRead(notificationId: string) {
   }
 
   // Use communication history endpoint for marking as read
-  const { data } = await authenticatedApi(`${API_ENDPOINTS.COMMUNICATION.BASE}/history/${notificationId}/read`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.INBOX.MARK_READ(notificationId), {
     method: 'PATCH',
   });
   return data;
@@ -77,7 +76,7 @@ export async function markAllNotificationsAsRead(userId?: string) {
 
   // Use communication history endpoint
   const params = userId ? `?userId=${userId}` : '';
-  const { data } = await authenticatedApi(`${API_ENDPOINTS.COMMUNICATION.BASE}/history/mark-all-read${params}`, {
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.COMMUNICATION.INBOX.MARK_ALL_READ}${params}`, {
     method: 'PATCH',
   });
   return data;
@@ -93,116 +92,7 @@ export async function deleteNotification(notificationId: string) {
   }
 
   // Use communication endpoint for deletion
-  const { data } = await authenticatedApi(`${API_ENDPOINTS.COMMUNICATION.BASE}/${notificationId}`, {
-    method: 'DELETE',
-  });
-  return data;
-}
-
-/**
- * Get notification settings - Use NOTIFICATION_PREFERENCES endpoint
- */
-export async function getMyNotificationPreferences(userId?: string) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-
-  if (userId) {
-    const { data } = await authenticatedApi(API_ENDPOINTS.NOTIFICATION_PREFERENCES.GET_BY_USER(userId));
-    return data;
-  }
-  const { data } = await authenticatedApi(API_ENDPOINTS.NOTIFICATION_PREFERENCES.GET_MY);
-  return data;
-}
-
-/**
- * Get notification preferences for a specific user
- */
-export async function getUserNotificationPreferences(userId: string) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-
-  const { data } = await authenticatedApi(API_ENDPOINTS.NOTIFICATION_PREFERENCES.GET_BY_USER(userId));
-  return data;
-}
-
-/**
- * Create notification preferences - Use NOTIFICATION_PREFERENCES endpoint
- */
-export async function createNotificationPreferences(settings: {
-  userId?: string;
-  email?: boolean;
-  sms?: boolean;
-  push?: boolean;
-  whatsapp?: boolean;
-  types?: {
-    appointments?: boolean;
-    prescriptions?: boolean;
-    reminders?: boolean;
-    marketing?: boolean;
-  };
-}) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-
-  const { data } = await authenticatedApi(API_ENDPOINTS.NOTIFICATION_PREFERENCES.CREATE, {
-    method: 'POST',
-    body: JSON.stringify(settings),
-  });
-  return data;
-}
-
-/**
- * Update notification preferences - Use NOTIFICATION_PREFERENCES endpoint
- */
-export async function updateNotificationPreferences(settings: {
-  userId?: string;
-  email?: boolean;
-  sms?: boolean;
-  push?: boolean;
-  whatsapp?: boolean;
-  types?: {
-    appointments?: boolean;
-    prescriptions?: boolean;
-    reminders?: boolean;
-    marketing?: boolean;
-  };
-}) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-
-  const userId = settings.userId;
-  if (!userId) {
-    throw new Error('UserId is required to update notification settings');
-  }
-  const { data } = await authenticatedApi(API_ENDPOINTS.NOTIFICATION_PREFERENCES.UPDATE(userId), {
-    method: 'PATCH',
-    body: JSON.stringify(settings),
-  });
-  return data;
-}
-
-/**
- * Delete notification preferences - resets to defaults
- */
-export async function deleteNotificationPreferences(userId?: string) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-
-  const endpoint = userId
-    ? API_ENDPOINTS.NOTIFICATION_PREFERENCES.DELETE(userId)
-    : API_ENDPOINTS.NOTIFICATION_PREFERENCES.DELETE('me');
-
-  const { data } = await authenticatedApi(endpoint, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.INBOX.DELETE(notificationId), {
     method: 'DELETE',
   });
   return data;

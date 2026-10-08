@@ -1015,6 +1015,13 @@ export const API_ENDPOINTS = {
   // Communication Endpoints
   COMMUNICATION: {
     BASE: '/communication',
+    /** The notification inbox (header bell and notifications pages); chat has its own CHAT.HISTORY. */
+    INBOX: {
+      LIST: (userId: string) => `/communication/history/${userId}`,
+      MARK_READ: (notificationId: string) => `/communication/history/${notificationId}/read`,
+      MARK_ALL_READ: '/communication/history/mark-all-read',
+      DELETE: (notificationId: string) => `/communication/${notificationId}`,
+    },
     SEND: '/communication/send',
     APPOINTMENT_REMINDER: '/communication/appointment/reminder',
     PRESCRIPTION_READY: '/communication/prescription/ready',
@@ -1161,6 +1168,8 @@ export const API_ENDPOINTS = {
   ANALYTICS: {
     BASE: '/analytics',
     DASHBOARD: '/analytics/dashboard',
+    /** The signed-in doctor's own earnings. Query: from, to (IST days). Doctors only. */
+    DOCTOR_MY_EARNINGS: '/analytics/doctor/me/earnings',
     APPOINTMENTS: '/analytics/appointments',
     PATIENTS: '/analytics/patients',
     REVENUE: '/analytics/revenue',
