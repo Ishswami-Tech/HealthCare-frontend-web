@@ -9,7 +9,13 @@ import { CACHE_TIMES, GC_TIMES } from './config';
 import { useAuth } from '@/hooks/auth/useAuth';
 import { clinicApiClient } from '@/lib/api/client';
 import { API_ENDPOINTS, APP_CONFIG } from '@/lib/config/config';
-import { getDoctors as getDoctorsServerAction } from '@/lib/actions/doctors.server';
+import {
+  addDoctorReview,
+  getDoctorAppointments,
+  getDoctorReviews,
+  getDoctors as getDoctorsServerAction,
+  updateDoctorProfile,
+} from '@/lib/actions/doctors.server';
 import { resolveDisplayNameAndInitials } from '@/lib/utils/display-name';
 import { usePatientStore } from '@/stores';
 import { useAuthStore } from '@/stores/auth.store';
@@ -288,7 +294,8 @@ export const useDoctorAppointments = (doctorId: string, filters?: {
 
   return useQueryData(['doctorAppointments', doctorId, filters], async () => {
     try {
-      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.APPOINTMENTS(doctorId), filters);
+      // GET /appointments?doctorId= (there is no /doctors/:id/appointments route).
+      return await getDoctorAppointments(doctorId, filters);
     } catch (error) {
       if (isSessionInvalidError(error)) {
         return [];
@@ -354,113 +361,18 @@ export const useDoctorPatients = (clinicId: string, filters?: {
 };
 
 /**
- * Hook to get doctor statistics
+ * Hook to get a doctor's reviews (GET /doctors/:id/reviews; the id is the doctor's User id).
+ * Answers { items, averageRating, reviewCount, meta }.
  */
-export const useDoctorStats = (doctorId: string, period?: 'day' | 'week' | 'month' | 'year') => {
+export const useDoctorReviews = (doctorId: string, limit: number = 10, page: number = 1) => {
   const { isConnected } = useWebSocketStatus();
 
-  return useQueryData(['doctorStats', doctorId, period], async () => {
+  return useQueryData(['doctorReviews', doctorId, limit, page], async () => {
     try {
-      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.STATS(doctorId), period ? { period } : undefined);
-    } catch (error) {
-      if (isSessionInvalidError(error)) {
-        return null;
-      }
-      throw error;
-    }
-  }, {
-    enabled: !!doctorId,
-    refetchInterval: isConnected ? false : 120_000,
-    retry: doctorQueryRetry,
-  });
-};
-
-/**
- * Hook to get doctor reviews
- */
-export const useDoctorReviews = (doctorId: string, limit: number = 10) => {
-  const { isConnected } = useWebSocketStatus();
-
-  return useQueryData(['doctorReviews', doctorId, limit], async () => {
-    try {
-      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.REVIEWS.GET(doctorId), { limit });
+      return await getDoctorReviews(doctorId, { limit, page });
     } catch (error) {
       if (isSessionInvalidError(error)) {
         return [];
-      }
-      throw error;
-    }
-  }, {
-    enabled: !!doctorId,
-    refetchInterval: isConnected ? false : 300_000,
-    retry: doctorQueryRetry,
-  });
-};
-
-/**
- * Hook to get doctor specializations
- */
-export const useDoctorSpecializations = () => {
-  return useQueryData(['doctorSpecializations'], async () => {
-    try {
-      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.SPECIALIZATIONS);
-    } catch (error) {
-      if (isSessionInvalidError(error)) {
-        return [];
-      }
-      throw error;
-    }
-  }, {
-    // Reference/enum-like catalog of specialization categories - it does not
-    // change per request, so avoid refetching it on every focus/reconnect.
-    staleTime: CACHE_TIMES.VERY_LONG,
-    gcTime: GC_TIMES.STATIC,
-    refetchOnWindowFocus: false,
-    retry: doctorQueryRetry,
-  });
-};
-
-/**
- * Hook to get doctor performance metrics
- */
-export const useDoctorPerformanceMetrics = (doctorId: string, filters?: {
-  startDate?: string;
-  endDate?: string;
-}) => {
-  const { isConnected } = useWebSocketStatus();
-
-  return useQueryData(['doctorPerformanceMetrics', doctorId, filters], async () => {
-    try {
-      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.PERFORMANCE(doctorId), filters);
-    } catch (error) {
-      if (isSessionInvalidError(error)) {
-        return null;
-      }
-      throw error;
-    }
-  }, {
-    enabled: !!doctorId,
-    refetchInterval: isConnected ? false : 300_000,
-    retry: doctorQueryRetry,
-  });
-};
-
-/**
- * Hook to get doctor earnings
- */
-export const useDoctorEarnings = (doctorId: string, filters?: {
-  startDate?: string;
-  endDate?: string;
-  period?: 'day' | 'week' | 'month' | 'year';
-}) => {
-  const { isConnected } = useWebSocketStatus();
-
-  return useQueryData(['doctorEarnings', doctorId, filters], async () => {
-    try {
-      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.EARNINGS(doctorId), filters);
-    } catch (error) {
-      if (isSessionInvalidError(error)) {
-        return null;
       }
       throw error;
     }
@@ -518,58 +430,24 @@ export const useCreateDoctor = () => {
 };
 
 /**
- * Hook to update doctor
+ * Hook to update a doctor's profile (PATCH /doctors/:id; the id is the doctor's User id).
  */
 export const useUpdateDoctor = () => {
   return useMutationOperation(
     async ({ doctorId, updates }: {
       doctorId: string;
-      updates: {
-        specialization?: string;
-        licenseNumber?: string;
-        experience?: number;
-        qualification?: string;
-        consultationFee?: number;
-        isActive?: boolean;
-        clinicId?: string;
-      };
+      updates: Parameters<typeof updateDoctorProfile>[1];
     }) => {
-      return await clinicApiClient.put(API_ENDPOINTS.DOCTORS.UPDATE(doctorId), updates);
+      const result = await updateDoctorProfile(doctorId, updates);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result;
     },
     {
       toastId: TOAST_IDS.DOCTOR.UPDATE,
       loadingMessage: 'Updating doctor...',
       successMessage: 'Doctor updated successfully',
-      invalidateQueries: [
-        ['doctors'],
-        ['doctor'],
-        ['doctorSchedule'],
-        ['doctorAvailability'],
-        ['doctorAppointments'],
-        ['doctorStats'],
-        ['doctorReviews'],
-        ['doctorPerformanceMetrics'],
-        ['doctorEarnings'],
-        ['clinicDoctors'],
-        ['clinicUsersByRole'],
-        ['users'],
-      ],
-    }
-  );
-};
-
-/**
- * Hook to delete doctor
- */
-export const useDeleteDoctor = () => {
-  return useMutationOperation(
-    async (doctorId: string) => {
-      return await clinicApiClient.delete(API_ENDPOINTS.DOCTORS.DELETE(doctorId));
-    },
-    {
-      toastId: TOAST_IDS.DOCTOR.DELETE,
-      loadingMessage: 'Deleting doctor...',
-      successMessage: 'Doctor deleted successfully',
       invalidateQueries: [
         ['doctors'],
         ['doctor'],
@@ -622,134 +500,30 @@ export const useUpdateDoctorSchedule = () => {
 };
 
 /**
- * Hook to update doctor availability
- */
-export const useUpdateDoctorAvailability = () => {
-  return useMutationOperation(
-    async ({ doctorId, availabilityData }: {
-      doctorId: string;
-      availabilityData: {
-        date: string;
-        timeSlots: {
-          startTime: string;
-          endTime: string;
-          isAvailable: boolean;
-        }[];
-      };
-    }) => {
-      return await clinicApiClient.put(API_ENDPOINTS.DOCTORS.AVAILABILITY.UPDATE(doctorId), availabilityData);
-    },
-    {
-      toastId: TOAST_IDS.DOCTOR.UPDATE,
-      loadingMessage: 'Updating doctor availability...',
-      successMessage: 'Doctor availability updated successfully',
-      invalidateQueries: [
-        ['doctorAvailability'],
-        ['doctorSchedule'],
-        ['doctorAppointments'],
-        ['doctorStats'],
-        ['doctorPerformanceMetrics'],
-        ['clinicDoctors'],
-      ],
-    }
-  );
-};
-
-/**
- * Hook to add doctor review
+ * Hook for a patient to rate a doctor after a completed visit (POST /doctors/:id/reviews).
+ * `doctorId` is the doctor's User id; one review per appointment.
  */
 export const useAddDoctorReview = () => {
   return useMutationOperation(
     async ({ doctorId, reviewData }: {
       doctorId: string;
       reviewData: {
-        patientId: string;
+        appointmentId: string;
         rating: number;
         comment?: string;
-        appointmentId?: string;
       };
     }) => {
-      return await clinicApiClient.post(API_ENDPOINTS.DOCTORS.REVIEWS.CREATE(doctorId), reviewData);
+      const result = await addDoctorReview(doctorId, reviewData);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result;
     },
     {
       toastId: TOAST_IDS.DOCTOR.UPDATE,
-      loadingMessage: 'Adding doctor review...',
-      successMessage: 'Doctor review added successfully',
-      invalidateQueries: [['doctorReviews'], ['doctor'], ['doctorStats']],
-    }
-  );
-};
-
-/**
- * Hook to search doctors
- */
-export const useSearchDoctors = () => {
-  return useMutationOperation(
-    async ({ query, filters }: {
-      query: string;
-      filters?: {
-        specialization?: string;
-        clinicId?: string;
-        location?: string;
-        availability?: string;
-        limit?: number;
-      };
-    }) => {
-      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.SEARCH, { query, ...filters });
-    },
-    {
-      toastId: TOAST_IDS.DOCTOR.UPDATE,
-      loadingMessage: 'Searching doctors...',
-      successMessage: 'Search completed',
-      showToast: false,
-    }
-  );
-};
-
-/**
- * Hook to update doctor profile
- */
-export const useUpdateDoctorProfile = () => {
-  return useMutationOperation(
-    async ({ doctorId, profileData }: {
-      doctorId: string;
-      profileData: {
-        bio?: string;
-        education?: string[];
-        certifications?: string[];
-        languages?: string[];
-        profilePicture?: string;
-      };
-    }) => {
-      return await clinicApiClient.put(API_ENDPOINTS.DOCTORS.PROFILE.UPDATE(doctorId), profileData);
-    },
-    {
-      toastId: TOAST_IDS.DOCTOR.UPDATE,
-      loadingMessage: 'Updating doctor profile...',
-      successMessage: 'Doctor profile updated successfully',
-      invalidateQueries: [['doctor'], ['doctors'], ['clinicDoctors'], ['doctorStats']],
-    }
-  );
-};
-
-/**
- * Hook to export doctor data
- */
-export const useExportDoctorData = () => {
-  return useMutationOperation(
-    async (filters: {
-      format: 'csv' | 'excel' | 'pdf';
-      doctorIds?: string[];
-      includeStats?: boolean;
-      startDate?: string;
-      endDate?: string;
-    }) => {
-      return await clinicApiClient.post(API_ENDPOINTS.DOCTORS.EXPORT, filters);
-    },
-    {
-      toastId: TOAST_IDS.ANALYTICS.REPORT_DOWNLOAD,
-      loadingMessage: 'Exporting doctor data...',
-      successMessage: 'Doctor data exported successfully',
+      loadingMessage: 'Sending your rating...',
+      successMessage: 'Thanks for rating your visit',
+      invalidateQueries: [['doctorReviews'], ['doctor']],
     }
   );
 };

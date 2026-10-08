@@ -77,7 +77,7 @@ export function normalizeDoctorReviews(payload: unknown): DoctorReview[] {
     reviews.push({
       id: text(raw.id) || `${date}-${index}`,
       patientName:
-        text(raw.patientName) || text(patientUser.name) || text(patient.name) || text(reviewer.name) || fullName || "Patient",
+        text(raw.patientName) || text(raw.reviewerName) || text(patientUser.name) || text(patient.name) || text(reviewer.name) || fullName || "Patient",
       rating: Math.min(5, rating),
       review: text(raw.review) || text(raw.comment) || text(raw.text) || text(raw.feedback),
       date,

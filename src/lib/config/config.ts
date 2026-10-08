@@ -665,7 +665,6 @@ export const API_ENDPOINTS = {
     CREATE: '/patients',
     UPDATE: (patientId: string) => `/patients/${patientId}`,
     DELETE: (patientId: string) => `/patients/${patientId}`,
-    APPOINTMENTS: (patientId: string) => `/patients/${patientId}/appointments`,
     /** Composed single-round-trip summary for the patient dashboard.
      *  Replaces 5+ separate calls (appointments, vitals, prescriptions,
      *  comprehensive EHR, invoices, payments) on `/patient/dashboard`. */
@@ -674,22 +673,8 @@ export const API_ENDPOINTS = {
       GET: (clinicId: string, patientId: string) => `/clinics/${clinicId}/patients/${patientId}/medical-history`,
       CREATE: (clinicId: string, patientId: string) => `/clinics/${clinicId}/patients/${patientId}/medical-history`,
     },
-    VITALS: {
-      GET: (patientId: string) => `/patients/${patientId}/vitals`,
-      CREATE: (patientId: string) => `/patients/${patientId}/vitals`,
-    },
-    LAB_RESULTS: {
-      GET: (patientId: string) => `/patients/${patientId}/lab-results`,
-      CREATE: (patientId: string) => `/patients/${patientId}/lab-results`,
-    },
-    TIMELINE: (patientId: string) => `/patients/${patientId}/timeline`,
-    STATS: (patientId: string) => `/patients/${patientId}/stats`,
     SEARCH: '/patients/search',
     EXPORT: '/patients/export',
-    CARE_PLAN: {
-      GET: (patientId: string) => `/patients/${patientId}/care-plan`,
-      UPDATE: (patientId: string) => `/patients/${patientId}/care-plan`,
-    },
   },
   
   // Doctors Endpoints
@@ -700,30 +685,18 @@ export const API_ENDPOINTS = {
     GET_BY_ID: (doctorId: string) => `/doctors/${doctorId}`,
     CREATE: '/doctors',
     UPDATE: (doctorId: string) => `/doctors/${doctorId}`,
-    DELETE: (doctorId: string) => `/doctors/${doctorId}`,
     SCHEDULE: {
       GET: (clinicId: string, doctorId: string) => `/clinics/${clinicId}/doctors/${doctorId}/schedule`,
       UPDATE: (doctorId: string) => `/doctors/${doctorId}/schedule`,
     },
     AVAILABILITY: {
       GET: (doctorId: string) => `/appointments/doctor/${doctorId}/availability`,
-      UPDATE: (doctorId: string) => `/appointments/doctor/${doctorId}/availability`,
     },
-    APPOINTMENTS: (doctorId: string) => `/doctors/${doctorId}/appointments`,
     PATIENTS: (clinicId: string, doctorId: string) => `/clinics/${clinicId}/doctors/${doctorId}/patients`,
-    STATS: (doctorId: string) => `/doctors/${doctorId}/stats`,
     REVIEWS: {
       GET: (doctorId: string) => `/doctors/${doctorId}/reviews`,
       CREATE: (doctorId: string) => `/doctors/${doctorId}/reviews`,
     },
-    SPECIALIZATIONS: '/doctors/specializations',
-    SEARCH: '/doctors/search',
-    PERFORMANCE: (doctorId: string) => `/doctors/${doctorId}/performance`,
-    PROFILE: {
-      UPDATE: (doctorId: string) => `/doctors/${doctorId}/profile`,
-    },
-    EARNINGS: (doctorId: string) => `/doctors/${doctorId}/earnings`,
-    EXPORT: '/doctors/export',
   },
 
   // Staff Endpoints
@@ -1116,6 +1089,10 @@ export const API_ENDPOINTS = {
     PATIENT_SUMMARY: (clinicId: string) => `/ehr/clinic/${clinicId}/patients/summary`,
     SEARCH: (clinicId: string) => `/ehr/clinic/${clinicId}/search`,
     CRITICAL_ALERTS: (clinicId: string) => `/ehr/clinic/${clinicId}/alerts/critical`,
+    /** Paginated appointments of one patient (clinical staff). Query: page, limit, status. */
+    PATIENT_APPOINTMENTS: (patientId: string) => `/ehr/clinic/patients/${patientId}/appointments`,
+    /** Care plan of one patient: GET (staff and the patient themselves), PUT (doctors and admins). */
+    PATIENT_CARE_PLAN: (patientId: string) => `/ehr/clinic/patients/${patientId}/care-plan`,
   },
   
   // Plugin Endpoints (Optional - Admin-only tool for plugin monitoring/management)

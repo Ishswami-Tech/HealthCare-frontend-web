@@ -38,6 +38,33 @@ function toArray(value: unknown): Raw[] {
   return [];
 }
 
+/** One line of a care plan's goals or interventions: { text, done }. */
+function planItemRows(items: unknown, kind: string, planId: string): Raw[] {
+  if (!Array.isArray(items)) return [];
+  return items.flatMap((item, index) => {
+    const entry = asRecord(item);
+    const text = asText(entry.text);
+    if (!text) return [];
+    return [{ id: `${planId}-${kind}-${index}`, title: text, description: entry.done === true ? `${kind} (done)` : kind }];
+  });
+}
+
+/**
+ * The care-plan answer is one plan ({ exists, summary, goals, interventions, ... }), while the
+ * record shows a list of plan lines: one per goal and intervention, led by the summary.
+ */
+function carePlanRows(value: unknown): Raw[] {
+  const plan = asRecord(value);
+  if (plan.exists !== true) return [];
+  const planId = asText(plan.id) || "care-plan";
+  const summary = asText(plan.summary);
+  return [
+    ...(summary ? [{ id: `${planId}-summary`, title: asText(plan.title) || "Care plan", description: summary }] : []),
+    ...planItemRows(plan.goals, "Goal", planId),
+    ...planItemRows(plan.interventions, "Intervention", planId),
+  ];
+}
+
 /** The dedicated list when it has rows, otherwise the same section of the full health record. */
 function preferList(primary: unknown, fallback: unknown): Raw[] {
   const rows = toArray(primary);
@@ -89,7 +116,7 @@ export function DoctorEhrContent({ patientId }: { patientId: string }) {
       history: preferList(historyData, ehr.medicalHistory),
       vitals: preferList(vitalsData, ehr.vitals),
       labs: preferList(labsData, ehr.labReports),
-      carePlan: preferList(carePlanData, ehr.carePlan ?? ehr.carePlans),
+      carePlan: preferList(carePlanRows(carePlanData), ehr.carePlan ?? ehr.carePlans),
       prescriptions: toArray(ehr.prescriptions),
     }),
     [appointmentsData, carePlanData, ehr, historyData, labsData, patientRecord, vitalsData],
