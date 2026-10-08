@@ -278,6 +278,7 @@ export const usePharmacySales = (
 export const usePharmacyStats = (
   clinicId: string,
   period?: "day" | "week" | "month" | "year",
+  options?: { enabled?: boolean },
 ) => {
   return useQueryData(
     ["pharmacyStats", clinicId, period],
@@ -285,7 +286,7 @@ export const usePharmacyStats = (
       return await getPharmacyStats(clinicId, period);
     },
     {
-      enabled: !!clinicId,
+      enabled: !!clinicId && options?.enabled !== false,
     },
   );
 };
