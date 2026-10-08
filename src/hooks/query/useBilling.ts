@@ -49,6 +49,8 @@ type InPersonSubscriptionAppointmentData = {
   treatmentType?: string;
   priority?: string;
   notes?: string;
+  /** Dependent of the booking patient the visit is for. Omit when it is for the patient. */
+  familyMemberId?: string;
 };
 
 type ActionEnvelope<TKey extends string, TValue> = {
