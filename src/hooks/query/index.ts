@@ -167,7 +167,6 @@ export {
   useCreatePharmacyOrder,
   usePharmacySales,
   usePharmacyStats,
-  useMedicineCategories,
   useSuppliers,
   useExportPharmacyData,
 } from './usePharmacy';

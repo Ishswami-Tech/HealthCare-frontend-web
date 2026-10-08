@@ -87,7 +87,6 @@ const DASHBOARD_QUERY_FAMILIES: string[][] = [
   ['medicineDeskQueue'],
   ['prescriptions'],
   ['medicalRecords'],
-  ['medicineCategories'],
   ['medicines'],
   ['medicineInventory'],
   ['pharmacyOrders'],

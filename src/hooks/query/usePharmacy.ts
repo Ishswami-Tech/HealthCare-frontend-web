@@ -23,7 +23,6 @@ import {
   getPharmacySales,
   getPharmacyStats,
   searchMedicines,
-  getMedicineCategories,
   getSuppliers,
   createSupplier,
   updateSupplier,
@@ -89,15 +88,6 @@ export const useMedicine = (medicineId: string) => {
       enabled: !!medicineId,
     },
   );
-};
-
-/**
- * Hook to get medicine categories
- */
-export const useMedicineCategories = () => {
-  return useQueryData(["medicineCategories"], async () => {
-    return await getMedicineCategories();
-  });
 };
 
 /**

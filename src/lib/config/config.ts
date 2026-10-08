@@ -535,13 +535,6 @@ export const API_ENDPOINTS = {
   // Pharmacy Endpoints
   PHARMACY: {
     BASE: '/pharmacy',
-    MEDICINES: {
-      GET_BY_ID: (medicineId: string) => `/pharmacy/medicines/${medicineId}`,
-      GET_CLINIC_INVENTORY: (clinicId: string) => `/clinics/${clinicId}/medicines/inventory`,
-      CREATE: (clinicId: string) => `/clinics/${clinicId}/medicines`,
-      UPDATE: (clinicId: string, medicineId: string) => `/clinics/${clinicId}/medicines/${medicineId}`,
-      DELETE: (clinicId: string, medicineId: string) => `/clinics/${clinicId}/medicines/${medicineId}`,
-    },
     PRESCRIPTIONS: {
       GET: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}`,
       LIST: '/pharmacy/prescriptions',
@@ -559,18 +552,8 @@ export const API_ENDPOINTS = {
       RECORD_CASH_PAYMENT: (prescriptionId: string) =>
         `/pharmacy/prescriptions/${prescriptionId}/record-cash-payment`,
     },
-    INVENTORY: {
-      UPDATE: (clinicId: string, medicineId: string) => `/clinics/${clinicId}/pharmacy/inventory/${medicineId}`,
-    },
-    ORDERS: {
-      CREATE: (clinicId: string) => `/clinics/${clinicId}/pharmacy/orders`,
-    },
-    STATS: (clinicId: string) => `/clinics/${clinicId}/pharmacy/stats`,
-    SEARCH: (clinicId: string) => `/clinics/${clinicId}/medicines/search`,
-    CATEGORIES: '/pharmacy/categories',
     SUPPLIERS: '/pharmacy/suppliers',
     AUDIT_BATCHES: '/pharmacy/audit/batches',
-    EXPORT: (clinicId: string) => `/clinics/${clinicId}/pharmacy/export`,
   },
 
   // Ayurveda Endpoints

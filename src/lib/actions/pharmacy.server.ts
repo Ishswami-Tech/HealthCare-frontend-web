@@ -962,19 +962,6 @@ export async function searchMedicines(
 }
 
 /**
- * Get medicine categories
- */
-export async function getMedicineCategories() {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-
-  const { data } = await authenticatedApi(API_ENDPOINTS.PHARMACY.CATEGORIES);
-  return data;
-}
-
-/**
  * Get suppliers
  */
 export async function getSuppliers() {
