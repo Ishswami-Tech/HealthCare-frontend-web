@@ -47,7 +47,7 @@ export default function PharmacistDashboardContent() {
   } = useInventory(clinicId || "", {
     limit: 100,
   });
-  const { data: pharmacyStats } = usePharmacyStats(clinicId || "");
+  const { data: pharmacyStats } = usePharmacyStats(clinicId || "", "month");
   const {
     data: medicineDeskQueue,
     isPending: queuePending,

@@ -32,7 +32,7 @@ export function PharmacistDashboardStatsGrid({ stats, loading = false }: Pharmac
             loading ? (
               <span className="my-1 block h-[22px] w-9 animate-pulse rounded-md bg-well" aria-label="Loading" />
             ) : (
-              stats[tile.key]
+              (stats[tile.key] ?? "—")
             )
           }
           label={<span className={`font-bold ${tile.tone}`}>{tile.label}</span>}
