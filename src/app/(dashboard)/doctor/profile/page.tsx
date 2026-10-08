@@ -39,6 +39,7 @@ export default function DoctorProfile() {
               lastName: user.lastName ?? null,
               email: user.email ?? null,
               profilePicture: user.profilePicture ?? null,
+              role: user.role ?? null,
             }
           : undefined
       }

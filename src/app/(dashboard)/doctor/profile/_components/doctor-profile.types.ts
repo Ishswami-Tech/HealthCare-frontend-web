@@ -105,4 +105,5 @@ export interface DoctorProfileUser {
   lastName?: string | null;
   email?: string | null;
   profilePicture?: string | null;
+  role?: string | null;
 }

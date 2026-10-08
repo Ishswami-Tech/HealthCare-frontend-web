@@ -4,6 +4,7 @@ import { authenticatedApi, getServerSession } from './auth.server';
 import { revalidateCache } from '@/lib/utils/revalidate-cache';
 import { API_ENDPOINTS } from '../config/config';
 import { logger } from '@/lib/utils/logger';
+import { isApiError } from '@/lib/utils/error-handler';
 
 function normalizeCollectionResponse<T>(payload: unknown): T[] {
   if (Array.isArray(payload)) {
@@ -398,6 +399,7 @@ export async function updateDoctorProfile(doctorUserId: string, profileData: {
     return {
       success: false as const,
       error: error instanceof Error && error.message ? error.message : 'Failed to update doctor profile',
+      statusCode: isApiError(error) ? error.statusCode : undefined,
     };
   }
 }
