@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { useUserProfile, useUpdateUserProfile } from "@/hooks/query/useUsers";
 import { useDoctorReviews } from "@/hooks/query/useDoctors";
 import { DoctorProfileContent } from "./_components/DoctorProfileContent";
-import { normalizeDoctorReviews } from "./_components/doctor-profile.logic";
+import { normalizeDoctorReviews, readReviewStats } from "./_components/doctor-profile.logic";
 
 export default function DoctorProfile() {
   const { session } = useAuth();
@@ -26,6 +26,7 @@ export default function DoctorProfile() {
   } = useDoctorReviews(doctorId);
 
   const reviews = useMemo(() => normalizeDoctorReviews(reviewsData), [reviewsData]);
+  const reviewStats = useMemo(() => readReviewStats(reviewsData), [reviewsData]);
   const reviewsNotFound = (reviewsError as { statusCode?: number } | null)?.statusCode === 404;
 
   return (
@@ -55,6 +56,7 @@ export default function DoctorProfile() {
         loadFailed: Boolean(reviewsError) && !reviewsNotFound && reviews.length === 0,
         notAvailable: reviewsNotFound && reviews.length === 0,
         onRetry: () => void refetchReviews(),
+        stats: reviewStats,
       }}
     />
   );

@@ -86,28 +86,75 @@ export function normalizeDoctorReviews(payload: unknown): DoctorReview[] {
   }, []);
 }
 
+/** The server's own numbers over ALL of a doctor's reviews, plus the page the list is on. */
+export interface ReviewStats {
+  averageRating: number;
+  reviewCount: number;
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+function finiteNumber(value: unknown): number | null {
+  const parsed = typeof value === "string" && value.trim() === "" ? NaN : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * Reads averageRating, reviewCount and meta from the reviews answer
+ * ({ items, averageRating, reviewCount, meta: { page, limit, total, totalPages } }).
+ * Null when the answer is a bare list or carries no count.
+ */
+export function readReviewStats(payload: unknown): ReviewStats | null {
+  const outer = asRecord(payload);
+  const record = outer.reviewCount === undefined && outer.data !== undefined ? asRecord(outer.data) : outer;
+  const reviewCount = finiteNumber(record.reviewCount);
+  if (reviewCount === null || reviewCount < 0) return null;
+  const meta = asRecord(record.meta);
+  const total = finiteNumber(meta.total) ?? reviewCount;
+  const limit = Math.max(1, finiteNumber(meta.limit) ?? 10);
+  return {
+    averageRating: finiteNumber(record.averageRating) ?? 0,
+    reviewCount,
+    page: Math.max(1, finiteNumber(meta.page) ?? 1),
+    limit,
+    total,
+    totalPages: Math.max(1, finiteNumber(meta.totalPages) ?? Math.ceil(total / limit)),
+  };
+}
+
 export interface ReviewSummary {
+  /** All reviews the doctor has (the server's count; the loaded count when the server sent none). */
   count: number;
   /** Average rating, one decimal ("4.7"). */
   average: string;
   /** Rounded average, for the star row. */
   stars: number;
-  /** Reviews per star, 5 first. */
+  /** How many reviews the star breakdown is counted over (the ones loaded). */
+  breakdownBasedOn: number;
+  /** Reviews per star, 5 first, over the loaded reviews. */
   breakdown: Array<{ stars: number; count: number; percent: number }>;
 }
 
-/** Rating summary over the loaded reviews; null when there are none. */
-export function summarizeReviews(reviews: DoctorReview[]): ReviewSummary | null {
-  if (reviews.length === 0) return null;
-  const total = reviews.reduce((sum, review) => sum + review.rating, 0);
-  const average = total / reviews.length;
+/**
+ * Rating summary. The headline count and average are the server's, over every review; the
+ * star breakdown can only be counted over the loaded reviews, so it says how many that is.
+ * Without server numbers the loaded reviews are all there is. Null when there are none.
+ */
+export function summarizeReviews(reviews: DoctorReview[], stats?: ReviewStats | null): ReviewSummary | null {
+  const serverStats = stats && stats.reviewCount > 0 ? stats : null;
+  if (reviews.length === 0 && !serverStats) return null;
+  const loadedAverage = reviews.length === 0 ? 0 : reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length;
+  const average = serverStats && serverStats.averageRating > 0 ? serverStats.averageRating : loadedAverage;
   return {
-    count: reviews.length,
+    count: serverStats ? serverStats.reviewCount : reviews.length,
     average: average.toFixed(1),
     stars: Math.round(average),
+    breakdownBasedOn: reviews.length,
     breakdown: [5, 4, 3, 2, 1].map((stars) => {
       const count = reviews.filter((review) => review.rating === stars).length;
-      return { stars, count, percent: Math.round((count / reviews.length) * 100) };
+      return { stars, count, percent: reviews.length === 0 ? 0 : Math.round((count / reviews.length) * 100) };
     }),
   };
 }
