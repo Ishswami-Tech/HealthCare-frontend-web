@@ -1,25 +1,19 @@
 "use client";
 
 import { useMemo, useReducer } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useHydrated } from "@/hooks/utils/useHydrated";
 import { showInfoToast } from "@/hooks/utils/use-toast";
-import {
-  usePrescriptions,
-  useCreatePrescription,
-  useUpdatePrescription,
-  useDeletePrescription,
-} from "@/hooks/query/usePrescriptions";
+import { usePrescriptions, useUpdatePrescription } from "@/hooks/query/usePrescriptions";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { formatDateKeyInIST } from "@/lib/utils/date-time";
-import type { Prescription } from "@/types/medical-records.types";
 import { DoctorPrescriptionsView } from "./DoctorPrescriptionsView";
 import {
   EMPTY_PRESCRIPTION_FORM,
   buildDoctorPrescriptionStats,
   filterDoctorPrescriptions,
   normalizeDoctorPrescriptions,
-  parseMedicineList,
   type DoctorPrescriptionEditForm,
   type DoctorPrescriptionFilter,
   type DoctorPrescriptionRow,
@@ -31,7 +25,6 @@ type DoctorPrescriptionsState = {
   editingPrescription: DoctorPrescriptionRow | null;
   showPrescriptionDialog: boolean;
   editForm: DoctorPrescriptionEditForm;
-  deleteTarget: DoctorPrescriptionRow | null;
 };
 
 type DoctorPrescriptionsAction =
@@ -39,8 +32,7 @@ type DoctorPrescriptionsAction =
   | { type: "setFilterStatus"; value: DoctorPrescriptionFilter }
   | { type: "openDialog"; prescription: DoctorPrescriptionRow | null; form: DoctorPrescriptionEditForm }
   | { type: "setShowPrescriptionDialog"; value: boolean }
-  | { type: "updateEditForm"; value: Partial<DoctorPrescriptionEditForm> }
-  | { type: "setDeleteTarget"; value: DoctorPrescriptionRow | null };
+  | { type: "updateEditForm"; value: Partial<DoctorPrescriptionEditForm> };
 
 const initialDoctorPrescriptionsState: DoctorPrescriptionsState = {
   searchQuery: "",
@@ -48,7 +40,6 @@ const initialDoctorPrescriptionsState: DoctorPrescriptionsState = {
   editingPrescription: null,
   showPrescriptionDialog: false,
   editForm: EMPTY_PRESCRIPTION_FORM,
-  deleteTarget: null,
 };
 
 function doctorPrescriptionsReducer(
@@ -71,8 +62,6 @@ function doctorPrescriptionsReducer(
       return { ...state, showPrescriptionDialog: action.value };
     case "updateEditForm":
       return { ...state, editForm: { ...state.editForm, ...action.value } };
-    case "setDeleteTarget":
-      return { ...state, deleteTarget: action.value };
     default:
       return state;
   }
@@ -85,7 +74,7 @@ export function DoctorPrescriptionsContent() {
   const doctorId = user?.id || "";
 
   const [
-    { searchQuery, filterStatus, editingPrescription, showPrescriptionDialog, editForm, deleteTarget },
+    { searchQuery, filterStatus, editingPrescription, showPrescriptionDialog, editForm },
     dispatch,
   ] = useReducer(doctorPrescriptionsReducer, initialDoctorPrescriptionsState);
 
@@ -93,9 +82,8 @@ export function DoctorPrescriptionsContent() {
   const todayDate = isHydrated ? formatDateKeyInIST(new Date()) : "";
 
   const { data: prescriptionsData, isPending, error, refetch } = usePrescriptions(doctorId);
-  const createMutation = useCreatePrescription();
   const updateMutation = useUpdatePrescription();
-  const deleteMutation = useDeletePrescription();
+  const router = useRouter();
 
   // Sync with WebSocket for real-time updates
   useWebSocketQuerySync();
@@ -110,8 +98,10 @@ export function DoctorPrescriptionsContent() {
   );
   const stats = useMemo(() => buildDoctorPrescriptionStats(prescriptions, todayDate), [prescriptions, todayDate]);
 
+  // A prescription is written for a patient, from the patient's record or the visit; the
+  // patients list is where the doctor picks who it is for.
   const openCreate = () => {
-    dispatch({ type: "openDialog", prescription: null, form: EMPTY_PRESCRIPTION_FORM });
+    router.push("/doctor/patients");
   };
 
   const openEdit = (prescription: DoctorPrescriptionRow) => {
@@ -136,33 +126,12 @@ export function DoctorPrescriptionsContent() {
   };
 
   const handleSavePrescription = () => {
-    const medicinesArr = parseMedicineList(editForm.medicines);
-
-    if (editingPrescription?.id) {
-      updateMutation.mutate({
-        prescriptionId: editingPrescription.id,
-        updates: {
-          notes: editForm.notes,
-          status: editForm.status,
-        },
-      });
-    } else {
-      const newPrescription: Prescription = {
-        patientId: "",
-        ...(user?.id ? { doctorId: user.id } : {}),
-        notes: editForm.notes,
-        status: editForm.status,
-        medications: medicinesArr.map((name) => ({ name })),
-      };
-      createMutation.mutate(newPrescription);
-    }
+    if (!editingPrescription?.id) return;
+    updateMutation.mutate({
+      prescriptionId: editingPrescription.id,
+      updates: { notes: editForm.notes },
+    });
     dispatch({ type: "setShowPrescriptionDialog", value: false });
-  };
-
-  const confirmDelete = () => {
-    if (!deleteTarget) return;
-    deleteMutation.mutate(deleteTarget.id);
-    dispatch({ type: "setDeleteTarget", value: null });
   };
 
   const showSkeleton = isPending && prescriptions.length === 0;
@@ -180,24 +149,16 @@ export function DoctorPrescriptionsContent() {
       filterStatus={filterStatus}
       onSearchChange={(value) => dispatch({ type: "setSearchQuery", value })}
       onFilterChange={(value) => dispatch({ type: "setFilterStatus", value })}
-      createDisabled={createMutation.isPending}
       editDisabled={updateMutation.isPending}
-      deleteDisabled={deleteMutation.isPending}
       onCreate={openCreate}
       onEdit={openEdit}
       onDownload={handleDownload}
-      onDelete={(prescription) => dispatch({ type: "setDeleteTarget", value: prescription })}
       dialogOpen={showPrescriptionDialog}
-      dialogMode={editingPrescription ? "edit" : "create"}
       form={editForm}
-      isSaving={createMutation.isPending || updateMutation.isPending}
+      isSaving={updateMutation.isPending}
       onFormChange={(value) => dispatch({ type: "updateEditForm", value })}
       onSave={handleSavePrescription}
       onDialogOpenChange={(value) => dispatch({ type: "setShowPrescriptionDialog", value })}
-      deleteTarget={deleteTarget}
-      isDeleting={deleteMutation.isPending}
-      onConfirmDelete={confirmDelete}
-      onCancelDelete={() => dispatch({ type: "setDeleteTarget", value: null })}
     />
   );
 }

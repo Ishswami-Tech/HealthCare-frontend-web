@@ -1915,14 +1915,18 @@ export async function authenticatedApi<T = unknown>(
     clinicId?: string;
     requireClinicId?: boolean;
   } = {}
-): Promise<{ status: number; data: T }> {
+): Promise<{ status: number; data: T; success?: boolean; message?: string }> {
   try {
     // Note: This is an internal helper used by authenticated server actions.
     // Auth checks should be done at the action level, not here.
     const response = await clinicApiClient.request<T>(endpoint, options);
     return { 
       status: response.statusCode || 200, 
-      data: response.data as T 
+      data: response.data as T,
+      // A 200 can still carry success:false (the backend refusing in the body); callers that
+      // care read these instead of assuming the request worked.
+      success: response.success,
+      ...(response.message ? { message: response.message } : {}),
     };
   } catch (error: unknown) {
     // Gracefully handle "Profile Incomplete" to prevent Next.js from crashing

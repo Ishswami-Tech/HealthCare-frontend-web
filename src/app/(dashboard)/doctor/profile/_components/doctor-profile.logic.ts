@@ -38,6 +38,9 @@ export function educationList(value: unknown, qualification?: unknown): DoctorPr
       })
       .filter((item) => item.degree);
   }
+  // The doctor record stores education as one text line; show it as a single entry.
+  const stored = typeof value === "string" ? value.trim() : "";
+  if (stored) return [{ degree: stored, institution: "", year: "" }];
   const single = text(qualification);
   return single ? [{ degree: single, institution: "", year: "" }] : [];
 }
