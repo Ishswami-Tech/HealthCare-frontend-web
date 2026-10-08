@@ -14,6 +14,7 @@ import {
   getDoctorAppointments,
   getDoctorReviews,
   getDoctors as getDoctorsServerAction,
+  getMyDoctorEarnings,
   updateDoctorProfile,
 } from '@/lib/actions/doctors.server';
 import { resolveDisplayNameAndInitials } from '@/lib/utils/display-name';
@@ -379,6 +380,19 @@ export const useDoctorReviews = (doctorId: string, limit: number = 10, page: num
   }, {
     enabled: !!doctorId,
     refetchInterval: isConnected ? false : 300_000,
+    retry: doctorQueryRetry,
+  });
+};
+
+/**
+ * Hook for the signed-in doctor's own earnings between two IST days (YYYY-MM-DD).
+ * Needs the backend route GET /analytics/doctor/me/earnings; callers show the error state.
+ */
+export const useMyDoctorEarnings = (range: { from: string; to: string }) => {
+  return useQueryData(['doctorEarnings', 'me', range.from, range.to], async () => {
+    return await getMyDoctorEarnings(range);
+  }, {
+    enabled: !!range.from && !!range.to,
     retry: doctorQueryRetry,
   });
 };

@@ -18,7 +18,9 @@ import {
   Leaf,
   Apple,
   Bed,
-  Sparkles
+  Sparkles,
+  Star,
+  Bell
 } from "lucide-react";
 
 import { Permission } from "@/types/rbac.types";
@@ -59,7 +61,10 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
     { title: "Patients", href: "/doctor/patients", icon: Users, permission: Permission.VIEW_PATIENTS },
     { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },
     { title: "Prescriptions", href: "/doctor/prescriptions", icon: Pill, permission: Permission.MANAGE_PRESCRIPTIONS },
-    // No Billing link: the designs keep money out of the doctor's view (clinic admin and pharmacy handle it).
+    { title: "Reviews", href: "/doctor/reviews", icon: Star },
+    // Earnings are the doctor's own paid consultations only (clinic billing stays with the clinic admin).
+    { title: "Earnings", href: "/doctor/earnings", icon: DollarSign },
+    { title: "Notifications", href: "/doctor/notifications", icon: Bell },
   ],
   ASSISTANT_DOCTOR: [
     { title: "Dashboard", href: "/assistant-doctor/dashboard", icon: LayoutDashboard },
@@ -75,6 +80,7 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
     { title: "Appointments", href: "/patient/appointments", icon: Calendar, permission: Permission.VIEW_APPOINTMENTS },
     { title: "Health", href: "/patient/health", icon: FileText, permission: Permission.VIEW_MEDICAL_RECORDS },
     { title: "Payments", href: "/patient/payments", icon: Wallet, permission: Permission.VIEW_BILLING },
+    { title: "Notifications", href: "/patient/notifications", icon: Bell },
   ],
   RECEPTIONIST: [
     { title: "Dashboard", href: "/receptionist/dashboard", icon: LayoutDashboard },

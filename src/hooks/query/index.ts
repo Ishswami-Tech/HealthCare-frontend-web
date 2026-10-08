@@ -74,6 +74,7 @@ export {
   useDoctorAppointments,
   useDoctorPatients,
   useDoctorReviews,
+  useMyDoctorEarnings,
   useAddDoctorReview,
 } from './useDoctors';
 
