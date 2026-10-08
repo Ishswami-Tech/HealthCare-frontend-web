@@ -17,6 +17,7 @@ import type {
   SaveProfileMutation,
 } from "./doctor-profile.types";
 import { updateDoctorProfile } from "@/lib/actions/doctors.server";
+import { Role } from "@/types/auth.types";
 import { asRecord, educationList, stringList } from "./doctor-profile.logic";
 import { DoctorProfileOverviewCard } from "./DoctorProfileOverviewCard";
 import { DoctorProfilePersonalTab } from "./DoctorProfilePersonalTab";
@@ -338,9 +339,11 @@ export function DoctorProfileContent({
       }
 
       // The user-profile route does not store these; they are saved on the doctor record.
-      if (user?.id) {
+      // Only a DOCTOR has one to edit; assistants share this page but the route returns 403 for them.
+      if (user?.id && user.role === Role.DOCTOR) {
         const doctorResult = await updateDoctorProfile(user.id, buildDoctorRecordPayload(data));
-        if (!doctorResult.success) {
+        const notPermitted = !doctorResult.success && doctorResult.statusCode === 403;
+        if (!doctorResult.success && !notPermitted) {
           showErrorToast(doctorResult.error || "Saved, but fees and credentials were not", {
             id: TOAST_IDS.GLOBAL.ERROR,
           });
