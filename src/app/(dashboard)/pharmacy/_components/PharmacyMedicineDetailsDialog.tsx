@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Plus, Trash2, Truck } from "lucide-react";
+import { Boxes, PackagePlus, Pencil, Trash2, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Divider, Kv, Note, Pill } from "@/components/tbd";
 import {
@@ -37,7 +37,10 @@ interface PharmacyMedicineDetailsDialogProps {
   /** False hides the write actions (no `MANAGE_INVENTORY` permission). */
   canManage: boolean;
   onClose: () => void;
+  /** Opens the receive-stock form (adds a batch). */
   onRestock: (medicine: MedicineRow) => void;
+  /** Opens the batches (lots) of the medicine. */
+  onBatches: (medicine: MedicineRow) => void;
   onEdit: (medicine: MedicineRow) => void;
   onOrder: (medicine: MedicineRow) => void;
   /** Left out while the backend cannot remove a medicine. */
@@ -51,6 +54,7 @@ export function PharmacyMedicineDetailsDialog({
   canManage,
   onClose,
   onRestock,
+  onBatches,
   onEdit,
   onOrder,
   onRemove,
@@ -136,9 +140,13 @@ export function PharmacyMedicineDetailsDialog({
                   <Pencil aria-hidden="true" />
                   Edit
                 </Button>
+                <Button size="md" variant="outline" onClick={() => onBatches(medicine)}>
+                  <Boxes aria-hidden="true" />
+                  Batches
+                </Button>
                 <Button size="md" onClick={() => onRestock(medicine)}>
-                  <Plus aria-hidden="true" />
-                  Restock
+                  <PackagePlus aria-hidden="true" />
+                  Receive stock
                 </Button>
               </>
             ) : (

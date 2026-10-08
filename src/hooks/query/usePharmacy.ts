@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useQueryData } from "../core/useQueryData";
 import { useMutationOperation } from "../core/useMutationOperation";
 import { TOAST_IDS } from "../utils/use-toast";
@@ -14,21 +15,34 @@ import {
   updatePrescriptionStatus,
   dispensePrescription,
   getInventory,
-  updateInventory,
   getPharmacyOrders,
+  getPharmacyOrderById,
   createPharmacyOrder,
+  sendPharmacyOrder,
+  receivePharmacyOrder,
   getPharmacySales,
   getPharmacyStats,
   searchMedicines,
   getMedicineCategories,
   getSuppliers,
+  createSupplier,
+  updateSupplier,
+  getStockBatches,
+  receiveStockBatch,
+  adjustBatchStock,
+  getInventoryAlerts,
   exportPharmacyData,
   reversePrescriptionDispense,
   getPharmacyBatchAudit,
 } from "@/lib/actions/pharmacy.server";
 import type {
+  AdjustBatchStockInput,
   DispensePrescriptionData,
+  PharmacySalesGroupBy,
+  ReceiveOrderBatch,
+  ReceiveStockBatchInput,
   ReversePrescriptionDispenseData,
+  SupplierInput,
 } from "@/types/pharmacy.types";
 
 // ===== MEDICINES HOOKS =====
@@ -209,11 +223,9 @@ export const useInventory = (
 export const usePharmacyOrders = (
   clinicId: string,
   filters?: {
-    supplierId?: string;
     status?: string;
-    startDate?: string;
-    endDate?: string;
     limit?: number;
+    offset?: number;
     enabled?: boolean;
   },
 ) => {
@@ -228,6 +240,21 @@ export const usePharmacyOrders = (
   );
 };
 
+/**
+ * Hook to get one purchase order with its lines
+ */
+export const usePharmacyOrder = (clinicId: string, orderId: string) => {
+  return useQueryData(
+    ["pharmacyOrder", clinicId, orderId],
+    async () => {
+      return await getPharmacyOrderById(clinicId, orderId);
+    },
+    {
+      enabled: !!clinicId && !!orderId,
+    },
+  );
+};
+
 // ===== SALES HOOKS =====
 
 /**
@@ -236,11 +263,9 @@ export const usePharmacyOrders = (
 export const usePharmacySales = (
   clinicId: string,
   filters?: {
-    startDate?: string;
-    endDate?: string;
-    pharmacistId?: string;
-    paymentMethod?: string;
-    limit?: number;
+    from?: string;
+    to?: string;
+    groupBy?: PharmacySalesGroupBy;
     enabled?: boolean;
   },
 ) => {
@@ -312,6 +337,41 @@ export const useSuppliers = () => {
   });
 };
 
+// ===== BATCH / ALERT HOOKS =====
+
+/**
+ * Hook to list the stock batches (lots) of a clinic, optionally of one medicine
+ */
+export const useStockBatches = (
+  clinicId: string,
+  filters?: { productId?: string; enabled?: boolean },
+) => {
+  return useQueryData(
+    ["stockBatches", clinicId, filters?.productId ?? "all"],
+    async () => {
+      return await getStockBatches(clinicId, { productId: filters?.productId });
+    },
+    {
+      enabled: !!clinicId && filters?.enabled !== false,
+    },
+  );
+};
+
+/**
+ * Hook to get the open stock alerts (expiry, low stock) of a clinic
+ */
+export const useInventoryAlerts = (clinicId: string, enabled: boolean = true) => {
+  return useQueryData(
+    ["inventoryAlerts", clinicId],
+    async () => {
+      return await getInventoryAlerts(clinicId);
+    },
+    {
+      enabled: !!clinicId && enabled,
+    },
+  );
+};
+
 // ===== MUTATION HOOKS =====
 
 /**
@@ -329,7 +389,8 @@ export const useCreateMedicine = () => {
       /** Sent to the backend as `type` (TABLET, SYRUP, CAPSULE, INJECTION, CREAM, DROPS, OTHER). */
       dosageForm: string;
       unitPrice: number;
-      stockQuantity: number;
+      /** Ignored: a new medicine starts at 0 and receives stock as batches. */
+      stockQuantity?: number;
       expiryDate: string;
       minStockLevel?: number;
       description?: string;
@@ -531,27 +592,153 @@ export const useReversePrescriptionDispense = () => {
   );
 };
 
+/** Every list that shows stock: it moves when a batch is received or corrected. */
+const STOCK_QUERIES = [
+  ["inventory"],
+  ["medicines"],
+  ["medicine"],
+  ["stockBatches"],
+  ["inventoryAlerts"],
+  ["pharmacyStats"],
+  ["pharmacySales"],
+  ["pharmacyBatchAudit"],
+];
+
 /**
- * Hook to update inventory
+ * Hook to receive a batch that did not come through a purchase order
  */
-export const useUpdateInventory = () => {
+export const useReceiveStockBatch = () => {
+  return useMutationOperation(
+    async ({ clinicId, ...batch }: { clinicId: string } & ReceiveStockBatchInput) => {
+      return await receiveStockBatch(clinicId, batch);
+    },
+    {
+      toastId: TOAST_IDS.PHARMACY.BATCH_RECEIVE,
+      loadingMessage: "Receiving stock...",
+      successMessage: "Stock received",
+      invalidateQueries: STOCK_QUERIES,
+    },
+  );
+};
+
+/**
+ * Hook to correct the quantity of one batch
+ */
+export const useAdjustBatchStock = () => {
+  return useMutationOperation(
+    async ({ clinicId, ...adjustment }: { clinicId: string } & AdjustBatchStockInput) => {
+      return await adjustBatchStock(clinicId, adjustment);
+    },
+    {
+      toastId: TOAST_IDS.PHARMACY.BATCH_ADJUST,
+      loadingMessage: "Correcting stock...",
+      successMessage: "Stock corrected",
+      invalidateQueries: STOCK_QUERIES,
+    },
+  );
+};
+
+/**
+ * Hook to send a draft purchase order to the supplier
+ */
+export const useSendPharmacyOrder = () => {
+  return useMutationOperation(
+    async ({ clinicId, orderId }: { clinicId: string; orderId: string }) => {
+      return await sendPharmacyOrder(clinicId, orderId);
+    },
+    {
+      toastId: TOAST_IDS.PHARMACY.ORDER_SEND,
+      loadingMessage: "Sending order...",
+      successMessage: "Order sent to the supplier",
+      invalidateQueries: [["pharmacyOrders"], ["pharmacyOrder"]],
+    },
+  );
+};
+
+/**
+ * Hook to receive goods against a purchase order (creates the batches and adds the stock)
+ */
+export const useReceivePharmacyOrder = () => {
   return useMutationOperation(
     async ({
       clinicId,
-      medicineId,
-      inventoryData,
+      orderId,
+      batches,
     }: {
       clinicId: string;
-      medicineId: string;
-      inventoryData: any;
+      orderId: string;
+      batches: ReceiveOrderBatch[];
     }) => {
-      return await updateInventory(clinicId, medicineId, inventoryData);
+      return await receivePharmacyOrder(clinicId, orderId, batches);
     },
     {
-      toastId: TOAST_IDS.PHARMACY.INVENTORY_UPDATE,
-      loadingMessage: "Updating inventory...",
-      successMessage: "Inventory updated successfully",
-      invalidateQueries: [["inventory"], ["medicines"], ["pharmacyStats"], ["pharmacyBatchAudit"], ["medicine"]],
+      toastId: TOAST_IDS.PHARMACY.ORDER_RECEIVE,
+      loadingMessage: "Receiving goods...",
+      successMessage: "Goods received and added to stock",
+      invalidateQueries: [["pharmacyOrders"], ["pharmacyOrder"], ...STOCK_QUERIES],
+    },
+  );
+};
+
+/** Puts a saved supplier into the cached list (an array or `{ suppliers: [] }`). */
+function withSupplier(list: unknown, saved: unknown): unknown {
+  const record = saved && typeof saved === "object" ? (saved as Record<string, unknown>) : {};
+  const body = record.id ? record : (record.data as Record<string, unknown> | undefined);
+  if (!body || !body.id) return list;
+  const merge = (items: unknown[]) =>
+    items.some((item) => (item as { id?: unknown })?.id === body.id)
+      ? items.map((item) => ((item as { id?: unknown })?.id === body.id ? { ...(item as object), ...body } : item))
+      : [...items, body];
+  if (Array.isArray(list)) return merge(list);
+  const wrapped = list as { suppliers?: unknown[] } | undefined;
+  return wrapped && Array.isArray(wrapped.suppliers) ? { ...wrapped, suppliers: merge(wrapped.suppliers) } : list;
+}
+
+/**
+ * Hook to add a supplier. The server keeps the supplier list cached for an hour and does not
+ * clear it on a write, so the saved supplier is also put into the cached list here.
+ */
+export const useCreateSupplier = () => {
+  const queryClient = useQueryClient();
+  return useMutationOperation(
+    async ({ clinicId, ...supplier }: { clinicId: string } & SupplierInput) => {
+      return await createSupplier(clinicId, supplier);
+    },
+    {
+      toastId: TOAST_IDS.PHARMACY.SUPPLIER_SAVE,
+      loadingMessage: "Saving supplier...",
+      successMessage: "Supplier saved",
+      onSuccess: (saved) => {
+        queryClient.setQueryData(["suppliers"], (list: unknown) => withSupplier(list, saved));
+      },
+    },
+  );
+};
+
+/**
+ * Hook to edit a supplier
+ */
+export const useUpdateSupplier = () => {
+  const queryClient = useQueryClient();
+  return useMutationOperation(
+    async ({
+      clinicId,
+      supplierId,
+      updates,
+    }: {
+      clinicId: string;
+      supplierId: string;
+      updates: Partial<SupplierInput> & { isActive?: boolean };
+    }) => {
+      return await updateSupplier(clinicId, supplierId, updates);
+    },
+    {
+      toastId: TOAST_IDS.PHARMACY.SUPPLIER_SAVE,
+      loadingMessage: "Saving supplier...",
+      successMessage: "Supplier saved",
+      onSuccess: (saved) => {
+        queryClient.setQueryData(["suppliers"], (list: unknown) => withSupplier(list, saved));
+      },
     },
   );
 };
@@ -601,7 +788,7 @@ export const useExportPharmacyData = () => {
     }: {
       clinicId: string;
       type: "medicines" | "prescriptions" | "sales" | "inventory";
-      format: "csv" | "excel" | "pdf";
+      format: "csv";
       startDate?: string;
       endDate?: string;
     }) => {

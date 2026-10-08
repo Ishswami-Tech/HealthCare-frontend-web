@@ -3,9 +3,21 @@
 import { authenticatedApi, getServerSession } from "./auth.server";
 import { API_ENDPOINTS } from "../config/config";
 import type {
+  AdjustBatchStockInput,
   DispensePrescriptionData,
   PharmacyBatchAuditEntry,
+  PharmacySalesGroupBy,
+  PharmacySalesReport,
+  PharmacySalesRow,
+  PurchaseOrderPage,
+  PurchaseOrderRecord,
+  PurchaseOrderStatus,
+  ReceiveOrderBatch,
+  ReceiveStockBatchInput,
   ReversePrescriptionDispenseData,
+  StockAlertRecord,
+  StockBatchRecord,
+  SupplierInput,
 } from "@/types/pharmacy.types";
 
 function parseDateTime(value: unknown): Date | null {
@@ -115,6 +127,83 @@ function dayKey(value: unknown): string {
   return parsed ? parsed.toISOString().slice(0, 10) : "";
 }
 
+async function requireSession() {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+  return session;
+}
+
+function scoped(clinicId?: string) {
+  return clinicId ? { headers: { "X-Clinic-ID": clinicId } } : {};
+}
+
+function toNumber(value: unknown, fallback = 0): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function toNullableNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function toIso(value: unknown): string | null {
+  const parsed = parseDateTime(value);
+  return parsed ? parsed.toISOString() : null;
+}
+
+/** The record list of a paged or plain list response (`[]`, `{ data: [] }`, `{ <key>: [] }`). */
+function listOf(value: unknown, key: string): Record<string, unknown>[] {
+  if (Array.isArray(value)) return value.map(asRecord);
+  const body = asRecord(value);
+  const nested = asRecord(body.data);
+  const list = [body[key], body.data, nested[key], nested.data].find(Array.isArray);
+  return Array.isArray(list) ? list.map(asRecord) : [];
+}
+
+function normalizePurchaseOrder(raw: Record<string, unknown>): PurchaseOrderRecord {
+  const items = Array.isArray(raw.items) ? raw.items.map(asRecord) : [];
+  return {
+    id: String(raw.id ?? ""),
+    poNumber: String(raw.poNumber ?? ""),
+    supplierId: String(raw.supplierId ?? ""),
+    clinicId: String(raw.clinicId ?? ""),
+    status: String(raw.status ?? "DRAFT").toUpperCase() as PurchaseOrderStatus,
+    notes: raw.notes ? String(raw.notes) : null,
+    expectedDeliveryDate: toIso(raw.expectedDeliveryDate),
+    sentAt: toIso(raw.sentAt),
+    totalAmount: toNumber(raw.totalAmount),
+    createdAt: toIso(raw.createdAt) ?? "",
+    items: items.map((item) => ({
+      id: String(item.id ?? ""),
+      productId: String(item.productId ?? ""),
+      description: item.description ? String(item.description) : null,
+      quantity: toNumber(item.quantity),
+      receivedQuantity: toNumber(item.receivedQuantity),
+      unitPrice: toNullableNumber(item.unitPrice),
+      lineTotal: toNumber(item.lineTotal),
+    })),
+  };
+}
+
+function normalizeBatch(raw: Record<string, unknown>): StockBatchRecord {
+  return {
+    id: String(raw.id ?? ""),
+    productId: String(raw.productId ?? ""),
+    lotNumber: String(raw.lotNumber ?? ""),
+    manufactureDate: toIso(raw.manufactureDate),
+    expiryDate: toIso(raw.expiryDate) ?? "",
+    quantityOnHand: toNumber(raw.quantityOnHand),
+    quantityReceived: toNumber(raw.quantityReceived),
+    costPrice: toNullableNumber(raw.costPrice),
+    medicineName: raw.medicineName ? String(raw.medicineName) : null,
+    createdAt: toIso(raw.createdAt) ?? "",
+  };
+}
+
 // ===== PHARMACY MANAGEMENT ACTIONS =====
 
 /**
@@ -194,7 +283,8 @@ export async function createMedicine(
     /** Sent as `type`: TABLET, SYRUP, CAPSULE, INJECTION, CREAM, DROPS or OTHER. */
     dosageForm: string;
     unitPrice: number;
-    stockQuantity: number;
+    /** Not sent: a new medicine starts at 0 and receives stock as batches. */
+    stockQuantity?: number;
     expiryDate: string;
     minStockLevel?: number;
     description?: string;
@@ -229,7 +319,9 @@ export async function createMedicine(
       manufacturer: medicineData.manufacturer,
       description: medicineData.description ?? "",
       type: toBackendMedicineType(medicineData.dosageForm),
-      quantity: medicineData.stockQuantity,
+      // A new medicine starts empty: stock arrives as a batch (receive stock or a purchase
+      // order receipt). An opening quantity here would exist without a batch to dispense from.
+      quantity: 0,
       price: medicineData.unitPrice,
       expiryDate: medicineData.expiryDate,
       ...(medicineData.minStockLevel !== undefined
@@ -252,10 +344,10 @@ export async function updateMedicine(
   updates: {
     /** New price per unit. */
     unitPrice?: number;
-    /** Units to add (positive) or take off (negative). */
-    quantityChange?: number;
     // Not editable on the backend yet (UpdateInventoryDto has only quantityChange
     // and price) — accepted so older call sites keep compiling, never sent.
+    // Stock is not edited here: it moves through batches (purchase-order receipts,
+    // receiveStockBatch, adjustBatchStock) so Medicine.stock and the batches stay equal.
     name?: string;
     genericName?: string;
     manufacturer?: string;
@@ -282,14 +374,14 @@ export async function updateMedicine(
   }
 
   const body = {
-    ...(updates.quantityChange ? { quantityChange: updates.quantityChange } : {}),
     ...(updates.unitPrice !== undefined ? { price: updates.unitPrice } : {}),
   };
   if (Object.keys(body).length === 0) {
-    throw new Error('Only the price and the stock of a medicine can be changed.');
+    throw new Error('Only the price of a medicine can be changed here.');
   }
 
-  // Backend: PATCH /pharmacy/inventory/:id — accepts quantityChange and price only.
+  // Backend: PATCH /pharmacy/inventory/:id — sends the price only (quantityChange would move
+  // Medicine.stock without a batch, which dispensing then cannot use).
   const { data } = await authenticatedApi(`/pharmacy/inventory/${medicineId}`, {
     method: "PATCH",
     body: JSON.stringify(body),
@@ -613,62 +705,114 @@ export async function getInventory(
 }
 
 /**
- * Update inventory
+ * Purchase orders of the clinic, newest first.
+ * Backend: GET /pharmacy/inventory/purchase-orders?status=&limit=&offset= (PHARMACIST, CLINIC_ADMIN).
  */
-export async function updateInventory(
+export async function getPharmacyOrders(
   clinicId: string,
-  medicineId: string,
-  inventoryData: {
-    /** Units received (positive) or taken off (negative). */
-    quantityChange?: number;
-    // Not stored by the backend yet — accepted so older call sites keep compiling, never sent.
-    stockQuantity?: number;
-    minStockLevel?: number;
-    maxStockLevel?: number;
-    reorderPoint?: number;
-    lastRestocked?: string;
+  filters?: {
+    status?: string;
+    limit?: number;
+    offset?: number;
   },
-) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
+): Promise<PurchaseOrderPage> {
+  await requireSession();
+
+  const params = new URLSearchParams();
+  if (filters?.status) params.set("status", filters.status);
+  if (filters?.limit !== undefined) {
+    params.set("limit", String(Math.min(Math.max(Math.trunc(filters.limit), 1), 200)));
+  }
+  if (filters?.offset !== undefined) {
+    params.set("offset", String(Math.max(Math.trunc(filters.offset), 0)));
   }
 
-  if (!inventoryData.quantityChange) {
-    throw new Error('Enter how many units to add or take off.');
-  }
-
-  // Backend: PATCH /pharmacy/inventory/:id — the stock moves by `quantityChange`.
-  const { data } = await authenticatedApi(`/pharmacy/inventory/${medicineId}`, {
-    method: "PATCH",
-    body: JSON.stringify({ quantityChange: inventoryData.quantityChange }),
-    ...(clinicId ? { headers: { "X-Clinic-ID": clinicId } } : {}),
-  });
-  return data;
+  const { data } = await authenticatedApi(
+    `/pharmacy/inventory/purchase-orders${params.toString() ? `?${params.toString()}` : ""}`,
+    scoped(clinicId),
+  );
+  const orders = listOf(data, "orders").map(normalizePurchaseOrder);
+  const total = toNumber(asRecord(data).total ?? asRecord(asRecord(data).data).total, orders.length);
+  return { orders, total };
 }
 
 /**
- * Get pharmacy orders for a clinic
- * Backend: purchase orders can be created (POST /pharmacy/inventory/purchase-orders)
- * but there is no route that lists them yet.
+ * One purchase order with its lines.
+ * Backend: GET /pharmacy/inventory/purchase-orders/:id
  */
-export async function getPharmacyOrders(
-  _clinicId: string,
-  _filters?: {
-    supplierId?: string;
-    status?: string;
-    startDate?: string;
-    endDate?: string;
-    limit?: number;
-  },
-) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
+export async function getPharmacyOrderById(
+  clinicId: string,
+  orderId: string,
+): Promise<PurchaseOrderRecord> {
+  await requireSession();
+
+  const { data } = await authenticatedApi(
+    `/pharmacy/inventory/purchase-orders/${encodeURIComponent(orderId)}`,
+    scoped(clinicId),
+  );
+  const body = asRecord(data);
+  return normalizePurchaseOrder(body.id ? body : asRecord(body.data));
+}
+
+/**
+ * Sends a DRAFT purchase order to the supplier.
+ * Backend: POST /pharmacy/inventory/purchase-orders/:id/send
+ */
+export async function sendPharmacyOrder(
+  clinicId: string,
+  orderId: string,
+): Promise<{ id: string; status: PurchaseOrderStatus; sentAt: string | null }> {
+  await requireSession();
+
+  const { data } = await authenticatedApi(
+    `/pharmacy/inventory/purchase-orders/${encodeURIComponent(orderId)}/send`,
+    { method: "POST", ...scoped(clinicId) },
+  );
+  const body = asRecord(data);
+  const sent = body.id ? body : asRecord(body.data);
+  return {
+    id: String(sent.id ?? orderId),
+    status: String(sent.status ?? "SENT").toUpperCase() as PurchaseOrderStatus,
+    sentAt: toIso(sent.sentAt),
+  };
+}
+
+/**
+ * Receives goods against a SENT / PARTIALLY_RECEIVED purchase order: the backend creates the
+ * stock batches, the PURCHASE_IN movements and the medicine stock, and moves the order to
+ * PARTIALLY_RECEIVED or RECEIVED.
+ * Backend: POST /pharmacy/inventory/purchase-orders/:id/receive (PHARMACIST, CLINIC_ADMIN).
+ */
+export async function receivePharmacyOrder(
+  clinicId: string,
+  orderId: string,
+  batches: ReceiveOrderBatch[],
+): Promise<PurchaseOrderRecord> {
+  await requireSession();
+
+  if (batches.length === 0) {
+    throw new Error('Enter at least one batch that arrived.');
   }
 
-  // No backend route lists purchase orders yet — callers show an empty state.
-  return null;
+  const { data } = await authenticatedApi(
+    `/pharmacy/inventory/purchase-orders/${encodeURIComponent(orderId)}/receive`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        items: batches.map((batch) => ({
+          itemId: batch.itemId,
+          quantityReceived: batch.quantityReceived,
+          batchNumber: batch.batchNumber,
+          expiryDate: batch.expiryDate,
+          ...(batch.manufactureDate ? { manufactureDate: batch.manufactureDate } : {}),
+          ...(batch.unitCost !== undefined ? { unitCost: batch.unitCost } : {}),
+        })),
+      }),
+      ...scoped(clinicId),
+    },
+  );
+  const body = asRecord(data);
+  return normalizePurchaseOrder(body.id ? body : asRecord(body.data));
 }
 
 /**
@@ -709,26 +853,55 @@ export async function createPharmacyOrder(
 }
 
 /**
- * Get pharmacy sales for a clinic
- * Backend: No dedicated sales endpoint
+ * Dispensed totals with a per-day or per-medicine breakdown.
+ * Backend: GET /pharmacy/sales?from=&to=&groupBy=day|medicine (PHARMACIST, CLINIC_ADMIN).
+ * `from` / `to` are inclusive yyyy-mm-dd days (IST); the range may span 366 days at most.
  */
 export async function getPharmacySales(
-  _clinicId: string,
-  _filters?: {
-    startDate?: string;
-    endDate?: string;
-    pharmacistId?: string;
-    paymentMethod?: string;
-    limit?: number;
+  clinicId: string,
+  filters?: {
+    from?: string;
+    to?: string;
+    groupBy?: PharmacySalesGroupBy;
   },
-) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
+): Promise<PharmacySalesReport> {
+  await requireSession();
 
-  // No backend sales endpoint
-  return null;
+  const params = new URLSearchParams();
+  if (filters?.from) params.set("from", filters.from);
+  if (filters?.to) params.set("to", filters.to);
+  if (filters?.groupBy) params.set("groupBy", filters.groupBy);
+
+  const { data } = await authenticatedApi(
+    `/pharmacy/sales${params.toString() ? `?${params.toString()}` : ""}`,
+    scoped(clinicId),
+  );
+  const raw = asRecord(data);
+  const report = raw.totals ? raw : asRecord(raw.data);
+  const totals = asRecord(report.totals);
+  const groupBy: PharmacySalesGroupBy = report.groupBy === "medicine" ? "medicine" : "day";
+  const breakdown: PharmacySalesRow[] = (Array.isArray(report.breakdown) ? report.breakdown : [])
+    .map(asRecord)
+    .map((row) => ({
+      ...(row.date ? { date: String(row.date) } : {}),
+      ...(row.medicineId ? { medicineId: String(row.medicineId) } : {}),
+      ...(row.medicineName ? { medicineName: String(row.medicineName) } : {}),
+      prescriptions: toNumber(row.prescriptions),
+      quantity: toNumber(row.quantity),
+      revenue: toNumber(row.revenue),
+    }));
+
+  return {
+    from: String(report.from ?? filters?.from ?? ""),
+    to: String(report.to ?? filters?.to ?? ""),
+    groupBy,
+    totals: {
+      prescriptions: toNumber(totals.prescriptions),
+      quantity: toNumber(totals.quantity),
+      revenue: toNumber(totals.revenue),
+    },
+    breakdown,
+  };
 }
 
 /**
@@ -814,17 +987,166 @@ export async function getSuppliers() {
   return data;
 }
 
+function supplierBody(supplier: Partial<SupplierInput> & { isActive?: boolean }) {
+  // The API rejects unknown fields, so only the supplier DTO fields are sent.
+  return {
+    ...(supplier.name !== undefined ? { name: supplier.name.trim() } : {}),
+    ...(supplier.contactPerson !== undefined ? { contactPerson: supplier.contactPerson.trim() } : {}),
+    ...(supplier.email !== undefined ? { email: supplier.email.trim() } : {}),
+    ...(supplier.phone !== undefined ? { phone: supplier.phone.trim() } : {}),
+    ...(supplier.address !== undefined ? { address: supplier.address.trim() } : {}),
+    ...(supplier.isActive !== undefined ? { isActive: supplier.isActive } : {}),
+  };
+}
+
+/**
+ * Adds a supplier.
+ * Backend: POST /pharmacy/suppliers (PHARMACIST, CLINIC_ADMIN, SUPER_ADMIN).
+ */
+export async function createSupplier(clinicId: string, supplier: SupplierInput) {
+  await requireSession();
+
+  if (!supplier.name.trim()) {
+    throw new Error('Enter the supplier name.');
+  }
+  const { data } = await authenticatedApi(API_ENDPOINTS.PHARMACY.SUPPLIERS, {
+    method: "POST",
+    body: JSON.stringify(supplierBody(supplier)),
+    ...scoped(clinicId),
+  });
+  return data;
+}
+
+/**
+ * Edits a supplier of the clinic.
+ * Backend: PATCH /pharmacy/suppliers/:id (PHARMACIST, CLINIC_ADMIN, SUPER_ADMIN).
+ */
+export async function updateSupplier(
+  clinicId: string,
+  supplierId: string,
+  updates: Partial<SupplierInput> & { isActive?: boolean },
+) {
+  await requireSession();
+
+  const body = supplierBody(updates);
+  if (Object.keys(body).length === 0) {
+    throw new Error('Nothing was changed.');
+  }
+  const { data } = await authenticatedApi(
+    `${API_ENDPOINTS.PHARMACY.SUPPLIERS}/${encodeURIComponent(supplierId)}`,
+    { method: "PATCH", body: JSON.stringify(body), ...scoped(clinicId) },
+  );
+  return data;
+}
+
+/**
+ * Batches (lots) of the clinic, soonest expiry first. Empty lots are not listed.
+ * Backend: GET /pharmacy/inventory/batches?productId= — dispensing consumes these first-expiry-first.
+ * The expiry-window and zero-stock query options are not used: the API reads query values as
+ * strings and refuses them, so callers filter the list instead.
+ */
+export async function getStockBatches(
+  clinicId: string,
+  filters?: { productId?: string },
+): Promise<StockBatchRecord[]> {
+  await requireSession();
+
+  const params = new URLSearchParams();
+  if (filters?.productId) params.set("productId", filters.productId);
+  const { data } = await authenticatedApi(
+    `/pharmacy/inventory/batches${params.toString() ? `?${params.toString()}` : ""}`,
+    scoped(clinicId),
+  );
+  return listOf(data, "batches").map(normalizeBatch);
+}
+
+/**
+ * Receives a batch that did not come through a purchase order. Creates the lot and adds its
+ * quantity to the medicine's stock in one step.
+ * Backend: POST /pharmacy/inventory/batches (PHARMACIST, CLINIC_ADMIN, SUPER_ADMIN).
+ */
+export async function receiveStockBatch(
+  clinicId: string,
+  batch: ReceiveStockBatchInput,
+): Promise<StockBatchRecord> {
+  await requireSession();
+
+  const { data } = await authenticatedApi("/pharmacy/inventory/batches", {
+    method: "POST",
+    body: JSON.stringify({
+      productId: batch.productId,
+      lotNumber: batch.lotNumber.trim(),
+      manufactureDate: batch.manufactureDate,
+      expiryDate: batch.expiryDate,
+      quantity: batch.quantity,
+      ...(batch.costPrice !== undefined ? { costPrice: batch.costPrice } : {}),
+      ...(batch.medicineName ? { medicineName: batch.medicineName } : {}),
+    }),
+    ...scoped(clinicId),
+  });
+  const body = asRecord(data);
+  return normalizeBatch(body.id ? body : asRecord(body.data));
+}
+
+/**
+ * Corrects the quantity of one batch (damage, miscount). Records an ADJUSTMENT stock movement
+ * and moves the batch and the medicine stock together, so the two cannot drift apart.
+ * Backend: POST /pharmacy/inventory/movements with movementType ADJUSTMENT. (The dedicated
+ * PATCH /pharmacy/inventory/adjust path is shadowed by PATCH /pharmacy/inventory/:id.)
+ */
+export async function adjustBatchStock(clinicId: string, adjustment: AdjustBatchStockInput) {
+  await requireSession();
+
+  if (!Number.isInteger(adjustment.quantity) || adjustment.quantity === 0) {
+    throw new Error('Enter a whole number of units, other than 0.');
+  }
+  if (!adjustment.reason.trim()) {
+    throw new Error('Say why the quantity is being corrected.');
+  }
+  const { data } = await authenticatedApi("/pharmacy/inventory/movements", {
+    method: "POST",
+    body: JSON.stringify({
+      productId: adjustment.productId,
+      batchId: adjustment.batchId,
+      movementType: "ADJUSTMENT",
+      quantity: adjustment.quantity,
+      reason: adjustment.reason.trim(),
+      referenceType: "ADJUSTMENT",
+    }),
+    ...scoped(clinicId),
+  });
+  return data;
+}
+
+/**
+ * Open stock alerts (expiry, low stock, out of stock, reorder).
+ * Backend: GET /pharmacy/inventory/alerts (no query: the API refuses its own filters sent as text).
+ */
+export async function getInventoryAlerts(clinicId: string): Promise<StockAlertRecord[]> {
+  await requireSession();
+
+  const { data } = await authenticatedApi("/pharmacy/inventory/alerts", scoped(clinicId));
+  return listOf(data, "alerts").map((alert) => ({
+    id: String(alert.id ?? ""),
+    productId: String(alert.productId ?? ""),
+    alertType: String(alert.alertType ?? ""),
+    message: String(alert.message ?? ""),
+    batchId: alert.batchId ? String(alert.batchId) : null,
+    createdAt: toIso(alert.createdAt) ?? "",
+  }));
+}
+
 /**
  * Export pharmacy data for a clinic.
  * The backend has no export endpoint, so the file is built here from the lists it
- * does serve: GET /pharmacy/inventory (medicines, inventory) and
- * GET /pharmacy/prescriptions. CSV only; there is no sales data to export.
+ * does serve: GET /pharmacy/inventory (medicines, inventory),
+ * GET /pharmacy/prescriptions and GET /pharmacy/sales (sales, per day). CSV only.
  */
 export async function exportPharmacyData(
   clinicId: string,
   filters: {
     type: "medicines" | "prescriptions" | "sales" | "inventory";
-    format: "csv" | "excel" | "pdf";
+    format: "csv";
     startDate?: string;
     endDate?: string;
   },
@@ -835,10 +1157,7 @@ export async function exportPharmacyData(
   }
 
   if (filters.format !== "csv") {
-    throw new Error('Only CSV files can be exported for now.');
-  }
-  if (filters.type === "sales") {
-    throw new Error('Sales cannot be exported yet.');
+    throw new Error('Only CSV files can be exported.');
   }
 
   const clinicHeaders = clinicId ? { headers: { "X-Clinic-ID": clinicId } } : {};
@@ -846,7 +1165,21 @@ export async function exportPharmacyData(
   let header: string[];
   let rows: unknown[][];
 
-  if (filters.type === "prescriptions") {
+  if (filters.type === "sales") {
+    const report = await getPharmacySales(clinicId, {
+      ...(filters.startDate ? { from: filters.startDate } : {}),
+      ...(filters.endDate ? { to: filters.endDate } : {}),
+      groupBy: "day",
+    });
+    header = ["Date", "Prescriptions dispensed", "Units dispensed", "Revenue (INR)"];
+    rows = report.breakdown.map((row) => [row.date, row.prescriptions, row.quantity, row.revenue]);
+    rows.push([
+      `Total ${report.from} to ${report.to}`,
+      report.totals.prescriptions,
+      report.totals.quantity,
+      report.totals.revenue,
+    ]);
+  } else if (filters.type === "prescriptions") {
     const { data } = await authenticatedApi(API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.LIST, clinicHeaders);
     header = ["Prescription ID", "Date", "Patient", "Doctor", "Status", "Payment", "Medicines", "Total"];
     rows = unwrapRecords(data, "prescriptions")

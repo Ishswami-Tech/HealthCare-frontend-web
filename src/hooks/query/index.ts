@@ -163,7 +163,6 @@ export {
   useUpdatePrescriptionStatus,
   useDispensePrescription,
   useInventory,
-  useUpdateInventory,
   usePharmacyOrders,
   useCreatePharmacyOrder,
   usePharmacySales,

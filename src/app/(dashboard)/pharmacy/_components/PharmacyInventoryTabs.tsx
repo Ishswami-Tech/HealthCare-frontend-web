@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  Activity,
-  BarChart3,
   Bell,
   CircleAlert,
   CreditCard,
@@ -13,21 +11,28 @@ import {
   Mail,
   MapPin,
   Package,
+  PackageCheck,
+  Pencil,
   Phone,
+  Plus,
+  Send,
   Star,
   Truck,
   UserRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SkeletonList } from "@/components/ui/loading";
-import { EmptyBlock, IconBox, Kpi, Note, Pill, Surface, statusLabel, type TbdIcon } from "@/components/tbd";
+import { EmptyBlock, IconBox, Kpi, Note, Pill, SegTabs, Surface, statusLabel, type TbdIcon } from "@/components/tbd";
+import { PharmacySalesPanel, type PharmacySalesPanelProps } from "./PharmacySalesPanel";
 import {
   dateTimeLabel,
   dayLabel,
   formatRupees,
   orderTone,
+  receivedSummary,
   type AnalyticsSummary,
   type OrderRow,
+  type StatsPeriod,
   type SupplierCard,
 } from "./pharmacy-inventory.logic";
 
@@ -59,25 +64,39 @@ function CardHead({
 // ── Orders ─────────────────────────────────────────────────────────────────
 
 export interface PharmacyOrdersTabProps {
-  /** Null = the API has no order list yet. */
+  /** Null while the order list has not been read. */
   orders: OrderRow[] | null;
   loading?: boolean;
   errorMessage?: string | null;
+  onRetry?: () => void;
   canManage: boolean;
   onViewOrder: (order: OrderRow) => void;
   onNewOrder: () => void;
+  /** Sends a draft order to the supplier. */
+  onSendOrder: (order: OrderRow) => void;
+  /** Opens the receive-goods dialog of a sent order. */
+  onReceiveOrder: (order: OrderRow) => void;
 }
 
-/** Board `PhInventoryOrders`: purchase orders to suppliers, newest first. */
+/** Board `PhInventoryOrders`: purchase orders to suppliers, newest first, with send and receive actions. */
 export function PharmacyOrdersTab({
   orders,
   loading = false,
   errorMessage = null,
+  onRetry,
   canManage,
   onViewOrder,
   onNewOrder,
+  onSendOrder,
+  onReceiveOrder,
 }: PharmacyOrdersTabProps) {
   const count = orders?.length ?? 0;
+  const newOrderButton = canManage ? (
+    <Button size="md" onClick={onNewOrder}>
+      <Truck aria-hidden="true" />
+      New order
+    </Button>
+  ) : undefined;
   return (
     <div className="flex flex-col gap-5">
       <Surface flush as="section" aria-label="Recent orders and deliveries">
@@ -85,7 +104,7 @@ export function PharmacyOrdersTab({
           <CardHead
             icon={Truck}
             title="Recent Orders & Deliveries"
-            description="Medicines ordered from partner pharmacies for the clinic stock."
+            description="Medicines ordered from suppliers. Book the goods in when they arrive."
             aside={count > 0 ? `${count} ${count === 1 ? "order" : "orders"}` : undefined}
           />
         </div>
@@ -95,94 +114,108 @@ export function PharmacyOrdersTab({
             <SkeletonList items={3} />
           </div>
         ) : errorMessage ? (
-          <EmptyBlock icon={CircleAlert} title="Orders could not be loaded" description={errorMessage} />
-        ) : orders === null ? (
           <EmptyBlock
-            icon={Truck}
-            title="The order list is not available yet"
-            description="You can place an order with a supplier, but past orders cannot be shown here yet."
+            icon={CircleAlert}
+            title="Orders could not be loaded"
+            description={errorMessage}
             action={
-              canManage ? (
-                <Button size="md" onClick={onNewOrder}>
-                  <Truck aria-hidden="true" />
-                  New order
+              onRetry ? (
+                <Button variant="outline" size="md" onClick={onRetry}>
+                  Try again
                 </Button>
               ) : undefined
             }
           />
-        ) : orders.length === 0 ? (
+        ) : !orders || orders.length === 0 ? (
           <EmptyBlock
             icon={Truck}
             title="No orders yet"
             description="Orders you place with a supplier show here."
-            action={
-              canManage ? (
-                <Button size="md" onClick={onNewOrder}>
-                  <Truck aria-hidden="true" />
-                  New order
-                </Button>
-              ) : undefined
-            }
+            action={newOrderButton}
           />
         ) : (
           <ul className="m-0 flex list-none flex-col p-0">
-            {orders.map((order) => (
-              <li
-                key={order.id}
-                className="grid grid-cols-1 items-center gap-x-6 gap-y-3 border-b border-hair px-5 py-[18px] last:border-b-0 md:grid-cols-[minmax(0,1fr)_180px_auto]"
-              >
-                <div className="flex min-w-0 flex-col gap-2">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <span className="text-[15px] font-extrabold text-ink">{order.reference}</span>
-                    <Pill tone={orderTone(order.status)}>{statusLabel(order.status)}</Pill>
-                  </div>
-                  <span className="text-[13px] text-ink-soft">
-                    <span className="font-bold text-ink">For clinic stock</span>
-                    {order.supplierName ? ` · from ${order.supplierName}` : ""}
-                  </span>
-                  {order.lines.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {order.lines.map((line) => (
-                        <span
-                          key={line.id}
-                          className="rounded-lg bg-mint-soft px-[9px] py-[5px] text-xs font-semibold text-[#065f46] dark:text-emerald-300"
-                        >
-                          {line.name} × {line.quantity}
-                        </span>
-                      ))}
+            {orders.map((order) => {
+              const received = receivedSummary(order);
+              return (
+                <li
+                  key={order.id}
+                  className="grid grid-cols-1 items-center gap-x-6 gap-y-3 border-b border-hair px-5 py-[18px] last:border-b-0 md:grid-cols-[minmax(0,1fr)_180px_auto]"
+                >
+                  <div className="flex min-w-0 flex-col gap-2">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <span className="text-[15px] font-extrabold text-ink">{order.reference}</span>
+                      <Pill tone={orderTone(order.status)}>{statusLabel(order.status)}</Pill>
                     </div>
-                  ) : null}
-                </div>
-                <div className="flex min-w-0 flex-row flex-wrap gap-x-6 gap-y-2.5 md:flex-col">
-                  <div className="flex min-w-0 flex-col gap-0.5">
-                    <span className="text-xs text-ink-muted">Order date</span>
-                    <span className="text-sm font-medium text-ink">{dateTimeLabel(order.orderedAt) || "—"}</span>
+                    <span className="text-[13px] text-ink-soft">
+                      <span className="font-bold text-ink">For clinic stock</span>
+                      {order.supplierName ? ` · from ${order.supplierName}` : ""}
+                      {received ? ` · ${received}` : ""}
+                    </span>
+                    {order.lines.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {order.lines.map((line) => (
+                          <span
+                            key={line.id}
+                            className="rounded-lg bg-mint-soft px-[9px] py-[5px] text-xs font-semibold text-[#065f46] dark:text-emerald-300"
+                          >
+                            {line.name} × {line.quantity}
+                            {line.received > 0 ? ` (${Math.min(line.received, line.quantity)} in)` : ""}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
-                  {order.expectedAt ? (
+                  <div className="flex min-w-0 flex-row flex-wrap gap-x-6 gap-y-2.5 md:flex-col">
                     <div className="flex min-w-0 flex-col gap-0.5">
-                      <span className="text-xs text-ink-muted">Expected</span>
-                      <span className="text-sm font-bold text-ink">{dayLabel(order.expectedAt)}</span>
+                      <span className="text-xs text-ink-muted">Order date</span>
+                      <span className="text-sm font-medium text-ink">{dateTimeLabel(order.orderedAt) || "—"}</span>
                     </div>
-                  ) : null}
-                </div>
-                <div className="flex flex-row items-center justify-between gap-3 md:flex-col md:items-end">
-                  <span className="text-lg font-extrabold text-ink">
-                    {order.total !== null ? formatRupees(order.total) : "—"}
-                  </span>
-                  <Button variant="outline" onClick={() => onViewOrder(order)} aria-label={`View order ${order.reference}`}>
-                    <Eye aria-hidden="true" />
-                    View Details
-                  </Button>
-                </div>
-              </li>
-            ))}
+                    {order.expectedAt ? (
+                      <div className="flex min-w-0 flex-col gap-0.5">
+                        <span className="text-xs text-ink-muted">Expected</span>
+                        <span className="text-sm font-bold text-ink">{dayLabel(order.expectedAt)}</span>
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="flex flex-row items-center justify-between gap-3 md:flex-col md:items-end">
+                    <span className="text-lg font-extrabold text-ink">
+                      {order.total !== null ? formatRupees(order.total) : "—"}
+                    </span>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      {canManage && order.canSend ? (
+                        <Button onClick={() => onSendOrder(order)} aria-label={`Send order ${order.reference} to the supplier`}>
+                          <Send aria-hidden="true" />
+                          Send
+                        </Button>
+                      ) : null}
+                      {canManage && order.canReceive ? (
+                        <Button onClick={() => onReceiveOrder(order)} aria-label={`Receive goods for order ${order.reference}`}>
+                          <PackageCheck aria-hidden="true" />
+                          Receive goods
+                        </Button>
+                      ) : null}
+                      <Button
+                        variant="outline"
+                        onClick={() => onViewOrder(order)}
+                        aria-label={`View order ${order.reference}`}
+                      >
+                        <Eye aria-hidden="true" />
+                        View Details
+                      </Button>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </Surface>
 
       <Note tone="green" icon={CircleAlert}>
         To place an order, use <span className="font-bold">Order</span> on a partner pharmacy or on a medicine in the
-        stock list.
+        stock list. A new order is a draft until you send it; when the goods arrive, use{" "}
+        <span className="font-bold">Receive goods</span> to add them to stock as batches.
       </Note>
     </div>
   );
@@ -198,6 +231,8 @@ export interface PharmacyPartnersTabProps {
   canManage: boolean;
   onOrder: (supplier: SupplierCard) => void;
   onDetails: (supplier: SupplierCard) => void;
+  onAddSupplier: () => void;
+  onEditSupplier: (supplier: SupplierCard) => void;
 }
 
 function ContactLine({ icon: Icon, children }: { icon: TbdIcon; children: string }) {
@@ -222,6 +257,8 @@ export function PharmacyPartnersTab({
   canManage,
   onOrder,
   onDetails,
+  onAddSupplier,
+  onEditSupplier,
 }: PharmacyPartnersTabProps) {
   return (
     <div className="flex flex-col gap-5">
@@ -232,11 +269,19 @@ export function PharmacyPartnersTab({
             Pharmacies you can order from when the clinic stock is short.
           </span>
         </div>
-        {suppliers.length > 0 ? (
-          <span className="text-xs font-bold text-ink-soft">
-            {suppliers.length} {suppliers.length === 1 ? "partner" : "partners"}
-          </span>
-        ) : null}
+        <div className="flex items-center gap-3">
+          {suppliers.length > 0 ? (
+            <span className="text-xs font-bold text-ink-soft">
+              {suppliers.length} {suppliers.length === 1 ? "partner" : "partners"}
+            </span>
+          ) : null}
+          {canManage ? (
+            <Button size="md" onClick={onAddSupplier}>
+              <Plus aria-hidden="true" />
+              Add supplier
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       {loading ? (
@@ -263,7 +308,15 @@ export function PharmacyPartnersTab({
           <EmptyBlock
             icon={Hospital}
             title="No partner pharmacies yet"
-            description="A clinic admin can add the suppliers the clinic orders from. They show here once added."
+            description="Add the suppliers the clinic orders medicines from. They show here once added and can be chosen when placing an order."
+            action={
+              canManage ? (
+                <Button size="md" onClick={onAddSupplier}>
+                  <Plus aria-hidden="true" />
+                  Add supplier
+                </Button>
+              ) : undefined
+            }
           />
         </Surface>
       ) : (
@@ -318,6 +371,17 @@ export function PharmacyPartnersTab({
                     <Eye aria-hidden="true" />
                     Details
                   </Button>
+                  {canManage ? (
+                    <Button
+                      variant="outline"
+                      className="h-10"
+                      onClick={() => onEditSupplier(supplier)}
+                      aria-label={`Edit ${supplier.name}`}
+                    >
+                      <Pencil aria-hidden="true" />
+                      Edit
+                    </Button>
+                  ) : null}
                 </div>
               </Surface>
             );
@@ -330,24 +394,50 @@ export function PharmacyPartnersTab({
 
 // ── Analytics ──────────────────────────────────────────────────────────────
 
-const BAR_AREA = 160;
+export const STATS_PERIOD_OPTIONS: { value: StatsPeriod; label: string; hint: string }[] = [
+  { value: "day", label: "Today", hint: "Today" },
+  { value: "week", label: "7 days", hint: "Last 7 days" },
+  { value: "month", label: "This month", hint: "This month so far" },
+  { value: "year", label: "This year", hint: "This year so far" },
+];
+
+export interface PharmacyAnalyticsTabProps {
+  analytics: AnalyticsSummary;
+  loading?: boolean;
+  /** Window of the revenue and top-seller cards (`GET /pharmacy/stats?period=`). */
+  period: StatsPeriod;
+  onPeriodChange: (period: StatsPeriod) => void;
+  sales: PharmacySalesPanelProps;
+}
 
 /**
- * Board `PhInventoryAnalytics`. Sales figures come from `usePharmacySales`, which has no backend
- * route yet: the cards then say "not available yet" instead of showing numbers.
+ * Board `PhInventoryAnalytics`. Revenue and top seller are the server's own figures for the chosen
+ * period (`usePharmacyStats`); the sales report below is `GET /pharmacy/sales` for a date range.
  */
-export function PharmacyAnalyticsTab({ analytics, loading = false }: { analytics: AnalyticsSummary; loading?: boolean }) {
+export function PharmacyAnalyticsTab({
+  analytics,
+  loading = false,
+  period,
+  onPeriodChange,
+  sales,
+}: PharmacyAnalyticsTabProps) {
   const blank = "—";
-  const peak = Math.max(1, ...(analytics.monthly ?? []).map((month) => month.amount));
-  const topShare = Math.max(1, ...(analytics.categoryShare ?? []).map((category) => category.percent));
+  const periodHint = STATS_PERIOD_OPTIONS.find((option) => option.value === period)?.hint ?? "";
 
   return (
     <div className="flex flex-col gap-5">
+      <SegTabs
+        ariaLabel="Period of the figures below"
+        value={period}
+        onChange={onPeriodChange}
+        options={STATS_PERIOD_OPTIONS.map(({ value, label }) => ({ value, label }))}
+      />
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi
           label="Total Revenue"
-          value={analytics.revenueThisMonth !== null ? formatRupees(Math.round(analytics.revenueThisMonth)) : blank}
-          hint={analytics.revenueThisMonth !== null ? "This month" : NOT_YET}
+          value={analytics.revenue !== null ? formatRupees(Math.round(analytics.revenue)) : blank}
+          hint={analytics.revenue !== null ? `${periodHint} · paid pharmacy invoices` : "Loading"}
           icon={IndianRupee}
           tone="mint"
         />
@@ -361,7 +451,7 @@ export function PharmacyAnalyticsTab({ analytics, loading = false }: { analytics
         <Kpi
           label="Pending Deliveries"
           value={analytics.pendingDeliveries !== null ? analytics.pendingDeliveries : blank}
-          hint={analytics.pendingDeliveries !== null ? "In transit" : NOT_YET}
+          hint={analytics.pendingDeliveries !== null ? "Purchase orders on their way" : "Loading"}
           icon={Truck}
           tone="amber"
         />
@@ -369,85 +459,19 @@ export function PharmacyAnalyticsTab({ analytics, loading = false }: { analytics
           label="Top Selling"
           value={analytics.topSelling ?? blank}
           valueClassName={analytics.topSelling ? "text-base leading-[1.6]" : undefined}
-          hint={analytics.topSelling ? "Most popular medicine" : NOT_YET}
+          hint={
+            analytics.topSelling
+              ? `${periodHint} · most units dispensed`
+              : analytics.statsReady
+                ? "Nothing dispensed in this period"
+                : "Loading"
+          }
           icon={Star}
           tone="blue"
         />
       </div>
 
-      <div className="grid grid-cols-1 items-stretch gap-5 lg:grid-cols-2">
-        <Surface as="section" className="gap-4" aria-label="Category performance">
-          <CardHead
-            icon={BarChart3}
-            title="Category Performance"
-            description="Share of medicine sales this month, by category"
-          />
-          {analytics.categoryShare && analytics.categoryShare.length > 0 ? (
-            <ul className="m-0 flex list-none flex-col gap-[25px] p-0 pt-1.5">
-              {analytics.categoryShare.map((category) => (
-                <li key={category.label} className="grid grid-cols-[minmax(0,120px)_minmax(0,1fr)_40px] items-center gap-3">
-                  <span className="truncate text-[13px] font-semibold text-ink">{category.label}</span>
-                  <span className="flex h-4 rounded bg-well" aria-hidden="true">
-                    <span
-                      className="rounded bg-[#047857] dark:bg-emerald-500"
-                      style={{ width: `${Math.max(2, (category.percent / topShare) * 100)}%` }}
-                    />
-                  </span>
-                  <span className="text-right text-[13px] font-extrabold text-ink">{category.percent}%</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <EmptyBlock
-              icon={BarChart3}
-              title="Sales by category are not available yet"
-              description="This chart fills in when medicine sales are recorded for the clinic."
-              className="my-auto"
-            />
-          )}
-        </Surface>
-
-        <Surface as="section" className="gap-4" aria-label="Monthly trends">
-          <CardHead icon={Activity} title="Monthly Trends" description="Medicine sales in each of the last six months" />
-          {analytics.monthly && analytics.monthly.length > 0 ? (
-            <div className="flex flex-col gap-2">
-              <ul className="m-0 flex h-[196px] list-none items-end gap-2 border-b border-line p-0">
-                {analytics.monthly.map((month) => (
-                  <li key={month.key} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1.5">
-                    <span className="whitespace-nowrap text-xs font-bold text-ink">
-                      {formatRupees(Math.round(month.amount))}
-                    </span>
-                    <span
-                      className={
-                        month.current
-                          ? "w-full max-w-11 rounded-t bg-[repeating-linear-gradient(135deg,#047857_0_6px,#34d399_6px_12px)]"
-                          : "w-full max-w-11 rounded-t bg-[#047857] dark:bg-emerald-500"
-                      }
-                      style={{ height: Math.max(4, Math.round((month.amount / peak) * BAR_AREA)) }}
-                      aria-hidden="true"
-                    />
-                  </li>
-                ))}
-              </ul>
-              <div className="flex gap-2" aria-hidden="true">
-                {analytics.monthly.map((month) => (
-                  <span key={month.key} className="flex-1 text-center text-xs text-ink-muted">
-                    {month.label}
-                  </span>
-                ))}
-              </div>
-              <span className="text-xs font-medium text-ink-muted">The striped bar is this month so far.</span>
-            </div>
-          ) : (
-            <EmptyBlock
-              icon={Activity}
-              title="Monthly sales are not available yet"
-              description="This chart fills in when medicine sales are recorded for the clinic."
-              className="my-auto"
-            />
-          )}
-        </Surface>
-      </div>
+      <PharmacySalesPanel {...sales} />
     </div>
   );
 }

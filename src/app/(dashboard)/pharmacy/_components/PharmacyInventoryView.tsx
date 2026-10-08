@@ -5,6 +5,8 @@ import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHero } from "@/components/tbd";
+import { PharmacyBatchAlerts } from "./PharmacyBatchAlerts";
+import { PharmacyBatchesDialog } from "./PharmacyBatchesDialog";
 import { PharmacyInventoryStockTab } from "./PharmacyInventoryStockTab";
 import {
   PharmacyAnalyticsTab,
@@ -14,12 +16,11 @@ import {
   type PharmacySettingsInfo,
 } from "./PharmacyInventoryTabs";
 import { PharmacyMedicineDetailsDialog, PharmacyRemoveMedicineDialog } from "./PharmacyMedicineDetailsDialog";
-import {
-  PharmacyAddMedicineDialog,
-  PharmacyEditMedicineDialog,
-  PharmacyRestockDialog,
-} from "./PharmacyMedicineFormDialogs";
+import { PharmacyAddMedicineDialog, PharmacyEditMedicineDialog } from "./PharmacyMedicineFormDialogs";
 import { PharmacyExportDialog } from "./PharmacyExportDialog";
+import { PharmacyReceiveOrderDialog } from "./PharmacyReceiveOrderDialog";
+import type { PharmacySalesPanelProps } from "./PharmacySalesPanel";
+import { PharmacySupplierFormDialog } from "./PharmacySupplierFormDialog";
 import {
   PharmacyNewOrderDialog,
   PharmacyOrderDetailsDialog,
@@ -32,14 +33,20 @@ import {
   type InventoryOverview,
   type MedicineRow,
   type OrderRow,
+  type StatsPeriod,
   type SupplierCard,
 } from "./pharmacy-inventory.logic";
 import type {
   AddMedicineValues,
+  AdjustBatchValues,
   EditMedicineValues,
   ExportValues,
   NewOrderValues,
+  ReceiveBatchValues,
+  ReceiveOrderValues,
+  SupplierValues,
 } from "./pharmacy-inventory.schemas";
+import type { BatchAlert, BatchRow } from "./pharmacy-stock.logic";
 
 export const INVENTORY_TABS = ["inventory", "orders", "pharmacies", "analytics", "settings"] as const;
 export type InventoryTab = (typeof INVENTORY_TABS)[number];
@@ -55,13 +62,16 @@ const TAB_LABELS: Record<InventoryTab, string> = {
 /** The one dialog that is open. `medicineKey` is a medicine id (or, from a dashboard link, its name). */
 export type InventoryDialog =
   | { kind: "add"; name?: string }
-  | { kind: "details" | "edit" | "remove"; medicineKey: string }
-  /** `fromLink`: opened by `?action=add&item=…`; falls back to Add medicine when the item is unknown. */
+  | { kind: "details" | "edit" | "remove" | "batches"; medicineKey: string }
+  /** Receive stock (opens the batches dialog on its receive form). `fromLink`: opened by `?action=add&item=…`; falls back to Add medicine when the item is unknown. */
   | { kind: "restock"; medicineKey: string; fromLink?: boolean }
   | { kind: "export" }
   | { kind: "order"; supplierId?: string; medicineKey?: string }
   | { kind: "orderDetails"; orderId: string }
-  | { kind: "supplier"; supplierId: string };
+  | { kind: "receiveOrder"; orderId: string }
+  | { kind: "supplier"; supplierId: string }
+  /** Add a supplier, or edit `supplierId`. */
+  | { kind: "supplierForm"; supplierId?: string };
 
 /**
  * Deep links other screens send: `?action=add` opens Add medicine, `?action=add&item=<id or name>`
@@ -96,13 +106,28 @@ export interface PharmacyInventoryViewProps {
   suppliersError?: string | null;
   onRetrySuppliers?: () => void;
 
-  /** Null = the API has no order list yet. */
+  /** Null until the purchase order list has been read. */
   orders: OrderRow[] | null;
   ordersLoading?: boolean;
   ordersError?: string | null;
+  onRetryOrders?: () => void;
+  /** The order of the open order dialog: the fresh record when it has arrived, else the list row. */
+  dialogOrder?: OrderRow | null;
+  dialogOrderRefreshing?: boolean;
+
+  /** Open stock alerts from the server, most urgent first. */
+  alerts: BatchAlert[];
+  /** Batches of the medicine in the batches dialog. */
+  batches: BatchRow[];
+  batchesLoading?: boolean;
+  batchesError?: string | null;
+  onRetryBatches?: () => void;
 
   analytics: AnalyticsSummary;
   analyticsLoading?: boolean;
+  statsPeriod: StatsPeriod;
+  onStatsPeriodChange: (period: StatsPeriod) => void;
+  sales: PharmacySalesPanelProps;
   settingsInfo: PharmacySettingsInfo;
 
   dialog: InventoryDialog | null;
@@ -117,9 +142,15 @@ export interface PharmacyInventoryViewProps {
 
   onAddMedicine: (values: AddMedicineValues) => void;
   onEditMedicine: (medicine: MedicineRow, values: EditMedicineValues) => void;
-  onRestock: (medicine: MedicineRow, quantity: number) => void;
+  /** Resolve true when the change was saved. */
+  onReceiveBatch: (medicine: MedicineRow, values: ReceiveBatchValues) => Promise<boolean>;
+  onAdjustBatch: (medicine: MedicineRow, batch: BatchRow, values: AdjustBatchValues) => Promise<boolean>;
   onRemoveMedicine: (medicine: MedicineRow) => void;
   onPlaceOrder: (values: NewOrderValues) => void;
+  onSendOrder: (order: OrderRow) => void;
+  onReceiveOrder: (order: OrderRow, values: ReceiveOrderValues) => void;
+  /** `supplierId` set = edit that supplier. */
+  onSaveSupplier: (values: SupplierValues, supplierId?: string) => void;
   onExport: (values: ExportValues) => void;
 }
 
@@ -144,8 +175,19 @@ export function PharmacyInventoryView({
   orders,
   ordersLoading = false,
   ordersError = null,
+  onRetryOrders,
+  dialogOrder = null,
+  dialogOrderRefreshing = false,
+  alerts,
+  batches,
+  batchesLoading = false,
+  batchesError = null,
+  onRetryBatches,
   analytics,
   analyticsLoading = false,
+  statsPeriod,
+  onStatsPeriodChange,
+  sales,
   settingsInfo,
   dialog,
   onDialogChange,
@@ -155,13 +197,17 @@ export function PharmacyInventoryView({
   dialogError = null,
   onAddMedicine,
   onEditMedicine,
-  onRestock,
+  onReceiveBatch,
+  onAdjustBatch,
   onRemoveMedicine,
   onPlaceOrder,
+  onSendOrder,
+  onReceiveOrder,
+  onSaveSupplier,
   onExport,
 }: PharmacyInventoryViewProps) {
   const close = () => onDialogChange(null);
-  const medicineOf = (kind: "details" | "edit" | "restock" | "remove") =>
+  const medicineOf = (kind: "details" | "edit" | "restock" | "remove" | "batches") =>
     dialog && dialog.kind === kind && "medicineKey" in dialog ? findMedicine(overview.rows, dialog.medicineKey) : null;
 
   const restockTarget = medicineOf("restock");
@@ -173,6 +219,11 @@ export function PharmacyInventoryView({
   const addOpen = canManage && (dialog?.kind === "add" || unknownRestockItem !== null);
   const addName = dialog?.kind === "add" ? (dialog.name ?? "") : (unknownRestockItem ?? "");
   const detailsTarget = medicineOf("details");
+  const batchesTarget = dialog?.kind === "batches" ? medicineOf("batches") : canManage ? restockTarget : null;
+  const editingSupplier =
+    dialog?.kind === "supplierForm" && dialog.supplierId
+      ? (suppliers.find((supplier) => supplier.id === dialog.supplierId) ?? null)
+      : null;
 
   const openOrder = (target: { supplierId?: string; medicineKey?: string }) =>
     onDialogChange({ kind: "order", ...target });
@@ -208,7 +259,11 @@ export function PharmacyInventoryView({
           ))}
         </TabsList>
 
-        <TabsContent value="inventory">
+        <TabsContent value="inventory" className="flex flex-col gap-5">
+          <PharmacyBatchAlerts
+            alerts={alerts}
+            onOpenBatches={(medicineId) => onDialogChange({ kind: "batches", medicineKey: medicineId })}
+          />
           <PharmacyInventoryStockTab
             overview={overview}
             loading={inventoryLoading}
@@ -230,9 +285,12 @@ export function PharmacyInventoryView({
             orders={orders}
             loading={ordersLoading}
             errorMessage={ordersError}
+            onRetry={onRetryOrders}
             canManage={canManage}
             onViewOrder={(order) => onDialogChange({ kind: "orderDetails", orderId: order.id })}
             onNewOrder={() => openOrder({})}
+            onSendOrder={onSendOrder}
+            onReceiveOrder={(order) => onDialogChange({ kind: "receiveOrder", orderId: order.id })}
           />
         </TabsContent>
 
@@ -245,11 +303,19 @@ export function PharmacyInventoryView({
             canManage={canManage}
             onOrder={(supplier) => openOrder({ supplierId: supplier.id })}
             onDetails={(supplier) => onDialogChange({ kind: "supplier", supplierId: supplier.id })}
+            onAddSupplier={() => onDialogChange({ kind: "supplierForm" })}
+            onEditSupplier={(supplier) => onDialogChange({ kind: "supplierForm", supplierId: supplier.id })}
           />
         </TabsContent>
 
         <TabsContent value="analytics">
-          <PharmacyAnalyticsTab analytics={analytics} loading={analyticsLoading} />
+          <PharmacyAnalyticsTab
+            analytics={analytics}
+            loading={analyticsLoading}
+            period={statsPeriod}
+            onPeriodChange={onStatsPeriodChange}
+            sales={sales}
+          />
         </TabsContent>
 
         <TabsContent value="settings">
@@ -263,6 +329,7 @@ export function PharmacyInventoryView({
         canManage={canManage}
         onClose={close}
         onRestock={(medicine) => onDialogChange({ kind: "restock", medicineKey: medicine.id })}
+        onBatches={(medicine) => onDialogChange({ kind: "batches", medicineKey: medicine.id })}
         onEdit={(medicine) => onDialogChange({ kind: "edit", medicineKey: medicine.id })}
         onOrder={(medicine) => openOrder({ medicineKey: medicine.id })}
         onRemove={canRemove ? (medicine) => onDialogChange({ kind: "remove", medicineKey: medicine.id }) : undefined}
@@ -290,11 +357,18 @@ export function PharmacyInventoryView({
         onSubmit={onEditMedicine}
         onClose={close}
       />
-      <PharmacyRestockDialog
-        medicine={canManage ? restockTarget : null}
-        isSaving={dialogBusy}
+      <PharmacyBatchesDialog
+        medicine={batchesTarget}
+        startWithReceive={dialog?.kind === "restock"}
+        batches={batches}
+        loading={batchesLoading}
+        loadError={batchesError}
+        onRetry={onRetryBatches}
+        canManage={canManage}
+        busy={dialogBusy}
         errorMessage={dialogError}
-        onSubmit={onRestock}
+        onReceive={onReceiveBatch}
+        onAdjust={onAdjustBatch}
         onClose={close}
       />
       <PharmacyExportDialog
@@ -315,10 +389,34 @@ export function PharmacyInventoryView({
         isPlacing={dialogBusy}
         errorMessage={dialogError}
         onSubmit={onPlaceOrder}
+        onAddSupplier={() => onDialogChange({ kind: "supplierForm" })}
         onClose={close}
       />
       <PharmacyOrderDetailsDialog
-        order={dialog?.kind === "orderDetails" ? (orders?.find((order) => order.id === dialog.orderId) ?? null) : null}
+        order={dialog?.kind === "orderDetails" ? dialogOrder : null}
+        canManage={canManage}
+        refreshing={dialogOrderRefreshing}
+        busy={dialogBusy}
+        errorMessage={dialogError}
+        onSend={onSendOrder}
+        onReceive={(order) => onDialogChange({ kind: "receiveOrder", orderId: order.id })}
+        onClose={close}
+      />
+      <PharmacyReceiveOrderDialog
+        order={canManage && dialog?.kind === "receiveOrder" ? dialogOrder : null}
+        isSaving={dialogBusy}
+        errorMessage={dialogError}
+        onSubmit={onReceiveOrder}
+        onClose={close}
+      />
+      <PharmacySupplierFormDialog
+        open={canManage && dialog?.kind === "supplierForm"}
+        supplier={editingSupplier}
+        isSaving={dialogBusy}
+        errorMessage={dialogError}
+        onSubmit={(values) =>
+          onSaveSupplier(values, dialog?.kind === "supplierForm" ? dialog.supplierId : undefined)
+        }
         onClose={close}
       />
       <PharmacySupplierDetailsDialog
@@ -329,6 +427,7 @@ export function PharmacyInventoryView({
         }
         canManage={canManage}
         onOrder={(supplier) => openOrder({ supplierId: supplier.id })}
+        onEdit={(supplier) => onDialogChange({ kind: "supplierForm", supplierId: supplier.id })}
         onClose={close}
       />
     </DashboardPageShell>

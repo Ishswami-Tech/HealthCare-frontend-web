@@ -5,19 +5,27 @@ import { useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import {
+  useAdjustBatchStock,
   useCreateMedicine,
   useCreatePharmacyOrder,
+  useCreateSupplier,
   useDeleteMedicine,
   useExportPharmacyData,
+  useInventoryAlerts,
   useMedicine,
   useMedicines,
+  usePharmacyOrder,
   usePharmacyOrders,
   usePharmacySales,
   usePharmacyStats,
   usePrescriptions,
+  useReceivePharmacyOrder,
+  useReceiveStockBatch,
+  useSendPharmacyOrder,
+  useStockBatches,
   useSuppliers,
-  useUpdateInventory,
   useUpdateMedicine,
+  useUpdateSupplier,
 } from "@/hooks/query/usePharmacy";
 import { useHashTab } from "@/hooks/navigation/useHashTab";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
@@ -39,19 +47,38 @@ import {
   findMedicine,
   stockFilterFromQuery,
   supplierNameMap,
+  todayKey,
   type InventoryFilters,
   type MedicineRow,
+  type OrderRow,
+  type StatsPeriod,
 } from "./pharmacy-inventory.logic";
 import {
   toCreateMedicinePayload,
   toCreateOrderPayload,
+  toCreateSupplierPayload,
   toExportPayload,
+  toReceiveBatchPayload,
+  toReceiveOrderPayload,
   toUpdateMedicinePayload,
+  toUpdateSupplierPayload,
   type AddMedicineValues,
+  type AdjustBatchValues,
   type EditMedicineValues,
   type ExportValues,
   type NewOrderValues,
+  type ReceiveBatchValues,
+  type ReceiveOrderValues,
+  type SupplierValues,
 } from "./pharmacy-inventory.schemas";
+import type { SalesRange } from "./PharmacySalesPanel";
+import {
+  buildBatchAlerts,
+  buildBatchRows,
+  firstOfMonthKey,
+  salesRangeProblem,
+  type BatchRow,
+} from "./pharmacy-stock.logic";
 
 const NO_CLINIC = "No clinic is selected for your account.";
 
@@ -91,6 +118,13 @@ export default function PharmacyInventoryContent() {
   const [page, setPage] = useState(1);
   const [dialog, setDialog] = useState<InventoryDialog | null>(() => dialogFromQuery(searchParams));
   const [dialogError, setDialogError] = useState<string | null>(null);
+  const [statsPeriod, setStatsPeriod] = useState<StatsPeriod>("month");
+  const [salesRange, setSalesRange] = useState<SalesRange>(() => ({
+    from: firstOfMonthKey(),
+    to: todayKey(),
+    groupBy: "day",
+  }));
+  const rangeProblem = salesRangeProblem(salesRange.from, salesRange.to);
 
   useWebSocketQuerySync();
 
@@ -120,13 +154,20 @@ export default function PharmacyInventoryContent() {
     data: ordersData,
     isPending: ordersPending,
     error: ordersError,
+    refetch: refetchOrders,
   } = usePharmacyOrders(scopedClinicId, { limit: 50 });
-  const { data: salesData } = usePharmacySales(scopedClinicId, { limit: 500 });
+  const {
+    data: salesReport,
+    isPending: salesPending,
+    error: salesError,
+    refetch: refetchSales,
+  } = usePharmacySales(scopedClinicId, { ...salesRange, enabled: rangeProblem === null });
+  const { data: alertsData } = useInventoryAlerts(scopedClinicId);
   const { data: prescriptionsData, isPending: prescriptionsPending } = usePrescriptions(scopedClinicId, {
     limit: 100,
     enabled: !!clinicId && permissions.canManagePrescriptions,
   });
-  const { data: pharmacyStats } = usePharmacyStats(scopedClinicId, "month");
+  const { data: pharmacyStats } = usePharmacyStats(scopedClinicId, statsPeriod);
 
   const supplierNames = useMemo(() => supplierNameMap(suppliersData), [suppliersData]);
   const overview = useMemo(() => buildInventoryOverview(medicinesData, supplierNames), [medicinesData, supplierNames]);
@@ -136,15 +177,34 @@ export default function PharmacyInventoryContent() {
     [ordersData, overview.rows, supplierNames],
   );
   const analytics = useMemo(
-    () =>
-      buildAnalytics(
-        permissions.canManagePrescriptions ? prescriptionsData : null,
-        salesData,
-        orders,
-        pharmacyStats,
-      ),
-    [orders, permissions.canManagePrescriptions, pharmacyStats, prescriptionsData, salesData],
+    () => buildAnalytics(permissions.canManagePrescriptions ? prescriptionsData : null, orders, pharmacyStats),
+    [orders, permissions.canManagePrescriptions, pharmacyStats, prescriptionsData],
   );
+  const alerts = useMemo(() => buildBatchAlerts(alertsData, overview.rows), [alertsData, overview.rows]);
+
+  // The order dialogs show the list row at once and the fresh record when it arrives: the receive
+  // form needs the quantities still outstanding as the server holds them now.
+  const dialogOrderId =
+    dialog?.kind === "orderDetails" || dialog?.kind === "receiveOrder" ? dialog.orderId : "";
+  const { data: orderDetail, isFetching: orderFetching } = usePharmacyOrder(scopedClinicId, dialogOrderId);
+  const dialogOrder = useMemo<OrderRow | null>(() => {
+    if (!dialogOrderId) return null;
+    const fresh = orderDetail ? (buildOrders([orderDetail], overview.rows, supplierNames)?.[0] ?? null) : null;
+    return fresh ?? orders?.find((order) => order.id === dialogOrderId) ?? null;
+  }, [dialogOrderId, orderDetail, orders, overview.rows, supplierNames]);
+
+  // Batches of the medicine in the batches / receive-stock dialog.
+  const batchesMedicineId =
+    dialog?.kind === "batches" || dialog?.kind === "restock"
+      ? (findMedicine(overview.rows, dialog.medicineKey)?.id ?? "")
+      : "";
+  const {
+    data: batchData,
+    isPending: batchesPending,
+    error: batchesError,
+    refetch: refetchBatches,
+  } = useStockBatches(scopedClinicId, { productId: batchesMedicineId, enabled: !!batchesMedicineId });
+  const batches = useMemo(() => buildBatchRows(batchData), [batchData]);
 
   // The details dialog shows the list row at once and the fresh record when it arrives.
   const detailsId =
@@ -161,8 +221,13 @@ export default function PharmacyInventoryContent() {
   const createMedicine = useCreateMedicine();
   const updateMedicine = useUpdateMedicine();
   const deleteMedicine = useDeleteMedicine();
-  const updateInventory = useUpdateInventory();
   const createOrder = useCreatePharmacyOrder();
+  const sendOrder = useSendPharmacyOrder();
+  const receiveOrder = useReceivePharmacyOrder();
+  const createSupplier = useCreateSupplier();
+  const updateSupplier = useUpdateSupplier();
+  const receiveBatch = useReceiveStockBatch();
+  const adjustBatch = useAdjustBatchStock();
   const exportData = useExportPharmacyData();
 
   const changeDialog = useCallback((next: InventoryDialog | null) => {
@@ -170,23 +235,32 @@ export default function PharmacyInventoryContent() {
     setDialog(next);
   }, []);
 
-  /** Runs a mutation of the open dialog: closes it on success, keeps it open with the message on failure. */
+  /**
+   * Runs a mutation of the open dialog: closes it on success (unless `keepOpen`), keeps it open with
+   * the message on failure. Resolves true when the request succeeded.
+   */
   const submit = useCallback(
-    async (request: (clinic: string) => Promise<unknown>, needsManage = true) => {
+    async (
+      request: (clinic: string) => Promise<unknown>,
+      options: { needsManage?: boolean; keepOpen?: boolean } = {},
+    ): Promise<boolean> => {
+      const { needsManage = true, keepOpen = false } = options;
       if (needsManage && !canManage) {
         setDialogError("You do not have permission to change the inventory.");
-        return;
+        return false;
       }
       if (!clinicId) {
         setDialogError(NO_CLINIC);
-        return;
+        return false;
       }
       setDialogError(null);
       try {
         await request(clinicId);
-        setDialog(null);
+        if (!keepOpen) setDialog(null);
+        return true;
       } catch (error) {
         setDialogError(errorText(error));
+        return false;
       }
     },
     [canManage, clinicId],
@@ -204,13 +278,38 @@ export default function PharmacyInventoryContent() {
     void submit((clinic) => updateMedicine.mutateAsync({ clinicId: clinic, medicineId: medicine.id, updates }));
   };
 
-  const handleRestock = (medicine: MedicineRow, quantity: number) =>
+  const handleReceiveBatch = (medicine: MedicineRow, values: ReceiveBatchValues) =>
+    submit(
+      (clinic) => receiveBatch.mutateAsync({ clinicId: clinic, ...toReceiveBatchPayload(medicine, values) }),
+      { keepOpen: true },
+    );
+
+  const handleAdjustBatch = (medicine: MedicineRow, batch: BatchRow, values: AdjustBatchValues) =>
+    submit(
+      (clinic) =>
+        adjustBatch.mutateAsync({
+          clinicId: clinic,
+          productId: medicine.id,
+          batchId: batch.id,
+          quantity: Number(values.change),
+          reason: values.reason.trim(),
+        }),
+      { keepOpen: true },
+    );
+
+  const handleSendOrder = (order: OrderRow) =>
+    void submit((clinic) => sendOrder.mutateAsync({ clinicId: clinic, orderId: order.id }), { keepOpen: true });
+
+  const handleReceiveOrder = (order: OrderRow, values: ReceiveOrderValues) =>
     void submit((clinic) =>
-      updateInventory.mutateAsync({
-        clinicId: clinic,
-        medicineId: medicine.id,
-        inventoryData: { quantityChange: quantity },
-      }),
+      receiveOrder.mutateAsync({ clinicId: clinic, orderId: order.id, batches: toReceiveOrderPayload(values) }),
+    );
+
+  const handleSaveSupplier = (values: SupplierValues, supplierId?: string) =>
+    void submit((clinic) =>
+      supplierId
+        ? updateSupplier.mutateAsync({ clinicId: clinic, supplierId, updates: toUpdateSupplierPayload(values) })
+        : createSupplier.mutateAsync({ clinicId: clinic, ...toCreateSupplierPayload(values) }),
     );
 
   const handleRemoveMedicine = (medicine: MedicineRow) =>
@@ -223,14 +322,19 @@ export default function PharmacyInventoryContent() {
     void submit(async (clinic) => {
       const file = await exportData.mutateAsync({ clinicId: clinic, ...toExportPayload(values) });
       downloadFile(file);
-    }, false);
+    }, { needsManage: false });
 
   const dialogBusy =
     createMedicine.isPending ||
     updateMedicine.isPending ||
     deleteMedicine.isPending ||
-    updateInventory.isPending ||
     createOrder.isPending ||
+    sendOrder.isPending ||
+    receiveOrder.isPending ||
+    createSupplier.isPending ||
+    updateSupplier.isPending ||
+    receiveBatch.isPending ||
+    adjustBatch.isPending ||
     exportData.isPending;
 
   const inventoryLoading = !!clinicId && medicinesPending && overview.rows.length === 0;
@@ -256,8 +360,27 @@ export default function PharmacyInventoryContent() {
       orders={orders}
       ordersLoading={!!clinicId && ordersPending}
       ordersError={errorText(ordersError)}
+      onRetryOrders={() => void refetchOrders()}
+      dialogOrder={dialogOrder}
+      dialogOrderRefreshing={orderFetching}
+      alerts={alerts}
+      batches={batches}
+      batchesLoading={!!batchesMedicineId && batchesPending}
+      batchesError={errorText(batchesError)}
+      onRetryBatches={() => void refetchBatches()}
       analytics={analytics}
       analyticsLoading={!!clinicId && permissions.canManagePrescriptions && prescriptionsPending}
+      statsPeriod={statsPeriod}
+      onStatsPeriodChange={setStatsPeriod}
+      sales={{
+        range: salesRange,
+        onRangeChange: setSalesRange,
+        rangeProblem,
+        report: salesReport,
+        loading: rangeProblem === null && !!clinicId && salesPending,
+        errorMessage: errorText(salesError),
+        onRetry: () => void refetchSales(),
+      }}
       settingsInfo={{
         appVersion: APP_CONFIG.APP.VERSION,
         partnerCount: suppliersPending || suppliersError ? null : suppliers.length,
@@ -272,9 +395,13 @@ export default function PharmacyInventoryContent() {
       dialogError={dialogError}
       onAddMedicine={handleAddMedicine}
       onEditMedicine={handleEditMedicine}
-      onRestock={handleRestock}
+      onReceiveBatch={handleReceiveBatch}
+      onAdjustBatch={handleAdjustBatch}
       onRemoveMedicine={handleRemoveMedicine}
       onPlaceOrder={handlePlaceOrder}
+      onSendOrder={handleSendOrder}
+      onReceiveOrder={handleReceiveOrder}
+      onSaveSupplier={handleSaveSupplier}
       onExport={handleExport}
     />
   );

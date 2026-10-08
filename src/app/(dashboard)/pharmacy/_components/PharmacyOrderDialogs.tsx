@@ -3,7 +3,7 @@
 import { useId } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Mail, Phone, Plus, Truck, X } from "lucide-react";
+import { Mail, PackageCheck, Pencil, Phone, Plus, Send, Truck, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,6 +23,7 @@ import {
   dayLabel,
   formatRupees,
   orderTone,
+  receivedSummary,
   todayKey,
   type MedicineRow,
   type OrderRow,
@@ -59,6 +60,8 @@ interface PharmacyNewOrderDialogProps {
   isPlacing?: boolean;
   errorMessage?: string | null;
   onSubmit: (values: NewOrderValues) => void;
+  /** Opens the add-supplier form (shown when no supplier exists yet). */
+  onAddSupplier?: () => void;
   onClose: () => void;
 }
 
@@ -72,6 +75,7 @@ export function PharmacyNewOrderDialog({
   isPlacing = false,
   errorMessage = null,
   onSubmit,
+  onAddSupplier,
   onClose,
 }: PharmacyNewOrderDialogProps) {
   return (
@@ -92,6 +96,7 @@ export function PharmacyNewOrderDialog({
           isPlacing={isPlacing}
           errorMessage={errorMessage}
           onSubmit={onSubmit}
+          onAddSupplier={onAddSupplier}
           onClose={onClose}
         />
       ) : null}
@@ -107,6 +112,7 @@ function NewOrderForm({
   isPlacing,
   errorMessage,
   onSubmit,
+  onAddSupplier,
   onClose,
 }: {
   suppliers: SupplierCard[];
@@ -116,6 +122,7 @@ function NewOrderForm({
   isPlacing: boolean;
   errorMessage: string | null;
   onSubmit: (values: NewOrderValues) => void;
+  onAddSupplier?: () => void;
   onClose: () => void;
 }) {
   const uid = useId();
@@ -158,8 +165,15 @@ function NewOrderForm({
       <PharmacyDialogBody>
         {suppliers.length === 0 ? (
           <Note tone="amber">
-            No suppliers are set up for this clinic yet, so an order cannot be placed. A clinic admin can add
-            suppliers.
+            <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <span>No suppliers are set up for this clinic yet, so an order cannot be placed.</span>
+              {onAddSupplier ? (
+                <Button type="button" size="md" variant="outline" onClick={onAddSupplier}>
+                  <Plus aria-hidden="true" />
+                  Add supplier
+                </Button>
+              ) : null}
+            </span>
           </Note>
         ) : null}
 
@@ -336,7 +350,8 @@ function NewOrderForm({
           />
         </Field>
 
-        <DialogError lead="The order was not placed." message={errorMessage} />
+        <Note tone="blue">The order is saved as a draft. Send it to the supplier from the Orders tab.</Note>
+        <DialogError lead="The order was not saved." message={errorMessage} />
       </PharmacyDialogBody>
 
       <PharmacyDialogActions>
@@ -345,7 +360,7 @@ function NewOrderForm({
         </Button>
         <Button size="md" variant="action" type="submit" disabled={isPlacing || suppliers.length === 0}>
           <Truck aria-hidden="true" />
-          {isPlacing ? "Placing order…" : "Place order"}
+          {isPlacing ? "Saving order…" : "Save order"}
         </Button>
       </PharmacyDialogActions>
     </form>
@@ -354,24 +369,52 @@ function NewOrderForm({
 
 // ── Order details ──────────────────────────────────────────────────────────
 
-/** Everything the API holds about one purchase order. */
-export function PharmacyOrderDetailsDialog({ order, onClose }: { order: OrderRow | null; onClose: () => void }) {
+interface PharmacyOrderDetailsDialogProps {
+  order: OrderRow | null;
+  canManage: boolean;
+  /** True while the latest record of the order is being read. */
+  refreshing?: boolean;
+  /** A send request is running. */
+  busy?: boolean;
+  errorMessage?: string | null;
+  /** Sends a draft order to the supplier. */
+  onSend: (order: OrderRow) => void;
+  /** Opens the receive-goods dialog. */
+  onReceive: (order: OrderRow) => void;
+  onClose: () => void;
+}
+
+/** Everything the API holds about one purchase order, with the send and receive actions. */
+export function PharmacyOrderDetailsDialog({
+  order,
+  canManage,
+  refreshing = false,
+  busy = false,
+  errorMessage = null,
+  onSend,
+  onReceive,
+  onClose,
+}: PharmacyOrderDetailsDialogProps) {
+  const received = order ? receivedSummary(order) : "";
   return (
     <PharmacyDialog
       open={order !== null}
       onClose={onClose}
+      busy={busy}
       title={order ? `Order ${order.reference}` : "Order"}
       description={order ? `For clinic stock${order.supplierName ? ` · from ${order.supplierName}` : ""}` : undefined}
-      width={600}
+      width={640}
     >
       {order ? (
         <>
-          <PharmacyDialogBody>
+          <PharmacyDialogBody aria-busy={refreshing || undefined}>
             <div className="flex flex-wrap items-center gap-2">
               <Pill tone={orderTone(order.status)}>{statusLabel(order.status)}</Pill>
+              {received ? <span className="text-xs font-semibold text-ink-soft">{received}</span> : null}
             </div>
-            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
               <Kv label="Order date" value={dateTimeLabel(order.orderedAt) || "—"} strong={false} />
+              <Kv label="Sent" value={dateTimeLabel(order.sentAt) || "Not sent yet"} strong={false} />
               <Kv label="Expected" value={dayLabel(order.expectedAt) || "Not set"} />
             </div>
             <div className="flex flex-col gap-2.5 rounded-[14px] border border-line px-4 py-3.5">
@@ -379,9 +422,19 @@ export function PharmacyOrderDetailsDialog({ order, onClose }: { order: OrderRow
                 <SummaryLine
                   key={line.id}
                   label={
-                    line.unitPrice !== null
-                      ? `${line.name} · ${line.quantity} × ${formatRupees(line.unitPrice)}`
-                      : `${line.name} · ${line.quantity}`
+                    <span className="flex flex-col">
+                      <span>
+                        {line.unitPrice !== null
+                          ? `${line.name} · ${line.quantity} × ${formatRupees(line.unitPrice)}`
+                          : `${line.name} · ${line.quantity}`}
+                      </span>
+                      {order.status !== "DRAFT" ? (
+                        <span className="text-xs font-medium text-ink-muted">
+                          {Math.min(line.received, line.quantity)} received
+                          {line.outstanding > 0 ? `, ${line.outstanding} to come` : ", complete"}
+                        </span>
+                      ) : null}
+                    </span>
                   }
                   value={line.unitPrice !== null ? formatRupees(line.quantity * line.unitPrice) : "—"}
                 />
@@ -390,11 +443,24 @@ export function PharmacyOrderDetailsDialog({ order, onClose }: { order: OrderRow
               <SummaryLine bold label="Total" value={order.total !== null ? formatRupees(order.total) : "—"} />
             </div>
             {order.notes ? <Kv label="Notes" value={order.notes} strong={false} /> : null}
+            <DialogError lead="The order was not sent." message={errorMessage} />
           </PharmacyDialogBody>
           <PharmacyDialogActions>
-            <Button size="md" variant="outline" onClick={onClose}>
+            <Button size="md" variant="outline" onClick={onClose} disabled={busy}>
               Close
             </Button>
+            {canManage && order.canSend ? (
+              <Button size="md" onClick={() => onSend(order)} disabled={busy}>
+                <Send aria-hidden="true" />
+                {busy ? "Sending…" : "Send to supplier"}
+              </Button>
+            ) : null}
+            {canManage && order.canReceive ? (
+              <Button size="md" onClick={() => onReceive(order)} disabled={busy}>
+                <PackageCheck aria-hidden="true" />
+                Receive goods
+              </Button>
+            ) : null}
           </PharmacyDialogActions>
         </>
       ) : null}
@@ -408,6 +474,7 @@ interface PharmacySupplierDetailsDialogProps {
   supplier: SupplierCard | null;
   canManage: boolean;
   onOrder: (supplier: SupplierCard) => void;
+  onEdit: (supplier: SupplierCard) => void;
   onClose: () => void;
 }
 
@@ -416,6 +483,7 @@ export function PharmacySupplierDetailsDialog({
   supplier,
   canManage,
   onOrder,
+  onEdit,
   onClose,
 }: PharmacySupplierDetailsDialogProps) {
   return (
@@ -472,10 +540,16 @@ export function PharmacySupplierDetailsDialog({
               </Button>
             ) : null}
             {canManage ? (
-              <Button size="md" onClick={() => onOrder(supplier)}>
-                <Truck aria-hidden="true" />
-                Order
-              </Button>
+              <>
+                <Button size="md" variant="outline" onClick={() => onEdit(supplier)}>
+                  <Pencil aria-hidden="true" />
+                  Edit
+                </Button>
+                <Button size="md" onClick={() => onOrder(supplier)}>
+                  <Truck aria-hidden="true" />
+                  Order
+                </Button>
+              </>
             ) : null}
           </PharmacyDialogActions>
         </>

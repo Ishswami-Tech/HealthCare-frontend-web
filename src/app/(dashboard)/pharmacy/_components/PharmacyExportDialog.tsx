@@ -30,14 +30,10 @@ const TYPE_OPTIONS: { value: ExportType; label: string; icon: TbdIcon; about: st
   { value: "medicines", label: "Medicines", icon: PillIcon, about: "Every medicine with its maker, type and price." },
   { value: "inventory", label: "Inventory", icon: Package, about: "Stock, minimum level, expiry date and stock value of every medicine." },
   { value: "prescriptions", label: "Prescriptions", icon: FileText, about: "Prescriptions sent to the pharmacy, with their medicines and payment status." },
-  { value: "sales", label: "Sales", icon: IndianRupee, about: "" },
+  { value: "sales", label: "Sales", icon: IndianRupee, about: "Prescriptions, units and paid revenue for each day." },
 ];
 
-const FORMAT_OPTIONS: { value: ExportFormat; label: string }[] = [
-  { value: "csv", label: "CSV" },
-  { value: "excel", label: "Excel" },
-  { value: "pdf", label: "PDF" },
-];
+const FORMAT_OPTIONS: { value: ExportFormat; label: string }[] = [{ value: "csv", label: "CSV" }];
 
 /** One choice of a single-select row (radio semantics). */
 function Choice({
@@ -84,9 +80,8 @@ interface PharmacyExportDialogProps {
 }
 
 /**
- * Board `PhInventoryExport`. The file is built from the lists the API serves, so only CSV of
- * medicines, inventory and prescriptions can be chosen; Sales, Excel and PDF are shown as not
- * available yet.
+ * Board `PhInventoryExport`. The file is built from the lists and reports the API serves, and it is
+ * always CSV (opens in Excel and Google Sheets): medicines, inventory, prescriptions or daily sales.
  */
 export function PharmacyExportDialog({
   open,
@@ -161,7 +156,7 @@ function ExportForm({
                   </Choice>
                 ))}
               </div>
-              <span className="text-xs text-ink-muted">{about} Sales cannot be exported yet.</span>
+              <span className="text-xs text-ink-muted">{about}</span>
             </div>
           )}
         />
@@ -186,16 +181,19 @@ function ExportForm({
                   </Choice>
                 ))}
               </div>
-              <span className="text-xs text-ink-muted">
-                CSV opens in Excel and Google Sheets. Excel and PDF files are not available yet.
-              </span>
+              <span className="text-xs text-ink-muted">CSV opens in Excel and Google Sheets.</span>
             </div>
           )}
         />
 
-        {type === "prescriptions" ? (
+        {type === "prescriptions" || type === "sales" ? (
           <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-            <Field label="From" htmlFor={id("startDate")} hint="Leave empty for all dates" error={errors.startDate?.message}>
+            <Field
+              label="From"
+              htmlFor={id("startDate")}
+              hint={type === "sales" ? "Leave empty for the 1st of this month" : "Leave empty for all dates"}
+              error={errors.startDate?.message}
+            >
               <Input
                 type="date"
                 max={todayKey()}

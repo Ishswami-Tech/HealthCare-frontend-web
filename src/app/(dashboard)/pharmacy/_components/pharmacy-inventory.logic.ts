@@ -9,7 +9,7 @@ import {
 
 /**
  * Pure helpers for the pharmacy inventory screen (`/pharmacy`): they turn the raw payloads of
- * `useMedicines`, `useSuppliers`, `usePharmacyOrders`, `usePharmacySales` and `usePrescriptions`
+ * `useMedicines`, `useSuppliers`, `usePharmacyOrders`, `usePharmacyStats` and `usePrescriptions`
  * into the view models the tabs and dialogs render. No React, no fetching.
  *
  * Low stock uses the dashboard rule (`buildInventorySummary`): stock at or below the reorder
@@ -21,8 +21,9 @@ export { formatRupees };
 // ── What the backend can do today ──────────────────────────────────────────
 
 /**
- * `PATCH /pharmacy/inventory/:id` accepts only `quantityChange` and `price`, and there is no
- * DELETE route, so a medicine cannot be removed yet. Set to `true` when the backend supports it:
+ * `PATCH /pharmacy/inventory/:id` accepts only `quantityChange` and `price` (the web sends the
+ * price only: stock moves through batches), and there is no DELETE route the web can rely on,
+ * so a medicine cannot be removed yet. Set to `true` when the backend supports it:
  * the Remove button (danger, with a confirm dialog, wired to `useDeleteMedicine`) appears.
  */
 export const CAN_REMOVE_MEDICINE = false;
@@ -427,35 +428,43 @@ export function supplierNameMap(suppliersData: unknown): Map<string, string> {
 // ── Orders (purchase orders to suppliers) ──────────────────────────────────
 
 export interface OrderLine {
+  /** Purchase order line id (what the receive route calls `itemId`). */
   id: string;
+  productId: string;
   name: string;
   quantity: number;
-  received: number | null;
+  /** Units received so far. */
+  received: number;
+  /** Units still to arrive. */
+  outstanding: number;
   unitPrice: number | null;
 }
 
 export interface OrderRow {
   id: string;
-  /** "PO-1A2B3C4D" — shown to people; there is no order number in the API. */
+  /** The purchase order number from the API ("PO-…"). */
   reference: string;
   status: string;
+  supplierId: string;
   supplierName: string;
   lines: OrderLine[];
   orderedAt: string | null;
+  sentAt: string | null;
   expectedAt: string | null;
   /** Null when no line carries a price. */
   total: number | null;
   notes: string;
+  /** A draft: it has not gone to the supplier yet. */
+  canSend: boolean;
+  /** Sent or partly received: goods can be booked in. */
+  canReceive: boolean;
 }
 
 const ORDER_TONES: Record<string, PillTone> = {
   DRAFT: "slate",
   SENT: "blue",
-  PROCESSING: "blue",
-  PARTIALLY_RECEIVED: "blue",
-  SHIPPED: "amber",
+  PARTIALLY_RECEIVED: "amber",
   RECEIVED: "green",
-  DELIVERED: "green",
   CANCELLED: "rose",
 };
 
@@ -464,11 +473,11 @@ export function orderTone(status: string): PillTone {
 }
 
 /** Orders still on their way to the clinic. */
-const OPEN_ORDER_STATUSES = new Set(["SENT", "PROCESSING", "SHIPPED", "PARTIALLY_RECEIVED"]);
+const OPEN_ORDER_STATUSES = new Set(["SENT", "PARTIALLY_RECEIVED"]);
 
 /**
- * Maps the `usePharmacyOrders` payload. Returns null when the API has no order list
- * (today the backend can create purchase orders but has no route that lists them).
+ * Maps the `usePharmacyOrders` payload (`{ orders, total }`, the `GET .../purchase-orders` page).
+ * Returns null while the list has not been read (loading, failed or no clinic).
  */
 export function buildOrders(
   ordersData: unknown,
@@ -486,29 +495,36 @@ export function buildOrders(
     const lines = asList(order.items).map((itemRaw, index): OrderLine => {
       const item = asRecord(itemRaw);
       const medicineId = text(item.productId) || text(item.medicineId);
+      const quantity = amount(item.quantity) ?? 0;
+      const received = amount(item.receivedQuantity) ?? 0;
       return {
         id: text(item.id) || `${medicineId || "line"}-${index}`,
+        productId: medicineId,
         name:
           text(item.description) ||
           text(asRecord(item.medicine).name) ||
           medicineNames.get(medicineId) ||
           "Medicine",
-        quantity: amount(item.quantity) ?? 0,
-        received: amount(item.receivedQuantity),
+        quantity,
+        received,
+        outstanding: Math.max(0, quantity - received),
         unitPrice: amount(item.unitPrice),
       };
     });
     const priced = lines.filter((line) => line.unitPrice !== null);
     const compact = id.replace(/[^a-zA-Z0-9]/g, "");
+    const status = text(order.status).toUpperCase() || "DRAFT";
 
     orders.push({
       id,
-      reference: text(order.orderNumber) || `PO-${compact.slice(0, 8).toUpperCase()}`,
-      status: text(order.status).toUpperCase() || "DRAFT",
+      reference: text(order.poNumber) || `PO-${compact.slice(0, 8).toUpperCase()}`,
+      status,
+      supplierId: text(order.supplierId),
       supplierName:
         text(asRecord(order.supplier).name) || supplierNames.get(text(order.supplierId)) || "",
       lines,
-      orderedAt: isoDate(order.createdAt) ?? isoDate(order.orderDate),
+      orderedAt: isoDate(order.createdAt),
+      sentAt: isoDate(order.sentAt),
       expectedAt: isoDate(order.expectedDeliveryDate),
       total:
         amount(order.totalAmount) ??
@@ -516,25 +532,36 @@ export function buildOrders(
           ? priced.reduce((sum, line) => sum + line.quantity * (line.unitPrice ?? 0), 0)
           : null),
       notes: text(order.notes),
+      canSend: status === "DRAFT",
+      canReceive: OPEN_ORDER_STATUSES.has(status),
     });
     return orders;
   }, []);
 }
 
+/** "3 of 10 received" for the order card; empty for an order nothing has arrived for. */
+export function receivedSummary(order: OrderRow): string {
+  const ordered = order.lines.reduce((sum, line) => sum + line.quantity, 0);
+  const received = order.lines.reduce((sum, line) => sum + Math.min(line.received, line.quantity), 0);
+  return received > 0 ? `${received} of ${ordered} units received` : "";
+}
+
 // ── Analytics ──────────────────────────────────────────────────────────────
+
+/** Window of the revenue and top-seller figures (`GET /pharmacy/stats?period=`). */
+export type StatsPeriod = "day" | "week" | "month" | "year";
 
 export interface AnalyticsSummary {
   /** Prescriptions written today. */
   prescriptionsToday: number | null;
-  /** Medicine sales this month; null = the API has no sales data. */
-  revenueThisMonth: number | null;
-  /** Orders on their way; null = the API has no order list. */
+  /** Paid pharmacy invoices in the chosen period; null until `GET /pharmacy/stats` has answered. */
+  revenue: number | null;
+  /** Purchase orders sent and not fully received; null until the order list has been read. */
   pendingDeliveries: number | null;
+  /** Medicine with the most units dispensed in the period; null = none dispensed (or no answer yet). */
   topSelling: string | null;
-  /** Share of this month's sales by category, largest first; null = no data. */
-  categoryShare: { label: string; percent: number }[] | null;
-  /** Sales of the last six months, oldest first; null = no data. */
-  monthly: { key: string; label: string; amount: number; current: boolean }[] | null;
+  /** The stats answered, so a blank top seller means "no sales", not "unknown". */
+  statsReady: boolean;
 }
 
 function prescriptionDay(prescription: Raw): string {
@@ -543,93 +570,33 @@ function prescriptionDay(prescription: Raw): string {
 }
 
 /**
- * `usePharmacySales` has no backend route yet and returns null, so every sales figure is null
- * and the cards show "not available yet". The mapping below is used as soon as a list of
- * sales (`{ totalAmount, createdAt, items: [{ name, category, quantity, total }] }`) arrives.
- * `pharmacyStats` is the `usePharmacyStats` payload.
+ * The figures of the analytics cards. Revenue and top seller are the server's own
+ * (`totalRevenue`, `topSellingMedicine` of `GET /pharmacy/stats?period=`); nothing is estimated
+ * here. `pharmacyStats` is the `usePharmacyStats` payload.
  */
 export function buildAnalytics(
   prescriptionsData: unknown,
-  salesData: unknown,
   orders: OrderRow[] | null,
   pharmacyStats: unknown = null,
   now: Date = new Date(),
 ): AnalyticsSummary {
   const todayKey = formatDateKeyInIST(now);
-  const monthKey = todayKey.slice(0, 7);
 
   const prescriptions =
     prescriptionsData === null || prescriptionsData === undefined
       ? null
       : unwrapList(prescriptionsData, "prescriptions").map(asRecord);
 
-  const sales = Array.isArray(salesData) || Array.isArray(asRecord(salesData).sales)
-    ? unwrapList(salesData, "sales").map(asRecord)
-    : null;
-
-  let revenueThisMonth: number | null = null;
-  let topSelling: string | null = null;
-  let categoryShare: AnalyticsSummary["categoryShare"] = null;
-  let monthly: AnalyticsSummary["monthly"] = null;
-
-  if (sales && sales.length > 0) {
-    const months = Array.from({ length: 6 }, (_, back) => {
-      const [year, month] = monthKey.split("-").map(Number);
-      const date = new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1 - (5 - back), 1));
-      const key = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
-      return {
-        key,
-        label: date.toLocaleDateString("en-IN", { month: "short", timeZone: "UTC" }),
-        amount: 0,
-        current: key === monthKey,
-      };
-    });
-    const byMonth = new Map(months.map((month) => [month.key, month]));
-    const byCategory = new Map<string, number>();
-    const byMedicine = new Map<string, number>();
-    revenueThisMonth = 0;
-
-    for (const sale of sales) {
-      const when = isoDate(sale.saleDate) ?? isoDate(sale.createdAt) ?? isoDate(sale.date);
-      const key = when ? formatDateKeyInIST(when).slice(0, 7) : "";
-      const total = amount(sale.totalAmount ?? sale.total ?? sale.amount) ?? 0;
-      const bucket = byMonth.get(key);
-      if (bucket) bucket.amount += total;
-      if (key !== monthKey) continue;
-      revenueThisMonth += total;
-      for (const itemRaw of asList(sale.items)) {
-        const item = asRecord(itemRaw);
-        const name = text(item.medicineName) || text(item.name) || text(asRecord(item.medicine).name);
-        const lineTotal = amount(item.total ?? item.amount) ?? 0;
-        const category = titleCase(text(item.category) || text(asRecord(item.medicine).category));
-        if (name) byMedicine.set(name, (byMedicine.get(name) ?? 0) + (amount(item.quantity) ?? 0));
-        if (category) byCategory.set(category, (byCategory.get(category) ?? 0) + lineTotal);
-      }
-    }
-
-    monthly = months;
-    topSelling = [...byMedicine.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] ?? null;
-    const categoryTotal = [...byCategory.values()].reduce((sum, value) => sum + value, 0);
-    categoryShare =
-      categoryTotal > 0
-        ? [...byCategory.entries()]
-            .sort((left, right) => right[1] - left[1])
-            .map(([label, value]) => ({ label, percent: Math.round((value / categoryTotal) * 100) }))
-        : null;
-  }
-
-  // The stats endpoint is used when it carries these two figures (it does not today).
-  const stats = asRecord(pharmacyStats);
+  const stats = pharmacyStats && typeof pharmacyStats === "object" ? asRecord(pharmacyStats) : null;
 
   return {
     prescriptionsToday: prescriptions
       ? prescriptions.filter((prescription) => prescriptionDay(prescription) === todayKey).length
       : null,
-    revenueThisMonth: revenueThisMonth ?? amount(stats.totalRevenue),
+    revenue: stats ? amount(stats.totalRevenue) : null,
     pendingDeliveries: orders ? orders.filter((order) => OPEN_ORDER_STATUSES.has(order.status)).length : null,
-    topSelling: topSelling ?? (text(stats.topSellingMedicine) || null),
-    categoryShare,
-    monthly,
+    topSelling: stats ? text(stats.topSellingMedicine) || null : null,
+    statsReady: stats !== null,
   };
 }
 
