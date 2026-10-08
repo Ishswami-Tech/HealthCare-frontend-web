@@ -1696,10 +1696,9 @@ export const useDoctorAvailability = (
       refetchOnWindowFocus: false, // Don't refetch on tab switch
       refetchInterval,
       retry: appointmentQueryRetry,
-      // Keep the previous slot list visible while a new date/doctor is
-      // loading — without this, the slot-picker dialog flashes an empty
-      // grid whenever the user changes filters.
-      placeholderData: keepPreviousData,
+      // No placeholderData: the previous date's or doctor's slots must never stand in for the
+      // new ones, or a person could pick a time that is not open. While the new slots load,
+      // `isPending` is true and `data` is undefined, so every slot picker shows its loader.
     }
   );
 };
