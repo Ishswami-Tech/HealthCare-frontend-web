@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Star } from "lucide-react";
 import { Pill, Surface } from "@/components/tbd";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -44,7 +44,16 @@ function Head({ columns, labels }: { columns: string; labels: string[] }) {
 }
 
 /** Completed visits: what it was, video or clinic, when, and a link to the summary. */
-export function ManagerPastTable({ visits, footer }: { visits: ManagerVisit[]; footer?: ReactNode }) {
+export function ManagerPastTable({
+  visits,
+  footer,
+  onRate,
+}: {
+  visits: ManagerVisit[];
+  footer?: ReactNode;
+  /** Shows "Rate visit" on a completed in-clinic visit the patient can still rate. */
+  onRate?: (visitId: string) => void;
+}) {
   return (
     <Surface className="gap-0 pb-2">
       <Head columns={PAST_COLUMNS} labels={["Visit", "Type", "Date", ""]} />
@@ -68,6 +77,32 @@ export function ManagerPastTable({ visits, footer }: { visits: ManagerVisit[]; f
             </span>
           </>
         );
+        // A row with a Rate button cannot be one big link (a button inside a link is not valid).
+        if (onRate && visit.canRate) {
+          return (
+            <div key={visit.id} className={cn(ROW, PAST_COLUMNS)}>
+              <VisitCell visit={visit} description={who(visit)} />
+              <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5 @3xl:contents">
+                <span>
+                  <VisitTypeChip visit={visit} short />
+                </span>
+                <span className="text-[13px] text-ink-muted">{visit.dateLabel}</span>
+                <span className="ml-auto flex items-center justify-end gap-3 @3xl:ml-0">
+                  <Button variant="outline" size="sm" onClick={() => onRate(visit.id)}>
+                    <Star aria-hidden="true" />
+                    Rate visit
+                  </Button>
+                  {visit.summaryHref ? (
+                    <Link href={visit.summaryHref} className="inline-flex items-center gap-1 text-[13px] font-bold text-brand hover:text-brand-dark">
+                      {visit.summaryLabel}
+                      <ChevronRight className="size-3.5" strokeWidth={2.4} aria-hidden="true" />
+                    </Link>
+                  ) : null}
+                </span>
+              </span>
+            </div>
+          );
+        }
         return visit.summaryHref ? (
           <Link
             key={visit.id}

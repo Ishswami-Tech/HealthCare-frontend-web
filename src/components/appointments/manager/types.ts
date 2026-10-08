@@ -100,6 +100,10 @@ export interface ManagerVisit {
   canRetryPayment: boolean;
   /** Where the summary of a completed visit opens. */
   summaryHref: string | null;
+  /** A patient can rate a completed in-clinic visit (video visits are rated on their summary page). */
+  canRate: boolean;
+  /** Who the rating goes to (the visit's doctor). */
+  rateDoctorId: string | null;
   summaryLabel: string;
 }
 
@@ -120,6 +124,8 @@ export interface ManagerVisitActions {
   onReschedule: (visitId: string) => void;
   onCancel: (visitId: string) => void;
   onBookAgain: (visitId: string) => void;
+  /** Rate a completed in-clinic visit. */
+  onRate: (visitId: string) => void;
   onDeclineSlots: (visitId: string) => void;
   /** The payment window of an unpaid visit ran out: refresh the list. */
   onPaymentWindowExpired: () => void;

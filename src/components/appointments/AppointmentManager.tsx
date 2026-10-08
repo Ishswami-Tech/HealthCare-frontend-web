@@ -7,6 +7,7 @@ import { BookAppointmentDialog } from "@/components/appointments/BookAppointment
 import { PaymentButton } from "@/components/payments/PaymentButton";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/auth/useAuth";
+import { useAddDoctorReview } from "@/hooks/query/useDoctors";
 import {
   useAppointments,
   useCancelAppointment,
@@ -32,7 +33,7 @@ import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 import { Role } from "@/types/auth.types";
 import { buildSlotPeriods } from "./booking/slotDisplay";
 import { AppointmentManagerView } from "./manager/AppointmentManagerView";
-import { CancelVisitDialog, DeclineSlotsDialog, RescheduleDialog } from "./manager/ManagerDialogs";
+import { CancelVisitDialog, DeclineSlotsDialog, RateVisitDialog, RescheduleDialog } from "./manager/ManagerDialogs";
 import {
   dedupeAppointments,
   extractAppointmentList,
@@ -146,7 +147,14 @@ export default function AppointmentManager({
   } | null>(null);
   const [dateFilter, setDateFilter] = useState<ManagerDateRange>({ start: "", end: "" });
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [openDialog, setOpenDialog] = useState<"reschedule" | "cancel" | "decline" | null>(null);
+  const [openDialog, setOpenDialog] = useState<"reschedule" | "cancel" | "decline" | "rate" | null>(null);
+  const [rateData, setRateData] = useState<{ rating: number; comment: string; error: string | null }>({
+    rating: 0,
+    comment: "",
+    error: null,
+  });
+  // Visits rated in this session (the list does not say which visits already have a review).
+  const [ratedIds, setRatedIds] = useState<ReadonlySet<string>>(() => new Set());
   const [rescheduleData, setRescheduleData] = useState<{ date: string; time: string }>({ date: "", time: "" });
   const [rejectReason, setRejectReason] = useState("");
 
@@ -240,10 +248,11 @@ export default function AppointmentManager({
 
   const visits = useMemo(
     () =>
-      Array.from(appointmentsById.values()).map((appointment) =>
-        toManagerVisit(appointment, { now: now ?? Date.now(), viewerRole: user?.role, staffView })
-      ),
-    [appointmentsById, now, user?.role, staffView]
+      Array.from(appointmentsById.values()).map((appointment) => {
+        const visit = toManagerVisit(appointment, { now: now ?? Date.now(), viewerRole: user?.role, staffView });
+        return ratedIds.has(visit.id) ? { ...visit, canRate: false } : visit;
+      }),
+    [appointmentsById, now, user?.role, staffView, ratedIds]
   );
   const selectedVisit = useMemo(
     () => (selectedId ? (visits.find((visit) => visit.id === selectedId) ?? null) : null),
@@ -337,6 +346,35 @@ export default function AppointmentManager({
     });
   };
 
+  const { mutate: addReview, isPending: ratingVisit } = useAddDoctorReview();
+
+  const handleRateSubmit = () => {
+    if (!selectedId || !selectedVisit?.rateDoctorId || rateData.rating < 1) return;
+    const visitId = selectedId;
+    addReview(
+      {
+        doctorId: selectedVisit.rateDoctorId,
+        reviewData: {
+          appointmentId: visitId,
+          rating: rateData.rating,
+          ...(rateData.comment.trim() ? { comment: rateData.comment.trim() } : {}),
+        },
+      },
+      {
+        onSuccess: () => {
+          setRatedIds((previous) => new Set(previous).add(visitId));
+          setOpenDialog(null);
+        },
+        onError: (error: Error) => {
+          const message = sanitizeErrorMessage(error) || "Your rating was not saved.";
+          // The backend allows one review per visit.
+          if (/already/i.test(message)) setRatedIds((previous) => new Set(previous).add(visitId));
+          setRateData((previous) => ({ ...previous, error: message }));
+        },
+      }
+    );
+  };
+
   const handleRejectProposal = () => {
     if (!selectedId) return;
     rejectVideoProposal({ id: selectedId, reason: rejectReason }, {
@@ -406,6 +444,11 @@ export default function AppointmentManager({
         setOpenDialog("cancel");
       },
       onBookAgain: handleBookAgain,
+      onRate: (visitId) => {
+        setSelectedId(visitId);
+        setRateData({ rating: 0, comment: "", error: null });
+        setOpenDialog("rate");
+      },
       onDeclineSlots: (visitId) => {
         setSelectedId(visitId);
         setRejectReason("");
@@ -510,6 +553,19 @@ export default function AppointmentManager({
         slotsError={rescheduleSlotsError instanceof Error ? sanitizeErrorMessage(rescheduleSlotsError) : null}
         submitting={reschedulingAppointment}
         onSubmit={handleRescheduleSubmit}
+      />
+
+      <RateVisitDialog
+        open={openDialog === "rate"}
+        onOpenChange={(open) => (open ? setOpenDialog("rate") : closeDialog())}
+        visit={selectedVisit}
+        rating={rateData.rating}
+        comment={rateData.comment}
+        onRatingChange={(rating) => setRateData((previous) => ({ ...previous, rating, error: null }))}
+        onCommentChange={(comment) => setRateData((previous) => ({ ...previous, comment }))}
+        error={rateData.error}
+        submitting={ratingVisit}
+        onSubmit={handleRateSubmit}
       />
 
       <CancelVisitDialog
