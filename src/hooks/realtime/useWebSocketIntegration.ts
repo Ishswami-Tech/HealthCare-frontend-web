@@ -51,6 +51,35 @@ export function invalidateAppointmentQueryFamilies(queryClient: QueryClient) {
 // same as invalidateAppointmentQueryFamilies above already did deliberately)
 // - it just stops the burst of forced immediate refetches on every active
 // query matching the key.
+/**
+ * Every query family the pharmacy screens read (medicine desk queue, prescriptions, stock lists,
+ * batches, alerts, purchase orders, sales and stats). The `pharmacy.medicine_desk.updated` event
+ * reaches the PHARMACIST and DOCTOR rooms: the queue and the stock a doctor prescribes from change
+ * together, so all of them are marked stale. Keys are the ones `usePharmacy` registers; a prefix
+ * such as `['inventory']` matches `['inventory', clinicId, filters]`.
+ */
+const PHARMACY_QUERY_FAMILIES: readonly (readonly string[])[] = [
+  ['prescriptions'],
+  ['medicineDeskQueue'],
+  ['pharmacyStats'],
+  ['pharmacySales'],
+  ['pharmacyOrders'],
+  ['pharmacyOrder'],
+  ['pharmacyBatchAudit'],
+  ['inventory'],
+  ['medicines'],
+  ['medicine'],
+  ['medicineInventory'],
+  ['stockBatches'],
+  ['inventoryAlerts'],
+];
+
+export function invalidatePharmacyQueryFamilies(queryClient: QueryClient) {
+  for (const queryKey of PHARMACY_QUERY_FAMILIES) {
+    void queryClient.invalidateQueries({ queryKey: [...queryKey], exact: false });
+  }
+}
+
 export function invalidateDashboardQueryFamilies(queryClient: QueryClient) {
   void queryClient.invalidateQueries({ queryKey: ['clinicStats'], exact: false, refetchType: 'none' });
   void queryClient.invalidateQueries({ queryKey: ['dashboardAnalytics'], exact: false, refetchType: 'none' });
@@ -1285,9 +1314,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
       };
 
       const invalidateMedicineDeskQueries = (qc: QueryClient) => {
-        qc.invalidateQueries({ queryKey: ['prescriptions'], exact: false });
-        qc.invalidateQueries({ queryKey: ['medicineDeskQueue'], exact: false });
-        qc.invalidateQueries({ queryKey: ['pharmacyStats'], exact: false });
+        invalidatePharmacyQueryFamilies(qc);
       };
 
       // Hoist + coalesce: a single backend mutation can fire several of these
