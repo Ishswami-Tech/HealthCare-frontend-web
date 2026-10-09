@@ -23,6 +23,7 @@ export type PillTone =
   | "amber"
   | "rose"
   | "blue"
+  | "teal"
   | "slate"
   | "video"
   | "clinic"
@@ -33,6 +34,7 @@ const PILL_TONES: Record<PillTone, string> = {
   amber: "bg-[#fef3c7] text-[#92400e] dark:bg-amber-500/15 dark:text-amber-300",
   rose: "bg-[#ffe4e6] text-[#be123c] dark:bg-rose-500/15 dark:text-rose-300",
   blue: "bg-[#eff6ff] text-[#1e40af] dark:bg-blue-500/15 dark:text-blue-300",
+  teal: "bg-[#ccfbf1] text-[#0f766e] dark:bg-teal-500/15 dark:text-teal-300",
   slate: "bg-[#f1f5f9] text-[#334155] dark:bg-slate-500/20 dark:text-slate-300",
   video: "bg-[#eef2ff] text-[#3730a3] dark:bg-indigo-500/15 dark:text-indigo-300",
   clinic: "bg-[#ecfdf5] text-[#065f46] dark:bg-emerald-500/10 dark:text-emerald-300",
@@ -74,7 +76,7 @@ export function Chip({
   children,
 }: {
   icon?: TbdIcon;
-  tone?: "slate" | "video" | "clinic" | "green" | "amber" | "blue" | "rose";
+  tone?: "slate" | "video" | "clinic" | "green" | "amber" | "blue" | "teal" | "rose";
   className?: string;
   children: ReactNode;
 }) {
@@ -695,17 +697,28 @@ export function CellTitle({
   description,
   left,
   className,
+  wrapTitle = false,
+  titleHint,
 }: {
   title: ReactNode;
   description?: ReactNode;
   left?: ReactNode;
   className?: string;
+  /** Let a long title wrap onto a second line instead of being cut off with an ellipsis. */
+  wrapTitle?: boolean;
+  /** Native tooltip with the full title text. */
+  titleHint?: string;
 }) {
   return (
     <div className={cn("flex min-w-0 items-center gap-3", className)}>
       {left}
       <span className="flex min-w-0 flex-col gap-px">
-        <span className="truncate text-sm font-bold text-ink">{title}</span>
+        <span
+          className={cn("text-sm font-bold text-ink", wrapTitle ? "line-clamp-2 break-words" : "truncate")}
+          {...(titleHint ? { title: titleHint } : {})}
+        >
+          {title}
+        </span>
         {description ? <span className="truncate text-xs text-ink-muted">{description}</span> : null}
       </span>
     </div>

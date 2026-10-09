@@ -13,21 +13,27 @@ export function getVisitTypeLabel(type: string | null | undefined): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-/** "52 years · Male". Missing parts say so instead of being left blank. */
-export function getPatientLine(appointment: Pick<TransformedAppointment, "patientAge" | "patientGender">): string {
-  const age = appointment.patientAge ? `${appointment.patientAge} years` : "Age not set";
+/**
+ * "52 years · Male". Only the parts that are known are shown; null when neither is,
+ * so the caller can fall back to the phone number or print nothing.
+ */
+export function getPatientLine(
+  appointment: Pick<TransformedAppointment, "patientAge" | "patientGender">,
+): string | null {
+  const age = appointment.patientAge ? `${appointment.patientAge} years` : "";
   const rawGender = String(appointment.patientGender ?? "").trim();
-  const gender = rawGender
-    ? rawGender.charAt(0).toUpperCase() + rawGender.slice(1).toLowerCase()
-    : "Unknown";
-  return `${age} · ${gender}`;
+  const gender =
+    rawGender && rawGender.toLowerCase() !== "unknown"
+      ? rawGender.charAt(0).toUpperCase() + rawGender.slice(1).toLowerCase()
+      : "";
+  return [age, gender].filter(Boolean).join(" · ") || null;
 }
 
-/** Phone first, then e-mail; never an empty cell. */
+/** Phone first, then e-mail; empty when the record has neither. */
 export function getPatientContact(
   appointment: Pick<TransformedAppointment, "patientPhone" | "patientEmail">,
 ): string {
-  return appointment.patientPhone || appointment.patientEmail || "Not available";
+  return appointment.patientPhone || appointment.patientEmail || "";
 }
 
 /** A list (or a plain string) from the patient record as one readable line. */

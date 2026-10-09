@@ -89,7 +89,8 @@ function matchesDoctorAppointmentViewFilter(
   appointmentStatus: string,
   viewFilter: DoctorAppointmentViewFilter
 ): boolean {
-  if (viewFilter === APPOINTMENT_STATUS.ALL) return true;
+  // "All statuses" hides expired slots (they swamp the list); pick "Expired" to see them.
+  if (viewFilter === APPOINTMENT_STATUS.ALL) return appointmentStatus !== APPOINTMENT_STATUS.EXPIRED;
   if (viewFilter === "ACTIVE") {
     return ["ACTIVE", APPOINTMENT_STATUS.SCHEDULED, APPOINTMENT_STATUS.CONFIRMED, APPOINTMENT_STATUS.IN_PROGRESS].includes(
       getDoctorAppointmentBucket(appointmentStatus)
@@ -530,7 +531,7 @@ export default function DoctorAppointments() {
           createdAt: app.createdAt || app.updatedAt || "",
           patientPhone: app.patient?.phone || "",
           patientEmail: app.patient?.email || "",
-          chiefComplaint: app.chiefComplaint || app.reason || "Not specified",
+          chiefComplaint: app.chiefComplaint || app.reason || "",
           medicalHistory: app.patient?.medicalHistory || [],
           allergies: app.patient?.allergies || [],
           currentMedications: app.patient?.currentMedications || [],
@@ -621,7 +622,7 @@ export default function DoctorAppointments() {
     [dateScopedAppointments]
   );
 
-  const totalAppointmentsCount = dateScopedAppointments.length;
+  const totalAppointmentsCount = dateScopedAppointments.length - expiredAppointmentsCount;
   const selectedAppointmentIsClosed = selectedAppointment
     ? ["COMPLETED", "CANCELLED", "NO_SHOW", "EXPIRED"].includes(String(selectedAppointment.status))
     : false;

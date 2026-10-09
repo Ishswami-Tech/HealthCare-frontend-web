@@ -98,7 +98,7 @@ export function DoctorAppointmentsDetailsDialog({
                 </FactTile>
                 <FactTile label="Visit type">{getVisitTypeLabel(selectedAppointment.type)}</FactTile>
                 <FactTile label="Contact">
-                  <span className="min-w-0 [overflow-wrap:anywhere]">{getPatientContact(selectedAppointment)}</span>
+                  <span className="min-w-0 [overflow-wrap:anywhere]">{getPatientContact(selectedAppointment) || "Not available"}</span>
                 </FactTile>
                 <FactTile label="Queue">{selectedAppointment.queuePosition ?? "–"}</FactTile>
               </div>
@@ -144,7 +144,7 @@ export function DoctorAppointmentsDetailsDialog({
                         </span>
                       </div>
                       <Divider />
-                      <InfoBlock title="Chief Complaint">{selectedAppointment.chiefComplaint}</InfoBlock>
+                      <InfoBlock title="Chief Complaint">{selectedAppointment.chiefComplaint || "None recorded"}</InfoBlock>
                       <Divider />
                       <InfoBlock title="Medical History">{joinRecordList(selectedAppointment.medicalHistory)}</InfoBlock>
                     </div>

@@ -35,7 +35,10 @@ const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
  * `@5xl` is a container width, so the layout follows the card, not the window.
  */
 const ROW_GRID =
-  "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-5 @5xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1.45fr)_100px_minmax(0,1.1fr)_388px] @5xl:items-center @5xl:gap-x-4";
+  "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-5 @5xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1.3fr)_100px_minmax(0,1.1fr)_388px] @5xl:items-center @5xl:gap-x-4";
+/** Same grid without the Details column (no row has a complaint or reason to show). */
+const ROW_GRID_NO_DETAILS =
+  "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-5 @5xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1.3fr)_100px_388px] @5xl:items-center @5xl:gap-x-4";
 const CELL_BELOW = "col-[2/-1] @5xl:col-auto @5xl:row-auto";
 
 interface DoctorAppointmentsTableProps {
@@ -192,11 +195,11 @@ function RowActions({
   );
 }
 
-function SkeletonRows({ rows = 5 }: { rows?: number }) {
+function SkeletonRows({ rows = 5, rowGrid }: { rows?: number; rowGrid: string }) {
   return (
     <div aria-hidden="true">
       {Array.from({ length: rows }).map((_, index) => (
-        <div key={index} className={cn(ROW_GRID, "items-center gap-y-2.5 border-b border-hair py-3.5 last:border-b-0 @5xl:min-h-16 @5xl:py-2")}>
+        <div key={index} className={cn(rowGrid, "items-center gap-y-2.5 border-b border-hair py-3.5 last:border-b-0 @5xl:min-h-16 @5xl:py-2")}>
           <div className="flex min-w-0 items-center gap-3">
             <Skeleton className="size-[38px] shrink-0 rounded-full" />
             <div className="flex min-w-0 flex-col gap-1.5">
@@ -258,6 +261,9 @@ export function DoctorAppointmentsTable({
   const rangeStart = total === 0 ? 0 : currentPage * pageSize + 1;
   const rangeEnd = total === 0 ? 0 : currentPage * pageSize + pageRows.length;
   const isMissedView = appointmentViewFilter === "NO_SHOW";
+  // The Details column only earns its space when at least one row has a complaint or reason.
+  const showDetails = appointments.some((app) => Boolean(app.chiefComplaint));
+  const rowGrid = showDetails ? ROW_GRID : ROW_GRID_NO_DETAILS;
 
   return (
     <Surface flush as="section" className="@container" aria-label={isMissedView ? "Missed appointments" : "Appointments"}>
@@ -292,19 +298,19 @@ export function DoctorAppointmentsTable({
         <div
           role="row"
           className={cn(
-            ROW_GRID,
+            rowGrid,
             "hidden border-b border-hair py-3 text-[11px] font-extrabold uppercase tracking-[0.6px] text-ink-muted @5xl:grid",
           )}
         >
           <span role="columnheader">Patient</span>
           <span role="columnheader">Type</span>
           <span role="columnheader">Status</span>
-          <span role="columnheader">Details</span>
+          {showDetails ? <span role="columnheader">Details</span> : null}
           <span role="columnheader">Actions</span>
         </div>
 
         {loading ? (
-          <SkeletonRows />
+          <SkeletonRows rowGrid={rowGrid} />
         ) : pageRows.length === 0 ? (
           <div role="row">
             <div role="cell">
@@ -333,7 +339,7 @@ export function DoctorAppointmentsTable({
                 key={app.id}
                 role="row"
                 className={cn(
-                  ROW_GRID,
+                  rowGrid,
                   "items-start gap-y-2.5 border-b border-hair py-3.5 text-sm last:border-b-0 @5xl:min-h-16 @5xl:py-2",
                 )}
               >
@@ -371,7 +377,9 @@ export function DoctorAppointmentsTable({
                         app.patientName
                       )
                     }
-                    description={getPatientLine(app)}
+                    description={getPatientLine(app) ?? (getPatientContact(app) || undefined)}
+                    wrapTitle
+                    titleHint={app.patientName}
                   />
                 </div>
                 <div role="cell" className={cn(CELL_BELOW, "row-[2] min-w-0")}>
@@ -383,13 +391,15 @@ export function DoctorAppointmentsTable({
                 <div role="cell" className="col-[2] row-[1] min-w-0 @5xl:col-auto @5xl:row-auto">
                   <Pill tone={statusTone(app.status)}>{statusLabel(app.status)}</Pill>
                 </div>
-                <div role="cell" className={cn(CELL_BELOW, "row-[3] min-w-0")}>
-                  <CellTitle
-                    title={<span className="font-medium">{app.chiefComplaint}</span>}
-                    description={getPatientContact(app)}
-                  />
-                </div>
-                <div role="cell" className={cn(CELL_BELOW, "row-[4] min-w-0")}>
+                {showDetails ? (
+                  <div role="cell" className={cn(CELL_BELOW, "row-[3] min-w-0")}>
+                    <CellTitle
+                      title={<span className="font-medium">{app.chiefComplaint}</span>}
+                      description={getPatientContact(app) || undefined}
+                    />
+                  </div>
+                ) : null}
+                <div role="cell" className={cn(CELL_BELOW, showDetails ? "row-[4]" : "row-[3]", "min-w-0")}>
                   <RowActions
                     appointment={app}
                     clinicId={clinicId}
