@@ -1,5 +1,6 @@
 import type { useUpdateUserProfile } from "@/hooks/query/useUsers";
 import type { ReviewStats } from "./doctor-profile.logic";
+import type { LocalizedProfileDraft } from "./doctor-profile-localized";
 
 export interface DoctorProfilePersonalInfo {
   firstName: string;
@@ -27,6 +28,8 @@ export interface DoctorProfileProfessionalInfo {
   certifications: string[];
   languagesSpoken: string[];
   clinicAffiliations: string[];
+  /** Public name, headline and highlights per language (en / hi / mr). */
+  localizedProfile: LocalizedProfileDraft;
 }
 
 export interface DoctorProfileConsultationSettings {

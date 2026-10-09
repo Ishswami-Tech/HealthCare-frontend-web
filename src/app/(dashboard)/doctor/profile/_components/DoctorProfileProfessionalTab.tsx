@@ -5,17 +5,21 @@ import { BookOpen, Pencil, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Note } from "@/components/tbd";
+import { DoctorProfileLocalizedCard } from "./DoctorProfileLocalizedCard";
 import { PROFILE_LABEL, ProfileCard, ProfileField } from "./DoctorProfileParts";
 import type { DoctorProfileFormState } from "./doctor-profile.types";
 
 interface DoctorProfileProfessionalTabProps {
   profileData: DoctorProfileFormState;
   updateProfessionalInfo: (field: string, value: unknown) => void;
+  /** Only the doctor saves the public profile (same rule as the other doctor-record fields). */
+  canEditPublicProfile?: boolean;
 }
 
 export function DoctorProfileProfessionalTab({
   profileData,
   updateProfessionalInfo,
+  canEditPublicProfile = false,
 }: DoctorProfileProfessionalTabProps) {
   const { professionalInfo } = profileData;
   const [addingSpecialization, setAddingSpecialization] = useState(false);
@@ -39,6 +43,12 @@ export function DoctorProfileProfessionalTab({
 
   return (
     <div className="flex flex-col gap-5">
+      {canEditPublicProfile ? (
+        <DoctorProfileLocalizedCard
+          value={professionalInfo.localizedProfile}
+          onChange={(next) => updateProfessionalInfo("localizedProfile", next)}
+        />
+      ) : null}
       <ProfileCard icon={Pencil} title="Professional Information">
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
           <ProfileField label="Medical License" htmlFor="medicalLicense">
