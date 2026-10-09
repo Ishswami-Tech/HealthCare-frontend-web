@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from 'react';
+import { keepPreviousData } from '@tanstack/react-query';
 import { useQueryData } from '../core/useQueryData';
 import { useMutationOperation } from '../core/useMutationOperation';
 import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
@@ -408,6 +409,9 @@ export const useEarningsSplit = (range: { from: string; to: string }) => {
   }, {
     enabled: !!range.from && !!range.to,
     retry: doctorQueryRetry,
+    // Changing the date range keeps the previous figures (and the fees card with any open edit)
+    // on screen instead of dropping back to the skeleton.
+    placeholderData: keepPreviousData,
   });
 };
 
