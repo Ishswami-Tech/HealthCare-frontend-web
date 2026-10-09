@@ -129,7 +129,8 @@ export interface FeeDraft {
   inPerson: string;
 }
 
-export type FeeChanges = { videoDoctorFee?: number; inPersonDoctorFee?: number };
+/** A number sets the fee; null clears it (the percentage platform fee applies again). */
+export type FeeChanges = { videoDoctorFee?: number | null; inPersonDoctorFee?: number | null };
 
 export type FeeDraftResult =
   | { ok: true; changes: FeeChanges }
@@ -151,7 +152,7 @@ function parseFee(text: string, label: string): { value?: number; error?: string
 
 /**
  * Turns the two inputs into a PATCH body with only the fields that changed.
- * An untouched blank field (no fee set before) stays out of the body.
+ * An untouched blank field (no fee set before) stays out of the body; blanking a set fee sends null.
  */
 export function buildFeeChanges(setting: DoctorFeeSetting, draft: FeeDraft): FeeDraftResult {
   const changes: FeeChanges = {};
@@ -161,7 +162,11 @@ export function buildFeeChanges(setting: DoctorFeeSetting, draft: FeeDraft): Fee
   ];
 
   for (const [key, label, current, text] of fields) {
-    if (text.trim() === "" && current === null) continue;
+    if (text.trim() === "") {
+      // Blank on a fee that was set means "clear it"; blank on an unset fee changes nothing.
+      if (current !== null) changes[key] = null;
+      continue;
+    }
     const parsed = parseFee(text, label);
     if (parsed.error) return { ok: false, error: parsed.error };
     if (parsed.value !== undefined && parsed.value !== current) changes[key] = parsed.value;
