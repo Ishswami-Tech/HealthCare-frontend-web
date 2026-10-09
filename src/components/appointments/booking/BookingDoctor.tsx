@@ -95,7 +95,7 @@ export function BookingDoctorProfile({
           >
             {doctor.name}
           </span>
-          {doctor.subtitle ? <span className="text-sm text-ink-soft">{doctor.subtitle}</span> : null}
+          {doctor.subtitle ? <span className="break-words text-sm text-ink-soft">{doctor.subtitle}</span> : null}
           {doctor.clinicName ? (
             <span className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-soft">
               <Building2 className="size-3.5 shrink-0" strokeWidth={2} aria-hidden="true" />
@@ -139,8 +139,11 @@ export function BookingDoctorProfile({
 /** Education, languages and the doctor's recognitions; renders only what the doctor entered. */
 function BookingDoctorAbout({ doctor }: { doctor: BookingDoctorInfo }) {
   const highlights = doctor.highlights ?? [];
+  const profileHighlights = doctor.profileHighlights ?? [];
   const languages = doctor.languages ?? [];
-  if (!doctor.education && highlights.length === 0 && languages.length === 0) return null;
+  if (!doctor.education && highlights.length === 0 && profileHighlights.length === 0 && languages.length === 0) {
+    return null;
+  }
   return (
     <div className="mt-1 flex flex-col gap-2.5 border-t border-line pt-3.5">
       {doctor.education ? (
@@ -155,7 +158,22 @@ function BookingDoctorAbout({ doctor }: { doctor: BookingDoctorInfo }) {
           <span className="min-w-0 break-words">{languages.join(" · ")}</span>
         </p>
       ) : null}
-      {highlights.length > 0 ? (
+      {profileHighlights.length > 0 ? (
+        <ul className="flex flex-col gap-1.5">
+          {profileHighlights.map((item, index) => (
+            <li key={`${index}-${item.text}`} className="flex items-start gap-2 text-[13px] leading-snug text-ink">
+              {item.icon ? (
+                <span className="w-4 shrink-0 text-center text-sm leading-snug" aria-hidden="true">
+                  {item.icon}
+                </span>
+              ) : (
+                <Award className="mt-0.5 size-4 shrink-0 text-brand" strokeWidth={2} aria-hidden="true" />
+              )}
+              <span className="min-w-0 break-words">{item.text}</span>
+            </li>
+          ))}
+        </ul>
+      ) : highlights.length > 0 ? (
         <ul className="flex flex-col gap-1.5">
           {highlights.map((line) => (
             <li key={line} className="flex items-start gap-2 text-[13px] leading-snug text-ink">
