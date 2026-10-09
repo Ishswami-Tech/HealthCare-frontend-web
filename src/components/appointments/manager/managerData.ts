@@ -1,4 +1,5 @@
 import { statusLabel, statusTone, type PillTone } from "@/components/tbd";
+import { localizedDoctorName, localizedDoctorSubtitle } from "@/lib/utils/localized-profile";
 import { asRow, firstText, isCheckedInClinicVisit, text, type Row } from "@/components/patient/home/homeData";
 import {
   APPOINTMENT_MAX_RESCHEDULES,
@@ -122,6 +123,8 @@ export interface ManagerVisitOptions {
   viewerRole?: string | null | undefined;
   /** Staff lists (reception, clinic) lead with the patient's name. */
   staffView: boolean;
+  /** App language; patients see the doctor's localized name and headline in it. */
+  locale?: string | undefined;
 }
 
 function normalizeRole(role?: string | null): string {
@@ -212,7 +215,7 @@ function closedNote(appointment: Row, status: string, isVideo: boolean, paymentF
 }
 
 export function toManagerVisit(appointment: Row, options: ManagerVisitOptions): ManagerVisit {
-  const { now, viewerRole, staffView } = options;
+  const { now, viewerRole, staffView, locale } = options;
   const viewerIsPatient = isPatientViewer(viewerRole, staffView);
   const normalized = normalizePatientAppointment(appointment);
   const viewState = getAppointmentViewState(appointment);
@@ -247,13 +250,18 @@ export function toManagerVisit(appointment: Row, options: ManagerVisitOptions): 
     : dayLabel;
 
   // ── who ──
-  const doctorName = formatDoctorDisplayName(firstText(appointment.doctorLabel) || normalized.doctorName);
+  const plainDoctorName = formatDoctorDisplayName(firstText(appointment.doctorLabel) || normalized.doctorName);
+  const doctorProfile = asRow(appointment.doctor)?.localizedProfile;
+  const doctorName = staffView ? plainDoctorName : localizedDoctorName(doctorProfile, locale, plainDoctorName);
   const patientName = toTitleCase(firstText(appointment.patientLabel) || getAppointmentPatientName(appointment));
   const hasPatientName = Boolean(patientName) && patientName !== "Unknown Patient";
   const treatment = text(appointment.treatmentType).replace(/_/g, " ");
   const visitLabel = treatment ? toTitleCase(treatment) : isVideo ? "Video consultation" : "Clinic visit";
   const duration = getDisplayAppointmentDuration(appointment);
-  const specialization = text(asRow(appointment.doctor)?.specialization);
+  const plainSpecialization = text(asRow(appointment.doctor)?.specialization);
+  const specialization = staffView
+    ? plainSpecialization
+    : (localizedDoctorSubtitle(doctorProfile, locale, plainSpecialization) ?? "");
   const locationName = firstText(appointment.locationLabel) || normalized.locationName;
   const hasLocation = Boolean(locationName) && locationName !== "Location TBD" && locationName !== doctorName;
   const subtitle = staffView

@@ -16,6 +16,7 @@ import {
   shouldShowAppointmentOnPatientDashboard,
   toTitleCase,
 } from "@/lib/utils/appointmentUtils";
+import { localizedDoctorName, localizedDoctorSubtitle } from "@/lib/utils/localized-profile";
 import type { HealthLibraryListFilters, HealthLibraryPost } from "@/lib/actions/health-library.server";
 import type { HomeLibraryItem, HomeLibraryTab, HomeVisit } from "./types";
 
@@ -144,9 +145,11 @@ export function findQueueAppointment(upcoming: Row[]): Row | null {
   );
 }
 
-function doctorDetail(appointment: Row): string | undefined {
+function doctorDetail(appointment: Row, locale?: string): string | undefined {
   const doctor = asRow(appointment.doctor);
   if (!doctor) return undefined;
+  const headline = localizedDoctorSubtitle(doctor.localizedProfile, locale, undefined);
+  if (headline) return headline;
   const rawQualification = doctor.qualification ?? doctor.qualifications ?? doctor.degree;
   const qualification = Array.isArray(rawQualification)
     ? rawQualification.map(text).filter(Boolean).join(", ")
@@ -192,7 +195,7 @@ function clinicContact(appointment: Row): Pick<HomeVisit, "locationLabel" | "cli
   };
 }
 
-export function toHomeVisit(appointment: Row, now: number): HomeVisit {
+export function toHomeVisit(appointment: Row, now: number, locale?: string): HomeVisit {
   const normalized = normalizePatientAppointment(appointment);
   const viewState = getAppointmentViewState(appointment);
   const isVideo = isVideoVisit(appointment);
@@ -218,10 +221,14 @@ export function toHomeVisit(appointment: Row, now: number): HomeVisit {
   return {
     id: text(appointment.id),
     kind: isVideo ? "video" : "clinic",
-    doctorName: formatDoctorDisplayName(normalized.doctorName),
+    doctorName: localizedDoctorName(
+      asRow(appointment.doctor)?.localizedProfile,
+      locale,
+      formatDoctorDisplayName(normalized.doctorName),
+    ),
     doctorPhotoUrl: doctorPhoto(appointment),
     visitLabel: treatment ? toTitleCase(treatment) : isVideo ? "Video consultation" : "Clinic visit",
-    doctorDetail: doctorDetail(appointment),
+    doctorDetail: doctorDetail(appointment, locale),
     dateLabel: dateLabel || "Date to be confirmed",
     timeLabel: timeLabel || "",
     startsAt: dateTime ? dateTime.toISOString() : null,

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useMyAppointments } from "@/hooks/query/useAppointments";
 import { usePatientQueue } from "@/hooks/query/usePatientQueue";
 import { toHomeVisit } from "@/components/patient/home/homeData";
+import { useLanguage } from "@/lib/i18n/context";
 import {
   PatientQueueEmptyView,
   PatientQueueErrorView,
@@ -21,14 +22,15 @@ export function PatientQueueContent() {
   const { data: entry, isPending, isFetching, error, refetch } = usePatientQueue();
   const { data: appointmentsData } = useMyAppointments();
   const [now] = useState(() => Date.now());
+  const { language } = useLanguage();
 
   const appointments = useMemo(() => readAppointments(appointmentsData), [appointmentsData]);
 
   const queueVisit = useMemo(() => {
     if (!entry) return null;
     const row = appointments.find((appointment) => String(appointment.id ?? "") === entry.appointmentId) ?? null;
-    return row ? { row, visit: toHomeVisit(row, now) } : null;
-  }, [appointments, entry, now]);
+    return row ? { row, visit: toHomeVisit(row, now, language) } : null;
+  }, [appointments, entry, now, language]);
 
   // For the empty state: an in-clinic visit booked for today that is not checked in yet.
   const visitToCheckIn = useMemo(
