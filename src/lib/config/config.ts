@@ -1153,6 +1153,8 @@ export const API_ENDPOINTS = {
     DASHBOARD: '/analytics/dashboard',
     /** The signed-in doctor's own earnings. Query: from, to (IST days). Doctors only. */
     DOCTOR_MY_EARNINGS: '/analytics/doctor/me/earnings',
+    /** Gross, doctor share and convenience fee per doctor. Query: from, to. SUPER_ADMIN and CLINIC_ADMIN only. */
+    EARNINGS_SPLIT: '/analytics/earnings/split',
     APPOINTMENTS: '/analytics/appointments',
     PATIENTS: '/analytics/patients',
     REVENUE: '/analytics/revenue',
