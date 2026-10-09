@@ -18,6 +18,7 @@ import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 import { usePatientUiStore } from "@/stores/patient-ui.store";
 import { resolveAuthoritativeProfileCompleteFromCandidates } from "@/lib/config/profile";
 import { resolvePatientDisplayName } from "@/lib/utils/display-name";
+import { useLanguage } from "@/lib/i18n/context";
 import { PatientHomeView } from "@/components/patient/home/PatientHomeView";
 import {
   LIBRARY_FILTERS,
@@ -52,6 +53,7 @@ export default function PatientDashboard() {
 
   // Enable real-time WebSocket sync
   useWebSocketQuerySync();
+  const { language } = useLanguage();
 
   // A slow clock, so the join window and "Starts in …" stay correct while the page is open.
   const [now, setNow] = useState(() => Date.now());
@@ -122,8 +124,8 @@ export default function PatientDashboard() {
   const upcomingAppointments = useMemo(() => selectUpcomingAppointments(summaryAppointments), [summaryAppointments]);
 
   const visits = useMemo<HomeVisit[]>(
-    () => upcomingAppointments.map((appointment) => toHomeVisit(appointment, now)),
-    [upcomingAppointments, now]
+    () => upcomingAppointments.map((appointment) => toHomeVisit(appointment, now, language)),
+    [upcomingAppointments, now, language]
   );
 
   // Live queue place, for a checked-in in-clinic visit only. A patient reads their own entry

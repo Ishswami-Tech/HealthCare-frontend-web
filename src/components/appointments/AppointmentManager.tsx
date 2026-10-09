@@ -18,6 +18,7 @@ import {
 } from "@/hooks/query/useAppointments";
 import { showErrorToast, showInfoToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { useCurrentTimestamp } from "@/hooks/utils/useClientDate";
+import { useLanguage } from "@/lib/i18n/context";
 import {
   formatISODateInIST,
   formatTimeInIST,
@@ -126,6 +127,7 @@ export default function AppointmentManager({
   }, [user?.role]);
   // Staff lists (reception, clinic) lead with the patient's name and show the numbers.
   const staffView = isAdminView || !isPatientViewer(user?.role, isAdminView);
+  const { language } = useLanguage();
 
   // A slow clock, so "Starts in 25 minutes" and the join window stay true while the page is open.
   const [now, setNow] = useState<number | null>(null);
@@ -249,10 +251,10 @@ export default function AppointmentManager({
   const visits = useMemo(
     () =>
       Array.from(appointmentsById.values()).map((appointment) => {
-        const visit = toManagerVisit(appointment, { now: now ?? Date.now(), viewerRole: user?.role, staffView });
+        const visit = toManagerVisit(appointment, { now: now ?? Date.now(), viewerRole: user?.role, staffView, locale: language });
         return ratedIds.has(visit.id) ? { ...visit, canRate: false } : visit;
       }),
-    [appointmentsById, now, user?.role, staffView, ratedIds]
+    [appointmentsById, now, user?.role, staffView, ratedIds, language]
   );
   const selectedVisit = useMemo(
     () => (selectedId ? (visits.find((visit) => visit.id === selectedId) ?? null) : null),
