@@ -55,7 +55,8 @@ export type OpdPatientRow = {
   firstName?: string;
   lastName?: string;
   phone?: string;
-  user?: { id?: string; name?: string; firstName?: string; lastName?: string; phone?: string };
+  email?: string;
+  user?: { id?: string; name?: string; firstName?: string; lastName?: string; phone?: string; email?: string };
 };
 
 function extractPatients(value: unknown): OpdPatientRow[] {
@@ -267,8 +268,10 @@ export function OpdRegistrationDialogView({
       >
         <div className="flex shrink-0 items-center gap-3.5 px-4 pb-4 pt-[22px] sm:px-6">
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <DialogTitle>OPD Registration</DialogTitle>
-            <DialogDescription>Choose who is visiting, then register the visit to get an OPD number.</DialogDescription>
+            <DialogTitle>New patient / OPD visit</DialogTitle>
+            <DialogDescription>
+              Search by phone or email first to avoid duplicates, or register a new patient, then open the visit to get an OPD number.
+            </DialogDescription>
           </div>
           <DialogCloseButton disabled={busy} />
         </div>
@@ -341,8 +344,8 @@ export function OpdRegistrationDialogView({
                         autoComplete="off"
                         value={form.search}
                         onChange={(event) => onPatch({ search: event.target.value })}
-                        placeholder="Search existing patient by name or phone"
-                        aria-label="Search existing patient by name or phone"
+                        placeholder="Search existing patient by phone, email or name"
+                        aria-label="Search existing patient by phone, email or name"
                         className="min-w-0 flex-1 bg-transparent outline-hidden placeholder:text-ink-muted focus-visible:outline-hidden! focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-search-cancel-button]:appearance-none"
                       />
                     </label>
@@ -382,7 +385,7 @@ export function OpdRegistrationDialogView({
                                 <span className={cn("min-w-0 flex-1 truncate", active ? "font-bold" : "font-semibold")}>
                                   {patientName(row)}
                                 </span>
-                                <span className="shrink-0 text-xs text-ink-muted">{row.phone || row.user?.phone || ""}</span>
+                                <span className="shrink-0 text-xs text-ink-muted">{row.phone || row.user?.phone || row.email || row.user?.email || ""}</span>
                                 {active ? (
                                   <Check className="size-4 shrink-0 text-brand" strokeWidth={2.4} aria-hidden="true" />
                                 ) : null}
@@ -838,7 +841,7 @@ export function OpdRegistrationDialog({ clinicId, trigger, onRegistered, showFee
         trigger ?? (
           <Button size="md">
             <ClipboardPlus />
-            OPD Registration
+            New patient / OPD visit
           </Button>
         )
       }
@@ -850,7 +853,15 @@ export function OpdRegistrationDialog({ clinicId, trigger, onRegistered, showFee
       results={results}
       familyMembers={familyQuery.data ?? []}
       onPickExisting={pickExisting}
-      onStartNew={() => patch({ selectedPatient: null, who: { kind: "new" } })}
+      onStartNew={() => {
+        // A phone number typed into the search carries over so it is not typed twice.
+        const typedPhone = form.search.replace(/\D/g, "").length >= 10 && !/[a-z@]/i.test(form.search);
+        patch({
+          selectedPatient: null,
+          who: { kind: "new" },
+          ...(typedPhone && !newPatient.phone ? { newPatient: { ...newPatient, phone: form.search.trim() } } : {}),
+        });
+      }}
       onBackToSearch={() => patch({ who: null, selectedPatient: null })}
       onAddDependent={() => void addDependent()}
       addingDependent={createDependent.isPending}
