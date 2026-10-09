@@ -20,8 +20,6 @@ export interface DoctorPatientRow {
 
 export interface DoctorPatientsStats {
   upcomingAppointments: number;
-  followUps: number;
-  recoveryRate: number;
 }
 
 export interface DoctorPatientsPageMeta {
@@ -141,9 +139,8 @@ export function genderLabel(gender: string): string {
 
 /** "32 years · Female" */
 export function patientSummaryLine(row: Pick<DoctorPatientRow, "age" | "gender">): string {
-  const age = row.age === null ? "Age not set" : row.age === 0 ? "Under 1 year" : `${row.age} years`;
-  const gender = genderLabel(row.gender);
-  return gender ? `${age} · ${gender}` : age;
+  const age = row.age === null ? "" : row.age === 0 ? "Under 1 year" : `${row.age} years`;
+  return [age, genderLabel(row.gender)].filter(Boolean).join(" · ");
 }
 
 export function visitsLabel(row: Pick<DoctorPatientRow, "totalVisits">): string {
@@ -181,12 +178,25 @@ export function matchesLastVisitRange(
   return true;
 }
 
-/** The three numbers next to "Total Patients", worked out from the doctor's appointments. */
-export function computeDoctorPatientsStats(
-  appointments: Raw[],
-  totalPatientsCount: number,
-  now: Date = new Date(),
-): DoctorPatientsStats {
+/**
+ * Most recent visit first; patients with no visit date go last. Returns a new array.
+ * The server list has no sort option, so this orders the rows that are already loaded.
+ */
+export function sortByLatestVisit<T extends Pick<DoctorPatientRow, "lastVisit">>(rows: readonly T[]): T[] {
+  const time = (row: T): number => {
+    const value = row.lastVisit ? new Date(row.lastVisit).getTime() : Number.NaN;
+    return Number.isNaN(value) ? Number.NEGATIVE_INFINITY : value;
+  };
+  return [...rows].sort((a, b) => {
+    const left = time(a);
+    const right = time(b);
+    if (left === right) return 0;
+    return right > left ? 1 : -1;
+  });
+}
+
+/** The "This Week" number next to "Total Patients", worked out from the doctor's appointments. */
+export function computeDoctorPatientsStats(appointments: Raw[], now: Date = new Date()): DoctorPatientsStats {
   const weekEnd = new Date(now);
   weekEnd.setDate(now.getDate() + 7);
 
@@ -201,20 +211,5 @@ export function computeDoctorPatientsStats(
     );
   }).length;
 
-  const followUps = appointments.filter((appointment) => {
-    const raw = asText(appointment.followUpDate);
-    const followUpDate = raw ? new Date(raw) : null;
-    return followUpDate && !Number.isNaN(followUpDate.getTime()) && followUpDate >= now && followUpDate <= weekEnd;
-  }).length;
-
-  const visitsByPatient = new Map<string, number>();
-  for (const appointment of appointments) {
-    const patientId = asText(appointment.patientId);
-    if (!patientId) continue;
-    visitsByPatient.set(patientId, (visitsByPatient.get(patientId) ?? 0) + 1);
-  }
-  const improvedPatients = Array.from(visitsByPatient.values()).filter((count) => count > 1).length;
-  const recoveryRate = totalPatientsCount > 0 ? Math.round((improvedPatients / totalPatientsCount) * 100) : 0;
-
-  return { upcomingAppointments, followUps, recoveryRate };
+  return { upcomingAppointments };
 }

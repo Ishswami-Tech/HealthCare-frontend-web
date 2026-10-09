@@ -1,12 +1,11 @@
 "use client";
 
 import { useDeferredValue, useMemo, useReducer, useState } from "react";
-import { ClipboardPlus, Loader2, Pill, UserPlus } from "lucide-react";
+import { ClipboardPlus, Loader2, Pill } from "lucide-react";
 import { useComprehensiveHealthRecord } from "@/hooks/query/useMedicalRecords";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { QuickPrescriptionModal } from "@/components/doctor/QuickPrescriptionModal";
-import { RegisterPatientDialog } from "@/components/patients/RegisterPatientDialog";
 import { OpdRegistrationDialog } from "@/components/patients/OpdRegistrationDialog";
 import { VisitSelector } from "@/components/patient/case-sheet/VisitSelector";
 import { VisitCaseSheet } from "@/components/patient/case-sheet/VisitCaseSheet";
@@ -31,6 +30,7 @@ import {
   getPatientName,
   matchesLastVisitRange,
   patientSummaryLine,
+  sortByLatestVisit,
   toDoctorPatientRow,
 } from "./_components/doctorPatients.logic";
 
@@ -221,7 +221,10 @@ export default function DoctorPatients() {
     [patientsQuery.data]
   );
   const rows = useMemo(() => {
-    const mapped = extractPatients(patientsQuery.data).map((patient) => toDoctorPatientRow(patient));
+    // No server-side sort: order the loaded page by latest visit, newest first.
+    const mapped = sortByLatestVisit(
+      extractPatients(patientsQuery.data).map((patient) => toDoctorPatientRow(patient)),
+    );
     if (!hasLastVisitRange) return mapped;
     return mapped.filter((row) => matchesLastVisitRange(row, dateFrom, dateTo));
   }, [patientsQuery.data, hasLastVisitRange, dateFrom, dateTo]);
@@ -252,39 +255,24 @@ export default function DoctorPatients() {
   const totalPatientsCount = displayTotal;
   const stats = useMemo(
     () =>
-      computeDoctorPatientsStats(
-        extractAppointments(appointmentsData),
-        patientsPage.total || rows.length
-      ),
-    [appointmentsData, patientsPage.total, rows.length]
+      computeDoctorPatientsStats(extractAppointments(appointmentsData)),
+    [appointmentsData]
   );
 
-  // A doctor-registered patient is linked to this doctor directly on the
-  // backend (no appointment required), so registering just needs a refetch
-  // to bring the new patient into the list.
+  // One flow for both: search an existing patient (no duplicates) or register a new one,
+  // then open the OPD visit. A doctor-registered patient is linked to this doctor on the
+  // backend, so a refetch brings them into the list.
   const headerActions = (
-    <>
-      <OpdRegistrationDialog
-        clinicId={clinicId || ""}
-        onRegistered={() => void patientsQuery.refetch()}
-        trigger={
-          <Button variant="outline" size="md">
-            <ClipboardPlus />
-            OPD Registration
-          </Button>
-        }
-      />
-      <RegisterPatientDialog
-        clinicId={clinicId}
-        onRegistered={() => void patientsQuery.refetch()}
-        trigger={
-          <Button size="md">
-            <UserPlus />
-            Register Patient
-          </Button>
-        }
-      />
-    </>
+    <OpdRegistrationDialog
+      clinicId={clinicId || ""}
+      onRegistered={() => void patientsQuery.refetch()}
+      trigger={
+        <Button size="md">
+          <ClipboardPlus />
+          New patient / OPD visit
+        </Button>
+      }
+    />
   );
   const prescriptionDialog = prescribeTarget ? (
     <QuickPrescriptionModal

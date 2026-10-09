@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Activity, AlertCircle, Calendar, Clock, RefreshCw, Users } from "lucide-react";
+import { AlertCircle, Calendar, RefreshCw, Users } from "lucide-react";
 import {
   DateField,
   parseDateValue,
@@ -117,7 +117,6 @@ export function DoctorPatientsView({
     : loadFailed
       ? "Patients not loaded"
       : `Loaded: ${totalPatients} ${totalPatients === 1 ? "patient" : "patients"}`;
-  const statsPending = loading || loadFailed;
 
   const clearFilters = () => {
     onSearchChange("");
@@ -141,7 +140,7 @@ export function DoctorPatientsView({
         actions={actions}
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-2 lg:gap-4">
         <Kpi
           label="Total Patients"
           value={loading ? numberSkeleton : loadFailed ? "—" : totalPatients}
@@ -156,22 +155,6 @@ export function DoctorPatientsView({
           hint="Appointments scheduled"
           icon={Calendar}
           tone="blue"
-          className={KPI_CLASS}
-        />
-        <Kpi
-          label="Follow-ups"
-          value={loading ? numberSkeleton : stats.followUps}
-          hint="Due this week"
-          icon={Clock}
-          tone="amber"
-          className={KPI_CLASS}
-        />
-        <Kpi
-          label="Recovery Rate"
-          value={loading ? numberSkeleton : statsPending ? "—" : `${stats.recoveryRate}%`}
-          hint="Patient improvement"
-          icon={Activity}
-          tone="mint"
           className={KPI_CLASS}
         />
       </div>
