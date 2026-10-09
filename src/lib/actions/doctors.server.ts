@@ -368,6 +368,27 @@ export async function getMyDoctorEarnings(range?: { from?: string; to?: string }
 }
 
 /**
+ * Admin view of the earnings split (GET /analytics/earnings/split): gross, doctor share and
+ * convenience fee per doctor, paid-but-not-completed payments and the doctors' fixed fees.
+ * SUPER_ADMIN and CLINIC_ADMIN only.
+ */
+export async function getEarningsSplit(range?: { from?: string; to?: string }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
+  const params = new URLSearchParams();
+  if (range?.from) params.append('from', range.from);
+  if (range?.to) params.append('to', range.to);
+  const query = params.toString();
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.ANALYTICS.EARNINGS_SPLIT}${query ? `?${query}` : ''}`, {
+    cache: 'no-store',
+  });
+  return data;
+}
+
+/**
  * Update doctor profile
  */
 export async function updateDoctorProfile(doctorUserId: string, profileData: {
@@ -375,6 +396,9 @@ export async function updateDoctorProfile(doctorUserId: string, profileData: {
   experience?: number;
   consultationFee?: number;
   videoConsultationFee?: number;
+  /** Fixed doctor fees: set by admins only (a doctor gets 403). */
+  videoDoctorFee?: number;
+  inPersonDoctorFee?: number;
   slotDurationMinutes?: number;
   videoConsultationEnabled?: boolean;
   inPersonConsultationEnabled?: boolean;

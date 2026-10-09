@@ -14,6 +14,7 @@ import {
   getDoctorAppointments,
   getDoctorReviews,
   getDoctors as getDoctorsServerAction,
+  getEarningsSplit,
   getMyDoctorEarnings,
   updateDoctorProfile,
 } from '@/lib/actions/doctors.server';
@@ -391,6 +392,19 @@ export const useDoctorReviews = (doctorId: string, limit: number = 10, page: num
 export const useMyDoctorEarnings = (range: { from: string; to: string }) => {
   return useQueryData(['doctorEarnings', 'me', range.from, range.to], async () => {
     return await getMyDoctorEarnings(range);
+  }, {
+    enabled: !!range.from && !!range.to,
+    retry: doctorQueryRetry,
+  });
+};
+
+/**
+ * Hook for the admin earnings split between two IST days (YYYY-MM-DD).
+ * GET /analytics/earnings/split: SUPER_ADMIN and CLINIC_ADMIN only.
+ */
+export const useEarningsSplit = (range: { from: string; to: string }) => {
+  return useQueryData(['doctorEarnings', 'split', range.from, range.to], async () => {
+    return await getEarningsSplit(range);
   }, {
     enabled: !!range.from && !!range.to,
     retry: doctorQueryRetry,

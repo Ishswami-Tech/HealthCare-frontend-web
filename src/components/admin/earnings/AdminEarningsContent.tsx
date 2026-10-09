@@ -1,39 +1,50 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, CircleAlert, IndianRupee, RefreshCw, Stethoscope } from "lucide-react";
+import { CircleAlert, Coins, HandCoins, IndianRupee, RefreshCw, Stethoscope } from "lucide-react";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { DateField } from "@/components/appointments/manager/ManagerFilters";
 import { Button } from "@/components/ui/button";
-import { EmptyBlock, Kpi, ListRow, PageHero, SectionTitle, Surface } from "@/components/tbd";
-import { useMyDoctorEarnings } from "@/hooks/query/useDoctors";
-import { formatDateInIST } from "@/lib/utils/date-time";
-import { currentMonthRange, type EarningsRange } from "@/lib/utils/earnings-range";
-import { asEarnings, formatInr, inclusiveDayCount, MAX_EARNINGS_RANGE_DAYS } from "./earnings.logic";
+import { EmptyBlock, Kpi, PageHero, Surface } from "@/components/tbd";
+import { useEarningsSplit } from "@/hooks/query/useDoctors";
+import {
+  currentMonthRange,
+  formatInr,
+  inclusiveDayCount,
+  MAX_EARNINGS_RANGE_DAYS,
+  type EarningsRange,
+} from "@/lib/utils/earnings-range";
+import { DoctorFeesCard } from "./DoctorFeesCard";
+import { DoctorSplitTable } from "./DoctorSplitTable";
+import { PaidNotCompletedTable } from "./PaidNotCompletedTable";
+import { asEarningsSplit } from "./earnings-split.logic";
 
-type Range = EarningsRange;
-
-export default function DoctorEarnings() {
+/**
+ * Earnings split for SUPER_ADMIN (/super-admin/earnings) and CLINIC_ADMIN (/clinic-admin/earnings):
+ * gross, doctor share and convenience fee, who has paid but not been completed, and the fixed
+ * doctor fees. Never rendered for a doctor.
+ */
+export function AdminEarningsContent() {
   // Set after mount so the server and the browser agree on "today".
-  const [range, setRange] = useState<Range>({ from: "", to: "" });
+  const [range, setRange] = useState<EarningsRange>({ from: "", to: "" });
   useEffect(() => setRange(currentMonthRange()), []);
 
   const rangeInvalid = Boolean(range.from && range.to && range.from > range.to);
   const dayCount = range.from && range.to && !rangeInvalid ? inclusiveDayCount(range.from, range.to) : null;
   const rangeTooLong = dayCount !== null && dayCount > MAX_EARNINGS_RANGE_DAYS;
   // An impossible range is not sent: the route would answer 400.
-  const { data, isPending, error, refetch } = useMyDoctorEarnings(
+  const { data, isPending, error, refetch } = useEarningsSplit(
     rangeInvalid || rangeTooLong ? { from: "", to: "" } : range,
   );
-  const earnings = useMemo(() => asEarnings(data), [data]);
+  const split = useMemo(() => asEarningsSplit(data), [data]);
   const loading = !range.from || (isPending && !error);
 
   return (
     <DashboardPageShell>
       <PageHero
-        eyebrow="Doctor Earnings"
-        title="Earnings"
-        description="Your share for completed paid video consultations, by visit day. Refunds are taken off."
+        eyebrow="Earnings"
+        title="Earnings split"
+        description="Gross paid, the doctors' share and the convenience fee for completed paid video consultations. Refunds are taken off."
         actions={
           <div className="flex flex-wrap items-center gap-2.5">
             <DateField
@@ -76,12 +87,12 @@ export default function DoctorEarnings() {
           />
         </Surface>
       ) : error ? (
-        <Surface>
+        <Surface role="alert">
           <EmptyBlock
             icon={CircleAlert}
             tone="rose"
-            title="Earnings are not available right now"
-            description="They could not be loaded. Try again in a moment."
+            title="The earnings split is not available right now"
+            description="It could not be loaded. Try again in a moment."
             action={
               <Button size="md" variant="outline" onClick={() => void refetch()}>
                 <RefreshCw aria-hidden="true" />
@@ -99,31 +110,20 @@ export default function DoctorEarnings() {
         </Surface>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3 lg:gap-4">
-            <Kpi label="Your share" value={formatInr(earnings.total)} icon={IndianRupee} tone="mint" />
-            <Kpi label="Completed consultations" value={earnings.consultations} icon={Stethoscope} tone="blue" />
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+            <Kpi label="Gross" value={formatInr(split.totals.grossAmount)} icon={IndianRupee} tone="mint" />
+            <Kpi label="Doctor share" value={formatInr(split.totals.doctorShareAmount)} icon={HandCoins} tone="blue" />
+            <Kpi
+              label="Convenience fee"
+              value={formatInr(split.totals.convenienceFeeAmount)}
+              icon={Coins}
+              tone="amber"
+            />
+            <Kpi label="Consultations" value={split.totals.consultations} icon={Stethoscope} tone="mint" />
           </div>
-          <Surface as="section" aria-label="Earnings by day">
-            <SectionTitle icon={CalendarDays} title="By day" />
-            {earnings.daily.length === 0 ? (
-              <EmptyBlock
-                icon={IndianRupee}
-                title="No completed paid consultations in this period"
-                description="Pick other dates to see earlier visits."
-              />
-            ) : (
-              <div className="flex flex-col">
-                {earnings.daily.map((day) => (
-                  <ListRow
-                    key={day.date}
-                    title={formatDateInIST(day.date, { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
-                    description={`${day.consultations} ${day.consultations === 1 ? "consultation" : "consultations"}`}
-                    right={<span className="text-sm font-extrabold text-ink">{formatInr(day.total)}</span>}
-                  />
-                ))}
-              </div>
-            )}
-          </Surface>
+          <DoctorSplitTable doctors={split.doctors} />
+          <PaidNotCompletedTable rows={split.paidNotCompleted} />
+          <DoctorFeesCard settings={split.feeSettings} />
         </>
       )}
     </DashboardPageShell>

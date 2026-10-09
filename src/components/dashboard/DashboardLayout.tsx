@@ -57,7 +57,7 @@ const ROUTE_TITLE_RULES: Array<[RegExp, string]> = [
   [/\/prescriptions(\/|$)/, "Prescriptions"],
   [/\/notifications(\/|$)/, "Notifications"],
   [/^\/doctor\/reviews(\/|$)/, "Reviews"],
-  [/^\/doctor\/earnings(\/|$)/, "Earnings"],
+  [/\/earnings(\/|$)/, "Earnings"],
   [/^\/pharmacy(\/|$)|\/inventory(\/|$)/, "Inventory"],
   [/^\/billing(\/|$)/, "Billing"],
   [/\/profile(\/|$)/, "Profile"],
