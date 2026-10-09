@@ -17,6 +17,8 @@ export interface BookingDoctorInfo {
   clinicName?: string | undefined;
   /** Awards and recognitions, one line each (the doctor's certifications). */
   highlights?: string[] | undefined;
+  /** The doctor's own localized highlight lines (icon + text); shown instead of `highlights`. */
+  profileHighlights?: Array<{ icon?: string | undefined; text: string }> | undefined;
   /** Where the doctor trained, as the doctor entered it. */
   education?: string | undefined;
   languages?: string[] | undefined;

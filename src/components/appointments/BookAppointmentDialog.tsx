@@ -92,6 +92,12 @@ import { cn } from "@/lib/utils";
 import { formatISODateInIST } from "@/lib/utils/date-time";
 import { resolveDisplayNameAndInitials } from "@/lib/utils/display-name";
 import { formatDoctorDisplayName } from "@/lib/utils/appointmentUtils";
+import { useLanguage } from "@/lib/i18n/context";
+import {
+  localizedDoctorName,
+  localizedDoctorSubtitle,
+  toLocalizedDoctorText,
+} from "@/lib/utils/localized-profile";
 import { format } from "date-fns";
 import { AppointmentStepWrapper } from "@/components/appointments/AppointmentStepWrapper";
 import {
@@ -1421,6 +1427,13 @@ interface BookAppointmentStep2Props {
   onHardRefresh: () => void;
 }
 
+/** "Ayurveda · BAMS"; "General Physician" only as the last resort when nothing is on file. */
+function plainDoctorSubtitle(doctor: any): string {
+  return [doctor?.specialization || "General Physician", doctor?.qualification]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 function BookAppointmentStep2({
   doctorsLoading,
   doctorsFetched,
@@ -1437,6 +1450,7 @@ function BookAppointmentStep2({
   goBack,
   onHardRefresh,
 }: BookAppointmentStep2Props) {
+  const { language } = useLanguage();
   const refreshActions = (
     <>
       <Button type="button" onClick={onHardRefresh} disabled={doctorsRefreshing}>
@@ -1527,10 +1541,14 @@ function BookAppointmentStep2({
               />
               <div className="flex-1 min-w-0">
                 <p className="m-0 truncate text-[15px] font-bold text-ink">
-                  {doctor.name}
+                  {localizedDoctorName(doctor.localizedProfile, language, doctor.name)}
                 </p>
-                <p className="m-0 truncate text-[13px] text-ink-muted">
-                  {doctor.specialization || "General Physician"}
+                <p className="m-0 line-clamp-2 break-words text-[13px] text-ink-muted">
+                  {localizedDoctorSubtitle(
+                    doctor.localizedProfile,
+                    language,
+                    doctor.specialization || "General Physician",
+                  )}
                 </p>
               </div>
               <Pill tone="green" dot className="shrink-0">
@@ -1797,7 +1815,7 @@ interface BookAppointmentStep5Props {
   userRole: string;
   selectedPatient: { displayName: string } | null;
   selectedService: { label?: string; category?: string } | null;
-  selectedDoctor: { name?: string; specialization?: string } | null;
+  selectedDoctor: { name?: string; specialization?: string; localizedProfile?: unknown } | null;
   selectedDate: Date | undefined;
   selectedSlot: string;
   appointmentDurationMinutes: number;
@@ -1865,6 +1883,7 @@ function BookAppointmentStep5({
   locationName,
   confirmAction,
 }: BookAppointmentStep5Props) {
+  const { language } = useLanguage();
   const isPageLayout = layout === "page";
   // The existing gateway button: same props and callbacks, only the look changed.
   const payButton =
@@ -1889,14 +1908,22 @@ function BookAppointmentStep5({
     ) : null;
 
   const doctorName = selectedDoctor?.name
-    ? formatDoctorDisplayName(selectedDoctor.name)
+    ? localizedDoctorName(
+        selectedDoctor.localizedProfile,
+        language,
+        formatDoctorDisplayName(selectedDoctor.name),
+      )
     : undefined;
   const reviewDoctor: BookingDoctorInfo | null = isPageLayout
     ? doctorInfo
     : doctorName
       ? {
           name: doctorName,
-          subtitle: selectedDoctor?.specialization || "General Physician",
+          subtitle: localizedDoctorSubtitle(
+            selectedDoctor?.localizedProfile,
+            language,
+            selectedDoctor?.specialization || "General Physician",
+          ),
         }
       : null;
   const isPatientInPerson =
@@ -1965,7 +1992,7 @@ interface BookAppointmentStep6Props {
   selectedSlot: string;
   clinicVideoCallWindow?: { start: string; end: string } | null;
   selectedService: { label?: string } | null;
-  selectedDoctor: { name?: string } | null;
+  selectedDoctor: { name?: string; localizedProfile?: unknown } | null;
   selectedDate: Date | undefined;
   isPatientInPersonFlow: boolean;
   handleOpenChange: (open: boolean) => void;
@@ -2022,11 +2049,16 @@ function BookAppointmentStep6({
   locationAddress,
   isPatientUser,
 }: BookAppointmentStep6Props) {
+  const { language } = useLanguage();
   const isVideoMode = consultationMode === "VIDEO";
   const paymentPending = isVideoMode && requiresVideoPayment && !videoPaymentCompleted;
   const paid = isVideoMode && videoPaymentCompleted && Boolean(paidAmountLabel);
   const doctorName = selectedDoctor?.name
-    ? formatDoctorDisplayName(selectedDoctor.name)
+    ? localizedDoctorName(
+        selectedDoctor.localizedProfile,
+        language,
+        formatDoctorDisplayName(selectedDoctor.name),
+      )
     : "doctor";
   const slotLabel = selectedSlot
     ? formatSlotLabel(selectedSlot, layout === "page" ? "12h" : "24h")
@@ -2299,6 +2331,7 @@ export function BookAppointmentDialog({
   initialFamilyMemberId,
   videoOnly = true,
 }: BookAppointmentDialogProps) {
+  const { language } = useLanguage();
   const { push, replace } = useRouter();
   const pathname = usePathname();
   const queryClient = useQueryClient();
@@ -4664,19 +4697,25 @@ export function BookAppointmentDialog({
           .join(", ");
   const doctorExperienceYears = Number(selectedDoctor?.experience);
   const doctorRating = Number(selectedDoctor?.rating);
+  const localizedDoctor = toLocalizedDoctorText(
+    selectedDoctor?.localizedProfile,
+    language,
+  );
   const doctorInfo: BookingDoctorInfo | null = selectedDoctor
     ? {
-        name: formatDoctorDisplayName(selectedDoctor.name) || "Doctor",
-        subtitle: [
-          selectedDoctor.specialization || "General Physician",
-          selectedDoctor.qualification,
-        ]
-          .filter(Boolean)
-          .join(" · "),
+        name:
+          localizedDoctor?.name ||
+          formatDoctorDisplayName(selectedDoctor.name) ||
+          "Doctor",
+        subtitle: localizedDoctor?.headline || plainDoctorSubtitle(selectedDoctor),
         image: selectedDoctor.image || undefined,
         locationName: bookingLocationName || undefined,
         clinicName: clinicName || myClinic?.name || undefined,
         highlights: toTextList(selectedDoctor.certifications),
+        profileHighlights:
+          localizedDoctor && localizedDoctor.highlights.length > 0
+            ? localizedDoctor.highlights
+            : undefined,
         education: toTextList(selectedDoctor.education).join(", ") || undefined,
         languages: toTextList(selectedDoctor.languages),
         stats: [
