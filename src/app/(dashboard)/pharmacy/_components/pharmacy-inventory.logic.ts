@@ -30,7 +30,9 @@ export const CAN_REMOVE_MEDICINE = false;
 
 /** Values `POST /pharmacy/inventory` accepts for the medicine type (dosage form), A to Z with Other last. */
 export const DOSAGE_FORMS = [
+  { value: "ARISHTA", label: "Arishta" },
   { value: "ASAVA", label: "Asava" },
+  { value: "AVALEHA", label: "Avaleha" },
   { value: "BHASMA", label: "Bhasma" },
   { value: "CAPSULE", label: "Capsule" },
   { value: "CHURNA", label: "Churna" },
