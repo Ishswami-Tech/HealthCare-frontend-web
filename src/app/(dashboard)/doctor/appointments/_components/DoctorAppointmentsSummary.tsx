@@ -239,7 +239,7 @@ export function DoctorAppointmentsSummary({
         <StatTile label="Cancelled" value={cancelledAppointmentsCount} icon={XCircle} tone="rose" loading={loading} />
         <StatTile label="Expired" value={expiredAppointmentsCount} icon={AlertCircle} tone="slate" loading={loading} />
         <StatTile label="No Show" value={noShowAppointmentsCount} icon={UserX} tone="amber" loading={loading} />
-        <StatTile label="Total" value={totalAppointmentsCount} icon={CalendarIcon} tone="video" loading={loading} />
+        <StatTile label="Total (excl. expired)" value={totalAppointmentsCount} icon={CalendarIcon} tone="video" loading={loading} />
       </div>
 
       <Surface as="section" aria-label="Filter appointments" className="!p-3.5 sm:!p-4">
