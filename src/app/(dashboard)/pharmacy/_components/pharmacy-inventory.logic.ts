@@ -28,14 +28,35 @@ export { formatRupees };
  */
 export const CAN_REMOVE_MEDICINE = false;
 
-/** Values `POST /pharmacy/inventory` accepts for the medicine type. */
+/** Values `POST /pharmacy/inventory` accepts for the medicine type (dosage form), A to Z with Other last. */
 export const DOSAGE_FORMS = [
-  { value: "TABLET", label: "Tablet" },
+  { value: "ASAVA", label: "Asava" },
+  { value: "BHASMA", label: "Bhasma" },
   { value: "CAPSULE", label: "Capsule" },
-  { value: "SYRUP", label: "Syrup" },
-  { value: "INJECTION", label: "Injection" },
+  { value: "CHURNA", label: "Churna" },
   { value: "CREAM", label: "Cream" },
+  { value: "DRINK", label: "Drink" },
   { value: "DROPS", label: "Drops" },
+  { value: "GEL", label: "Gel" },
+  { value: "GHRITA", label: "Ghrita" },
+  { value: "GRANULE", label: "Granule" },
+  { value: "GUTIKA", label: "Gutika" },
+  { value: "INJECTION", label: "Injection" },
+  { value: "KASHAYAM", label: "Kashayam" },
+  { value: "LEPA", label: "Lepa" },
+  { value: "LOTION", label: "Lotion" },
+  { value: "OIL", label: "Oil" },
+  { value: "OINTMENT", label: "Ointment" },
+  { value: "PARPATI", label: "Parpati" },
+  { value: "PISHTEE", label: "Pishtee" },
+  { value: "SHAMPOO", label: "Shampoo" },
+  { value: "SOAP", label: "Soap" },
+  { value: "SWARASA", label: "Swarasa" },
+  { value: "SYRUP", label: "Syrup" },
+  { value: "TABLET", label: "Tablet" },
+  { value: "TOOTHPASTE", label: "Toothpaste" },
+  { value: "VATI", label: "Vati" },
+  { value: "YAVKUT_KWATH", label: "Yavkut Kwath" },
   { value: "OTHER", label: "Other" },
 ] as const;
 
@@ -80,8 +101,11 @@ export function titleCase(value: string): string {
   if (!clean) return "";
   // Leave values that are already written for people ("Cough & cold") as they are.
   if (clean !== clean.toUpperCase()) return clean;
-  const lower = clean.toLowerCase();
-  return lower.charAt(0).toUpperCase() + lower.slice(1);
+  return clean
+    .toLowerCase()
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
