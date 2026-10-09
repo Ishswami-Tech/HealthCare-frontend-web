@@ -1,6 +1,7 @@
 "use client";
 
 import { runSave } from "./run-save";
+import { useLocalizedLabel } from "./use-localized-option";
 import { useId, useMemo, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -75,6 +76,7 @@ export function PrakritiAssessmentView({
   isSaving,
 }: PrakritiAssessmentViewProps) {
   const headingId = useId();
+  const localizeLabel = useLocalizedLabel();
   const answeredCount = Object.keys(answers).length;
   const complete = answeredCount === PRAKRITI_QUESTIONS.length;
 
@@ -175,14 +177,14 @@ export function PrakritiAssessmentView({
               return (
                 <ExamTile key={question.key} labelledBy={questionId}>
                   <span id={questionId} className="text-sm font-bold text-ink">
-                    {question.label}
+                    {localizeLabel(question.label)}
                   </span>
                   <div className="flex flex-wrap gap-2">
                     {question.options.map((option) => (
                       <ExamOptionChip
                         key={option.dosha}
                         size="sm"
-                        label={option.label}
+                        label={localizeLabel(option.label)}
                         active={answers[question.key] === option.dosha}
                         onClick={() => onAnswer(question.key, option.dosha)}
                       />

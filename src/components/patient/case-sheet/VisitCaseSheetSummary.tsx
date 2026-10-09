@@ -5,6 +5,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Kv, Note } from "@/components/tbd";
 import { useVisitCaseSheet } from "@/hooks/query/usePatientVisits";
 import type { VisitVitalsExamination } from "@/types/patient-visit.types";
+import { buildFindingSections } from "./case-sheet-summary-model";
+import { useLocalizedLabel, useLocalizedOption } from "./use-localized-option";
 
 function vitalsLine(vitals: VisitVitalsExamination | null): string {
   if (!vitals) return "";
@@ -24,6 +26,8 @@ function vitalsLine(vitals: VisitVitalsExamination | null): string {
  */
 export function VisitCaseSheetSummary({ clinicId, visitId }: { clinicId: string; visitId: string }) {
   const { data, isPending, error } = useVisitCaseSheet(clinicId, visitId);
+  const localizeOption = useLocalizedOption();
+  const localizeLabel = useLocalizedLabel();
 
   if (isPending) {
     return (
@@ -37,7 +41,7 @@ export function VisitCaseSheetSummary({ clinicId, visitId }: { clinicId: string;
   if (error || !data) {
     return (
       <Note tone="rose" icon={AlertCircle}>
-        The case sheet could not be loaded.
+        {localizeLabel("The case sheet could not be loaded.")}
       </Note>
     );
   }
@@ -52,16 +56,36 @@ export function VisitCaseSheetSummary({ clinicId, visitId }: { clinicId: string;
     ["Past history notes", visit.pastHistoryNotes ?? ""],
   ];
   const filled = entries.filter(([, value]) => value.trim().length > 0);
+  const sections = buildFindingSections(visit, data.classicalExams ?? [], {
+    option: localizeOption,
+    label: localizeLabel,
+  });
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      {filled.length === 0 ? (
-        <p className="m-0 text-sm text-ink-muted sm:col-span-2">No notes were written in this case sheet yet.</p>
-      ) : (
-        filled.map(([label, value]) => <Kv key={label} label={label} value={value} strong={false} />)
-      )}
-      <Kv label="Medicines on record" value={String(data.medications.length)} strong={false} />
-      <Kv label="Lab reports on record" value={String(data.labReports.length)} strong={false} />
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {filled.length === 0 && sections.length === 0 ? (
+          <p className="m-0 text-sm text-ink-muted sm:col-span-2">
+            {localizeLabel("No notes were written in this case sheet yet.")}
+          </p>
+        ) : (
+          filled.map(([label, value]) => <Kv key={label} label={localizeLabel(label)} value={value} strong={false} />)
+        )}
+        <Kv label={localizeLabel("Medicines on record")} value={String(data.medications.length)} strong={false} />
+        <Kv label={localizeLabel("Lab reports on record")} value={String(data.labReports.length)} strong={false} />
+      </div>
+      {sections.map((section) => (
+        <section key={section.id} aria-label={section.title} className="flex flex-col gap-2">
+          <h3 className="m-0 text-[11px] font-extrabold uppercase tracking-[0.6px] text-ink-muted">
+            {section.title}
+          </h3>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {section.rows.map((row) => (
+              <Kv key={row.label} label={row.label} value={row.value} strong={false} />
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }

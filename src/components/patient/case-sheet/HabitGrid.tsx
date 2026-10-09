@@ -1,6 +1,7 @@
 "use client";
 
 import { runSave } from "./run-save";
+import { useLocalizedLabel, useLocalizedOption } from "./use-localized-option";
 import { useStableSnapshot } from "./use-stable-snapshot";
 import { useEffect, useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,6 +17,8 @@ interface HabitGridProps {
 }
 
 export function HabitGrid({ habits, onSave, isSaving = false }: HabitGridProps) {
+  const localize = useLocalizedOption();
+  const localizeLabel = useLocalizedLabel();
   // Snapshot so a background refetch with identical data doesn't reset the draft.
   const savedHabits = useStableSnapshot(habits ?? {});
   const [values, setValues] = useState<Record<string, string>>(savedHabits);
@@ -58,7 +61,7 @@ export function HabitGrid({ habits, onSave, isSaving = false }: HabitGridProps) 
             className="flex flex-col gap-2.5 rounded-[14px] border border-line bg-[#fbfdfc] px-3.5 py-3 dark:bg-white/[0.03]"
           >
             <span id={`habit-${habit.key}`} className="text-sm font-bold text-ink">
-              {habit.label}
+              {localizeLabel(habit.label)}
             </span>
             <div className="flex flex-wrap gap-2">
               {habit.options.map((option) => (
@@ -68,7 +71,7 @@ export function HabitGrid({ habits, onSave, isSaving = false }: HabitGridProps) 
                   active={values[habit.key] === option}
                   onClick={() => setHabit(habit.key, option)}
                 >
-                  {option}
+                  {localize(option)}
                 </ChoiceChip>
               ))}
             </div>
@@ -98,6 +101,7 @@ interface NidraPanelProps {
 }
 
 export function NidraPanel({ nidra, nidraNotes, onSave, isSaving = false }: NidraPanelProps) {
+  const localize = useLocalizedOption();
   const [selected, setSelected] = useState<string | null>(nidra);
   const [notes, setNotes] = useState(nidraNotes ?? "");
   const [dirty, setDirty] = useState(false);
@@ -129,7 +133,7 @@ export function NidraPanel({ nidra, nidraNotes, onSave, isSaving = false }: Nidr
               setDirty(true);
             }}
           >
-            {option}
+            {localize(option)}
           </ChoiceChip>
         ))}
       </div>

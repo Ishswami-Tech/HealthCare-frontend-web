@@ -1,6 +1,7 @@
 "use client";
 
 import { runSave } from "./run-save";
+import { useLocalizedOption } from "./use-localized-option";
 import { useStableSnapshot } from "./use-stable-snapshot";
 import { useEffect, useId, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
@@ -141,6 +142,7 @@ export function GeneralExaminationForm({ vitals: vitalsProp, onSave, isSaving = 
   // Snapshot so a background refetch with identical data doesn't reset the draft.
   const vitals = useStableSnapshot(vitalsProp);
   const headingId = useId();
+  const localize = useLocalizedOption();
   const initial = useMemo(() => toDraft(vitals, GENERAL_FIELDS), [vitals]);
   const [draft, setDraft] = useState<Draft>(initial);
   const [text, setText] = useState<Record<TextField, string>>({
@@ -210,7 +212,7 @@ export function GeneralExaminationForm({ vitals: vitalsProp, onSave, isSaving = 
                   <ExamOptionChip
                     key={option}
                     size="md"
-                    label={option}
+                    label={localize(option)}
                     active={active}
                     onClick={() => {
                       setText((prev) => ({ ...prev, [field]: active ? "" : option }));

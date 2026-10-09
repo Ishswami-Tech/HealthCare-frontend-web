@@ -1,5 +1,8 @@
+"use client";
+
 import type { CSSProperties, ReactNode } from "react";
 import { Check, Save, Trash2 } from "lucide-react";
+import { useLocalizedLabel } from "./use-localized-option";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectionTitle, Surface } from "@/components/tbd";
@@ -25,9 +28,14 @@ export function CaseSheetCard({
   className?: string;
   children?: ReactNode;
 }) {
+  const localizeLabel = useLocalizedLabel();
   return (
     <Surface as="section" className={cn("gap-4", className)}>
-      <SectionTitle title={title} description={description} action={action} />
+      <SectionTitle
+        title={typeof title === "string" ? localizeLabel(title) : title}
+        description={typeof description === "string" ? localizeLabel(description) : description}
+        action={action}
+      />
       {children}
     </Surface>
   );
@@ -45,10 +53,11 @@ export function SaveButton({
   disabled: boolean;
   onClick: () => void;
 }) {
+  const localizeLabel = useLocalizedLabel();
   return (
     <Button className="h-[38px] px-3.5 has-[>svg]:px-3.5" onClick={onClick} disabled={disabled}>
       <Save aria-hidden="true" />
-      {saving ? "Saving..." : label}
+      {localizeLabel(saving ? "Saving..." : label)}
     </Button>
   );
 }

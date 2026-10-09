@@ -2,6 +2,7 @@
 
 import { runSave } from "./run-save";
 import { useStableSnapshot } from "./use-stable-snapshot";
+import { useLocalizedLabel, useLocalizedOption } from "./use-localized-option";
 import { useEffect, useId, useMemo, useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -93,13 +94,14 @@ function CategoryOptions({
   onChange: (next: CategoryState) => void;
   size: ExamChipSize;
 }) {
+  const localize = useLocalizedOption();
   return (
     <div className="flex flex-wrap gap-2">
       {category.options.map((option) => (
         <ExamOptionChip
           key={option}
           size={size}
-          label={option}
+          label={localize(option)}
           active={state.selected.includes(option)}
           onClick={() => onChange(nextSelection(category, state, option))}
         />
@@ -149,13 +151,16 @@ function CategoryTile({
   state: CategoryState;
   onChange: (next: CategoryState) => void;
 }) {
+  const localizeLabel = useLocalizedLabel();
   return (
     <ExamTile labelledBy={id}>
       <div className="flex flex-wrap items-baseline gap-x-2">
         <span id={id} className="text-sm font-bold text-ink">
-          {category.label}
+          {localizeLabel(category.label)}
         </span>
-        {category.hint ? <span className="text-xs text-ink-muted">{category.hint}</span> : null}
+        {category.hint ? (
+          <span className="text-xs text-ink-muted">{localizeLabel(category.hint)}</span>
+        ) : null}
       </div>
       <CategoryOptions category={category} state={state} onChange={onChange} size="sm" />
       <Textarea
@@ -181,6 +186,7 @@ export function ClassicalExamSection({
     findings.filter((f) => f.examType === section.examType),
   );
   const headingId = useId();
+  const localizeLabel = useLocalizedLabel();
   const initial = useMemo(() => buildState(section, sectionFindings), [section, sectionFindings]);
   const [state, setState] = useState<SectionState>(initial);
   const [dirty, setDirty] = useState(false);
@@ -261,9 +267,11 @@ export function ClassicalExamSection({
                   )}
                 >
                   <span className="flex min-w-0 flex-1 items-center gap-3 text-left">
-                    <span className="shrink-0 text-base font-bold text-ink">{category.label}</span>
+                    <span className="shrink-0 text-base font-bold text-ink">{localizeLabel(category.label)}</span>
                     {category.hint ? (
-                      <span className="min-w-0 truncate text-xs font-normal text-ink-muted">{category.hint}</span>
+                      <span className="min-w-0 truncate text-xs font-normal text-ink-muted">
+                        {localizeLabel(category.hint)}
+                      </span>
                     ) : null}
                     <span className="flex min-w-[64px] flex-1 justify-end">
                       {hasValue(value) ? (
