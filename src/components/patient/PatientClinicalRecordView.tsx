@@ -10,6 +10,7 @@ import {
   FileText,
   FlaskConical,
   Heart,
+  History,
   Pill as PillIcon,
   Receipt,
   UserRound,
@@ -34,6 +35,8 @@ import {
   type TbdIcon,
 } from "@/components/tbd";
 import { useHashTab } from "@/hooks/navigation/useHashTab";
+import { canViewCaseSheet } from "@/lib/utils/case-sheet-access";
+import type { AppointmentHistoryTab } from "./PatientAppointmentHistory";
 import { cn } from "@/lib/utils";
 import { formatDateInIST, formatDateTimeInIST } from "@/lib/utils/date-time";
 import { useAuthStore } from "@/stores/auth.store";
@@ -50,8 +53,16 @@ export interface PatientClinicalRecordViewProps {
   labs: RecordLike[];
   carePlan: RecordLike[];
   prescriptions?: RecordLike[];
-  /** Visit-scoped OPD case-sheet; replaces the flat history table when provided. */
+  /**
+   * Visit-scoped OPD case-sheet; replaces the flat history table when provided.
+   * Clinical notes: it is only rendered for doctors and clinic admins, whatever is passed.
+   */
   caseSheet?: ReactNode;
+  /**
+   * The "History" tab: a timeline of every appointment. Left out, the tab is not shown.
+   * `openTab` moves the record to another tab.
+   */
+  renderAppointmentHistory?: (openTab: (tab: AppointmentHistoryTab) => void) => ReactNode;
   /** Per-patient Bill History (consultation + pharmacy invoices and payments). */
   billing?: ReactNode;
   /**
@@ -69,7 +80,7 @@ export interface PatientClinicalRecordViewProps {
   className?: string;
 }
 
-const TAB_IDS = ["overview", "appointments", "history", "vitals", "reports", "prescriptions", "medications", "bills"] as const;
+const TAB_IDS = ["overview", "timeline", "appointments", "history", "vitals", "reports", "prescriptions", "medications", "bills"] as const;
 type TabId = (typeof TAB_IDS)[number];
 
 const PAGE_SIZE = 10;
@@ -427,6 +438,7 @@ const numberSkeleton = <Skeleton className="my-1 h-6 w-10 rounded" />;
 
 const TABS: Array<{ id: TabId; label: string; icon: TbdIcon }> = [
   { id: "overview", label: "Overview", icon: UserRound },
+  { id: "timeline", label: "History", icon: History },
   { id: "appointments", label: "Appointments", icon: Calendar },
   { id: "history", label: "History", icon: FileText },
   { id: "vitals", label: "Vitals", icon: Heart },
@@ -445,7 +457,8 @@ export function PatientClinicalRecordView({
   labs,
   carePlan,
   prescriptions = [],
-  caseSheet,
+  caseSheet: caseSheetContent,
+  renderAppointmentHistory,
   billing,
   header,
   showBills,
@@ -460,7 +473,17 @@ export function PatientClinicalRecordView({
   const role = useAuthStore((state) => String(state.session?.user?.role ?? "").toUpperCase());
   const billsVisible = showBills ?? (role !== "" && role !== Role.DOCTOR && role !== Role.ASSISTANT_DOCTOR);
 
-  const tabs = useMemo(() => TABS.filter((tab) => tab.id !== "bills" || billsVisible), [billsVisible]);
+  // Clinical notes are for doctors and clinic admins only (receptionist, nurse, pharmacist: never).
+  const caseSheet = canViewCaseSheet(role) ? caseSheetContent : undefined;
+  const timelineVisible = Boolean(renderAppointmentHistory);
+
+  const tabs = useMemo(
+    () =>
+      TABS.filter(
+        (tab) => (tab.id !== "bills" || billsVisible) && (tab.id !== "timeline" || timelineVisible),
+      ),
+    [billsVisible, timelineVisible],
+  );
   const tabIds = useMemo(() => tabs.map((tab) => tab.id), [tabs]);
   const { tab, setTab } = useHashTab<TabId>({ tabs: tabIds, defaultValue: "overview" });
 
@@ -545,7 +568,7 @@ export function PatientClinicalRecordView({
               )}
             >
               <Icon className="size-4 shrink-0" strokeWidth={2.2} aria-hidden="true" />
-              {id === "history" && caseSheet ? "Case Sheet" : label}
+              {id === "history" ? (caseSheet ? "Case Sheet" : "Treatment History") : label}
             </TabsPrimitive.Trigger>
           ))}
         </TabsPrimitive.List>
@@ -656,6 +679,10 @@ export function PatientClinicalRecordView({
           This record uses clinic-scoped patient data. If a section is empty, no records have been added for it yet.
         </Note>
       </TabsContent>
+
+      {renderAppointmentHistory ? (
+        <TabsContent value="timeline">{renderAppointmentHistory((next) => openTab(next))}</TabsContent>
+      ) : null}
 
       <TabsContent value="appointments">
         <RecordTable
