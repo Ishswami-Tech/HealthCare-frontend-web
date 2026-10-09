@@ -48,6 +48,8 @@ export interface DoctorEhrViewProps {
   recordLoading: boolean;
   /** The case sheet of the selected OPD visit; without it the tab shows the plain history table. */
   caseSheet?: ReactNode;
+  /** The "History" tab (timeline of every appointment); without it the tab is hidden. */
+  renderAppointmentHistory?: PatientClinicalRecordViewProps["renderAppointmentHistory"];
   /** Bills tab. Left out, it follows the signed-in role (never shown to a doctor). */
   showBills?: boolean;
 }
@@ -158,6 +160,7 @@ export function DoctorEhrView({
   record,
   recordLoading,
   caseSheet,
+  renderAppointmentHistory,
   showBills,
 }: DoctorEhrViewProps) {
   return (
@@ -192,6 +195,7 @@ export function DoctorEhrView({
           {...record}
           loading={recordLoading}
           caseSheet={caseSheet}
+          {...(renderAppointmentHistory ? { renderAppointmentHistory } : {})}
           {...(showBills === undefined ? {} : { showBills })}
           header={
             <PatientHeader

@@ -102,7 +102,14 @@ export const useCreatePatientVisit = () =>
       toastId: "patient-visit-create",
       loadingMessage: "Registering OPD visit...",
       successMessage: "OPD visit registered",
-      invalidateQueries: [[...patientVisitKeys.all], ["patient-bills"], ["invoices"], ["payments"]],
+      invalidateQueries: [
+        [...patientVisitKeys.all],
+        ["patient-bills"],
+        ["invoices"],
+        ["payments"],
+        ["patientAppointmentHistory"],
+        ["patientAppointments"],
+      ],
     },
   );
 

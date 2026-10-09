@@ -2,8 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { QuickPrescriptionModal } from "@/components/doctor/QuickPrescriptionModal";
+import { PatientAppointmentHistory } from "@/components/patient/PatientAppointmentHistory";
 import { VisitCaseSheet } from "@/components/patient/case-sheet/VisitCaseSheet";
-import { MAX_VISITS, VisitSelectorView } from "@/components/patient/case-sheet/VisitSelector";
+import {
+  MAX_VISITS,
+  VisitSelectorView,
+  type VisitSelectorVisit,
+} from "@/components/patient/case-sheet/VisitSelector";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useCurrentDoctorEntityId } from "@/hooks/query/useDoctors";
 import { useComprehensiveHealthRecord } from "@/hooks/query/useMedicalRecords";
@@ -14,8 +19,12 @@ import {
   usePatientMedicalRecords,
   usePatientVitalSigns,
 } from "@/hooks/query/usePatients";
+import { usePatientAppointmentHistory } from "@/hooks/query/usePatientAppointmentHistory";
 import { useCreatePatientVisit, usePatientVisits } from "@/hooks/query/usePatientVisits";
 import { useRBAC } from "@/hooks/utils/useRBAC";
+import { useAuthStore } from "@/stores/auth.store";
+import { canViewCaseSheet } from "@/lib/utils/case-sheet-access";
+import { parseIstDateTime } from "@/lib/utils/date-time";
 import { Permission } from "@/types/rbac.types";
 import { patientSummaryLine, toDoctorPatientRow } from "../../_components/doctorPatients.logic";
 import { DoctorEhrView } from "./DoctorEhrView";
@@ -71,6 +80,30 @@ function preferList(primary: unknown, fallback: unknown): Raw[] {
   return rows.length > 0 ? rows : toArray(fallback);
 }
 
+type VisitListItem = VisitSelectorVisit;
+
+/** Visits from the list, plus visits only known from appointments; newest first, one per id. */
+function mergeVisits(
+  listed: VisitListItem[],
+  pages: ReadonlyArray<{ rows: ReadonlyArray<{ date: string; time: string; visit: { id: string; opdNumber: string } | null | undefined }> }>,
+): VisitListItem[] {
+  const byId = new Map<string, VisitListItem>(listed.map((visit) => [visit.id, visit]));
+  for (const page of pages) {
+    for (const row of page.rows) {
+      if (!row.visit || byId.has(row.visit.id)) continue;
+      const when = parseIstDateTime(row.date, row.time);
+      byId.set(row.visit.id, {
+        id: row.visit.id,
+        opdNumber: row.visit.opdNumber,
+        registrationDate: when ? when.toISOString() : row.date,
+      });
+    }
+  }
+  return [...byId.values()].sort(
+    (a, b) => new Date(b.registrationDate).getTime() - new Date(a.registrationDate).getTime(),
+  );
+}
+
 /**
  * Data for the EHR workspace at `/doctor/patients/[id]`: the patient, the OPD visits, the
  * health record and the prescription dialog. The layout is `DoctorEhrView`.
@@ -86,7 +119,17 @@ export function DoctorEhrContent({ patientId }: { patientId: string }) {
 
   const visitsQuery = usePatientVisits(clinic, patientId, { limit: MAX_VISITS });
   const createVisit = useCreatePatientVisit();
-  const visits = visitsQuery.data?.visits ?? [];
+  const role = useAuthStore((state) => state.session?.user?.role);
+  const caseSheetAllowed = canViewCaseSheet(role);
+
+  // The visits list plus the visits linked from appointments: an appointment's draft visit
+  // counts even when the list has not caught up, so the header never says "none" wrongly.
+  const appointmentHistory = usePatientAppointmentHistory(patientId);
+  const visits = useMemo(
+    () => mergeVisits(visitsQuery.data?.visits ?? [], appointmentHistory.data?.pages ?? []),
+    [visitsQuery.data, appointmentHistory.data],
+  );
+  const visitsLoading = visitsQuery.isPending || (visits.length === 0 && appointmentHistory.isPending);
   // The newest visit is open until the doctor picks another one.
   const visitId = pickedVisitId ?? visits[0]?.id ?? null;
 
@@ -144,7 +187,7 @@ export function DoctorEhrContent({ patientId }: { patientId: string }) {
     }
   };
 
-  const canOpenCaseSheet = Boolean(clinic && patient && patientUserId);
+  const canOpenCaseSheet = Boolean(clinic && patient && patientUserId && caseSheetAllowed);
   const canPrescribe = Boolean(patient) && hasPermission(Permission.MANAGE_PRESCRIPTIONS);
 
   return (
@@ -157,7 +200,7 @@ export function DoctorEhrContent({ patientId }: { patientId: string }) {
         visitSelector={
           <VisitSelectorView
             visits={visits}
-            loading={!!clinic && visitsQuery.isPending}
+            loading={!!clinic && visitsLoading}
             selectedVisitId={visitId}
             onSelect={setPickedVisitId}
           />
@@ -167,6 +210,22 @@ export function DoctorEhrContent({ patientId }: { patientId: string }) {
         onPrescribe={canPrescribe ? () => setPrescribing(true) : undefined}
         record={record}
         recordLoading={Boolean(patientUserId) && ehrPending}
+        renderAppointmentHistory={
+          clinic && patient
+            ? (openTab) => (
+                <PatientAppointmentHistory
+                  clinicId={clinic}
+                  patientId={patientEntityId}
+                  caseSheetAllowed={caseSheetAllowed}
+                  onOpenTab={openTab}
+                  onOpenVisit={(id) => {
+                    setPickedVisitId(id);
+                    openTab("history");
+                  }}
+                />
+              )
+            : undefined
+        }
         caseSheet={
           canOpenCaseSheet && visitId ? (
             <VisitCaseSheet
