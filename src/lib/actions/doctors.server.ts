@@ -5,6 +5,7 @@ import { revalidateCache } from '@/lib/utils/revalidate-cache';
 import { API_ENDPOINTS } from '../config/config';
 import { logger } from '@/lib/utils/logger';
 import { isApiError } from '@/lib/utils/error-handler';
+import type { LocalizedProfile } from '@/lib/utils/localized-profile';
 
 function normalizeCollectionResponse<T>(payload: unknown): T[] {
   if (Array.isArray(payload)) {
@@ -407,6 +408,8 @@ export async function updateDoctorProfile(doctorUserId: string, profileData: {
   education?: string;
   certifications?: string[];
   languages?: string[];
+  /** Public name, headline and highlights per language; null clears them. */
+  localizedProfile?: LocalizedProfile | null;
 }) {
   const session = await getServerSession();
   if (!session?.user) return { success: false as const, error: 'Unauthorized' };

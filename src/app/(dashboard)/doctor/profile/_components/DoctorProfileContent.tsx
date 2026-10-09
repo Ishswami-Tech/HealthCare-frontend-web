@@ -19,6 +19,7 @@ import type {
 import { updateDoctorProfile } from "@/lib/actions/doctors.server";
 import { Role } from "@/types/auth.types";
 import { asRecord, educationList, stringList } from "./doctor-profile.logic";
+import { toLocalizedProfileDraft, toLocalizedProfilePayload } from "./doctor-profile-localized";
 import { DoctorProfileOverviewCard } from "./DoctorProfileOverviewCard";
 import { DoctorProfilePersonalTab } from "./DoctorProfilePersonalTab";
 import { DoctorProfileProfessionalTab } from "./DoctorProfileProfessionalTab";
@@ -143,6 +144,7 @@ function createInitialProfileData(
       certifications: stringList(pick("certifications")),
       languagesSpoken: stringList(pick("languagesSpoken", "languages")),
       clinicAffiliations: [],
+      localizedProfile: toLocalizedProfileDraft(pick("localizedProfile")),
     },
     consultationSettings: {
       consultationFee: fieldText(pick("consultationFee")),
@@ -320,6 +322,7 @@ export function DoctorProfileContent({
       ...(education ? { education } : {}),
       certifications: professionalInfo.certifications.map((line) => line.trim()).filter(Boolean),
       languages: professionalInfo.languagesSpoken.map((line) => line.trim()).filter(Boolean),
+      localizedProfile: toLocalizedProfilePayload(professionalInfo.localizedProfile),
     };
   };
 
@@ -494,6 +497,7 @@ export function DoctorProfileContent({
             <DoctorProfileProfessionalTab
               profileData={profileData}
               updateProfessionalInfo={updateProfessionalInfo}
+              canEditPublicProfile={user?.role === Role.DOCTOR}
             />
           </TabsContent>
 
