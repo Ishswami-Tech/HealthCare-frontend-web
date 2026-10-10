@@ -9,6 +9,7 @@ import type {
   PatientDirectoryFacets,
   PatientDirectoryPage,
   PatientDirectoryParams,
+  PatientDirectoryRow,
 } from '@/types/patient-directory.types';
 
 /** Query-string form of the filters: only the ones that are set. */
@@ -83,5 +84,23 @@ export function usePatientDirectoryFacets(clinicId: string) {
       return response as unknown as PatientDirectoryFacets;
     },
     { enabled: Boolean(clinicId), staleTime: 5 * 60_000 }
+  );
+}
+
+/**
+ * One patient's directory row: UHID, contact (including numbers kept outside the login), city and
+ * visit summary. Used by the EHR header, and it works for any patient in the clinic (the list lookups
+ * it replaces only covered the newest few hundred).
+ */
+export function usePatientDirectoryEntry(clinicId: string, patientId: string) {
+  return useQueryData<PatientDirectoryRow>(
+    ['patientDirectoryEntry', clinicId, patientId],
+    async () => {
+      const response = await clinicApiClient.get<PatientDirectoryRow>(
+        `${API_ENDPOINTS.PATIENT_DIRECTORY.BASE}/${encodeURIComponent(patientId)}`
+      );
+      return response as unknown as PatientDirectoryRow;
+    },
+    { enabled: Boolean(clinicId && patientId), staleTime: 60_000, retry: false }
   );
 }

@@ -20,6 +20,7 @@ import {
   usePatientVitalSigns,
 } from "@/hooks/query/usePatients";
 import { usePatientAppointmentHistory } from "@/hooks/query/usePatientAppointmentHistory";
+import { usePatientDirectoryEntry } from "@/hooks/query/usePatientDirectory";
 import { useCreatePatientVisit, usePatientVisits } from "@/hooks/query/usePatientVisits";
 import { useRBAC } from "@/hooks/utils/useRBAC";
 import { useAuthStore } from "@/stores/auth.store";
@@ -165,6 +166,8 @@ export function DoctorEhrContent({ patientId }: { patientId: string }) {
     [appointmentsData, carePlanData, ehr, historyData, labsData, patientRecord, vitalsData],
   );
 
+  // UHID and the contact details kept outside the login (imported patients have no login phone).
+  const { data: directoryEntry } = usePatientDirectoryEntry(clinic, patientId);
   const row = useMemo(() => toDoctorPatientRow(patientRecord), [patientRecord]);
   const summary = row.age === null && !row.gender ? "" : patientSummaryLine(row);
   const header = {
@@ -172,10 +175,11 @@ export function DoctorEhrContent({ patientId }: { patientId: string }) {
     summary,
     idLabel: patientEntityId.slice(0, 8).toUpperCase(),
     fullId: patientEntityId,
+    uhid: directoryEntry?.uhid ?? "",
     bloodGroup:
       asText(patientRecord.bloodGroup) || asText(asRecord(patientRecord.user).bloodGroup) || asText(ehr.bloodGroup),
-    phone: row.phone,
-    email: row.email,
+    phone: row.phone || directoryEntry?.phone || "",
+    email: row.email || directoryEntry?.email || "",
   };
 
   const handleNewVisit = async () => {

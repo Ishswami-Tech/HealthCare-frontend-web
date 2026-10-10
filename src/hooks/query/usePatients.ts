@@ -242,6 +242,7 @@ export const useCreatePatient = () => {
       successMessage: 'Patient created successfully',
       invalidateQueries: [
         ['patients'],
+        ['patientDirectory'],
         ['users'],
         ['patientStats'],
         ['patientTimeline'],
@@ -352,6 +353,7 @@ export const useQuickRegisterPatient = () => {
       successMessage: 'Patient registered successfully',
       invalidateQueries: [
         ['patients'],
+        ['patientDirectory'],
         ['doctorPatients'],
         ['users'],
         ['patientStats'],
@@ -403,6 +405,7 @@ export const useUpdatePatient = () => {
       successMessage: 'Patient updated successfully',
       invalidateQueries: [
         ['patients'],
+        ['patientDirectory'],
         ['users'],
         ['patientStats'],
         ['patientTimeline'],
@@ -426,6 +429,7 @@ export const useDeletePatient = () => {
       successMessage: 'Patient deleted successfully',
       invalidateQueries: [
         ['patients'],
+        ['patientDirectory'],
         ['users'],
         ['patientStats'],
         ['patientTimeline'],
