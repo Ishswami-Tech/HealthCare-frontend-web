@@ -90,6 +90,9 @@ type PrescriptionFormAction =
   | { type: "updateMedication"; id: string; field: keyof PrescriptionMedicationRow; value: string }
   | { type: "reset" };
 
+/** Medicines rendered at once in the picker; the search box narrows the rest. */
+const MEDICINE_LIST_LIMIT = 100;
+
 const emptyPrescriptionForm = (): PrescriptionFormValues => ({
   diagnosis: "",
   advice: "",
@@ -283,12 +286,16 @@ export function PrescriptionDialogView({
 
   const inStockCount = useMemo(() => medicines.filter((medicine) => stockOf(medicine) > 0).length, [medicines]);
 
-  const visibleMedicines = useMemo(() => {
+  // With no stock recorded at all, "in stock only" would hide the whole catalogue, so it does not apply.
+  const stockTracked = inStockCount > 0;
+  const stockOnly = form.inStockOnly && stockTracked;
+
+  const matchingMedicines = useMemo(() => {
     const query = form.medicineSearch.trim().toLowerCase();
     return medicines
       .filter((medicine) => {
         // A medicine that was already added stays in the list so it can be seen as "Added".
-        if (form.inStockOnly && stockOf(medicine) <= 0 && !addedIds.has(medicine.id)) {
+        if (stockOnly && stockOf(medicine) <= 0 && !addedIds.has(medicine.id)) {
           return false;
         }
         if (!query) {
@@ -308,7 +315,13 @@ export function PrescriptionDialogView({
         return haystack.includes(query);
       })
       .toSorted((a, b) => Number(addedIds.has(b.id)) - Number(addedIds.has(a.id)));
-  }, [addedIds, form.inStockOnly, form.medicineSearch, medicines]);
+  }, [addedIds, stockOnly, form.medicineSearch, medicines]);
+
+  // The catalogue can hold thousands of medicines: render a page of matches and let the search narrow it.
+  const visibleMedicines = useMemo(
+    () => matchingMedicines.slice(0, MEDICINE_LIST_LIMIT),
+    [matchingMedicines]
+  );
 
   const stockRows = form.medications.filter((medication) => medication.medicineId);
   const outsideRows = form.medications.filter((medication) => !medication.medicineId);
@@ -383,8 +396,8 @@ export function PrescriptionDialogView({
           <DialogTitle>Prescription</DialogTitle>
           <DialogDescription>
             {mode === "complete"
-              ? "Pick medicines the pharmacy has in stock, then set the dose and days."
-              : "Pick medicines the pharmacy has in stock. The prescription is saved to the patient's record."}
+              ? "Pick medicines from the pharmacy list, then set the dose and days."
+              : "Pick medicines from the pharmacy list. The prescription is saved to the patient's record."}
           </DialogDescription>
         </DialogHeader>
 
@@ -422,7 +435,8 @@ export function PrescriptionDialogView({
                   In stock only
                   <Switch
                     id={`${fieldId}-in-stock`}
-                    checked={form.inStockOnly}
+                    checked={stockOnly}
+                    disabled={!stockTracked}
                     onCheckedChange={(checked) => dispatch({ type: "setInStockOnly", value: checked })}
                   />
                 </label>
@@ -445,10 +459,12 @@ export function PrescriptionDialogView({
               ) : (
                 <>
                   <span className="text-xs text-ink-muted">
-                    {inStockCount} {inStockCount === 1 ? "medicine" : "medicines"} available now
-                    {form.medicineSearch.trim() ? ` · ${visibleMedicines.length} match your search` : ""}
+                    {stockTracked
+                      ? `${inStockCount} of ${medicines.length} medicines in stock now`
+                      : `${medicines.length} medicines listed. The pharmacy has not recorded stock yet.`}
+                    {form.medicineSearch.trim() ? ` · ${matchingMedicines.length} match your search` : ""}
                   </span>
-                  {visibleMedicines.length === 0 ? (
+                  {matchingMedicines.length === 0 ? (
                     <span className="rounded-[14px] border border-dashed border-line bg-card px-3 py-4 text-center text-xs text-ink-muted">
                       {medicines.length === 0
                         ? "The pharmacy has no medicines in its stock list yet."
@@ -468,7 +484,7 @@ export function PrescriptionDialogView({
                               added
                                 ? "border-[#a7f3d0] bg-[#ecfdf5] dark:border-emerald-800 dark:bg-emerald-950/30"
                                 : "border-hair bg-card",
-                              stock <= 0 && !added && "opacity-60",
+                              stockTracked && stock <= 0 && !added && "opacity-60",
                             )}
                           >
                             <span className="flex min-w-0 flex-1 flex-col gap-px">
@@ -491,8 +507,6 @@ export function PrescriptionDialogView({
                                 <Check className="size-[13px]" strokeWidth={2.8} aria-hidden="true" />
                                 Added
                               </span>
-                            ) : stock <= 0 ? (
-                              <span className="whitespace-nowrap px-1.5 text-xs font-bold text-ink-muted">Not available</span>
                             ) : (
                               <Button
                                 variant="outline"
@@ -511,6 +525,11 @@ export function PrescriptionDialogView({
                       })}
                     </ul>
                   )}
+                  {matchingMedicines.length > visibleMedicines.length ? (
+                    <span className="text-xs text-ink-muted">
+                      Showing the first {visibleMedicines.length} of {matchingMedicines.length}. Type a name to narrow the list.
+                    </span>
+                  ) : null}
                 </>
               )}
 
@@ -685,7 +704,9 @@ export function PrescriptionDialogView({
                           ) : (
                             <span className="inline-flex items-center gap-[5px] text-xs font-semibold text-[#b45309] dark:text-amber-300">
                               <CircleAlert className="size-3" strokeWidth={2.6} aria-hidden="true" />
-                              Only {stock} in stock. The pharmacy cannot give {quantityOf(medication)}.
+                              {stock <= 0
+                                ? "Not in stock. It is saved on the prescription; the pharmacy can give it once stock is added."
+                                : `Only ${stock} in stock. The pharmacy cannot give ${quantityOf(medication)} yet.`}
                             </span>
                           )
                         ) : (
