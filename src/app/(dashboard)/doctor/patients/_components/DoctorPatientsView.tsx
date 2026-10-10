@@ -2,20 +2,15 @@
 
 import type { ReactNode } from "react";
 import { AlertCircle, Calendar, RefreshCw, Users } from "lucide-react";
-import {
-  DateField,
-  parseDateValue,
-} from "@/components/appointments/manager/ManagerFilters";
 import { useWebSocketStatus } from "@/app/providers/WebSocketProvider";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Chip, Kpi, Note, PageHero, Pill, SearchBox, Surface, type PillTone } from "@/components/tbd";
+import { Chip, Kpi, Note, PageHero, Pill, type PillTone } from "@/components/tbd";
+import type { PatientDirectoryFacets } from "@/types/patient-directory.types";
+import { DoctorPatientsFilters } from "./DoctorPatientsFilters";
 import { DoctorPatientsTable } from "./DoctorPatientsTable";
+import { hasAnyFilter, type DirectoryFilterState } from "./directoryFilters";
 import type { DoctorPatientRow, DoctorPatientsStats } from "./doctorPatients.logic";
-
-export type DoctorPatientsGenderFilter = "all" | "male" | "female";
-export type DoctorPatientsAgeFilter = "all" | "young" | "middle" | "senior";
 
 export interface DoctorPatientsViewProps {
   /** The first load of the list is still running. */
@@ -30,15 +25,12 @@ export interface DoctorPatientsViewProps {
   totalPages: number;
   pageSize: number;
   onPageChange: (page: number) => void;
-  searchTerm: string;
-  genderFilter: DoctorPatientsGenderFilter;
-  ageFilter: DoctorPatientsAgeFilter;
-  dateFrom: string;
-  dateTo: string;
-  onSearchChange: (value: string) => void;
-  onGenderChange: (value: DoctorPatientsGenderFilter) => void;
-  onAgeChange: (value: DoctorPatientsAgeFilter) => void;
-  onDateRangeChange: (from: string, to: string) => void;
+  /** Rows per page: 10, 50, 200 or 500. */
+  onPageSizeChange: (pageSize: number) => void;
+  filters: DirectoryFilterState;
+  facets: PatientDirectoryFacets | undefined;
+  onFiltersChange: (patch: Partial<DirectoryFilterState>) => void;
+  onClearFilters: () => void;
   onPrescribe: (row: DoctorPatientRow) => void;
   /** The banner buttons: "OPD Registration" and "Register Patient" (each opens its dialog). */
   actions: ReactNode;
@@ -93,37 +85,21 @@ export function DoctorPatientsView({
   totalPages,
   pageSize,
   onPageChange,
-  searchTerm,
-  genderFilter,
-  ageFilter,
-  dateFrom,
-  dateTo,
-  onSearchChange,
-  onGenderChange,
-  onAgeChange,
-  onDateRangeChange,
+  onPageSizeChange,
+  filters,
+  facets,
+  onFiltersChange,
+  onClearFilters,
   onPrescribe,
   actions,
   connectionSlot,
 }: DoctorPatientsViewProps) {
-  const hasFilters =
-    searchTerm.trim().length > 0 ||
-    genderFilter !== "all" ||
-    ageFilter !== "all" ||
-    Boolean(dateFrom) ||
-    Boolean(dateTo);
+  const hasFilters = hasAnyFilter(filters);
   const loadedLabel = loading
     ? "Loading patients…"
     : loadFailed
       ? "Patients not loaded"
-      : `Loaded: ${totalPatients} ${totalPatients === 1 ? "patient" : "patients"}`;
-
-  const clearFilters = () => {
-    onSearchChange("");
-    onGenderChange("all");
-    onAgeChange("all");
-    onDateRangeChange("", "");
-  };
+      : `${totalPatients.toLocaleString("en-IN")} ${totalPatients === 1 ? "patient" : "patients"}${hasFilters ? " match" : ""}`;
 
   return (
     <DashboardPageShell>
@@ -144,7 +120,7 @@ export function DoctorPatientsView({
         <Kpi
           label="Total Patients"
           value={loading ? numberSkeleton : loadFailed ? "—" : totalPatients}
-          hint="Under your care"
+          hint={hasFilters ? "Matching the filters" : "In this clinic"}
           icon={Users}
           tone="mint"
           className={KPI_CLASS}
@@ -159,64 +135,12 @@ export function DoctorPatientsView({
         />
       </div>
 
-      <Surface as="section" aria-label="Filter patients" className="!p-3.5 sm:!p-4">
-        <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center">
-          <SearchBox
-            value={searchTerm}
-            onChange={onSearchChange}
-            placeholder="Search by name…"
-            ariaLabel="Search patients by name"
-            className="lg:min-w-0 lg:flex-1"
-          />
-          <div className="grid grid-cols-2 gap-2.5 lg:flex lg:items-center">
-            <DateField
-              value={dateFrom}
-              placeholder="Last visit from"
-              ariaLabel="Last visit from date"
-              onChange={(from) => onDateRangeChange(from, dateTo)}
-              className="h-10 w-full rounded-xl lg:w-[168px]"
-            />
-            <DateField
-              value={dateTo}
-              placeholder="Last visit to"
-              ariaLabel="Last visit to date"
-              onChange={(to) => onDateRangeChange(dateFrom, to)}
-              isDisabled={(date) => {
-                const start = parseDateValue(dateFrom);
-                return Boolean(start) && date < (start as Date);
-              }}
-              className="h-10 w-full rounded-xl lg:w-[168px]"
-            />
-          </div>
-          <Select value={genderFilter} onValueChange={(value) => onGenderChange(value as DoctorPatientsGenderFilter)}>
-            <SelectTrigger
-              className="h-10 w-full rounded-xl border-line text-[13px] font-semibold lg:w-[148px]"
-              aria-label="Filter by gender"
-            >
-              <SelectValue placeholder="Gender" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Genders</SelectItem>
-              <SelectItem value="male">Male</SelectItem>
-              <SelectItem value="female">Female</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={ageFilter} onValueChange={(value) => onAgeChange(value as DoctorPatientsAgeFilter)}>
-            <SelectTrigger
-              className="h-10 w-full rounded-xl border-line text-[13px] font-semibold lg:w-[148px]"
-              aria-label="Filter by age"
-            >
-              <SelectValue placeholder="Age" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Ages</SelectItem>
-              <SelectItem value="young">Under 30</SelectItem>
-              <SelectItem value="middle">30-60</SelectItem>
-              <SelectItem value="senior">Over 60</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </Surface>
+      <DoctorPatientsFilters
+        filters={filters}
+        facets={facets}
+        onChange={onFiltersChange}
+        onClear={onClearFilters}
+      />
 
       {loadFailed ? (
         <Note tone="rose" icon={AlertCircle}>
@@ -239,8 +163,9 @@ export function DoctorPatientsView({
           total={totalPatients}
           pageSize={pageSize}
           onPageChange={onPageChange}
+          onPageSizeChange={onPageSizeChange}
           hasFilters={hasFilters}
-          onClearFilters={clearFilters}
+          onClearFilters={onClearFilters}
           onPrescribe={onPrescribe}
         />
       )}
