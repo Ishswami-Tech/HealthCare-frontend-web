@@ -21,6 +21,8 @@ export interface DoctorEhrHeaderInfo {
   idLabel: string;
   /** The full id, as a tooltip. */
   fullId: string;
+  /** The clinic-issued health ID (UHID); empty when none has been issued. */
+  uhid: string;
   bloodGroup: string;
   phone: string;
   email: string;
@@ -73,7 +75,11 @@ function PatientHeader({
             <span className="text-[11px] font-extrabold uppercase tracking-[1.2px] text-brand">
               Electronic health record
             </span>
-            {header.idLabel ? (
+            {header.uhid ? (
+              <span className="font-mono text-xs font-bold text-ink-soft" title="Unique health ID (UHID)">
+                UHID {header.uhid}
+              </span>
+            ) : header.idLabel ? (
               <span className="text-xs font-semibold text-ink-muted" title={header.fullId}>
                 Patient ID: {header.idLabel}
               </span>
