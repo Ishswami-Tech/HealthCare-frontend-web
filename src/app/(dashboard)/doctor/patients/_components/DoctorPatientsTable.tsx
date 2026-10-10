@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { FileText, Pill as PillIcon, SearchX, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CellTitle, EmptyBlock, InitialsAvatar, Surface } from "@/components/tbd";
 import { cn } from "@/lib/utils";
+import { PATIENT_DIRECTORY_PAGE_SIZES } from "@/types/patient-directory.types";
 import {
   lastVisitLabel,
   patientSummaryLine,
@@ -31,6 +33,8 @@ interface DoctorPatientsTableProps {
   total: number;
   pageSize: number;
   onPageChange: (page: number) => void;
+  /** Rows per page: 10, 50, 200 or 500. */
+  onPageSizeChange: (pageSize: number) => void;
   /** A search text or a filter is on: the empty state offers to clear them. */
   hasFilters: boolean;
   onClearFilters: () => void;
@@ -78,6 +82,7 @@ export function DoctorPatientsTable({
   total,
   pageSize,
   onPageChange,
+  onPageSizeChange,
   hasFilters,
   onClearFilters,
   onPrescribe,
@@ -156,11 +161,11 @@ export function DoctorPatientsTable({
                       row.name
                     )
                   }
-                  description={patientSummaryLine(row)}
+                  description={[patientSummaryLine(row), row.uhid].filter(Boolean).join(" · ")}
                 />
               </div>
               <div role="cell" className="min-w-0">
-                <CellTitle title={row.phone || "No phone"} description={row.email || "No email"} />
+                <CellTitle title={row.phone || "No phone"} description={row.email || row.city || "No email"} />
               </div>
               <div role="cell" className="min-w-0">
                 <CellTitle title={visitsLabel(row)} description={lastVisitLabel(row)} />
@@ -184,8 +189,30 @@ export function DoctorPatientsTable({
 
       {loading || rows.length === 0 ? null : (
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hair px-5 py-3 text-[13px] text-ink-muted">
-          <span>
-            Showing {rangeStart}–{rangeEnd} of {shownTotal}
+          <span className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <span>
+              Showing {rangeStart.toLocaleString("en-IN")}–{rangeEnd.toLocaleString("en-IN")} of{" "}
+              {shownTotal.toLocaleString("en-IN")}
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <span id="patients-page-size-label">Show</span>
+              <Select value={String(pageSize)} onValueChange={(value) => onPageSizeChange(Number(value))}>
+                <SelectTrigger
+                  className="h-[34px] w-[84px] rounded-xl border-line text-[13px] font-semibold"
+                  aria-labelledby="patients-page-size-label"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PATIENT_DIRECTORY_PAGE_SIZES.map((size) => (
+                    <SelectItem key={size} value={String(size)}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span>per page</span>
+            </span>
           </span>
           <nav aria-label="Pages" className="flex items-center gap-2">
             <Button

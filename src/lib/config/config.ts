@@ -640,6 +640,11 @@ export const API_ENDPOINTS = {
   },
   
   // Patients Endpoints
+  /** Staff patient list: search, filters and paging that run on the server (page sizes 10/50/200/500). */
+  PATIENT_DIRECTORY: {
+    BASE: '/patient-directory',
+    FACETS: '/patient-directory/facets',
+  },
   PATIENTS: {
     BASE: '/patients',
     GET_ALL: '/patients',

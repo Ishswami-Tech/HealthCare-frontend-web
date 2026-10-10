@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useMemo, useReducer, useState } from "react";
+import { useMemo, useReducer, useState } from "react";
 import { ClipboardPlus, Loader2, Pill } from "lucide-react";
 import { useComprehensiveHealthRecord } from "@/hooks/query/useMedicalRecords";
 import { Button } from "@/components/ui/button";
@@ -12,37 +12,32 @@ import { VisitCaseSheet } from "@/components/patient/case-sheet/VisitCaseSheet";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useAppointments } from "@/hooks/query/useAppointments";
-import { useDoctorPatients, useCurrentDoctorEntityId } from "@/hooks/query/useDoctors";
+import { useCurrentDoctorEntityId } from "@/hooks/query/useDoctors";
+import { usePatientDirectory, usePatientDirectoryFacets } from "@/hooks/query/usePatientDirectory";
+import { useDebouncedValue } from "@/hooks/core/useDebouncedValue";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { PatientClinicalRecordView } from "@/components/patient/PatientClinicalRecordView";
 import { PatientBillHistory } from "@/components/billing/PatientBillHistory";
 import { usePatientStore } from "@/stores";
-import {
-  DoctorPatientsView,
-  type DoctorPatientsAgeFilter,
-  type DoctorPatientsGenderFilter,
-} from "./_components/DoctorPatientsView";
+import { DoctorPatientsView } from "./_components/DoctorPatientsView";
 import {
   computeDoctorPatientsStats,
+  directoryRowToDoctorPatientRow,
   extractAppointments,
-  extractPaginationMeta,
-  extractPatients,
   getPatientName,
-  matchesLastVisitRange,
   patientSummaryLine,
-  sortByLatestVisit,
-  toDoctorPatientRow,
 } from "./_components/doctorPatients.logic";
+import {
+  initialDirectoryFilters,
+  toDirectoryParams,
+  type DirectoryFilterState,
+} from "./_components/directoryFilters";
+import { PATIENT_DIRECTORY_PAGE_SIZES, type PatientDirectoryPageSize } from "@/types/patient-directory.types";
 
 type RecordLike = Record<string, any>;
 
 type DoctorPatientsState = {
-  searchTerm: string;
-  genderFilter: DoctorPatientsGenderFilter;
-  ageFilter: DoctorPatientsAgeFilter;
-  dateFrom: string;
-  dateTo: string;
-  page: number;
+  filters: DirectoryFilterState;
   prescribeTarget: {
     id: string;
     name: string;
@@ -52,20 +47,15 @@ type DoctorPatientsState = {
 };
 
 type DoctorPatientsAction =
-  | { type: "set_search_term"; value: string }
-  | { type: "set_gender_filter"; value: DoctorPatientsGenderFilter }
-  | { type: "set_age_filter"; value: DoctorPatientsAgeFilter }
-  | { type: "set_date_range"; from: string; to: string }
+  /** Change filters, search or sort: back to page 1. Paging alone is `set_page`. */
+  | { type: "patch_filters"; patch: Partial<DirectoryFilterState> }
+  | { type: "clear_filters" }
   | { type: "set_page"; value: number }
+  | { type: "set_page_size"; value: PatientDirectoryPageSize }
   | { type: "set_prescribe_target"; value: DoctorPatientsState["prescribeTarget"] };
 
 const initialDoctorPatientsState: DoctorPatientsState = {
-  searchTerm: "",
-  genderFilter: "all",
-  ageFilter: "all",
-  dateFrom: "",
-  dateTo: "",
-  page: 1,
+  filters: initialDirectoryFilters,
   prescribeTarget: null,
 };
 
@@ -74,16 +64,23 @@ function doctorPatientsReducer(
   action: DoctorPatientsAction
 ): DoctorPatientsState {
   switch (action.type) {
-    case "set_search_term":
-      return { ...state, searchTerm: action.value, page: 1 };
-    case "set_gender_filter":
-      return { ...state, genderFilter: action.value, page: 1 };
-    case "set_age_filter":
-      return { ...state, ageFilter: action.value, page: 1 };
-    case "set_date_range":
-      return { ...state, dateFrom: action.from, dateTo: action.to, page: 1 };
+    case "patch_filters":
+      return { ...state, filters: { ...state.filters, ...action.patch, page: 1 } };
+    case "clear_filters":
+      // Keep how the list is sorted and how many rows to a page: those are display choices.
+      return {
+        ...state,
+        filters: {
+          ...initialDirectoryFilters,
+          sort: state.filters.sort,
+          order: state.filters.order,
+          pageSize: state.filters.pageSize,
+        },
+      };
     case "set_page":
-      return { ...state, page: action.value };
+      return { ...state, filters: { ...state.filters, page: action.value } };
+    case "set_page_size":
+      return { ...state, filters: { ...state.filters, pageSize: action.value, page: 1 } };
     case "set_prescribe_target":
       return { ...state, prescribeTarget: action.value };
     default:
@@ -185,7 +182,12 @@ function EhrDrawerContent({
   );
 }
 
-const PAGE_SIZE = 10;
+const SEARCH_DEBOUNCE_MS = 300;
+
+const asPageSize = (value: number): PatientDirectoryPageSize =>
+  (PATIENT_DIRECTORY_PAGE_SIZES as readonly number[]).includes(value)
+    ? (value as PatientDirectoryPageSize)
+    : PATIENT_DIRECTORY_PAGE_SIZES[1];
 
 export default function DoctorPatients() {
   const { session } = useAuth();
@@ -195,48 +197,23 @@ export default function DoctorPatients() {
   // User id most other doctor-scoped queries on this page use.
   const { doctorId: doctorEntityId } = useCurrentDoctorEntityId(clinicId || "");
   const [state, dispatch] = useReducer(doctorPatientsReducer, initialDoctorPatientsState);
-  const debouncedSearchTerm = useDeferredValue(state.searchTerm);
-  const { genderFilter, ageFilter, dateFrom, dateTo, page, prescribeTarget } = state;
-  const hasLastVisitRange = Boolean(dateFrom || dateTo);
-  // Last-visit range is applied client-side, so pull a wider page when that filter is on.
-  const fetchLimit = hasLastVisitRange ? 200 : PAGE_SIZE;
-  const fetchOffset = hasLastVisitRange ? 0 : (page - 1) * PAGE_SIZE;
+  const { filters, prescribeTarget } = state;
+  const debouncedSearch = useDebouncedValue(filters.search, SEARCH_DEBOUNCE_MS);
 
-  const patientsQuery = useDoctorPatients(
-    clinicId || "",
-    {
-      search: debouncedSearchTerm,
-      ...(genderFilter !== "all" && { gender: genderFilter }),
-      ...(ageFilter !== "all" && {
-        ageRange:
-          ageFilter === "young" ? "young" : ageFilter === "middle" ? "middle" : "senior",
-      }),
-      limit: fetchLimit,
-      offset: fetchOffset,
-    },
-    { enabled: !!clinicId }
+  // Search, filters, sorting and paging all run on the server: the clinic has tens of thousands of patients.
+  const directoryParams = useMemo(
+    () => toDirectoryParams(filters, debouncedSearch),
+    [filters, debouncedSearch]
   );
-  const patientsPage = useMemo(
-    () => extractPaginationMeta(patientsQuery.data, PAGE_SIZE),
-    [patientsQuery.data]
+  const patientsQuery = usePatientDirectory(clinicId || "", directoryParams, { enabled: !!clinicId });
+  const facetsQuery = usePatientDirectoryFacets(clinicId || "");
+  const directoryPage = patientsQuery.data;
+  const rows = useMemo(
+    () => (directoryPage?.rows ?? []).map(directoryRowToDoctorPatientRow),
+    [directoryPage]
   );
-  const rows = useMemo(() => {
-    // No server-side sort: order the loaded page by latest visit, newest first.
-    const mapped = sortByLatestVisit(
-      extractPatients(patientsQuery.data).map((patient) => toDoctorPatientRow(patient)),
-    );
-    if (!hasLastVisitRange) return mapped;
-    return mapped.filter((row) => matchesLastVisitRange(row, dateFrom, dateTo));
-  }, [patientsQuery.data, hasLastVisitRange, dateFrom, dateTo]);
-  const pagedRows = useMemo(() => {
-    if (!hasLastVisitRange) return rows;
-    const start = (page - 1) * PAGE_SIZE;
-    return rows.slice(start, start + PAGE_SIZE);
-  }, [rows, hasLastVisitRange, page]);
-  const displayTotal = hasLastVisitRange ? rows.length : patientsPage.total || rows.length;
-  const displayTotalPages = hasLastVisitRange
-    ? Math.max(1, Math.ceil(rows.length / PAGE_SIZE) || 1)
-    : patientsPage.totalPages;
+  const displayTotal = directoryPage?.total ?? 0;
+  const displayTotalPages = directoryPage?.totalPages ?? 1;
   const drawerPatient = usePatientStore((state) => state.selectedPatient);
   const setSelectedPatient = usePatientStore((state) => state.setSelectedPatient);
   // The first load failed and there is nothing to show ("Try again" refetches).
@@ -291,22 +268,18 @@ export default function DoctorPatients() {
         loading={isPendingPatients}
         loadFailed={loadFailed}
         onRetry={() => void patientsQuery.refetch()}
-        rows={pagedRows}
+        rows={rows}
         totalPatients={totalPatientsCount}
         stats={stats}
-        page={page}
+        page={directoryPage?.page ?? filters.page}
         totalPages={displayTotalPages}
-        pageSize={PAGE_SIZE}
+        pageSize={filters.pageSize}
         onPageChange={(nextPage) => dispatch({ type: "set_page", value: nextPage })}
-        searchTerm={state.searchTerm}
-        genderFilter={genderFilter}
-        ageFilter={ageFilter}
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-        onSearchChange={(value) => dispatch({ type: "set_search_term", value })}
-        onGenderChange={(value) => dispatch({ type: "set_gender_filter", value })}
-        onAgeChange={(value) => dispatch({ type: "set_age_filter", value })}
-        onDateRangeChange={(from, to) => dispatch({ type: "set_date_range", from, to })}
+        onPageSizeChange={(size) => dispatch({ type: "set_page_size", value: asPageSize(size) })}
+        filters={filters}
+        facets={facetsQuery.data}
+        onFiltersChange={(patch) => dispatch({ type: "patch_filters", patch })}
+        onClearFilters={() => dispatch({ type: "clear_filters" })}
         onPrescribe={(row) =>
           dispatch({
             type: "set_prescribe_target",

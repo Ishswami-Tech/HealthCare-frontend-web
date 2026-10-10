@@ -1,5 +1,6 @@
 import { getAppointmentDateTimeValue } from "@/lib/utils/appointmentUtils";
 import { formatDateInIST, formatDateKeyInIST } from "@/lib/utils/date-time";
+import type { PatientDirectoryRow } from "@/types/patient-directory.types";
 
 type Raw = Record<string, unknown>;
 
@@ -16,6 +17,12 @@ export interface DoctorPatientRow {
   totalVisits: number | null;
   /** Raw date of the last visit, or null. */
   lastVisit: string | null;
+  /** Clinic-issued health ID (UHID); empty when none was issued yet. */
+  uhid: string;
+  /** Number from the old register, for patients brought over from it. */
+  legacyRegistration: string;
+  city: string;
+  referenceSource: string;
 }
 
 export interface DoctorPatientsStats {
@@ -129,6 +136,28 @@ export function toDoctorPatientRow(patient: unknown, today: Date = new Date()): 
     email: firstText(record.email, user.email),
     totalVisits,
     lastVisit: firstText(record.lastVisit) || null,
+    uhid: firstText(record.uhid),
+    legacyRegistration: firstText(record.legacyRegistration),
+    city: firstText(record.city, user.city),
+    referenceSource: firstText(record.referenceSource),
+  };
+}
+
+/** A row of the patient directory (GET /patient-directory) as a table row. */
+export function directoryRowToDoctorPatientRow(row: PatientDirectoryRow): DoctorPatientRow {
+  return {
+    id: row.patientId,
+    name: row.name,
+    age: row.age,
+    gender: row.gender ?? "",
+    phone: row.phone ?? "",
+    email: row.email ?? "",
+    totalVisits: row.totalVisits,
+    lastVisit: row.lastVisit,
+    uhid: row.uhid ?? "",
+    legacyRegistration: row.legacyRegistration ?? "",
+    city: row.city ?? "",
+    referenceSource: row.referenceSource ?? "",
   };
 }
 
