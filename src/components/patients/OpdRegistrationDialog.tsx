@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyBlock, Note } from "@/components/tbd";
 import { cn } from "@/lib/utils";
+import { useLocalizedLabel } from "@/components/patient/case-sheet/use-localized-option";
 import { SPECIAL_CASE_OPTIONS, FAMILY_RELATION_SUGGESTIONS } from "@/lib/constants/case-sheet-fixed-lists";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useDoctorPatients } from "@/hooks/query/useDoctors";
@@ -220,6 +221,7 @@ export function OpdRegistrationDialogView({
   busy,
   onSubmit,
 }: OpdRegistrationDialogViewProps) {
+  const localizeLabel = useLocalizedLabel();
   const uid = useId();
   const id = (name: string) => `${uid}-${name}`;
   const { who, selectedPatient, newPatient, dependent } = form;
@@ -553,7 +555,7 @@ export function OpdRegistrationDialogView({
                           {SPECIAL_CASE_OPTIONS.map((option) => (
                             <ChoiceChip
                               key={option.value}
-                              label={option.label}
+                              label={localizeLabel(option.label)}
                               active={form.flags.includes(option.value)}
                               onClick={() =>
                                 onPatch({

@@ -1,6 +1,7 @@
 "use client";
 
 import { runSave } from "./run-save";
+import { useLocalizedOption } from "./use-localized-option";
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ClipboardList, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -102,6 +103,7 @@ export function PastHistoryChecklistView({
   onSaveNotes,
   isSavingNotes = false,
 }: PastHistoryChecklistViewProps) {
+  const localize = useLocalizedOption();
   const [notesValue, setNotesValue] = useState(notes ?? "");
   const [notesDirty, setNotesDirty] = useState(false);
 
@@ -168,7 +170,7 @@ export function PastHistoryChecklistView({
                 onClick={() => onToggle(condition)}
               >
                 {busy ? <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden="true" /> : null}
-                {condition}
+                {localize(condition)}
               </ChoiceChip>
             );
           })}

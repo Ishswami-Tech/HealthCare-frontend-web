@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocalizedLabel } from "./use-localized-option";
 import type { ReactNode } from "react";
 import { Check, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -44,13 +45,18 @@ export function ExamPanelHead({
   description?: ReactNode;
   aside?: ReactNode;
 }) {
+  const localizeLabel = useLocalizedLabel();
   return (
     <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
       <div className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
         <h2 id={id} className="m-0 text-base font-bold text-ink">
-          {title}
+          {typeof title === "string" ? localizeLabel(title) : title}
         </h2>
-        {description ? <div className="text-[13px] text-ink-muted">{description}</div> : null}
+        {description ? (
+          <div className="text-[13px] text-ink-muted">
+            {typeof description === "string" ? localizeLabel(description) : description}
+          </div>
+        ) : null}
       </div>
       {aside ? <div className="ml-auto flex shrink-0 items-center gap-2">{aside}</div> : null}
     </div>
@@ -69,10 +75,11 @@ export function ExamSaveButton({
   saving: boolean;
   label?: string;
 }) {
+  const localizeLabel = useLocalizedLabel();
   return (
     <Button onClick={onClick} disabled={disabled} className="h-[38px] px-3.5 has-[>svg]:px-3.5">
       <Save strokeWidth={2.4} aria-hidden="true" />
-      {saving ? "Saving..." : label}
+      {localizeLabel(saving ? "Saving..." : label)}
     </Button>
   );
 }
