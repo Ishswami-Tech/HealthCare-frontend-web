@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
+import { ClaimRecordCard } from "@/components/patient/home/ClaimRecordCard";
 import { useUserProfile } from "@/hooks/query/useUsers";
 import {
   usePatientDashboardSummary,
@@ -257,6 +258,7 @@ export default function PatientDashboard() {
       doctor={homeDoctor}
       showProfileBanner={authoritativeProfileComplete !== true}
       onCompleteProfile={() => push("/profile-completion")}
+      notice={<ClaimRecordCard enabled={Boolean(session?.user)} />}
       onBook={openBooking}
       isBookingOpening={isBookingAppointmentLoading}
       onScanCheckIn={startCheckIn}
