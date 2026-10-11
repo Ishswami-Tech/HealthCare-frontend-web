@@ -20,7 +20,27 @@ function isSafeInternalPath(path?: string | null): path is string {
   if (!path) return false;
   if (!path.startsWith('/')) return false;
   if (path.startsWith('//')) return false;
-  return !/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(path);
+  // Browsers treat "\" as "/" and ignore tabs and line breaks, so "/\evil.com" is "//evil.com".
+  if (/[\\\u0000-\u001f\u007f\s]/.test(path)) return false;
+  if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(path)) return false;
+  try {
+    return new URL(path, 'http://safe.invalid').origin === 'http://safe.invalid';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Whether a patient may be sent to a saved "where you were going" path after signing in.
+ *
+ * A patient always lands on their dashboard, even if they were trying to open the appointments page
+ * (or any other page) when the session ended. The one exception is a payment return, which has to
+ * resume where it left off. Other roles keep their saved path.
+ */
+export function isCallbackAllowedAfterLogin(role: Role | string | undefined, path?: string | null): boolean {
+  if (!isSafeInternalPath(path) || isAuthPath(path)) return false;
+  if (String(role ?? '').toUpperCase() !== Role.PATIENT) return true;
+  return path === '/payment' || path.startsWith('/payment/') || path.startsWith('/payment?');
 }
 
 /**
@@ -82,7 +102,7 @@ export function getLoginRedirect(context: RedirectContext): RedirectResult {
   }
 
   // Priority 2: Use callback URL if provided and valid
-  if (isSafeInternalPath(callbackUrl) && !isAuthPath(callbackUrl)) {
+  if (isSafeInternalPath(callbackUrl) && isCallbackAllowedAfterLogin(userRole, callbackUrl)) {
     return {
       path: callbackUrl,
       reason: 'callback_url',

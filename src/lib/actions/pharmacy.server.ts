@@ -2,6 +2,7 @@
 
 import { authenticatedApi, getServerSession } from "./auth.server";
 import { API_ENDPOINTS } from "../config/config";
+import { parseDosageForm } from "@/lib/constants/medicine-types";
 import type {
   AdjustBatchStockInput,
   DispensePrescriptionData,
@@ -83,20 +84,12 @@ function normalizeMedicineRecord(medicine: Record<string, unknown>) {
   };
 }
 
-/** Values `POST /pharmacy/inventory` accepts for `type` (backend `CreateMedicineDto`). */
-const BACKEND_MEDICINE_TYPES = [
-  "TABLET",
-  "SYRUP",
-  "CAPSULE",
-  "INJECTION",
-  "CREAM",
-  "DROPS",
-  "OTHER",
-] as const;
-
-function toBackendMedicineType(value: unknown): (typeof BACKEND_MEDICINE_TYPES)[number] {
-  const upper = String(value ?? "").trim().toUpperCase();
-  return BACKEND_MEDICINE_TYPES.find((type) => type === upper) ?? "OTHER";
+/**
+ * `type` values `POST /pharmacy/inventory` accepts (backend `MedicineType`): the dosage forms the
+ * medicine form offers. An unknown value is stored as OTHER rather than rejected.
+ */
+function toBackendMedicineType(value: unknown): string {
+  return parseDosageForm(value) ?? "OTHER";
 }
 
 /** One CSV cell: quoted when needed; a leading formula character is neutralised. */

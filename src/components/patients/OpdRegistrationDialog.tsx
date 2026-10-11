@@ -18,8 +18,9 @@ import { cn } from "@/lib/utils";
 import { useLocalizedLabel } from "@/components/patient/case-sheet/use-localized-option";
 import { SPECIAL_CASE_OPTIONS, FAMILY_RELATION_SUGGESTIONS } from "@/lib/constants/case-sheet-fixed-lists";
 import { useAuth } from "@/hooks/auth/useAuth";
-import { useDoctorPatients } from "@/hooks/query/useDoctors";
+import { usePatientDirectory } from "@/hooks/query/usePatientDirectory";
 import { useQuickRegisterPatient } from "@/hooks/query/usePatients";
+import { generateTemporaryPassword } from "@/lib/utils/temporary-password";
 import {
   useCreateFamilyMember,
   useCreatePatientVisit,
@@ -57,19 +58,10 @@ export type OpdPatientRow = {
   lastName?: string;
   phone?: string;
   email?: string;
+  /** Clinic-issued health ID, shown so the desk can tell two patients with the same name apart. */
+  uhid?: string;
   user?: { id?: string; name?: string; firstName?: string; lastName?: string; phone?: string; email?: string };
 };
-
-function extractPatients(value: unknown): OpdPatientRow[] {
-  if (Array.isArray(value)) return value as OpdPatientRow[];
-  if (value && typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    for (const key of ["patients", "data", "items", "records"]) {
-      if (Array.isArray(record[key])) return record[key] as OpdPatientRow[];
-    }
-  }
-  return [];
-}
 
 function patientName(row: OpdPatientRow): string {
   return (
@@ -387,7 +379,11 @@ export function OpdRegistrationDialogView({
                                 <span className={cn("min-w-0 flex-1 truncate", active ? "font-bold" : "font-semibold")}>
                                   {patientName(row)}
                                 </span>
-                                <span className="shrink-0 text-xs text-ink-muted">{row.phone || row.user?.phone || row.email || row.user?.email || ""}</span>
+                                <span className="shrink-0 text-xs text-ink-muted">
+                                  {[row.uhid, row.phone || row.user?.phone || row.email || row.user?.email]
+                                    .filter(Boolean)
+                                    .join(" · ")}
+                                </span>
                                 {active ? (
                                   <Check className="size-4 shrink-0 text-brand" strokeWidth={2.4} aria-hidden="true" />
                                 ) : null}
@@ -707,12 +703,25 @@ export function OpdRegistrationDialog({ clinicId, trigger, onRegistered, showFee
   const isDoctor = role === Role.DOCTOR || role === Role.ASSISTANT_DOCTOR;
   const feeVisible = showFee ?? !isDoctor;
 
-  const patientsQuery = useDoctorPatients(
+  // Searched on the server by name, phone (also numbers kept outside the login), UHID, OPD or register
+  // number, so an existing patient is found instead of being registered a second time.
+  const patientsQuery = usePatientDirectory(
     clinicId,
-    { search: deferredSearch, limit: 8, offset: 0 },
+    { search: deferredSearch.trim(), pageSize: 10 },
     { enabled: open && !!clinicId && searchActive },
   );
-  const results = useMemo(() => extractPatients(patientsQuery.data), [patientsQuery.data]);
+  const results = useMemo<OpdPatientRow[]>(
+    () =>
+      (patientsQuery.data?.rows ?? []).map((row) => ({
+        id: row.patientId,
+        userId: row.userId,
+        name: row.name,
+        ...(row.phone ? { phone: row.phone } : {}),
+        ...(row.email ? { email: row.email } : {}),
+        ...(row.uhid ? { uhid: row.uhid } : {}),
+      })),
+    [patientsQuery.data],
+  );
   const familyQuery = useFamilyMembers(clinicId, selectedPatient?.id ?? "");
   const register = useQuickRegisterPatient();
   const createVisit = useCreatePatientVisit();
@@ -799,12 +808,11 @@ export function OpdRegistrationDialog({ clinicId, trigger, onRegistered, showFee
     let visit: PatientVisit;
     try {
       if (who.kind === "new") {
-        const digits = newPatient.phone.replace(/\D/g, "");
         const { user } = await register.mutateAsync({
           firstName: newPatient.firstName.trim(),
           lastName: newPatient.lastName.trim(),
           phone: newPatient.phone.trim(),
-          password: `Temp@${digits.slice(-4)}Aa`,
+          password: generateTemporaryPassword(),
           ...(newPatient.gender ? { gender: newPatient.gender } : {}),
           ...(newPatient.dateOfBirth ? { dateOfBirth: newPatient.dateOfBirth } : {}),
           ...(newPatient.address.trim() ? { address: newPatient.address.trim() } : {}),

@@ -15,6 +15,8 @@ import type { DoctorPatientRow, DoctorPatientsStats } from "./doctorPatients.log
 export interface DoctorPatientsViewProps {
   /** The first load of the list is still running. */
   loading: boolean;
+  /** A page is being replaced (filter, page or size changed): the rows shown are the old ones. */
+  refreshing?: boolean;
   /** The list could not be loaded and there is nothing to show. */
   loadFailed: boolean;
   onRetry: () => void;
@@ -76,6 +78,7 @@ const numberSkeleton = (
 
 export function DoctorPatientsView({
   loading,
+  refreshing = false,
   loadFailed,
   onRetry,
   rows,
@@ -158,6 +161,7 @@ export function DoctorPatientsView({
         <DoctorPatientsTable
           rows={rows}
           loading={loading}
+          refreshing={refreshing}
           page={page}
           totalPages={totalPages}
           total={totalPatients}

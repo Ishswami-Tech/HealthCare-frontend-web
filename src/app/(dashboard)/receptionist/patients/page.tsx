@@ -30,6 +30,7 @@ import {
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useQuickRegisterPatient } from "@/hooks/query/usePatients";
+import { generateTemporaryPassword } from "@/lib/utils/temporary-password";
 import { usePatientDirectory } from "@/hooks/query/usePatientDirectory";
 import {
   PATIENT_DIRECTORY_DEFAULT_PAGE_SIZE,
@@ -102,7 +103,6 @@ type NewPatientFormState = {
 
 type ReceptionistPatientsState = {
   searchTerm: string;
-  statusFilter: string;
   genderFilter: string;
   sortFilter: string;
   page: number;
@@ -115,7 +115,6 @@ type ReceptionistPatientsState = {
 type ReceptionistPatientsAction =
   | { type: "setSearchTerm"; value: string }
   | { type: "setDebouncedSearchTerm"; value: string }
-  | { type: "setStatusFilter"; value: string }
   | { type: "setGenderFilter"; value: string }
   | { type: "setSortFilter"; value: string }
   | { type: "setPage"; value: number }
@@ -167,7 +166,6 @@ const initialNewPatientFormState: NewPatientFormState = {
 
 const initialReceptionistPatientsState: ReceptionistPatientsState = {
   searchTerm: "",
-  statusFilter: "all",
   genderFilter: "all",
   sortFilter: "registered-desc",
   page: 1,
@@ -186,8 +184,6 @@ function receptionistPatientsReducer(
       return { ...state, searchTerm: action.value };
     case "setDebouncedSearchTerm":
       return { ...state, debouncedSearchTerm: action.value };
-    case "setStatusFilter":
-      return { ...state, statusFilter: action.value };
     case "setGenderFilter":
       return { ...state, genderFilter: action.value };
     case "setSortFilter":
@@ -329,11 +325,6 @@ function PatientDetailsSections({
       </Card>
     </div>
   );
-}
-
-function createTemporaryPatientPassword(phone: string): string {
-  const digits = phone.replace(/\D/g, "").slice(-4) || "1234";
-  return `Temp@${digits}Aa`;
 }
 
 function normalizePatientGender(
@@ -599,7 +590,7 @@ export default function ReceptionistPatients() {
           ? `Current medications: ${newPatient.currentMedications.trim()}`
           : "",
       ].flatMap((value) => (value ? [value] : []));
-      const temporaryPassword = createTemporaryPatientPassword(newPatient.phone);
+      const temporaryPassword = generateTemporaryPassword();
       const emergencyContact =
         newPatient.emergencyContact.trim() && newPatient.emergencyPhone.trim()
           ? {
@@ -631,7 +622,7 @@ export default function ReceptionistPatients() {
       }
 
       showSuccessToast(
-        `Patient created successfully. Temporary password: ${temporaryPassword}`,
+        "Patient created successfully. They sign in with a one-time code sent to their phone.",
         {
           id: TOAST_IDS.GLOBAL.SUCCESS,
         }
@@ -957,7 +948,7 @@ export default function ReceptionistPatients() {
           </div>
 
           {/* Stats Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
@@ -967,24 +958,18 @@ export default function ReceptionistPatients() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{patientsPage.total || patients.length}</div>
-                <p className="text-xs text-muted-foreground">Registered</p>
+                <p className="text-xs text-muted-foreground">In this clinic</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Active Patients
-                </CardTitle>
+                <CardTitle className="text-sm font-medium">On this page</CardTitle>
                 <UserCheck className="size-4 text-green-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">
-                  {patients.filter((p: any) => p.isActive !== false).length}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Loaded page active
-                </p>
+                <div className="text-2xl font-bold text-green-600">{patients.length}</div>
+                <p className="text-xs text-muted-foreground">Patients shown now</p>
               </CardContent>
             </Card>
 
@@ -1007,22 +992,7 @@ export default function ReceptionistPatients() {
                     );
                   }).length}
                 </div>
-                <p className="text-xs text-muted-foreground" suppressHydrationWarning>Loaded page registrations</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Inactive Patients
-                </CardTitle>
-                <AlertCircle className="size-4 text-orange-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-orange-600">
-                  {patients.filter((p: any) => p.isActive === false).length}
-                </div>
-                <p className="text-xs text-muted-foreground">Loaded page inactive</p>
+                <p className="text-xs text-muted-foreground" suppressHydrationWarning>Registered this month (this page)</p>
               </CardContent>
             </Card>
           </div>
@@ -1083,13 +1053,25 @@ export default function ReceptionistPatients() {
           </Card>
 
           {/* Patients List */}
-          <Card>
+          {directoryQuery.error && !directoryQuery.data ? (
+            <Card role="alert">
+              <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
+                <span>
+                  <b className="font-bold">Patients could not be loaded.</b> Check your connection and try again.
+                </span>
+                <Button variant="outline" onClick={() => void directoryQuery.refetch()}>
+                  Try again
+                </Button>
+              </CardContent>
+            </Card>
+          ) : null}
+          <Card aria-busy={directoryQuery.isFetching}>
             <CardContent className="p-4">
               <DataTable
                 columns={patientColumns}
                 data={patientTableRows}
-                emptyMessage="No patients found"
-                pageSize={12}
+                emptyMessage={directoryQuery.isPending ? "Loading patients…" : "No patients found"}
+                manualPagination
                 showPagination={false}
               />
             </CardContent>

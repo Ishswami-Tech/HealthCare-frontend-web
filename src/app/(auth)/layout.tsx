@@ -15,6 +15,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useUserProfile } from "@/hooks/query/useUsers";
 import { ROUTES, getDashboardByRole } from "@/lib/config/routes";
+import { isCallbackAllowedAfterLogin } from "@/lib/utils/redirect";
 import { StatusFooter } from "@/components/status/StatusFooter";
 import { resolveAuthoritativeProfileCompleteFromCandidates } from "@/lib/config/profile";
 
@@ -71,7 +72,8 @@ export default function AuthLayout({
         : callbackUrl &&
             callbackUrl.startsWith("/") &&
             !callbackUrl.startsWith("//") &&
-            !callbackUrl.startsWith("/auth/")
+            !callbackUrl.startsWith("/auth/") &&
+            isCallbackAllowedAfterLogin(role, callbackUrl)
           ? callbackUrl
           : getDashboardByRole(role);
 

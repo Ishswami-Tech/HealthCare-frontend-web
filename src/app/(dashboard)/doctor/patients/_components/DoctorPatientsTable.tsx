@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import Link from "next/link";
 import { FileText, Pill as PillIcon, SearchX, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,8 @@ const FULL_ROW = "col-span-2 @3xl:col-span-1";
 interface DoctorPatientsTableProps {
   rows: DoctorPatientRow[];
   loading: boolean;
+  /** The rows shown are about to be replaced: dim them and do not accept clicks. */
+  refreshing?: boolean;
   /** Server paging: the current page (starting at 1) and the totals the API reported. */
   page: number;
   totalPages: number;
@@ -74,9 +77,68 @@ function SkeletonRows({ rows = 6 }: { rows?: number }) {
   );
 }
 
+/** One patient row. Memoised: at 500 rows per page a keystroke elsewhere must not redraw them all. */
+const PatientRow = memo(function PatientRow({
+  row,
+  onPrescribe,
+}: {
+  row: DoctorPatientRow;
+  onPrescribe: (row: DoctorPatientRow) => void;
+}) {
+  return (
+    <div
+      role="row"
+      className={cn(
+        ROW_GRID,
+        "gap-y-3 border-b border-hair py-3.5 text-sm last:border-b-0 @3xl:min-h-[60px] @3xl:py-2",
+      )}
+    >
+      <div role="cell" className={cn(FULL_ROW, "min-w-0")}>
+        <CellTitle
+          left={<InitialsAvatar name={row.name} size={38} />}
+          title={
+            row.id ? (
+              <Link
+                href={`/doctor/patients/${encodeURIComponent(row.id)}`}
+                className="text-ink transition-colors hover:text-brand hover:underline focus-visible:text-brand focus-visible:underline focus-visible:outline-hidden"
+                aria-label={`Open EHR for ${row.name}`}
+                title="Open patient EHR"
+              >
+                {row.name}
+              </Link>
+            ) : (
+              row.name
+            )
+          }
+          description={[patientSummaryLine(row), row.uhid].filter(Boolean).join(" · ")}
+        />
+      </div>
+      <div role="cell" className="min-w-0">
+        <CellTitle title={row.phone || "No phone"} description={row.email || row.city || "No email"} />
+      </div>
+      <div role="cell" className="min-w-0">
+        <CellTitle title={visitsLabel(row)} description={lastVisitLabel(row)} />
+      </div>
+      <div role="cell" className={cn(FULL_ROW, "flex min-w-0 flex-wrap items-center gap-2 @3xl:flex-nowrap")}>
+        <Button asChild variant="outline">
+          <Link href={`/doctor/patients/${encodeURIComponent(row.id)}`} aria-label={`View EHR of ${row.name}`}>
+            <FileText />
+            View EHR
+          </Link>
+        </Button>
+        <Button variant="soft" onClick={() => onPrescribe(row)} aria-label={`Prescribe for ${row.name}`}>
+          <PillIcon />
+          Prescribe
+        </Button>
+      </div>
+    </div>
+  );
+});
+
 export function DoctorPatientsTable({
   rows,
   loading,
+  refreshing = false,
   page,
   totalPages,
   total,
@@ -95,7 +157,12 @@ export function DoctorPatientsTable({
 
   return (
     <Surface flush as="section" className="@container" aria-label="Patients">
-      <div role="table" aria-label="Patients" aria-busy={loading}>
+      <div
+        role="table"
+        aria-label="Patients"
+        aria-busy={loading || refreshing}
+        className={cn(refreshing && "pointer-events-none opacity-60 transition-opacity")}
+      >
         <div
           role="row"
           className={cn(
@@ -135,55 +202,7 @@ export function DoctorPatientsTable({
             </div>
           </div>
         ) : (
-          rows.map((row) => (
-            <div
-              key={row.id}
-              role="row"
-              className={cn(
-                ROW_GRID,
-                "gap-y-3 border-b border-hair py-3.5 text-sm last:border-b-0 @3xl:min-h-[60px] @3xl:py-2",
-              )}
-            >
-              <div role="cell" className={cn(FULL_ROW, "min-w-0")}>
-                <CellTitle
-                  left={<InitialsAvatar name={row.name} size={38} />}
-                  title={
-                    row.id ? (
-                      <Link
-                        href={`/doctor/patients/${encodeURIComponent(row.id)}`}
-                        className="text-ink transition-colors hover:text-brand hover:underline focus-visible:text-brand focus-visible:underline focus-visible:outline-hidden"
-                        aria-label={`Open EHR for ${row.name}`}
-                        title="Open patient EHR"
-                      >
-                        {row.name}
-                      </Link>
-                    ) : (
-                      row.name
-                    )
-                  }
-                  description={[patientSummaryLine(row), row.uhid].filter(Boolean).join(" · ")}
-                />
-              </div>
-              <div role="cell" className="min-w-0">
-                <CellTitle title={row.phone || "No phone"} description={row.email || row.city || "No email"} />
-              </div>
-              <div role="cell" className="min-w-0">
-                <CellTitle title={visitsLabel(row)} description={lastVisitLabel(row)} />
-              </div>
-              <div role="cell" className={cn(FULL_ROW, "flex min-w-0 flex-wrap items-center gap-2 @3xl:flex-nowrap")}>
-                <Button asChild variant="outline">
-                  <Link href={`/doctor/patients/${encodeURIComponent(row.id)}`} aria-label={`View EHR of ${row.name}`}>
-                    <FileText />
-                    View EHR
-                  </Link>
-                </Button>
-                <Button variant="soft" onClick={() => onPrescribe(row)} aria-label={`Prescribe for ${row.name}`}>
-                  <PillIcon />
-                  Prescribe
-                </Button>
-              </div>
-            </div>
-          ))
+          rows.map((row) => <PatientRow key={row.id} row={row} onPrescribe={onPrescribe} />)
         )}
       </div>
 

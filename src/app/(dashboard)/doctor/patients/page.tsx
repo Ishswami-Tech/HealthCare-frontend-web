@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useReducer, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { ClipboardPlus, Loader2, Pill } from "lucide-react";
 import { useComprehensiveHealthRecord } from "@/hooks/query/useMedicalRecords";
 import { Button } from "@/components/ui/button";
@@ -64,8 +64,14 @@ function doctorPatientsReducer(
   action: DoctorPatientsAction
 ): DoctorPatientsState {
   switch (action.type) {
-    case "patch_filters":
-      return { ...state, filters: { ...state.filters, ...action.patch, page: 1 } };
+    case "patch_filters": {
+      // Typing alone keeps the page: the reset happens once the debounced search is sent.
+      const typingOnly = Object.keys(action.patch).every((key) => key === "search");
+      return {
+        ...state,
+        filters: { ...state.filters, ...action.patch, ...(typingOnly ? {} : { page: 1 }) },
+      };
+    }
     case "clear_filters":
       // Keep how the list is sorted and how many rows to a page: those are display choices.
       return {
@@ -205,6 +211,13 @@ export default function DoctorPatients() {
     () => toDirectoryParams(filters, debouncedSearch),
     [filters, debouncedSearch]
   );
+  // A new search goes back to page 1 once it is actually sent.
+  const searchSent = useRef(debouncedSearch);
+  useEffect(() => {
+    if (searchSent.current === debouncedSearch) return;
+    searchSent.current = debouncedSearch;
+    dispatch({ type: "set_page", value: 1 });
+  }, [debouncedSearch]);
   const patientsQuery = usePatientDirectory(clinicId || "", directoryParams, { enabled: !!clinicId });
   const facetsQuery = usePatientDirectoryFacets(clinicId || "");
   const directoryPage = patientsQuery.data;
@@ -251,6 +264,14 @@ export default function DoctorPatients() {
       }
     />
   );
+  const handlePrescribe = useCallback(
+    (row: { id: string; name: string; age: number | null; gender: string }) =>
+      dispatch({
+        type: "set_prescribe_target",
+        value: { id: row.id, name: row.name, summary: patientSummaryLine(row) },
+      }),
+    [],
+  );
   const prescriptionDialog = prescribeTarget ? (
     <QuickPrescriptionModal
       isOpen
@@ -273,19 +294,15 @@ export default function DoctorPatients() {
         stats={stats}
         page={directoryPage?.page ?? filters.page}
         totalPages={displayTotalPages}
-        pageSize={filters.pageSize}
+        pageSize={directoryPage?.pageSize ?? filters.pageSize}
+        refreshing={patientsQuery.isFetching && !isPendingPatients}
         onPageChange={(nextPage) => dispatch({ type: "set_page", value: nextPage })}
         onPageSizeChange={(size) => dispatch({ type: "set_page_size", value: asPageSize(size) })}
         filters={filters}
         facets={facetsQuery.data}
         onFiltersChange={(patch) => dispatch({ type: "patch_filters", patch })}
         onClearFilters={() => dispatch({ type: "clear_filters" })}
-        onPrescribe={(row) =>
-          dispatch({
-            type: "set_prescribe_target",
-            value: { id: row.id, name: row.name, summary: patientSummaryLine(row) },
-          })
-        }
+        onPrescribe={handlePrescribe}
         actions={headerActions}
       />
 

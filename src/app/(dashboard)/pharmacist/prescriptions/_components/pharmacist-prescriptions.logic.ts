@@ -80,6 +80,8 @@ export type PrescriptionRow = {
   reference: string;
   patientName: string;
   patientPhone: string;
+  /** Clinic-issued health ID (UHID); empty when none has been issued. */
+  patientUhid: string;
   doctorName: string;
   prescribedAt: string;
   locationName: string;
@@ -210,6 +212,7 @@ export function normalizePrescription(input: unknown): PrescriptionRow {
       fullName(patient) ||
       "Unknown Patient",
     patientPhone: text(raw.patientPhone) || text(patientUser.phone),
+    patientUhid: text(raw.patientUhid),
     doctorName: doctorName ? formatDoctorDisplayName(doctorName) : "Unknown Doctor",
     prescribedAt: text(raw.date) || text(raw.prescribedAt) || text(raw.createdAt) || nowIso(),
     locationName: text(raw.locationName) || text(asRecord(raw.location).name),
@@ -299,18 +302,23 @@ export function canReverseDispense(prescription: PrescriptionRow): boolean {
   return prescription.status === "PARTIAL" || prescription.status === "FILLED";
 }
 
+const phoneDigits = (value: string): string => value.replace(/\D/g, "");
+
 export function filterPrescriptions(
   prescriptions: PrescriptionRow[],
   searchTerm: string,
   statusFilter: string,
 ): PrescriptionRow[] {
   const needle = searchTerm.trim().toLowerCase();
+  const needleDigits = phoneDigits(needle);
   return prescriptions.filter((prescription) => {
     const matchesSearch =
       !needle ||
       prescription.id.toLowerCase().includes(needle) ||
       prescription.reference.toLowerCase().includes(needle) ||
       prescription.patientName.toLowerCase().includes(needle) ||
+      prescription.patientUhid.toLowerCase().includes(needle) ||
+      (needleDigits.length >= 3 && phoneDigits(prescription.patientPhone).includes(needleDigits)) ||
       prescription.doctorName.toLowerCase().includes(needle) ||
       prescription.medicines.some((medicine) => medicine.name.toLowerCase().includes(needle));
     const matchesStatus =
