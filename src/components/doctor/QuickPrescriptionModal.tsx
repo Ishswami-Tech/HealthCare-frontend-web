@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useReducer, useState } from "react";
+import { useDeferredValue, useId, useMemo, useReducer, useState, type KeyboardEvent, type UIEvent } from "react";
 import { Check, CircleAlert, CircleCheck, Info, Loader2, Plus, X } from "lucide-react";
 import {
   Dialog,
@@ -90,8 +90,12 @@ type PrescriptionFormAction =
   | { type: "updateMedication"; id: string; field: keyof PrescriptionMedicationRow; value: string }
   | { type: "reset" };
 
-/** Medicines rendered at once in the picker; the search box narrows the rest. */
-const MEDICINE_LIST_LIMIT = 100;
+/** The pharmacy list can hold thousands of medicines: render this many at a time and load more on scroll. */
+const MEDICINE_PAGE_SIZE = 40;
+
+/** What a new medicine starts with; the doctor changes it only when it differs. */
+const DEFAULT_FREQUENCY = "Twice a day, after food";
+const DEFAULT_DAYS = "10";
 
 const emptyPrescriptionForm = (): PrescriptionFormValues => ({
   diagnosis: "",
@@ -132,37 +136,96 @@ const createMedicationRow = (medicine?: Medicine): PrescriptionMedicationRow => 
   medicineId: medicine?.id ?? "",
   name: medicine ? medicineTitle(medicine) : "",
   dosage: "",
-  frequency: "",
-  days: "",
+  frequency: DEFAULT_FREQUENCY,
+  days: DEFAULT_DAYS,
   quantity: "1",
   when: "",
 });
 
+/** One choice for how often and when: the pharmacy line has a single frequency field. */
 const FREQUENCY_OPTIONS = [
-  "Once a day",
+  "Once a day, after food",
+  "Once a day, before food",
+  "Once a day, in the morning",
+  "Once a day, at night",
+  "Twice a day, after food",
+  "Twice a day, before food",
   "Twice a day",
+  "Three times a day, after food",
+  "Three times a day, before food",
   "Three times a day",
   "Four times a day",
-  "Once in the morning",
-  "Once at night",
+  "At bedtime",
+  "On an empty stomach",
   "When needed",
 ];
-
-const WHEN_OPTIONS = ["After food", "Before food", "With food", "On an empty stomach", "At bedtime", "Any time"];
 
 /** "Paracetamol 500 mg": the name, plus the strength when the name does not already say it. */
 function medicineTitle(medicine: Medicine): string {
   const name = String(medicine.name || "").trim();
   const strength = String(medicine.strength || "").trim();
   if (!strength || name.toLowerCase().includes(strength.toLowerCase())) {
-    return name;
+    return readableName(name);
   }
-  return `${name} ${strength}`;
+  return readableName(`${name} ${strength}`);
 }
 
-function medicineForm(medicine: Medicine): string {
-  const form = String(medicine.dosageForm || "").trim();
-  return form ? form.charAt(0).toUpperCase() + form.slice(1).toLowerCase() : "Medicine";
+/** Combination formulations are stored as "a+b+c": show them as "a + b + c" so each ingredient reads on its own. */
+function readableName(name: string): string {
+  return name.replace(/\s*\+\s*/g, " + ").replace(/\s{2,}/g, " ").trim();
+}
+
+/** The words a doctor typed, split on spaces and "+" so they can come in any order. */
+function searchTerms(query: string): string[] {
+  return query.toLowerCase().split(/[\s+]+/).filter(Boolean);
+}
+
+/**
+ * How well a medicine matches every typed word, or -1 when one word is missing.
+ * A match at the start of the name ranks highest, then the start of a word, then anywhere.
+ */
+function matchScore(medicine: Medicine, terms: string[]): number {
+  const name = medicine.name.toLowerCase();
+  const text = medicine.strength ? `${name} ${String(medicine.strength).toLowerCase()}` : name;
+  let score = 0;
+  for (const term of terms) {
+    const at = text.indexOf(term);
+    if (at < 0) return -1;
+    score += at === 0 ? 3 : /[\s+(]/.test(text.charAt(at - 1)) ? 2 : 1;
+  }
+  return score;
+}
+
+/** The medicine name with the typed words highlighted. */
+function HighlightedName({ text, terms }: { text: string; terms: string[] }) {
+  if (terms.length === 0) return <>{text}</>;
+  const lower = text.toLowerCase();
+  const marked: boolean[] = Array.from({ length: text.length }, () => false);
+  for (const term of terms) {
+    const at = lower.indexOf(term);
+    if (at >= 0) for (let index = at; index < at + term.length; index += 1) marked[index] = true;
+  }
+  const parts: { text: string; on: boolean }[] = [];
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text.charAt(index);
+    const on = marked[index] === true;
+    const last = parts[parts.length - 1];
+    if (last && last.on === on) last.text += char;
+    else parts.push({ text: char, on });
+  }
+  return (
+    <>
+      {parts.map((part, index) =>
+        part.on ? (
+          <mark key={index} className="rounded-[3px] bg-[#fff0a8] px-px text-inherit dark:bg-yellow-700/50">
+            {part.text}
+          </mark>
+        ) : (
+          <span key={index}>{part.text}</span>
+        ),
+      )}
+    </>
+  );
 }
 
 function stockOf(medicine: Medicine): number {
@@ -290,38 +353,70 @@ export function PrescriptionDialogView({
   const stockTracked = inStockCount > 0;
   const stockOnly = form.inStockOnly && stockTracked;
 
-  const matchingMedicines = useMemo(() => {
-    const query = form.medicineSearch.trim().toLowerCase();
-    return medicines
-      .filter((medicine) => {
-        // A medicine that was already added stays in the list so it can be seen as "Added".
-        if (stockOnly && stockOf(medicine) <= 0 && !addedIds.has(medicine.id)) {
-          return false;
-        }
-        if (!query) {
-          return true;
-        }
-        const haystack = [
-          medicine.name,
-          medicine.genericName,
-          medicine.manufacturer,
-          medicine.category,
-          medicine.strength,
-          medicine.dosageForm,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-        return haystack.includes(query);
-      })
-      .toSorted((a, b) => Number(addedIds.has(b.id)) - Number(addedIds.has(a.id)));
-  }, [addedIds, stockOnly, form.medicineSearch, medicines]);
+  const [letter, setLetter] = useState("");
+  const [shown, setShown] = useState(MEDICINE_PAGE_SIZE);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const deferredSearch = useDeferredValue(form.medicineSearch);
+  const terms = useMemo(() => searchTerms(deferredSearch), [deferredSearch]);
 
-  // The catalogue can hold thousands of medicines: render a page of matches and let the search narrow it.
-  const visibleMedicines = useMemo(
-    () => matchingMedicines.slice(0, MEDICINE_LIST_LIMIT),
-    [matchingMedicines]
+  const lettersWithMedicines = useMemo(
+    () => new Set(medicines.map((medicine) => medicine.name.trim().charAt(0).toUpperCase())),
+    [medicines]
   );
+
+  const matchingMedicines = useMemo(() => {
+    const ranked: { medicine: Medicine; score: number }[] = [];
+    for (const medicine of medicines) {
+      // A medicine that was already added stays in the list so it can be seen as "Added".
+      if (stockOnly && stockOf(medicine) <= 0 && !addedIds.has(medicine.id)) continue;
+      if (letter && medicine.name.trim().charAt(0).toUpperCase() !== letter) continue;
+      const score = terms.length > 0 ? matchScore(medicine, terms) : 0;
+      if (score < 0) continue;
+      ranked.push({ medicine, score });
+    }
+    ranked.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      if (stockTracked) {
+        const byStock = Number(stockOf(b.medicine) > 0) - Number(stockOf(a.medicine) > 0);
+        if (byStock !== 0) return byStock;
+      }
+      return a.medicine.name.localeCompare(b.medicine.name);
+    });
+    return ranked.map((entry) => entry.medicine);
+  }, [addedIds, letter, medicines, stockOnly, stockTracked, terms]);
+
+  const visibleMedicines = useMemo(() => matchingMedicines.slice(0, shown), [matchingMedicines, shown]);
+  const activeMedicine = visibleMedicines[Math.min(activeIndex, Math.max(0, visibleMedicines.length - 1))];
+
+  /** Back to the top of the list whenever the search or the letter changes. */
+  const resetList = () => {
+    setShown(MEDICINE_PAGE_SIZE);
+    setActiveIndex(0);
+  };
+  const addMedicine = (medicine: Medicine) =>
+    dispatch({ type: "addMedication", value: createMedicationRow(medicine) });
+  const onSearchKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const step = event.key === "ArrowDown" ? 1 : -1;
+      const count = visibleMedicines.length;
+      if (count === 0) return;
+      const next = (activeIndex + step + count) % count;
+      setActiveIndex(next);
+      const nextMedicine = visibleMedicines[next];
+      if (nextMedicine) document.getElementById(`${fieldId}-med-${nextMedicine.id}`)?.scrollIntoView({ block: "nearest" });
+    } else if (event.key === "Enter") {
+      // Enter adds the highlighted medicine instead of submitting the form.
+      event.preventDefault();
+      if (activeMedicine && !medicinesLocked && !addedIds.has(activeMedicine.id)) addMedicine(activeMedicine);
+    }
+  };
+  const onListScroll = (event: UIEvent<HTMLUListElement>) => {
+    const list = event.currentTarget;
+    if (list.scrollTop + list.clientHeight > list.scrollHeight - 80 && shown < matchingMedicines.length) {
+      setShown((count) => count + MEDICINE_PAGE_SIZE);
+    }
+  };
 
   const stockRows = form.medications.filter((medication) => medication.medicineId);
   const outsideRows = form.medications.filter((medication) => !medication.medicineId);
@@ -441,11 +536,36 @@ export function PrescriptionDialogView({
                   />
                 </label>
               </div>
-              <SearchBox
-                value={form.medicineSearch}
-                onChange={(value) => dispatch({ type: "setField", field: "medicineSearch", value })}
-                placeholder="Search medicine or strength"
-              />
+              <div onKeyDown={onSearchKeyDown}>
+                <SearchBox
+                  value={form.medicineSearch}
+                  onChange={(value) => {
+                    dispatch({ type: "setField", field: "medicineSearch", value });
+                    resetList();
+                  }}
+                  placeholder="Type any part of the medicine name"
+                />
+              </div>
+              <div className="flex flex-wrap gap-[3px]" role="group" aria-label="Jump to first letter">
+                {["", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")].map((item) => (
+                  <button
+                    key={item || "all"}
+                    type="button"
+                    aria-pressed={letter === item}
+                    disabled={item !== "" && !lettersWithMedicines.has(item)}
+                    className={cn(
+                      "h-[26px] min-w-[26px] rounded-[7px] border px-1 text-[11.5px] font-extrabold focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40 disabled:opacity-30",
+                      letter === item ? "border-brand bg-brand text-white" : "border-line bg-card text-ink",
+                    )}
+                    onClick={() => {
+                      setLetter(item);
+                      resetList();
+                    }}
+                  >
+                    {item || "All"}
+                  </button>
+                ))}
+              </div>
 
               {isLoadingMedicines ? (
                 <span className="inline-flex items-center gap-2 py-3 text-xs text-ink-muted" role="status">
@@ -462,38 +582,43 @@ export function PrescriptionDialogView({
                     {stockTracked
                       ? `${inStockCount} of ${medicines.length} medicines in stock now`
                       : `${medicines.length} medicines listed. The pharmacy has not recorded stock yet.`}
-                    {form.medicineSearch.trim() ? ` · ${matchingMedicines.length} match your search` : ""}
+                    {terms.length > 0 || letter ? ` · ${matchingMedicines.length} match` : ""}
                   </span>
                   {matchingMedicines.length === 0 ? (
                     <span className="rounded-[14px] border border-dashed border-line bg-card px-3 py-4 text-center text-xs text-ink-muted">
                       {medicines.length === 0
                         ? "The pharmacy has no medicines in its stock list yet."
-                        : "No medicine matches. Try another name, or turn off In stock only."}
+                        : "No medicine matches. Check the spelling, clear the letter, or turn off In stock only."}
                     </span>
                   ) : (
-                    <ul className="m-0 flex max-h-[460px] list-none flex-col gap-2.5 overflow-y-auto p-0">
-                      {visibleMedicines.map((medicine) => {
+                    <ul
+                      className="m-0 flex max-h-[470px] list-none flex-col gap-1.5 overflow-y-auto overscroll-contain p-0"
+                      onScroll={onListScroll}
+                    >
+                      {visibleMedicines.map((medicine, index) => {
                         const stock = stockOf(medicine);
                         const added = addedIds.has(medicine.id);
                         const title = medicineTitle(medicine);
                         return (
                           <li
                             key={medicine.id}
+                            id={`${fieldId}-med-${medicine.id}`}
                             className={cn(
-                              "flex items-center gap-2.5 rounded-[14px] border px-3 py-2.5",
+                              "flex items-center gap-2.5 rounded-[12px] border px-3 py-1.5",
                               added
                                 ? "border-[#a7f3d0] bg-[#ecfdf5] dark:border-emerald-800 dark:bg-emerald-950/30"
                                 : "border-hair bg-card",
+                              index === activeIndex && !added && "ring-2 ring-brand/60",
                               stockTracked && stock <= 0 && !added && "opacity-60",
                             )}
                           >
-                            <span className="flex min-w-0 flex-1 flex-col gap-px">
-                              <span className="truncate text-sm font-bold text-ink" title={title}>
-                                {title}
-                              </span>
-                              <span className="text-xs text-ink-muted">
-                                {medicineForm(medicine)} ·{" "}
-                                {stock <= 0 ? (
+                            <span className="min-w-0 flex-1 break-words text-sm font-bold leading-snug text-ink">
+                              <HighlightedName text={title} terms={terms} />
+                              <span className="ml-1.5 whitespace-nowrap text-xs font-semibold text-ink-muted">
+                                ·{" "}
+                                {!stockTracked ? (
+                                  "Stock not recorded"
+                                ) : stock <= 0 ? (
                                   <span className="font-bold text-[#e11d48] dark:text-rose-300">Out of stock</span>
                                 ) : isLowStock(medicine) ? (
                                   <span className="font-bold text-[#b45309] dark:text-amber-300">{stock} in stock · low</span>
@@ -514,7 +639,7 @@ export function PrescriptionDialogView({
                                 className="rounded-xl px-3.5 text-sm"
                                 disabled={medicinesLocked}
                                 aria-label={`Add ${title}`}
-                                onClick={() => dispatch({ type: "addMedication", value: createMedicationRow(medicine) })}
+                                onClick={() => addMedicine(medicine)}
                               >
                                 <Plus aria-hidden="true" />
                                 Add
@@ -523,13 +648,13 @@ export function PrescriptionDialogView({
                           </li>
                         );
                       })}
+                      {matchingMedicines.length > visibleMedicines.length ? (
+                        <li className="py-2 text-center text-xs text-ink-muted">
+                          Scroll for more · {matchingMedicines.length - visibleMedicines.length} left
+                        </li>
+                      ) : null}
                     </ul>
                   )}
-                  {matchingMedicines.length > visibleMedicines.length ? (
-                    <span className="text-xs text-ink-muted">
-                      Showing the first {visibleMedicines.length} of {matchingMedicines.length}. Type a name to narrow the list.
-                    </span>
-                  ) : null}
                 </>
               )}
 
@@ -586,12 +711,12 @@ export function PrescriptionDialogView({
                         className="m-0 flex min-w-0 flex-col gap-2.5 rounded-2xl border border-line bg-[#fbfdfc] p-3.5 dark:bg-white/5"
                       >
                         <legend className="sr-only">Medicine {index + 1}</legend>
-                        <div className="flex items-center gap-2.5">
+                        <div className="flex items-start gap-2.5">
                           <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#d1fae5] text-xs font-extrabold text-[#065f46] dark:bg-emerald-500/15 dark:text-emerald-300">
                             {index + 1}
                           </span>
                           {medication.medicineId ? (
-                            <span className="min-w-0 flex-1 truncate text-[15px] font-extrabold text-ink">{medication.name}</span>
+                            <span className="min-w-0 flex-1 break-words text-[15px] font-extrabold leading-snug text-ink">{medication.name}</span>
                           ) : (
                             <Input
                               aria-label={`Name of outside medicine ${index + 1}`}
@@ -602,7 +727,7 @@ export function PrescriptionDialogView({
                             />
                           )}
                           <span className="hidden whitespace-nowrap text-xs text-ink-muted sm:inline">
-                            {medicine ? `${medicineForm(medicine)} · ${stock} in stock` : "Outside medicine"}
+                            {medicine ? (stockTracked ? `${stock} in stock` : "") : "Outside medicine"}
                           </span>
                           <button
                             type="button"
@@ -614,7 +739,7 @@ export function PrescriptionDialogView({
                           </button>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-[0.9fr_1.5fr_0.7fr_0.9fr_1.3fr]">
+                        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-[1fr_2fr_0.7fr_0.9fr]">
                           <div className="flex min-w-0 flex-col gap-1">
                             <label htmlFor={`${rowId}-dose`} className={FIELD_LABEL}>
                               Dose
@@ -655,7 +780,7 @@ export function PrescriptionDialogView({
                               min={1}
                               step={1}
                               className={SMALL_FIELD}
-                              placeholder="5"
+                              placeholder="10"
                               value={medication.days}
                               onChange={(event) => update("days")(event.target.value)}
                             />
@@ -676,27 +801,15 @@ export function PrescriptionDialogView({
                               onChange={(event) => update("quantity")(event.target.value)}
                             />
                           </div>
-                          <div className="col-span-2 flex min-w-0 flex-col gap-1 sm:col-span-1">
-                            <label htmlFor={`${rowId}-when`} className={FIELD_LABEL}>
-                              When
-                            </label>
-                            <Select value={medication.when} onValueChange={update("when")}>
-                              <SelectTrigger id={`${rowId}-when`} className={cn(SMALL_FIELD, "w-full data-[size=default]:h-[38px]")}>
-                                <SelectValue placeholder="Choose" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {WHEN_OPTIONS.map((option) => (
-                                  <SelectItem key={option} value={option}>
-                                    {option}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
                         </div>
 
                         {medicine ? (
-                          left >= 0 ? (
+                          !stockTracked ? (
+                            <span className="inline-flex items-center gap-[5px] text-xs font-semibold text-ink-muted">
+                              <Info className="size-3" strokeWidth={2.6} aria-hidden="true" />
+                              The pharmacy has not recorded stock for this medicine yet. It is saved on the prescription.
+                            </span>
+                          ) : left >= 0 ? (
                             <span className="inline-flex items-center gap-[5px] text-xs font-semibold text-brand">
                               <Check className="size-3" strokeWidth={2.8} aria-hidden="true" />
                               {left} left in stock after this
