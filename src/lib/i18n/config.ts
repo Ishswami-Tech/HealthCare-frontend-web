@@ -475,6 +475,37 @@ export interface TranslationKeys {
   };
   drDeshmukhPage: {
     heroText: string;
+    spotlight: {
+      description: string;
+      quote: string;
+      experienceValue: string;
+      experienceLabel: string;
+    };
+    guru: {
+      eyebrow: string;
+      name: string;
+      shortName: string;
+      lifespan: string;
+      role: string;
+      bio: string;
+      legacy: string;
+      guruLabel: string;
+      discipleLabel: string;
+      highlights: {
+        education: string;
+        principal: string;
+        book: string;
+        awards: string;
+      };
+      photoCaption: string;
+      photoCredit: string;
+    };
+    groups: {
+      consult: string;
+      clinics: string;
+      shop: string;
+      watch: string;
+    };
     linksTitle: string;
     linksHint: string;
     shareButtonLabel: string;
@@ -1212,6 +1243,11 @@ export interface TranslationKeys {
         description: string;
         action: string;
       };
+      email: {
+        title: string;
+        description: string;
+        action: string;
+      };
     };
     badges: {
       support24x7: string;
@@ -1236,6 +1272,20 @@ export interface TranslationKeys {
         message: string;
       };
       submitButton: string;
+      sending: string;
+      optional: string;
+      validation: {
+        nameRequired: string;
+        emailInvalid: string;
+        phoneInvalid: string;
+      };
+      success: {
+        title: string;
+        description: string;
+      };
+      error: {
+        title: string;
+      };
     };
     contactInfo: {
       phoneNumbers: {
@@ -1263,6 +1313,36 @@ export interface TranslationKeys {
     visitClinic: {
       title: string;
       description: string;
+    };
+    map: {
+      title: string;
+      open: string;
+    };
+    clinics: {
+      mainBadge: string;
+      directions: string;
+      dayOpd: string;
+      nightOpd: string;
+      chinchwad: {
+        name: string;
+        day: string;
+        night: string;
+      };
+      pune: {
+        name: string;
+        night: string;
+        note: string;
+      };
+      dehu: {
+        name: string;
+        schedule: string;
+        hours: string;
+      };
+      nanded: {
+        name: string;
+        schedule: string;
+        hours: string;
+      };
     };
     formTitle: string;
     formSubtitle: string;
@@ -2212,6 +2292,7 @@ export interface TranslationKeys {
   };
   viddhakarma: {
     badge: string;
+    marmaPoints: string;
     title: string;
     subtitle: string;
     processSteps: {
@@ -2285,6 +2366,7 @@ export interface TranslationKeys {
     advancedTechniques: {
       title: string;
       subtitle: string;
+      description: string;
       marmaTherapy: {
         title: string;
         description: string;
@@ -2367,6 +2449,11 @@ export interface TranslationKeys {
       subtitle: string;
       bookConsultation: string;
       freeAssessment: string;
+      features: {
+        marmaPoints: string;
+        safeNatural: string;
+        successRate: string;
+      };
     };
   };
   about: {

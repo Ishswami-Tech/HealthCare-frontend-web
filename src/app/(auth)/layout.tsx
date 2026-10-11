@@ -10,7 +10,7 @@
  * show the login form immediately without the loading state.
  */
 
-import { useEffect, useLayoutEffect } from "react";
+import { Suspense, useEffect, useLayoutEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useUserProfile } from "@/hooks/query/useUsers";
@@ -21,7 +21,21 @@ import { resolveAuthoritativeProfileCompleteFromCandidates } from "@/lib/config/
 
 import { AuthFrame, AuthHelpPill } from "@/components/auth/AuthFrame";
 
-export default function AuthLayout({
+/*
+ * The boundary lives here rather than app-wide: this layout reads
+ * `useSearchParams()`, which needs a Suspense ancestor to prerender. An
+ * app-wide null boundary also wrapped the public site and blanked it for
+ * ~300ms on every refresh (see AppProvider).
+ */
+export default function AuthLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={null}>
+      <AuthLayoutContent>{children}</AuthLayoutContent>
+    </Suspense>
+  );
+}
+
+function AuthLayoutContent({
   children,
 }: {
   children: React.ReactNode;

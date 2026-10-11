@@ -13,6 +13,13 @@ export interface HeroSlide {
   key: string;
   /** Drop a file at this path to change the image; no code change needed. */
   image: string;
+  /**
+   * 24px blurred copy of `image`, painted in the very first frame so a refresh
+   * never shows an empty hero while the photograph decodes. Optional — if you
+   * swap the photo, regenerate it (sharp: resize(24).webp({ quality: 40 }))
+   * or delete it.
+   */
+  blurDataURL?: string;
   href: string;
   accent: AccentName;
   icon: LucideIcon;
@@ -49,7 +56,9 @@ export const HERO_BENEFIT_COUNT = 3;
 export const HERO_SLIDES: readonly HeroSlide[] = [
   {
     key: "brand",
-    image: "/assets/treatments/agnikarma-hero.webp",
+    image: "/assets/treatments/viddhagnikarma-abdomen-hero.webp",
+    blurDataURL:
+      "data:image/webp;base64,UklGRqIAAABXRUJQVlA4IJYAAAAwBACdASoYAA4APu1iqU2ppaQiMAgBMB2JbACdMoACD0vMz9mQWnN5QgAA/ttaTkEPpr0sxRAYLOe+nQX7UhoJ0y6ERiA+qS1xguZ6EsD9IKcfixzlFX9GB7NjS/6jMvSqjf9aJo4hBnZIbFCGqRCXeBhnevx/yJXdOJOB8yVI1mRfWrOiyHXlkk50ifYZSI+uGAZAAAA=",
     href: HOME_LINKS.treatments,
     accent: "emerald",
     icon: BadgeCheck,
@@ -57,13 +66,15 @@ export const HERO_SLIDES: readonly HeroSlide[] = [
     overlayCaptionKey: "doctor.title",
     headlineKeys: ["hero.title1", "hero.title2", "hero.title"],
     ledeKey: "hero.description",
-    focal: "78% 60%",
-    focalMobile: "80% 62%",
+    focal: "74% 42%",
+    focalMobile: "74% 44%",
     isDoctor: true,
   },
   {
     key: "agnikarma-clinic",
-    image: "/assets/treatments/agnikarma-clinic-heat.webp",
+    image: "/assets/treatments/viddhagnikarma-shoulder-hero.webp",
+    blurDataURL:
+      "data:image/webp;base64,UklGRq4AAABXRUJQVlA4IKIAAACQBACdASoYAA4APu1kqk2ppaQiMAgBMB2JbACdMoEUtAaVTWsdCwEBwaZt2tAA/un+jEgGKYfHblGhLu0KlP1AzRV46oq/nTBYoRm8Gkvqv60MpCbYV3aD2l/WI6B72nqtMZCh+NinSSPsSV9sug7WL9JK9K3zoEUYU32fJrvKSVBPgSOdkLPXHYdT3FC0p1jNPgK2VNrIga3P/INhwEXAAAA=",
     href: HOME_LINKS.agnikarma,
     accent: "amber",
     icon: Flame,
@@ -76,13 +87,15 @@ export const HERO_SLIDES: readonly HeroSlide[] = [
     headlineKeys: ["treatments.agnikarma.name"],
     taglineKey: "treatments.agnikarma.subtitle",
     ledeKey: "treatments.agnikarma.description",
-    focal: "66% 56%",
-    focalMobile: "68% 58%",
+    focal: "70% 54%",
+    focalMobile: "70% 56%",
     benefitsKey: "treatments.agnikarma.benefits",
   },
   {
     key: "viddhakarma",
     image: "/assets/treatments/viddhakarma-hero.webp",
+    blurDataURL:
+      "data:image/webp;base64,UklGRrwAAABXRUJQVlA4ILAAAAAwBACdASoYAA4APu1kqU2ppaQiMAgBMB2JZgCdAYvWzuTq3MLg6IaJvEAA7xl3p7aqxFApSyD3DbSlO7FYOEC/Lt8YIFRKLRPC+LhksQ6JU1yr3wI6qIR+OIDk3X/luBjXuPxLX36hrqX2iiCRvzrUVrWm7ip7veOAI20Tb/twi/KvxytBsrvoCALapCJzgpV5cPn+wmU3knIDQW3XkaMV+Y2OA++CUnhFyUOdDwAAAA==",
     href: HOME_LINKS.viddhaKarma,
     accent: "violet",
     icon: Zap,
@@ -98,6 +111,8 @@ export const HERO_SLIDES: readonly HeroSlide[] = [
   {
     key: "agnikarma-marma",
     image: "/assets/treatments/agnikarma-brow-marma.webp",
+    blurDataURL:
+      "data:image/webp;base64,UklGRsYAAABXRUJQVlA4ILoAAADwBACdASoYAA0APu1iqU2ppaOiMAgBMB2JbACdMoR4OsB9oLsAawAQZS591NiS4gAA0e86oKNQNGxZwzxWxJlUQM3f1qJV2iMyMbbAKrSX+BU3ut9UcITTxqnIEDjzSJq+cHxYMhMwWQm8qaVPvNck+laYjISn3O3QQlJ/z9fEjKixG9+YKKvDt99vWge+kNiy3d4uazMtQ0Z1tsqKk8W6L2VDGJRf8au4gpfjsLiwstG129ctnFipgAA=",
     href: HOME_LINKS.agnikarma,
     accent: "amber",
     icon: Flame,

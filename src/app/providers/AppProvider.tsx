@@ -9,7 +9,7 @@
 import { ThemeProvider } from "next-themes";
 import QueryProvider from "@/app/providers/QueryProvider";
 import { Toaster } from "@/components/ui/sonner";
-import { ReactNode, Suspense } from "react";
+import type { ReactNode } from "react";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -80,43 +80,49 @@ export function AppProvider({ children }: { children: ReactNode }) {
         console.error("App Provider Error:", error, errorInfo);
       }}
     >
-      <Suspense fallback={null}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <LanguageProvider>
-            <StoreProvider>
-              <AuthRefreshSchedulerHost />
-              <QueryProvider>
-                <WebSocketProvider
-                  autoConnect={true}
-                  enableRetry={true}
-                  enableErrorBoundary={true}
-                >
-                  <PushNotificationProvider>
-                    <HealthStatusProvider />
-                    {children}
-                    <Toaster
-                      richColors
-                      position="top-right"
-                      expand={false}
-                      visibleToasts={4}
-                      closeButton
-                      toastOptions={{
-                        duration: 5000,
-                        className: "text-sm",
-                      }}
-                    />
-                  </PushNotificationProvider>
-                </WebSocketProvider>
-              </QueryProvider>
-            </StoreProvider>
-          </LanguageProvider>
-        </ThemeProvider>
-      </Suspense>
+      {/*
+        No app-wide <Suspense fallback={null}> here. Next.js always suspends for
+        a tick while it decodes the page's server payload; a null boundary at
+        this level caught that, so the server sent the whole page hidden and
+        React only revealed it ~300ms after the first paint — a blank flash on
+        every hard refresh. Routes that need a boundary (useSearchParams pages,
+        the dashboard and auth loading.tsx files) declare their own.
+      */}
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+      >
+        <LanguageProvider>
+          <StoreProvider>
+            <AuthRefreshSchedulerHost />
+            <QueryProvider>
+              <WebSocketProvider
+                autoConnect={true}
+                enableRetry={true}
+                enableErrorBoundary={true}
+              >
+                <PushNotificationProvider>
+                  <HealthStatusProvider />
+                  {children}
+                  <Toaster
+                    richColors
+                    position="top-right"
+                    expand={false}
+                    visibleToasts={4}
+                    closeButton
+                    toastOptions={{
+                      duration: 5000,
+                      className: "text-sm",
+                    }}
+                  />
+                </PushNotificationProvider>
+              </WebSocketProvider>
+            </QueryProvider>
+          </StoreProvider>
+        </LanguageProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }
