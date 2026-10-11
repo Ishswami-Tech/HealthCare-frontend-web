@@ -2,8 +2,6 @@
 
 import { useEffect } from "react";
 import { useReportWebVitals } from "next/web-vitals";
-import { fetchWithAbort } from "@/lib/utils/fetch-with-abort";
-import { APP_CONFIG } from "@/lib/config/config";
 
 interface WebVitalsMetric {
   id: string;
@@ -51,23 +49,6 @@ function trackWebVital(name: string, value: number) {
       value: Math.round(value),
       non_interaction: true,
     });
-  }
-
-  if (process.env.NODE_ENV === "production" && APP_CONFIG.FEATURES.ANALYTICS) {
-    void fetchWithAbort("/api/analytics/web-vitals", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-        value,
-        timestamp: Date.now(),
-        url: window.location.href,
-        userAgent: navigator.userAgent,
-      }),
-      timeout: 3000,
-      cache: "no-store",
-      credentials: "same-origin",
-    }).catch(console.error);
   }
 }
 
