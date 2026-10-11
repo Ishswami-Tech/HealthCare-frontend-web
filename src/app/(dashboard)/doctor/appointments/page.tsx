@@ -339,6 +339,26 @@ function extractAppointments(value: unknown): any[] {
 /** How often the video join window is checked again while the page stays open. */
 const JOIN_WINDOW_RECHECK_MS = 30_000;
 
+/** A text field of a patient record: on the patient itself, else on its `user` (the list nests it there). */
+function personText(patient: unknown, key: "phone" | "email" | "gender"): string {
+  const record = (patient ?? {}) as Record<string, unknown>;
+  const user = (record.user ?? {}) as Record<string, unknown>;
+  const value = record[key] ?? user[key];
+  return typeof value === "string" ? value.trim() : "";
+}
+
+/** Age in whole years: the stored age, else worked out from the date of birth; null when neither is known. */
+function personAge(patient: unknown): number | null {
+  const record = (patient ?? {}) as Record<string, unknown>;
+  const user = (record.user ?? {}) as Record<string, unknown>;
+  const stored = Number(record.age ?? user.age);
+  if (Number.isFinite(stored) && stored > 0) return stored;
+  const born = record.dateOfBirth ?? user.dateOfBirth;
+  if (typeof born !== "string" && !(born instanceof Date)) return null;
+  const time = new Date(born).getTime();
+  return Number.isNaN(time) ? null : Math.floor((Date.now() - time) / (1000 * 60 * 60 * 24 * 365.25));
+}
+
 export default function DoctorAppointments() {
   const { push } = useRouter();
   const { session } = useAuth();
@@ -507,8 +527,8 @@ export default function DoctorAppointments() {
             app.patient?.name ||
             `${app.patient?.firstName || ""} ${app.patient?.lastName || ""}`.trim() ||
             "Unknown Patient",
-          patientAge: app.patient?.age || (app.patient?.dateOfBirth ? Math.floor((new Date().getTime() - new Date(app.patient.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365)) : null),
-          patientGender: app.patient?.gender || "Unknown",
+          patientAge: personAge(app.patient),
+          patientGender: personText(app.patient, "gender"),
           time: appointmentDateTime
             ? formatTimeInIST(appointmentDateTime, { hour: "2-digit", minute: "2-digit", hour12: true })
             : getReceptionistAppointmentTimeLabel(app as Record<string, unknown>),
@@ -529,8 +549,8 @@ export default function DoctorAppointments() {
               : "",
           startTime: app.startTime || "",
           createdAt: app.createdAt || app.updatedAt || "",
-          patientPhone: app.patient?.phone || "",
-          patientEmail: app.patient?.email || "",
+          patientPhone: personText(app.patient, "phone"),
+          patientEmail: personText(app.patient, "email"),
           chiefComplaint: app.chiefComplaint || app.reason || "",
           medicalHistory: app.patient?.medicalHistory || [],
           allergies: app.patient?.allergies || [],

@@ -532,7 +532,7 @@ function ProfileCompletionFormContent({
       email: autoFilledEmail,
       phone: initialPhoneValue,
       dateOfBirth: "",
-      gender: "male",
+      gender: undefined,
       address: "",
       emergencyContactName: "",
       emergencyContactPhone: "",
@@ -625,7 +625,7 @@ function ProfileCompletionFormContent({
       email: isPhoneOtpLogin ? "" : sessionUser.email || autoFilledEmail,
       phone: initialPhoneValue,
       dateOfBirth: "",
-      gender: "male" as const,
+      gender: undefined,
       address: "",
       emergencyContactName: "",
       emergencyContactPhone: "",
@@ -1556,9 +1556,8 @@ function ProfileCompletionFormContent({
                           Gender
                         </FormLabel>
                         <Select
-                          value={field.value || "male"}
-                          onValueChange={(val) => field.onChange(val || "male")}
-                          defaultValue="male"
+                          value={field.value ?? ""}
+                          onValueChange={(val) => field.onChange(val || undefined)}
                         >
                           <FormControl>
                             <SelectTrigger
