@@ -95,18 +95,47 @@ async function getDefaultHeaders(): Promise<Record<string, string>> {
 }
 
 /**
- * Multipart bodies must NOT carry an explicit Content-Type: fetch has to write
- * `multipart/form-data; boundary=...` itself. The default headers always set
- * `application/json`, so without this the server receives a body it cannot parse
- * and every file upload fails.
+ * Backend contract for request bodies (read from the backend source):
+ * - Fastify 5 answers 400 ("Body cannot be empty when content-type is set to
+ *   'application/json'") when a JSON Content-Type arrives with an empty body,
+ *   and the backend registers no parser that accepts one.
+ * - JwtAuthGuard.validateRequest answers 400 ("Invalid Content-Type") outside
+ *   development when a POST / PUT / PATCH does not declare a JSON Content-Type.
+ * So a bodyless POST / PUT / PATCH is sent as an empty JSON object, and a
+ * bodyless DELETE is sent with no Content-Type at all.
  */
-function stripJsonContentTypeForFormData(
-  headers: Record<string, string>,
+const METHODS_REQUIRING_JSON_BODY: ReadonlySet<string> = new Set(['POST', 'PUT', 'PATCH']);
+const BODYLESS_METHODS: ReadonlySet<string> = new Set(['GET', 'HEAD']);
+
+function hasRequestBody(body: BodyInit | null | undefined): body is BodyInit {
+  return body !== undefined && body !== null && body !== '';
+}
+
+function resolveRequestBody(
+  method: string,
   body: BodyInit | null | undefined
+): BodyInit | null | undefined {
+  if (hasRequestBody(body)) return body;
+  return METHODS_REQUIRING_JSON_BODY.has(method) ? '{}' : body;
+}
+
+/**
+ * Drops the default JSON Content-Type when it would be wrong for the body:
+ * - multipart bodies: fetch has to write `multipart/form-data; boundary=...`
+ *   itself, otherwise the server receives a body it cannot parse and every
+ *   file upload fails;
+ * - bodyless requests other than GET / HEAD (in practice DELETE): see the
+ *   contract note above.
+ */
+function stripJsonContentTypeForBody(
+  headers: Record<string, string>,
+  body: BodyInit | null | undefined,
+  method: string
 ): Record<string, string> {
   const isFormData =
     typeof FormData !== 'undefined' && body instanceof FormData;
-  if (!isFormData) return headers;
+  const isBodylessWrite = !hasRequestBody(body) && !BODYLESS_METHODS.has(method);
+  if (!isFormData && !isBodylessWrite) return headers;
 
   const next = { ...headers };
   for (const key of Object.keys(next)) {
@@ -334,6 +363,172 @@ async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
   };
 }
 
+// ✅ GET /appointments contract (backend AppointmentsController.getAppointments)
+// The backend reads exactly these query params: userId, doctorId, status
+// (comma separated), date, dateFrom, dateTo, locationId, page, limit. The range
+// filters are `dateFrom` / `dateTo` (a `startDate` / `endDate` pair is silently
+// ignored), `limit` is clamped to 100 and rows come back newest first.
+export const APPOINTMENT_LIST_MAX_PAGE_SIZE = 100;
+/** Hard stop for one logical list request: at most this many backend pages. */
+export const APPOINTMENT_LIST_MAX_PAGES = 10;
+
+export interface AppointmentListQueryInput {
+  userId?: string | undefined;
+  doctorId?: string | undefined;
+  patientId?: string | undefined;
+  clinicId?: string | undefined;
+  status?: string | string[] | undefined;
+  date?: string | undefined;
+  /** Web-side name of the range start; sent to the backend as `dateFrom`. */
+  startDate?: string | undefined;
+  /** Web-side name of the range end; sent to the backend as `dateTo`. */
+  endDate?: string | undefined;
+  dateFrom?: string | undefined;
+  dateTo?: string | undefined;
+  locationId?: string | undefined;
+  page?: number | undefined;
+  limit?: number | undefined;
+}
+
+export interface AppointmentListPage {
+  appointments: unknown[];
+  pagination?: Record<string, unknown> | undefined;
+}
+
+function toPositiveInteger(value: unknown): number | undefined {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 1 ? Math.floor(parsed) : undefined;
+}
+
+/** Filter part of the query (everything except `page` / `limit`). */
+export function buildAppointmentListFilterQuery(
+  params?: AppointmentListQueryInput
+): Record<string, string> {
+  const query: Record<string, string> = {};
+  const put = (key: string, value: unknown) => {
+    if (value === undefined || value === null) return;
+    const text = String(value).trim();
+    if (text) query[key] = text;
+  };
+
+  put('userId', params?.userId);
+  put('doctorId', params?.doctorId);
+  put('patientId', params?.patientId);
+  put('clinicId', params?.clinicId);
+  put('locationId', params?.locationId);
+  put('status', Array.isArray(params?.status) ? params.status.join(',') : params?.status);
+
+  if (params?.date) {
+    // An exact day wins: the backend ignores the range when `date` is present.
+    put('date', params.date);
+  } else {
+    put('dateFrom', params?.dateFrom ?? params?.startDate);
+    put('dateTo', params?.dateTo ?? params?.endDate);
+  }
+
+  return query;
+}
+
+/** Reads `{ appointments, pagination }` out of the envelopes the list route returns. */
+export function extractAppointmentListPage(payload: unknown): AppointmentListPage {
+  if (Array.isArray(payload)) return { appointments: payload };
+  if (!payload || typeof payload !== 'object') return { appointments: [] };
+
+  const record = payload as Record<string, unknown>;
+  const asPagination = (value: unknown): Record<string, unknown> | undefined =>
+    value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : undefined;
+
+  if (Array.isArray(record.appointments)) {
+    return { appointments: record.appointments, pagination: asPagination(record.pagination) };
+  }
+  if (Array.isArray(record.data)) {
+    return { appointments: record.data, pagination: asPagination(record.pagination ?? record.meta) };
+  }
+  if (record.data && typeof record.data === 'object') {
+    const nested = extractAppointmentListPage(record.data);
+    return {
+      appointments: nested.appointments,
+      pagination: nested.pagination ?? asPagination(record.pagination ?? record.meta),
+    };
+  }
+  return { appointments: [], pagination: asPagination(record.pagination ?? record.meta) };
+}
+
+/**
+ * Runs one logical list request against `GET /appointments`.
+ * - no `limit`: one request without paging params (the backend then returns its
+ *   default page of 20);
+ * - `limit` up to 100: one request;
+ * - `limit` above 100: the window `[(page - 1) * limit, page * limit)` is read in
+ *   backend pages of 100, stopping at the last backend page and never reading
+ *   more than APPOINTMENT_LIST_MAX_PAGES pages.
+ */
+export async function collectAppointmentListPages(
+  params: AppointmentListQueryInput | undefined,
+  fetchPage: (query: Record<string, string>) => Promise<AppointmentListPage>
+): Promise<AppointmentListPage> {
+  const filterQuery = buildAppointmentListFilterQuery(params);
+  const requestedLimit = toPositiveInteger(params?.limit);
+  const requestedPage = toPositiveInteger(params?.page) ?? 1;
+
+  if (!requestedLimit) {
+    return fetchPage(
+      params?.page ? { ...filterQuery, page: String(requestedPage) } : filterQuery
+    );
+  }
+
+  if (requestedLimit <= APPOINTMENT_LIST_MAX_PAGE_SIZE) {
+    return fetchPage({
+      ...filterQuery,
+      page: String(requestedPage),
+      limit: String(requestedLimit),
+    });
+  }
+
+  const pageSize = APPOINTMENT_LIST_MAX_PAGE_SIZE;
+  const windowStart = (requestedPage - 1) * requestedLimit;
+  const firstBackendPage = Math.floor(windowStart / pageSize) + 1;
+  const lastWantedPage = Math.ceil((windowStart + requestedLimit) / pageSize);
+  const lastAllowedPage = Math.min(
+    lastWantedPage,
+    firstBackendPage + APPOINTMENT_LIST_MAX_PAGES - 1
+  );
+  const readBackendPage = (backendPage: number) =>
+    fetchPage({ ...filterQuery, page: String(backendPage), limit: String(pageSize) });
+
+  const firstPage = await readBackendPage(firstBackendPage);
+  const total = toPositiveInteger(firstPage.pagination?.total) ?? 0;
+  const totalBackendPages =
+    toPositiveInteger(firstPage.pagination?.totalPages) ??
+    (total ? Math.ceil(total / pageSize) : firstBackendPage);
+  const lastPage = Math.min(lastAllowedPage, Math.max(totalBackendPages, firstBackendPage));
+
+  const remainingPageNumbers: number[] = [];
+  for (let backendPage = firstBackendPage + 1; backendPage <= lastPage; backendPage += 1) {
+    remainingPageNumbers.push(backendPage);
+  }
+  const remainingPages = await Promise.all(remainingPageNumbers.map(readBackendPage));
+
+  const rows = [firstPage, ...remainingPages].flatMap((page) => page.appointments);
+  const offsetInFirstPage = windowStart - (firstBackendPage - 1) * pageSize;
+  const appointments = rows.slice(offsetInFirstPage, offsetInFirstPage + requestedLimit);
+  const knownTotal = total || rows.length;
+
+  return {
+    appointments,
+    pagination: {
+      page: requestedPage,
+      limit: requestedLimit,
+      total: knownTotal,
+      totalPages: Math.max(1, Math.ceil(knownTotal / requestedLimit)),
+      hasNext: windowStart + appointments.length < knownTotal,
+      hasPrev: requestedPage > 1,
+    },
+  };
+}
+
 // ✅ Request Cache for Connection Pooling
 interface RequestCache {
   [url: string]: {
@@ -442,6 +637,30 @@ export class ApiClient {
     return this.baseURL;
   }
 
+  /**
+   * Endpoints that must not trigger the "authentication required" / 401-refresh path.
+   * Health checks are matched exactly (`/health`, `/health?...`, `/health/...` on the
+   * backend base URL): a substring test also matched `/health-library` and
+   * `/communication/health`, so a 401 there never refreshed the token.
+   */
+  private isHealthCheckUrl(url: string): boolean {
+    const bases = [APP_CONFIG.API.HEALTH_BASE_URL, this.baseURL];
+    return bases.some((base) => {
+      if (typeof base !== 'string' || !url.startsWith(base)) return false;
+      const rest = url.slice(base.length);
+      return (
+        rest === '/health' ||
+        rest.startsWith('/health?') ||
+        rest.startsWith('/health/') ||
+        rest.startsWith('/health#')
+      );
+    });
+  }
+
+  private isPublicEndpointUrl(url: string): boolean {
+    return url.includes('/auth/') || this.isHealthCheckUrl(url);
+  }
+
   // ✅ Generic Request Method (Optimized with Request Deduplication & Batching for 10M users)
   async request<T>(
     endpoint: string,
@@ -456,7 +675,7 @@ export class ApiClient {
     const method = (options.method || 'GET').toUpperCase();
     const clinicOptions = options as ClinicRequestInit;
     const includeClinicId = clinicOptions.omitClinicId !== true;
-    const isPublicEndpoint = url.includes('/auth/') || url.includes('/health');
+    const isPublicEndpoint = this.isPublicEndpointUrl(url);
     const shouldRequireAuth = !isPublicEndpoint;
     const headers = await getAuthHeaders(
       shouldRequireAuth,
@@ -464,9 +683,10 @@ export class ApiClient {
       clinicOptions.clinicId,
       clinicOptions.requireClinicId === true
     );
-    const mergedHeaders = stripJsonContentTypeForFormData(
+    const mergedHeaders = stripJsonContentTypeForBody(
       options.headers ? { ...headers, ...(options.headers as Record<string, string>) } : headers,
-      options.body
+      resolveRequestBody(method, options.body),
+      method
     );
     const scopeKey = this.buildRequestScopeKey(mergedHeaders);
     const cacheKey = this.getCacheKey(`${endpoint}:${scopeKey}`, options);
@@ -526,7 +746,7 @@ export class ApiClient {
 
     // ✅ Authentication is required for all API calls (unless explicitly public)
     // Check if this is a public endpoint (auth endpoints, health checks, etc.)
-    const isPublicEndpoint = url.includes('/auth/') || url.includes('/health');
+    const isPublicEndpoint = this.isPublicEndpointUrl(url);
     const shouldRequireAuth = requireAuth && !isPublicEndpoint;
     const clinicOptions = options as ClinicRequestInit;
     const includeClinicId = clinicOptions.omitClinicId !== true;
@@ -536,10 +756,12 @@ export class ApiClient {
       clinicOptions.clinicId,
       clinicOptions.requireClinicId === true
     );
+    const requestMethod = (options.method || 'GET').toUpperCase();
+    const requestBody = resolveRequestBody(requestMethod, options.body);
     
     const config: RequestInit = {
       method: 'GET',
-      headers: stripJsonContentTypeForFormData(headers, options.body) as HeadersInit,
+      headers: stripJsonContentTypeForBody(headers, requestBody, requestMethod) as HeadersInit,
       credentials: this.withCredentials ? 'include' : 'omit',
       // Do not use keepalive on normal requests.
       // Safari/iOS often surfaces it as a hard "Load failed" network error.
@@ -552,11 +774,17 @@ export class ApiClient {
       ...options,
     };
 
+    // A bodyless POST / PUT / PATCH goes out as `{}` (see resolveRequestBody).
+    if (requestBody !== options.body) {
+      config.body = requestBody ?? null;
+    }
+
     // Merge headers efficiently
     if (options.headers) {
-      config.headers = stripJsonContentTypeForFormData(
+      config.headers = stripJsonContentTypeForBody(
         { ...headers, ...(options.headers as Record<string, string>) },
-        options.body
+        requestBody,
+        requestMethod
       ) as HeadersInit;
     }
 
@@ -579,9 +807,10 @@ export class ApiClient {
            // Update headers in config
            const newConfig = {
                ...config,
-               headers: stripJsonContentTypeForFormData(
+               headers: stripJsonContentTypeForBody(
                  { ...newHeaders, ...(options.headers as Record<string, string> | undefined) },
-                 options.body
+                 requestBody,
+                 requestMethod
                ) as HeadersInit,
                timeout: this.timeout
            };
@@ -917,7 +1146,7 @@ export class ApiClient {
     }
 
     // Content-Type is stripped centrally for FormData bodies — see
-    // stripJsonContentTypeForFormData. Deleting it from a local copy here did
+    // stripJsonContentTypeForBody. Deleting it from a local copy here did
     // nothing, because request() rebuilds the default headers underneath.
     return this.request<T>(endpoint, {
       method: 'POST',
@@ -1182,19 +1411,31 @@ export class ClinicApiClient extends ApiClient {
   }
 
   // ✅ Appointments Methods (Enhanced to match backend)
-  async getAppointments(params?: {
-    userId?: string;
-    doctorId?: string;
-    patientId?: string;
-    status?: string;
-    date?: string;
-    startDate?: string;
-    endDate?: string;
-    locationId?: string;
-    page?: number;
-    limit?: number;
-  }) {
-    return this.get(API_ENDPOINTS.APPOINTMENTS.GET_ALL, params);
+  /**
+   * GET /appointments. Accepts the web filter names (`startDate` / `endDate`,
+   * any `limit`) and translates them to the backend contract; see
+   * collectAppointmentListPages for the paging rules.
+   */
+  async getAppointments(params?: AppointmentListQueryInput) {
+    const responses: Array<ApiResponse<unknown>> = [];
+
+    const merged = await collectAppointmentListPages(params, async (query) => {
+      const response = await this.get<unknown>(API_ENDPOINTS.APPOINTMENTS.GET_ALL, query);
+      responses.push(response);
+      return extractAppointmentListPage(response.data);
+    });
+
+    const firstResponse = responses[0];
+    const isMergedWindow =
+      (toPositiveInteger(params?.limit) ?? 0) > APPOINTMENT_LIST_MAX_PAGE_SIZE;
+
+    // A plain single-page request is returned untouched (same envelope as before).
+    if (firstResponse && !isMergedWindow) {
+      return firstResponse;
+    }
+
+    const base: ApiResponse<unknown> = firstResponse ?? { success: true, statusCode: 200 };
+    return { ...base, data: merged };
   }
 
   async getMyAppointments(params?: {

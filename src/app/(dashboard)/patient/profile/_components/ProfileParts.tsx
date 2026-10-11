@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { AlertCircle, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { InitialsAvatar, Note, type TbdIcon } from "@/components/tbd";
+import { InitialsAvatar, type TbdIcon } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 
 /** Small building blocks shared by the patient account screens (profile hub, settings, help). */
@@ -41,7 +40,7 @@ const MENU_TONES = {
   mint: "bg-[#d1fae5] text-[#047857] dark:bg-emerald-500/15 dark:text-emerald-300",
   amber: "bg-[#fef3c7] text-[#b45309] dark:bg-amber-500/15 dark:text-amber-300",
   sky: "bg-[#e0f2fe] text-[#0369a1] dark:bg-sky-500/15 dark:text-sky-300",
-  slate: "bg-[#f1f5f9] text-[#3b4a5e] dark:bg-slate-500/20 dark:text-slate-300",
+  slate: "bg-well text-ink-soft",
   pink: "bg-[#fce7f3] text-[#be185d] dark:bg-pink-500/15 dark:text-pink-300",
 } as const;
 
@@ -133,33 +132,5 @@ export function IconHeading({
       </span>
       {children}
     </h2>
-  );
-}
-
-// ── States ─────────────────────────────────────────────────────────────────
-
-/** "Could not load" note with a retry button. */
-export function LoadErrorNote({
-  title,
-  message,
-  onRetry,
-}: {
-  title: string;
-  message?: string | null;
-  onRetry?: (() => void) | undefined;
-}) {
-  return (
-    <Note tone="rose" icon={AlertCircle} className="[&>div]:flex-1">
-      <div className="flex flex-wrap items-center justify-between gap-3" role="alert">
-        <span>
-          <strong className="font-bold">{title}</strong> {message}
-        </span>
-        {onRetry ? (
-          <Button variant="outline" onClick={onRetry}>
-            Try again
-          </Button>
-        ) : null}
-      </div>
-    </Note>
   );
 }

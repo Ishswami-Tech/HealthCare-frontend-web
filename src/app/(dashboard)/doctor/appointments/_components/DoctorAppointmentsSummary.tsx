@@ -12,11 +12,6 @@ import {
   XCircle,
 } from "lucide-react";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
-import {
-  DateField,
-  parseDateValue,
-} from "@/components/appointments/manager/ManagerFilters";
-import { useWebSocketStatus } from "@/app/providers/WebSocketProvider";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -27,13 +22,13 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  ConnectionPill,
+  DateField,
   IconBox,
   PageHero,
-  Pill,
   SearchBox,
   Surface,
   type IconTone,
-  type PillTone,
   type TbdIcon,
 } from "@/components/tbd";
 import type { DoctorAppointmentDateFilter, DoctorAppointmentViewFilter } from "../page";
@@ -64,34 +59,6 @@ interface DoctorAppointmentsSummaryProps {
   connectionSlot?: ReactNode;
 }
 
-/** Live-updates tag in the banner: the same socket state the old indicator showed. */
-function ConnectionPill() {
-  const { isConnected, connectionStatus, error } = useWebSocketStatus();
-
-  let tone: PillTone = "slate";
-  let label = "Offline";
-  if (error) {
-    tone = "rose";
-    label = "Connection error";
-  } else if (connectionStatus === "connecting") {
-    tone = "amber";
-    label = "Connecting";
-  } else if (connectionStatus === "reconnecting") {
-    tone = "amber";
-    label = "Reconnecting";
-  } else if (isConnected) {
-    tone = "green";
-    label = "Connected";
-  }
-
-  return (
-    <span role="status" aria-label={`Live updates: ${label}`}>
-      <Pill tone={tone} dot>
-        {label}
-      </Pill>
-    </span>
-  );
-}
 
 /** Small number tile: seven of them sit in one row on a desktop. */
 function StatTile({
@@ -266,22 +233,22 @@ export function DoctorAppointmentsSummary({
           {dateFilter === "CUSTOM" ? (
             <div className="grid grid-cols-2 gap-2.5 lg:flex lg:items-center">
               <DateField
+                variant="placeholder"
+                id="doctor-appointments-date-from"
+                label="From date"
                 value={dateFrom}
-                placeholder="From date"
-                ariaLabel="From date"
+                max={dateTo || undefined}
                 onChange={(from) => setDateRange(from, dateTo)}
-                className="h-10 w-full rounded-xl lg:w-[168px]"
+                className="w-full lg:w-[168px]"
               />
               <DateField
+                variant="placeholder"
+                id="doctor-appointments-date-to"
+                label="To date"
                 value={dateTo}
-                placeholder="To date"
-                ariaLabel="To date"
+                min={dateFrom || undefined}
                 onChange={(to) => setDateRange(dateFrom, to)}
-                isDisabled={(date) => {
-                  const start = parseDateValue(dateFrom);
-                  return Boolean(start) && date < (start as Date);
-                }}
-                className="h-10 w-full rounded-xl lg:w-[168px]"
+                className="w-full lg:w-[168px]"
               />
             </div>
           ) : null}

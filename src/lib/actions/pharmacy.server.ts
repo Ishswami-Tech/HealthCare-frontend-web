@@ -2,6 +2,7 @@
 
 import { authenticatedApi, getServerSession } from "./auth.server";
 import { API_ENDPOINTS } from "../config/config";
+import { asRecordOrEmpty } from "../utils/coerce";
 import type {
   DispensePrescriptionData,
   PharmacyBatchAuditEntry,
@@ -87,6 +88,9 @@ function toBackendMedicineType(value: unknown): (typeof BACKEND_MEDICINE_TYPES)[
   return BACKEND_MEDICINE_TYPES.find((type) => type === upper) ?? "OTHER";
 }
 
+/** Query fields `GET /pharmacy/audit/batches` accepts (backend `PharmacyBatchAuditQueryDto`). */
+const BATCH_AUDIT_QUERY_KEYS = ["medicineId", "batchNumber", "patientId", "startDate", "endDate"] as const;
+
 /** One CSV cell: quoted when needed; a leading formula character is neutralised. */
 function csvCell(value: unknown): string {
   if (value === null || value === undefined) return "";
@@ -99,15 +103,9 @@ function toCsv(header: string[], rows: unknown[][]): string {
   return [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
 }
 
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-}
-
 function unwrapRecords(value: unknown, key: string): Record<string, unknown>[] {
-  const list = Array.isArray(value) ? value : asRecord(value)[key];
-  return Array.isArray(list) ? list.map(asRecord) : [];
+  const list = Array.isArray(value) ? value : asRecordOrEmpty(value)[key];
+  return Array.isArray(list) ? list.map(asRecordOrEmpty) : [];
 }
 
 function dayKey(value: unknown): string {
@@ -178,9 +176,9 @@ export async function getMedicineById(medicineId: string) {
   // clinic list (GET /pharmacy/inventory) and pick the medicine from it.
   const { data } = await authenticatedApi("/pharmacy/inventory");
   const match = Array.isArray(data)
-    ? data.find((medicine) => asRecord(medicine).id === medicineId)
+    ? data.find((medicine) => asRecordOrEmpty(medicine).id === medicineId)
     : null;
-  return match ? normalizeMedicineRecord(asRecord(match)) : null;
+  return match ? normalizeMedicineRecord(asRecordOrEmpty(match)) : null;
 }
 
 /**
@@ -301,18 +299,16 @@ export async function updateMedicine(
 /**
  * Delete medicine
  */
-export async function deleteMedicine(_clinicId: string, medicineId: string) {
+export async function deleteMedicine(_clinicId: string, _medicineId: string): Promise<never> {
   const session = await getServerSession();
   if (!session?.user?.id) {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  // Backend: PATCH /pharmacy/inventory/:id with isActive:false (no DELETE endpoint)
-  const { data } = await authenticatedApi(`/pharmacy/inventory/${medicineId}`, {
-    method: "PATCH",
-    body: JSON.stringify({ isActive: false }),
-  });
-  return data;
+  // The backend has no route that removes a medicine: there is no DELETE, and
+  // PATCH /pharmacy/inventory/:id accepts only quantityChange and price (it rejects
+  // `isActive`). Nothing is sent, so the caller gets a clear message instead of a 400.
+  throw new Error('A medicine cannot be removed yet.');
 }
 
 /**
@@ -561,20 +557,22 @@ export async function getPharmacyBatchAudit(
     throw new Error('Unauthorized: Authentication required');
   }
 
+  // The API rejects unknown query fields (PharmacyBatchAuditQueryDto), so only the
+  // fields it accepts are sent. `prescriptionId` is not one of them: it is applied here.
   const params = new URLSearchParams();
-  if (filters) {
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value) {
-        params.append(key, String(value));
-      }
-    });
+  for (const key of BATCH_AUDIT_QUERY_KEYS) {
+    const value = filters?.[key];
+    if (value) params.append(key, String(value));
   }
 
   const endpoint = `${API_ENDPOINTS.PHARMACY.AUDIT_BATCHES}${params.toString() ? `?${params.toString()}` : ""}`;
   const { data } = await authenticatedApi(endpoint, {
     ...(clinicId ? { headers: { "X-Clinic-ID": clinicId } } : {}),
   });
-  return Array.isArray(data) ? (data as PharmacyBatchAuditEntry[]) : [];
+  const entries = Array.isArray(data) ? (data as PharmacyBatchAuditEntry[]) : [];
+  return filters?.prescriptionId
+    ? entries.filter((entry) => entry.prescriptionId === filters.prescriptionId)
+    : entries;
 }
 
 /**
@@ -857,11 +855,11 @@ export async function exportPharmacyData(
         return true;
       })
       .map((prescription) => {
-        const patient = asRecord(asRecord(prescription.patient).user);
-        const doctor = asRecord(asRecord(prescription.doctor).user);
+        const patient = asRecordOrEmpty(asRecordOrEmpty(prescription.patient).user);
+        const doctor = asRecordOrEmpty(asRecordOrEmpty(prescription.doctor).user);
         const medicines = (Array.isArray(prescription.items) ? prescription.items : [])
-          .map(asRecord)
-          .map((item) => `${String(asRecord(item.medicine).name ?? item.medicineName ?? "Medicine")} x ${Number(item.quantity ?? 0)}`)
+          .map(asRecordOrEmpty)
+          .map((item) => `${String(asRecordOrEmpty(item.medicine).name ?? item.medicineName ?? "Medicine")} x ${Number(item.quantity ?? 0)}`)
           .join("; ");
         return [
           prescription.id,

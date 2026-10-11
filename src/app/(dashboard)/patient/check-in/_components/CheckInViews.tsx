@@ -16,6 +16,7 @@ import {
   MapPin,
   Pencil,
   ScanQrCode,
+  Video,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,7 +24,7 @@ import { EmptyBlock, IconBox, InitialsAvatar, Note, PageHead, Pill, Surface } fr
 import type { HomeVisit } from "@/components/patient/home/types";
 import { cn } from "@/lib/utils";
 import { ClinicMapArt, QueueTokenCard } from "../../queue/_components/QueueParts";
-import type { QueueTicket } from "../../queue/_components/queueData";
+import type { QueueTicket } from "@/components/patient/queue/queueData";
 
 /**
  * Check in at clinic (patient): the three states of `/patient/check-in`, plus the smaller
@@ -55,10 +56,10 @@ function StepList({ current }: { current: number }) {
               <span
                 className={cn(
                   "flex size-9 shrink-0 items-center justify-center rounded-full text-[13px] font-extrabold",
-                  state === "done" && "bg-[#047857] text-white",
+                  state === "done" && "bg-primary text-white",
                   state === "current" &&
-                    "border-2 border-[#047857] bg-card text-[#047857] dark:border-emerald-400 dark:text-emerald-300",
-                  state === "todo" && "bg-[#f1f5f9] text-ink-muted dark:bg-white/10",
+                    "border-2 border-brand bg-card text-brand",
+                  state === "todo" && "bg-well text-ink-muted",
                 )}
               >
                 {state === "done" ? <Check className="size-4" strokeWidth={3} /> : index + 1}
@@ -233,7 +234,7 @@ export function CheckInScanView({
 function CheckedInArt() {
   return (
     <svg width="120" height="120" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
-      <circle cx="60" cy="60" r="58" className="fill-[#d1fae5] dark:fill-emerald-500/15" />
+      <circle cx="60" cy="60" r="58" className="fill-mint" />
       <circle cx="60" cy="60" r="44" className="fill-[#a7f3d0] dark:fill-emerald-500/30" />
       <circle cx="60" cy="60" r="32" fill="#047857" />
       <path d="M46 60l10 10 18-20" stroke="#ffffff" strokeWidth="6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
@@ -372,13 +373,19 @@ export function CheckInNoVisitView({ onBook }: { onBook: () => void }) {
         <EmptyBlock
           icon={Calendar}
           title="No in-clinic visit to check in for"
-          description="Check-in with the clinic QR is only for in-clinic visits. A video visit does not need it. Once you have an in-clinic visit, open this page at the clinic to scan the QR."
+          description="Check-in with the clinic QR is only for in-clinic visits. Clinic visits are booked at the front desk. Once you have one, open this page at the clinic to scan the QR."
           action={
-            // Booking is the one amber action in the app.
-            <Button variant="action" size="md" onClick={onBook}>
-              <Calendar aria-hidden="true" />
-              Book a visit
-            </Button>
+            // Online booking is for video visits only, so it is offered as its own, named action.
+            <div className="flex flex-col items-center gap-2.5">
+              <p className="m-0 text-[13px] text-ink-muted">
+                Want to see the doctor online instead? A video visit needs no check-in.
+              </p>
+              {/* Booking is the one amber action in the app. */}
+              <Button variant="action" size="md" onClick={onBook}>
+                <Video aria-hidden="true" />
+                Book a video visit
+              </Button>
+            </div>
           }
         />
       </Surface>

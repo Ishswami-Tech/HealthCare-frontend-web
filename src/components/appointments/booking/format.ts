@@ -1,6 +1,6 @@
 /** Display helpers for the booking screens. Display only: slot values sent to the API are never changed. */
 
-/** "09:30" -> "09:30 AM" (patient boards) or unchanged (staff board). */
+/** "09:30" -> "09:30 am" (patient boards) or unchanged (staff board). */
 export function formatSlotLabel(slot: string, style: "12h" | "24h" = "24h"): string {
   if (style === "24h") return slot;
   const match = /^(\d{1,2}):(\d{2})/.exec(slot.trim());
@@ -8,14 +8,9 @@ export function formatSlotLabel(slot: string, style: "12h" | "24h" = "24h"): str
   const hours = Number(match[1]);
   const minutes = match[2] ?? "00";
   if (!Number.isFinite(hours)) return slot;
-  const suffix = hours >= 12 ? "PM" : "AM";
+  const suffix = hours >= 12 ? "pm" : "am";
   const twelve = hours % 12 === 0 ? 12 : hours % 12;
   return `${String(twelve).padStart(2, "0")}:${minutes} ${suffix}`;
-}
-
-/** Whole rupees, the same rounding the dialog already used (`toFixed(0)`). */
-export function formatRupees(amount: number): string {
-  return `₹${amount.toFixed(0)}`;
 }
 
 /** Short booking reference shown to people: first 8 characters of the appointment id, upper case. */

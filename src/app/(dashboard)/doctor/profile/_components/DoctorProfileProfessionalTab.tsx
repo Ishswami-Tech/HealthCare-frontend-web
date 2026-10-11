@@ -4,8 +4,8 @@ import { useState } from "react";
 import { BookOpen, Pencil, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Note } from "@/components/tbd";
-import { PROFILE_LABEL, ProfileCard, ProfileField } from "./DoctorProfileParts";
+import { FIELD_LABEL, Field, Note } from "@/components/tbd";
+import { ProfileCard } from "./DoctorProfileParts";
 import type { DoctorProfileFormState } from "./doctor-profile.types";
 
 interface DoctorProfileProfessionalTabProps {
@@ -41,25 +41,34 @@ export function DoctorProfileProfessionalTab({
     <div className="flex flex-col gap-5">
       <ProfileCard icon={Pencil} title="Professional Information">
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-          <ProfileField label="Medical License" htmlFor="medicalLicense">
+          {/* Read-only: the profile save has no licence field. */}
+          <Field
+            labelClassName="min-h-5"
+            label="Medical License"
+            htmlFor="medicalLicense"
+            hint="Cannot be changed here. Ask your clinic admin to correct it."
+          >
             <Input
               id="medicalLicense"
               value={professionalInfo.medicalLicense}
-              onChange={(e) => updateProfessionalInfo("medicalLicense", e.target.value)}
+              placeholder="Not set"
+              aria-describedby="medicalLicense-hint"
+              readOnly
+              disabled
             />
-          </ProfileField>
-          <ProfileField label="Years of Experience" htmlFor="experience">
+          </Field>
+          <Field labelClassName="min-h-5" label="Years of Experience" htmlFor="experience">
             <Input
               id="experience"
               inputMode="numeric"
               value={professionalInfo.experience}
               onChange={(e) => updateProfessionalInfo("experience", e.target.value)}
             />
-          </ProfileField>
+          </Field>
         </div>
 
         <div className="flex flex-col gap-2">
-          <span className={PROFILE_LABEL} id="doctor-specializations-label">
+          <span className={FIELD_LABEL} id="doctor-specializations-label">
             Specializations
           </span>
           <div className="flex flex-wrap items-center gap-2">
@@ -118,7 +127,7 @@ export function DoctorProfileProfessionalTab({
               <Button
                 type="button"
                 variant="outline"
-                className="h-[34px]"
+                size="compact"
                 onClick={() => setAddingSpecialization(true)}
               >
                 <Plus aria-hidden="true" />
@@ -134,7 +143,7 @@ export function DoctorProfileProfessionalTab({
         </div>
 
         <div className="flex flex-col gap-2">
-          <span className={PROFILE_LABEL} id="doctor-languages-label">
+          <span className={FIELD_LABEL} id="doctor-languages-label">
             Languages Spoken
           </span>
           {professionalInfo.languagesSpoken.length > 0 ? (
@@ -151,6 +160,7 @@ export function DoctorProfileProfessionalTab({
           ) : (
             <span className="text-[13px] text-ink-muted">No languages added yet.</span>
           )}
+          <span className="text-xs text-ink-muted">Languages cannot be changed here yet.</span>
         </div>
       </ProfileCard>
 

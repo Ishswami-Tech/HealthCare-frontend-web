@@ -11,12 +11,12 @@ import { LibraryTopicView, type LibraryTopicState, type LibraryTopicTop } from "
 import {
   TOPIC_PAGE_SIZE,
   buildTopics,
-  itemsLabel,
   libraryTopicHref,
   parsePage,
   toCardItem,
   topicBreakdown,
 } from "./library.logic";
+import { plural } from "@/lib/utils/labels";
 
 /**
  * Data container for one topic. A topic is a post `category`: the list comes from
@@ -68,7 +68,7 @@ export function LibraryTopicContent({ topic }: { topic: string }) {
         : "ready";
 
   // The breakdown needs every item of the topic; with more than one page only the total is known.
-  const description = total > 0 ? (total <= posts.length ? topicBreakdown(posts) : itemsLabel(total)) : "";
+  const description = total > 0 ? (total <= posts.length ? topicBreakdown(posts) : plural(total, "item")) : "";
 
   return (
     <DashboardPageShell>

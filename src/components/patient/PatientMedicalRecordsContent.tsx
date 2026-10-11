@@ -2,22 +2,21 @@
 
 import { useMemo, useState } from "react";
 
-import { PatientRecordsView } from "@/app/(dashboard)/patient/health/_components/PatientRecordsView";
-import { ReportUploadDialog } from "@/app/(dashboard)/patient/health/_components/ReportUploadDialog";
+import { PatientRecordsView } from "@/components/patient/health/PatientRecordsView";
+import { ReportUploadDialog } from "@/components/patient/health/ReportUploadDialog";
 import {
-  asList,
-  asRecord,
   buildAllergies,
   buildHistory,
   buildRecordPrescriptions,
   buildReportRows,
   buildVitalHistory,
   type UploadType,
-} from "@/app/(dashboard)/patient/health/_components/patient-health.logic";
+} from "@/components/patient/health/patient-health.logic";
+import { asRecordOrEmpty, unwrapRecords } from "@/lib/utils/coerce";
 import {
   usePatientUploads,
   useUploadPatientFile,
-} from "@/app/(dashboard)/patient/health/_components/usePatientUploads";
+} from "@/hooks/query/usePatientUploads";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useAllergies, useComprehensiveHealthRecord } from "@/hooks/query/useMedicalRecords";
@@ -49,14 +48,14 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
 
   const model = useMemo(() => {
     // `null` = the profile is not complete yet: the record is simply empty.
-    const record = asRecord(healthData);
+    const record = asRecordOrEmpty(healthData);
     return {
       history: buildHistory(record.medicalHistory),
       prescriptions: buildRecordPrescriptions(record.prescriptions),
       reports: buildReportRows({
         labReports: record.labReports,
         radiologyReports: record.radiologyReports,
-        uploads: [...asList(record.documents), ...asList(uploadsData)],
+        uploads: [...unwrapRecords(record.documents), ...unwrapRecords(uploadsData)],
         userId,
       }),
       vitals: buildVitalHistory(record.vitals),

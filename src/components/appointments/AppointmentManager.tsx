@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useAppointments,
   useCancelAppointment,
+  useDoctorAvailability,
   useMyAppointments,
   useRejectVideoProposal,
   useRescheduleAppointment,
@@ -29,18 +30,32 @@ import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 import { Role } from "@/types/auth.types";
 import { AppointmentManagerView } from "./manager/AppointmentManagerView";
-import { CancelVisitDialog, DeclineSlotsDialog, RescheduleDialog } from "./manager/ManagerDialogs";
 import {
+  CancelVisitDialog,
+  DeclineSlotsDialog,
+  RescheduleDialog,
+  type RescheduleSlots,
+} from "./manager/ManagerDialogs";
+import {
+  buildRescheduleSlotPeriods,
   dedupeAppointments,
   extractAppointmentList,
   getEffectiveAppointmentId,
   isPatientViewer,
+  readAvailabilityDate,
+  rescheduleAvailabilityTarget,
   toManagerVisit,
   type Row,
 } from "./manager/managerData";
 import { PAY_CARD_CLASS, PAY_ROW_CLASS } from "./manager/payButton";
 import { useAppointmentsRefresh } from "./manager/useAppointmentsRefresh";
-import type { ManagerDateRange, ManagerPayRenderer, ManagerTab, ManagerVisitActions } from "./manager/types";
+import type {
+  ManagerDateRange,
+  ManagerPayRenderer,
+  ManagerTab,
+  ManagerVisitActions,
+  ManagerVisitFocus,
+} from "./manager/types";
 
 interface AppointmentManagerProps {
   filterType?: "VIDEO_CALL" | "IN_PERSON";
@@ -69,6 +84,11 @@ interface AppointmentManagerProps {
   onBookAppointment?: () => void;
   /** The tab the list opens on (a deep link such as `?tab=past`). Default: upcoming. */
   initialTab?: ManagerTab | undefined;
+  /**
+   * A visit a link asked for (`?id=<appointmentId>`): the list scrolls to it and marks it.
+   * With `action: "reschedule"` the reschedule dialog opens too, when the rules allow a move.
+   */
+  focus?: ManagerVisitFocus | undefined;
 }
 
 /** HH:mm for the reschedule time field, from the visit's own time. */
@@ -99,10 +119,12 @@ export default function AppointmentManager({
   appointmentsError: externalAppointmentsError,
   onBookAppointment,
   initialTab,
+  focus,
 }: AppointmentManagerProps = {}) {
   const { session } = useAuth();
   const user = session?.user;
   const hasShownRealtimeToastRef = useRef(false);
+  const handledFocusActionRef = useRef<ManagerVisitFocus | null>(null);
   const currentTimestamp = useCurrentTimestamp();
   const rescheduleMinDate = useMemo(() => {
     if (!currentTimestamp) return null;
@@ -295,6 +317,66 @@ export default function AppointmentManager({
     setOpenDialog("reschedule");
   }, [appointmentsById]);
 
+  // A link that asks to reschedule one visit (Home's "Reschedule"): open the dialog once the
+  // list holds the visit, and only when the reschedule rules still allow a move.
+  useEffect(() => {
+    if (!focus || focus.action !== "reschedule" || handledFocusActionRef.current === focus) return;
+    const target = visits.find((visit) => visit.id === focus.visitId);
+    if (!target) return;
+    handledFocusActionRef.current = focus;
+    if (target.canReschedule) {
+      handleOpenReschedule(target.id);
+    } else {
+      showInfoToast("This visit can no longer be moved", { id: TOAST_IDS.APPOINTMENT.UPDATE });
+    }
+  }, [focus, visits, handleOpenReschedule]);
+
+  // The doctor's free times for the day chosen in the reschedule dialog: the same request the
+  // booking wizard makes. Without a doctor or clinic id the dialog keeps a plain time field.
+  const isRescheduleOpen = openDialog === "reschedule";
+  const rescheduleTarget = useMemo(
+    () => rescheduleAvailabilityTarget(selectedId ? appointmentsById.get(selectedId) : undefined, propClinicId || user?.clinicId),
+    [appointmentsById, selectedId, propClinicId, user?.clinicId]
+  );
+  const canLoadRescheduleSlots = Boolean(rescheduleTarget.clinicId && rescheduleTarget.doctorId);
+  const rescheduleAvailability = useDoctorAvailability(
+    rescheduleTarget.clinicId,
+    rescheduleTarget.doctorId,
+    rescheduleData.date,
+    rescheduleTarget.locationId,
+    rescheduleTarget.appointmentType,
+    { enabled: isRescheduleOpen && canLoadRescheduleSlots && Boolean(rescheduleData.date) }
+  );
+  const refetchRescheduleAvailability = rescheduleAvailability.refetch;
+  const rescheduleSlots = useMemo<RescheduleSlots | null>(() => {
+    if (!canLoadRescheduleSlots) return null;
+    const onRetry = () => void refetchRescheduleAvailability();
+    if (!rescheduleData.date) return { status: "idle", periods: [], onRetry };
+    const data: unknown = rescheduleAvailability.data;
+    // While another day loads, the query keeps the last day's answer: never offer those times.
+    const answeredDate = readAvailabilityDate(data);
+    const isOtherDay = Boolean(answeredDate) && answeredDate !== rescheduleData.date;
+    if (rescheduleAvailability.error && (!data || isOtherDay)) {
+      return {
+        status: "error",
+        periods: [],
+        errorMessage: sanitizeErrorMessage(rescheduleAvailability.error) || undefined,
+        onRetry,
+      };
+    }
+    if (!data || isOtherDay) return { status: "loading", periods: [], onRetry };
+    const periods = buildRescheduleSlotPeriods(data, rescheduleTarget.durationMinutes);
+    const hasFreeTime = periods.some((period) => period.openCount > 0);
+    return { status: hasFreeTime ? "ready" : "empty", periods, onRetry };
+  }, [
+    canLoadRescheduleSlots,
+    refetchRescheduleAvailability,
+    rescheduleData.date,
+    rescheduleAvailability.data,
+    rescheduleAvailability.error,
+    rescheduleTarget.durationMinutes,
+  ]);
+
   const handleRescheduleSubmit = () => {
     if (!selectedId) return;
     rescheduleAppointment({ id: selectedId, data: { date: rescheduleData.date, time: rescheduleData.time } }, {
@@ -463,6 +545,7 @@ export default function AppointmentManager({
         }
         bookAction={bookAction}
         initialTab={initialTab}
+        focus={focus}
       />
 
       <RescheduleDialog
@@ -471,11 +554,15 @@ export default function AppointmentManager({
         visit={selectedVisit}
         date={rescheduleData.date}
         time={rescheduleData.time}
-        onDateChange={(date) => setRescheduleData((previous) => ({ ...previous, date }))}
+        // With a slot grid, a new day starts with no time chosen.
+        onDateChange={(date) =>
+          setRescheduleData((previous) => ({ date, time: canLoadRescheduleSlots ? "" : previous.time }))
+        }
         onTimeChange={(time) => setRescheduleData((previous) => ({ ...previous, time }))}
         minDate={rescheduleMinDate}
         submitting={reschedulingAppointment}
         onSubmit={handleRescheduleSubmit}
+        slots={rescheduleSlots}
       />
 
       <CancelVisitDialog

@@ -12,6 +12,11 @@ import { validateClinicAccess } from '@/lib/config/permissions';
 import { logger } from '@/lib/utils/logger';
 import { isApiError } from '@/lib/utils/error-handler';
 import { API_ENDPOINTS, APP_CONFIG } from '@/lib/config/config';
+import {
+  collectAppointmentListPages,
+  extractAppointmentListPage,
+  type AppointmentListQueryInput,
+} from '@/lib/api/client';
 import { formatISODateInIST, formatTimeInIST } from '@/lib/utils/appointmentUtils';
 import { normalizeAppointment as normalizeAppointmentShared } from '@/lib/utils/appointmentUtils';
 import type {
@@ -55,6 +60,22 @@ function normalizeAppointment(raw: Appointment | (Appointment & { appointmentDat
   return normalizeAppointmentShared(raw as unknown as Record<string, unknown>) as Appointment;
 }
 
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * Several appointment routes answer HTTP 200 with `{ success: false, message, error }`
+ * (for example an invalid status transition), sometimes nested one level down under
+ * `data`. Returns the backend's message for such a body, otherwise `null`.
+ */
+function readRejectedOutcome(payload: unknown): string | null {
+  if (!isPlainRecord(payload) || payload.success !== false) return null;
+  const message = typeof payload.message === 'string' ? payload.message.trim() : '';
+  const error = typeof payload.error === 'string' ? payload.error.trim() : '';
+  return message || error || 'The request was not applied';
+}
+
 // ===== APPOINTMENT ACTIONS =====
 
 /**
@@ -66,13 +87,17 @@ export async function updateAppointmentStatus(id: string, data: any) {
     const session = await getServerSession();
     if (!session?.user) return { success: false, error: 'Unauthorized' };
 
-    const [_statusResult, { ipAddress, userAgent }] = await Promise.all([
+    const [statusResult, { ipAddress, userAgent }] = await Promise.all([
       authenticatedApi(API_ENDPOINTS.APPOINTMENTS.STATUS(id), {
         method: 'PATCH',
         body: JSON.stringify(validatedData)
       }),
       getClientInfo(),
     ]);
+    const rejectedStatusChange = readRejectedOutcome(statusResult.data);
+    if (rejectedStatusChange) {
+      return { success: false, error: rejectedStatusChange };
+    }
     await auditLog({
       userId: session.user.id,
       action: `APPOINTMENT_STATUS_${validatedData.status}`,
@@ -100,33 +125,51 @@ export async function updateAppointmentStatus(id: string, data: any) {
 }
 
 /**
- * Start a consultation using the dedicated backend endpoint.
+ * Start a consultation.
+ *
+ * Backend contract: PATCH /appointments/:id/status with
+ * `{ status: 'IN_PROGRESS', consultationType?, notes? }` (UpdateAppointmentStatusDto;
+ * roles PATIENT, DOCTOR, ASSISTANT_DOCTOR, RECEPTIONIST, CLINIC_ADMIN, NURSE). There is
+ * no `/start-consultation` route and the DTO has no `doctorId`: the backend uses the
+ * doctor already assigned to the appointment. An in-person visit must be checked in
+ * (status CONFIRMED) first, otherwise the backend answers with a business-rule error
+ * whose message is returned to the caller.
+ *
+ * `data.doctorId` is accepted for existing callers and is not sent.
  */
 export async function startConsultation(
   id: string,
   data: {
-    doctorId: string;
+    doctorId?: string;
     consultationType?: string;
     notes?: string;
-  }
+  } = {}
 ) {
   try {
     const session = await getServerSession();
     if (!session?.user) return { success: false, error: 'Unauthorized' };
 
     const payload = {
-      doctorId: data.doctorId,
+      status: 'IN_PROGRESS' as const,
       ...(data.consultationType ? { consultationType: data.consultationType } : {}),
       ...(data.notes ? { notes: data.notes } : {}),
     };
 
-    const [{ data: appointment }, { ipAddress, userAgent }] = await Promise.all([
-      authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.START(id), {
-        method: 'POST',
+    const [{ data: startResult }, { ipAddress, userAgent }] = await Promise.all([
+      authenticatedApi<unknown>(API_ENDPOINTS.APPOINTMENTS.STATUS(id), {
+        method: 'PATCH',
         body: JSON.stringify(payload),
       }),
       getClientInfo(),
     ]);
+    const rejectedStart = readRejectedOutcome(startResult);
+    if (rejectedStart) {
+      return { success: false, error: rejectedStart };
+    }
+    // The status route answers `{ success, data: <consultation data> }`, not an appointment row.
+    const appointment = (
+      isPlainRecord(startResult) && 'data' in startResult ? startResult.data : startResult
+    ) as Appointment | undefined;
     await auditLog({
       userId: session.user.id,
       action: 'APPOINTMENT_CONSULTATION_STARTED',
@@ -157,12 +200,19 @@ export async function startConsultation(
 }
 
 /**
- * Complete an appointment using the dedicated backend endpoint.
+ * Complete an appointment: POST /appointments/:id/complete (CompleteAppointmentDto;
+ * roles DOCTOR, ASSISTANT_DOCTOR, THERAPIST, COUNSELOR, NURSE, RECEPTIONIST).
+ *
+ * `doctorId` is never sent. The backend treats it as the Doctor record id and uses it
+ * as the key of the live queue the patient is removed from; when it is absent the
+ * backend takes the doctor from the appointment, which is always the right queue.
+ * Sending the signed-in USER id here left the patient in the queue. The parameter is
+ * still accepted so existing callers keep compiling.
  */
 export async function completeAppointment(
   id: string,
   data: {
-    doctorId: string;
+    doctorId?: string;
     diagnosis?: string;
     prescription?: string;
     notes?: string;
@@ -170,6 +220,7 @@ export async function completeAppointment(
     medications?: string[];
     followUpDate?: string;
     followUpNotes?: string;
+    followUpInstructions?: string;
     metadata?: Record<string, unknown>;
   }
 ) {
@@ -177,12 +228,14 @@ export async function completeAppointment(
     const session = await getServerSession();
     if (!session?.user) return { success: false, error: 'Unauthorized' };
 
-    const { doctorId, ...rest } = data;
-    const validatedData = completeAppointmentSchema.parse(rest);
+    const { doctorId: _doctorId, ...rest } = data;
+    const { followUpNotes, ...validatedData } = completeAppointmentSchema.parse(rest);
+    // `followUpNotes` is not a DTO field (the request would be rejected as an unknown
+    // property); the DTO's name for the follow-up text is `followUpInstructions`.
+    const followUpInstructions = validatedData.followUpInstructions || followUpNotes;
     const payload = {
-      doctorId,
       ...validatedData,
-      ...(validatedData.metadata ? { metadata: validatedData.metadata } : {}),
+      ...(followUpInstructions ? { followUpInstructions } : {}),
     };
 
     const [{ data: appointment }, { ipAddress, userAgent }] = await Promise.all([
@@ -229,6 +282,12 @@ export async function completeAppointment(
 /**
  * Mark multiple selected appointments as completed in one call.
  * Used by the doctor/receptionist appointments list bulk-action bar.
+ *
+ * POST /appointments/complete/bulk (BulkCompleteAppointmentDto: appointmentIds 1..50,
+ * doctorId?, notes?, metadata?; roles DOCTOR, ASSISTANT_DOCTOR, THERAPIST, COUNSELOR,
+ * NURSE, RECEPTIONIST, CLINIC_ADMIN). `doctorId`, when given, must be the Doctor RECORD
+ * id (never the user id): it becomes the queue key for every listed appointment. Leave
+ * it out and the backend uses each appointment's own doctor.
  */
 export async function bulkCompleteAppointments(data: {
   appointmentIds: string[];
@@ -283,22 +342,26 @@ export async function bulkCompleteAppointments(data: {
 }
 
 /**
- * Cancel an appointment using the dedicated ownership-aware backend route.
+ * Cancel an appointment using the dedicated ownership-aware backend route:
+ * DELETE /appointments/:id (roles PATIENT, RECEPTIONIST, DOCTOR, ASSISTANT_DOCTOR,
+ * NURSE, CLINIC_ADMIN). The route takes no body: the backend records the fixed reason
+ * "Cancelled by user", so `reason` is kept only in the web audit log.
  */
 export async function cancelAppointment(id: string, reason?: string) {
   try {
     const session = await getServerSession();
     if (!session?.user) return { success: false, error: 'Unauthorized' };
 
-    const [_cancelResult, { ipAddress, userAgent }] = await Promise.all([
+    const [cancelResult, { ipAddress, userAgent }] = await Promise.all([
       authenticatedApi(API_ENDPOINTS.APPOINTMENTS.DELETE(id), {
         method: 'DELETE',
-        body: JSON.stringify({
-          reason: reason || 'Cancelled by user',
-        }),
       }),
       getClientInfo(),
     ]);
+    const rejectedCancellation = readRejectedOutcome(cancelResult.data);
+    if (rejectedCancellation) {
+      return { success: false, error: rejectedCancellation };
+    }
     await auditLog({
       userId: session.user.id,
       action: 'APPOINTMENT_CANCELLED',
@@ -614,12 +677,17 @@ export async function updateAssistantDoctorCoverage(
 }
 
 /**
- * Get appointments with filtering
+ * Get appointments with filtering.
+ *
+ * GET /appointments reads only: userId, doctorId, status (comma separated), date,
+ * dateFrom, dateTo, locationId, page, limit. `startDate` / `endDate` are translated to
+ * `dateFrom` / `dateTo`, and a `limit` above the backend cap of 100 is read page by page
+ * (bounded; see collectAppointmentListPages). Rows come back newest first.
  */
 export async function getAppointments(filters?: AppointmentFilters & { omitClinicId?: boolean }) {
   try {
     const session = await getServerSession();
-    const { omitClinicId, ...restFilters } = filters || {};
+    const { omitClinicId: _omitClinicId, ...restFilters } = filters || {};
     const requestContext = {
       clinicId: restFilters.clinicId || session?.user?.clinicId || APP_CONFIG.CLINIC.ID,
       status: restFilters.status,
@@ -630,41 +698,46 @@ export async function getAppointments(filters?: AppointmentFilters & { omitClini
       limit: restFilters.limit,
     };
     logger.debug('getAppointments request', requestContext);
-    const queryParams = new URLSearchParams(restFilters as any).toString();
-    const endpoint = queryParams ? `${API_ENDPOINTS.APPOINTMENTS.GET_ALL}?${queryParams}` : API_ENDPOINTS.APPOINTMENTS.GET_ALL;
     const resolvedClinicId = session?.user?.clinicId || restFilters.clinicId || APP_CONFIG.CLINIC.ID;
-    
-    const { status, data } = await authenticatedApi<{
-      data?: Appointment[] | { appointments?: Appointment[]; pagination?: any };
-      appointments?: Appointment[];
-      pagination?: any;
-      meta?: any;
-    }>(endpoint, {
-      ...(resolvedClinicId ? { headers: { 'X-Clinic-ID': resolvedClinicId } } : {}),
-      omitClinicId: true,
-      cache: 'no-store',
+    const listParams: AppointmentListQueryInput = {
+      doctorId: restFilters.doctorId,
+      patientId: restFilters.patientId,
+      clinicId: restFilters.clinicId,
+      locationId: restFilters.locationId,
+      status: restFilters.status,
+      date: restFilters.date,
+      startDate: restFilters.startDate,
+      endDate: restFilters.endDate,
+      page: restFilters.page,
+      limit: restFilters.limit,
+    };
+
+    const outcome = { profileIncomplete: false };
+    const page = await collectAppointmentListPages(listParams, async (query) => {
+      const queryParams = new URLSearchParams(query).toString();
+      const endpoint = queryParams
+        ? `${API_ENDPOINTS.APPOINTMENTS.GET_ALL}?${queryParams}`
+        : API_ENDPOINTS.APPOINTMENTS.GET_ALL;
+      const { status, data } = await authenticatedApi<unknown>(endpoint, {
+        ...(resolvedClinicId ? { headers: { 'X-Clinic-ID': resolvedClinicId } } : {}),
+        omitClinicId: true,
+        cache: 'no-store',
+      });
+
+      // Detect profile-incomplete 403 returned gracefully by authenticatedApi
+      if (status === 403 && !data) {
+        outcome.profileIncomplete = true;
+        return { appointments: [] };
+      }
+      return extractAppointmentListPage(data);
     });
 
-    // Detect profile-incomplete 403 returned gracefully by authenticatedApi
-    if (status === 403 && !data) {
+    if (outcome.profileIncomplete) {
       return { success: false, error: 'Profile incomplete. Please complete your profile to access appointments.', code: 'PROFILE_INCOMPLETE' as const };
     }
 
-    const payload =
-      Array.isArray(data)
-        ? data
-        : Array.isArray(data.appointments)
-          ? data.appointments
-          : data.data ?? data;
-    const appointments = (Array.isArray(payload)
-      ? payload
-      : Array.isArray(payload?.appointments)
-        ? payload.appointments
-        : []).map(appointment => normalizeAppointment(appointment));
-    const meta =
-      (!Array.isArray(payload) && payload?.pagination) ||
-      data.pagination ||
-      data.meta;
+    const appointments = (page.appointments as Appointment[]).map(appointment => normalizeAppointment(appointment));
+    const meta = page.pagination;
     logger.debug('getAppointments response', { appointmentsCount: appointments.length, hasMeta: !!meta });
     return { success: true, appointments, meta };
   } catch (error) {
@@ -822,12 +895,36 @@ export async function getAppointmentById(id: string) {
   }
 }
 
+const APPOINTMENT_PRIORITIES = ['EMERGENCY', 'URGENT', 'HIGH', 'MEDIUM', 'NORMAL', 'LOW', 'ROUTINE'] as const;
+type AppointmentPriorityValue = (typeof APPOINTMENT_PRIORITIES)[number];
+
+function toAppointmentPriority(value: unknown): AppointmentPriorityValue | undefined {
+  const normalized = typeof value === 'string' ? value.trim().toUpperCase() : '';
+  return APPOINTMENT_PRIORITIES.find((priority) => priority === normalized);
+}
+
 /**
- * Update appointment
+ * Update appointment: PUT /appointments/:id (UpdateAppointmentDto; roles PATIENT,
+ * RECEPTIONIST, DOCTOR, ASSISTANT_DOCTOR). There is no PATCH /appointments/:id.
+ *
+ * Only fields that are both in the DTO and stored on the appointment are sent:
+ * appointmentDate, duration, status, priority, treatmentType, notes, metadata.
+ * - `priority` is required by the DTO, so the caller's value is used, else the visit's
+ *   current priority is read first (GET /appointments/:id) and sent back unchanged.
+ * - diagnosis / prescription / treatmentPlan / symptoms / followUpDate have no column on
+ *   the appointment: they are stored in `metadata.consultationDraft`, the same place the
+ *   consultation screens already use.
+ * - `metadata` replaces the stored metadata, so callers pass the full object.
  */
-export async function updateAppointment(id: string, data: UpdateAppointmentData) {
+export async function updateAppointment(
+  id: string,
+  data: UpdateAppointmentData & { priority?: string }
+) {
   try {
-    const validatedData = updateAppointmentSchema.parse(data);
+    const validatedData = updateAppointmentSchema.parse({
+      ...data,
+      ...(data.priority !== undefined ? { priority: toAppointmentPriority(data.priority) } : {}),
+    });
     const session = await getServerSession();
     if (!session?.user) return { success: false, error: 'Unauthorized' };
 
@@ -836,18 +933,83 @@ export async function updateAppointment(id: string, data: UpdateAppointmentData)
       appointmentDate = toIstAppointmentIso(validatedData.date, validatedData.time);
     }
 
+    const clinicalFields = {
+      ...(validatedData.diagnosis ? { diagnosis: validatedData.diagnosis } : {}),
+      ...(validatedData.prescription ? { prescription: validatedData.prescription } : {}),
+      ...(validatedData.treatmentPlan ? { treatmentPlan: validatedData.treatmentPlan } : {}),
+      ...(validatedData.symptoms?.length ? { symptoms: validatedData.symptoms } : {}),
+      ...(validatedData.followUpDate ? { followUpDate: validatedData.followUpDate } : {}),
+    };
+    const hasClinicalFields = Object.keys(clinicalFields).length > 0;
+
+    // The current visit is needed for the priority the DTO requires, and for the stored
+    // metadata when clinical text has to be merged into it.
+    let currentAppointment: Record<string, unknown> | undefined;
+    if (!validatedData.priority || (hasClinicalFields && !validatedData.metadata)) {
+      try {
+        const { data: current } = await authenticatedApi<unknown>(
+          API_ENDPOINTS.APPOINTMENTS.GET_BY_ID(id),
+          { cache: 'no-store' }
+        );
+        currentAppointment = isPlainRecord(current) ? current : undefined;
+      } catch (lookupError) {
+        logger.warn('Could not read the appointment before updating it', {
+          appointmentId: id,
+          error: lookupError instanceof Error ? lookupError.message : String(lookupError),
+        });
+      }
+    }
+
+    const priority = validatedData.priority ?? toAppointmentPriority(currentAppointment?.priority);
+    if (!priority) {
+      // Sending a default here would silently reset an urgent visit to NORMAL.
+      return {
+        success: false,
+        error: 'Could not read the current priority of this appointment, so it was not updated. Please try again.',
+      };
+    }
+
+    let metadata = validatedData.metadata;
+    if (hasClinicalFields) {
+      const baseMetadata =
+        metadata ?? (isPlainRecord(currentAppointment?.metadata) ? currentAppointment.metadata : {});
+      const existingDraft = isPlainRecord(baseMetadata.consultationDraft)
+        ? baseMetadata.consultationDraft
+        : {};
+      metadata = {
+        ...baseMetadata,
+        consultationDraft: {
+          ...existingDraft,
+          ...clinicalFields,
+          savedAt: new Date().toISOString(),
+          savedBy: session.user.id,
+        },
+      };
+    }
+
     const payload = {
-      ...validatedData,
-      appointmentDate,
+      ...(appointmentDate ? { appointmentDate } : {}),
+      ...(validatedData.duration !== undefined ? { duration: validatedData.duration } : {}),
+      ...(validatedData.status ? { status: validatedData.status } : {}),
+      priority,
+      ...(validatedData.treatmentType ? { treatmentType: validatedData.treatmentType } : {}),
+      ...(validatedData.notes !== undefined ? { notes: validatedData.notes } : {}),
+      ...(metadata ? { metadata } : {}),
     };
 
     const [{ data: appointment }, { ipAddress, userAgent }] = await Promise.all([
       authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.UPDATE(id), {
-        method: 'PATCH',
+        method: 'PUT',
         body: JSON.stringify(payload)
       }),
       getClientInfo(),
     ]);
+    // The route answers 200 with `{ success: false, message }` when the update was not
+    // applied (unknown visit, invalid status change, scheduling conflict).
+    const rejectedUpdate = readRejectedOutcome(appointment);
+    if (rejectedUpdate) {
+      return { success: false, error: rejectedUpdate };
+    }
     await auditLog({
       userId: session.user.id,
       action: 'APPOINTMENT_UPDATED',
@@ -866,7 +1028,10 @@ export async function updateAppointment(id: string, data: UpdateAppointmentData)
     return { success: true, appointment };
   } catch (error) {
     logger.error('Failed to update appointment', error instanceof Error ? error : new Error(String(error)));
-    return { success: false, error: 'Failed to update appointment' };
+    return {
+      success: false,
+      error: isApiError(error) && error.message ? error.message : 'Failed to update appointment',
+    };
   }
 }
 
@@ -990,7 +1155,9 @@ export async function forceCheckInAppointment(
 }
 
 /**
- * Reschedule appointment
+ * Reschedule appointment: PATCH /appointments/:id/reschedule with `{ newDate, newTime }`
+ * (roles PATIENT, DOCTOR, ASSISTANT_DOCTOR, NURSE, RECEPTIONIST, CLINIC_ADMIN). The
+ * backend does not store a reschedule reason; `reason` is kept in the web audit log.
  */
 export async function rescheduleAppointment(id: string, data: any) {
   try {
@@ -1011,6 +1178,10 @@ export async function rescheduleAppointment(id: string, data: any) {
       }),
       getClientInfo(),
     ]);
+    const rejectedReschedule = readRejectedOutcome(appointment);
+    if (rejectedReschedule) {
+      return { success: false, error: rejectedReschedule };
+    }
     await auditLog({
       userId: session.user.id,
       action: 'APPOINTMENT_RESCHEDULED',

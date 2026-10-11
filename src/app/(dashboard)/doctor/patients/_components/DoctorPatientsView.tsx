@@ -1,21 +1,12 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Activity, AlertCircle, Calendar, Clock, RefreshCw, Users } from "lucide-react";
-import {
-  DateField,
-  parseDateValue,
-} from "@/components/appointments/manager/ManagerFilters";
-import { useWebSocketStatus } from "@/app/providers/WebSocketProvider";
+import { AlertCircle, Calendar, Clock, RefreshCw, Repeat, Users } from "lucide-react";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Chip, Kpi, Note, PageHero, Pill, SearchBox, Surface, type PillTone } from "@/components/tbd";
+import { Chip, ConnectionPill, DateField, Kpi, Note, PageHero, SearchBox, Surface } from "@/components/tbd";
 import { DoctorPatientsTable } from "./DoctorPatientsTable";
 import type { DoctorPatientRow, DoctorPatientsStats } from "./doctorPatients.logic";
-
-export type DoctorPatientsGenderFilter = "all" | "male" | "female";
-export type DoctorPatientsAgeFilter = "all" | "young" | "middle" | "senior";
 
 export interface DoctorPatientsViewProps {
   /** The first load of the list is still running. */
@@ -30,49 +21,18 @@ export interface DoctorPatientsViewProps {
   totalPages: number;
   pageSize: number;
   onPageChange: (page: number) => void;
+  /** Sent to the server, which searches name, phone and e-mail. */
   searchTerm: string;
-  genderFilter: DoctorPatientsGenderFilter;
-  ageFilter: DoctorPatientsAgeFilter;
+  /** Last-visit range (ISO days, `yyyy-mm-dd`; empty = no bound). Applied on the client. */
   dateFrom: string;
   dateTo: string;
   onSearchChange: (value: string) => void;
-  onGenderChange: (value: DoctorPatientsGenderFilter) => void;
-  onAgeChange: (value: DoctorPatientsAgeFilter) => void;
   onDateRangeChange: (from: string, to: string) => void;
   onPrescribe: (row: DoctorPatientRow) => void;
   /** The banner buttons: "OPD Registration" and "Register Patient" (each opens its dialog). */
   actions: ReactNode;
   /** Replaces the live connection tag (used by the design preview). */
   connectionSlot?: ReactNode;
-}
-
-/** Live-updates tag in the banner: the same socket state the old indicator showed. */
-function ConnectionPill() {
-  const { isConnected, connectionStatus, error } = useWebSocketStatus();
-
-  let tone: PillTone = "slate";
-  let label = "Offline";
-  if (error) {
-    tone = "rose";
-    label = "Connection error";
-  } else if (connectionStatus === "connecting") {
-    tone = "amber";
-    label = "Connecting";
-  } else if (connectionStatus === "reconnecting") {
-    tone = "amber";
-    label = "Reconnecting";
-  } else if (isConnected) {
-    tone = "green";
-    label = "Connected";
-  }
-
-  return (
-    <span role="status" aria-label={`Live updates: ${label}`}>
-      <Pill tone={tone} dot>
-        {label}
-      </Pill>
-    </span>
-  );
 }
 
 /** On a phone two stat cards share a row, so the icon square is dropped to leave room for the text. */
@@ -94,35 +54,23 @@ export function DoctorPatientsView({
   pageSize,
   onPageChange,
   searchTerm,
-  genderFilter,
-  ageFilter,
   dateFrom,
   dateTo,
   onSearchChange,
-  onGenderChange,
-  onAgeChange,
   onDateRangeChange,
   onPrescribe,
   actions,
   connectionSlot,
 }: DoctorPatientsViewProps) {
-  const hasFilters =
-    searchTerm.trim().length > 0 ||
-    genderFilter !== "all" ||
-    ageFilter !== "all" ||
-    Boolean(dateFrom) ||
-    Boolean(dateTo);
+  const hasFilters = searchTerm.trim().length > 0 || Boolean(dateFrom) || Boolean(dateTo);
   const loadedLabel = loading
     ? "Loading patients…"
     : loadFailed
       ? "Patients not loaded"
       : `Loaded: ${totalPatients} ${totalPatients === 1 ? "patient" : "patients"}`;
-  const statsPending = loading || loadFailed;
 
   const clearFilters = () => {
     onSearchChange("");
-    onGenderChange("all");
-    onAgeChange("all");
     onDateRangeChange("", "");
   };
 
@@ -159,79 +107,60 @@ export function DoctorPatientsView({
           className={KPI_CLASS}
         />
         <Kpi
-          label="Follow-ups"
-          value={loading ? numberSkeleton : stats.followUps}
-          hint="Due this week"
+          label="Today"
+          value={loading ? numberSkeleton : stats.todayAppointments}
+          hint="Appointments today"
           icon={Clock}
           tone="amber"
           className={KPI_CLASS}
         />
         <Kpi
-          label="Recovery Rate"
-          value={loading ? numberSkeleton : statsPending ? "—" : `${stats.recoveryRate}%`}
-          hint="Patient improvement"
-          icon={Activity}
+          label="Returning patients"
+          value={loading ? numberSkeleton : stats.returningPatients}
+          // Patients with more than one appointment, and their share of the patients who have any.
+          hint={stats.returningPatients > 0 ? `${stats.returningShare}% of booked patients` : "Booked more than once"}
+          icon={Repeat}
           tone="mint"
           className={KPI_CLASS}
         />
       </div>
 
       <Surface as="section" aria-label="Filter patients" className="!p-3.5 sm:!p-4">
+        {/* The server searches name, phone and e-mail; it has no gender or age filter.
+            The last-visit range is applied on the client. */}
         <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center">
           <SearchBox
             value={searchTerm}
             onChange={onSearchChange}
-            placeholder="Search by name…"
-            ariaLabel="Search patients by name"
+            placeholder="Search by name, phone or e-mail…"
+            ariaLabel="Search patients by name, phone or e-mail"
             className="lg:min-w-0 lg:flex-1"
           />
           <div className="grid grid-cols-2 gap-2.5 lg:flex lg:items-center">
             <DateField
+              variant="placeholder"
+              id="doctor-patients-last-visit-from"
+              label="Last visit from"
               value={dateFrom}
-              placeholder="Last visit from"
-              ariaLabel="Last visit from date"
+              max={dateTo || undefined}
               onChange={(from) => onDateRangeChange(from, dateTo)}
-              className="h-10 w-full rounded-xl lg:w-[168px]"
+              className="w-full lg:w-[168px]"
             />
             <DateField
+              variant="placeholder"
+              id="doctor-patients-last-visit-to"
+              label="Last visit to"
               value={dateTo}
-              placeholder="Last visit to"
-              ariaLabel="Last visit to date"
+              min={dateFrom || undefined}
               onChange={(to) => onDateRangeChange(dateFrom, to)}
-              isDisabled={(date) => {
-                const start = parseDateValue(dateFrom);
-                return Boolean(start) && date < (start as Date);
-              }}
-              className="h-10 w-full rounded-xl lg:w-[168px]"
+              className="w-full lg:w-[168px]"
             />
           </div>
-          <Select value={genderFilter} onValueChange={(value) => onGenderChange(value as DoctorPatientsGenderFilter)}>
-            <SelectTrigger
-              className="h-10 w-full rounded-xl border-line text-[13px] font-semibold lg:w-[148px]"
-              aria-label="Filter by gender"
-            >
-              <SelectValue placeholder="Gender" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Genders</SelectItem>
-              <SelectItem value="male">Male</SelectItem>
-              <SelectItem value="female">Female</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={ageFilter} onValueChange={(value) => onAgeChange(value as DoctorPatientsAgeFilter)}>
-            <SelectTrigger
-              className="h-10 w-full rounded-xl border-line text-[13px] font-semibold lg:w-[148px]"
-              aria-label="Filter by age"
-            >
-              <SelectValue placeholder="Age" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Ages</SelectItem>
-              <SelectItem value="young">Under 30</SelectItem>
-              <SelectItem value="middle">30-60</SelectItem>
-              <SelectItem value="senior">Over 60</SelectItem>
-            </SelectContent>
-          </Select>
+          {hasFilters ? (
+            <Button variant="ghost" size="md" onClick={clearFilters} className="text-brand lg:ml-auto">
+              Clear filters
+            </Button>
+          ) : null}
         </div>
       </Surface>
 

@@ -2,22 +2,10 @@
 
 import { IndianRupee, Package, Pill as PillIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { EmptyBlock } from "@/components/tbd";
+import { EmptyBlock, Pager, usePagedRows, LoadError, SkeletonRows } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import type { PrescriptionRow } from "./pharmacist-prescriptions.logic";
-import {
-  HEAD_ROW,
-  LoadError,
-  MedicinesCell,
-  PatientCell,
-  PrescribedByCell,
-  PrescriptionsPager,
-  SkeletonRows,
-  StateCell,
-  prescriptionRowId,
-  usePagedRows,
-  useScrollToRow,
-} from "./PrescriptionTableParts";
+import { HEAD_ROW, MedicinesCell, PatientCell, PrescribedByCell, StateCell, prescriptionRowId, useScrollToRow } from "./PrescriptionTableParts";
 
 /**
  * Wide card: one line per prescription. Narrow card: the cells stack (patient, state,
@@ -61,7 +49,7 @@ export function PrescriptionsActiveTable({
   collectPending = false,
 }: PrescriptionsActiveTableProps) {
   const focusIndex = highlightId ? prescriptions.findIndex((row) => row.id === highlightId) : -1;
-  const paging = usePagedRows(prescriptions, resetKey, focusIndex);
+  const paging = usePagedRows(prescriptions, 10, { resetKey, focusIndex });
 
   useScrollToRow(highlightId, focusIndex);
 
@@ -146,7 +134,7 @@ export function PrescriptionsActiveTable({
           </div>
         ))}
       </div>
-      <PrescriptionsPager
+      <Pager
         paging={paging}
         noun={paging.total === 1 ? "active prescription" : "active prescriptions"}
       />

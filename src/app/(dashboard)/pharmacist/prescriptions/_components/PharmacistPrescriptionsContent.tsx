@@ -78,10 +78,13 @@ export default function PharmacistPrescriptionsContent() {
     refetch: refetchPrescriptions,
   } = usePrescriptions(clinicId || "", { limit: 100 });
   const { data: medicinesData = [] } = useMedicines(clinicId || "", { limit: 200 });
+  // The date inputs give a day ("2026-10-03"). The API compares instants, so the range is
+  // sent as the start and the end of those days in India time; a bare date would be read as
+  // midnight UTC and leave out the chosen end day.
   const batchAuditFilters = useMemo(
     () => ({
-      ...(auditStartDate ? { startDate: auditStartDate } : {}),
-      ...(auditEndDate ? { endDate: auditEndDate } : {}),
+      ...(auditStartDate ? { startDate: `${auditStartDate}T00:00:00.000+05:30` } : {}),
+      ...(auditEndDate ? { endDate: `${auditEndDate}T23:59:59.999+05:30` } : {}),
       enabled: Boolean(clinicId),
     }),
     [auditEndDate, auditStartDate, clinicId],

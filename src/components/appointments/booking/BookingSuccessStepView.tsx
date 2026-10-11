@@ -127,7 +127,7 @@ export function BookingSuccessStepView({
               "flex size-[74px] items-center justify-center rounded-full text-white",
               paymentPending
                 ? "bg-[#d97706] shadow-[0_10px_24px_rgba(217,119,6,0.3)]"
-                : "bg-[#047857] shadow-[0_10px_24px_rgba(4,120,87,0.35)]",
+                : "bg-primary shadow-[0_10px_24px_rgba(4,120,87,0.35)]",
             )}
           >
             {paymentPending ? (

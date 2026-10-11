@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { IconBox, Pill } from "@/components/tbd";
+import { IconBox, Pill, Pager, usePagedRows } from "@/components/tbd";
 import { REPORT_KIND_LABEL, type ReportRow } from "./patient-health.logic";
 
 const COLUMNS = "minmax(0, 2.2fr) minmax(0, 1.3fr) 112px 150px 124px";
@@ -53,12 +53,9 @@ function RowAction({ row, onView }: { row: ReportRow; onView: (row: ReportRow) =
  * it; one without opens its details; a prescription opens in Medicines.
  */
 export function ReportsTable({ rows, pageSize = 10 }: { rows: ReportRow[]; pageSize?: number }) {
-  const [pageIndex, setPageIndex] = useState(0);
   const [selected, setSelected] = useState<ReportRow | null>(null);
 
-  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
-  const currentPage = Math.min(pageIndex, pageCount - 1);
-  const pageRows = rows.slice(currentPage * pageSize, currentPage * pageSize + pageSize);
+  const paging = usePagedRows(rows, pageSize);
 
   return (
     <div className="flex flex-col">
@@ -78,7 +75,7 @@ export function ReportsTable({ rows, pageSize = 10 }: { rows: ReportRow[]; pageS
           </span>
         </div>
 
-        {pageRows.map((row) => (
+        {paging.pageRows.map((row) => (
           <div
             key={row.id}
             role="row"
@@ -115,29 +112,7 @@ export function ReportsTable({ rows, pageSize = 10 }: { rows: ReportRow[]; pageS
         ))}
       </div>
 
-      {pageCount > 1 ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hair py-3 text-[13px] text-ink-muted">
-          <span>
-            Showing {currentPage * pageSize + 1}–{currentPage * pageSize + pageRows.length} of {rows.length}
-          </span>
-          <nav aria-label="Report pages" className="flex items-center gap-2">
-            <Button variant="outline" className="h-[34px]" onClick={() => setPageIndex(currentPage - 1)} disabled={currentPage <= 0}>
-              Previous
-            </Button>
-            <span className="whitespace-nowrap" aria-live="polite">
-              Page {currentPage + 1} of {pageCount}
-            </span>
-            <Button
-              variant="outline"
-              className="h-[34px]"
-              onClick={() => setPageIndex(currentPage + 1)}
-              disabled={currentPage >= pageCount - 1}
-            >
-              Next
-            </Button>
-          </nav>
-        </div>
-      ) : null}
+      <Pager paging={paging} hideWhenSinglePage label="Report pages" className="px-0" />
 
       <Dialog open={selected !== null} onOpenChange={(open) => (open ? undefined : setSelected(null))}>
         <DialogContent className="sm:max-w-[520px]">

@@ -3,7 +3,6 @@ import {
   formatDateInIST,
   formatDoctorDisplayName,
   formatISODateInIST,
-  formatTimeInIST,
   getAppointmentDateTimeValue,
   getAppointmentLocationName,
   getAppointmentViewState,
@@ -17,6 +16,8 @@ import {
 } from "@/lib/utils/appointmentUtils";
 import type { HealthLibraryListFilters, HealthLibraryPost } from "@/lib/actions/health-library.server";
 import type { HomeLibraryItem, HomeLibraryTab, HomeVisit } from "./types";
+import { asRecord, firstText, textOf } from "@/lib/utils/coerce";
+import { formatTimeLabel, lowerMeridiem } from "@/lib/utils/date-time";
 
 /**
  * Turns API rows into the Home view models (`types.ts`). Pure functions: the page container
@@ -28,24 +29,6 @@ import type { HomeLibraryItem, HomeLibraryTab, HomeVisit } from "./types";
 // ---------------------------------------------------------------------------
 
 export type Row = Record<string, unknown>;
-
-export function asRow(value: unknown): Row | undefined {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Row) : undefined;
-}
-
-export function text(value: unknown): string {
-  if (typeof value === "string") return value.trim();
-  if (typeof value === "number" && Number.isFinite(value)) return String(value);
-  return "";
-}
-
-export function firstText(...values: unknown[]): string {
-  for (const value of values) {
-    const found = text(value);
-    if (found) return found;
-  }
-  return "";
-}
 
 export function positiveNumber(value: unknown): number | null {
   const parsed = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : NaN;
@@ -66,7 +49,7 @@ function isVideoVisit(appointment: Row): boolean {
 /** An in-clinic visit the patient has already checked in for. The queue is for these only. */
 export function isCheckedInClinicVisit(appointment: Row): boolean {
   if (isVideoVisit(appointment) || isTerminalAppointment(appointment)) return false;
-  const rawStatus = text(appointment.status).toUpperCase().replace(/[\s-]+/g, "_");
+  const rawStatus = textOf(appointment.status).toUpperCase().replace(/[\s-]+/g, "_");
   return Boolean(appointment.checkedInAt) || rawStatus === "CHECKED_IN" || rawStatus === "QUEUED";
 }
 
@@ -90,7 +73,7 @@ export function selectUpcomingAppointments(appointments: Row[]): Row[] {
       appointments.map((appointment) => {
         const normalized = normalizePatientAppointment(appointment);
         const dedupeKey =
-          text(appointment.id) ||
+          textOf(appointment.id) ||
           `${normalized.doctorName || "doctor"}-${normalized.normalizedDate || "date"}-${normalized.normalizedTime || "time"}-${normalized.locationName || "location"}`;
         return [dedupeKey, appointment] as const;
       })
@@ -144,19 +127,19 @@ export function findQueueAppointment(upcoming: Row[]): Row | null {
 }
 
 function doctorDetail(appointment: Row): string | undefined {
-  const doctor = asRow(appointment.doctor);
+  const doctor = asRecord(appointment.doctor);
   if (!doctor) return undefined;
   const rawQualification = doctor.qualification ?? doctor.qualifications ?? doctor.degree;
   const qualification = Array.isArray(rawQualification)
-    ? rawQualification.map(text).filter(Boolean).join(", ")
-    : text(rawQualification);
+    ? rawQualification.map(textOf).filter(Boolean).join(", ")
+    : textOf(rawQualification);
   const years = positiveNumber(doctor.experience ?? doctor.yearsOfExperience);
   return [qualification, years ? `${years}+ years` : ""].filter(Boolean).join(" · ") || undefined;
 }
 
 function doctorPhoto(appointment: Row): string | undefined {
-  const doctor = asRow(appointment.doctor);
-  const doctorUser = asRow(doctor?.user);
+  const doctor = asRecord(appointment.doctor);
+  const doctorUser = asRecord(doctor?.user);
   const url = firstText(
     doctor?.profilePicture,
     doctor?.avatar,
@@ -168,8 +151,8 @@ function doctorPhoto(appointment: Row): string | undefined {
 }
 
 function clinicContact(appointment: Row): Pick<HomeVisit, "locationLabel" | "clinicPhone" | "directionsUrl"> {
-  const location = asRow(appointment.location);
-  const clinic = asRow(appointment.clinic);
+  const location = asRecord(appointment.location);
+  const clinic = asRecord(appointment.clinic);
   const name = getAppointmentLocationName(appointment);
   const hasName = Boolean(name) && name !== "Location TBD";
   const address = firstText(location?.address, clinic?.address);
@@ -199,23 +182,19 @@ export function toHomeVisit(appointment: Row, now: number): HomeVisit {
   const dateLabel = dateTime
     ? formatDateInIST(dateTime, { weekday: "short", day: "numeric", month: "short", year: "numeric" })
     : getReceptionistAppointmentDateLabel(appointment);
-  const timeLabel = (
-    dateTime
-      ? formatTimeInIST(dateTime, { hour: "2-digit", minute: "2-digit", hour12: true })
-      : getReceptionistAppointmentTimeLabel(appointment)
-  ).replace(/\b(am|pm)\b/i, (meridiem) => meridiem.toUpperCase());
+  const timeLabel = dateTime ? formatTimeLabel(dateTime) : lowerMeridiem(getReceptionistAppointmentTimeLabel(appointment));
 
   // Paid, and the join decision says yes: a confirmed visit inside its join window, or one the
   // doctor has already started (the patient can rejoin until the doctor completes it).
   const decision = isVideo ? getVideoSessionDecision(appointment) : null;
   const canJoin = Boolean(isVideo && viewState.paymentCompleted && decision?.canJoin);
 
-  const treatment = text(appointment.treatmentType).replace(/_/g, " ");
-  const metadata = asRow(appointment.metadata);
+  const treatment = textOf(appointment.treatmentType).replace(/_/g, " ");
+  const metadata = asRecord(appointment.metadata);
   const token = firstText(appointment.tokenNumber, metadata?.tokenNumber);
 
   return {
-    id: text(appointment.id),
+    id: textOf(appointment.id),
     kind: isVideo ? "video" : "clinic",
     doctorName: formatDoctorDisplayName(normalized.doctorName),
     doctorPhotoUrl: doctorPhoto(appointment),

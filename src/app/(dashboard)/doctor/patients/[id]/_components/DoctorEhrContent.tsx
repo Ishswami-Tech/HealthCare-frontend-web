@@ -20,22 +20,12 @@ import { Permission } from "@/types/rbac.types";
 import { patientSummaryLine, toDoctorPatientRow } from "../../_components/doctorPatients.logic";
 import { DoctorEhrView } from "./DoctorEhrView";
 import { useEhrPatient } from "./useEhrPatient";
+import { asRecordOrEmpty, trimmedString, unwrapList } from "@/lib/utils/coerce";
 
 type Raw = Record<string, unknown>;
 
-const asRecord = (value: unknown): Raw =>
-  value && typeof value === "object" && !Array.isArray(value) ? (value as Raw) : {};
-
-const asText = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
-
 function toArray(value: unknown): Raw[] {
-  if (Array.isArray(value)) return value as Raw[];
-  const record = asRecord(value);
-  for (const key of ["data", "items", "records", "appointments", "history", "labs", "results"]) {
-    const candidate = record[key];
-    if (Array.isArray(candidate)) return candidate as Raw[];
-  }
-  return [];
+  return unwrapList(value, "data", "items", "records", "appointments", "history", "labs", "results") as Raw[];
 }
 
 /** The dedicated list when it has rows, otherwise the same section of the full health record. */
@@ -47,6 +37,10 @@ function preferList(primary: unknown, fallback: unknown): Raw[] {
 /**
  * Data for the EHR workspace at `/doctor/patients/[id]`: the patient, the OPD visits, the
  * health record and the prescription dialog. The layout is `DoctorEhrView`.
+ *
+ * Two ids are in play. The route `[id]` is the Patient-record id (Patient.id): visits,
+ * appointments and prescriptions use it. The `/patients/:id` and `/ehr/*` routes are keyed on
+ * the patient's USER id, which `useEhrPatient` resolves from the patient row.
  */
 export function DoctorEhrContent({ patientId }: { patientId: string }) {
   const { clinicId } = useClinicContext();
@@ -63,36 +57,41 @@ export function DoctorEhrContent({ patientId }: { patientId: string }) {
   // The newest visit is open until the doctor picks another one.
   const visitId = pickedVisitId ?? visits[0]?.id ?? null;
 
-  const { patient, loading, failed, retry } = useEhrPatient(clinic, patientId, visitId, visitsQuery.isPending);
+  // `patientUserId` stays "" until the patient row is found, which keeps the user-keyed queries off.
+  const { patient, patientUserId, loading, failed, retry } = useEhrPatient(
+    clinic,
+    patientId,
+    visitId,
+    visitsQuery.isPending,
+  );
   const patientRecord = useMemo(() => patient ?? {}, [patient]);
-  const patientEntityId = asText(patientRecord.id) || patientId;
-  // EHR routes are keyed by the patient's user id.
-  const patientUserId = patient
-    ? asText(patientRecord.userId) || asText(asRecord(patientRecord.user).id) || patientId
-    : "";
+  const patientEntityId = trimmedString(patientRecord.id) || patientId;
 
+  // Keyed on the patient's USER id.
   const { data: ehrData, isPending: ehrPending } = useComprehensiveHealthRecord(patientUserId);
-  const { data: appointmentsData } = usePatientAppointments(patientId);
   const { data: historyData } = usePatientMedicalRecords(clinic, patientUserId, {
     enabled: !!clinic && !!patientUserId,
   });
   const { data: vitalsData } = usePatientVitalSigns(patientUserId);
   const { data: labsData } = usePatientLabResults(patientUserId);
-  const { data: carePlanData } = usePatientCarePlan(patientId);
+  // Keyed on the Patient-record id: this doctor's appointments with the patient.
+  const appointmentsQuery = usePatientAppointments(patientEntityId);
+  // The server has no care plan: `{ available: false, items: [], message }`, and no request is sent.
+  const { data: carePlanData } = usePatientCarePlan(patientEntityId);
 
-  const ehr = useMemo(() => asRecord(ehrData), [ehrData]);
+  const ehr = useMemo(() => asRecordOrEmpty(ehrData), [ehrData]);
   const record = useMemo(
     () => ({
       patient: patientRecord,
       ehr,
-      appointments: toArray(appointmentsData),
+      appointments: toArray(appointmentsQuery.data),
       history: preferList(historyData, ehr.medicalHistory),
       vitals: preferList(vitalsData, ehr.vitals),
       labs: preferList(labsData, ehr.labReports),
-      carePlan: preferList(carePlanData, ehr.carePlan ?? ehr.carePlans),
+      carePlan: toArray(carePlanData?.items),
       prescriptions: toArray(ehr.prescriptions),
     }),
-    [appointmentsData, carePlanData, ehr, historyData, labsData, patientRecord, vitalsData],
+    [appointmentsQuery.data, carePlanData, ehr, historyData, labsData, patientRecord, vitalsData],
   );
 
   const row = useMemo(() => toDoctorPatientRow(patientRecord), [patientRecord]);
@@ -103,7 +102,7 @@ export function DoctorEhrContent({ patientId }: { patientId: string }) {
     idLabel: patientEntityId.slice(0, 8).toUpperCase(),
     fullId: patientEntityId,
     bloodGroup:
-      asText(patientRecord.bloodGroup) || asText(asRecord(patientRecord.user).bloodGroup) || asText(ehr.bloodGroup),
+      trimmedString(patientRecord.bloodGroup) || trimmedString(asRecordOrEmpty(patientRecord.user).bloodGroup) || trimmedString(ehr.bloodGroup),
     phone: row.phone,
     email: row.email,
   };
@@ -139,7 +138,9 @@ export function DoctorEhrContent({ patientId }: { patientId: string }) {
         newVisitPending={createVisit.isPending}
         onPrescribe={canPrescribe ? () => setPrescribing(true) : undefined}
         record={record}
-        recordLoading={Boolean(patientUserId) && ehrPending}
+        recordLoading={(Boolean(patientUserId) && ehrPending) || (appointmentsQuery.isPending && !appointmentsQuery.error)}
+        appointmentsFailed={Boolean(appointmentsQuery.error)}
+        onRetryAppointments={() => void appointmentsQuery.refetch()}
         caseSheet={
           canOpenCaseSheet && visitId ? (
             <VisitCaseSheet

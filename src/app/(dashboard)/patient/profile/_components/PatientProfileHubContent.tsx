@@ -12,12 +12,11 @@ import { useUserProfile } from "@/hooks/query/useUsers";
 import { APP_CONFIG } from "@/lib/config/config";
 import { useLanguage } from "@/lib/i18n/context";
 import {
-  asList,
-  asRecord,
   buildPrescriptions,
   buildReportRows,
-} from "@/app/(dashboard)/patient/health/_components/patient-health.logic";
-import { usePatientUploads } from "@/app/(dashboard)/patient/health/_components/usePatientUploads";
+} from "@/components/patient/health/patient-health.logic";
+import { asRecordOrEmpty, unwrapRecords } from "@/lib/utils/coerce";
+import { usePatientUploads } from "@/hooks/query/usePatientUploads";
 import { PatientProfileHubView, type ProfileHubStat } from "./PatientProfileHubView";
 import {
   countCompletedVisits,
@@ -59,11 +58,11 @@ export function PatientProfileHubContent() {
 
   const reportCount = useMemo(() => {
     if (health.data === undefined) return null;
-    const record = asRecord(health.data);
+    const record = asRecordOrEmpty(health.data);
     return buildReportRows({
       labReports: record.labReports,
       radiologyReports: record.radiologyReports,
-      uploads: [...asList(record.documents), ...asList(uploads.data)],
+      uploads: [...unwrapRecords(record.documents), ...unwrapRecords(uploads.data)],
       prescriptions: buildPrescriptions(record.prescriptions),
       userId,
     }).length;

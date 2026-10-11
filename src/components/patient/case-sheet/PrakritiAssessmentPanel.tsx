@@ -6,14 +6,13 @@ import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { Divider, Note, Pill } from "@/components/tbd";
+import { Divider, Note, Pill, ChoiceChip } from "@/components/tbd";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import { PRAKRITI_QUESTIONS, type PrakritiDosha } from "@/lib/constants/case-sheet-fixed-lists";
 import { useCreatePrakritiAssessment, usePrakritiAssessments } from "@/hooks/query/usePatientVisits";
 import type { PrakritiAssessment } from "@/types/patient-visit.types";
 import {
   ExamEyebrow,
-  ExamOptionChip,
   ExamPanel,
   ExamPanelHead,
   ExamSaveButton,
@@ -179,13 +178,15 @@ export function PrakritiAssessmentView({
                   </span>
                   <div className="flex flex-wrap gap-2">
                     {question.options.map((option) => (
-                      <ExamOptionChip
+                      <ChoiceChip
                         key={option.dosha}
+                        className="whitespace-nowrap"
                         size="sm"
-                        label={option.label}
                         active={answers[question.key] === option.dosha}
                         onClick={() => onAnswer(question.key, option.dosha)}
-                      />
+                      >
+                        {option.label}
+                      </ChoiceChip>
                     ))}
                   </div>
                 </ExamTile>

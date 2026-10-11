@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Calendar, ChevronRight, CreditCard, FileText, Pill, type LucideIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TBD_SURFACE } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import type { HomeStat, HomeStatKey } from "./types";
 
@@ -11,8 +12,7 @@ const LOOK: Record<HomeStatKey, { icon: LucideIcon; well: string }> = {
   payments: { icon: CreditCard, well: "bg-[#fff5d2] text-[#b45309] dark:bg-amber-500/15 dark:text-amber-300" },
 };
 
-const CARD =
-  "flex min-w-0 items-center gap-3.5 rounded-[18px] bg-card p-4 text-ink shadow-card dark:border dark:border-border/70";
+const CARD = cn(TBD_SURFACE, "flex min-w-0 items-center gap-3.5 rounded-[18px] p-4 text-ink");
 
 /**
  * The four Home numbers. Each card links to its page. A number the API did not provide is

@@ -169,7 +169,11 @@ export const useUpdateUser = () => {
 export const useDeleteUser = () => {
   return useMutationOperation<{ status: number; data: { message: string } }, string>(
     async (id) => {
-      const response = await clinicApiClient.delete(API_ENDPOINTS.USERS.DELETE(id));
+      // DELETE /user/:id — SUPER_ADMIN only. A JSON request without a body is answered 400 by the
+      // backend (Fastify), so an empty object is sent.
+      const response = await clinicApiClient.delete(API_ENDPOINTS.USERS.DELETE(id), {
+        body: JSON.stringify({}),
+      });
       return { status: 200, data: { message: String((response.data as any)?.message ?? 'User deleted successfully') } };
     },
     {
@@ -459,14 +463,15 @@ export const useUpdateUserRole = () => {
       locationId?: string;
       permissions?: string[];
     }) => {
+      // PUT /user/:id/role (SUPER_ADMIN, CLINIC_ADMIN) accepts `role`, `clinicId` and `locationId`
+      // only; the server rejects unknown fields, so `permissions` is not sent (roles carry them).
+      void permissions;
       const updatePayload: {
         clinicId?: string;
         locationId?: string;
-        permissions?: string[];
       } = {};
       if (clinicId) updatePayload.clinicId = clinicId;
       if (locationId) updatePayload.locationId = locationId;
-      if (permissions) updatePayload.permissions = permissions;
 
       return (await clinicApiClient.put(API_ENDPOINTS.USERS.UPDATE_ROLE(userId), { role, ...updatePayload })).data as Record<string, unknown>;
     },
@@ -572,7 +577,8 @@ export const useSearchUsers = () => {
     }) => {
       return (await clinicApiClient.get(API_ENDPOINTS.USERS.SEARCH, {
         q: query,
-        ...(filters?.role ? { role: filters.role } : {}),
+        // GET /user/search reads `q`, `roles`, `limit` and `offset`.
+        ...(filters?.role ? { roles: filters.role } : {}),
         ...(filters?.clinicId ? { clinicId: filters.clinicId } : {}),
         ...(typeof filters?.isVerified === 'boolean' ? { isVerified: filters.isVerified } : {}),
       })).data as Record<string, unknown>[];

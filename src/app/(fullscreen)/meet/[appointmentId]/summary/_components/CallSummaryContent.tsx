@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useAppointment } from "@/hooks/query/useAppointments";
-import { useGeneratePrescriptionPDF, usePatientPrescriptions } from "@/hooks/query/useMedicalRecords";
+import { usePatientPrescriptions } from "@/hooks/query/useMedicalRecords";
 import {
   useConsultationSummary,
   useRateConsultation,
@@ -29,6 +29,8 @@ import {
   type SummaryPrescription,
   type SummaryRating,
 } from "./CallSummaryView";
+import { asRecord, trimmedString } from "@/lib/utils/coerce";
+import { prescriptionReference } from "@/lib/utils/labels";
 
 type Row = Record<string, unknown>;
 
@@ -46,21 +48,13 @@ const NOTE_HEADINGS: Record<string, string> = {
   PRESCRIPTION: "Prescription note",
 };
 
-function asRow(value: unknown): Row | null {
-  return value && typeof value === "object" ? (value as Row) : null;
-}
-
-function text(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
-}
-
 function joinParts(...parts: unknown[]): string {
-  return parts.map(text).filter(Boolean).join(" · ");
+  return parts.map(trimmedString).filter(Boolean).join(" · ");
 }
 
 /** The list the prescriptions endpoint returned, whatever envelope it came in. */
 function prescriptionRows(data: unknown): Row[] {
-  const record = asRow(data);
+  const record = asRecord(data);
   const list = Array.isArray(data)
     ? data
     : Array.isArray(record?.prescriptions)
@@ -68,7 +62,7 @@ function prescriptionRows(data: unknown): Row[] {
       : Array.isArray(record?.data)
         ? record.data
         : [];
-  return list.map(asRow).filter((row): row is Row => row !== null);
+  return list.map(asRecord).filter((row): row is Row => row !== null);
 }
 
 /**
@@ -86,10 +80,10 @@ function findVisitPrescription(rows: Row[], summary: VideoConsultationSummary): 
   if (visitDays.size === 0) return null;
   return (
     rows.find((row) => {
-      const written = text(row.date) || text(row.createdAt);
+      const written = trimmedString(row.date) || trimmedString(row.createdAt);
       if (!written || !visitDays.has(formatISODateInIST(written))) return false;
-      const doctor = asRow(row.doctor);
-      const rowDoctorUserId = text(doctor?.userId) || text(asRow(doctor?.user)?.id);
+      const doctor = asRecord(row.doctor);
+      const rowDoctorUserId = trimmedString(doctor?.userId) || trimmedString(asRecord(doctor?.user)?.id);
       return !doctorUserId || !rowDoctorUserId || rowDoctorUserId === doctorUserId;
     }) ?? null
   );
@@ -102,11 +96,11 @@ function prescriptionMedicines(prescription: Row): SummaryMedicine[] {
       ? prescription.medications
       : [];
   return items
-    .map(asRow)
+    .map(asRecord)
     .filter((item): item is Row => item !== null)
     .map((item, index) => ({
-      id: text(item.id) || `item-${index}`,
-      name: text(asRow(item.medicine)?.name) || text(item.medicineName) || text(item.name) || "Medicine",
+      id: trimmedString(item.id) || `item-${index}`,
+      name: trimmedString(asRecord(item.medicine)?.name) || trimmedString(item.medicineName) || trimmedString(item.name) || "Medicine",
       detail: joinParts(item.dosage, item.frequency, item.duration, item.instructions),
     }));
 }
@@ -114,10 +108,10 @@ function prescriptionMedicines(prescription: Row): SummaryMedicine[] {
 function noteMedicines(notes: VideoConsultationSummaryNote[]): SummaryMedicine[] {
   return notes.flatMap((note) =>
     (note.prescription?.medications ?? [])
-      .filter((medicine) => text(medicine?.name))
+      .filter((medicine) => trimmedString(medicine?.name))
       .map((medicine, index) => ({
         id: `${note.id}-${index}`,
-        name: text(medicine.name),
+        name: trimmedString(medicine.name),
         detail: joinParts(medicine.dosage, medicine.frequency, medicine.duration, medicine.instructions),
       })),
   );
@@ -128,22 +122,22 @@ function noteBlocks(notes: VideoConsultationSummaryNote[]): SummaryNoteBlock[] {
   for (const note of notes) {
     const plan = note.treatmentPlan ?? null;
     const lines = [
-      { label: "Diagnosis", value: text(plan?.diagnosis) },
-      { label: "Treatment", value: text(plan?.treatment) },
+      { label: "Diagnosis", value: trimmedString(plan?.diagnosis) },
+      { label: "Treatment", value: trimmedString(plan?.treatment) },
     ].filter((line) => line.value);
     const list = [
-      ...(plan?.recommendations ?? []).map(text),
+      ...(plan?.recommendations ?? []).map(trimmedString),
       ...(note.symptoms ?? []).map((symptom) => {
-        const name = text(symptom?.symptom);
-        const extra = [text(symptom?.severity), text(symptom?.duration)].filter(Boolean).join(", ");
+        const name = trimmedString(symptom?.symptom);
+        const extra = [trimmedString(symptom?.severity), trimmedString(symptom?.duration)].filter(Boolean).join(", ");
         return name ? `${name}${extra ? ` (${extra})` : ""}` : "";
       }),
     ].filter(Boolean);
-    const body = text(note.content);
+    const body = trimmedString(note.content);
     if (!body && lines.length === 0 && list.length === 0) continue;
     blocks.push({
       id: note.id,
-      heading: text(note.title) || NOTE_HEADINGS[String(note.noteType ?? "").toUpperCase()] || "Note",
+      heading: trimmedString(note.title) || NOTE_HEADINGS[String(note.noteType ?? "").toUpperCase()] || "Note",
       ...(body ? { text: body } : {}),
       ...(lines.length ? { lines } : {}),
       ...(list.length ? { list } : {}),
@@ -161,7 +155,8 @@ function bannerTitleFor(status: string): string {
 
 /**
  * Consultation Summary for one video visit: what the summary endpoint returns (who, when, how long,
- * the doctor's notes, the rating) plus the prescription written that day, with its PDF.
+ * the doctor's notes, the patient's own rating) plus the medicines prescribed that day. There is
+ * no prescription PDF: the backend has no such service.
  */
 export function CallSummaryContent({ appointmentId }: { appointmentId: string }) {
   const { session } = useAuth();
@@ -177,7 +172,6 @@ export function CallSummaryContent({ appointmentId }: { appointmentId: string })
     ? String(session?.user?.id ?? "")
     : (summary?.participants.find((person) => person.role === "patient")?.userId ?? "");
   const prescriptionsQuery = usePatientPrescriptions(summary ? patientUserId : "");
-  const pdf = useGeneratePrescriptionPDF();
   const rate = useRateConsultation();
 
   const [savedRating, setSavedRating] = useState(0);
@@ -192,28 +186,14 @@ export function CallSummaryContent({ appointmentId }: { appointmentId: string })
     () => (summary ? findVisitPrescription(prescriptionRows(prescriptionsQuery.data), summary) : null),
     [prescriptionsQuery.data, summary],
   );
-  const visitPrescriptionId = text(visitPrescription?.id);
-
-  const downloadPdf = pdf.mutate;
-  const handleDownload = useCallback(() => {
-    if (!visitPrescriptionId) return;
-    downloadPdf(visitPrescriptionId, {
-      onSuccess: (result: { pdfUrl?: string } | undefined) => {
-        if (!result?.pdfUrl) return;
-        const opened = window.open(result.pdfUrl, "_blank", "noopener,noreferrer");
-        if (!opened) window.location.assign(result.pdfUrl);
-      },
-    });
-  }, [downloadPdf, visitPrescriptionId]);
+  const visitPrescriptionId = trimmedString(visitPrescription?.id);
 
   const prescription: SummaryPrescription = useMemo(() => {
     if (visitPrescription) {
       return {
         state: "ready",
-        ...(visitPrescriptionId ? { number: `RX-${visitPrescriptionId.slice(0, 8).toUpperCase()}` } : {}),
+        ...(visitPrescriptionId ? { number: prescriptionReference(visitPrescriptionId, visitPrescription) } : {}),
         medicines: prescriptionMedicines(visitPrescription),
-        ...(visitPrescriptionId ? { onDownload: handleDownload } : {}),
-        isDownloading: pdf.isPending,
       };
     }
     const fromNotes = noteMedicines(notes);
@@ -222,10 +202,8 @@ export function CallSummaryContent({ appointmentId }: { appointmentId: string })
     if (prescriptionsQuery.error) return { state: "error", medicines: [] };
     return { state: "empty", medicines: [] };
   }, [
-    handleDownload,
     notes,
     patientUserId,
-    pdf.isPending,
     prescriptionsQuery.error,
     prescriptionsQuery.isPending,
     visitPrescription,
@@ -234,14 +212,14 @@ export function CallSummaryContent({ appointmentId }: { appointmentId: string })
 
   const blocks = useMemo(() => {
     const fromPrescription: SummaryNoteBlock[] = [];
-    const diagnosis = text(visitPrescription?.diagnosis);
-    const advice = text(visitPrescription?.notes);
+    const diagnosis = trimmedString(visitPrescription?.diagnosis);
+    const advice = trimmedString(visitPrescription?.notes);
     if (diagnosis) fromPrescription.push({ id: "rx-diagnosis", heading: "Diagnosis", text: diagnosis });
     if (advice) fromPrescription.push({ id: "rx-advice", heading: "Advice", text: advice });
     return [...fromPrescription, ...noteBlocks(notes)];
   }, [notes, visitPrescription]);
   const followUp = useMemo(
-    () => notes.map((note) => text(note.treatmentPlan?.followUp)).find(Boolean) ?? "",
+    () => notes.map((note) => trimmedString(note.treatmentPlan?.followUp)).find(Boolean) ?? "",
     [notes],
   );
 
@@ -266,14 +244,9 @@ export function CallSummaryContent({ appointmentId }: { appointmentId: string })
   );
 
   const ratingValue = savedRating || summary?.myRating?.rating || 0;
+  // Rating is the patient's own: other roles do not see the block.
   const rating: SummaryRating = {
-    mode: viewerIsPatient
-      ? RATEABLE_STATUSES.includes(appointmentStatus)
-        ? "rate"
-        : "hidden"
-      : ratingValue || appointmentStatus === "COMPLETED"
-        ? "readonly"
-        : "hidden",
+    mode: viewerIsPatient && RATEABLE_STATUSES.includes(appointmentStatus) ? "rate" : "hidden",
     value: ratingValue,
     pending: rate.isPending,
     saved: ratingSaved,
@@ -297,9 +270,9 @@ export function CallSummaryContent({ appointmentId }: { appointmentId: string })
     .filter(Boolean)
     .join(" · ");
 
-  const appointmentRecord = asRow(appointmentData);
+  const appointmentRecord = asRecord(appointmentData);
   const doctorPhotoUrl = viewerIsPatient
-    ? getAppointmentDoctorPhoto(asRow(appointmentRecord?.appointment) ?? asRow(appointmentRecord?.data) ?? appointmentRecord)
+    ? getAppointmentDoctorPhoto(asRecord(appointmentRecord?.appointment) ?? asRecord(appointmentRecord?.data) ?? appointmentRecord)
     : undefined;
 
   const appointmentsHref = videoAppointmentsRoute(role);

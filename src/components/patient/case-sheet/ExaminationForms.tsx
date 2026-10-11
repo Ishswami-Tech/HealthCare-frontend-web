@@ -5,9 +5,9 @@ import { useStableSnapshot } from "./use-stable-snapshot";
 import { useEffect, useId, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Divider, Pill, type PillTone } from "@/components/tbd";
+import { Divider, Pill, ChoiceChip, type PillTone } from "@/components/tbd";
 import { GENERAL_EXAM_TEXT_OPTIONS } from "@/lib/constants/case-sheet-fixed-lists";
-import { ExamEyebrow, ExamOptionChip, ExamPanel, ExamPanelHead, ExamSaveButton } from "./ExamParts";
+import { ExamEyebrow, ExamPanel, ExamPanelHead, ExamSaveButton } from "./ExamParts";
 import type {
   UpsertVisitVitalsExaminationInput,
   VisitVitalsExamination,
@@ -207,16 +207,18 @@ export function GeneralExaminationForm({ vitals: vitalsProp, onSave, isSaving = 
               {GENERAL_EXAM_TEXT_OPTIONS[field].map((option) => {
                 const active = text[field] === option;
                 return (
-                  <ExamOptionChip
+                  <ChoiceChip
                     key={option}
+                    className="whitespace-nowrap"
                     size="md"
-                    label={option}
                     active={active}
                     onClick={() => {
                       setText((prev) => ({ ...prev, [field]: active ? "" : option }));
                       setDirty(true);
                     }}
-                  />
+                  >
+                    {option}
+                  </ChoiceChip>
                 );
               })}
             </div>

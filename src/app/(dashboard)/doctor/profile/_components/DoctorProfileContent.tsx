@@ -16,13 +16,14 @@ import type {
   DoctorProfileUser,
   SaveProfileMutation,
 } from "./doctor-profile.types";
-import { asRecord, educationList, stringList } from "./doctor-profile.logic";
+import { educationList, stringList } from "./doctor-profile.logic";
 import { DoctorProfileOverviewCard } from "./DoctorProfileOverviewCard";
 import { DoctorProfilePersonalTab } from "./DoctorProfilePersonalTab";
 import { DoctorProfileProfessionalTab } from "./DoctorProfileProfessionalTab";
 import { DoctorProfileConsultationTab } from "./DoctorProfileConsultationTab";
 import { DoctorProfileAvailabilityTab } from "./DoctorProfileAvailabilityTab";
 import { DoctorProfileReviewsTab } from "./DoctorProfileReviewsTab";
+import { asRecordOrEmpty } from "@/lib/utils/coerce";
 
 interface DoctorProfileContentProps {
   user: DoctorProfileUser | undefined;
@@ -73,7 +74,7 @@ function createInitialProfileData(
 ): DoctorProfileFormState {
   const profile = (userProfile || {}) as Record<string, unknown>;
   // Doctor-only fields may sit on the profile itself or on its `doctor` record.
-  const doctor = asRecord(profile.doctor);
+  const doctor = asRecordOrEmpty(profile.doctor);
   const pick = (...fields: string[]): unknown => {
     for (const field of fields) {
       const value = profile[field] ?? doctor[field];
@@ -135,7 +136,8 @@ function createInitialProfileData(
     },
     professionalInfo: {
       medicalLicense: fieldText(pick("medicalLicense", "licenseNumber", "registrationNumber")),
-      specializations: pick("specialization") ? [String(pick("specialization"))] : [],
+      // One text field on the server: several specializations are kept comma-separated.
+      specializations: stringList(pick("specialization")),
       experience: fieldText(pick("experience")),
       education: educationList(pick("education"), pick("qualification")),
       certifications: stringList(pick("certifications")),
@@ -149,7 +151,8 @@ function createInitialProfileData(
       videoConsultation: pick("videoConsultation") === true,
       homeVisits: pick("homeVisits") === true,
       emergencyConsultation: pick("emergencyConsultation") === true,
-      consultationDuration: fieldText(pick("consultationDuration")) || "30",
+      // No default: the field shows only what the profile really has.
+      consultationDuration: fieldText(pick("consultationDuration")),
       maxPatientsPerDay: "",
       bookingAdvanceDays: "30",
     },
@@ -268,13 +271,26 @@ export function DoctorProfileContent({
     ],
   );
 
+  // Saving before the profile has loaded would overwrite it with the empty form.
+  const canSave = Boolean(userProfile);
+  const hadSpecialization = useMemo(
+    () => createInitialProfileData(undefined, userProfile).professionalInfo.specializations.length > 0,
+    [userProfile],
+  );
+
   const photoUrl =
     fieldText((userProfile as Record<string, unknown> | null | undefined)?.profilePicture) ||
     fieldText(user?.profilePicture) ||
     undefined;
 
+  // Sent to POST /profile/completion/update, which accepts (of what this screen edits):
+  // firstName, lastName, phone, dateOfBirth, gender, address, city, state, country, zipCode,
+  // specialization (one text), experience (number), availability. E-mail, licence, languages,
+  // education, certifications and the consultation settings are not saved by it: read-only here.
   const buildSavePayload = (data: DoctorProfileFormState) => {
     const { personalInfo, availability, professionalInfo } = data;
+    const specialization = professionalInfo.specializations.join(", ");
+    const experience = professionalInfo.experience.trim();
     return {
       firstName: personalInfo.firstName,
       lastName: personalInfo.lastName,
@@ -290,12 +306,9 @@ export function DoctorProfileContent({
       ...(omitEmpty(personalInfo.state) ? { state: omitEmpty(personalInfo.state) } : {}),
       ...(omitEmpty(personalInfo.country) ? { country: omitEmpty(personalInfo.country) } : {}),
       ...(omitEmpty(personalInfo.zipCode) ? { zipCode: omitEmpty(personalInfo.zipCode) } : {}),
-      ...(professionalInfo.specializations[0]
-        ? { specialization: professionalInfo.specializations[0] }
-        : {}),
-      ...(professionalInfo.experience
-        ? { experience: parseInt(professionalInfo.experience, 10) || undefined }
-        : {}),
+      // Every listed specialization is saved; an emptied list clears the one the profile had.
+      ...(specialization || hadSpecialization ? { specialization } : {}),
+      ...(experience ? { experience: Number(experience) } : {}),
       availability: formatAvailabilityPayload(availability),
     };
   };
@@ -305,6 +318,13 @@ export function DoctorProfileContent({
     options?: { stayOnTab?: ProfileTab; successMessage?: string },
   ): Promise<boolean> => {
     const tabBeforeSave = options?.stayOnTab || activeTab;
+    // Nothing is sent, and nothing is reported as saved, when a value cannot be stored.
+    if (!/^\d{0,2}$/.test(data.professionalInfo.experience.trim())) {
+      showErrorToast("Years of experience must be a whole number, for example 12.", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
+      return false;
+    }
     try {
       const payload = buildSavePayload(data);
       const result = await updateProfileMutation.mutateAsync(payload);
@@ -399,7 +419,7 @@ export function DoctorProfileContent({
     <Button
       size="md"
       onClick={handleSaveProfile}
-      disabled={updateProfileMutation.isPending || isLoading}
+      disabled={updateProfileMutation.isPending || isLoading || !canSave}
       type="button"
     >
       {updateProfileMutation.isPending ? <LoaderIcon /> : <Save aria-hidden="true" />}
@@ -412,7 +432,7 @@ export function DoctorProfileContent({
       <PageHero
         eyebrow="Account"
         title="Doctor Profile"
-        description="Update your profile details. Use Save Changes on each section — your current tab stays open."
+        description="Update your personal details, specializations, experience and working hours. Fields you cannot change here are greyed out."
         actions={headerActions}
       />
 
@@ -474,6 +494,7 @@ export function DoctorProfileContent({
               updateAvailability={updateAvailability}
               onSave={handleSaveAvailability}
               isSaving={updateProfileMutation.isPending || isLoading}
+              saveDisabled={!canSave}
             />
           </TabsContent>
 

@@ -23,6 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { InitialsAvatar, Note, Pill, statusTone } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import type { HomeQueue, HomeVisit } from "./types";
+import { plural } from "@/lib/utils/labels";
 
 export interface HomeVisitActions {
   /** Open the video waiting room for this visit. */
@@ -44,10 +45,6 @@ function useMinuteClock(): number | null {
     return () => window.clearInterval(timer);
   }, []);
   return now;
-}
-
-function plural(count: number, word: string): string {
-  return `${count} ${word}${count === 1 ? "" : "s"}`;
 }
 
 /** "Starts in 25 minutes", "Started 5 minutes ago", "Starts in 3 days". */
@@ -170,7 +167,7 @@ function VideoVisitCard({ visit, actions }: { visit: HomeVisit; actions: HomeVis
               onClick={() => actions.onJoin(visit.id)}
               className={cn(
                 barClass,
-                "transition-colors hover:bg-[#d1fae5] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40 dark:hover:bg-emerald-500/20",
+                "transition-colors hover:bg-mint focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40",
               )}
             >
               {barBody}
@@ -239,8 +236,8 @@ function CheckInSteps() {
               className={cn(
                 "flex size-9 shrink-0 items-center justify-center rounded-full text-[13px] font-extrabold",
                 current
-                  ? "border-2 border-[#047857] bg-card text-[#047857] dark:border-emerald-400 dark:text-emerald-300"
-                  : "bg-[#f1f5f9] text-ink-muted dark:bg-white/10",
+                  ? "border-2 border-brand bg-card text-brand"
+                  : "bg-well text-ink-muted",
               )}
               aria-hidden="true"
             >
@@ -259,9 +256,9 @@ function CheckInSteps() {
 
 function QueueTile({ label, value, accent = false, last = false }: { label: string; value: string; accent?: boolean; last?: boolean }) {
   return (
-    <div className={cn("flex flex-col items-center gap-0.5 px-1 text-center", !last && "border-r border-[#d1fae5] dark:border-emerald-900/60")}>
+    <div className={cn("flex flex-col items-center gap-0.5 px-1 text-center", !last && "border-r border-mint")}>
       <span className="text-xs text-ink-muted">{label}</span>
-      <span className={cn("text-[22px] font-extrabold leading-tight", accent ? "text-[#047857] dark:text-emerald-300" : "text-ink")}>
+      <span className={cn("text-[22px] font-extrabold leading-tight", accent ? "text-brand" : "text-ink")}>
         {value}
       </span>
     </div>
@@ -302,10 +299,10 @@ function QueueTrack({ ahead }: { ahead: number }) {
         </div>
       ))}
       <div className="relative flex flex-col items-center gap-1.5">
-        <span className="flex size-[26px] items-center justify-center rounded-full bg-[#047857] text-white">
+        <span className="flex size-[26px] items-center justify-center rounded-full bg-primary text-white">
           <Check className="size-3.5" strokeWidth={3} />
         </span>
-        <span className="text-xs font-extrabold text-[#047857] dark:text-emerald-300">You</span>
+        <span className="text-xs font-extrabold text-brand">You</span>
       </div>
     </div>
   );
@@ -346,10 +343,10 @@ function QueuePanel({ visit, queue }: { visit: HomeVisit; queue?: HomeQueue | nu
           {wait !== null ? (
             <span>
               Estimated wait time:{" "}
-              <strong className="font-extrabold text-[#047857] dark:text-emerald-300">~{Math.max(0, Math.round(wait))} min</strong>
+              <strong className="font-extrabold text-brand">~{Math.max(0, Math.round(wait))} min</strong>
             </span>
           ) : ahead === 0 ? (
-            <span className="font-bold text-[#047857] dark:text-emerald-300">You are next.</span>
+            <span className="font-bold text-brand">You are next.</span>
           ) : (
             <span>Wait time shows on the live queue.</span>
           )}
@@ -386,7 +383,7 @@ function ClinicVisitCard({
         </span>
         <span className="flex-1 text-sm font-bold text-ink">In-Clinic Visit</span>
         {inQueue ? (
-          <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-[#047857] px-2.5 py-[5px] text-[11px] font-extrabold uppercase leading-none tracking-[0.4px] text-white">
+          <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-primary px-2.5 py-[5px] text-[11px] font-extrabold uppercase leading-none tracking-[0.4px] text-white">
             <span className="tbd-pulse size-1.5 rounded-full bg-[#a7f3d0]" aria-hidden="true" />
             Live queue
           </span>

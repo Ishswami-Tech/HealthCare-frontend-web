@@ -43,7 +43,7 @@ export function PharmacistDashboardInventoryAlerts({
         <h2 id="pharmacy-alerts-title" className="m-0 flex-1 text-base font-bold text-ink">
           Inventory Alerts
         </h2>
-        <Button asChild variant="outline" className="h-[34px]">
+        <Button asChild variant="outline" size="compact">
           <Link href={addStockHref}>
             <Plus aria-hidden="true" />
             Add Stock
@@ -85,7 +85,7 @@ export function PharmacistDashboardInventoryAlerts({
                     {alert.reorderAt > 0 ? ` · reorder at ${alert.reorderAt}` : ""}
                   </span>
                 </span>
-                <Button asChild variant="soft" className="h-[34px]">
+                <Button asChild variant="soft" size="compact">
                   <Link href={restockHref(alert)} aria-label={`Restock ${alert.name}`}>
                     Restock
                   </Link>

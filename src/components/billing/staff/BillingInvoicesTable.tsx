@@ -4,11 +4,23 @@ import type { ReactNode } from "react";
 import { AlertCircle, FileText, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CellTitle, EmptyBlock, InitialsAvatar, Pill, Surface, statusLabel, statusTone } from "@/components/tbd";
+import {
+  CellTitle,
+  EmptyBlock,
+  InitialsAvatar,
+  Pill,
+  SkeletonRows,
+  Surface,
+  statusLabel,
+  statusTone,
+  PAGE_SIZE_OPTIONS,
+  Pager,
+  usePagedRows,
+} from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import type { Invoice } from "@/types/billing.types";
-import { BillingPager, useBillingPaging } from "./BillingPager";
-import { formatBillingDate, formatRupees, invoiceNumberLabel, invoiceOrderId } from "./billing.logic";
+import { formatBillingDate, invoiceNumberLabel, invoiceOrderId } from "./billing.logic";
+import { formatRupees } from "@/lib/utils/currency";
 
 /**
  * One line per invoice on a wide card (invoice, patient, amount, status, actions).
@@ -105,34 +117,28 @@ export function InvoiceRowActions({
   );
 }
 
-function SkeletonRows({ layout, rows = 5 }: { layout: keyof typeof ROW_COLUMNS; rows?: number }) {
+/** Placeholder rows in the grid of this table. */
+function TableSkeleton({ layout, rows = 5 }: { layout: keyof typeof ROW_COLUMNS; rows?: number }) {
   return (
-    <div aria-hidden="true">
-      {Array.from({ length: rows }).map((_, index) => (
-        <div
-          key={index}
-          className={cn(ROW_BASE, ROW_COLUMNS[layout], ROW_HEIGHT[layout], "items-center gap-y-2.5 border-b border-hair py-3.5 last:border-b-0")}
-        >
-          <div className="flex flex-col gap-1.5">
-            <Skeleton className="h-3.5 w-32 rounded" />
-            <Skeleton className="h-3 w-44 max-w-full rounded" />
-          </div>
-          <div className={cn("col-[1] row-[2] flex items-center gap-3", AUTO[layout])}>
-            <Skeleton className="size-8 rounded-full" />
-            <Skeleton className="h-3.5 w-28 rounded" />
-          </div>
-          <div className={cn("col-[2] row-[2]", AUTO[layout])}>
-            <Skeleton className="h-3.5 w-12 rounded" />
-          </div>
-          <div className={cn("col-[2] row-[1]", AUTO[layout])}>
-            <Skeleton className="h-[22px] w-16 rounded-lg" />
-          </div>
-          <div className={cn("col-[1/-1] row-[3]", AUTO[layout])}>
-            <Skeleton className="h-9 w-32 rounded-xl" />
-          </div>
-        </div>
-      ))}
-    </div>
+    <SkeletonRows rows={rows} rowClassName={cn(ROW_BASE, ROW_COLUMNS[layout], ROW_HEIGHT[layout], "items-center gap-y-2.5 py-3.5")}>
+      <div className="flex flex-col gap-1.5">
+        <Skeleton className="h-3.5 w-32 rounded" />
+        <Skeleton className="h-3 w-44 max-w-full rounded" />
+      </div>
+      <div className={cn("col-[1] row-[2] flex items-center gap-3", AUTO[layout])}>
+        <Skeleton className="size-8 rounded-full" />
+        <Skeleton className="h-3.5 w-28 rounded" />
+      </div>
+      <div className={cn("col-[2] row-[2]", AUTO[layout])}>
+        <Skeleton className="h-3.5 w-12 rounded" />
+      </div>
+      <div className={cn("col-[2] row-[1]", AUTO[layout])}>
+        <Skeleton className="h-[22px] w-16 rounded-lg" />
+      </div>
+      <div className={cn("col-[1/-1] row-[3]", AUTO[layout])}>
+        <Skeleton className="h-9 w-32 rounded-xl" />
+      </div>
+    </SkeletonRows>
   );
 }
 
@@ -145,7 +151,7 @@ export function BillingInvoicesTable({
   filtered = false,
   ...actions
 }: BillingInvoicesTableProps) {
-  const paging = useBillingPaging(invoices, resetKey);
+  const paging = usePagedRows(invoices, PAGE_SIZE_OPTIONS[0], { resetKey });
   const layout: keyof typeof ROW_COLUMNS = actions.onMarkPaid || actions.onSendWhatsApp ? "wide" : "basic";
 
   return (
@@ -168,7 +174,7 @@ export function BillingInvoicesTable({
         </div>
 
         {loading ? (
-          <SkeletonRows layout={layout} />
+          <TableSkeleton layout={layout} />
         ) : paging.pageRows.length === 0 ? (
           <div role="row">
             <div role="cell">
@@ -229,7 +235,7 @@ export function BillingInvoicesTable({
         )}
       </div>
 
-      {loading || failed ? null : <BillingPager paging={paging} id="billing-invoices" />}
+      {loading || failed ? null : <Pager paging={paging} noun="row(s)" pageSizeOptions={PAGE_SIZE_OPTIONS} id="billing-invoices" />}
     </Surface>
   );
 }

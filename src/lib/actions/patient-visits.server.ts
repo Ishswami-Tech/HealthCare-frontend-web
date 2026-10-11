@@ -171,6 +171,9 @@ export async function deleteFamilyHistory(clinicId: string, id: string): Promise
   await requireSession();
   await authenticatedApi<void>(API_ENDPOINTS.EHR.FAMILY_HISTORY.DELETE(id), {
     method: "DELETE",
+    // The API client always sends `Content-Type: application/json`, and the backend (Fastify)
+    // answers 400 "Body cannot be empty" to a JSON request without a body. The route reads no body.
+    body: JSON.stringify({}),
     headers: clinicHeaders(clinicId),
   });
 }
@@ -217,6 +220,9 @@ export async function deleteFamilyMember(clinicId: string, id: string): Promise<
   await requireSession();
   await authenticatedApi<void>(API_ENDPOINTS.FAMILY_MEMBERS.DELETE(id), {
     method: "DELETE",
+    // The API client always sends `Content-Type: application/json`, and the backend (Fastify)
+    // answers 400 "Body cannot be empty" to a JSON request without a body. The route reads no body.
+    body: JSON.stringify({}),
     headers: clinicHeaders(clinicId),
   });
 }

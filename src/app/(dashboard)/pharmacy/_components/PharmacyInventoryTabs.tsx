@@ -22,14 +22,13 @@ import { Button } from "@/components/ui/button";
 import { SkeletonList } from "@/components/ui/loading";
 import { EmptyBlock, IconBox, Kpi, Note, Pill, Surface, statusLabel, type TbdIcon } from "@/components/tbd";
 import {
-  dateTimeLabel,
-  dayLabel,
-  formatRupees,
   orderTone,
   type AnalyticsSummary,
   type OrderRow,
   type SupplierCard,
 } from "./pharmacy-inventory.logic";
+import { formatRupees } from "@/lib/utils/currency";
+import { formatDateLabel, formatDateTimeLabel } from "@/lib/utils/date-time";
 
 const NOT_YET = "Not available yet";
 
@@ -100,7 +99,7 @@ export function PharmacyOrdersTab({
           <EmptyBlock
             icon={Truck}
             title="The order list is not available yet"
-            description="You can place an order with a supplier, but past orders cannot be shown here yet."
+            description="Past orders cannot be shown here yet, and the server refuses new purchase orders for now."
             action={
               canManage ? (
                 <Button size="md" onClick={onNewOrder}>
@@ -145,7 +144,7 @@ export function PharmacyOrdersTab({
                       {order.lines.map((line) => (
                         <span
                           key={line.id}
-                          className="rounded-lg bg-mint-soft px-[9px] py-[5px] text-xs font-semibold text-[#065f46] dark:text-emerald-300"
+                          className="rounded-lg bg-mint-soft px-[9px] py-[5px] text-xs font-semibold text-brand-dark"
                         >
                           {line.name} × {line.quantity}
                         </span>
@@ -156,12 +155,12 @@ export function PharmacyOrdersTab({
                 <div className="flex min-w-0 flex-row flex-wrap gap-x-6 gap-y-2.5 md:flex-col">
                   <div className="flex min-w-0 flex-col gap-0.5">
                     <span className="text-xs text-ink-muted">Order date</span>
-                    <span className="text-sm font-medium text-ink">{dateTimeLabel(order.orderedAt) || "—"}</span>
+                    <span className="text-sm font-medium text-ink">{formatDateTimeLabel(order.orderedAt) || "—"}</span>
                   </div>
                   {order.expectedAt ? (
                     <div className="flex min-w-0 flex-col gap-0.5">
                       <span className="text-xs text-ink-muted">Expected</span>
-                      <span className="text-sm font-bold text-ink">{dayLabel(order.expectedAt)}</span>
+                      <span className="text-sm font-bold text-ink">{formatDateLabel(order.expectedAt)}</span>
                     </div>
                   ) : null}
                 </div>
@@ -389,7 +388,7 @@ export function PharmacyAnalyticsTab({ analytics, loading = false }: { analytics
                   <span className="truncate text-[13px] font-semibold text-ink">{category.label}</span>
                   <span className="flex h-4 rounded bg-well" aria-hidden="true">
                     <span
-                      className="rounded bg-[#047857] dark:bg-emerald-500"
+                      className="rounded bg-primary"
                       style={{ width: `${Math.max(2, (category.percent / topShare) * 100)}%` }}
                     />
                   </span>
@@ -421,7 +420,7 @@ export function PharmacyAnalyticsTab({ analytics, loading = false }: { analytics
                       className={
                         month.current
                           ? "w-full max-w-11 rounded-t bg-[repeating-linear-gradient(135deg,#047857_0_6px,#34d399_6px_12px)]"
-                          : "w-full max-w-11 rounded-t bg-[#047857] dark:bg-emerald-500"
+                          : "w-full max-w-11 rounded-t bg-primary"
                       }
                       style={{ height: Math.max(4, Math.round((month.amount / peak) * BAR_AREA)) }}
                       aria-hidden="true"
@@ -529,7 +528,7 @@ export function PharmacySettingsTab({ info }: { info: PharmacySettingsInfo }) {
             value={info.partnerCount !== null ? `${info.partnerCount} active` : "—"}
           />
           <InfoRow label="Medicines in Stock List" value={info.medicineCount !== null ? String(info.medicineCount) : "—"} />
-          <InfoRow label="Last Inventory Sync" value={dateTimeLabel(info.lastSyncedAt) || "—"} />
+          <InfoRow label="Last Inventory Sync" value={formatDateTimeLabel(info.lastSyncedAt) || "—"} />
         </dl>
       </Surface>
     </div>

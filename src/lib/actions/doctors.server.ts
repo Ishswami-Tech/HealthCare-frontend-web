@@ -122,7 +122,9 @@ export async function getDoctors(clinicId: string, filters?: {
 }
 
 /**
- * Get doctor by ID
+ * Get doctor by ID.
+ * Backend: GET /doctors/:id — `:id` is the doctor's USER id. DOCTOR, ASSISTANT_DOCTOR, RECEPTIONIST,
+ * CLINIC_ADMIN, SUPER_ADMIN, PATIENT.
  */
 export async function getDoctorById(doctorId: string, clinicId?: string) {
   const session = await getServerSession();
@@ -137,7 +139,11 @@ export async function getDoctorById(doctorId: string, clinicId?: string) {
 }
 
 /**
- * Create doctor
+ * Create or update a doctor profile.
+ * Backend: POST /doctors — CLINIC_ADMIN, SUPER_ADMIN only (a doctor cannot save these fields for
+ * themselves). Body (nothing else is accepted): `userId`, `clinicId?` (UUID), `specialization?`,
+ * `experience?` (whole number), `qualification?`, `consultationFee?`, `workingHours?`.
+ * `licenseNumber` and `schedule` have no field on the server and are not sent.
  */
 export async function createDoctor(doctorData: {
   userId: string;
@@ -160,9 +166,24 @@ export async function createDoctor(doctorData: {
     throw new Error('Unauthorized: Authentication required');
   }
 
+  // The server takes the clinic from the request context; `clinicId` in the body must be a UUID.
+  const clinicUuid =
+    doctorData.clinicId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(doctorData.clinicId)
+      ? doctorData.clinicId
+      : undefined;
+
   const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.CREATE, {
     method: 'POST',
-    body: JSON.stringify(doctorData),
+    body: JSON.stringify({
+      userId: doctorData.userId,
+      ...(clinicUuid ? { clinicId: clinicUuid } : {}),
+      ...(doctorData.specialization !== undefined ? { specialization: doctorData.specialization } : {}),
+      ...(doctorData.experience !== undefined ? { experience: doctorData.experience } : {}),
+      ...(doctorData.qualification !== undefined ? { qualification: doctorData.qualification } : {}),
+      ...(doctorData.consultationFee !== undefined ? { consultationFee: doctorData.consultationFee } : {}),
+      ...(doctorData.workingHours !== undefined ? { workingHours: doctorData.workingHours } : {}),
+    }),
+    ...(doctorData.clinicId ? { clinicId: doctorData.clinicId } : {}),
   });
   if (doctorData.clinicId) {
     void revalidateCache('doctors');

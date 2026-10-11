@@ -59,7 +59,7 @@ export function PatientHomeWorkspace({
     <Surface as="section" aria-labelledby="patient-home-workspace" className="@container gap-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <span
-          className="flex size-11 shrink-0 items-center justify-center rounded-[14px] bg-[#047857] text-white"
+          className="flex size-11 shrink-0 items-center justify-center rounded-[14px] bg-primary text-white"
           aria-hidden="true"
         >
           <Activity className="size-5" strokeWidth={2.2} />

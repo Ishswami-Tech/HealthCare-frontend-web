@@ -417,6 +417,8 @@ export async function deleteBillingPlan(id: string): Promise<{
     }
     await authenticatedApi(API_ENDPOINTS.BILLING.PLANS.DELETE(id), {
       method: 'DELETE',
+      // A JSON request without a body is answered 400 by the backend (Fastify).
+      body: JSON.stringify({}),
     });
     return { success: true };
   } catch (error) {
@@ -563,9 +565,12 @@ export async function cancelSubscription(
     if (!session?.user?.id) {
       throw new Error('Unauthorized: Authentication required');
     }
-    const { data: response } = await authenticatedApi(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.CANCEL(id), {
+    // POST /billing/subscriptions/:id/cancel reads `immediate` from the query string, not the body.
+    const endpoint = `${API_ENDPOINTS.BILLING.SUBSCRIPTIONS.CANCEL(id)}${immediate ? '?immediate=true' : ''}`;
+    const { data: response } = await authenticatedApi(endpoint, {
       method: 'POST',
-      body: JSON.stringify({ immediate }),
+      // A JSON request without a body is answered 400 by the backend (Fastify).
+      body: JSON.stringify({}),
     });
     if (!response || typeof response !== 'object') {
       return { success: false, error: 'Invalid subscription response' };
@@ -588,6 +593,8 @@ export async function renewSubscription(id: string): Promise<{
     }
     const { data } = await authenticatedApi(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.RENEW(id), {
       method: 'POST',
+      // A JSON request without a body is answered 400 by the backend (Fastify).
+      body: JSON.stringify({}),
     });
     if (!data || typeof data !== 'object') {
       return { success: false, error: 'Invalid subscription response' };
@@ -739,6 +746,8 @@ export async function markInvoiceAsPaid(id: string): Promise<{
     }
     const { data: response } = await authenticatedApi(API_ENDPOINTS.BILLING.INVOICES.MARK_PAID(id), {
       method: 'POST',
+      // A JSON request without a body is answered 400 by the backend (Fastify).
+      body: JSON.stringify({}),
     });
     if (!response || typeof response !== 'object') {
       return { success: false, error: 'Invalid invoice response' };
@@ -760,6 +769,8 @@ export async function sendInvoiceViaWhatsApp(invoiceId: string): Promise<{
     }
     await authenticatedApi(API_ENDPOINTS.BILLING.INVOICES.SEND_WHATSAPP(invoiceId), {
       method: 'POST',
+      // A JSON request without a body is answered 400 by the backend (Fastify).
+      body: JSON.stringify({}),
     });
     return { success: true };
   } catch (error) {
@@ -781,6 +792,8 @@ export async function generateInvoicePDF(id: string): Promise<{
     }
     const { data } = await authenticatedApi(API_ENDPOINTS.BILLING.INVOICES.GENERATE_PDF(id), {
       method: 'POST',
+      // A JSON request without a body is answered 400 by the backend (Fastify).
+      body: JSON.stringify({}),
     });
     const pdfData = data as { url?: string; pdfUrl?: string; message?: string } | undefined;
     const pdfUrl = `/api/billing/invoices/${id}/download`;
@@ -967,7 +980,9 @@ export async function createPaymentIntent(
 
     const { data } = await authenticatedApi(endpoint, {
       method: 'POST',
-      ...(Object.keys(body).length > 0 ? { body: JSON.stringify(body) } : {}),
+      // Always a JSON body: the backend (Fastify) answers 400 to a JSON request without one, and
+      // POST /billing/appointments/:id/process-payment reads `appointmentType` from it.
+      body: JSON.stringify(body),
     });
 
     const response = data as {
@@ -1125,6 +1140,8 @@ export async function releaseAppointmentPayout(appointmentId: string): Promise<{
       API_ENDPOINTS.BILLING.APPOINTMENT_PAYMENTS.RELEASE_PAYOUT(appointmentId),
       {
         method: 'POST',
+        // A JSON request without a body is answered 400 by the backend (Fastify).
+        body: JSON.stringify({}),
       }
     );
     return { success: true, data: data as Record<string, unknown> };
@@ -1176,7 +1193,8 @@ export async function bookAppointmentWithSubscription(
     }
     const { data } = await authenticatedApi(
       API_ENDPOINTS.BILLING.SUBSCRIPTIONS.BOOK_APPOINTMENT(subscriptionId, appointmentId),
-      { method: 'POST' }
+      // A JSON request without a body is answered 400 by the backend (Fastify).
+      { method: 'POST', body: JSON.stringify({}) }
     );
     return { success: true, message: (data as { message?: string })?.message || 'Appointment linked to subscription' };
   } catch (error) {

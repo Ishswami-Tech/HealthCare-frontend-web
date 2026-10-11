@@ -8,7 +8,7 @@ const NOTICE_TONES = {
     "border-[#fcd34d] bg-[#fffbeb] text-[#92400e] [&_svg]:text-[#d97706] dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200 dark:[&_svg]:text-amber-300",
   rose: "border-[#fecdd3] bg-[#fff1f2] text-[#9f1239] [&_svg]:text-[#e11d48] dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-200 dark:[&_svg]:text-rose-300",
   green:
-    "border-[#a7f3d0] bg-[#ecfdf5] text-[#065f46] [&_svg]:text-[#047857] dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200 dark:[&_svg]:text-emerald-300",
+    "border-[#a7f3d0] bg-[#ecfdf5] text-[#065f46] [&_svg]:text-brand dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200",
 } as const;
 
 /** Warning / error / information box with a title, a few lines and optional buttons. */
@@ -113,7 +113,7 @@ export function bookingOptionClass(selected: boolean, className?: string): strin
   return cn(
     "w-full rounded-2xl border-2 text-left transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40",
     selected
-      ? "border-[#047857] bg-mint-soft dark:border-emerald-500"
+      ? "border-brand bg-mint-soft"
       : "border-line bg-card hover:border-brand/40 hover:bg-mint-soft/60",
     className,
   );

@@ -5,7 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { BookOpen, ChevronRight, Play } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SegTabs, type TbdOption } from "@/components/tbd";
+import { SegTabs, TBD_SURFACE, type TbdOption } from "@/components/tbd";
+import { cn } from "@/lib/utils";
 import type { HomeLibraryItem, HomeLibraryTab } from "./types";
 
 const TABS: TbdOption<HomeLibraryTab>[] = [
@@ -15,7 +16,7 @@ const TABS: TbdOption<HomeLibraryTab>[] = [
   { value: "courses", label: "Courses" },
 ];
 
-const CARD = "flex min-w-0 items-center gap-3.5 rounded-[20px] bg-card p-3 text-ink shadow-card dark:border dark:border-border/70";
+const CARD = cn(TBD_SURFACE, "flex min-w-0 items-center gap-3.5 p-3 text-ink");
 
 function Cover({ item }: { item: HomeLibraryItem }) {
   const [failed, setFailed] = useState(false);

@@ -3,25 +3,16 @@
  * consultation summary). They only pick display values out of an appointment record.
  */
 
-type Row = Record<string, unknown>;
-
-function asRow(value: unknown): Row | null {
-  return value && typeof value === "object" ? (value as Row) : null;
-}
-
-function firstText(...values: unknown[]): string {
-  for (const value of values) {
-    if (typeof value === "string" && value.trim()) return value.trim();
-  }
-  return "";
-}
+import { asRecord, firstString } from "@/lib/utils/coerce";
+import { ROUTES } from "@/lib/config/routes";
+import { Role } from "@/types/auth.types";
 
 /** The doctor's photo, when the appointment carries a usable URL. */
 export function getAppointmentDoctorPhoto(appointment: unknown): string | undefined {
-  const record = asRow(appointment);
-  const doctor = asRow(record?.doctor);
-  const doctorUser = asRow(doctor?.user);
-  const url = firstText(
+  const record = asRecord(appointment);
+  const doctor = asRecord(record?.doctor);
+  const doctorUser = asRecord(doctor?.user);
+  const url = firstString(
     doctor?.profilePicture,
     doctor?.avatar,
     doctor?.photoUrl,
@@ -43,7 +34,7 @@ export function normalizeVideoViewerRole(role?: string | null): string {
 /** The appointments list of the viewer (where the top-bar back link of the video pages goes). */
 export function videoAppointmentsRoute(role?: string | null): string {
   const key = normalizeVideoViewerRole(role);
-  if (key === "" || key === "PATIENT") return "/patient/appointments";
-  if (key === "DOCTOR") return "/doctor/appointments";
-  return "/appointments";
+  if (key === "" || key === Role.PATIENT) return ROUTES.PATIENT_APPOINTMENTS;
+  if (key === Role.DOCTOR) return ROUTES.DOCTOR_APPOINTMENTS;
+  return ROUTES.SHARED_APPOINTMENTS;
 }

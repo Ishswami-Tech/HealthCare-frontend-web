@@ -2,22 +2,15 @@
 
 import { Pencil, Plus, Trash2, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Divider, Kv, Note, Pill } from "@/components/tbd";
-import {
-  DialogError,
-  MedicineSummary,
-  PharmacyDialog,
-  PharmacyDialogActions,
-  PharmacyDialogBody,
-} from "./PharmacyDialogParts";
+import { Divider, Kv, Note, Pill, DialogActions, DialogBody, DialogError, DialogShell, statusTone } from "@/components/tbd";
+import { MedicineSummary } from "./PharmacyDialogParts";
 import {
   STATUS_LABEL,
-  STATUS_TONE,
   expiryPill,
-  formatRupees,
   medicineSubline,
   type MedicineRow,
 } from "./pharmacy-inventory.logic";
+import { formatRupees } from "@/lib/utils/currency";
 
 function StatTile({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
@@ -67,7 +60,7 @@ export function PharmacyMedicineDetailsDialog({
   const expiry = medicine?.expiringSoon ? expiryPill(medicine) : null;
 
   return (
-    <PharmacyDialog
+    <DialogShell
       open={medicine !== null}
       onClose={onClose}
       title={medicine?.name ?? "Medicine"}
@@ -76,9 +69,9 @@ export function PharmacyMedicineDetailsDialog({
     >
       {medicine ? (
         <>
-          <PharmacyDialogBody aria-busy={refreshing}>
+          <DialogBody aria-busy={refreshing}>
             <div className="flex flex-wrap items-center gap-2">
-              <Pill tone={STATUS_TONE[medicine.status]}>{STATUS_LABEL[medicine.status]}</Pill>
+              <Pill tone={statusTone(medicine.status)}>{STATUS_LABEL[medicine.status]}</Pill>
               {expiry ? <Pill tone={expiry.tone}>{expiry.label}</Pill> : null}
               {medicine.prescriptionRequired ? <Pill tone="blue">Prescription required</Pill> : null}
             </div>
@@ -114,9 +107,9 @@ export function PharmacyMedicineDetailsDialog({
                 </dl>
               </>
             ) : null}
-          </PharmacyDialogBody>
+          </DialogBody>
 
-          <PharmacyDialogActions
+          <DialogActions
             start={
               canManage && onRemove ? (
                 <Button size="md" variant="danger" onClick={() => onRemove(medicine)}>
@@ -146,10 +139,10 @@ export function PharmacyMedicineDetailsDialog({
                 Close
               </Button>
             )}
-          </PharmacyDialogActions>
+          </DialogActions>
         </>
       ) : null}
-    </PharmacyDialog>
+    </DialogShell>
   );
 }
 
@@ -171,7 +164,7 @@ export function PharmacyRemoveMedicineDialog({
   onClose,
 }: PharmacyRemoveMedicineDialogProps) {
   return (
-    <PharmacyDialog
+    <DialogShell
       open={medicine !== null}
       onClose={onClose}
       busy={isRemoving}
@@ -181,7 +174,7 @@ export function PharmacyRemoveMedicineDialog({
     >
       {medicine ? (
         <>
-          <PharmacyDialogBody>
+          <DialogBody>
             <MedicineSummary medicine={medicine} />
             {medicine.stock > 0 ? (
               <Note tone="amber">
@@ -189,8 +182,8 @@ export function PharmacyRemoveMedicineDialog({
               </Note>
             ) : null}
             <DialogError lead="The medicine was not removed." message={errorMessage} />
-          </PharmacyDialogBody>
-          <PharmacyDialogActions>
+          </DialogBody>
+          <DialogActions>
             <Button size="md" variant="outline" onClick={onClose} disabled={isRemoving}>
               Keep medicine
             </Button>
@@ -198,9 +191,9 @@ export function PharmacyRemoveMedicineDialog({
               <Trash2 aria-hidden="true" />
               {isRemoving ? "Removing…" : "Remove medicine"}
             </Button>
-          </PharmacyDialogActions>
+          </DialogActions>
         </>
       ) : null}
-    </PharmacyDialog>
+    </DialogShell>
   );
 }

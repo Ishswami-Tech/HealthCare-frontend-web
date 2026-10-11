@@ -5,7 +5,8 @@ import { useStableSnapshot } from "./use-stable-snapshot";
 import { useEffect, useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { HABIT_DEFINITIONS, NIDRA_OPTIONS } from "@/lib/constants/case-sheet-fixed-lists";
-import { CaseSheetCard, ChoiceChip, SaveButton } from "./case-sheet-parts";
+import { CaseSheetCard, SaveButton } from "./case-sheet-parts";
+import { ChoiceChip } from "@/components/tbd";
 
 const HABIT_NOTES_KEY = "notes";
 

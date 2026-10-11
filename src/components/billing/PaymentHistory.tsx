@@ -17,19 +17,29 @@ import {
   Video,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyBlock, IconBox, Pill, Surface, statusLabel, type IconTone, type TbdIcon } from "@/components/tbd";
-import { cn } from "@/lib/utils";
-import { formatDateInIST } from "@/lib/utils/date-time";
-import type { Payment } from "@/types/billing.types";
-import { BillingPager, useBillingPaging } from "./staff/BillingPager";
 import {
-  formatRupees,
+  EmptyBlock,
+  IconBox,
+  Pill,
+  Surface,
+  statusLabel,
+  PAGE_SIZE_OPTIONS,
+  Pager,
+  usePagedRows,
+  type IconTone,
+  type TbdIcon,
+} from "@/components/tbd";
+import { cn } from "@/lib/utils";
+import { EMPTY_DATE_LABEL, formatDateInIST, formatDateLabel } from "@/lib/utils/date-time";
+import type { Payment } from "@/types/billing.types";
+import {
   paymentDateValue,
   paymentMethodLabel,
   paymentReference,
   paymentStatusTone,
   sortPaymentsNewestFirst,
 } from "./staff/billing.logic";
+import { formatRupees } from "@/lib/utils/currency";
 
 /**
  * Fields the payments API sends that the shared `Payment` type does not list
@@ -143,13 +153,12 @@ export function paymentStatusText(status: string | null | undefined): string {
 
 /** "28 Sept", with the year only when it is not this year. */
 export function paymentDayLabel(value: string | null | undefined, now: Date = new Date()): string {
-  if (!value) return "–";
+  if (!value) return EMPTY_DATE_LABEL;
   const sameYear =
     formatDateInIST(value, { year: "numeric" }) === formatDateInIST(now, { year: "numeric" });
-  return (
-    formatDateInIST(value, sameYear ? { day: "numeric", month: "short" } : { day: "numeric", month: "short", year: "numeric" }) ||
-    "–"
-  );
+  return sameYear
+    ? formatDateInIST(value, { day: "numeric", month: "short" }) || EMPTY_DATE_LABEL
+    : formatDateLabel(value, EMPTY_DATE_LABEL);
 }
 
 /** "UPI", "To UPI" for a refund, or a dash when the method is not known. */
@@ -222,7 +231,7 @@ export function PaymentHistory({
 }: PaymentHistoryProps) {
   const sorted = useMemo(() => sortPaymentsNewestFirst(payments), [payments]);
   const limited = useMemo(() => (limit ? sorted.slice(0, limit) : sorted), [sorted, limit]);
-  const paging = useBillingPaging(limited, resetKey);
+  const paging = usePagedRows(limited, PAGE_SIZE_OPTIONS[0], { resetKey });
   const rows = limit ? limited : paging.pageRows;
   const completed = sorted.filter(isPaidPayment);
   const totalCompleted = completed.reduce((sum, payment) => sum + (payment.amount ?? 0), 0);
@@ -358,7 +367,7 @@ export function PaymentHistory({
 
       {blank || limit || paging.total <= 10 ? null : (
         <div className="-mx-[22px] -mb-[22px]">
-          <BillingPager paging={paging} id="payment-history" />
+          <Pager paging={paging} noun="row(s)" pageSizeOptions={PAGE_SIZE_OPTIONS} id="payment-history" />
         </div>
       )}
     </Surface>

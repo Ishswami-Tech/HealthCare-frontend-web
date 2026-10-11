@@ -1,10 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SearchBox, Surface } from "@/components/tbd";
-import { cn } from "@/lib/utils";
+import { SearchBox, Surface, DateField } from "@/components/tbd";
 import {
   INVOICE_STATUS_OPTIONS,
   PAYMENT_METHOD_OPTIONS,
@@ -18,56 +16,6 @@ interface BillingFiltersProps {
   filters: BillingFilterState;
   onChange: (patch: Partial<BillingFilterState>) => void;
   onReset: () => void;
-}
-
-/**
- * Native date field. While it is empty and not focused it reads "From date" / "To date"
- * like the design; the browser's own day / month / year boxes show as soon as it is used.
- */
-function DateField({
-  id,
-  label,
-  value,
-  min,
-  max,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  min?: string | undefined;
-  max?: string | undefined;
-  onChange: (value: string) => void;
-}) {
-  const [focused, setFocused] = useState(false);
-  const showLabel = value === "" && !focused;
-  return (
-    <div className="relative min-w-0 basis-full @md:flex-1 @md:basis-0 @4xl:w-[140px] @4xl:flex-none @4xl:basis-auto">
-      <input
-        id={id}
-        type="date"
-        aria-label={label}
-        value={value}
-        min={min}
-        max={max}
-        onChange={(event) => onChange(event.target.value)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        className={cn(
-          "h-11 w-full min-w-0 rounded-xl border border-line bg-card px-3.5 text-sm outline-hidden focus:border-brand focus:ring-2 focus:ring-brand/20 dark:bg-input/30 dark:[color-scheme:dark]",
-          showLabel ? "text-transparent" : "text-ink",
-        )}
-      />
-      {showLabel ? (
-        <span
-          className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-sm text-ink-muted"
-          aria-hidden="true"
-        >
-          {label}
-        </span>
-      ) : null}
-    </div>
-  );
 }
 
 function FilterSelect({
@@ -116,6 +64,8 @@ export function BillingFilters({ scope, filters, onChange, onReset }: BillingFil
           className="basis-full @4xl:min-w-0 @4xl:flex-1 @4xl:basis-0"
         />
         <DateField
+          variant="placeholder"
+          className="basis-full @md:flex-1 @md:basis-0 @4xl:w-[140px] @4xl:flex-none @4xl:basis-auto"
           id={`billing-${scope}-from`}
           label="From date"
           value={filters.startDate}
@@ -123,6 +73,8 @@ export function BillingFilters({ scope, filters, onChange, onReset }: BillingFil
           onChange={(value) => onChange({ startDate: value })}
         />
         <DateField
+          variant="placeholder"
+          className="basis-full @md:flex-1 @md:basis-0 @4xl:w-[140px] @4xl:flex-none @4xl:basis-auto"
           id={`billing-${scope}-to`}
           label="To date"
           value={filters.endDate}

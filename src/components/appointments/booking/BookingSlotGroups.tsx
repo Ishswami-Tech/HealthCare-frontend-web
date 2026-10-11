@@ -64,7 +64,7 @@ export function BookingSlotGroups({
                       "flex min-h-9 flex-col items-center justify-center gap-px rounded-lg border px-1 py-1.5 text-center transition-colors",
                       "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40",
                       isSelected
-                        ? "border-[#047857] bg-[#047857] text-white shadow-[0_4px_10px_rgba(4,120,87,0.22)]"
+                        ? "border-primary bg-primary text-white shadow-[0_4px_10px_rgba(4,120,87,0.22)]"
                         : slot.unavailable
                           ? "cursor-not-allowed border-well bg-well text-[#94a3b8] line-through dark:text-slate-500"
                           : "border-line bg-card text-ink hover:border-brand/50 hover:bg-mint-soft",

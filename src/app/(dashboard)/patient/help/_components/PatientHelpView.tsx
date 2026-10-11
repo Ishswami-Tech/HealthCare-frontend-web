@@ -27,7 +27,7 @@ const CONTACT_ICONS: Record<HelpContact["key"], TbdIcon> = {
 };
 
 const DOT_TONES: Record<HelpFaq["tone"], string> = {
-  green: "bg-[#047857]",
+  green: "bg-primary",
   orange: "bg-[#ea580c]",
   blue: "bg-[#2563eb]",
 };

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ChevronRight, CircleCheck, Loader2, Pill as PillIcon, Play, Stethoscope, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { EmptyBlock, InitialsAvatar, Pill, Surface, statusLabel, statusTone } from "@/components/tbd";
+import { EmptyBlock, Field, InitialsAvatar, Pill, Surface, statusLabel, statusTone } from "@/components/tbd";
 import type { DoctorNextPatient, TransformedAppointment } from "./doctor-dashboard.logic";
 
 const CARD = "border border-[#a7f3d0] dark:border-emerald-800";
@@ -195,10 +195,7 @@ export function DoctorDashboardConsultationCard({
           }
         />
 
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <label htmlFor="consultation-notes" className="text-xs font-bold text-ink-soft">
-            Consultation notes
-          </label>
+        <Field label="Consultation notes" htmlFor="consultation-notes">
           <Textarea
             id="consultation-notes"
             value={consultSummary}
@@ -207,7 +204,7 @@ export function DoctorDashboardConsultationCard({
             placeholder="Symptoms, findings, diagnosis and advice"
             className="min-h-[96px] border-line"
           />
-        </div>
+        </Field>
 
         <div className="flex flex-wrap items-center gap-2.5">
           <Button

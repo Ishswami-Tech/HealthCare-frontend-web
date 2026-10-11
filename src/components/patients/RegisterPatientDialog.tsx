@@ -12,14 +12,12 @@
 import { useId, useReducer, type ReactNode } from "react";
 import { ArrowRight, ChevronDown, ChevronUp, Loader2, Lock, Mail, Phone, User, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { IconBox, Note } from "@/components/tbd";
+import { IconBox, Note, DialogActions, DialogBody, DialogShell, DateField, Field } from "@/components/tbd";
 import { useQuickRegisterPatient } from "@/hooks/query/usePatients";
 import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
-import { DateInput, DialogActionBar, DialogCloseButton, Field } from "./RegistrationFields";
 
 export interface RegisteredPatient {
   id: string;
@@ -155,224 +153,220 @@ export function RegisterPatientDialogView({
   const moreId = id("more");
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
-      <DialogContent
-        showCloseButton={false}
-        className="flex max-h-[92vh] w-[calc(100vw-1rem)] max-w-[680px] flex-col gap-0 overflow-hidden p-0 sm:w-[calc(100vw-2rem)] sm:max-w-[680px]"
-        onOpenAutoFocus={(event) => {
-          // Start in the first name field, not on the close button.
-          const first = document.getElementById(id("first"));
-          if (first) {
-            event.preventDefault();
-            first.focus();
-          }
-        }}
-      >
-        <div className="flex shrink-0 items-center gap-3.5 px-4 pb-4 pt-[22px] sm:px-6">
-          <IconBox icon={User} tone="mint" />
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <DialogTitle>Register Patient</DialogTitle>
-            <DialogDescription>Name and phone are enough to start. Add the rest when you have it.</DialogDescription>
-          </div>
-          <DialogCloseButton disabled={isSubmitting} />
+    <DialogShell
+      open={open}
+      onOpenChange={onOpenChange}
+      busy={isSubmitting}
+      trigger={trigger}
+      lead={<IconBox icon={User} tone="mint" />}
+      title="Register Patient"
+      description="Name and phone are enough to start. Add the rest when you have it."
+      width={680}
+      stretch
+      dense
+      onOpenAutoFocus={(event) => {
+        // Start in the first name field, not on the close button.
+        const first = document.getElementById(id("first"));
+        if (first) {
+          event.preventDefault();
+          first.focus();
+        }
+      }}
+    >
+      <DialogBody className="pb-[22px] pt-0">
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+          <Field
+            label="First name"
+            htmlFor={id("first")}
+            required
+            error={missing("firstName") ? "Enter the first name" : undefined}
+          >
+            <Input
+              id={id("first")}
+              placeholder="e.g. Asha"
+              autoComplete="off"
+              value={values.firstName}
+              onChange={(e) => set("firstName")(e.target.value)}
+              aria-invalid={missing("firstName") || undefined}
+              required
+            />
+          </Field>
+          <Field
+            label="Last name"
+            htmlFor={id("last")}
+            required
+            error={missing("lastName") ? "Enter the last name" : undefined}
+          >
+            <Input
+              id={id("last")}
+              placeholder="e.g. Patil"
+              autoComplete="off"
+              value={values.lastName}
+              onChange={(e) => set("lastName")(e.target.value)}
+              aria-invalid={missing("lastName") || undefined}
+              required
+            />
+          </Field>
+          <Field
+            label="Phone"
+            htmlFor={id("phone")}
+            required
+            error={missing("phone") ? "Enter the phone number" : undefined}
+          >
+            <div className="relative">
+              <Phone
+                className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ink-muted"
+                aria-hidden="true"
+              />
+              <Input
+                id={id("phone")}
+                type="tel"
+                inputMode="tel"
+                autoComplete="off"
+                className="pl-[38px]"
+                placeholder="+91 98765 43210"
+                value={values.phone}
+                onChange={(e) => set("phone")(e.target.value)}
+                aria-invalid={missing("phone") || undefined}
+                required
+              />
+            </div>
+          </Field>
+          <Field label="Email" htmlFor={id("email")}>
+            <div className="relative">
+              <Mail
+                className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ink-muted"
+                aria-hidden="true"
+              />
+              <Input
+                id={id("email")}
+                type="email"
+                autoComplete="off"
+                className="pl-[38px]"
+                placeholder="optional"
+                value={values.email}
+                onChange={(e) => set("email")(e.target.value)}
+              />
+            </div>
+          </Field>
+          <Field label="Date of birth" htmlFor={id("dob")}>
+            <DateField id={id("dob")} value={values.dateOfBirth} onChange={set("dateOfBirth")} />
+          </Field>
+          <Field label="Gender" htmlFor={id("gender")}>
+            <Select value={values.gender} onValueChange={set("gender")}>
+              <SelectTrigger id={id("gender")} className="w-full">
+                <SelectValue placeholder="Select" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Male">Male</SelectItem>
+                <SelectItem value="Female">Female</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-[22px] sm:px-6">
-          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-            <Field
-              label="First name"
-              htmlFor={id("first")}
-              required
-              error={missing("firstName") ? "Enter the first name" : undefined}
-            >
-              <Input
-                id={id("first")}
-                placeholder="e.g. Asha"
-                autoComplete="off"
-                value={values.firstName}
-                onChange={(e) => set("firstName")(e.target.value)}
-                aria-invalid={missing("firstName") || undefined}
-                required
+        <button
+          type="button"
+          aria-expanded={showMore}
+          aria-controls={moreId}
+          onClick={onToggleMore}
+          className="flex items-center gap-2 self-start rounded-md text-left text-[13px] font-bold text-brand hover:text-brand-dark focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40"
+        >
+          {showMore ? (
+            <ChevronUp className="size-4 shrink-0" strokeWidth={2.4} aria-hidden="true" />
+          ) : (
+            <ChevronDown className="size-4 shrink-0" strokeWidth={2.4} aria-hidden="true" />
+          )}
+          {showMore ? "Hide" : "Add"} address, emergency contact and medical notes
+        </button>
+
+        {showMore ? (
+          <div id={moreId} className="flex min-w-0 flex-col gap-3.5">
+            <Field label="Address" htmlFor={id("address")}>
+              <Textarea
+                id={id("address")}
+                className={NOTES_AREA}
+                placeholder="Street, city, PIN"
+                value={values.address}
+                onChange={(e) => set("address")(e.target.value)}
               />
             </Field>
-            <Field
-              label="Last name"
-              htmlFor={id("last")}
-              required
-              error={missing("lastName") ? "Enter the last name" : undefined}
-            >
-              <Input
-                id={id("last")}
-                placeholder="e.g. Patil"
-                autoComplete="off"
-                value={values.lastName}
-                onChange={(e) => set("lastName")(e.target.value)}
-                aria-invalid={missing("lastName") || undefined}
-                required
-              />
-            </Field>
-            <Field
-              label="Phone"
-              htmlFor={id("phone")}
-              required
-              error={missing("phone") ? "Enter the phone number" : undefined}
-            >
-              <div className="relative">
-                <Phone
-                  className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ink-muted"
-                  aria-hidden="true"
-                />
+            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+              <Field label="Emergency contact" htmlFor={id("ec")}>
                 <Input
-                  id={id("phone")}
+                  id={id("ec")}
+                  placeholder="Name"
+                  autoComplete="off"
+                  value={values.emergencyContact}
+                  onChange={(e) => set("emergencyContact")(e.target.value)}
+                />
+              </Field>
+              <Field label="Emergency phone" htmlFor={id("ecp")}>
+                <Input
+                  id={id("ecp")}
                   type="tel"
                   inputMode="tel"
                   autoComplete="off"
-                  className="pl-[38px]"
-                  placeholder="+91 98765 43210"
-                  value={values.phone}
-                  onChange={(e) => set("phone")(e.target.value)}
-                  aria-invalid={missing("phone") || undefined}
-                  required
-                />
-              </div>
-            </Field>
-            <Field label="Email" htmlFor={id("email")}>
-              <div className="relative">
-                <Mail
-                  className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ink-muted"
-                  aria-hidden="true"
-                />
-                <Input
-                  id={id("email")}
-                  type="email"
-                  autoComplete="off"
-                  className="pl-[38px]"
-                  placeholder="optional"
-                  value={values.email}
-                  onChange={(e) => set("email")(e.target.value)}
-                />
-              </div>
-            </Field>
-            <Field label="Date of birth" htmlFor={id("dob")}>
-              <DateInput id={id("dob")} value={values.dateOfBirth} onChange={set("dateOfBirth")} />
-            </Field>
-            <Field label="Gender" htmlFor={id("gender")}>
-              <Select value={values.gender} onValueChange={set("gender")}>
-                <SelectTrigger id={id("gender")} className="w-full">
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Male">Male</SelectItem>
-                  <SelectItem value="Female">Female</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-          </div>
-
-          <button
-            type="button"
-            aria-expanded={showMore}
-            aria-controls={moreId}
-            onClick={onToggleMore}
-            className="flex items-center gap-2 self-start rounded-md text-left text-[13px] font-bold text-brand hover:text-brand-dark focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40"
-          >
-            {showMore ? (
-              <ChevronUp className="size-4 shrink-0" strokeWidth={2.4} aria-hidden="true" />
-            ) : (
-              <ChevronDown className="size-4 shrink-0" strokeWidth={2.4} aria-hidden="true" />
-            )}
-            {showMore ? "Hide" : "Add"} address, emergency contact and medical notes
-          </button>
-
-          {showMore ? (
-            <div id={moreId} className="flex min-w-0 flex-col gap-3.5">
-              <Field label="Address" htmlFor={id("address")}>
-                <Textarea
-                  id={id("address")}
-                  className={NOTES_AREA}
-                  placeholder="Street, city, PIN"
-                  value={values.address}
-                  onChange={(e) => set("address")(e.target.value)}
-                />
-              </Field>
-              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-                <Field label="Emergency contact" htmlFor={id("ec")}>
-                  <Input
-                    id={id("ec")}
-                    placeholder="Name"
-                    autoComplete="off"
-                    value={values.emergencyContact}
-                    onChange={(e) => set("emergencyContact")(e.target.value)}
-                  />
-                </Field>
-                <Field label="Emergency phone" htmlFor={id("ecp")}>
-                  <Input
-                    id={id("ecp")}
-                    type="tel"
-                    inputMode="tel"
-                    autoComplete="off"
-                    placeholder="+91"
-                    value={values.emergencyPhone}
-                    onChange={(e) => set("emergencyPhone")(e.target.value)}
-                  />
-                </Field>
-              </div>
-              <Field label="Medical history" htmlFor={id("history")}>
-                <Textarea
-                  id={id("history")}
-                  className={NOTES_AREA}
-                  placeholder="Known conditions, past surgeries"
-                  value={values.medicalHistory}
-                  onChange={(e) => set("medicalHistory")(e.target.value)}
-                />
-              </Field>
-              <Field label="Allergies" htmlFor={id("allergies")}>
-                <Input
-                  id={id("allergies")}
-                  placeholder="Comma separated"
-                  autoComplete="off"
-                  value={values.allergies}
-                  onChange={(e) => set("allergies")(e.target.value)}
-                />
-              </Field>
-              <Field label="Current medications" htmlFor={id("meds")}>
-                <Textarea
-                  id={id("meds")}
-                  className={NOTES_AREA}
-                  placeholder="With dosage"
-                  value={values.currentMedications}
-                  onChange={(e) => set("currentMedications")(e.target.value)}
+                  placeholder="+91"
+                  value={values.emergencyPhone}
+                  onChange={(e) => set("emergencyPhone")(e.target.value)}
                 />
               </Field>
             </div>
-          ) : null}
+            <Field label="Medical history" htmlFor={id("history")}>
+              <Textarea
+                id={id("history")}
+                className={NOTES_AREA}
+                placeholder="Known conditions, past surgeries"
+                value={values.medicalHistory}
+                onChange={(e) => set("medicalHistory")(e.target.value)}
+              />
+            </Field>
+            <Field label="Allergies" htmlFor={id("allergies")}>
+              <Input
+                id={id("allergies")}
+                placeholder="Comma separated"
+                autoComplete="off"
+                value={values.allergies}
+                onChange={(e) => set("allergies")(e.target.value)}
+              />
+            </Field>
+            <Field label="Current medications" htmlFor={id("meds")}>
+              <Textarea
+                id={id("meds")}
+                className={NOTES_AREA}
+                placeholder="With dosage"
+                value={values.currentMedications}
+                onChange={(e) => set("currentMedications")(e.target.value)}
+              />
+            </Field>
+          </div>
+        ) : null}
 
-          <Note tone="green" icon={Lock}>
-            The patient gets a temporary password made from the phone number. It is shown once, right after you
-            register.
-          </Note>
-        </div>
+        <Note tone="green" icon={Lock}>
+          The patient gets a temporary password made from the phone number. It is shown once, right after you
+          register.
+        </Note>
+      </DialogBody>
 
-        <DialogActionBar
-          hint={
-            <>
-              <span className="font-bold text-brand">*</span> Required
-            </>
-          }
-        >
-          <Button variant="outline" size="md" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
-            Cancel
-          </Button>
-          <Button size="md" onClick={onSubmit} disabled={isSubmitting}>
-            {isSubmitting ? <Loader2 className="animate-spin" /> : null}
-            {isSubmitting ? "Registering…" : "Register Patient"}
-            {isSubmitting ? null : <ArrowRight />}
-          </Button>
-        </DialogActionBar>
-      </DialogContent>
-    </Dialog>
+      <DialogActions
+        hint={
+          <>
+            <span className="font-bold text-brand">*</span> Required
+          </>
+        }
+      >
+        <Button variant="outline" size="md" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+          Cancel
+        </Button>
+        <Button size="md" onClick={onSubmit} disabled={isSubmitting}>
+          {isSubmitting ? <Loader2 className="animate-spin" /> : null}
+          {isSubmitting ? "Registering…" : "Register Patient"}
+          {isSubmitting ? null : <ArrowRight />}
+        </Button>
+      </DialogActions>
+    </DialogShell>
   );
 }
 

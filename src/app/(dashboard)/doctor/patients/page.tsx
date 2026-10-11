@@ -1,45 +1,30 @@
 "use client";
 
-import { useDeferredValue, useMemo, useReducer, useState } from "react";
-import { ClipboardPlus, Loader2, Pill, UserPlus } from "lucide-react";
-import { useComprehensiveHealthRecord } from "@/hooks/query/useMedicalRecords";
+import { useDeferredValue, useMemo, useReducer } from "react";
+import { ClipboardPlus, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { QuickPrescriptionModal } from "@/components/doctor/QuickPrescriptionModal";
 import { RegisterPatientDialog } from "@/components/patients/RegisterPatientDialog";
 import { OpdRegistrationDialog } from "@/components/patients/OpdRegistrationDialog";
-import { VisitSelector } from "@/components/patient/case-sheet/VisitSelector";
-import { VisitCaseSheet } from "@/components/patient/case-sheet/VisitCaseSheet";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useAppointments } from "@/hooks/query/useAppointments";
 import { useDoctorPatients, useCurrentDoctorEntityId } from "@/hooks/query/useDoctors";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
-import { PatientClinicalRecordView } from "@/components/patient/PatientClinicalRecordView";
-import { PatientBillHistory } from "@/components/billing/PatientBillHistory";
-import { usePatientStore } from "@/stores";
-import {
-  DoctorPatientsView,
-  type DoctorPatientsAgeFilter,
-  type DoctorPatientsGenderFilter,
-} from "./_components/DoctorPatientsView";
+import { DoctorPatientsView } from "./_components/DoctorPatientsView";
 import {
   computeDoctorPatientsStats,
   extractAppointments,
   extractPaginationMeta,
   extractPatients,
-  getPatientName,
   matchesLastVisitRange,
   patientSummaryLine,
   toDoctorPatientRow,
 } from "./_components/doctorPatients.logic";
 
-type RecordLike = Record<string, any>;
-
 type DoctorPatientsState = {
   searchTerm: string;
-  genderFilter: DoctorPatientsGenderFilter;
-  ageFilter: DoctorPatientsAgeFilter;
+  /** Last-visit range, ISO days; empty = no bound. */
   dateFrom: string;
   dateTo: string;
   page: number;
@@ -53,16 +38,12 @@ type DoctorPatientsState = {
 
 type DoctorPatientsAction =
   | { type: "set_search_term"; value: string }
-  | { type: "set_gender_filter"; value: DoctorPatientsGenderFilter }
-  | { type: "set_age_filter"; value: DoctorPatientsAgeFilter }
   | { type: "set_date_range"; from: string; to: string }
   | { type: "set_page"; value: number }
   | { type: "set_prescribe_target"; value: DoctorPatientsState["prescribeTarget"] };
 
 const initialDoctorPatientsState: DoctorPatientsState = {
   searchTerm: "",
-  genderFilter: "all",
-  ageFilter: "all",
   dateFrom: "",
   dateTo: "",
   page: 1,
@@ -76,10 +57,6 @@ function doctorPatientsReducer(
   switch (action.type) {
     case "set_search_term":
       return { ...state, searchTerm: action.value, page: 1 };
-    case "set_gender_filter":
-      return { ...state, genderFilter: action.value, page: 1 };
-    case "set_age_filter":
-      return { ...state, ageFilter: action.value, page: 1 };
     case "set_date_range":
       return { ...state, dateFrom: action.from, dateTo: action.to, page: 1 };
     case "set_page":
@@ -89,100 +66,6 @@ function doctorPatientsReducer(
     default:
       return state;
   }
-}
-
-function toArray(value: unknown): RecordLike[] {
-  if (Array.isArray(value)) return value as RecordLike[];
-  if (value && typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    for (const key of ["data", "items", "records", "appointments", "history", "labs", "results"]) {
-      const candidate = record[key];
-      if (Array.isArray(candidate)) return candidate as RecordLike[];
-    }
-  }
-  return [];
-}
-
-function EhrDrawerContent({
-  patient,
-  clinicId,
-  onPrescribe,
-}: {
-  patient: RecordLike;
-  clinicId: string;
-  onPrescribe: (patient: RecordLike) => void;
-}) {
-  const patientUserId = patient?.userId || patient?.user?.id || "";
-  const patientId: string = patient?.id || "";
-  const [visitId, setVisitId] = useState<string | null>(null);
-  const { data: ehrData, isPending: isEhrLoading } = useComprehensiveHealthRecord(patientUserId) as {
-    data: RecordLike;
-    isPending: boolean;
-  };
-  const canShowCaseSheet = Boolean(clinicId && patientId && patientUserId);
-
-  return (
-    <>
-      <DrawerHeader>
-        <DrawerTitle>{getPatientName(patient)} - Electronic Health Record</DrawerTitle>
-      </DrawerHeader>
-      <div className="flex flex-col gap-y-4 px-6 pb-6">
-        {canShowCaseSheet ? (
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <VisitSelector
-              clinicId={clinicId}
-              patientId={patientId}
-              selectedVisitId={visitId}
-              onSelect={setVisitId}
-            />
-            <Button size="sm" onClick={() => onPrescribe(patient)}>
-              <Pill className="mr-1 size-4" />
-              Move to Prescription
-            </Button>
-          </div>
-        ) : null}
-        {isEhrLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="size-8 animate-spin text-blue-600" />
-          </div>
-        ) : (
-          <PatientClinicalRecordView
-            patient={patient}
-            ehr={ehrData || {}}
-            appointments={[]}
-            history={toArray(ehrData?.medicalHistory)}
-            vitals={toArray(ehrData?.vitals)}
-            labs={toArray(ehrData?.labReports)}
-            carePlan={toArray(ehrData?.carePlan || ehrData?.carePlans)}
-            prescriptions={toArray(ehrData?.prescriptions)}
-            caseSheet={
-              canShowCaseSheet && visitId ? (
-                <VisitCaseSheet
-                  clinicId={clinicId}
-                  patientId={patientId}
-                  patientUserId={patientUserId}
-                  visitId={visitId}
-                />
-              ) : canShowCaseSheet ? (
-                <div className="rounded-xl border border-dashed border-border/70 bg-background/60 p-6 text-sm text-muted-foreground">
-                  No OPD visit yet — use “New OPD visit” above to open a case sheet.
-                </div>
-              ) : undefined
-            }
-            billing={
-              clinicId && patientId ? (
-                <PatientBillHistory
-                  clinicId={clinicId}
-                  patientId={patientId}
-                  patientUserId={patientUserId}
-                />
-              ) : undefined
-            }
-          />
-        )}
-      </div>
-    </>
-  );
 }
 
 const PAGE_SIZE = 10;
@@ -196,30 +79,24 @@ export default function DoctorPatients() {
   const { doctorId: doctorEntityId } = useCurrentDoctorEntityId(clinicId || "");
   const [state, dispatch] = useReducer(doctorPatientsReducer, initialDoctorPatientsState);
   const debouncedSearchTerm = useDeferredValue(state.searchTerm);
-  const { genderFilter, ageFilter, dateFrom, dateTo, page, prescribeTarget } = state;
+  const { dateFrom, dateTo, page, prescribeTarget } = state;
   const hasLastVisitRange = Boolean(dateFrom || dateTo);
-  // Last-visit range is applied client-side, so pull a wider page when that filter is on.
+  // The last-visit range is applied on the client, so pull a wider page when that filter is on.
   const fetchLimit = hasLastVisitRange ? 200 : PAGE_SIZE;
   const fetchOffset = hasLastVisitRange ? 0 : (page - 1) * PAGE_SIZE;
 
+  // GET /clinics/:id/doctors/:doctorUserId/patients reads `search` (name, phone, e-mail), `limit`
+  // and `offset` only. It has no gender or age filter, so the screen offers none.
   const patientsQuery = useDoctorPatients(
     clinicId || "",
     {
       search: debouncedSearchTerm,
-      ...(genderFilter !== "all" && { gender: genderFilter }),
-      ...(ageFilter !== "all" && {
-        ageRange:
-          ageFilter === "young" ? "young" : ageFilter === "middle" ? "middle" : "senior",
-      }),
       limit: fetchLimit,
       offset: fetchOffset,
     },
     { enabled: !!clinicId }
   );
-  const patientsPage = useMemo(
-    () => extractPaginationMeta(patientsQuery.data, PAGE_SIZE),
-    [patientsQuery.data]
-  );
+  const patientsPage = useMemo(() => extractPaginationMeta(patientsQuery.data, PAGE_SIZE), [patientsQuery.data]);
   const rows = useMemo(() => {
     const mapped = extractPatients(patientsQuery.data).map((patient) => toDoctorPatientRow(patient));
     if (!hasLastVisitRange) return mapped;
@@ -234,8 +111,6 @@ export default function DoctorPatients() {
   const displayTotalPages = hasLastVisitRange
     ? Math.max(1, Math.ceil(rows.length / PAGE_SIZE) || 1)
     : patientsPage.totalPages;
-  const drawerPatient = usePatientStore((state) => state.selectedPatient);
-  const setSelectedPatient = usePatientStore((state) => state.setSelectedPatient);
   // The first load failed and there is nothing to show ("Try again" refetches).
   const loadFailed =
     Boolean(patientsQuery.error) && !patientsQuery.data && !patientsQuery.isFetching;
@@ -251,12 +126,8 @@ export default function DoctorPatients() {
 
   const totalPatientsCount = displayTotal;
   const stats = useMemo(
-    () =>
-      computeDoctorPatientsStats(
-        extractAppointments(appointmentsData),
-        patientsPage.total || rows.length
-      ),
-    [appointmentsData, patientsPage.total, rows.length]
+    () => computeDoctorPatientsStats(extractAppointments(appointmentsData)),
+    [appointmentsData]
   );
 
   // A doctor-registered patient is linked to this doctor directly on the
@@ -311,13 +182,9 @@ export default function DoctorPatients() {
         pageSize={PAGE_SIZE}
         onPageChange={(nextPage) => dispatch({ type: "set_page", value: nextPage })}
         searchTerm={state.searchTerm}
-        genderFilter={genderFilter}
-        ageFilter={ageFilter}
         dateFrom={dateFrom}
         dateTo={dateTo}
         onSearchChange={(value) => dispatch({ type: "set_search_term", value })}
-        onGenderChange={(value) => dispatch({ type: "set_gender_filter", value })}
-        onAgeChange={(value) => dispatch({ type: "set_age_filter", value })}
         onDateRangeChange={(from, to) => dispatch({ type: "set_date_range", from, to })}
         onPrescribe={(row) =>
           dispatch({
@@ -327,28 +194,6 @@ export default function DoctorPatients() {
         }
         actions={headerActions}
       />
-
-      {/* EHR drawer: opens for the patient held in the patient store. "View EHR" in the table goes to /doctor/patients/[id]. */}
-      <Drawer
-        direction="right"
-        open={!!drawerPatient}
-      onOpenChange={(open) => !open && setSelectedPatient(null)}
-      >
-        <DrawerContent className="h-full w-[min(92vw,80rem)] max-w-none overflow-y-auto">
-          {drawerPatient ? (
-            <EhrDrawerContent
-              patient={drawerPatient}
-              clinicId={clinicId || ""}
-              onPrescribe={(target) =>
-                dispatch({
-                  type: "set_prescribe_target",
-                  value: { id: target.id, name: getPatientName(target) },
-                })
-              }
-            />
-          ) : null}
-        </DrawerContent>
-      </Drawer>
 
       {prescriptionDialog}
     </>

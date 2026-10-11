@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, CircleAlert, Loader2, Monitor, RefreshCw, Smartphone } from 'lucide-react';
+import { CircleAlert, Loader2, LogOut, Monitor, RefreshCw, Smartphone } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { EmptyBlock, IconBox, Note, Pill } from '@/components/tbd';
+import { IconBox, Note, Pill } from '@/components/tbd';
+import { useAuth } from '@/hooks/auth/useAuth';
 import { useActiveSessions, useRevokeSession, type ActiveSession } from '@/hooks/query/useSessions';
 
 function isPhone(deviceInfo: string) {
@@ -28,6 +29,19 @@ export interface ActiveSessionsViewProps {
   /** The session being signed out right now. */
   revokingId?: string | null;
   onRevoke: (sessionId: string) => void;
+  /** Signs out the device in use (the normal sign-out). Leave out to hide the button. */
+  onSignOutCurrent?: (() => void) | undefined;
+  signingOutCurrent?: boolean;
+}
+
+/** "Sign out" of the device in use. Not a revoke: it ends this session and returns to sign-in. */
+function SignOutCurrentButton({ onClick, pending }: { onClick: () => void; pending: boolean }) {
+  return (
+    <Button variant="outline" onClick={onClick} disabled={pending} aria-label="Sign out of this device">
+      {pending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <LogOut aria-hidden="true" />}
+      {pending ? 'Signing out…' : 'Sign out'}
+    </Button>
+  );
 }
 
 /** The list of signed-in devices. Everything it shows and does comes in through props. */
@@ -38,6 +52,8 @@ export function ActiveSessionsView({
   onRetry,
   revokingId = null,
   onRevoke,
+  onSignOutCurrent,
+  signingOutCurrent = false,
 }: ActiveSessionsViewProps) {
   if (isLoading) {
     return (
@@ -78,14 +94,21 @@ export function ActiveSessionsView({
     );
   }
 
+  // The server does not list sessions yet (GET /auth/sessions answers with an empty list), so an
+  // empty list does not mean "no other device": say what is known, and keep this device's sign-out.
   if (sessions.length === 0) {
     return (
-      <EmptyBlock
-        icon={CheckCircle}
-        title="No active sessions"
-        description="You're not logged in on any devices"
-        className="py-8"
-      />
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2.5 py-3.5">
+          <IconBox icon={Monitor} tone="slate" size={42} />
+          <span className="flex min-w-0 flex-1 basis-[180px] flex-col gap-0.5">
+            <span className="text-sm font-bold text-ink">This device</span>
+            <span className="text-xs text-ink-muted">You are signed in here.</span>
+          </span>
+          {onSignOutCurrent ? <SignOutCurrentButton onClick={onSignOutCurrent} pending={signingOutCurrent} /> : null}
+        </div>
+        <Note tone="blue">Your other signed-in devices cannot be listed yet.</Note>
+      </div>
     );
   }
 
@@ -112,9 +135,14 @@ export function ActiveSessionsView({
               ) : null}
             </span>
             {session.isCurrent ? (
-              <Pill tone="green" dot>
-                Current session
-              </Pill>
+              <>
+                <Pill tone="green" dot>
+                  Current session
+                </Pill>
+                {onSignOutCurrent ? (
+                  <SignOutCurrentButton onClick={onSignOutCurrent} pending={signingOutCurrent} />
+                ) : null}
+              </>
             ) : (
               <Button
                 variant="danger"
@@ -143,6 +171,8 @@ export function ActiveSessionsList() {
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const { data: sessions = [], isPending: loading, error, refetch } = useActiveSessions();
   const revokeSessionMutation = useRevokeSession();
+  // The session in use is ended by the normal sign-out (`useRevokeSession` refuses it).
+  const { logout, isLoggingOut } = useAuth();
 
   async function handleRevoke(sessionId: string) {
     try {
@@ -163,6 +193,8 @@ export function ActiveSessionsList() {
       onRetry={() => void refetch()}
       revokingId={revokingId}
       onRevoke={(sessionId) => void handleRevoke(sessionId)}
+      onSignOutCurrent={() => logout()}
+      signingOutCurrent={isLoggingOut}
     />
   );
 }

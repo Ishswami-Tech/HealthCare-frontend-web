@@ -7,7 +7,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyBlock, IconBox, InitialsAvatar, PageHead, Pill, SoftCard, Surface, type IconTone, type TbdIcon } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import type { FamilyMember } from "@/types/patient-visit.types";
-import { ageLabel, dateLabel, genderLabel, memberName } from "./family.logic";
+import { ageLabel, dateLabel, memberName } from "./family.logic";
+import { genderLabel } from "@/lib/utils/labels";
 
 const FAMILY_HREF = "/patient/family";
 

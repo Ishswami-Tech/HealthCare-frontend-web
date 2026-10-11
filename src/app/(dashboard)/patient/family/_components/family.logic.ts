@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { CreateMyFamilyMemberInput, UpdateMyFamilyMemberInput } from "@/hooks/query/useMyFamilyMembers";
 import type { FamilyMember } from "@/types/patient-visit.types";
+import { ageInMonths, formatDateLabel } from "@/lib/utils/date-time";
 
 /**
  * Pure helpers and the form schema for the patient's Family Members screens.
@@ -11,7 +12,6 @@ import type { FamilyMember } from "@/types/patient-visit.types";
 // ── Dates and age ──────────────────────────────────────────────────────────
 
 const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sept", "Oct", "Nov", "Dec"] as const;
 
 function pad(value: number): string {
   return String(value).padStart(2, "0");
@@ -31,32 +31,19 @@ export function dateKey(value?: string | null): string {
   return DATE_KEY.test(key) ? key : "";
 }
 
-function parts(key: string): { year: number; month: number; day: number } {
-  const [year = 0, month = 1, day = 1] = key.split("-").map(Number);
-  return { year, month, day };
-}
-
 /** "58 yrs", "1 yr", "7 months", "Newborn". Empty when the date is missing or in the future. */
 export function ageLabel(dateOfBirth?: string | null, now: Date = new Date()): string {
-  const key = dateKey(dateOfBirth);
-  if (!key || key > todayKey(now)) return "";
-  const born = parts(key);
-  const today = parts(todayKey(now));
-  let months = (today.year - born.year) * 12 + (today.month - born.month);
-  if (today.day < born.day) months -= 1;
+  const months = ageInMonths(dateKey(dateOfBirth), now);
+  if (months === null) return "";
   if (months < 1) return "Newborn";
   if (months < 12) return months === 1 ? "1 month" : `${months} months`;
   const years = Math.floor(months / 12);
   return years === 1 ? "1 yr" : `${years} yrs`;
 }
 
-/** "12 Apr 1968". Empty when there is no valid date. */
+/** "12 Apr 1968" — the calendar day that was stored. Empty when there is no valid date. */
 export function dateLabel(value?: string | null): string {
-  const key = dateKey(value);
-  if (!key) return "";
-  const { year, month, day } = parts(key);
-  const name = MONTHS[month - 1];
-  return name ? `${day} ${name} ${year}` : "";
+  return formatDateLabel(dateKey(value));
 }
 
 // ── Gender ─────────────────────────────────────────────────────────────────
@@ -67,13 +54,6 @@ export const GENDER_OPTIONS = [
   { value: "FEMALE", label: "Female" },
   { value: "OTHER", label: "Other" },
 ] as const;
-
-export function genderLabel(gender?: string | null): string {
-  const code = String(gender ?? "").trim().toUpperCase();
-  if (!code) return "";
-  const known = GENDER_OPTIONS.find((option) => option.value === code);
-  return known ? known.label : code.charAt(0) + code.slice(1).toLowerCase();
-}
 
 // ── Names ──────────────────────────────────────────────────────────────────
 

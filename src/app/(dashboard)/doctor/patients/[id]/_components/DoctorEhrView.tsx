@@ -6,7 +6,7 @@ import { AlertCircle, ChevronLeft, Droplet, Loader2, Mail, Phone, Pill as PillIc
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
-import { Chip, EmptyBlock, InitialsAvatar, Surface } from "@/components/tbd";
+import { Chip, EmptyBlock, InitialsAvatar, Note, Surface } from "@/components/tbd";
 import {
   PatientClinicalRecordView,
   type PatientClinicalRecordViewProps,
@@ -46,6 +46,9 @@ export interface DoctorEhrViewProps {
   >;
   /** The health record is still loading: numbers and tables show placeholders. */
   recordLoading: boolean;
+  /** The appointment list could not be read: say so instead of showing "No appointments yet". */
+  appointmentsFailed?: boolean;
+  onRetryAppointments?: (() => void) | undefined;
   /** The case sheet of the selected OPD visit; without it the tab shows the plain history table. */
   caseSheet?: ReactNode;
   /** Bills tab. Left out, it follows the signed-in role (never shown to a doctor). */
@@ -157,6 +160,8 @@ export function DoctorEhrView({
   onPrescribe,
   record,
   recordLoading,
+  appointmentsFailed = false,
+  onRetryAppointments,
   caseSheet,
   showBills,
 }: DoctorEhrViewProps) {
@@ -188,21 +193,41 @@ export function DoctorEhrView({
       ) : loading ? (
         <LoadingState />
       ) : (
-        <PatientClinicalRecordView
-          {...record}
-          loading={recordLoading}
-          caseSheet={caseSheet}
-          {...(showBills === undefined ? {} : { showBills })}
-          header={
-            <PatientHeader
-              header={header}
-              visitSelector={visitSelector}
-              onNewVisit={onNewVisit}
-              newVisitPending={newVisitPending}
-              onPrescribe={onPrescribe}
-            />
-          }
-        />
+        <>
+          {appointmentsFailed ? (
+            <div role="alert">
+              <Note tone="rose" icon={AlertCircle}>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <span>
+                    The appointments of this patient could not be loaded, so the appointment list and counts
+                    below are empty.
+                  </span>
+                  {onRetryAppointments ? (
+                    <Button variant="outline" size="sm" onClick={onRetryAppointments}>
+                      <RefreshCw />
+                      Try again
+                    </Button>
+                  ) : null}
+                </div>
+              </Note>
+            </div>
+          ) : null}
+          <PatientClinicalRecordView
+            {...record}
+            loading={recordLoading}
+            caseSheet={caseSheet}
+            {...(showBills === undefined ? {} : { showBills })}
+            header={
+              <PatientHeader
+                header={header}
+                visitSelector={visitSelector}
+                onNewVisit={onNewVisit}
+                newVisitPending={newVisitPending}
+                onPrescribe={onPrescribe}
+              />
+            }
+          />
+        </>
       )}
     </DashboardPageShell>
   );

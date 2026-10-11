@@ -12,8 +12,10 @@ importScripts(
   "https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"
 );
 
-// Store Firebase config
-let firebaseConfig = null;
+// Reload public configuration whenever the browser restarts this worker.
+// A postMessage alone is lost when the worker is stopped in the background.
+importScripts("/api/firebase/config");
+let firebaseConfig = self.__FIREBASE_CONFIG__;
 let messaging = null;
 
 // Listen for Firebase config from main thread
@@ -26,6 +28,9 @@ self.addEventListener("message", (event) => {
 
 // Initialize Firebase
 function initializeFirebase() {
+  if (messaging) {
+    return;
+  }
   if (!firebaseConfig || !firebaseConfig.apiKey || !firebaseConfig.projectId) {
     return;
   }
@@ -41,15 +46,15 @@ function initializeFirebase() {
 
     // Handle background messages
     messaging.onBackgroundMessage((payload) => {
-      console.log(
-        "[firebase-messaging-sw.js] Received background message ",
-        payload
-      );
+      // Firebase already displays notification payloads in the background.
+      if (payload.notification) {
+        return;
+      }
 
       const notificationTitle =
-        payload.notification?.title || "New Notification";
+        payload.data?.title || "New Notification";
       const notificationOptions = {
-        body: payload.notification?.body || "",
+        body: payload.data?.body || "",
         icon: payload.notification?.icon || "/icon-192x192.png",
         badge: "/badge-72x72.png",
         image: payload.notification?.image,
@@ -74,6 +79,8 @@ function initializeFirebase() {
     );
   }
 }
+
+initializeFirebase();
 
 // Handle notification clicks
 self.addEventListener("notificationclick", (event) => {

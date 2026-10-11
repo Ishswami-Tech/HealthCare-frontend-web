@@ -1,6 +1,17 @@
 'use server';
 
-import { authenticatedApi, getServerSession } from './auth.server';
+import { authenticatedApi } from './auth.server';
+import {
+  actionSuccess,
+  caughtFailure,
+  clinicHeaders,
+  resolveClinicContext,
+  statusFailure,
+  type ActionErrorCode,
+  type ActionFailure,
+} from './_shared';
+import { API_ENDPOINTS } from '../config/config';
+import { asRecord } from '@/lib/utils/coerce';
 
 /**
  * A patient's own place in today's clinic queue.
@@ -14,8 +25,6 @@ import { authenticatedApi, getServerSession } from './auth.server';
  * clinic from the session, sends it as `X-Clinic-ID`, and returns a discriminated result
  * instead of throwing.
  */
-
-const MY_QUEUE_ENDPOINT = '/queue/me';
 
 /** Mirrors the backend `MyQueuePosition`. Only what the route returns — no other patients. */
 export interface MyQueuePosition {
@@ -35,71 +44,9 @@ export interface MyQueuePosition {
   checkedInAt: string | null;
 }
 
-export type PatientQueueErrorCode =
-  | 'UNAUTHENTICATED'
-  | 'CLINIC_CONTEXT_REQUIRED'
-  | 'FORBIDDEN'
-  | 'NETWORK'
-  | 'UNKNOWN';
+export type PatientQueueErrorCode = ActionErrorCode;
 
-type PatientQueueFailure = { success: false; error: string; code?: PatientQueueErrorCode };
-
-type ClinicContext = { clinicId: string } | PatientQueueFailure;
-
-async function resolveClinicContext(): Promise<ClinicContext> {
-  const session = await getServerSession();
-  const sessionUser = session?.user as
-    | { clinicId?: string; primaryClinicId?: string; id?: string; sub?: string }
-    | undefined;
-
-  const userId = sessionUser?.id || sessionUser?.sub;
-  if (!userId) {
-    return { success: false, error: 'Not authenticated', code: 'UNAUTHENTICATED' };
-  }
-
-  const clinicId = sessionUser?.clinicId || sessionUser?.primaryClinicId;
-  if (!clinicId) {
-    return {
-      success: false,
-      error: 'Clinic context is required to load your queue position',
-      code: 'CLINIC_CONTEXT_REQUIRED',
-    };
-  }
-
-  return { clinicId };
-}
-
-function statusFailure(status: number): PatientQueueFailure | null {
-  if (status === 401) {
-    return { success: false, error: 'Session expired. Please sign in again.', code: 'UNAUTHENTICATED' };
-  }
-  if (status === 403) {
-    return { success: false, error: 'Access denied', code: 'FORBIDDEN' };
-  }
-  if (status >= 400) {
-    return { success: false, error: `Queue position request failed with status ${status}`, code: 'NETWORK' };
-  }
-  return null;
-}
-
-function caughtFailure(error: unknown): PatientQueueFailure {
-  const statusCode =
-    typeof error === 'object' && error !== null && 'statusCode' in error
-      ? Number((error as { statusCode?: unknown }).statusCode)
-      : NaN;
-  const message = error instanceof Error ? error.message : 'Unknown error';
-  if (statusCode === 401) {
-    return { success: false, error: message, code: 'UNAUTHENTICATED' };
-  }
-  if (statusCode === 403) {
-    return { success: false, error: message, code: 'FORBIDDEN' };
-  }
-  return { success: false, error: message, code: 'NETWORK' };
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
-}
+type PatientQueueFailure = ActionFailure;
 
 function wholeNumber(value: unknown, fallback: number): number {
   const parsed = typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : NaN;
@@ -140,28 +87,28 @@ export async function fetchMyQueuePosition(
   appointmentId?: string
 ): Promise<{ success: true; data: MyQueuePosition | null } | PatientQueueFailure> {
   try {
-    const context = await resolveClinicContext();
-    if (!('clinicId' in context)) {
+    const context = await resolveClinicContext('load your queue position');
+    if (!context.success) {
       return context;
     }
 
     const visitId = String(appointmentId || '').trim();
     const endpoint = visitId
-      ? `${MY_QUEUE_ENDPOINT}?appointmentId=${encodeURIComponent(visitId)}`
-      : MY_QUEUE_ENDPOINT;
+      ? `${API_ENDPOINTS.QUEUE.ME}?appointmentId=${encodeURIComponent(visitId)}`
+      : API_ENDPOINTS.QUEUE.ME;
 
     const { status, data } = await authenticatedApi<unknown>(endpoint, {
-      headers: { 'X-Clinic-ID': context.clinicId },
+      headers: clinicHeaders(context.clinicId),
       omitClinicId: true,
       cache: 'no-store',
     });
 
-    const failure = statusFailure(status);
+    const failure = statusFailure(status, 'Queue position');
     if (failure) {
       return failure;
     }
 
-    return { success: true, data: readQueuePosition(data) };
+    return actionSuccess(readQueuePosition(data));
   } catch (error) {
     return caughtFailure(error);
   }

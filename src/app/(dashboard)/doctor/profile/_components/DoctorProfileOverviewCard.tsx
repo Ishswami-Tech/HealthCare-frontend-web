@@ -1,5 +1,3 @@
-"use client";
-
 import { Award } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Pill, Surface } from "@/components/tbd";

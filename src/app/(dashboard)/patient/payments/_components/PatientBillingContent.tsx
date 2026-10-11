@@ -20,8 +20,10 @@ import type { BillingPlan, Subscription } from "@/types/billing.types";
 import { BILLING_TABS_ID, PATIENT_BILLING_TABS, type PatientBillingTab } from "./BillingMoreTabs";
 import type { RenderInvoicePay } from "./BillingOverviewCards";
 import { PatientBillingView } from "./PatientBillingView";
-import { formatAmount, groupSubscriptions, invoiceTotal } from "./patientBilling.logic";
-import { useInvoicePdfDownload, usePatientBillingIdentity } from "./usePatientBilling";
+import { groupSubscriptions, invoiceTotal } from "./patientBilling.logic";
+import { usePatientBillingIdentity } from "./usePatientBilling";
+import { formatRupees } from "@/lib/utils/currency";
+import { useInvoicePdfDownload } from "@/hooks/query/useInvoicePdfDownload";
 
 const PaymentButton = dynamic(
   () => import("@/components/payments/PaymentButton").then((module) => module.PaymentButton),
@@ -177,7 +179,7 @@ export function PatientBillingContent() {
         void refetchPayments();
       }}
     >
-      Pay {formatAmount(invoiceTotal(invoice), invoice.currency)}
+      Pay {formatRupees(invoiceTotal(invoice), { currency: invoice.currency })}
     </PaymentButton>
   );
 
@@ -249,7 +251,7 @@ export function PatientBillingContent() {
               void refetchFallbackPlans();
             }}
           >
-            Pay {formatAmount(pendingSubscriptionPayment.amount)}
+            Pay {formatRupees(pendingSubscriptionPayment.amount)}
           </PaymentButton>
         ) : null}
       </SubscriptionPaymentDialog>

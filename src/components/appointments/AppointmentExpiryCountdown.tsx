@@ -126,7 +126,7 @@ export function AppointmentExpiryCountdown({
       }
     : {
         icon: Clock,
-        containerClass: "bg-[#f1f5f9] text-[#334155] dark:bg-slate-500/20 dark:text-slate-300",
+        containerClass: "bg-well text-[#334155] dark:text-slate-300",
         label: `Expires in ${remainingLabel}`,
       };
 

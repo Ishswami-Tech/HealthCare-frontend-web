@@ -1,20 +1,13 @@
 "use client";
 
 import {
-  PLAN_DIALOG_CONTENT,
   PLAN_HEAD_BUTTON,
   PLAN_INNER_CARD,
   PlanCardHeader,
-  PlanConfirmDialog,
-  PlanDialogBody,
-  PlanDialogFooter,
-  PlanDialogHeader,
-  PlanField,
   PlanToggle,
 } from "./PlanShared";
 import {
   COPY,
-  formatBytes,
   kindForFile,
   subTypeLabel,
   useDocumentBlobUrl,
@@ -42,12 +35,21 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { EmptyBlock, Note, Pill, Surface } from "@/components/tbd";
+import {
+  EmptyBlock,
+  Note,
+  Pill,
+  Surface,
+  ConfirmDialog,
+  DialogActions,
+  DialogBody,
+  DialogShell,
+  Field,
+} from "@/components/tbd";
 import { patientDocumentMediaUrl } from "@/hooks/query/usePatientDocuments";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import { cn } from "@/lib/utils/index";
@@ -56,6 +58,7 @@ import type {
   PatientDocumentMediaKind,
   PatientDocumentSubTypeOption,
 } from "@/types/patient-document.types";
+import { formatBytes } from "@/lib/utils/labels";
 
 // ---------------------------------------------------------------------------
 // File type icon
@@ -66,7 +69,7 @@ const KIND_STYLE: Record<PatientDocumentMediaKind, { icon: typeof FileText; box:
   IMAGE: { icon: ImageIcon, box: "bg-[#e0f2fe] text-[#0369a1] dark:bg-sky-500/15 dark:text-sky-300" },
   AUDIO: { icon: AudioLines, box: "bg-[#fef3c7] text-[#b45309] dark:bg-amber-500/15 dark:text-amber-300" },
   VIDEO: { icon: Video, box: "bg-[#ede9fe] text-[#6d28d9] dark:bg-violet-500/15 dark:text-violet-300" },
-  OTHER: { icon: FileIcon, box: "bg-[#e2e8f0] text-[#334155] dark:bg-slate-500/20 dark:text-slate-300" },
+  OTHER: { icon: FileIcon, box: "bg-line text-[#334155] dark:text-slate-300" },
 };
 
 /** Coloured square with the icon of the file type (red PDF, blue image, amber audio, violet video). */
@@ -380,7 +383,7 @@ function PendingUploadForm({ item, options, showVisitToggle, disabled, onChange,
         </button>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <PlanField label="Type" htmlFor={`sub-type-${item.id}`}>
+        <Field label="Type" htmlFor={`sub-type-${item.id}`}>
           <Select value={item.subType} onValueChange={(value) => onChange({ ...item, subType: value })} disabled={disabled}>
             <SelectTrigger id={`sub-type-${item.id}`} className="w-full">
               <SelectValue placeholder="Select type" />
@@ -393,8 +396,8 @@ function PendingUploadForm({ item, options, showVisitToggle, disabled, onChange,
               ))}
             </SelectContent>
           </Select>
-        </PlanField>
-        <PlanField label="Report date" htmlFor={`report-date-${item.id}`}>
+        </Field>
+        <Field label="Report date" htmlFor={`report-date-${item.id}`}>
           <Input
             id={`report-date-${item.id}`}
             type="date"
@@ -402,8 +405,8 @@ function PendingUploadForm({ item, options, showVisitToggle, disabled, onChange,
             disabled={disabled}
             onChange={(event) => onChange({ ...item, reportDate: event.target.value })}
           />
-        </PlanField>
-        <PlanField label="Title" htmlFor={`title-${item.id}`} className="sm:col-span-2">
+        </Field>
+        <Field label="Title" htmlFor={`title-${item.id}`} className="sm:col-span-2">
           <Input
             id={`title-${item.id}`}
             value={item.title}
@@ -411,8 +414,8 @@ function PendingUploadForm({ item, options, showVisitToggle, disabled, onChange,
             disabled={disabled}
             onChange={(event) => onChange({ ...item, title: event.target.value })}
           />
-        </PlanField>
-        <PlanField label="Notes" htmlFor={`notes-${item.id}`} className="sm:col-span-2">
+        </Field>
+        <Field label="Notes" htmlFor={`notes-${item.id}`} className="sm:col-span-2">
           <Textarea
             id={`notes-${item.id}`}
             value={item.notes}
@@ -422,7 +425,7 @@ function PendingUploadForm({ item, options, showVisitToggle, disabled, onChange,
             onChange={(event) => onChange({ ...item, notes: event.target.value })}
             className="min-h-[60px]"
           />
-        </PlanField>
+        </Field>
         {showVisitToggle ? (
           <label className="flex items-center gap-2.5 text-sm text-ink sm:col-span-2">
             <Checkbox
@@ -464,64 +467,61 @@ export function FilesUploadDialog({
 }: FilesUploadDialogProps) {
   const uploading = progress !== null;
   return (
-    <Dialog
+    <DialogShell
       open={pending.length > 0}
-      onOpenChange={(open) => {
-        if (!open && !uploading) onCancel();
-      }}
+      onClose={onCancel}
+      busy={uploading}
+      title={`Upload ${pending.length} ${pending.length === 1 ? "file" : "files"}`}
+      description="Add details for each file. Files are uploaded one at a time."
+      width={680}
+      stretch
     >
-      <DialogContent showCloseButton={false} className={cn(PLAN_DIALOG_CONTENT, "sm:max-w-[680px]")}>
-        <PlanDialogHeader
-          title={`Upload ${pending.length} ${pending.length === 1 ? "file" : "files"}`}
-          description="Add details for each file. Files are uploaded one at a time."
-        />
-        <PlanDialogBody>
-          {pending.map((item) => (
-            <PendingUploadForm
-              key={item.id}
-              item={item}
-              options={options}
-              showVisitToggle={showVisitToggle}
-              disabled={uploading}
-              onChange={onChange}
-              onRemove={() => onRemove(item.id)}
-            />
-          ))}
-          <p className="m-0 text-xs text-ink-muted">
-            Type options: {options.map((option) => option.label).join(" · ")}
-          </p>
-          {progress ? (
-            <div className="flex flex-col gap-1.5" aria-live="polite">
+      <DialogBody>
+        {pending.map((item) => (
+          <PendingUploadForm
+            key={item.id}
+            item={item}
+            options={options}
+            showVisitToggle={showVisitToggle}
+            disabled={uploading}
+            onChange={onChange}
+            onRemove={() => onRemove(item.id)}
+          />
+        ))}
+        <p className="m-0 text-xs text-ink-muted">
+          Type options: {options.map((option) => option.label).join(" · ")}
+        </p>
+        {progress ? (
+          <div className="flex flex-col gap-1.5" aria-live="polite">
+            <span
+              role="progressbar"
+              aria-label="Upload progress"
+              aria-valuemin={0}
+              aria-valuemax={progress.total}
+              aria-valuenow={progress.done}
+              className="block h-2 overflow-hidden rounded bg-well"
+            >
               <span
-                role="progressbar"
-                aria-label="Upload progress"
-                aria-valuemin={0}
-                aria-valuemax={progress.total}
-                aria-valuenow={progress.done}
-                className="block h-2 overflow-hidden rounded bg-well"
-              >
-                <span
-                  className="block h-2 rounded bg-brand transition-[width]"
-                  style={{ width: `${(progress.done / progress.total) * 100}%` }}
-                />
-              </span>
-              <p className="m-0 truncate text-xs text-ink-muted">
-                Uploading {progress.current} ({progress.done + 1} of {progress.total})
-              </p>
-            </div>
-          ) : null}
-        </PlanDialogBody>
-        <PlanDialogFooter>
-          <Button variant="outline" size="md" disabled={uploading} onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button size="md" disabled={uploading || pending.length === 0} onClick={onUpload}>
-            {uploading ? <Loader2 className="animate-spin" aria-hidden="true" /> : <ArrowUpToLine aria-hidden="true" />}
-            Upload
-          </Button>
-        </PlanDialogFooter>
-      </DialogContent>
-    </Dialog>
+                className="block h-2 rounded bg-brand transition-[width]"
+                style={{ width: `${(progress.done / progress.total) * 100}%` }}
+              />
+            </span>
+            <p className="m-0 truncate text-xs text-ink-muted">
+              Uploading {progress.current} ({progress.done + 1} of {progress.total})
+            </p>
+          </div>
+        ) : null}
+      </DialogBody>
+      <DialogActions>
+        <Button variant="outline" size="md" disabled={uploading} onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button size="md" disabled={uploading || pending.length === 0} onClick={onUpload}>
+          {uploading ? <Loader2 className="animate-spin" aria-hidden="true" /> : <ArrowUpToLine aria-hidden="true" />}
+          Upload
+        </Button>
+      </DialogActions>
+    </DialogShell>
   );
 }
 
@@ -603,17 +603,16 @@ export function FilesPreviewDialogView({ document: doc, blob, mediaSrc, onClose 
   }
 
   return (
-    <Dialog open={!!doc} onOpenChange={(open) => (open ? undefined : onClose())}>
-      <DialogContent showCloseButton={false} className={cn(PLAN_DIALOG_CONTENT, "sm:max-w-[860px]")}>
-        <PlanDialogHeader
-          title={doc?.title ?? "Preview"}
-          description={
-            doc ? `${doc.fileName} · ${formatBytes(doc.fileSize)}${doc.notes ? ` · ${doc.notes}` : ""}` : undefined
-          }
-        />
-        <PlanDialogBody>{body}</PlanDialogBody>
-      </DialogContent>
-    </Dialog>
+    <DialogShell
+      open={!!doc}
+      onClose={onClose}
+      title={doc?.title ?? "Preview"}
+      description={doc ? `${doc.fileName} · ${formatBytes(doc.fileSize)}${doc.notes ? ` · ${doc.notes}` : ""}` : undefined}
+      width={860}
+      stretch
+    >
+      <DialogBody>{body}</DialogBody>
+    </DialogShell>
   );
 }
 
@@ -650,9 +649,12 @@ export function FilesDeleteDialog({
   onConfirm: () => void;
 }) {
   return (
-    <PlanConfirmDialog
+    <ConfirmDialog
       open={!!target}
-      onOpenChange={(open) => (open ? undefined : onCancel())}
+      onClose={onCancel}
+      tone="danger"
+      closeButton
+      closeOnConfirm
       title="Delete this file?"
       description={
         target ? `"${target.title}" will be removed from the patient's ${COPY[category].title.toLowerCase()}.` : ""

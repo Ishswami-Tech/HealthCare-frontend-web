@@ -13,6 +13,8 @@ interface DoctorProfileAvailabilityTabProps {
   updateAvailability: (day: string, field: string, value: unknown) => void;
   onSave: () => void | Promise<void>;
   isSaving?: boolean;
+  /** The profile has not loaded, so there is nothing safe to save yet. */
+  saveDisabled?: boolean;
 }
 
 /** Phone: day + switch on one line, the two times under it. Desktop: the four columns of the design. */
@@ -28,6 +30,7 @@ export function DoctorProfileAvailabilityTab({
   updateAvailability,
   onSave,
   isSaving = false,
+  saveDisabled = false,
 }: DoctorProfileAvailabilityTabProps) {
   return (
     <ProfileCard
@@ -35,7 +38,7 @@ export function DoctorProfileAvailabilityTab({
       title="Weekly Availability"
       description="Set your available days and hours, then click Save Changes."
       action={
-        <Button type="button" variant="soft" className="h-10" onClick={() => void onSave()} disabled={isSaving}>
+        <Button type="button" variant="soft" className="h-10" onClick={() => void onSave()} disabled={isSaving || saveDisabled}>
           {isSaving ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Save aria-hidden="true" />}
           {isSaving ? "Saving…" : "Save availability"}
         </Button>

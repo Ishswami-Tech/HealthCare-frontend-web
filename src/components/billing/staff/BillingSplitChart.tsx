@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import { formatRupees } from "./billing.logic";
+import { formatRupees } from "@/lib/utils/currency";
 
 const CHART_CONFIG = {
   paid: { label: "Paid", theme: { light: "#047857", dark: "#34d399" } },
@@ -97,7 +97,7 @@ export function BillingSplitChart({
       </ChartContainer>
       <figcaption className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-[13px] text-ink-soft">
         <span className="inline-flex items-center gap-2">
-          <span className="size-2.5 rounded-[3px] bg-[#047857] dark:bg-[#34d399]" aria-hidden="true" />
+          <span className="size-2.5 rounded-[3px] bg-brand" aria-hidden="true" />
           Paid · {paidShare}% of billed amount
         </span>
         <span className="inline-flex items-center gap-2">

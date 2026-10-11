@@ -1,3 +1,5 @@
+import { asRecordOrEmpty, textOf } from "./coerce";
+
 function isGenericIdentityToken(value: string): boolean {
   const normalized = value.trim().toLowerCase();
   if (!normalized) return true;
@@ -101,4 +103,34 @@ export function resolvePatientDisplayName(user: {
   role?: string | null | undefined;
 }): string {
   return resolveDisplayNameAndInitials(user).displayName;
+}
+
+/**
+ * "First Last" of a person row from the API. The row is either flat or carries the person
+ * under `user`; the `user` values win when both are present. "" when neither name is set.
+ */
+export function personFullName(person: unknown): string {
+  const record = asRecordOrEmpty(person);
+  const user = asRecordOrEmpty(record.user);
+  const first = textOf(user.firstName) || textOf(record.firstName);
+  const last = textOf(user.lastName) || textOf(record.lastName);
+  return `${first} ${last}`.trim();
+}
+
+/**
+ * The name to show for a patient row (flat, or with the person under `user`): the row's name,
+ * its first and last name, the same from `user`, then an email. "" when the row has none of them.
+ */
+export function patientRecordName(patient: unknown): string {
+  const record = asRecordOrEmpty(patient);
+  const user = asRecordOrEmpty(record.user);
+  const candidates = [
+    textOf(record.name),
+    `${textOf(record.firstName)} ${textOf(record.lastName)}`.trim(),
+    textOf(user.name),
+    `${textOf(user.firstName)} ${textOf(user.lastName)}`.trim(),
+    textOf(record.email),
+    textOf(user.email),
+  ];
+  return candidates.find(Boolean) ?? "";
 }

@@ -37,7 +37,7 @@ export interface ManagerVisit {
   /** Row title in the past and cancelled lists: the reason for the visit, or the visit type. */
   visitTitle: string;
 
-  /** "Today · 02:00 PM" or "Mon, 28 Sept · 10:00 AM · 15 min" (an open video visit shows its length). */
+  /** "Today · 02:00 pm" or "Mon, 28 Sept · 10:00 am · 15 min" (an open video visit shows its length). */
   whenLabel: string;
   /** "12 Sept 2026" */
   dateLabel: string;
@@ -71,7 +71,7 @@ export interface ManagerVisit {
   paymentWindowMinutes: number | null;
   /** The doctor has not picked one of the proposed times yet. */
   awaitingSlot: boolean;
-  /** "Mon, 28 Sept · 10:00 AM" for every time proposed. */
+  /** "Mon, 28 Sept · 10:00 am" for every time proposed. */
   proposedSlots: string[];
   /** The viewer may decline the proposed times (doctors only). */
   canDeclineSlots: boolean;
@@ -101,6 +101,17 @@ export interface ManagerVisit {
   /** Where the summary of a completed visit opens. */
   summaryHref: string | null;
   summaryLabel: string;
+}
+
+/**
+ * A visit a link asked for (`/patient/appointments?id=<appointmentId>`). The list opens the
+ * tab and page that hold it, scrolls to it and marks it for a moment. Pass a new object for
+ * every link, so the same visit can be opened twice.
+ */
+export interface ManagerVisitFocus {
+  visitId: string;
+  /** Also open the reschedule dialog, when the visit can still be moved. */
+  action?: "reschedule";
 }
 
 export interface ManagerStats {

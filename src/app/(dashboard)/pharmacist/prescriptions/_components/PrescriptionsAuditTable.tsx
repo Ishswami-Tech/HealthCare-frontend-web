@@ -1,27 +1,13 @@
 "use client";
 
 import { ClipboardList } from "lucide-react";
-import { EmptyBlock, Pill } from "@/components/tbd";
+import { EmptyBlock, Pill, Pager, usePagedRows, LoadError, SkeletonRows } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import type { PharmacyBatchAuditEntry } from "@/types/pharmacy.types";
-import {
-  AUDIT_EVENT_TONE,
-  auditEventKind,
-  auditReason,
-  dateLabel,
-  expiryLabel,
-  prescriptionReference,
-  timeLabel,
-} from "./pharmacist-prescriptions.logic";
-import {
-  CELL_FULL,
-  CellLabel,
-  HEAD_ROW,
-  LoadError,
-  PrescriptionsPager,
-  SkeletonRows,
-  usePagedRows,
-} from "./PrescriptionTableParts";
+import { AUDIT_EVENT_TONE, auditEventKind, auditReason } from "./pharmacist-prescriptions.logic";
+import { CELL_FULL, CellLabel, HEAD_ROW } from "./PrescriptionTableParts";
+import { formatDateLabel, formatMonthYearLabel, formatTimeLabel } from "@/lib/utils/date-time";
+import { prescriptionReference } from "@/lib/utils/labels";
 
 const ROW_GRID =
   "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-5 @4xl:grid-cols-[104px_112px_minmax(0,1fr)_minmax(0,1.2fr)_90px_36px_minmax(0,1.2fr)] @4xl:gap-x-4 @5xl:grid-cols-[118px_116px_145px_minmax(0,1fr)_96px_40px_215px]";
@@ -46,7 +32,7 @@ export function PrescriptionsAuditTable({
   errorMessage = null,
   onRetry,
 }: PrescriptionsAuditTableProps) {
-  const paging = usePagedRows(entries, resetKey);
+  const paging = usePagedRows(entries, 10, { resetKey });
 
   if (loading) return <SkeletonRows />;
   if (errorMessage) {
@@ -96,8 +82,8 @@ export function PrescriptionsAuditTable({
               )}
             >
               <div role="cell" className="flex min-w-0 flex-col gap-px">
-                <span className="truncate text-sm font-bold text-ink">{timeLabel(entry.eventAt)}</span>
-                <span className="truncate text-xs text-ink-muted">{dateLabel(entry.eventAt)}</span>
+                <span className="truncate text-sm font-bold text-ink">{formatTimeLabel(entry.eventAt)}</span>
+                <span className="truncate text-xs text-ink-muted">{formatDateLabel(entry.eventAt)}</span>
               </div>
               <div role="cell" className="col-[2] row-[1] min-w-0 @4xl:col-auto @4xl:row-auto">
                 <Pill tone={AUDIT_EVENT_TONE[kind]}>{kind}</Pill>
@@ -106,7 +92,7 @@ export function PrescriptionsAuditTable({
                 <CellLabel>Patient</CellLabel>
                 <span className="truncate text-sm font-bold text-ink">{entry.patientName}</span>
                 <span className="truncate text-xs text-ink-muted">
-                  {prescriptionReference(null, entry.prescriptionId)}
+                  {prescriptionReference(entry.prescriptionId)}
                 </span>
               </div>
               <div role="cell" className={cn(CELL_FULL, "row-[3] flex min-w-0 flex-col gap-px")}>
@@ -118,7 +104,7 @@ export function PrescriptionsAuditTable({
                 <CellLabel>Batch</CellLabel>
                 <span className="truncate text-[13px] font-bold text-ink">{entry.batchNumber || "—"}</span>
                 <span className="truncate text-xs text-ink-muted">
-                  {entry.expiryDate ? `Exp ${expiryLabel(entry.expiryDate)}` : "No expiry"}
+                  {entry.expiryDate ? `Exp ${formatMonthYearLabel(entry.expiryDate)}` : "No expiry"}
                 </span>
               </div>
               <div role="cell" className="row-[4] min-w-0 text-right @4xl:row-auto @4xl:text-left">
@@ -139,7 +125,7 @@ export function PrescriptionsAuditTable({
           );
         })}
       </div>
-      <PrescriptionsPager paging={paging} noun={paging.total === 1 ? "entry" : "entries"} />
+      <Pager paging={paging} noun={paging.total === 1 ? "entry" : "entries"} />
     </>
   );
 }

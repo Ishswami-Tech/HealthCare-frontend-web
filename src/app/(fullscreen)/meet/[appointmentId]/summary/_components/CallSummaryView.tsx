@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, CircleAlert, Download, FileText, Loader2, Pill as PillIcon, Star, Video, X } from "lucide-react";
+import { Check, CircleAlert, FileText, Loader2, Pill as PillIcon, Star, Video, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Divider,
@@ -37,14 +37,11 @@ export type SummaryPrescription = {
   medicines: SummaryMedicine[];
   /** True when the medicines come from the doctor's call notes and no pharmacy prescription exists yet. */
   fromNotes?: boolean;
-  /** Present only when there is a prescription to download. */
-  onDownload?: () => void;
-  isDownloading?: boolean;
 };
 
 export type SummaryRating = {
-  /** `rate`: the patient can rate; `readonly`: staff see the patient's rating; `hidden`: no rating yet possible. */
-  mode: "rate" | "readonly" | "hidden";
+  /** `rate`: the patient can rate. `hidden`: not the patient, or the visit cannot be rated yet. */
+  mode: "rate" | "hidden";
   /** The saved rating (0 = none). */
   value: number;
   pending: boolean;
@@ -90,19 +87,18 @@ export type CallSummaryViewProps = {
 
 const RATING_WORDS = ["", "Poor", "Fair", "Good", "Very good", "Excellent"];
 
-function RatingCard({ rating, viewerIsPatient }: { rating: SummaryRating; viewerIsPatient: boolean }) {
+/** The patient's own rating of the visit. Other roles never see this card. */
+function RatingCard({ rating }: { rating: SummaryRating }) {
   const [hovered, setHovered] = useState(0);
   const [picked, setPicked] = useState(0);
   if (rating.mode === "hidden") return null;
-  const interactive = rating.mode === "rate";
   // While saving, show the star that was just pressed; afterwards the saved value.
   const committed = rating.pending && picked ? picked : rating.value;
-  const shown = interactive && hovered ? hovered : committed;
+  const shown = hovered || committed;
+  const failed = Boolean(rating.error) && !rating.pending;
 
   let line: string;
-  if (!interactive) {
-    line = rating.value ? `Rated ${rating.value} out of 5` : "Not rated yet";
-  } else if (rating.pending) {
+  if (rating.pending) {
     line = "Saving your rating…";
   } else if (rating.error) {
     line = rating.error;
@@ -116,9 +112,7 @@ function RatingCard({ rating, viewerIsPatient }: { rating: SummaryRating; viewer
 
   return (
     <Surface className="items-center gap-2.5 px-5 py-6 text-center">
-      <h2 className="m-0 text-base font-bold text-ink">
-        {viewerIsPatient ? "How was your consultation?" : "Patient rating"}
-      </h2>
+      <h2 className="m-0 text-base font-bold text-ink">How was your consultation?</h2>
       <div className="flex gap-1.5" onMouseLeave={() => setHovered(0)}>
         {[1, 2, 3, 4, 5].map((stars) => {
           const filled = stars <= shown;
@@ -134,7 +128,7 @@ function RatingCard({ rating, viewerIsPatient }: { rating: SummaryRating; viewer
               aria-hidden="true"
             />
           );
-          return interactive ? (
+          return (
             <button
               key={stars}
               type="button"
@@ -152,24 +146,17 @@ function RatingCard({ rating, viewerIsPatient }: { rating: SummaryRating; viewer
             >
               {star}
             </button>
-          ) : (
-            <span key={stars} className="flex size-11 items-center justify-center">
-              {star}
-            </span>
           );
         })}
       </div>
-      {!interactive && rating.value ? <span className="sr-only">{`${rating.value} out of 5 stars`}</span> : null}
       <p
         className={cn(
           "m-0 flex items-center justify-center gap-1.5 text-[13px]",
-          interactive && rating.error && !rating.pending
-            ? "font-semibold text-[#e11d48] dark:text-rose-300"
-            : "text-ink-muted",
+          failed ? "font-semibold text-[#e11d48] dark:text-rose-300" : "text-ink-muted",
         )}
-        role={interactive && rating.error && !rating.pending ? "alert" : "status"}
+        role={failed ? "alert" : "status"}
       >
-        {interactive && rating.pending ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : null}
+        {rating.pending ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : null}
         {line}
       </p>
     </Surface>
@@ -247,21 +234,11 @@ function PrescriptionCard({
               <p className="m-0 py-3 text-sm text-ink-muted">This prescription lists no medicines.</p>
             ) : null}
           </div>
-          {prescription.onDownload ? (
+          {/* No PDF: the backend has no prescription PDF. The medicines list is the record. */}
+          {medicinesHref ? (
             <div className="flex flex-wrap items-center gap-2.5">
-              <Button
-                variant="outline"
-                size="md"
-                onClick={prescription.onDownload}
-                disabled={prescription.isDownloading}
-                aria-busy={prescription.isDownloading}
-              >
-                {prescription.isDownloading ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                ) : (
-                  <Download className="size-4" strokeWidth={2.2} aria-hidden="true" />
-                )}
-                Download prescription (PDF)
+              <Button asChild variant="outline" size="md">
+                <Link href={medicinesHref}>See my medicines</Link>
               </Button>
             </div>
           ) : null}
@@ -444,7 +421,7 @@ export function CallSummaryView(props: CallSummaryViewProps) {
                 </Surface>
               ) : null}
 
-              <RatingCard rating={props.rating} viewerIsPatient={viewerIsPatient} />
+              {viewerIsPatient ? <RatingCard rating={props.rating} /> : null}
 
               {props.followUp ? (
                 <Surface className="gap-2">

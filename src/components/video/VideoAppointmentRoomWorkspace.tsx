@@ -47,6 +47,7 @@ import {
   getTranscription,
 } from "@/lib/actions/video.server";
 import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
+import { formatRupees } from "@/lib/utils/currency";
 
 // Dynamic import with ssr:false is REQUIRED for Daily.js.
 // The Daily SDK is browser-only: its IIFE sets `callMachine` on `window`/`self`,
@@ -635,7 +636,7 @@ export function VideoAppointmentRoomWorkspace({
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-[#5f6368]">Fee</span>
                         <span className="font-semibold text-[#202124]">
-                          {serviceFee > 0 ? `₹${serviceFee.toLocaleString("en-IN")}` : "Complimentary"}
+                          {serviceFee > 0 ? formatRupees(serviceFee) : "Complimentary"}
                         </span>
                       </div>
                     )}

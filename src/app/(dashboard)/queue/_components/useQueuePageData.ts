@@ -43,6 +43,24 @@ import {
   type QueueStatsSummary,
   type QueueTabKey,
 } from "./queue.logic";
+import { textOf } from "@/lib/utils/coerce";
+
+/** Roles the backend allows on `PATCH /queue/:entryId/transfer`. Doctors are not among them. */
+const QUEUE_TRANSFER_ROLES: ReadonlySet<Role> = new Set([
+  Role.NURSE,
+  Role.RECEPTIONIST,
+  Role.CLINIC_ADMIN,
+  Role.SUPER_ADMIN,
+  Role.CLINIC_LOCATION_HEAD,
+]);
+
+/** Roles the backend allows on `POST /appointments/:id/reassign-doctor`. */
+const ASSIGN_DOCTOR_ROLES: ReadonlySet<Role> = new Set([
+  Role.CLINIC_ADMIN,
+  Role.RECEPTIONIST,
+  Role.DOCTOR,
+  Role.ASSISTANT_DOCTOR,
+]);
 
 type DoctorRow = {
   id?: unknown;
@@ -53,14 +71,10 @@ type DoctorRow = {
   doctor?: { id?: unknown; user?: { name?: unknown; role?: unknown } };
 };
 
-function text(value: unknown): string {
-  return typeof value === "string" || typeof value === "number" ? String(value) : "";
-}
-
 function normalizeAssignableDoctors(users: DoctorRow[]): AssignableDoctor[] {
   return users.reduce<AssignableDoctor[]>((acc, user) => {
-    const role = (text(user.role) || text(user.doctor?.user?.role)).toUpperCase();
-    const id = text(user.doctor?.id) || text(user.id);
+    const role = (textOf(user.role) || textOf(user.doctor?.user?.role)).toUpperCase();
+    const id = textOf(user.doctor?.id) || textOf(user.id);
     if (!id || (role !== "DOCTOR" && role !== "ASSISTANT_DOCTOR")) {
       return acc;
     }
@@ -68,9 +82,9 @@ function normalizeAssignableDoctors(users: DoctorRow[]): AssignableDoctor[] {
     acc.push({
       id,
       name:
-        text(user.name) ||
-        text(user.doctor?.user?.name) ||
-        `${text(user.firstName)} ${text(user.lastName)}`.trim() ||
+        textOf(user.name) ||
+        textOf(user.doctor?.user?.name) ||
+        `${textOf(user.firstName)} ${textOf(user.lastName)}`.trim() ||
         "Unknown Doctor",
       role,
     });
@@ -92,7 +106,9 @@ function extractDoctorRows(doctorsData: unknown): DoctorRow[] {
  */
 export function useQueuePageData() {
   const { session } = useAuth();
-  const userRole = (session?.user?.role as Role) || Role.SUPER_ADMIN;
+  // The role as the session has it: the button gates below use this one, never a fallback.
+  const sessionRole = session?.user?.role as Role | undefined;
+  const userRole = sessionRole || Role.SUPER_ADMIN;
   const doctorId = session?.user?.id;
   const isDoctorRole = userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR;
   const { tab: activeQueue, setTab: setActiveQueue } = useHashTab({
@@ -289,9 +305,23 @@ export function useQueuePageData() {
     dispatch({ type: "setIsCleaningUp", value: true });
     try {
       const ids = staleEntries.map((entry) => entry.id);
-      await bulkCancelQueueEntries(ids);
+      // `{ success, count }`: `count` is how many entries the server really removed.
+      const result = await bulkCancelQueueEntries(ids);
       await refetchQueue();
-      showSuccessToast(`Successfully cancelled ${ids.length} stale entries.`, { id: TOAST_IDS.GLOBAL.SUCCESS });
+      const cancelled = result.success ? (result.count ?? 0) : 0;
+      if (!result.success || cancelled === 0) {
+        showErrorToast((!result.success && result.error) || "The old entries could not be cancelled.", {
+          id: TOAST_IDS.GLOBAL.ERROR,
+        });
+      } else if (cancelled < ids.length) {
+        showErrorToast(`Cancelled ${cancelled} of ${ids.length} old entries. The rest could not be cancelled.`, {
+          id: TOAST_IDS.GLOBAL.ERROR,
+        });
+      } else {
+        showSuccessToast(`Cancelled ${cancelled} old ${cancelled === 1 ? "entry" : "entries"}.`, {
+          id: TOAST_IDS.GLOBAL.SUCCESS,
+        });
+      }
     } catch (err) {
       showErrorToast(err, { id: TOAST_IDS.GLOBAL.ERROR });
     } finally {
@@ -353,8 +383,15 @@ export function useQueuePageData() {
     async (entryId: string, targetQueue: string, treatmentType: string, label: string) => {
       dispatch({ type: "setTransferringId", value: entryId });
       try {
-        await transferQueueEntryMutation.mutateAsync({ entryId, targetQueue, treatmentType });
-        const transferSynced = await pollQueueSync(refetchQueue, 8, 400, (entries) =>
+        try {
+          await transferQueueEntryMutation.mutateAsync({ entryId, targetQueue, treatmentType });
+        } catch {
+          // The mutation hook has already shown why the move failed.
+          return;
+        }
+
+        // The server accepted the move. Wait for the list to show it; a slow list is not a failure.
+        await pollQueueSync(refetchQueue, 8, 400, (entries) =>
           entries.some((item) => {
             if (item.id !== entryId) return false;
 
@@ -363,11 +400,7 @@ export function useQueuePageData() {
               matchesQueueSection(item, treatmentType)
             );
           }),
-        );
-
-        if (!transferSynced) {
-          throw new Error("Transfer request was accepted but backend queue sync is still pending.");
-        }
+        ).catch(() => false);
 
         // Follow the patient to the lane they were moved to.
         const targetLane = normalizeQueueToken(treatmentType);
@@ -380,9 +413,8 @@ export function useQueuePageData() {
           setActiveQueue("therapies");
           setActiveTherapyLane(targetLane);
         }
-        showSuccessToast(`Moved to ${label}`, { id: TOAST_IDS.GLOBAL.SUCCESS });
-      } catch (transferError) {
-        showErrorToast(transferError, { id: TOAST_IDS.GLOBAL.ERROR });
+        // Same toast id as the mutation hook, so this replaces its "moved" message instead of adding one.
+        showSuccessToast(`Moved to ${label}`, { id: TOAST_IDS.QUEUE.UPDATE });
       } finally {
         dispatch({ type: "setTransferringId", value: null });
       }
@@ -447,18 +479,20 @@ export function useQueuePageData() {
   }, [assigningQueueItem, selectedDoctorId, reassignAppointmentMutation, refetchQueue]);
 
   // Status updates and pause keep their existing wiring; no control on this screen calls them yet.
+  // The status action answers `{ success, data }` or `{ success: false, error }`; the optimistic
+  // hook turns a failure into a thrown error (and rolls the list back), so the toast follows it.
+  const { mutateAsync: updateQueueStatus } = updateQueueStatusOptimistic.mutation;
   const handleUpdateQueueStatus = useCallback(
-    (patientId: string, status: string) => {
-      updateQueueStatusOptimistic.mutation.mutate(
-        { patientId, status },
-        {
-          onSuccess: () => {
-            void refetchQueue();
-          },
-        },
-      );
+    async (patientId: string, status: string) => {
+      try {
+        await updateQueueStatus({ patientId, status });
+        showSuccessToast("Queue status updated", { id: TOAST_IDS.QUEUE.UPDATE });
+        void refetchQueue();
+      } catch (statusError) {
+        showErrorToast(statusError, { id: TOAST_IDS.QUEUE.UPDATE });
+      }
     },
-    [refetchQueue, updateQueueStatusOptimistic.mutation],
+    [refetchQueue, updateQueueStatus],
   );
 
   // Pause uses the dedicated backend endpoint, not a generic status update
@@ -467,9 +501,8 @@ export function useQueuePageData() {
       try {
         await pauseQueueMutation.mutateAsync({ doctorId: rowDoctorId });
         await refetchQueue();
-        showSuccessToast("Queue paused", { id: TOAST_IDS.GLOBAL.SUCCESS });
-      } catch (pauseError) {
-        showErrorToast(pauseError, { id: TOAST_IDS.GLOBAL.ERROR });
+      } catch {
+        // The mutation hook shows the result either way ("Queue paused successfully", or the reason).
       }
     },
     [pauseQueueMutation, refetchQueue],
@@ -667,7 +700,8 @@ export function useQueuePageData() {
 
     // row actions
     isDoctorRole,
-    canAssignDoctor: canUpdateAppointments,
+    canAssignDoctor: canUpdateAppointments && sessionRole !== undefined && ASSIGN_DOCTOR_ROLES.has(sessionRole),
+    canMoveTo: sessionRole !== undefined && QUEUE_TRANSFER_ROLES.has(sessionRole),
     isAssignPending: reassignAppointmentMutation.isPending,
     transferringId,
     startingId,

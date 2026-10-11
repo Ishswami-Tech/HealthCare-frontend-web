@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { normalizeAppointmentStatus } from "@/lib/utils/appointmentUtils";
+import { asRecordOrEmpty, trimmedString } from "@/lib/utils/coerce";
 
 /**
  * Pure helpers for the patient account screens (profile hub, personal details, language & privacy).
@@ -10,16 +11,6 @@ export const PROFILE_HUB_ROUTE = "/patient/profile";
 export const PROFILE_EDIT_ROUTE = "/patient/profile/edit";
 export const PROFILE_SETTINGS_ROUTE = "/patient/profile/settings";
 export const HELP_ROUTE = "/patient/help";
-
-type Raw = Record<string, unknown>;
-
-function asRecord(value: unknown): Raw {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Raw) : {};
-}
-
-function text(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
-}
 
 // ── Old deep links ─────────────────────────────────────────────────────────
 
@@ -96,7 +87,7 @@ export const EMPTY_PATIENT_PROFILE: PatientProfileForm = {
 
 function toDateInput(value: unknown): string {
   if (value instanceof Date) return Number.isNaN(value.getTime()) ? "" : value.toISOString().slice(0, 10);
-  const raw = text(value);
+  const raw = trimmedString(value);
   if (!raw) return "";
   if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
   const parsed = new Date(raw);
@@ -104,7 +95,7 @@ function toDateInput(value: unknown): string {
 }
 
 function toGender(value: unknown): PatientGender | "" {
-  const upper = text(value).toUpperCase();
+  const upper = trimmedString(value).toUpperCase();
   return GENDER_OPTIONS.some((option) => option.value === upper) ? (upper as PatientGender) : "";
 }
 
@@ -117,19 +108,19 @@ export function toPatientProfileForm(
   profile: unknown,
   fallback?: { firstName?: string | null; lastName?: string | null; email?: string | null },
 ): PatientProfileForm {
-  const source = asRecord(profile);
+  const source = asRecordOrEmpty(profile);
   return {
     ...EMPTY_PATIENT_PROFILE,
-    firstName: text(source.firstName) || text(fallback?.firstName),
-    lastName: text(source.lastName) || text(fallback?.lastName),
-    phone: text(source.phone),
-    email: text(source.email) || text(fallback?.email),
+    firstName: trimmedString(source.firstName) || trimmedString(fallback?.firstName),
+    lastName: trimmedString(source.lastName) || trimmedString(fallback?.lastName),
+    phone: trimmedString(source.phone),
+    email: trimmedString(source.email) || trimmedString(fallback?.email),
     dateOfBirth: toDateInput(source.dateOfBirth),
     gender: toGender(source.gender),
-    address: text(source.address),
-    city: text(source.city),
-    state: text(source.state),
-    zipCode: text(source.zipCode),
+    address: trimmedString(source.address),
+    city: trimmedString(source.city),
+    state: trimmedString(source.state),
+    zipCode: trimmedString(source.zipCode),
   };
 }
 
@@ -139,8 +130,8 @@ export interface PatientProfileMeta {
 }
 
 export function readPatientProfileMeta(profile: unknown): PatientProfileMeta {
-  const source = asRecord(profile);
-  const photoUrl = text(source.profilePicture) || text(source.avatar);
+  const source = asRecordOrEmpty(profile);
+  const photoUrl = trimmedString(source.profilePicture) || trimmedString(source.avatar);
   return { ...(photoUrl ? { photoUrl } : {}), phoneVerified: source.phoneVerified === true };
 }
 
@@ -255,14 +246,14 @@ const SERVER_FIELD_ALIASES: Record<string, PatientProfileField> = {
 
 /** Field errors from a failed save (`validationErrors: [{ field, constraints }]`). */
 export function serverFieldErrors(result: unknown): PatientProfileErrors {
-  const list = asRecord(result).validationErrors;
+  const list = asRecordOrEmpty(result).validationErrors;
   if (!Array.isArray(list)) return {};
   const errors: PatientProfileErrors = {};
   for (const entry of list) {
-    const row = asRecord(entry);
-    const name = text(row.field);
+    const row = asRecordOrEmpty(entry);
+    const name = trimmedString(row.field);
     const field = SERVER_FIELD_ALIASES[name] ?? (name in EMPTY_PATIENT_PROFILE ? (name as PatientProfileField) : undefined);
-    const message = Object.values(asRecord(row.constraints)).find((value) => typeof value === "string");
+    const message = Object.values(asRecordOrEmpty(row.constraints)).find((value) => typeof value === "string");
     if (field && typeof message === "string" && !errors[field]) errors[field] = message;
   }
   return errors;
@@ -275,15 +266,15 @@ export function serverFieldErrors(result: unknown): PatientProfileErrors {
  * longer history, so a partial count is never shown as the total.
  */
 export function countCompletedVisits(data: unknown): number | null {
-  const source = asRecord(data);
+  const source = asRecordOrEmpty(data);
   const list = Array.isArray(source.appointments) ? source.appointments : Array.isArray(data) ? data : null;
   if (!list) return null;
   const visits = [
-    ...new Map(list.map((visit, index) => [text(asRecord(visit).id) || `row-${index}`, asRecord(visit)])).values(),
+    ...new Map(list.map((visit, index) => [trimmedString(asRecordOrEmpty(visit).id) || `row-${index}`, asRecordOrEmpty(visit)])).values(),
   ];
-  const total = asRecord(source.meta).total;
+  const total = asRecordOrEmpty(source.meta).total;
   if (typeof total === "number" && total !== visits.length) return null;
-  return visits.filter((visit) => normalizeAppointmentStatus(text(visit.status)) === "COMPLETED").length;
+  return visits.filter((visit) => normalizeAppointmentStatus(trimmedString(visit.status)) === "COMPLETED").length;
 }
 
 // ── Notification preferences ───────────────────────────────────────────────
@@ -297,8 +288,8 @@ const CHANNELS = [
 
 /** "Email, WhatsApp" / "Off" for the hub row; `undefined` while the preferences are not known. */
 export function notificationChannelSummary(preferences: unknown): string | undefined {
-  const outer = asRecord(preferences);
-  const source = CHANNELS.some(([key]) => typeof outer[key] === "boolean") ? outer : asRecord(outer.data);
+  const outer = asRecordOrEmpty(preferences);
+  const source = CHANNELS.some(([key]) => typeof outer[key] === "boolean") ? outer : asRecordOrEmpty(outer.data);
   if (!CHANNELS.some(([key]) => typeof source[key] === "boolean")) return undefined;
   const enabled = CHANNELS.filter(([key]) => source[key] === true).map(([, label]) => label);
   if (enabled.length === 0) return "Off";

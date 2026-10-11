@@ -19,7 +19,7 @@ export interface HomeVisit {
   doctorDetail?: string;
   /** "Mon, 28 Sept 2026" */
   dateLabel: string;
-  /** "10:00 AM" */
+  /** "10:00 am" */
   timeLabel: string;
   /** ISO start time, or null when the visit has no time yet. */
   startsAt: string | null;

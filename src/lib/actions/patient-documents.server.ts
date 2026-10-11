@@ -95,6 +95,9 @@ export async function deletePatientDocument(clinicId: string, documentId: string
   await requireSession();
   await authenticatedApi<void>(API_ENDPOINTS.PATIENT_DOCUMENTS.DELETE(documentId), {
     method: "DELETE",
+    // The API client always sends `Content-Type: application/json`, and the backend (Fastify)
+    // answers 400 "Body cannot be empty" to a JSON request without a body. The route reads no body.
+    body: JSON.stringify({}),
     headers: clinicHeaders(clinicId),
   });
 }

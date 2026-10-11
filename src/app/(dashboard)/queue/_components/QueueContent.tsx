@@ -66,6 +66,7 @@ export default function QueueContent() {
         rowActions={{
           hasMainAction: data.isDoctorRole,
           canAssignDoctor: data.canAssignDoctor,
+          canMoveTo: data.canMoveTo,
           isAssignPending: data.isAssignPending,
           transferringId: data.transferringId,
           startingId: data.startingId,

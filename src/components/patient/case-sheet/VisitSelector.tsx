@@ -79,7 +79,7 @@ export function VisitSelectorView({
           "inline-flex min-h-[34px] items-center gap-2 whitespace-nowrap rounded-full border px-[13px] text-[13px] transition-colors",
           "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40",
           active
-            ? "border-[#047857] bg-[#047857] text-white"
+            ? "border-primary bg-primary text-white"
             : "border-line bg-card text-ink hover:bg-mint-soft",
         )}
       >
@@ -124,7 +124,7 @@ export function VisitSelectorView({
         </>
       )}
       {onCreate ? (
-        <Button variant="outline" className="h-[34px] rounded-full" onClick={onCreate} disabled={createPending}>
+        <Button variant="outline" size="compact" className="rounded-full" onClick={onCreate} disabled={createPending}>
           <Plus />
           New OPD visit
         </Button>

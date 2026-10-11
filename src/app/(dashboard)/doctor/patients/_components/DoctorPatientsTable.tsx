@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FileText, Pill as PillIcon, SearchX, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CellTitle, EmptyBlock, InitialsAvatar, Surface } from "@/components/tbd";
+import { CellTitle, EmptyBlock, InitialsAvatar, SkeletonRows, Surface, Pager, serverPaging } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import {
   lastVisitLabel,
@@ -31,42 +31,36 @@ interface DoctorPatientsTableProps {
   total: number;
   pageSize: number;
   onPageChange: (page: number) => void;
-  /** A search text or a filter is on: the empty state offers to clear them. */
+  /** A search text is on: the empty state offers to clear it. */
   hasFilters: boolean;
   onClearFilters: () => void;
   onPrescribe: (row: DoctorPatientRow) => void;
 }
 
-function SkeletonRows({ rows = 6 }: { rows?: number }) {
+/** Placeholder rows in the grid of this table. */
+function TableSkeleton({ rows = 6 }: { rows?: number }) {
   return (
-    <div aria-hidden="true">
-      {Array.from({ length: rows }).map((_, index) => (
-        <div
-          key={index}
-          className={cn(ROW_GRID, "gap-y-3 border-b border-hair py-3.5 last:border-b-0 @3xl:min-h-[60px] @3xl:py-2")}
-        >
-          <div className={cn(FULL_ROW, "flex items-center gap-3")}>
-            <Skeleton className="size-[38px] rounded-full" />
-            <div className="flex flex-col gap-1.5">
-              <Skeleton className="h-3.5 w-32 rounded" />
-              <Skeleton className="h-3 w-24 rounded" />
-            </div>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Skeleton className="h-3.5 w-28 max-w-full rounded" />
-            <Skeleton className="h-3 w-36 max-w-full rounded" />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Skeleton className="h-3.5 w-16 rounded" />
-            <Skeleton className="h-3 w-24 max-w-full rounded" />
-          </div>
-          <div className={cn(FULL_ROW, "flex gap-2")}>
-            <Skeleton className="h-9 w-[104px] rounded-xl" />
-            <Skeleton className="h-9 w-[104px] rounded-xl" />
-          </div>
+    <SkeletonRows rows={rows} rowClassName={cn(ROW_GRID, "gap-y-3 py-3.5 @3xl:min-h-[60px] @3xl:py-2")}>
+      <div className={cn(FULL_ROW, "flex items-center gap-3")}>
+        <Skeleton className="size-[38px] rounded-full" />
+        <div className="flex flex-col gap-1.5">
+          <Skeleton className="h-3.5 w-32 rounded" />
+          <Skeleton className="h-3 w-24 rounded" />
         </div>
-      ))}
-    </div>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Skeleton className="h-3.5 w-28 max-w-full rounded" />
+        <Skeleton className="h-3 w-36 max-w-full rounded" />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Skeleton className="h-3.5 w-16 rounded" />
+        <Skeleton className="h-3 w-24 max-w-full rounded" />
+      </div>
+      <div className={cn(FULL_ROW, "flex gap-2")}>
+        <Skeleton className="h-9 w-[104px] rounded-xl" />
+        <Skeleton className="h-9 w-[104px] rounded-xl" />
+      </div>
+    </SkeletonRows>
   );
 }
 
@@ -82,11 +76,7 @@ export function DoctorPatientsTable({
   onClearFilters,
   onPrescribe,
 }: DoctorPatientsTableProps) {
-  const pageCount = Math.max(1, totalPages);
-  const currentPage = Math.min(Math.max(1, page), pageCount);
-  const rangeStart = rows.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-  const rangeEnd = rows.length === 0 ? 0 : rangeStart + rows.length - 1;
-  const shownTotal = Math.max(total, rangeEnd);
+  const paging = serverPaging({ page, pageSize, total, pageCount: totalPages, rowCount: rows.length, onPageChange });
 
   return (
     <Surface flush as="section" className="@container" aria-label="Patients">
@@ -105,7 +95,7 @@ export function DoctorPatientsTable({
         </div>
 
         {loading ? (
-          <SkeletonRows />
+          <TableSkeleton />
         ) : rows.length === 0 ? (
           <div role="row">
             <div role="cell">
@@ -113,10 +103,10 @@ export function DoctorPatientsTable({
                 <EmptyBlock
                   icon={SearchX}
                   title="No patients found"
-                  description="No patient matches this search or these filters."
+                  description="No patient matches this search."
                   action={
                     <Button variant="outline" size="md" onClick={onClearFilters}>
-                      Clear search and filters
+                      Clear search
                     </Button>
                   }
                 />
@@ -182,34 +172,7 @@ export function DoctorPatientsTable({
         )}
       </div>
 
-      {loading || rows.length === 0 ? null : (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hair px-5 py-3 text-[13px] text-ink-muted">
-          <span>
-            Showing {rangeStart}–{rangeEnd} of {shownTotal}
-          </span>
-          <nav aria-label="Pages" className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              className="h-[34px]"
-              onClick={() => onPageChange(currentPage - 1)}
-              disabled={currentPage <= 1}
-            >
-              Previous
-            </Button>
-            <span className="whitespace-nowrap" aria-live="polite">
-              Page {currentPage} of {pageCount}
-            </span>
-            <Button
-              variant="outline"
-              className="h-[34px]"
-              onClick={() => onPageChange(currentPage + 1)}
-              disabled={currentPage >= pageCount}
-            >
-              Next
-            </Button>
-          </nav>
-        </div>
-      )}
+      {loading || rows.length === 0 ? null : <Pager paging={paging} />}
     </Surface>
   );
 }

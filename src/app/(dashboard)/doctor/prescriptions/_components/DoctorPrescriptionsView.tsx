@@ -5,11 +5,8 @@ import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { Button } from "@/components/ui/button";
 import { EmptyBlock, Kpi, PageHero, SearchBox, SectionTitle, SegTabs, Surface } from "@/components/tbd";
 import { DoctorPrescriptionCard } from "./DoctorPrescriptionCard";
-import { DoctorPrescriptionDeleteDialog } from "./DoctorPrescriptionDeleteDialog";
-import { DoctorPrescriptionDialog } from "./DoctorPrescriptionDialog";
 import {
   prescriptionsCountLabel,
-  type DoctorPrescriptionEditForm,
   type DoctorPrescriptionFilter,
   type DoctorPrescriptionRow,
   type DoctorPrescriptionStats,
@@ -31,23 +28,8 @@ export interface DoctorPrescriptionsViewProps {
   onSearchChange: (value: string) => void;
   onFilterChange: (value: DoctorPrescriptionFilter) => void;
   createDisabled?: boolean;
-  editDisabled?: boolean;
-  deleteDisabled?: boolean;
+  /** "New Prescription": sends the doctor to the patient list, where "Prescribe" opens the prescribing dialog. */
   onCreate: () => void;
-  onEdit: (prescription: DoctorPrescriptionRow) => void;
-  onDownload: (prescription: DoctorPrescriptionRow) => void;
-  onDelete: (prescription: DoctorPrescriptionRow) => void;
-  dialogOpen: boolean;
-  dialogMode: "create" | "edit";
-  form: DoctorPrescriptionEditForm;
-  isSaving?: boolean;
-  onFormChange: (value: Partial<DoctorPrescriptionEditForm>) => void;
-  onSave: () => void;
-  onDialogOpenChange: (open: boolean) => void;
-  deleteTarget: DoctorPrescriptionRow | null;
-  isDeleting?: boolean;
-  onConfirmDelete: () => void;
-  onCancelDelete: () => void;
 }
 
 const FILTER_OPTIONS: Array<{ value: DoctorPrescriptionFilter; label: string }> = [
@@ -114,7 +96,10 @@ function LoadingBlocks() {
   );
 }
 
-/** The doctor's prescriptions screen. Everything it shows and does comes in through props. */
+/**
+ * The doctor's prescriptions screen. Everything it shows and does comes in through props.
+ * A saved prescription is read-only here (the server has no edit, delete or PDF for a doctor).
+ */
 export function DoctorPrescriptionsView({
   isLoading,
   loadFailed = false,
@@ -127,23 +112,7 @@ export function DoctorPrescriptionsView({
   onSearchChange,
   onFilterChange,
   createDisabled = false,
-  editDisabled = false,
-  deleteDisabled = false,
   onCreate,
-  onEdit,
-  onDownload,
-  onDelete,
-  dialogOpen,
-  dialogMode,
-  form,
-  isSaving = false,
-  onFormChange,
-  onSave,
-  onDialogOpenChange,
-  deleteTarget,
-  isDeleting = false,
-  onConfirmDelete,
-  onCancelDelete,
 }: DoctorPrescriptionsViewProps) {
   const filtersActive = searchQuery.trim() !== "" || filterStatus !== "all";
 
@@ -272,38 +241,13 @@ export function DoctorPrescriptionsView({
             ) : (
               <div className="flex min-w-0 flex-col gap-3">
                 {prescriptions.map((prescription) => (
-                  <DoctorPrescriptionCard
-                    key={prescription.id}
-                    prescription={prescription}
-                    editDisabled={editDisabled}
-                    deleteDisabled={deleteDisabled}
-                    onDownload={onDownload}
-                    onEdit={onEdit}
-                    onDelete={onDelete}
-                  />
+                  <DoctorPrescriptionCard key={prescription.id} prescription={prescription} />
                 ))}
               </div>
             )}
           </Surface>
         </>
       )}
-
-      <DoctorPrescriptionDialog
-        open={dialogOpen}
-        mode={dialogMode}
-        form={form}
-        isSaving={isSaving}
-        onFormChange={onFormChange}
-        onSave={onSave}
-        onOpenChange={onDialogOpenChange}
-      />
-
-      <DoctorPrescriptionDeleteDialog
-        prescription={deleteTarget}
-        isDeleting={isDeleting}
-        onConfirm={onConfirmDelete}
-        onClose={onCancelDelete}
-      />
     </DashboardPageShell>
   );
 }

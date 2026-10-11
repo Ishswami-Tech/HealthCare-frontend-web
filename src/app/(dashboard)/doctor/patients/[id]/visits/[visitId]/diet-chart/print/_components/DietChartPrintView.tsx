@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinic, useClinicContext } from "@/hooks/query/useClinics";
-import { useDoctor } from "@/hooks/query/useDoctors";
+import { useDoctors } from "@/hooks/query/useDoctors";
 import { useVisitCaseSheet } from "@/hooks/query/usePatientVisits";
 import { useVisitDietChart } from "@/hooks/query/useVisitDietChart";
 import {
@@ -320,12 +320,20 @@ export function DietChartPrintView({ patientId, visitId, fontClassName }: DietCh
   const { data: chart, isPending: chartPending, error: chartError } = useVisitDietChart(clinicId || "", visitId);
   const { data: caseSheet, isPending: sheetPending } = useVisitCaseSheet(clinicId || "", visitId);
   const { data: clinic } = useClinic(clinicId || "");
-  const doctorId = caseSheet?.visit.doctorId ?? "";
-  const { data: doctor } = useDoctor(doctorId);
+  const visit = caseSheet?.visit;
+  // PatientVisit.doctorId is the Doctor-record id, and the visit carries no doctor name. GET /doctors/:id
+  // wants the doctor's user id, so the name comes from the clinic doctor list (rows have `id` and `name`).
+  const visitDoctorId = visit?.doctorId ?? "";
+  const doctorsQuery = useDoctors(clinicId || "", undefined, { enabled: Boolean(visitDoctorId) });
+  const doctorsLoading = Boolean(clinicId && visitDoctorId) && doctorsQuery.isPending && !doctorsQuery.error;
   const [languageOverride, setLanguageOverride] = useState<DietChartLanguage | null>(null);
 
   const language: DietChartLanguage = languageOverride ?? chart?.printLanguage ?? "en";
-  const visit = caseSheet?.visit;
+  // No doctor on the visit: the doctor printing the chart. A visit doctor that cannot be named
+  // (the list did not load, or has no such row) prints a blank, never another doctor's name.
+  const doctorName = visitDoctorId
+    ? (pickName((doctorsQuery.data ?? []).find((row) => row.id === visitDoctorId)) ?? "—")
+    : (pickName(user) ?? "—");
 
   return (
     <DietChartPrintSheet
@@ -334,11 +342,11 @@ export function DietChartPrintView({ patientId, visitId, fontClassName }: DietCh
       onLanguageChange={setLanguageOverride}
       onPrint={() => window.print()}
       chart={chart}
-      isLoading={chartPending || sheetPending}
+      isLoading={chartPending || sheetPending || doctorsLoading}
       error={chartError ? chartError.message : null}
       clinicName={clinic?.name ?? null}
       patientName={caseSheet?.patient?.name || "—"}
-      doctorName={pickName(doctor) ?? pickName(user) ?? "—"}
+      doctorName={doctorName}
       opdNumber={visit?.opdNumber ?? null}
       visitDate={visit?.registrationDate ? formatDateInIST(visit.registrationDate) : ""}
       fontClassName={fontClassName}

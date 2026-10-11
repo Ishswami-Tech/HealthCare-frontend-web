@@ -1,5 +1,8 @@
 import { getAppointmentDateTimeValue } from "@/lib/utils/appointmentUtils";
-import { formatDateInIST, formatDateKeyInIST } from "@/lib/utils/date-time";
+import { ageInYears, formatDateInIST, formatDateKeyInIST } from "@/lib/utils/date-time";
+import { asRecordOrEmpty, firstText, textOf, unwrapList } from "@/lib/utils/coerce";
+import { genderLabel } from "@/lib/utils/labels";
+import { patientRecordName } from "@/lib/utils/display-name";
 
 type Raw = Record<string, unknown>;
 
@@ -19,9 +22,14 @@ export interface DoctorPatientRow {
 }
 
 export interface DoctorPatientsStats {
+  /** Open appointments in the next 7 days. */
   upcomingAppointments: number;
-  followUps: number;
-  recoveryRate: number;
+  /** Appointments dated today (IST) that were not cancelled. */
+  todayAppointments: number;
+  /** Patients with more than one appointment among the loaded appointments. */
+  returningPatients: number;
+  /** `returningPatients` as a share (0–100) of the patients who have an appointment at all. */
+  returningShare: number;
 }
 
 export interface DoctorPatientsPageMeta {
@@ -31,36 +39,12 @@ export interface DoctorPatientsPageMeta {
   pageSize: number;
 }
 
-const asRecord = (value: unknown): Raw =>
-  value && typeof value === "object" && !Array.isArray(value) ? (value as Raw) : {};
-
-const asText = (value: unknown): string =>
-  typeof value === "string" ? value : typeof value === "number" ? String(value) : "";
-
-const firstText = (...values: unknown[]): string => {
-  for (const value of values) {
-    const text = asText(value).trim();
-    if (text) return text;
-  }
-  return "";
-};
-
 export function extractPatients(value: unknown): Raw[] {
-  if (Array.isArray(value)) return value as Raw[];
-  if (value && typeof value === "object") {
-    const record = value as Raw;
-    for (const key of ["patients", "data", "items", "records"]) {
-      const candidate = record[key];
-      if (Array.isArray(candidate)) return candidate as Raw[];
-    }
-  }
-  return [];
+  return unwrapList(value, "patients", "data", "items", "records") as Raw[];
 }
 
 export function extractAppointments(value: unknown): Raw[] {
-  if (Array.isArray(value)) return value as Raw[];
-  const nested = asRecord(value).appointments;
-  return Array.isArray(nested) ? (nested as Raw[]) : [];
+  return unwrapList(value, "appointments") as Raw[];
 }
 
 export function extractPaginationMeta(value: unknown, fallbackPageSize: number): DoctorPatientsPageMeta {
@@ -87,44 +71,20 @@ export function extractPaginationMeta(value: unknown, fallbackPageSize: number):
   return { total, page, totalPages, pageSize };
 }
 
-export function getPatientName(patient: unknown): string {
-  const record = asRecord(patient);
-  const user = asRecord(record.user);
-  return (
-    firstText(
-      record.name,
-      `${asText(record.firstName)} ${asText(record.lastName)}`,
-      user.name,
-      `${asText(user.firstName)} ${asText(user.lastName)}`,
-      record.email,
-      user.email,
-    ) || "Unknown Patient"
-  );
-}
-
-function ageFromBirthDate(dateOfBirth: string, today: Date): number | null {
-  const birthDate = new Date(dateOfBirth);
-  if (Number.isNaN(birthDate.getTime())) return null;
-  const years = today.getFullYear() - birthDate.getFullYear();
-  const monthDiff = today.getMonth() - birthDate.getMonth();
-  const age = monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate()) ? years - 1 : years;
-  return age >= 0 ? age : null;
-}
-
 /** Turns one patient from the API (flat, or nested under `user`) into a table row. */
 export function toDoctorPatientRow(patient: unknown, today: Date = new Date()): DoctorPatientRow {
-  const record = asRecord(patient);
-  const user = asRecord(record.user);
+  const record = asRecordOrEmpty(patient);
+  const user = asRecordOrEmpty(record.user);
   const dateOfBirth = firstText(record.dateOfBirth, user.dateOfBirth);
   const givenAge = Number(record.age);
   const age =
-    Number.isFinite(givenAge) && givenAge > 0 ? givenAge : dateOfBirth ? ageFromBirthDate(dateOfBirth, today) : null;
+    Number.isFinite(givenAge) && givenAge > 0 ? givenAge : dateOfBirth ? ageInYears(dateOfBirth, today) : null;
   const visits = record.totalVisits;
   const totalVisits = visits === undefined || visits === null || Number.isNaN(Number(visits)) ? null : Number(visits);
 
   return {
-    id: asText(record.id),
-    name: getPatientName(record),
+    id: textOf(record.id),
+    name: patientRecordName(record) || "Unknown Patient",
     age,
     gender: firstText(record.gender, user.gender),
     phone: firstText(record.phone, user.phone),
@@ -132,11 +92,6 @@ export function toDoctorPatientRow(patient: unknown, today: Date = new Date()): 
     totalVisits,
     lastVisit: firstText(record.lastVisit) || null,
   };
-}
-
-export function genderLabel(gender: string): string {
-  const clean = gender.trim().replace(/_/g, " ");
-  return clean ? clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase() : "";
 }
 
 /** "32 years · Female" */
@@ -155,6 +110,49 @@ export function lastVisitLabel(row: Pick<DoctorPatientRow, "lastVisit">): string
     ? formatDateInIST(row.lastVisit, { day: "numeric", month: "short", year: "numeric" })
     : "";
   return formatted ? `Last: ${formatted}` : "No visit";
+}
+
+/**
+ * The three numbers next to "Total Patients", worked out from the doctor's appointments
+ * (the appointment list the page loaded, so "returning" covers those appointments only).
+ */
+export function computeDoctorPatientsStats(appointments: Raw[], now: Date = new Date()): DoctorPatientsStats {
+  const weekEnd = new Date(now);
+  weekEnd.setDate(now.getDate() + 7);
+
+  const upcomingAppointments = appointments.filter((appointment) => {
+    const parsed = getAppointmentDateTimeValue(appointment as Parameters<typeof getAppointmentDateTimeValue>[0]);
+    return (
+      parsed &&
+      !Number.isNaN(parsed.getTime()) &&
+      parsed >= now &&
+      parsed <= weekEnd &&
+      ["SCHEDULED", "CONFIRMED", "IN_PROGRESS"].includes(textOf(appointment.status).toUpperCase())
+    );
+  }).length;
+
+  const todayKey = formatDateKeyInIST(now);
+  const todayAppointments = appointments.filter((appointment) => {
+    const parsed = getAppointmentDateTimeValue(appointment as Parameters<typeof getAppointmentDateTimeValue>[0]);
+    return (
+      parsed &&
+      !Number.isNaN(parsed.getTime()) &&
+      formatDateKeyInIST(parsed) === todayKey &&
+      !["CANCELLED", "EXPIRED"].includes(textOf(appointment.status).toUpperCase())
+    );
+  }).length;
+
+  const visitsByPatient = new Map<string, number>();
+  for (const appointment of appointments) {
+    const patientId = textOf(appointment.patientId);
+    if (!patientId) continue;
+    visitsByPatient.set(patientId, (visitsByPatient.get(patientId) ?? 0) + 1);
+  }
+  const returningPatients = Array.from(visitsByPatient.values()).filter((count) => count > 1).length;
+  const returningShare =
+    visitsByPatient.size > 0 ? Math.round((returningPatients / visitsByPatient.size) * 100) : 0;
+
+  return { upcomingAppointments, todayAppointments, returningPatients, returningShare };
 }
 
 /** YYYY-MM-DD for last-visit date filtering, or "" when unknown. */
@@ -179,42 +177,4 @@ export function matchesLastVisitRange(
   if (dateFrom && key < dateFrom) return false;
   if (dateTo && key > dateTo) return false;
   return true;
-}
-
-/** The three numbers next to "Total Patients", worked out from the doctor's appointments. */
-export function computeDoctorPatientsStats(
-  appointments: Raw[],
-  totalPatientsCount: number,
-  now: Date = new Date(),
-): DoctorPatientsStats {
-  const weekEnd = new Date(now);
-  weekEnd.setDate(now.getDate() + 7);
-
-  const upcomingAppointments = appointments.filter((appointment) => {
-    const parsed = getAppointmentDateTimeValue(appointment as Parameters<typeof getAppointmentDateTimeValue>[0]);
-    return (
-      parsed &&
-      !Number.isNaN(parsed.getTime()) &&
-      parsed >= now &&
-      parsed <= weekEnd &&
-      ["SCHEDULED", "CONFIRMED", "IN_PROGRESS"].includes(asText(appointment.status).toUpperCase())
-    );
-  }).length;
-
-  const followUps = appointments.filter((appointment) => {
-    const raw = asText(appointment.followUpDate);
-    const followUpDate = raw ? new Date(raw) : null;
-    return followUpDate && !Number.isNaN(followUpDate.getTime()) && followUpDate >= now && followUpDate <= weekEnd;
-  }).length;
-
-  const visitsByPatient = new Map<string, number>();
-  for (const appointment of appointments) {
-    const patientId = asText(appointment.patientId);
-    if (!patientId) continue;
-    visitsByPatient.set(patientId, (visitsByPatient.get(patientId) ?? 0) + 1);
-  }
-  const improvedPatients = Array.from(visitsByPatient.values()).filter((count) => count > 1).length;
-  const recoveryRate = totalPatientsCount > 0 ? Math.round((improvedPatients / totalPatientsCount) * 100) : 0;
-
-  return { upcomingAppointments, followUps, recoveryRate };
 }

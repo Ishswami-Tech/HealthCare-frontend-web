@@ -176,7 +176,7 @@ export function NotificationItem({
       </button>
 
       {/* Actions */}
-      <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+      <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
         {!notification.isRead && (
           <Button
             variant="ghost"
@@ -184,8 +184,9 @@ export function NotificationItem({
             className="h-6 px-2 text-xs"
             onClick={handleMarkAsRead}
             title="Mark as read"
+            aria-label="Mark as read"
           >
-            <CheckCircle2 className="size-3" />
+            <CheckCircle2 className="size-3" aria-hidden="true" />
           </Button>
         )}
         {onRemove && (
@@ -195,8 +196,9 @@ export function NotificationItem({
             className="h-6 px-2 text-xs hover:text-destructive"
             onClick={handleRemove}
             title="Remove"
+            aria-label="Remove notification"
           >
-            <X className="size-3" />
+            <X className="size-3" aria-hidden="true" />
           </Button>
         )}
       </div>

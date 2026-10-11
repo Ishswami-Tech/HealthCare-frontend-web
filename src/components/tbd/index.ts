@@ -2,3 +2,8 @@ export * from "./primitives";
 export * from "./controls";
 export * from "./status";
 export * from "./wash";
+export * from "./pager";
+export * from "./dialog";
+export * from "./forms";
+export * from "./blocks";
+export * from "./connection-pill";

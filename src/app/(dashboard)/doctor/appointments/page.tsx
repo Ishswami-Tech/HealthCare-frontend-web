@@ -29,10 +29,10 @@ import {
   getVideoSessionDecision,
   VIDEO_JOIN_EARLY_WINDOW_MINUTES,
 } from "@/lib/utils/appointmentUtils";
-import { formatDateKeyInIST } from "@/lib/utils/date-time";
+import { ageInYears, formatDateKeyInIST } from "@/lib/utils/date-time";
 import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 import { getDisplayAppointmentDuration } from "@/lib/utils/appointmentUtils";
-import type { AppointmentStatus } from "@/types/appointment.types";
+import type { AppointmentStatus, UpdateAppointmentData } from "@/types/appointment.types";
 
 // Appointment status constants - must match backend enum values
 const APPOINTMENT_STATUS = {
@@ -185,6 +185,8 @@ export interface TransformedAppointment {
   } | null;
   checkedInAt: string | null;
   queuePosition: number | null;
+  /** The visit's priority as the server sent it (PUT /appointments/:id needs it sent back). */
+  priority?: string;
   diagnosis?: string;
   prescription?: string;
   treatmentPlan?: string;
@@ -499,7 +501,7 @@ export default function DoctorAppointments() {
             app.patient?.name ||
             `${app.patient?.firstName || ""} ${app.patient?.lastName || ""}`.trim() ||
             "Unknown Patient",
-          patientAge: app.patient?.age || (app.patient?.dateOfBirth ? Math.floor((new Date().getTime() - new Date(app.patient.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365)) : null),
+          patientAge: app.patient?.age || ageInYears(app.patient?.dateOfBirth),
           patientGender: app.patient?.gender || "Unknown",
           time: appointmentDateTime
             ? formatTimeInIST(appointmentDateTime, { hour: "2-digit", minute: "2-digit", hour12: true })
@@ -529,6 +531,7 @@ export default function DoctorAppointments() {
           vitalSigns: app.vitalSigns || null,
           checkedInAt: app.checkedInAt ? formatTimeInIST(app.checkedInAt) : null,
           queuePosition: app.queuePosition || null,
+          priority: typeof app.priority === "string" && app.priority ? app.priority : undefined,
           diagnosis: typeof app.diagnosis === "string" ? app.diagnosis : "",
           prescription: typeof app.prescription === "string" ? app.prescription : "",
           treatmentPlan: typeof app.treatmentPlan === "string" ? app.treatmentPlan : "",
@@ -628,11 +631,31 @@ export default function DoctorAppointments() {
       }
     ) => {
       try {
+        const trimmedDiagnosis = data?.diagnosis?.trim() ?? "";
+        const trimmedPrescription = data?.prescription?.trim() ?? "";
+        const trimmedNotes = data?.notes?.trim() ?? "";
+        const hasRecord = Boolean(trimmedDiagnosis || trimmedPrescription || trimmedNotes);
+        // Completing a visit stores its metadata (merged with what the visit already has), so
+        // the written record travels there. The appointment has no columns for this text.
         const completionData = {
-          ...(data?.diagnosis ? { diagnosis: data.diagnosis } : {}),
-          ...(data?.prescription ? { prescription: data.prescription } : {}),
-          ...(data?.notes ? { notes: data.notes } : {}),
-          ...(data?.prescription ? { treatmentPlan: data.prescription } : {}),
+          ...(trimmedDiagnosis ? { diagnosis: trimmedDiagnosis } : {}),
+          ...(trimmedPrescription ? { prescription: trimmedPrescription } : {}),
+          ...(trimmedNotes ? { notes: trimmedNotes } : {}),
+          ...(hasRecord
+            ? {
+                metadata: {
+                  consultationDraft: {
+                    ...(trimmedDiagnosis ? { diagnosis: trimmedDiagnosis } : {}),
+                    ...(trimmedPrescription
+                      ? { prescription: trimmedPrescription, treatmentPlan: trimmedPrescription }
+                      : {}),
+                    ...(trimmedNotes ? { notes: trimmedNotes } : {}),
+                    savedAt: new Date().toISOString(),
+                    savedBy: user?.id || null,
+                  },
+                },
+              }
+            : {}),
         };
 
         await completeAppointmentMutation.mutateAsync({
@@ -647,7 +670,7 @@ export default function DoctorAppointments() {
         });
       }
     },
-    [completeAppointmentMutation]
+    [completeAppointmentMutation, user?.id]
   );
 
   const startConsultation = useCallback(
@@ -689,14 +712,16 @@ export default function DoctorAppointments() {
     }
 
     try {
-      const draftPayload = {
-        ...(trimmedDiagnosis ? { diagnosis: trimmedDiagnosis } : {}),
-        ...(trimmedPrescription ? { prescription: trimmedPrescription } : {}),
-        ...(trimmedTreatmentPlan ? { treatmentPlan: trimmedTreatmentPlan } : {}),
-        ...(trimmedNotes ? { notes: trimmedNotes } : {}),
-      };
+      // The draft lives in the appointment metadata only: the appointment has no diagnosis or
+      // prescription columns, and its own note is the booking note. An update replaces the
+      // stored metadata, so what the visit already has is sent back with the draft.
+      const visit =
+        appointments.find((appointment: TransformedAppointment) => appointment.id === appointmentId) ??
+        (selectedAppointment?.id === appointmentId ? selectedAppointment : undefined);
+      const existingMetadata = visit?.metadata ?? {};
 
       const draftMetadata: Record<string, unknown> = {
+        ...existingMetadata,
         consultationDraft: {
           ...(trimmedDiagnosis ? { diagnosis: trimmedDiagnosis } : {}),
           ...(trimmedPrescription ? { prescription: trimmedPrescription } : {}),
@@ -707,13 +732,14 @@ export default function DoctorAppointments() {
         },
       };
 
-      await updateAppointmentMutation.mutateAsync({
-        id: appointmentId,
-        data: {
-          ...draftPayload,
-          metadata: draftMetadata,
-        },
-      });
+      // PUT /appointments/:id requires `priority`: the visit's current one is sent back unchanged.
+      // (When the list row has none, the action reads it from the server before updating.)
+      const draftUpdate: UpdateAppointmentData & { priority?: string } = {
+        metadata: draftMetadata,
+        ...(visit?.priority ? { priority: visit.priority } : {}),
+      };
+
+      await updateAppointmentMutation.mutateAsync({ id: appointmentId, data: draftUpdate });
 
       dispatch({
         type: "setSelectedAppointment",
@@ -746,16 +772,15 @@ export default function DoctorAppointments() {
   const bulkCompleteSelected = useCallback(
     async (appointmentIds: string[]): Promise<{ completed: number; failed: number } | undefined> => {
       try {
-        return await bulkCompleteMutation.mutateAsync({
-          appointmentIds,
-          ...(user?.id ? { doctorId: user.id } : {}),
-        });
+        // No doctorId: the backend then uses each appointment's own doctor record. The
+        // signed-in user id is not a doctor record id and would miss the doctor's queue.
+        return await bulkCompleteMutation.mutateAsync({ appointmentIds });
       } catch (error: unknown) {
         console.error("Failed to bulk complete appointments", { appointmentIds, error });
         return undefined;
       }
     },
-    [bulkCompleteMutation, user?.id]
+    [bulkCompleteMutation]
   );
 
   // "Complete" on a table row. The diagnosis / notes / prescription fields belong to the

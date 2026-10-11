@@ -3,6 +3,7 @@ export function extractYouTubeVideoId(url: string): string | null {
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
     /youtube\.com\/v\/([^&\n?#]+)/,
     /youtube\.com\/watch\?.*v=([^&\n?#]+)/,
+    /youtube(?:-nocookie)?\.com\/(?:embed|shorts|live)\/([^&\n?#/]+)/,
   ]
 
   for (const pattern of patterns) {

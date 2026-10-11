@@ -12,13 +12,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Divider, Note, Pill, SummaryLine, statusLabel, statusTone } from "@/components/tbd";
-import {
-  PHARMACY_STATE,
-  canPay,
-  dayLabel,
-  formatRupees,
-  type PatientPrescription,
-} from "./patient-health.logic";
+import { PHARMACY_STATE, canPay, type PatientPrescription } from "./patient-health.logic";
+import { formatRupees } from "@/lib/utils/currency";
+import { formatDateLabel } from "@/lib/utils/date-time";
 
 export interface PrescriptionDetailsDialogProps {
   prescription: PatientPrescription | null;
@@ -108,7 +104,7 @@ export function PrescriptionDetailsDialog({
                   value={<Pill tone={statusTone(prescription.paymentStatus)}>{statusLabel(prescription.paymentStatus)}</Pill>}
                 />
                 {prescription.validUntil ? (
-                  <SummaryLine label="Valid until" value={dayLabel(prescription.validUntil)} />
+                  <SummaryLine label="Valid until" value={formatDateLabel(prescription.validUntil)} />
                 ) : null}
                 {prescription.pendingAmount > 0 ? (
                   <>

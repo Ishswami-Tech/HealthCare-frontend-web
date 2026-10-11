@@ -10,10 +10,9 @@
 import { useDeferredValue, useId, useMemo, useState, type ReactNode } from "react";
 import { ArrowRight, Check, ClipboardPlus, Loader2, Search, UserPlus, UserRoundSearch, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { EmptyBlock, Note } from "@/components/tbd";
+import { EmptyBlock, Note, DialogActions, DialogBody, DialogShell, ChoiceChip, DateField, Field } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import { SPECIAL_CASE_OPTIONS, FAMILY_RELATION_SUGGESTIONS } from "@/lib/constants/case-sheet-fixed-lists";
 import { useAuth } from "@/hooks/auth/useAuth";
@@ -27,15 +26,7 @@ import {
 import { showSuccessToast } from "@/hooks/utils/use-toast";
 import { Role } from "@/types/auth.types";
 import type { CollectFeeMethod, FamilyMember, PatientVisit, SpecialCaseFlag } from "@/types/patient-visit.types";
-import {
-  ChoiceChip,
-  DateInput,
-  DialogActionBar,
-  DialogCloseButton,
-  Field,
-  FieldPanel,
-  StepTitle,
-} from "./RegistrationFields";
+import { FieldPanel, StepTitle } from "./RegistrationFields";
 
 export type FeeCollectMode = CollectFeeMethod | "LATER" | "WAIVE";
 
@@ -247,15 +238,21 @@ export function OpdRegistrationDialogView({
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
       {trigger ? (
         <span className="contents" onClick={() => onOpenChange(true)}>
           {trigger}
         </span>
       ) : null}
-      <DialogContent
-        showCloseButton={false}
-        className="flex max-h-[92vh] w-[calc(100vw-1rem)] max-w-[1040px] flex-col gap-0 overflow-hidden p-0 sm:w-[calc(100vw-2rem)] sm:max-w-[1040px]"
+      <DialogShell
+        open={open}
+        onOpenChange={onOpenChange}
+        busy={busy}
+        title="OPD Registration"
+        description="Choose who is visiting, then register the visit to get an OPD number."
+        width={1040}
+        stretch
+        dense
         onOpenAutoFocus={(event) => {
           // Start in the search box (or the first name of a new patient), not on a button.
           const first = document.getElementById(isNew ? id("new-firstName") : id("search"));
@@ -265,15 +262,7 @@ export function OpdRegistrationDialogView({
           }
         }}
       >
-        <div className="flex shrink-0 items-center gap-3.5 px-4 pb-4 pt-[22px] sm:px-6">
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <DialogTitle>OPD Registration</DialogTitle>
-            <DialogDescription>Choose who is visiting, then register the visit to get an OPD number.</DialogDescription>
-          </div>
-          <DialogCloseButton disabled={busy} />
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[22px] sm:px-6">
+        <DialogBody className="pb-[22px] pt-0">
           <div className="grid grid-cols-1 items-start gap-x-6 gap-y-4 lg:grid-cols-2">
             {/* Left: who is visiting */}
             <div className="flex min-w-0 flex-col gap-4">
@@ -297,7 +286,7 @@ export function OpdRegistrationDialogView({
                         {newField("lastName", "Last name")}
                         {newField("phone", "Mobile", { placeholder: "+91 98765 43210", inputMode: "tel", type: "tel" })}
                         <Field label="Date of birth" htmlFor={id("new-dateOfBirth")}>
-                          <DateInput
+                          <DateField
                             id={id("new-dateOfBirth")}
                             value={newPatient.dateOfBirth}
                             onChange={(value) => patchNew({ dateOfBirth: value })}
@@ -308,10 +297,12 @@ export function OpdRegistrationDialogView({
                             {GENDERS.map((gender) => (
                               <ChoiceChip
                                 key={gender}
-                                label={genderLabel(gender)}
+                                shape="box"
                                 active={newPatient.gender === gender}
                                 onClick={() => patchNew({ gender: newPatient.gender === gender ? "" : gender })}
-                              />
+                              >
+                                {genderLabel(gender)}
+                              </ChoiceChip>
                             ))}
                           </div>
                         </Field>
@@ -414,20 +405,22 @@ export function OpdRegistrationDialogView({
                   />
                   <div className="flex flex-wrap gap-1.5" role="group" aria-label="Who the visit is for">
                     <ChoiceChip
-                      label={`${patientName(selectedPatient)} (self)`}
+                      shape="box"
                       active={who?.kind === "existing"}
-                      showCheck
+                      check
                       onClick={() => onPickExisting(selectedPatient)}
-                    />
+                    >
+                      {`${patientName(selectedPatient)} (self)`}
+                    </ChoiceChip>
                     {familyMembers.map((member) => {
                       const dependentPatientId = member.dependentPatientId;
                       const label = `${member.name} (${member.relation})`;
                       return (
                         <ChoiceChip
                           key={member.id}
-                          label={label}
+                          shape="box"
                           active={who?.kind === "dependent" && who.patientId === dependentPatientId}
-                          showCheck
+                          check
                           disabled={!dependentPatientId}
                           {...(dependentPatientId ? {} : { title: "This family member has no patient record yet" })}
                           onClick={() => {
@@ -435,7 +428,9 @@ export function OpdRegistrationDialogView({
                               onPatch({ who: { kind: "dependent", patientId: dependentPatientId, label } });
                             }
                           }}
-                        />
+                        >
+                          {label}
+                        </ChoiceChip>
                       );
                     })}
                   </div>
@@ -474,7 +469,7 @@ export function OpdRegistrationDialogView({
                           </datalist>
                         </Field>
                         <Field label="Date of birth" htmlFor={id("dep-dob")}>
-                          <DateInput
+                          <DateField
                             id={id("dep-dob")}
                             value={dependent.dateOfBirth}
                             onChange={(value) => patchDependent({ dateOfBirth: value })}
@@ -496,10 +491,12 @@ export function OpdRegistrationDialogView({
                             {GENDERS.map((gender) => (
                               <ChoiceChip
                                 key={gender}
-                                label={genderLabel(gender)}
+                                shape="box"
                                 active={dependent.gender === gender}
                                 onClick={() => patchDependent({ gender: dependent.gender === gender ? "" : gender })}
-                              />
+                              >
+                                {genderLabel(gender)}
+                              </ChoiceChip>
                             ))}
                           </div>
                         </Field>
@@ -550,7 +547,7 @@ export function OpdRegistrationDialogView({
                           {SPECIAL_CASE_OPTIONS.map((option) => (
                             <ChoiceChip
                               key={option.value}
-                              label={option.label}
+                              shape="box"
                               active={form.flags.includes(option.value)}
                               onClick={() =>
                                 onPatch({
@@ -559,7 +556,9 @@ export function OpdRegistrationDialogView({
                                     : [...form.flags, option.value],
                                 })
                               }
-                            />
+                            >
+                              {option.label}
+                            </ChoiceChip>
                           ))}
                         </div>
                       </Field>
@@ -630,12 +629,14 @@ export function OpdRegistrationDialogView({
                             {FEE_COLLECT_OPTIONS.map((option) => (
                               <ChoiceChip
                                 key={option.value}
-                                label={option.label}
+                                shape="box"
                                 active={form.feeCollectMode === option.value}
-                                showCheck
+                                check
                                 block
                                 onClick={() => onPatch({ feeCollectMode: option.value })}
-                              />
+                              >
+                                {option.label}
+                              </ChoiceChip>
                             ))}
                           </div>
                         </Field>
@@ -667,9 +668,9 @@ export function OpdRegistrationDialogView({
               )}
             </div>
           </div>
-        </div>
+        </DialogBody>
 
-        <DialogActionBar
+        <DialogActions
           hint={
             isNew
               ? "First name, last name and a 10-digit mobile number are needed to register."
@@ -683,9 +684,9 @@ export function OpdRegistrationDialogView({
             {busy ? <Loader2 className="animate-spin" /> : <ClipboardPlus />}
             {busy ? "Registering..." : "Register visit"}
           </Button>
-        </DialogActionBar>
-      </DialogContent>
-    </Dialog>
+        </DialogActions>
+      </DialogShell>
+    </>
   );
 }
 

@@ -5,6 +5,7 @@ import {
   resolveQueueDisplayLabel,
 } from "@/lib/queue/queue-adapter";
 import { statusLabel } from "@/components/tbd";
+import { asRecordOrEmpty } from "@/lib/utils/coerce";
 
 /**
  * Queue page rules with no React in them: how a raw queue entry is read, which lane it
@@ -76,10 +77,6 @@ export type QueuePrimaryAction = "start" | "case-sheet";
 
 type RawQueueItem = Record<string, unknown>;
 
-function asRecord(value: unknown): RawQueueItem {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as RawQueueItem) : {};
-}
-
 function rawText(value: unknown): string | undefined {
   if (typeof value === "string") return value;
   if (typeof value === "number") return String(value);
@@ -124,7 +121,7 @@ export const CONSULTATION_QUEUE_FILTER_KEYS = new Set(
 );
 
 export function normalizeQueueDisplayItem(rawItem: unknown): QueueDisplayItem {
-  const raw = asRecord(rawItem);
+  const raw = asRecordOrEmpty(rawItem);
   const entry = normalizeQueueEntry(raw);
 
   return {
@@ -311,9 +308,9 @@ export function isUnassignedQueueItem(item: QueueDisplayItem): boolean {
  * visit needs the real appointment, so this checks the raw entry before trusting the id.
  */
 export function hasReliableAppointmentReference(item: QueueDisplayItem, rawItem: unknown): boolean {
-  const raw = asRecord(rawItem);
+  const raw = asRecordOrEmpty(rawItem);
   const rawAppointmentId =
-    rawText(raw.appointmentId) || rawText(asRecord(raw.appointment).id) || rawText(asRecord(raw.metadata).appointmentId) || "";
+    rawText(raw.appointmentId) || rawText(asRecordOrEmpty(raw.appointment).id) || rawText(asRecordOrEmpty(raw.metadata).appointmentId) || "";
 
   if (rawAppointmentId) return true;
   if (!item.appointmentId) return false;

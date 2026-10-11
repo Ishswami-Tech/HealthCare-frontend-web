@@ -3,15 +3,18 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
-import { Pill, Surface } from "@/components/tbd";
+import { Pill, Surface, VisitTypeChip } from "@/components/tbd";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { VisitAvatar, VisitTypeChip } from "./ManagerVisitCard";
+import { visitElementId } from "./managerData";
+import { VisitAvatar } from "./ManagerVisitCard";
 import type { ManagerPayRenderer, ManagerVisit, ManagerVisitActions } from "./types";
 
 const PAST_COLUMNS = "@3xl:grid-cols-[minmax(0,1fr)_180px_180px_110px]";
 const CLOSED_COLUMNS = "@3xl:grid-cols-[minmax(0,1fr)_120px_120px_110px_150px]";
-const ROW = "flex flex-col gap-2.5 border-b border-hair py-3 text-ink last:border-b-0 @3xl:grid @3xl:items-center @3xl:gap-4";
+/** A row a link opened: tinted for a moment. */
+const MARKED_ROW = "-mx-2 rounded-xl bg-mint-soft px-2 ring-2 ring-brand/50";
+const ROW = "scroll-mt-24 flex flex-col gap-2.5 border-b border-hair py-3 text-ink last:border-b-0 @3xl:grid @3xl:items-center @3xl:gap-4";
 
 function VisitCell({ visit, description }: { visit: ManagerVisit; description: string }) {
   return (
@@ -44,7 +47,16 @@ function Head({ columns, labels }: { columns: string; labels: string[] }) {
 }
 
 /** Completed visits: what it was, video or clinic, when, and a link to the summary. */
-export function ManagerPastTable({ visits, footer }: { visits: ManagerVisit[]; footer?: ReactNode }) {
+export function ManagerPastTable({
+  visits,
+  footer,
+  markedId,
+}: {
+  visits: ManagerVisit[];
+  footer?: ReactNode;
+  /** The visit a link opened. */
+  markedId?: string | null | undefined;
+}) {
   return (
     <Surface className="gap-0 pb-2">
       <Head columns={PAST_COLUMNS} labels={["Visit", "Type", "Date", ""]} />
@@ -54,7 +66,7 @@ export function ManagerPastTable({ visits, footer }: { visits: ManagerVisit[]; f
             <VisitCell visit={visit} description={who(visit)} />
             <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5 @3xl:contents">
               <span>
-                <VisitTypeChip visit={visit} short />
+                <VisitTypeChip variant="chip" type={visit.kind} />
               </span>
               <span className="text-[13px] text-ink-muted">{visit.dateLabel}</span>
               {visit.summaryHref ? (
@@ -71,17 +83,23 @@ export function ManagerPastTable({ visits, footer }: { visits: ManagerVisit[]; f
         return visit.summaryHref ? (
           <Link
             key={visit.id}
+            id={visitElementId(visit.id)}
             href={visit.summaryHref}
             className={cn(
               ROW,
               PAST_COLUMNS,
+              visit.id === markedId && MARKED_ROW,
               "rounded-sm hover:text-brand-dark focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40",
             )}
           >
             {cells}
           </Link>
         ) : (
-          <div key={visit.id} className={cn(ROW, PAST_COLUMNS)}>
+          <div
+            key={visit.id}
+            id={visitElementId(visit.id)}
+            className={cn(ROW, PAST_COLUMNS, visit.id === markedId && MARKED_ROW)}
+          >
             {cells}
           </div>
         );
@@ -97,21 +115,28 @@ export function ManagerClosedTable({
   actions,
   renderPay,
   footer,
+  markedId,
 }: {
   visits: ManagerVisit[];
   actions: ManagerVisitActions;
   renderPay: ManagerPayRenderer;
   footer?: ReactNode;
+  /** The visit a link opened. */
+  markedId?: string | null | undefined;
 }) {
   return (
     <Surface className="gap-0 pb-2">
       <Head columns={CLOSED_COLUMNS} labels={["Visit", "Type", "Date", "Status", ""]} />
       {visits.map((visit) => (
-        <div key={visit.id} className={cn(ROW, CLOSED_COLUMNS)}>
+        <div
+          key={visit.id}
+          id={visitElementId(visit.id)}
+          className={cn(ROW, CLOSED_COLUMNS, visit.id === markedId && MARKED_ROW)}
+        >
           <VisitCell visit={visit} description={[who(visit), visit.closedNote].filter(Boolean).join(" · ")} />
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5 @3xl:contents">
             <span>
-              <VisitTypeChip visit={visit} short />
+              <VisitTypeChip variant="chip" type={visit.kind} />
             </span>
             <span className="text-[13px] text-ink-muted">{visit.dateLabel}</span>
             <span>

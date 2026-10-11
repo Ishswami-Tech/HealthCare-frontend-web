@@ -6,8 +6,8 @@ import { Pencil, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Pill, SectionTitle } from "@/components/tbd";
-import { formatDateInIST } from "@/lib/utils/date-time";
+import { Pill, SectionTitle, FIELD_LABEL, ChoiceChip, FactTile } from "@/components/tbd";
+import { ageInYears, formatDateInIST } from "@/lib/utils/date-time";
 import { SPECIAL_CASE_OPTIONS } from "@/lib/constants/case-sheet-fixed-lists";
 import { useUpdatePatient } from "@/hooks/query/usePatients";
 import { useStableSnapshot } from "./use-stable-snapshot";
@@ -17,14 +17,7 @@ import type {
   SpecialCaseFlag,
   VisitPatientSummary,
 } from "@/types/patient-visit.types";
-import {
-  CaseSheetCard,
-  ChoiceChip,
-  FactTile,
-  FieldLabel,
-  GroupLabel,
-  SaveButton,
-} from "./case-sheet-parts";
+import { CaseSheetCard, GroupLabel, SaveButton } from "./case-sheet-parts";
 
 interface BasicDetailsPanelProps {
   clinicId: string;
@@ -52,14 +45,8 @@ export interface BasicDetailsVisitInput {
 
 function computeAge(dateOfBirth: string | null, age: number | null): string {
   if (age) return `${age} y`;
-  if (!dateOfBirth) return "-";
-  const dob = new Date(dateOfBirth);
-  if (Number.isNaN(dob.getTime())) return "-";
-  const now = new Date();
-  let years = now.getFullYear() - dob.getFullYear();
-  const m = now.getMonth() - dob.getMonth();
-  if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) years -= 1;
-  return `${years} y`;
+  const years = ageInYears(dateOfBirth);
+  return years === null ? "-" : `${years} y`;
 }
 
 export interface BasicDetailsPanelViewProps {
@@ -191,7 +178,7 @@ export function BasicDetailsPanelView({
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
           {DEMOGRAPHIC_FIELDS.map((field) => (
             <div key={field.key} className="flex min-w-0 flex-col gap-1.5">
-              <FieldLabel htmlFor={`demo-${field.key}`}>{field.label}</FieldLabel>
+              <label htmlFor={`demo-${field.key}`} className={FIELD_LABEL}>{field.label}</label>
               <Input
                 id={`demo-${field.key}`}
                 value={demographics[field.key]}
@@ -239,7 +226,7 @@ export function BasicDetailsPanelView({
         </div>
         <div className="grid grid-cols-1 gap-3.5 md:grid-cols-[1fr_2fr]">
           <div className="flex min-w-0 flex-col gap-1.5">
-            <FieldLabel htmlFor="visit-international-id">International ID</FieldLabel>
+            <label htmlFor="visit-international-id" className={FIELD_LABEL}>International ID</label>
             <Input
               id="visit-international-id"
               placeholder="Passport / foreign ID"
@@ -251,7 +238,7 @@ export function BasicDetailsPanelView({
             />
           </div>
           <div className="flex min-w-0 flex-col gap-1.5">
-            <FieldLabel htmlFor="visit-present-illness">Present illness</FieldLabel>
+            <label htmlFor="visit-present-illness" className={FIELD_LABEL}>Present illness</label>
             <Textarea
               id="visit-present-illness"
               rows={2}

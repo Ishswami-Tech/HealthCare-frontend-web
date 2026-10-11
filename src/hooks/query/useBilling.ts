@@ -140,7 +140,59 @@ function withClinicContext(clinicId?: string): RequestInit | undefined {
   return clinicId ? ({ clinicId } as unknown as RequestInit) : undefined;
 }
 
+/**
+ * Body for a POST / DELETE whose route reads no body. The API client always sends
+ * `Content-Type: application/json`, and the backend (Fastify) answers 400 "Body cannot be empty"
+ * to a JSON request without a body.
+ */
+const NO_BODY = {};
+const NO_BODY_INIT: RequestInit = { body: JSON.stringify(NO_BODY) };
+
+/**
+ * The backend rejects any body field its DTO does not declare, and its plan DTO names the price
+ * `amount` and the cycle `interval` (the UI calls them `price` / `billingCycle`).
+ */
+function toBillingPlanPayload(data: Partial<CreateBillingPlanData>, forUpdate: boolean) {
+  return {
+    ...(data.name !== undefined ? { name: data.name } : {}),
+    ...(data.description ? { description: data.description } : {}),
+    ...(data.price !== undefined ? { amount: data.price } : {}),
+    ...(data.appointmentsIncluded !== undefined ? { appointmentsIncluded: data.appointmentsIncluded } : {}),
+    ...(data.isUnlimitedAppointments !== undefined ? { isUnlimitedAppointments: data.isUnlimitedAppointments } : {}),
+    ...(data.isActive !== undefined ? { isActive: data.isActive } : {}),
+    // currency, interval and clinicId can only be set when the plan is created.
+    ...(forUpdate
+      ? {}
+      : {
+          currency: data.currency || 'INR',
+          ...(data.billingCycle !== undefined ? { interval: data.billingCycle } : {}),
+          ...(data.clinicId ? { clinicId: data.clinicId } : {}),
+        }),
+  };
+}
+
 // ============ Billing Plans Hooks ============
+//
+// Roles (billing.controller.ts, verified by reading). Every route also needs the matching RBAC
+// permission, which narrows some role lists further:
+//   - GET  /billing/plans, /billing/plans/:id            every staff role and PATIENT by @Roles, but the
+//                                                        `billing:read` permission is missing for
+//                                                        PHARMACIST and RECEPTIONIST (403 for them).
+//   - POST/PUT/DELETE /billing/plans                      SUPER_ADMIN, CLINIC_ADMIN.
+//   - GET  /billing/subscriptions/user/:userId (+/active) SUPER_ADMIN, CLINIC_ADMIN, FINANCE_BILLING,
+//                                                        RECEPTIONIST, PATIENT (own), DOCTOR, ASSISTANT_DOCTOR.
+//   - POST /billing/subscriptions                         SUPER_ADMIN, CLINIC_ADMIN, PATIENT, RECEPTIONIST.
+//   - GET  /billing/invoices/user/:userId                 every staff role and PATIENT (own).
+//   - GET  /billing/payments/user/:userId                 same @Roles, but `payments:read` is missing for
+//                                                        PHARMACIST (403 for a pharmacist).
+//   - GET  /billing/invoices/clinic, /billing/payments/clinic, /billing/subscriptions/clinic
+//                                                        SUPER_ADMIN, CLINIC_ADMIN, FINANCE_BILLING,
+//                                                        RECEPTIONIST only (not DOCTOR, not PHARMACIST).
+//   - GET  /billing/payments/ledger                       SUPER_ADMIN, CLINIC_ADMIN, FINANCE_BILLING.
+//   - POST /billing/invoices, PUT, /mark-paid             SUPER_ADMIN, CLINIC_ADMIN, FINANCE_BILLING. RECEPTIONIST
+//                                                        is in @Roles but lacks `invoices:create` /
+//                                                        `invoices:update`, so the server answers 403.
+//   - GET  /billing/invoices/:id/download                 + PATIENT (own), DOCTOR, ASSISTANT_DOCTOR, PHARMACIST.
 
 export function useBillingPlans(clinicId?: string, enabled: boolean = true) {
   return useQueryData<BillingPlan[]>(
@@ -183,9 +235,12 @@ export function useBillingPlan(id: string) {
 export function useCreateBillingPlan() {
   return useMutationOperation<ActionEnvelope<'plan', BillingPlan>, CreateBillingPlanData>(
     async (data: CreateBillingPlanData) => {
-      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.PLANS.CREATE, data);
-      const plan = unwrapObject<BillingPlan>(result.data, ['plan']) ?? (result.data as BillingPlan);
-      return { success: true, plan };
+      const result = await clinicApiClient.post(
+        API_ENDPOINTS.BILLING.PLANS.CREATE,
+        toBillingPlanPayload(data, false),
+      );
+      const raw = unwrapObject<RawBillingPlan>(result.data, ['plan']) ?? (result.data as RawBillingPlan);
+      return { success: true, plan: normalizeBillingPlan(raw ?? {}) };
     },
     {
       toastId: 'billing-plan-create',
@@ -199,9 +254,12 @@ export function useCreateBillingPlan() {
 export function useUpdateBillingPlan() {
   return useMutationOperation<ActionEnvelope<'plan', BillingPlan>, { id: string; data: Partial<CreateBillingPlanData> }>(
     async ({ id, data }: { id: string; data: Partial<CreateBillingPlanData> }) => {
-      const result = await clinicApiClient.put(API_ENDPOINTS.BILLING.PLANS.UPDATE(id), data);
-      const plan = unwrapObject<BillingPlan>(result.data, ['plan']) ?? (result.data as BillingPlan);
-      return { success: true, plan };
+      const result = await clinicApiClient.put(
+        API_ENDPOINTS.BILLING.PLANS.UPDATE(id),
+        toBillingPlanPayload(data, true),
+      );
+      const raw = unwrapObject<RawBillingPlan>(result.data, ['plan']) ?? (result.data as RawBillingPlan);
+      return { success: true, plan: normalizeBillingPlan(raw ?? {}) };
     },
     {
       toastId: 'billing-plan-update',
@@ -215,7 +273,7 @@ export function useUpdateBillingPlan() {
 export function useDeleteBillingPlan() {
   return useMutationOperation<{ success: boolean }, string>(
     async (id: string) => {
-      await clinicApiClient.delete(API_ENDPOINTS.BILLING.PLANS.DELETE(id));
+      await clinicApiClient.delete(API_ENDPOINTS.BILLING.PLANS.DELETE(id), NO_BODY_INIT);
       return { success: true };
     },
     {
@@ -308,7 +366,17 @@ export function useActiveSubscription(userId: string, clinicId: string, enabled:
 export function useCreateSubscription() {
   return useMutationOperation<Subscription, CreateSubscriptionData>(
     async (data: CreateSubscriptionData) => {
-      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.CREATE, data);
+      // POST /billing/subscriptions accepts exactly these fields (`autoRenew` is not one of them).
+      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.CREATE, {
+        userId: data.userId,
+        clinicId: data.clinicId,
+        planId: data.planId,
+        ...(data.startDate ? { startDate: data.startDate } : {}),
+        ...(data.endDate ? { endDate: data.endDate } : {}),
+        ...(data.trialStart ? { trialStart: data.trialStart } : {}),
+        ...(data.trialEnd ? { trialEnd: data.trialEnd } : {}),
+        ...(data.metadata ? { metadata: data.metadata } : {}),
+      });
       return (unwrapObject<Subscription>(result.data, ['subscription']) ?? (result.data as Subscription)) as Subscription;
     },
     {
@@ -323,7 +391,9 @@ export function useCreateSubscription() {
 export function useCancelSubscription() {
   return useMutationOperation<Subscription, { id: string; immediate?: boolean }>(
     async ({ id, immediate }: { id: string; immediate?: boolean }) => {
-      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.CANCEL(id), { immediate });
+      // POST /billing/subscriptions/:id/cancel reads `immediate` from the query string, not the body.
+      const endpoint = `${API_ENDPOINTS.BILLING.SUBSCRIPTIONS.CANCEL(id)}${immediate ? '?immediate=true' : ''}`;
+      const result = await clinicApiClient.post(endpoint, NO_BODY);
       return (unwrapObject<Subscription>(result.data, ['subscription']) ?? (result.data as Subscription)) as Subscription;
     },
     {
@@ -407,7 +477,28 @@ export function useClinicInvoices(enabled: boolean = true) {
 export function useCreateInvoice() {
   return useMutationOperation<{ success: boolean; invoice?: Invoice; error?: string }, CreateInvoiceData>(
     async (data: CreateInvoiceData) => {
-      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.INVOICES.CREATE, data);
+      // POST /billing/invoices — SUPER_ADMIN, CLINIC_ADMIN, FINANCE_BILLING (a receptionist is refused
+      // by the `invoices:create` permission check).
+      // `userId` is the user the invoice is FOR (the patient's user id). The server rejects unknown
+      // fields (`currency` and `items` are not part of its contract), so only its fields are sent.
+      const extra = data as CreateInvoiceData & {
+        tax?: number;
+        discount?: number;
+        description?: string;
+        metadata?: Record<string, unknown>;
+      };
+      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.INVOICES.CREATE, {
+        userId: data.userId,
+        clinicId: data.clinicId,
+        amount: data.amount,
+        dueDate: data.dueDate,
+        ...(data.subscriptionId ? { subscriptionId: data.subscriptionId } : {}),
+        ...(typeof extra.tax === 'number' ? { tax: extra.tax } : {}),
+        ...(typeof extra.discount === 'number' ? { discount: extra.discount } : {}),
+        ...(extra.description ? { description: extra.description } : {}),
+        ...(data.lineItems ? { lineItems: data.lineItems } : {}),
+        ...(extra.metadata ? { metadata: extra.metadata } : {}),
+      });
       const invoice = unwrapObject<Invoice>(result.data, ['invoice']) ?? (result.data as Invoice);
       return { success: true, invoice };
     },
@@ -423,7 +514,7 @@ export function useCreateInvoice() {
 export function useMarkInvoiceAsPaid() {
   return useMutationOperation<{ success: boolean; invoice?: Invoice; error?: string }, string>(
     async (invoiceId: string) => {
-      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.INVOICES.MARK_PAID(invoiceId));
+      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.INVOICES.MARK_PAID(invoiceId), NO_BODY);
       const invoice = unwrapObject<Invoice>(result.data, ['invoice']) ?? (result.data as Invoice);
       return { success: true, invoice };
     },
@@ -539,7 +630,16 @@ export function useClinicLedger(filters?: {
 export function useCreatePayment() {
   return useMutationOperation<{ success: boolean; payment?: Payment; error?: string }, CreatePaymentData>(
     async (data: CreatePaymentData) => {
-      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.PAYMENTS.CREATE, data);
+      // POST /billing/payments accepts exactly these fields (`currency` is not one of them).
+      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.PAYMENTS.CREATE, {
+        amount: data.amount,
+        clinicId: data.clinicId,
+        userId: data.userId,
+        method: data.method,
+        ...(data.invoiceId ? { invoiceId: data.invoiceId } : {}),
+        ...(data.subscriptionId ? { subscriptionId: data.subscriptionId } : {}),
+        ...(data.transactionId ? { transactionId: data.transactionId } : {}),
+      });
       const payment = unwrapObject<Payment>(result.data, ['payment']) ?? (result.data as Payment);
       return { success: true, payment };
     },
@@ -562,7 +662,10 @@ export function useCreatePayment() {
 export function useReleaseAppointmentPayout() {
   return useMutationOperation<unknown, string>(
     async (appointmentId: string) => {
-      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.APPOINTMENT_PAYMENTS.RELEASE_PAYOUT(appointmentId));
+      const result = await clinicApiClient.post(
+        API_ENDPOINTS.BILLING.APPOINTMENT_PAYMENTS.RELEASE_PAYOUT(appointmentId),
+        NO_BODY,
+      );
       return (result.data ?? result) as Record<string, unknown>;
     },
     {
@@ -609,8 +712,12 @@ export function useCheckSubscriptionCoverage() {
 export function useCreateInPersonAppointmentWithSubscription() {
   return useMutationOperation<{ success: boolean; appointment?: unknown; message?: string; error?: string }, InPersonSubscriptionAppointmentData>(
     async (data: InPersonSubscriptionAppointmentData) => {
-      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.BOOK_INPERSON(data.subscriptionId), {
-        ...data,
+      // POST /billing/subscriptions/:subscriptionId/book-inperson — PATIENT, RECEPTIONIST, CLINIC_ADMIN,
+      // SUPER_ADMIN. The subscription id travels in the path only: the body DTO does not declare it,
+      // and the server rejects unknown fields.
+      const { subscriptionId, ...booking } = data;
+      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.BOOK_INPERSON(subscriptionId), {
+        ...booking,
         type: 'IN_PERSON',
       });
       const appointment = unwrapObject<unknown>(result.data, ['appointment']) ?? (result.data as unknown);
@@ -704,7 +811,8 @@ export function useManualReconcileAppointmentPayment() {
 export function useSendInvoiceViaWhatsApp() {
   return useMutationOperation<{ success: boolean; error?: string }, string>(
     async (invoiceId: string) => {
-      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.INVOICES.SEND_WHATSAPP(invoiceId));
+      // POST /billing/invoices/:id/send-whatsapp — SUPER_ADMIN, CLINIC_ADMIN only.
+      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.INVOICES.SEND_WHATSAPP(invoiceId), NO_BODY);
       const payload = result.data as { success?: boolean; error?: string } | undefined;
       return { success: payload?.success ?? true, ...(payload?.error ? { error: payload.error } : {}) };
     },
@@ -723,7 +831,10 @@ export function useGenerateInvoicePDF() {
     string
   >(
     async (invoiceId: string) => {
-      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.INVOICES.GENERATE_PDF(invoiceId));
+      // POST /billing/invoices/:id/generate-pdf — SUPER_ADMIN, CLINIC_ADMIN, RECEPTIONIST, PHARMACIST,
+      // FINANCE_BILLING. It only queues the PDF and answers `{ message }` (no url); the file itself is
+      // GET /billing/invoices/:id/download.
+      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.INVOICES.GENERATE_PDF(invoiceId), NO_BODY);
       const payload = result.data as { success?: boolean; pdfUrl?: string; url?: string; message?: string; data?: unknown; error?: string } | undefined;
       return {
         success: payload?.success ?? true,

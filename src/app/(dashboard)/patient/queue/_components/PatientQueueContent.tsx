@@ -10,7 +10,7 @@ import {
   PatientQueueLoadingView,
   PatientQueueView,
 } from "./PatientQueueView";
-import { readAppointments, selectClinicVisits, toQueueTicket, toVisitInfo } from "./queueData";
+import { readAppointments, selectClinicVisits, toQueueTicket, toVisitInfo } from "@/components/patient/queue/queueData";
 
 /**
  * Data container for the patient Live Queue. The place comes from `GET queue/me` (it reads

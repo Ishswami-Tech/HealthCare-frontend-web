@@ -83,7 +83,7 @@ export function PatientSettingsView({
                       "flex min-h-[84px] cursor-pointer items-center gap-3 rounded-2xl border-2 px-[18px] text-ink transition-colors",
                       "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/40 has-[:disabled]:cursor-wait",
                       checked
-                        ? "border-[#047857] bg-mint-soft"
+                        ? "border-brand bg-mint-soft"
                         : "border-line bg-card hover:border-[#a7f3d0] dark:hover:border-emerald-800",
                     )}
                   >
@@ -103,7 +103,7 @@ export function PatientSettingsView({
                     </span>
                     {checked ? (
                       <span
-                        className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#047857] text-white"
+                        className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-white"
                         aria-hidden="true"
                       >
                         <Check className="size-3.5" strokeWidth={3} />

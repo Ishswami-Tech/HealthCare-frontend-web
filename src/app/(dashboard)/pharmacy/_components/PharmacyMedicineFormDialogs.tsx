@@ -3,24 +3,14 @@
 import { useId } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowRight, Check, Plus, Save } from "lucide-react";
+import { ArrowRight, Check, CircleAlert, Plus, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Note } from "@/components/tbd";
-import {
-  DialogError,
-  Field,
-  FormSectionLabel,
-  MedicineSummary,
-  PharmacyDialog,
-  PharmacyDialogActions,
-  PharmacyDialogBody,
-  RupeeField,
-  fieldAria,
-} from "./PharmacyDialogParts";
-import { DOSAGE_FORMS, todayKey, type MedicineRow } from "./pharmacy-inventory.logic";
+import { Note, DialogActions, DialogBody, DialogError, DialogShell, Field, fieldAria } from "@/components/tbd";
+import { FormSectionLabel, MedicineSummary, RupeeField } from "./PharmacyDialogParts";
+import { CAN_ADD_MEDICINE, DOSAGE_FORMS, todayKey, type MedicineRow } from "./pharmacy-inventory.logic";
 import {
   ADD_MEDICINE_DEFAULTS,
   addMedicineSchema,
@@ -63,7 +53,7 @@ export function PharmacyAddMedicineDialog({
   onClose,
 }: PharmacyAddMedicineDialogProps) {
   return (
-    <PharmacyDialog
+    <DialogShell
       open={open}
       onClose={onClose}
       busy={isSaving}
@@ -81,7 +71,7 @@ export function PharmacyAddMedicineDialog({
           onClose={onClose}
         />
       ) : null}
-    </PharmacyDialog>
+    </DialogShell>
   );
 }
 
@@ -109,8 +99,21 @@ function AddMedicineForm({
   });
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate>
-      <PharmacyDialogBody>
+    <form
+      onSubmit={handleSubmit((values) => {
+        if (CAN_ADD_MEDICINE) onSubmit(values);
+      })}
+      noValidate
+    >
+      <DialogBody>
+        {CAN_ADD_MEDICINE ? null : (
+          <Note tone="amber" icon={CircleAlert}>
+            <span role="status">
+              A new medicine cannot be saved yet. The server does not store the dosage form, so it refuses
+              every new medicine. You can still restock and edit the medicines already in the list.
+            </span>
+          </Note>
+        )}
         <FormSectionLabel>Medicine</FormSectionLabel>
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
           <Field label="Medicine name" htmlFor={id("name")} error={errors.name?.message}>
@@ -258,17 +261,17 @@ function AddMedicineForm({
         </Field>
 
         <DialogError lead="The medicine was not saved." message={errorMessage} />
-      </PharmacyDialogBody>
+      </DialogBody>
 
-      <PharmacyDialogActions>
+      <DialogActions>
         <Button size="md" variant="outline" onClick={onClose} disabled={isSaving}>
           Cancel
         </Button>
-        <Button size="md" type="submit" disabled={isSaving}>
+        <Button size="md" type="submit" disabled={isSaving || !CAN_ADD_MEDICINE}>
           <Plus aria-hidden="true" />
           {isSaving ? "Saving…" : "Add medicine"}
         </Button>
-      </PharmacyDialogActions>
+      </DialogActions>
     </form>
   );
 }
@@ -296,7 +299,7 @@ export function PharmacyEditMedicineDialog({
   onClose,
 }: PharmacyEditMedicineDialogProps) {
   return (
-    <PharmacyDialog
+    <DialogShell
       open={medicine !== null}
       onClose={onClose}
       busy={isSaving}
@@ -314,7 +317,7 @@ export function PharmacyEditMedicineDialog({
           onClose={onClose}
         />
       ) : null}
-    </PharmacyDialog>
+    </DialogShell>
   );
 }
 
@@ -353,7 +356,7 @@ function EditMedicineForm({
 
   return (
     <form onSubmit={handleSubmit((formValues) => onSubmit(medicine, formValues))} noValidate>
-      <PharmacyDialogBody>
+      <DialogBody>
         <MedicineSummary medicine={medicine} />
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
           <Field label="Price per unit" htmlFor={id("unitPrice")} error={errors.unitPrice?.message}>
@@ -388,9 +391,9 @@ function EditMedicineForm({
           Only the price and the stock count can be changed here for now. To record a delivery, use Restock.
         </Note>
         <DialogError lead="The changes were not saved." message={errorMessage} />
-      </PharmacyDialogBody>
+      </DialogBody>
 
-      <PharmacyDialogActions>
+      <DialogActions>
         <Button size="md" variant="outline" onClick={onClose} disabled={isSaving}>
           Cancel
         </Button>
@@ -398,7 +401,7 @@ function EditMedicineForm({
           <Save aria-hidden="true" />
           {isSaving ? "Saving…" : "Save changes"}
         </Button>
-      </PharmacyDialogActions>
+      </DialogActions>
     </form>
   );
 }
@@ -424,7 +427,7 @@ export function PharmacyRestockDialog({
   onClose,
 }: PharmacyRestockDialogProps) {
   return (
-    <PharmacyDialog
+    <DialogShell
       open={medicine !== null}
       onClose={onClose}
       busy={isSaving}
@@ -442,7 +445,7 @@ export function PharmacyRestockDialog({
           onClose={onClose}
         />
       ) : null}
-    </PharmacyDialog>
+    </DialogShell>
   );
 }
 
@@ -451,7 +454,7 @@ function StockBox({ tone, value, unit }: { tone: "now" | "short" | "new"; value:
     <span
       className={
         tone === "new"
-          ? "flex min-h-11 items-center gap-2 rounded-xl bg-mint-soft px-3.5 text-base font-extrabold text-[#065f46] dark:text-emerald-300"
+          ? "flex min-h-11 items-center gap-2 rounded-xl bg-mint-soft px-3.5 text-base font-extrabold text-brand-dark"
           : tone === "short"
             ? "flex min-h-11 items-center gap-2 rounded-xl bg-well px-3.5 text-base font-extrabold text-[#b45309] dark:text-amber-300"
             : "flex min-h-11 items-center gap-2 rounded-xl bg-well px-3.5 text-base font-extrabold text-ink"
@@ -493,7 +496,7 @@ function RestockForm({
 
   return (
     <form onSubmit={handleSubmit((values) => onSubmit(medicine, Number(values.quantity)))} noValidate>
-      <PharmacyDialogBody>
+      <DialogBody>
         <MedicineSummary medicine={medicine} />
         <div className="grid grid-cols-1 items-start gap-2.5 sm:grid-cols-[minmax(0,1fr)_18px_minmax(0,1fr)_18px_minmax(0,1fr)]">
           <div className="flex min-w-0 flex-col gap-1.5">
@@ -528,9 +531,9 @@ function RestockForm({
           </p>
         ) : null}
         <DialogError lead="The stock was not updated." message={errorMessage} />
-      </PharmacyDialogBody>
+      </DialogBody>
 
-      <PharmacyDialogActions>
+      <DialogActions>
         <Button size="md" variant="outline" onClick={onClose} disabled={isSaving}>
           Cancel
         </Button>
@@ -538,7 +541,7 @@ function RestockForm({
           <Check aria-hidden="true" />
           {isSaving ? "Updating…" : "Update stock"}
         </Button>
-      </PharmacyDialogActions>
+      </DialogActions>
     </form>
   );
 }

@@ -279,7 +279,7 @@ function ReviewPage({
             <Surface className="h-full">
               <SectionTitle title="Who is this for?" />
               <div className="flex gap-2.5">
-                <div className="flex min-h-[108px] w-[120px] flex-col items-center justify-center gap-1 rounded-2xl border-2 border-[#047857] bg-mint-soft px-2 text-center dark:border-emerald-500">
+                <div className="flex min-h-[108px] w-[120px] flex-col items-center justify-center gap-1 rounded-2xl border-2 border-brand bg-mint-soft px-2 text-center">
                   <InitialsAvatar name={forPerson.name} size={40} />
                   <span className="max-w-full truncate text-[13px] font-bold text-ink">{forPerson.name}</span>
                   <span className="text-xs text-ink-muted">{forPerson.relation}</span>
@@ -302,7 +302,7 @@ function ReviewPage({
         {!isVideo ? (
           <div className="flex items-center gap-3.5 rounded-[20px] border border-[#a7f3d0] bg-[#ecfdf5] p-5 dark:border-emerald-900 dark:bg-emerald-950/30">
             <span
-              className="flex size-11 shrink-0 items-center justify-center rounded-[14px] bg-[#047857] text-white"
+              className="flex size-11 shrink-0 items-center justify-center rounded-[14px] bg-primary text-white"
               aria-hidden="true"
             >
               <QrCode className="size-5" strokeWidth={2.2} />
@@ -311,7 +311,7 @@ function ReviewPage({
               <span className="text-sm font-extrabold text-[#064e3b] dark:text-emerald-200">
                 Check in with QR when you arrive
               </span>
-              <span className="text-[13px] leading-[1.55] text-[#065f46] dark:text-emerald-300">
+              <span className="text-[13px] leading-[1.55] text-brand-dark">
                 Scan the QR at the clinic desk to confirm your visit and get a queue token.
               </span>
             </span>

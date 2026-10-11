@@ -87,10 +87,15 @@ export const useQueue = (clinicId?: string, filters?: {
 
   return useQueryData(getQueueListQueryKey(normalizedClinicId, queueFilters), async () => {
     try {
-      const response = await clinicApiClient.get(API_ENDPOINTS.QUEUE.GET, {
-        ...queueRequestFilters,
-        ...(normalizedClinicId ? { clinicId: normalizedClinicId } : {}),
-      });
+      // Only defined filters go on the wire (an `undefined` value would be sent as the
+      // text "undefined" and filter every entry out).
+      const requestParams = Object.fromEntries(
+        Object.entries({
+          ...queueRequestFilters,
+          ...(normalizedClinicId ? { clinicId: normalizedClinicId } : {}),
+        }).filter(([, value]) => value !== undefined && value !== '')
+      );
+      const response = await clinicApiClient.get(API_ENDPOINTS.QUEUE.GET, requestParams);
       return response.data;
     } catch (error) {
       if (isSessionInvalidError(error)) {
@@ -296,9 +301,9 @@ export const useRemoveFromQueue = () => {
       queueId: string;
       reason?: string;
     }) => {
-      return (await clinicApiClient.delete(API_ENDPOINTS.QUEUE.REMOVE(queueId), {
-        body: reason ? JSON.stringify({ reason }) : undefined,
-      })).data;
+      // DELETE /queue/:queueId reads no body; `reason` stays in the variables for callers.
+      void reason;
+      return (await clinicApiClient.delete(API_ENDPOINTS.QUEUE.REMOVE(queueId))).data;
     },
     {
       toastId: TOAST_IDS.QUEUE.UPDATE,
@@ -496,7 +501,8 @@ export const useUpdateQueuePosition = () => {
       queueId: string;
       newPosition: number;
     }) => {
-      return (await clinicApiClient.patch(API_ENDPOINTS.QUEUE.UPDATE_POSITION(queueId), { newPosition })).data;
+      // PATCH /queue/:queueId/position expects `{ position }` (a positive integer).
+      return (await clinicApiClient.patch(API_ENDPOINTS.QUEUE.UPDATE_POSITION(queueId), { position: newPosition })).data;
     },
     {
       toastId: TOAST_IDS.QUEUE.UPDATE,
@@ -554,10 +560,12 @@ export const useTransferQueueEntry = () => {
       treatmentType?: string;
       notes?: string;
     }) => {
-      return (await clinicApiClient.post(API_ENDPOINTS.QUEUE.TRANSFER(entryId), {
+      // PATCH /queue/:entryId/transfer. Allowed roles: NURSE, RECEPTIONIST, CLINIC_ADMIN,
+      // SUPER_ADMIN, CLINIC_LOCATION_HEAD (a DOCTOR gets 403).
+      return (await clinicApiClient.patch(API_ENDPOINTS.QUEUE.TRANSFER(entryId), {
         targetQueue,
-        treatmentType,
-        notes,
+        ...(treatmentType ? { treatmentType } : {}),
+        ...(notes ? { notes } : {}),
       })).data;
     },
     {
@@ -628,7 +636,8 @@ export const useUpdateQueueConfig = () => {
       allowWalkIns?: boolean;
       priorityEnabled?: boolean;
     }) => {
-      return (await clinicApiClient.put(API_ENDPOINTS.QUEUE.CONFIG, config)).data;
+      // PATCH /queue/config (CLINIC_ADMIN, SUPER_ADMIN, CLINIC_LOCATION_HEAD); there is no PUT.
+      return (await clinicApiClient.patch(API_ENDPOINTS.QUEUE.CONFIG, config)).data;
     },
     {
       toastId: TOAST_IDS.QUEUE.UPDATE,
@@ -711,7 +720,8 @@ export const useSendQueueNotification = () => {
 export const useQueueWaitTimes = (queueType?: string) => {
   return useQueryData(['queueWaitTimes', queueType], async () => {
     try {
-      return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.WAIT_TIMES, queueType ? { queueType } : undefined)).data;
+      // GET /queue/wait-times reads `queueName`.
+      return (await clinicApiClient.get(API_ENDPOINTS.QUEUE.WAIT_TIMES, queueType ? { queueName: queueType } : undefined)).data;
     } catch (error) {
       if (isSessionInvalidError(error)) {
         return [];
@@ -768,7 +778,8 @@ export const useUpdateQueueCapacity = () => {
       queueType: string;
       capacity: number;
     }) => {
-      return (await clinicApiClient.put(API_ENDPOINTS.QUEUE.CAPACITY, { queueType, capacity })).data;
+      // PATCH /queue/capacity (CLINIC_ADMIN, SUPER_ADMIN, CLINIC_LOCATION_HEAD); there is no PUT.
+      return (await clinicApiClient.patch(API_ENDPOINTS.QUEUE.CAPACITY, { queueType, capacity })).data;
     },
     {
       toastId: TOAST_IDS.QUEUE.UPDATE,
@@ -876,7 +887,8 @@ export const useUpdateQueueAlert = () => {
         enabled?: boolean;
       };
     }) => {
-      return (await clinicApiClient.put(API_ENDPOINTS.QUEUE.ALERTS.UPDATE(alertId), updates)).data;
+      // PATCH /queue/alerts/:alertId; there is no PUT.
+      return (await clinicApiClient.patch(API_ENDPOINTS.QUEUE.ALERTS.UPDATE(alertId), updates)).data;
     },
     {
       toastId: TOAST_IDS.QUEUE.UPDATE,

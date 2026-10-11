@@ -1,9 +1,7 @@
-"use client";
-
 import { BarChart3, CreditCard, FileText, RefreshCw, Wallet } from "lucide-react";
 import { Divider, EmptyBlock, IconBox, Kpi, Pill, SectionTitle, SummaryLine, Surface, statusLabel } from "@/components/tbd";
 import type { ClinicLedgerResponse } from "@/types/billing.types";
-import { formatRupees } from "./billing.logic";
+import { formatRupees } from "@/lib/utils/currency";
 
 const LEDGER_LIMIT = 30;
 

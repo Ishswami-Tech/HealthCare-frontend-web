@@ -1,33 +1,19 @@
-import { Calendar, Download, Pencil, Pill as PillIcon, Trash2, User } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { InitialsAvatar, Pill, statusLabel, statusTone } from "@/components/tbd";
-import {
-  prescriptionDateLabel,
-  shortPatientId,
-  type DoctorPrescriptionRow,
-} from "./doctor-prescriptions.logic";
+import { Calendar, Pill as PillIcon, User } from "lucide-react";
+import { InitialsAvatar, Pill, statusLabel, statusTone, FIELD_LABEL } from "@/components/tbd";
+import { shortPatientId, type DoctorPrescriptionRow } from "./doctor-prescriptions.logic";
+import { formatDateLabel } from "@/lib/utils/date-time";
 
 export interface DoctorPrescriptionCardProps {
   prescription: DoctorPrescriptionRow;
-  editDisabled?: boolean;
-  deleteDisabled?: boolean;
-  onDownload: (prescription: DoctorPrescriptionRow) => void;
-  onEdit: (prescription: DoctorPrescriptionRow) => void;
-  onDelete: (prescription: DoctorPrescriptionRow) => void;
 }
 
-const FIELD_LABEL = "text-xs font-bold text-ink-soft";
 
-/** One prescription: who, when, where it is at the pharmacy, what was prescribed. No amounts. */
-export function DoctorPrescriptionCard({
-  prescription,
-  editDisabled = false,
-  deleteDisabled = false,
-  onDownload,
-  onEdit,
-  onDelete,
-}: DoctorPrescriptionCardProps) {
-  const dateLabel = prescriptionDateLabel(prescription.date);
+/**
+ * One prescription: who, when, where it is at the pharmacy, what was prescribed. No amounts.
+ * Read-only: the server lets a doctor list and write prescriptions, not edit, delete or print one.
+ */
+export function DoctorPrescriptionCard({ prescription }: DoctorPrescriptionCardProps) {
+  const dateLabel = formatDateLabel(prescription.date);
   const patientRef = shortPatientId(prescription.patientId);
 
   return (
@@ -61,26 +47,6 @@ export function DoctorPrescriptionCard({
               ) : null}
             </div>
           </div>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => onDownload(prescription)}
-            aria-label={`Download PDF for ${prescription.patientName}`}
-            title="Download PDF"
-          >
-            <Download aria-hidden="true" />
-          </Button>
-          <Button variant="soft" disabled={editDisabled} onClick={() => onEdit(prescription)}>
-            <Pencil aria-hidden="true" />
-            Edit
-          </Button>
-          <Button variant="danger" disabled={deleteDisabled} onClick={() => onDelete(prescription)}>
-            <Trash2 aria-hidden="true" />
-            Delete
-          </Button>
         </div>
       </div>
 

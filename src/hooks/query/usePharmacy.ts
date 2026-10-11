@@ -371,7 +371,7 @@ export const useUpdateMedicine = () => {
     }: {
       clinicId: string;
       medicineId: string;
-      updates: any;
+      updates: Parameters<typeof updateMedicine>[2];
     }) => {
       return await updateMedicine(clinicId, medicineId, updates);
     },
@@ -543,7 +543,7 @@ export const useUpdateInventory = () => {
     }: {
       clinicId: string;
       medicineId: string;
-      inventoryData: any;
+      inventoryData: Parameters<typeof updateInventory>[2];
     }) => {
       return await updateInventory(clinicId, medicineId, inventoryData);
     },

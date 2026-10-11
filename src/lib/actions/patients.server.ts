@@ -4,9 +4,57 @@ import { authenticatedApi, getServerSession } from './auth.server';
 import { API_ENDPOINTS } from '../config/config';
 
 // ===== PATIENTS MANAGEMENT ACTIONS =====
+//
+// Ids used by the backend (verified against patients / ehr / appointments controllers):
+//   - Patient USER id (User.id): GET/PUT/DELETE /patients/:id and every /ehr/<section>/:userId route.
+//   - Patient-record id (Patient.id): Appointment.patientId, patient visits, prescriptions.
+// A patient list row carries both: `id` (Patient.id) and `userId` / `user.id` (User.id).
+
+type UnknownRecord = Record<string, unknown>;
+
+const isRecord = (value: unknown): value is UnknownRecord =>
+  !!value && typeof value === 'object' && !Array.isArray(value);
+
+/** Result of a read the backend has no route for: nothing to show, and no request is sent. */
+function notAvailable(feature: string) {
+  return {
+    available: false as const,
+    items: [] as unknown[],
+    message: `${feature} is not available yet: the server has no service for it.`,
+  };
+}
+
+/** Largest page GET /appointments serves, and how many pages one patient lookup may read. */
+const APPOINTMENT_PAGE_SIZE = 100;
+const APPOINTMENT_MAX_PAGES = 5;
+
+/** GET /appointments answers `{ appointments, pagination }`, bare or under `data`. */
+function readAppointmentPage(payload: unknown): { rows: UnknownRecord[]; hasNext: boolean } {
+  if (Array.isArray(payload)) {
+    return { rows: payload as UnknownRecord[], hasNext: false };
+  }
+  const outer = isRecord(payload) ? payload : {};
+  const body = isRecord(outer.data) ? outer.data : outer;
+  const rows = Array.isArray(body.appointments)
+    ? body.appointments
+    : Array.isArray(outer.data)
+      ? outer.data
+      : [];
+  const pagination = isRecord(body.pagination) ? body.pagination : {};
+  return { rows: rows as UnknownRecord[], hasNext: pagination.hasNext === true };
+}
+
+/** True when the appointment row is for this patient (Patient.id, or the patient's user id). */
+function isAppointmentOfPatient(row: UnknownRecord, patientId: string): boolean {
+  const patient = isRecord(row.patient) ? row.patient : {};
+  const patientUser = isRecord(patient.user) ? patient.user : {};
+  return [row.patientId, patient.id, patient.userId, patientUser.id].includes(patientId);
+}
 
 /**
- * Get all patients for a clinic
+ * Get all patients for a clinic.
+ * Backend: GET /patients/clinic/:clinicId — DOCTOR, ASSISTANT_DOCTOR, RECEPTIONIST, CLINIC_ADMIN,
+ * SUPER_ADMIN. Query: `search`, `page`, `limit` (other filters are not applied by the server).
  */
 export async function getPatients(clinicId: string, filters?: {
   search?: string;
@@ -53,7 +101,10 @@ export async function getPatients(clinicId: string, filters?: {
 }
 
 /**
- * Get patient by ID
+ * Get one patient.
+ * Backend: GET /patients/:id — `:id` is the patient's USER id (User.id), not the Patient-record id.
+ * Roles: DOCTOR, ASSISTANT_DOCTOR, RECEPTIONIST, CLINIC_ADMIN, SUPER_ADMIN, PATIENT (own id only).
+ * Returns the User row with the Patient record nested under `patient`.
  */
 export async function getPatientById(_clinicId: string, patientId: string) {
   const session = await getServerSession();
@@ -67,7 +118,10 @@ export async function getPatientById(_clinicId: string, patientId: string) {
 }
 
 /**
- * Create patient
+ * Create or update the patient profile of an existing user.
+ * Backend: POST /patients — DOCTOR, ASSISTANT_DOCTOR, RECEPTIONIST, CLINIC_ADMIN, SUPER_ADMIN.
+ * `userId` is the patient's USER id. When `insurance` is sent the server also requires
+ * `primaryHolder`, `coverageStartDate` and `coverageType` on it.
  */
 export async function createPatient(patientData: {
   userId: string;
@@ -102,7 +156,10 @@ export async function createPatient(patientData: {
 }
 
 /**
- * Update patient
+ * Update a patient profile.
+ * Backend: PUT /patients/:id — `:id` is the patient's USER id. DOCTOR, ASSISTANT_DOCTOR,
+ * RECEPTIONIST (demographics, emergency contact and insurance only), CLINIC_ADMIN, SUPER_ADMIN.
+ * The server rejects unknown fields; `isActive` is not part of its update contract and is not sent.
  */
 export async function updatePatient(patientId: string, updates: {
   dateOfBirth?: string;
@@ -134,15 +191,19 @@ export async function updatePatient(patientId: string, updates: {
     throw new Error('Unauthorized: Authentication required');
   }
 
+  const { isActive: _isActive, ...payload } = updates;
+  void _isActive;
+
   const { data } = await authenticatedApi(API_ENDPOINTS.PATIENTS.UPDATE(patientId), {
     method: 'PUT',
-    body: JSON.stringify(updates),
+    body: JSON.stringify(payload),
   });
   return data;
 }
 
 /**
- * Delete patient
+ * Deactivate a patient (soft delete).
+ * Backend: DELETE /patients/:id — `:id` is the patient's USER id. CLINIC_ADMIN, SUPER_ADMIN only.
  */
 export async function deletePatient(patientId: string) {
   const session = await getServerSession();
@@ -152,12 +213,25 @@ export async function deletePatient(patientId: string) {
 
   const { data } = await authenticatedApi(API_ENDPOINTS.PATIENTS.DELETE(patientId), {
     method: 'DELETE',
+    // The API client always sends `Content-Type: application/json`, and the backend (Fastify)
+    // answers 400 "Body cannot be empty" to a JSON request without a body. The route reads no body.
+    body: JSON.stringify({}),
   });
   return data;
 }
 
 /**
- * Get patient appointments
+ * Get one patient's appointments, newest first.
+ *
+ * Backend: GET /appointments — SUPER_ADMIN, CLINIC_ADMIN, DOCTOR, ASSISTANT_DOCTOR, RECEPTIONIST,
+ * NURSE, THERAPIST, COUNSELOR, SUPPORT_STAFF, PATIENT. The route reads `status`, `date`, `dateFrom`,
+ * `dateTo`, `doctorId`, `locationId`, `page` and `limit` (100 at most). It has no patient filter that
+ * works (`userId` is accepted but never applied, `patientId` is not read), and there is no
+ * /patients/:id/appointments route. So this reads the list the caller is allowed to see (a doctor
+ * gets only their own appointments) and keeps the rows of this patient.
+ *
+ * @param patientId Patient-record id (Appointment.patientId). The patient's user id matches too.
+ * @returns the matching appointment rows (at most `APPOINTMENT_MAX_PAGES` pages are read).
  */
 export async function getPatientAppointments(patientId: string, filters?: {
   status?: string;
@@ -171,20 +245,36 @@ export async function getPatientAppointments(patientId: string, filters?: {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  const params = new URLSearchParams();
-  if (filters) {
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, String(value));
+  const wanted = typeof filters?.limit === 'number' && filters.limit > 0 ? filters.limit : undefined;
+  const matches: UnknownRecord[] = [];
+
+  for (let page = 1; page <= APPOINTMENT_MAX_PAGES; page += 1) {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(APPOINTMENT_PAGE_SIZE),
     });
+    if (filters?.status) params.set('status', filters.status);
+    if (filters?.startDate) params.set('dateFrom', filters.startDate);
+    if (filters?.endDate) params.set('dateTo', filters.endDate);
+    if (filters?.doctorId) params.set('doctorId', filters.doctorId);
+
+    const { data } = await authenticatedApi(`${API_ENDPOINTS.APPOINTMENTS.GET_ALL}?${params.toString()}`);
+    const { rows, hasNext } = readAppointmentPage(data);
+    matches.push(...rows.filter((row) => isAppointmentOfPatient(row, patientId)));
+
+    if (!hasNext || rows.length === 0 || (wanted !== undefined && matches.length >= wanted)) {
+      break;
+    }
   }
-  
-  const endpoint = `${API_ENDPOINTS.PATIENTS.APPOINTMENTS(patientId)}${params.toString() ? `?${params.toString()}` : ''}`;
-  const { data } = await authenticatedApi(endpoint);
-  return data;
+
+  return wanted !== undefined ? matches.slice(0, wanted) : matches;
 }
 
 /**
- * Get patient medical history
+ * Get patient medical history.
+ * Backend: GET /ehr/medical-history/:userId — keyed on the patient's USER id (a Patient-record id
+ * returns an empty list). DOCTOR, ASSISTANT_DOCTOR, NURSE, CLINIC_ADMIN, SUPER_ADMIN, PATIENT (own).
+ * The route takes no filters; `filters` is kept for callers but not applied by the server.
  */
 export async function getPatientMedicalHistory(_clinicId: string, patientId: string, filters?: {
   type?: string;
@@ -210,7 +300,12 @@ export async function getPatientMedicalHistory(_clinicId: string, patientId: str
 }
 
 /**
- * Add patient medical history entry
+ * Add a medical history entry.
+ * Backend: POST /ehr/medical-history — DOCTOR, ASSISTANT_DOCTOR, NURSE, CLINIC_ADMIN, SUPER_ADMIN.
+ * Body (nothing else is accepted): `userId` (patient's USER id), `condition`, `date`, `notes?`.
+ * `title` is saved as the condition; type, severity and description go into the notes.
+ *
+ * @param patientId the patient's USER id.
  */
 export async function addPatientMedicalHistory(_clinicId: string, patientId: string, historyData: {
   type: 'DIAGNOSIS' | 'TREATMENT' | 'SURGERY' | 'ALLERGY' | 'MEDICATION' | 'FAMILY_HISTORY';
@@ -225,15 +320,30 @@ export async function addPatientMedicalHistory(_clinicId: string, patientId: str
     throw new Error('Unauthorized: Authentication required');
   }
 
+  const notes = [
+    historyData.type ? `Type: ${historyData.type}` : '',
+    historyData.severity ? `Severity: ${historyData.severity}` : '',
+    historyData.description?.trim() || '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.MEDICAL_HISTORY.CREATE, {
     method: 'POST',
-    body: JSON.stringify({ ...historyData, userId: patientId }),
+    body: JSON.stringify({
+      userId: patientId,
+      condition: historyData.title,
+      date: historyData.date,
+      ...(notes ? { notes } : {}),
+    }),
   });
   return data;
 }
 
 /**
- * Get patient vital signs
+ * Get patient vital signs.
+ * Backend: GET /ehr/vitals/:userId?type= — keyed on the patient's USER id. DOCTOR, ASSISTANT_DOCTOR,
+ * NURSE, CLINIC_ADMIN, SUPER_ADMIN, PATIENT (own). Only `type` is read by the server.
  */
 export async function getPatientVitalSigns(patientId: string, filters?: {
   startDate?: string;
@@ -258,7 +368,12 @@ export async function getPatientVitalSigns(patientId: string, filters?: {
 }
 
 /**
- * Add patient vital signs
+ * Record vital signs.
+ * Backend: POST /ehr/vitals — DOCTOR, ASSISTANT_DOCTOR, NURSE, RECEPTIONIST, CLINIC_ADMIN, SUPER_ADMIN.
+ * The server stores one row per reading: `userId` (patient's USER id), `type`, `value` (text),
+ * `recordedAt`, `unit?`, `recordedBy?`, `notes?`. Each measurement given here is posted as its own row.
+ *
+ * @param patientId the patient's USER id.
  */
 export async function addPatientVitalSigns(patientId: string, vitalsData: {
   bloodPressureSystolic?: number;
@@ -279,15 +394,56 @@ export async function addPatientVitalSigns(patientId: string, vitalsData: {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  const { data } = await authenticatedApi(API_ENDPOINTS.EHR.VITALS.CREATE, {
-    method: 'POST',
-    body: JSON.stringify({ ...vitalsData, userId: patientId }),
-  });
-  return data;
+  const readings: Array<{ type: string; value: string; unit?: string }> = [];
+  const add = (type: string, value: number | undefined, unit?: string) => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      readings.push({ type, value: String(value), ...(unit ? { unit } : {}) });
+    }
+  };
+
+  if (
+    typeof vitalsData.bloodPressureSystolic === 'number' &&
+    typeof vitalsData.bloodPressureDiastolic === 'number'
+  ) {
+    readings.push({
+      type: 'blood_pressure',
+      value: `${vitalsData.bloodPressureSystolic}/${vitalsData.bloodPressureDiastolic}`,
+      unit: 'mmHg',
+    });
+  }
+  add('heart_rate', vitalsData.heartRate, 'bpm');
+  add('temperature', vitalsData.temperature);
+  add('respiratory_rate', vitalsData.respiratoryRate, 'breaths/min');
+  add('oxygen_saturation', vitalsData.oxygenSaturation, '%');
+  add('weight', vitalsData.weight, 'kg');
+  add('height', vitalsData.height, 'cm');
+  add('bmi', vitalsData.bmi);
+
+  if (readings.length === 0) {
+    throw new Error('Enter at least one vital sign before saving.');
+  }
+
+  const saved: unknown[] = [];
+  for (const reading of readings) {
+    const { data } = await authenticatedApi(API_ENDPOINTS.EHR.VITALS.CREATE, {
+      method: 'POST',
+      body: JSON.stringify({
+        userId: patientId,
+        ...reading,
+        recordedAt: vitalsData.recordedAt,
+        ...(vitalsData.recordedBy ? { recordedBy: vitalsData.recordedBy } : {}),
+        ...(vitalsData.notes ? { notes: vitalsData.notes } : {}),
+      }),
+    });
+    saved.push(data);
+  }
+  return saved;
 }
 
 /**
- * Get patient lab results
+ * Get patient lab reports.
+ * Backend: GET /ehr/lab-reports/:userId — keyed on the patient's USER id. DOCTOR, ASSISTANT_DOCTOR,
+ * NURSE, LAB_TECHNICIAN, CLINIC_ADMIN, SUPER_ADMIN, PATIENT (own). The route takes no filters.
  */
 export async function getPatientLabResults(patientId: string, filters?: {
   testType?: string;
@@ -313,7 +469,13 @@ export async function getPatientLabResults(patientId: string, filters?: {
 }
 
 /**
- * Add patient lab result
+ * Add a lab report.
+ * Backend: POST /ehr/lab-reports — DOCTOR, ASSISTANT_DOCTOR, LAB_TECHNICIAN, CLINIC_ADMIN, SUPER_ADMIN.
+ * Body (nothing else is accepted): `userId` (patient's USER id), `testName`, `result`, `date`,
+ * `unit?`, `normalRange?`, `status?`, `notes?`, `doctorId?`, `appointmentId?`, `fileUrl?`, `fileKey?`.
+ * `testDate` is sent as `date`; test type, lab name and reported date go into the notes.
+ *
+ * @param patientId the patient's USER id.
  */
 export async function addPatientLabResult(patientId: string, labData: {
   testType: string;
@@ -333,28 +495,51 @@ export async function addPatientLabResult(patientId: string, labData: {
     throw new Error('Unauthorized: Authentication required');
   }
 
+  const notes = [
+    labData.notes?.trim() || '',
+    labData.testType ? `Test type: ${labData.testType}` : '',
+    labData.labName ? `Lab: ${labData.labName}` : '',
+    labData.reportedDate ? `Reported: ${labData.reportedDate}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.LAB_REPORTS.CREATE, {
     method: 'POST',
-    body: JSON.stringify({ ...labData, userId: patientId }),
+    body: JSON.stringify({
+      userId: patientId,
+      testName: labData.testName,
+      result: labData.result,
+      date: labData.testDate,
+      status: labData.status,
+      ...(labData.unit ? { unit: labData.unit } : {}),
+      ...(labData.normalRange ? { normalRange: labData.normalRange } : {}),
+      ...(labData.doctorId ? { doctorId: labData.doctorId } : {}),
+      ...(notes ? { notes } : {}),
+    }),
   });
   return data;
 }
 
 /**
- * Get patient statistics
+ * Patient statistics.
+ * The backend has no /patients/:id/stats route, so no request is sent: the result says so.
  */
-export async function getPatientStats(patientId: string) {
+export async function getPatientStats(_patientId: string) {
   const session = await getServerSession();
   if (!session?.user?.id) {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  const { data } = await authenticatedApi(API_ENDPOINTS.PATIENTS.STATS(patientId));
-  return data;
+  return notAvailable('Patient statistics');
 }
 
 /**
- * Search patients
+ * Search the clinic's patients by name, email or phone.
+ * Backend: GET /patients?search=&page=&limit= — CLINIC_ADMIN, SUPER_ADMIN, DOCTOR, ASSISTANT_DOCTOR,
+ * NURSE, RECEPTIONIST (there is no /patients/search route). Answers
+ * `{ patients, total, page, totalPages }`; a doctor only gets patients they have appointments with.
+ * The server applies no other filter, so gender / age / blood group are not sent.
  */
 export async function searchPatients(query: string, filters?: {
   gender?: string;
@@ -368,21 +553,22 @@ export async function searchPatients(query: string, filters?: {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  const params = new URLSearchParams({ q: query });
-  if (filters) {
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, String(value));
-    });
+  const params = new URLSearchParams({ search: query, page: '1' });
+  if (typeof filters?.limit === 'number' && filters.limit > 0) {
+    params.set('limit', String(filters.limit));
   }
-  
-  const { data } = await authenticatedApi(`${API_ENDPOINTS.PATIENTS.SEARCH}?${params.toString()}`);
+
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.PATIENTS.GET_ALL}?${params.toString()}`, {
+    ...(filters?.clinicId ? { clinicId: filters.clinicId } : {}),
+  });
   return data;
 }
 
 /**
- * Get patient timeline
+ * Patient timeline.
+ * The backend has no /patients/:id/timeline route, so no request is sent: the result says so.
  */
-export async function getPatientTimeline(patientId: string, filters?: {
+export async function getPatientTimeline(_patientId: string, _filters?: {
   startDate?: string;
   endDate?: string;
   eventTypes?: string[];
@@ -393,27 +579,14 @@ export async function getPatientTimeline(patientId: string, filters?: {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  const params = new URLSearchParams();
-  if (filters) {
-    if (filters.eventTypes) {
-      filters.eventTypes.forEach(type => params.append('eventTypes', type));
-    }
-    Object.entries(filters).forEach(([key, value]) => {
-      if (key !== 'eventTypes' && value) {
-        params.append(key, Array.isArray(value) ? value.join(',') : String(value));
-      }
-    });
-  }
-  
-  const endpoint = `${API_ENDPOINTS.PATIENTS.TIMELINE(patientId)}${params.toString() ? `?${params.toString()}` : ''}`;
-  const { data } = await authenticatedApi(endpoint);
-  return data;
+  return notAvailable('The patient timeline');
 }
 
 /**
- * Export patient data
+ * Export patient data.
+ * The backend has no /patients/export route, so this fails with a readable message.
  */
-export async function exportPatientData(filters: {
+export async function exportPatientData(_filters: {
   format: 'csv' | 'excel' | 'pdf';
   patientIds?: string[];
   includeHistory?: boolean;
@@ -421,36 +594,36 @@ export async function exportPatientData(filters: {
   includeLabs?: boolean;
   startDate?: string;
   endDate?: string;
-}) {
+}): Promise<never> {
   const session = await getServerSession();
   if (!session?.user?.id) {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  const { data } = await authenticatedApi(API_ENDPOINTS.PATIENTS.EXPORT, {
-    method: 'POST',
-    body: JSON.stringify(filters),
-  });
-  return data;
+  throw new Error('Patient data export is not available yet: the server has no export service.');
 }
 
 /**
- * Get patient care plan
+ * Patient care plan.
+ * The backend has no care plan (no /patients/:id/care-plan route and no care plan record). Follow-up
+ * plans (GET /appointments/patients/:patientId/follow-up-plans) are per-appointment reminders owned by
+ * the appointments module, not a care plan, so they are not used here. No request is sent: the result
+ * says the care plan is not available and carries an empty `items` list.
  */
-export async function getPatientCarePlan(patientId: string) {
+export async function getPatientCarePlan(_patientId: string) {
   const session = await getServerSession();
   if (!session?.user?.id) {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  const { data } = await authenticatedApi(API_ENDPOINTS.PATIENTS.CARE_PLAN.GET(patientId));
-  return data;
+  return notAvailable('The care plan');
 }
 
 /**
- * Update patient care plan
+ * Update patient care plan.
+ * The backend has no care plan route, so this fails with a readable message.
  */
-export async function updatePatientCarePlan(patientId: string, carePlanData: {
+export async function updatePatientCarePlan(_patientId: string, _carePlanData: {
   goals?: string[];
   interventions?: string[];
   medications?: {
@@ -463,15 +636,11 @@ export async function updatePatientCarePlan(patientId: string, carePlanData: {
   followUpInstructions?: string;
   nextAppointment?: string;
   doctorId: string;
-}) {
+}): Promise<never> {
   const session = await getServerSession();
   if (!session?.user?.id) {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  const { data } = await authenticatedApi(API_ENDPOINTS.PATIENTS.CARE_PLAN.UPDATE(patientId), {
-    method: 'PUT',
-    body: JSON.stringify(carePlanData),
-  });
-  return data;
+  throw new Error('The care plan cannot be saved yet: the server has no care plan service.');
 }

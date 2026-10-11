@@ -26,6 +26,7 @@ import { usePatientBills } from "@/hooks/query/usePatientBilling";
 import { API_ENDPOINTS } from "@/lib/config/config";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import type { PatientBillRow } from "@/types/billing.types";
+import { formatRupees } from "@/lib/utils/currency";
 
 interface PatientBillHistoryProps {
   clinicId: string;
@@ -52,10 +53,6 @@ const STATUS_OPTIONS = [
   { value: "VOID", label: "Void" },
   { value: "REFUNDED", label: "Refunded" },
 ];
-
-function formatMoney(amount: number): string {
-  return `₹${(amount || 0).toLocaleString("en-IN")}`;
-}
 
 function statusBadgeClass(status: string): string {
   switch (status) {
@@ -132,17 +129,17 @@ export function PatientBillHistory({ clinicId, patientId }: PatientBillHistoryPr
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <SummaryChip
           label="Total billed"
-          value={formatMoney(summary.totalBilled)}
+          value={formatRupees(summary.totalBilled)}
           icon={<FileText className="size-4 text-sky-600 dark:text-sky-300" />}
         />
         <SummaryChip
           label="Total paid"
-          value={formatMoney(summary.totalPaid)}
+          value={formatRupees(summary.totalPaid)}
           icon={<IndianRupee className="size-4 text-emerald-600 dark:text-emerald-300" />}
         />
         <SummaryChip
           label="Outstanding"
-          value={formatMoney(summary.outstanding)}
+          value={formatRupees(summary.outstanding)}
           icon={<Wallet className="size-4 text-amber-600 dark:text-amber-300" />}
         />
       </div>
@@ -245,13 +242,13 @@ export function PatientBillHistory({ clinicId, patientId }: PatientBillHistoryPr
                           {row.description || "—"}
                         </TableCell>
                         <TableCell className="text-right font-semibold text-foreground">
-                          {formatMoney(row.total)}
+                          {formatRupees(row.total)}
                         </TableCell>
                         <TableCell className="text-right text-muted-foreground">
-                          {formatMoney(row.paidAmount)}
+                          {formatRupees(row.paidAmount)}
                         </TableCell>
                         <TableCell className="text-right font-semibold text-foreground">
-                          {formatMoney(row.balance)}
+                          {formatRupees(row.balance)}
                         </TableCell>
                         <TableCell>
                           <Badge
@@ -316,7 +313,7 @@ export function PatientBillHistory({ clinicId, patientId }: PatientBillHistoryPr
                                       {payment.status}
                                     </Badge>
                                     <span className="font-semibold text-foreground">
-                                      {formatMoney(payment.amount)}
+                                      {formatRupees(payment.amount)}
                                     </span>
                                   </span>
                                 </div>

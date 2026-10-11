@@ -2,14 +2,13 @@ import type { PillTone } from "@/components/tbd";
 import { statusLabel, statusTone } from "@/components/tbd";
 import { normalizeQueueEntry } from "@/lib/queue/queue-adapter";
 import { formatDoctorDisplayName } from "@/lib/utils/appointmentUtils";
-import { formatDateInIST, formatDateKeyInIST, formatTimeInIST, nowIso } from "@/lib/utils/date-time";
+import { formatDateKeyInIST, formatDateTimeLabel, formatTimeLabel, nowIso } from "@/lib/utils/date-time";
 import type { DispensePrescriptionMedication, PharmacyBatchAuditEntry } from "@/types/pharmacy.types";
-import {
-  DESK_STATE_LABEL,
-  DESK_STATE_TONE,
-  formatRupees,
-  prescriptionReference,
-} from "../../dashboard/_components/pharmacist-dashboard.logic";
+import { asList, asRecordOrEmpty, textOf } from "@/lib/utils/coerce";
+import { formatRupees } from "@/lib/utils/currency";
+import { prescriptionReference } from "@/lib/utils/labels";
+import { personFullName } from "@/lib/utils/display-name";
+import { DESK_STATE_LABEL, DESK_STATE_TONE } from "@/lib/pharmacy/desk-state";
 
 /**
  * Pure helpers for the pharmacy prescriptions screen: they turn the payloads of
@@ -19,25 +18,6 @@ import {
  */
 
 type Raw = Record<string, unknown>;
-
-function asRecord(value: unknown): Raw {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Raw) : {};
-}
-
-function asList(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [];
-}
-
-function text(value: unknown): string {
-  return typeof value === "string" ? value.trim() : typeof value === "number" ? String(value) : "";
-}
-
-function fullName(person: Raw): string {
-  const user = asRecord(person.user);
-  const first = text(person.firstName) || text(user.firstName);
-  const last = text(person.lastName) || text(user.lastName);
-  return `${first} ${last}`.trim();
-}
 
 // ── Rows ───────────────────────────────────────────────────────────────────
 
@@ -109,24 +89,24 @@ const DISPENSED_STATUSES = new Set(["FILLED", "DISPENSED", "COMPLETED"]);
  * folded into the four states this screen works with.
  */
 function normalizeStatus(value: unknown): PrescriptionStatus {
-  const status = text(value || "PENDING").toUpperCase();
+  const status = textOf(value || "PENDING").toUpperCase();
   if (status === "PARTIAL" || status === "CANCELLED") return status;
   if (DISPENSED_STATUSES.has(status)) return "FILLED";
   return "PENDING";
 }
 
 function normalizePaymentStatus(value: unknown): PrescriptionRow["paymentStatus"] {
-  const status = text(value || "PENDING").toUpperCase();
+  const status = textOf(value || "PENDING").toUpperCase();
   return status === "PAID" || status === "PARTIAL" ? status : "PENDING";
 }
 
 function normalizeHistory(value: unknown): DispenseHistoryEntry[] {
   return asList(value).reduce<DispenseHistoryEntry[]>((entries, entryRaw) => {
-    const entry = asRecord(entryRaw);
+    const entry = asRecordOrEmpty(entryRaw);
     const quantity = Number(entry.quantity || 0);
     if (quantity <= 0) return entries;
     // A reversal, or a hand-over that was reversed later, is no longer "given".
-    if (text(entry.eventType).toUpperCase() === "REVERSAL" || entry.reversedAt) return entries;
+    if (textOf(entry.eventType).toUpperCase() === "REVERSAL" || entry.reversedAt) return entries;
     entries.push({
       quantity,
       ...(entry.batchNumber ? { batchNumber: String(entry.batchNumber) } : {}),
@@ -140,30 +120,30 @@ function normalizeHistory(value: unknown): DispenseHistoryEntry[] {
 
 function paidVia(prescription: Raw): PrescriptionRow["paidVia"] {
   const completed = asList(prescription.payments)
-    .map(asRecord)
-    .filter((payment) => text(payment.status).toUpperCase() === "COMPLETED");
+    .map(asRecordOrEmpty)
+    .filter((payment) => textOf(payment.status).toUpperCase() === "COMPLETED");
   if (completed.length === 0) return "";
   const method = (payment: Raw) =>
-    (text(payment.method) || text(asRecord(payment.metadata).paymentMethod)).toUpperCase();
+    (textOf(payment.method) || textOf(asRecordOrEmpty(payment.metadata).paymentMethod)).toUpperCase();
   return completed.some((payment) => method(payment) === "CASH") ? "cash" : "online";
 }
 
 export function normalizePrescription(input: unknown): PrescriptionRow {
-  const raw = asRecord(input);
-  const patient = asRecord(raw.patient);
-  const patientUser = asRecord(patient.user);
-  const doctor = asRecord(raw.doctor);
-  const doctorUser = asRecord(doctor.user);
+  const raw = asRecordOrEmpty(input);
+  const patient = asRecordOrEmpty(raw.patient);
+  const patientUser = asRecordOrEmpty(patient.user);
+  const doctor = asRecordOrEmpty(raw.doctor);
+  const doctorUser = asRecordOrEmpty(doctor.user);
   const items = Array.isArray(raw.items) ? raw.items : asList(raw.medicines);
   const queueEntry = normalizeQueueEntry(raw);
   const id = String(raw.id ?? "");
 
   const doctorName =
-    text(doctorUser.name) || text(doctor.name) || text(raw.doctorName) || fullName(doctor);
+    textOf(doctorUser.name) || textOf(doctor.name) || textOf(raw.doctorName) || personFullName(doctor);
 
   const medicines = items.map((itemRaw): PrescriptionMedicine => {
-    const item = asRecord(itemRaw);
-    const medicine = asRecord(item.medicine);
+    const item = asRecordOrEmpty(itemRaw);
+    const medicine = asRecordOrEmpty(item.medicine);
     const prescribedQuantity = Number(item.quantity || 0);
     const availableStock = Number(
       medicine.stockQuantity || medicine.stock || item.currentStock || item.stock || 0,
@@ -171,16 +151,16 @@ export function normalizePrescription(input: unknown): PrescriptionRow {
     const history = Array.isArray(item.dispenseEventHistory)
       ? item.dispenseEventHistory
       : item.dispenseBatchHistory;
-    const dispensedAt = text(item.dispensedAt);
+    const dispensedAt = textOf(item.dispensedAt);
     return {
       ...(Array.isArray(history) ? { dispenseBatchHistory: normalizeHistory(history) } : {}),
       prescriptionItemId: String(
         item.id || item.prescriptionItemId || item.medicineId || item.name || "item",
       ),
       medicineId: String(medicine.id || item.medicineId || item.id || item.name || "medicine"),
-      name: text(medicine.name) || text(item.name) || "Medicine",
-      dosage: text(item.dosage) || "As prescribed",
-      directions: [text(item.dosage), text(item.frequency), text(item.duration)]
+      name: textOf(medicine.name) || textOf(item.name) || "Medicine",
+      dosage: textOf(item.dosage) || "As prescribed",
+      directions: [textOf(item.dosage), textOf(item.frequency), textOf(item.duration)]
         .filter(Boolean)
         .join(" · "),
       prescribedQuantity,
@@ -202,17 +182,17 @@ export function normalizePrescription(input: unknown): PrescriptionRow {
 
   return {
     id,
-    reference: prescriptionReference(raw, id),
+    reference: prescriptionReference(id, raw),
     patientName:
-      text(patientUser.name) ||
-      text(patient.name) ||
-      text(raw.patientName) ||
-      fullName(patient) ||
+      textOf(patientUser.name) ||
+      textOf(patient.name) ||
+      textOf(raw.patientName) ||
+      personFullName(patient) ||
       "Unknown Patient",
-    patientPhone: text(raw.patientPhone) || text(patientUser.phone),
+    patientPhone: textOf(raw.patientPhone) || textOf(patientUser.phone),
     doctorName: doctorName ? formatDoctorDisplayName(doctorName) : "Unknown Doctor",
-    prescribedAt: text(raw.date) || text(raw.prescribedAt) || text(raw.createdAt) || nowIso(),
-    locationName: text(raw.locationName) || text(asRecord(raw.location).name),
+    prescribedAt: textOf(raw.date) || textOf(raw.prescribedAt) || textOf(raw.createdAt) || nowIso(),
+    locationName: textOf(raw.locationName) || textOf(asRecordOrEmpty(raw.location).name),
     status: normalizeStatus(raw.status),
     paymentStatus: normalizePaymentStatus(raw.paymentStatus),
     totalAmount: Number(raw.totalAmount || 0),
@@ -328,33 +308,10 @@ export function sortNewestFirst(prescriptions: PrescriptionRow[]): PrescriptionR
 
 // ── Labels ─────────────────────────────────────────────────────────────────
 
-/** "3 Oct 2026, 12:14 pm" */
-export function dateTimeLabel(value: string | null | undefined): string {
-  if (!value) return "";
-  const date = formatDateInIST(value, { day: "numeric", month: "short", year: "numeric" });
-  const time = formatTimeInIST(value).toLowerCase();
-  return [date, time].filter(Boolean).join(", ");
-}
-
-/** "3 Oct 2026" */
-export function dateLabel(value: string | null | undefined): string {
-  return value ? formatDateInIST(value, { day: "numeric", month: "short", year: "numeric" }) : "";
-}
-
-/** "12:14 pm" */
-export function timeLabel(value: string | null | undefined): string {
-  return value ? formatTimeInIST(value).toLowerCase() : "";
-}
-
-/** "May 2027" — expiry of a batch. */
-export function expiryLabel(value: string | null | undefined): string {
-  return value ? formatDateInIST(value, { month: "short", year: "numeric" }) : "";
-}
-
 /** "today, 10:05 am" or "2 Oct 2026, 05:40 pm" */
 export function relativeDateTimeLabel(value: string, now: Date = new Date()): string {
-  if (formatDateKeyInIST(value) === formatDateKeyInIST(now)) return `today, ${timeLabel(value)}`;
-  return dateTimeLabel(value);
+  if (formatDateKeyInIST(value) === formatDateKeyInIST(now)) return `today, ${formatTimeLabel(value)}`;
+  return formatDateTimeLabel(value);
 }
 
 /** Amount and what is still open, shown under the state tag: "₹105 · Paid". */
@@ -451,12 +408,12 @@ export type CatalogMedicine = {
 
 export function buildMedicineCatalog(medicinesData: unknown): CatalogMedicine[] {
   return asList(medicinesData).map((entry) => {
-    const medicine = asRecord(entry);
+    const medicine = asRecordOrEmpty(entry);
     const stock = medicine.stockQuantity ?? medicine.stock ?? medicine.currentStock;
     return {
       id: String(medicine.id || ""),
-      name: text(medicine.name) || "Medicine",
-      manufacturer: text(medicine.manufacturer),
+      name: textOf(medicine.name) || "Medicine",
+      manufacturer: textOf(medicine.manufacturer),
       stock: stock === undefined || stock === null ? null : Number(stock),
     };
   });
@@ -644,7 +601,7 @@ export function filterBatchAudit(
   return entries.filter((entry) =>
     [
       entry.prescriptionId,
-      prescriptionReference(null, entry.prescriptionId),
+      prescriptionReference(entry.prescriptionId),
       entry.prescriptionItemId,
       entry.patientName,
       entry.doctorName,
@@ -679,11 +636,10 @@ export function auditReason(entry: PharmacyBatchAuditEntry): string {
   if (entry.reversedAt) {
     const sameDay = formatDateKeyInIST(entry.reversedAt) === formatDateKeyInIST(entry.eventAt);
     // The reason of the reversal is on the REVERSAL row.
-    parts.push(`Reversed ${sameDay ? `at ${timeLabel(entry.reversedAt)}` : `on ${dateTimeLabel(entry.reversedAt)}`}`);
+    parts.push(`Reversed ${sameDay ? `at ${formatTimeLabel(entry.reversedAt)}` : `on ${formatDateTimeLabel(entry.reversedAt)}`}`);
   } else if (!entry.reason && entry.reversalReason) {
     parts.push(entry.reversalReason);
   }
   return parts.join(" · ");
 }
 
-export { formatRupees, prescriptionReference };

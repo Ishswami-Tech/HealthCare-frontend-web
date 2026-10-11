@@ -4,7 +4,6 @@ import { runSave } from "./run-save";
 import {
   ACCEPT,
   SIZE_LIMITS,
-  formatBytes,
   isAcceptedFile,
   kindForFile,
   type FilesScope,
@@ -26,6 +25,7 @@ import { PATIENT_DOCUMENT_SUB_TYPE_OPTIONS, type PatientDocument } from "@/types
 
 export type { PatientFilesCategory } from "./FilesShared";
 import type { PatientFilesCategory } from "./FilesShared";
+import { formatBytes } from "@/lib/utils/labels";
 
 interface PatientFilesPanelProps {
   clinicId: string;

@@ -38,7 +38,7 @@ export function BookingDateStrip({
               "flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl border p-0 transition-colors",
               "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40",
               active
-                ? "border-[#047857] bg-[#047857] text-white"
+                ? "border-primary bg-primary text-white"
                 : day.disabled
                   ? "cursor-not-allowed border-well bg-well text-[#94a3b8] line-through dark:text-slate-500"
                   : "border-line bg-card text-ink hover:border-brand/50 hover:bg-mint-soft",

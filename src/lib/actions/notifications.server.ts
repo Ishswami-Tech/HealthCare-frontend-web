@@ -7,8 +7,72 @@ import { logNotificationFetchWarning } from '@/lib/utils/notifications-logger';
 
 // ===== NOTIFICATIONS MANAGEMENT =====
 
+type NotificationPreferenceInput = {
+  userId?: string;
+  // Web-side names
+  email?: boolean;
+  sms?: boolean;
+  push?: boolean;
+  whatsapp?: boolean;
+  types?: {
+    appointments?: boolean;
+    prescriptions?: boolean;
+    reminders?: boolean;
+    marketing?: boolean;
+  };
+  // Backend DTO names (Create/UpdateNotificationPreferenceDto)
+  emailEnabled?: boolean;
+  smsEnabled?: boolean;
+  pushEnabled?: boolean;
+  socketEnabled?: boolean;
+  whatsappEnabled?: boolean;
+  appointmentEnabled?: boolean;
+  ehrEnabled?: boolean;
+  billingEnabled?: boolean;
+  systemEnabled?: boolean;
+  quietHours?: { start?: string; end?: string; timezone?: string };
+  categoryPreferences?: {
+    appointment?: string[];
+    ehr?: string[];
+    billing?: string[];
+    system?: string[];
+  };
+};
+
 /**
- * Get user notifications (chat history)
+ * Builds the body the backend accepts. The DTO only knows the `*Enabled` switches,
+ * `quietHours` and `categoryPreferences`; any other property (`userId`, `email`,
+ * `types`, ...) makes the request fail validation, so the web-side names are translated
+ * and nothing else is sent. `types.prescriptions / reminders / marketing` have no
+ * counterpart in the backend and are dropped.
+ */
+function toNotificationPreferenceBody(settings: NotificationPreferenceInput): Record<string, unknown> {
+  const body: Record<string, unknown> = {};
+  const setFlag = (key: string, ...candidates: Array<boolean | undefined>) => {
+    const value = candidates.find((candidate) => typeof candidate === 'boolean');
+    if (value !== undefined) body[key] = value;
+  };
+
+  setFlag('emailEnabled', settings.emailEnabled, settings.email);
+  setFlag('smsEnabled', settings.smsEnabled, settings.sms);
+  setFlag('pushEnabled', settings.pushEnabled, settings.push);
+  setFlag('socketEnabled', settings.socketEnabled);
+  setFlag('whatsappEnabled', settings.whatsappEnabled, settings.whatsapp);
+  setFlag('appointmentEnabled', settings.appointmentEnabled, settings.types?.appointments);
+  setFlag('ehrEnabled', settings.ehrEnabled);
+  setFlag('billingEnabled', settings.billingEnabled);
+  setFlag('systemEnabled', settings.systemEnabled);
+  if (settings.quietHours) body.quietHours = settings.quietHours;
+  if (settings.categoryPreferences) body.categoryPreferences = settings.categoryPreferences;
+  return body;
+}
+
+/**
+ * Get user notifications: GET /communication/history/:userId (the notification inbox;
+ * roles PATIENT, DOCTOR, ASSISTANT_DOCTOR, CLINIC_ADMIN; query type, isRead, limit up to
+ * 100, offset). Answers `{ notifications: [...] }`.
+ * `/communication/chat/history/:userId`, used here before, is the chat-message history
+ * and never contains notifications.
  * Non-blocking - returns empty array on error to prevent page crashes
  */
 export async function getUserNotifications(userId?: string, filters?: {
@@ -36,8 +100,7 @@ export async function getUserNotifications(userId?: string, filters?: {
       });
     }
 
-    // Use correct CHAT.HISTORY endpoint
-    const endpoint = `${API_ENDPOINTS.COMMUNICATION.CHAT.HISTORY(userId)}${params.toString() ? `?${params.toString()}` : ''}`;
+    const endpoint = `${API_ENDPOINTS.COMMUNICATION.NOTIFICATIONS.HISTORY(userId)}${params.toString() ? `?${params.toString()}` : ''}`;
     const { data } = await authenticatedApi(endpoint);
     return data;
   } catch (error) {
@@ -51,7 +114,7 @@ export async function getUserNotifications(userId?: string, filters?: {
 }
 
 /**
- * Mark notification as read - Use COMMUNICATION endpoint
+ * Mark notification as read: PATCH /communication/history/:id/read (no body).
  */
 export async function markNotificationAsRead(notificationId: string) {
   const session = await getServerSession();
@@ -59,15 +122,16 @@ export async function markNotificationAsRead(notificationId: string) {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  // Use communication history endpoint for marking as read
-  const { data } = await authenticatedApi(`${API_ENDPOINTS.COMMUNICATION.BASE}/history/${notificationId}/read`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.NOTIFICATIONS.MARK_READ(notificationId), {
     method: 'PATCH',
   });
   return data;
 }
 
 /**
- * Mark all notifications as read - Use COMMUNICATION endpoint
+ * Mark all notifications as read: PATCH /communication/history/mark-all-read?userId=...
+ * The backend filters by the `userId` query only, so it is always sent; without it the
+ * update is not limited to one user. Defaults to the signed-in user.
  */
 export async function markAllNotificationsAsRead(userId?: string) {
   const session = await getServerSession();
@@ -75,11 +139,13 @@ export async function markAllNotificationsAsRead(userId?: string) {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  // Use communication history endpoint
-  const params = userId ? `?userId=${userId}` : '';
-  const { data } = await authenticatedApi(`${API_ENDPOINTS.COMMUNICATION.BASE}/history/mark-all-read${params}`, {
-    method: 'PATCH',
-  });
+  const targetUserId = userId || session.user.id;
+  const { data } = await authenticatedApi(
+    `${API_ENDPOINTS.COMMUNICATION.NOTIFICATIONS.MARK_ALL_READ}?userId=${encodeURIComponent(targetUserId)}`,
+    {
+      method: 'PATCH',
+    }
+  );
   return data;
 }
 
@@ -92,8 +158,7 @@ export async function deleteNotification(notificationId: string) {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  // Use communication endpoint for deletion
-  const { data } = await authenticatedApi(`${API_ENDPOINTS.COMMUNICATION.BASE}/${notificationId}`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.NOTIFICATIONS.DELETE(notificationId), {
     method: 'DELETE',
   });
   return data;
@@ -108,7 +173,9 @@ export async function getMyNotificationPreferences(userId?: string) {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  if (userId) {
+  // GET /notification-preferences/:userId is for SUPER_ADMIN / CLINIC_ADMIN only; a
+  // user's own preferences are read from /me.
+  if (userId && userId !== session.user.id) {
     const { data } = await authenticatedApi(API_ENDPOINTS.NOTIFICATION_PREFERENCES.GET_BY_USER(userId));
     return data;
   }
@@ -130,21 +197,10 @@ export async function getUserNotificationPreferences(userId: string) {
 }
 
 /**
- * Create notification preferences - Use NOTIFICATION_PREFERENCES endpoint
+ * Create notification preferences: POST /notification-preferences (always for the
+ * signed-in user; the backend takes the user from the token).
  */
-export async function createNotificationPreferences(settings: {
-  userId?: string;
-  email?: boolean;
-  sms?: boolean;
-  push?: boolean;
-  whatsapp?: boolean;
-  types?: {
-    appointments?: boolean;
-    prescriptions?: boolean;
-    reminders?: boolean;
-    marketing?: boolean;
-  };
-}) {
+export async function createNotificationPreferences(settings: NotificationPreferenceInput) {
   const session = await getServerSession();
   if (!session?.user?.id) {
     throw new Error('Unauthorized: Authentication required');
@@ -152,45 +208,38 @@ export async function createNotificationPreferences(settings: {
 
   const { data } = await authenticatedApi(API_ENDPOINTS.NOTIFICATION_PREFERENCES.CREATE, {
     method: 'POST',
-    body: JSON.stringify(settings),
+    body: JSON.stringify(toNotificationPreferenceBody(settings)),
   });
   return data;
 }
 
 /**
- * Update notification preferences - Use NOTIFICATION_PREFERENCES endpoint
+ * Update notification preferences. The backend has no PATCH route:
+ * - own preferences: PUT /notification-preferences/me
+ * - another user's (SUPER_ADMIN / CLINIC_ADMIN only): PUT /notification-preferences/:userId
+ * `settings.userId` is optional and defaults to the signed-in user.
  */
-export async function updateNotificationPreferences(settings: {
-  userId?: string;
-  email?: boolean;
-  sms?: boolean;
-  push?: boolean;
-  whatsapp?: boolean;
-  types?: {
-    appointments?: boolean;
-    prescriptions?: boolean;
-    reminders?: boolean;
-    marketing?: boolean;
-  };
-}) {
+export async function updateNotificationPreferences(settings: NotificationPreferenceInput) {
   const session = await getServerSession();
   if (!session?.user?.id) {
     throw new Error('Unauthorized: Authentication required');
   }
 
   const userId = settings.userId;
-  if (!userId) {
-    throw new Error('UserId is required to update notification settings');
-  }
-  const { data } = await authenticatedApi(API_ENDPOINTS.NOTIFICATION_PREFERENCES.UPDATE(userId), {
-    method: 'PATCH',
-    body: JSON.stringify(settings),
+  const endpoint =
+    userId && userId !== session.user.id
+      ? API_ENDPOINTS.NOTIFICATION_PREFERENCES.UPDATE(userId)
+      : API_ENDPOINTS.NOTIFICATION_PREFERENCES.UPDATE_MY;
+  const { data } = await authenticatedApi(endpoint, {
+    method: 'PUT',
+    body: JSON.stringify(toNotificationPreferenceBody(settings)),
   });
   return data;
 }
 
 /**
- * Delete notification preferences - resets to defaults
+ * Delete notification preferences - resets to defaults.
+ * DELETE /notification-preferences/me, or /:userId for SUPER_ADMIN / CLINIC_ADMIN.
  */
 export async function deleteNotificationPreferences(userId?: string) {
   const session = await getServerSession();
@@ -198,9 +247,10 @@ export async function deleteNotificationPreferences(userId?: string) {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  const endpoint = userId
-    ? API_ENDPOINTS.NOTIFICATION_PREFERENCES.DELETE(userId)
-    : API_ENDPOINTS.NOTIFICATION_PREFERENCES.DELETE('me');
+  const endpoint =
+    userId && userId !== session.user.id
+      ? API_ENDPOINTS.NOTIFICATION_PREFERENCES.DELETE(userId)
+      : API_ENDPOINTS.NOTIFICATION_PREFERENCES.DELETE_MY;
 
   const { data } = await authenticatedApi(endpoint, {
     method: 'DELETE',

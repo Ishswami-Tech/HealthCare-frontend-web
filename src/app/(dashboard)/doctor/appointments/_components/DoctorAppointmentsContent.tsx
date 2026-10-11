@@ -6,7 +6,7 @@ import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { Button } from "@/components/ui/button";
 import { Note } from "@/components/tbd";
 import { DoctorAppointmentsSummary } from "./DoctorAppointmentsSummary";
-import { DoctorAppointmentsTable } from "./DoctorAppointmentsTable";
+import { DoctorAppointmentsTable, canCompleteConfirmedVideoVisit } from "./DoctorAppointmentsTable";
 import {
   DoctorAppointmentsDetailsDialog,
   type DoctorAppointmentDetailsTab,
@@ -125,8 +125,15 @@ export function DoctorAppointmentsContent(props: Props) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set(initialSelectedIds ?? []));
   const [detailsTab, setDetailsTab] = useState<DoctorAppointmentDetailsTab>(initialDetailsTab);
 
+  // Same rule as the row toggle in the table: a visit in progress, or a confirmed video
+  // visit whose join window is open, can be completed in bulk.
   const selectableIds = useMemo(
-    () => new Set(filteredAppointments.filter((app) => app.status === "IN_PROGRESS").map((app) => app.id)),
+    () =>
+      new Set(
+        filteredAppointments
+          .filter((app) => app.status === "IN_PROGRESS" || canCompleteConfirmedVideoVisit(app))
+          .map((app) => app.id)
+      ),
     [filteredAppointments]
   );
   const selectedSelectableIds = useMemo(

@@ -33,35 +33,6 @@ export function ProfileCard({
   );
 }
 
-/** Label over a form control. `aside` sits next to the label (for example a "Verified" tag). */
-export function ProfileField({
-  label,
-  htmlFor,
-  aside,
-  className,
-  children,
-}: {
-  label: ReactNode;
-  htmlFor?: string;
-  aside?: ReactNode;
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className={cn("flex min-w-0 flex-col gap-1.5", className)}>
-      <div className="flex min-h-5 items-center gap-2">
-        <label htmlFor={htmlFor} className={PROFILE_LABEL}>
-          {label}
-        </label>
-        {aside}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-export const PROFILE_LABEL = "text-xs font-bold text-ink-soft";
-
 /** The 48 × 28 switch of the designs, on top of the shared `Switch`. */
 export const PROFILE_SWITCH =
   "h-7 w-12 border-0 p-[3px] shadow-none data-[state=unchecked]:bg-[#cbd5e1] dark:data-[state=unchecked]:bg-white/20 [&>span]:size-[22px] [&>span]:shadow-[0_1px_3px_rgba(0,0,0,0.2)] [&>span[data-state=checked]]:translate-x-5";

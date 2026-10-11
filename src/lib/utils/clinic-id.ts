@@ -13,3 +13,8 @@ export function normalizeClinicId(value: string | null | undefined): string {
 
   return candidate;
 }
+
+/** The `X-Clinic-ID` header for a request scoped to one clinic; no header when there is no clinic. */
+export function clinicHeaders(clinicId: string | null | undefined): Record<string, string> {
+  return clinicId ? { 'X-Clinic-ID': clinicId } : {};
+}

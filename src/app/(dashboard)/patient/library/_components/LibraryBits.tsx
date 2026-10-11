@@ -2,16 +2,15 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { BookOpen, ChevronLeft, ChevronRight, CircleAlert, Play, RotateCcw, Stethoscope } from "lucide-react";
+import { BookOpen, Play, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyBlock, IconBox, Surface } from "@/components/tbd";
+import { IconBox, Surface, LoadError, TBD_SURFACE } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import { BOOK_VISIT_HREF, topicLook, type LibraryCardItem, type LibraryIcon } from "./library.logic";
 
 /** White list card, the same shape as the Health Library strip on the home page. */
-export const LIBRARY_CARD =
-  "flex min-w-0 items-center gap-3.5 rounded-[20px] bg-card p-3 text-ink shadow-card dark:border dark:border-border/70";
+export const LIBRARY_CARD = cn(TBD_SURFACE, "flex items-center gap-3.5 p-3 text-ink");
 
 export const LIBRARY_FOCUS = "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40";
 
@@ -139,60 +138,8 @@ export function LibraryError({
 }) {
   return (
     <Surface flush role="alert">
-      <EmptyBlock
-        icon={CircleAlert}
-        tone="rose"
-        title={title}
-        description={description}
-        action={
-          action ??
-          (onRetry ? (
-            <Button variant="outline" size="md" onClick={onRetry}>
-              <RotateCcw aria-hidden="true" />
-              Try again
-            </Button>
-          ) : null)
-        }
-      />
+      <LoadError title={title} message={description} onRetry={onRetry} action={action} />
     </Surface>
-  );
-}
-
-/** Previous / next for a paged list. Hidden when everything fits on one page. */
-export function LibraryPager({
-  page,
-  pageSize,
-  total,
-  onPageChange,
-  isBusy = false,
-}: {
-  page: number;
-  pageSize: number;
-  total: number;
-  onPageChange: (page: number) => void;
-  isBusy?: boolean;
-}) {
-  const pages = Math.max(1, Math.ceil(total / pageSize));
-  if (pages <= 1) return null;
-  const current = Math.min(Math.max(1, page), pages);
-  const first = (current - 1) * pageSize + 1;
-  const last = Math.min(total, current * pageSize);
-  return (
-    <nav aria-label="Pages" className="flex flex-wrap items-center justify-between gap-3">
-      <span className="text-[13px] text-ink-muted" aria-live="polite">
-        Showing {first}–{last} of {total}
-      </span>
-      <span className="flex items-center gap-2">
-        <Button variant="outline" disabled={current <= 1 || isBusy} onClick={() => onPageChange(current - 1)}>
-          <ChevronLeft aria-hidden="true" />
-          Previous
-        </Button>
-        <Button variant="outline" disabled={current >= pages || isBusy} onClick={() => onPageChange(current + 1)}>
-          Next
-          <ChevronRight aria-hidden="true" />
-        </Button>
-      </span>
-    </nav>
   );
 }
 

@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import { Check, Save, Trash2 } from "lucide-react";
+import { Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectionTitle, Surface } from "@/components/tbd";
@@ -53,82 +53,12 @@ export function SaveButton({
   );
 }
 
-/** 12 px bold label over a field. */
-export function FieldLabel({
-  htmlFor,
-  className,
-  children,
-}: {
-  htmlFor: string;
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <label htmlFor={htmlFor} className={cn("text-xs font-bold text-ink-soft", className)}>
-      {children}
-    </label>
-  );
-}
-
 /** Small caps heading over a group of chips. */
 export function GroupLabel({ id, children }: { id?: string; children: ReactNode }) {
   return (
     <span id={id} className="text-[11px] font-extrabold uppercase tracking-[0.6px] text-ink-muted">
       {children}
     </span>
-  );
-}
-
-/** Read-only fact: small caps label over a bold value. */
-export function FactTile({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex min-w-0 flex-col gap-1 rounded-[14px] border border-line bg-[#fbfdfc] px-3.5 py-3 dark:bg-white/[0.03]">
-      <span className="text-[11px] font-extrabold uppercase tracking-[0.6px] text-ink-muted">{label}</span>
-      <span className="text-sm font-bold text-ink [overflow-wrap:anywhere] md:truncate" title={value}>
-        {value || "-"}
-      </span>
-    </div>
-  );
-}
-
-const CHIP_SIZES = {
-  sm: "min-h-[30px] text-xs",
-  md: "min-h-[34px] text-[13px]",
-  lg: "min-h-9 text-sm",
-} as const;
-
-/** Tappable choice chip. Chosen = solid emerald with a tick (colour is never the only cue). */
-export function ChoiceChip({
-  active,
-  size = "md",
-  disabled = false,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  size?: keyof typeof CHIP_SIZES;
-  disabled?: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      disabled={disabled}
-      onClick={onClick}
-      className={cn(
-        "inline-flex max-w-full items-center gap-1.5 rounded-full border px-[13px] py-1 text-left transition-colors",
-        "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-500/40 disabled:opacity-60",
-        CHIP_SIZES[size],
-        active
-          ? "border-primary bg-primary font-bold text-primary-foreground"
-          : "border-line bg-card font-medium text-ink hover:bg-mint-soft",
-      )}
-    >
-      {active ? <Check className="size-3.5 shrink-0" strokeWidth={2.6} aria-hidden="true" /> : null}
-      {children}
-    </button>
   );
 }
 

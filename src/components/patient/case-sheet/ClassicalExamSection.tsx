@@ -10,7 +10,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Pill } from "@/components/tbd";
+import { Pill, ChoiceChip, type ChoiceChipSize } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import type {
   ClassicalExamCategoryConfig,
@@ -22,12 +22,10 @@ import type {
   UpsertClassicalExamFindingInput,
 } from "@/types/patient-visit.types";
 import {
-  ExamOptionChip,
   ExamPanel,
   ExamPanelHead,
   ExamSaveButton,
   ExamTile,
-  type ExamChipSize,
 } from "./ExamParts";
 
 type CategoryState = { selected: string[]; remark: string };
@@ -91,18 +89,20 @@ function CategoryOptions({
   category: ClassicalExamCategoryConfig;
   state: CategoryState;
   onChange: (next: CategoryState) => void;
-  size: ExamChipSize;
+  size: ChoiceChipSize;
 }) {
   return (
     <div className="flex flex-wrap gap-2">
       {category.options.map((option) => (
-        <ExamOptionChip
+        <ChoiceChip
           key={option}
+          className="whitespace-nowrap"
           size={size}
-          label={option}
           active={state.selected.includes(option)}
           onClick={() => onChange(nextSelection(category, state, option))}
-        />
+        >
+          {option}
+        </ChoiceChip>
       ))}
     </div>
   );

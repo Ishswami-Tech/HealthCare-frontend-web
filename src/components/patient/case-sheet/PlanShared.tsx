@@ -1,22 +1,12 @@
 "use client";
 
 import type { ReactNode } from "react";
-import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
-import { X } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { DialogClose, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 /**
  * Shared pieces of the case-sheet "Plan and files" sections (Therapy, Diet,
- * Investigation, Documents, Progress): the card heading, the field label, the
- * segmented toggle and the dialog layout (title row, body, grey footer).
+ * Investigation, Documents, Progress): the card heading, the small caption, the
+ * segmented toggle. The dialogs use `DialogShell` / `ConfirmDialog` from `@/components/tbd`.
  */
 
 /** 38 px: the height of the action buttons in a section heading. */
@@ -46,35 +36,6 @@ export function PlanCardHeader({
         {description ? <p className="m-0 text-[13px] text-ink-muted">{description}</p> : null}
       </div>
       {children ? <div className="flex flex-wrap items-center gap-2">{children}</div> : null}
-    </div>
-  );
-}
-
-/** Small bold label above a form control. */
-export function PlanField({
-  label,
-  htmlFor,
-  hint,
-  className,
-  children,
-}: {
-  label: ReactNode;
-  htmlFor?: string;
-  hint?: ReactNode;
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className={cn("flex min-w-0 flex-col gap-1.5", className)}>
-      {htmlFor ? (
-        <label htmlFor={htmlFor} className="text-xs font-bold text-ink-soft">
-          {label}
-        </label>
-      ) : (
-        <span className="text-xs font-bold text-ink-soft">{label}</span>
-      )}
-      {children}
-      {hint ? <p className="m-0 text-xs text-ink-muted">{hint}</p> : null}
     </div>
   );
 }
@@ -155,118 +116,5 @@ export function PlanToggle<T extends string>({
         );
       })}
     </div>
-  );
-}
-
-// ── Dialog layout ──────────────────────────────────────────────────────────
-
-/**
- * Class for `DialogContent` / `AlertDialogContent`: no padding (the header, body and
- * footer bring their own), the body scrolls, the footer stays in view.
- * Use with `showCloseButton={false}`; `PlanDialogHeader` has the close button.
- */
-export const PLAN_DIALOG_CONTENT = "flex max-h-[92vh] flex-col gap-0 overflow-hidden p-0";
-
-const CLOSE_BUTTON =
-  "flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-well text-ink-soft transition-colors hover:bg-line focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40";
-
-/** Title row of a dialog, with the close button on the right. */
-export function PlanDialogHeader({
-  title,
-  description,
-}: {
-  title: ReactNode;
-  description?: ReactNode;
-}) {
-  return (
-    <div className="flex items-start gap-3 px-5 pb-3.5 pt-[22px] sm:px-6">
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <DialogTitle className="text-lg font-extrabold leading-tight text-ink">{title}</DialogTitle>
-        {description ? (
-          <DialogDescription className="break-words text-[13px] text-ink-muted">{description}</DialogDescription>
-        ) : (
-          <DialogDescription className="sr-only">{title}</DialogDescription>
-        )}
-      </div>
-      <DialogClose className={CLOSE_BUTTON}>
-        <X className="size-4" aria-hidden="true" />
-        <span className="sr-only">Close</span>
-      </DialogClose>
-    </div>
-  );
-}
-
-export function PlanDialogBody({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <div className={cn("flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 pb-5 pt-1 sm:px-6", className)}>
-      {children}
-    </div>
-  );
-}
-
-/** Grey footer with the buttons on the right (stacked on a phone, main button first). */
-export function PlanDialogFooter({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex shrink-0 flex-col-reverse gap-2.5 border-t border-hair bg-[#f8fafc] px-5 py-3.5 dark:bg-white/[0.03] sm:flex-row sm:justify-end sm:px-6">
-      {children}
-    </div>
-  );
-}
-
-/**
- * "Are you sure?" dialog for removing something. The confirm button is the red
- * `danger` button; Cancel and the close button leave everything as it is.
- */
-export function PlanConfirmDialog({
-  open,
-  onOpenChange,
-  title,
-  description,
-  confirmLabel,
-  cancelLabel = "Cancel",
-  confirmIcon,
-  onConfirm,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  title: ReactNode;
-  description: ReactNode;
-  confirmLabel: ReactNode;
-  cancelLabel?: ReactNode;
-  confirmIcon?: ReactNode;
-  onConfirm: () => void;
-}) {
-  return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className={cn(PLAN_DIALOG_CONTENT, "sm:max-w-[460px]")}>
-        <div className="flex items-start gap-3 px-5 pb-3.5 pt-[22px] sm:px-6">
-          <AlertDialogTitle className="min-w-0 flex-1 text-lg font-extrabold leading-tight text-ink">
-            {title}
-          </AlertDialogTitle>
-          <AlertDialogPrimitive.Cancel className={CLOSE_BUTTON}>
-            <X className="size-4" aria-hidden="true" />
-            <span className="sr-only">Close</span>
-          </AlertDialogPrimitive.Cancel>
-        </div>
-        <div className="px-5 pb-5 pt-1 sm:px-6">
-          <AlertDialogDescription className="text-sm leading-[1.55] text-ink-soft">
-            {description}
-          </AlertDialogDescription>
-        </div>
-        <PlanDialogFooter>
-          <AlertDialogPrimitive.Cancel asChild>
-            <Button variant="outline" size="md">
-              {cancelLabel}
-            </Button>
-          </AlertDialogPrimitive.Cancel>
-          <AlertDialogPrimitive.Action asChild>
-            <Button variant="danger" size="md" onClick={onConfirm}>
-              {confirmIcon}
-              {confirmLabel}
-            </Button>
-          </AlertDialogPrimitive.Action>
-        </PlanDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
   );
 }

@@ -13,6 +13,8 @@ import {
   VIDEO_JOIN_LATE_WINDOW_MINUTES,
 } from "@/lib/utils/appointmentUtils";
 import { resolveDisplayNameAndInitials } from "@/lib/utils/display-name";
+import { ageInYears } from "@/lib/utils/date-time";
+import { genderLabel } from "@/lib/utils/labels";
 
 export interface TransformedAppointment {
   id: string;
@@ -332,7 +334,7 @@ export function mapDoctorAppointmentToTimelineItem(
     duration: `${displayDuration || 30} min`,
     notes: apt.notes || "",
     isVideo: apt.type === "VIDEO_CALL",
-    priority: (apt as any).priority || "NORMAL",
+    priority: apt.priority || "NORMAL",
     doctorId: apt.doctorId,
     paymentStatus: paymentDisplay.paymentStatus,
     paymentCompleted: paymentDisplay.paymentCompleted,
@@ -367,21 +369,11 @@ export function getPatientMetaLabel(apt: AppointmentWithRelations): string {
   const rawAge = patient && typeof patient === "object" ? (patient as Record<string, unknown>).age : null;
   const dateOfBirth = readText(patient, "dateOfBirth") || readText(patientUser, "dateOfBirth");
   let age: number | null = typeof rawAge === "number" && rawAge > 0 ? Math.floor(rawAge) : null;
-  if (age === null && dateOfBirth) {
-    const born = new Date(dateOfBirth);
-    if (!Number.isNaN(born.getTime())) {
-      const now = new Date();
-      let years = now.getFullYear() - born.getFullYear();
-      const beforeBirthday =
-        now.getMonth() < born.getMonth() || (now.getMonth() === born.getMonth() && now.getDate() < born.getDate());
-      if (beforeBirthday) years -= 1;
-      age = years >= 0 && years < 130 ? years : null;
-    }
-  }
+  if (age === null) age = ageInYears(dateOfBirth);
   if (age !== null) parts.push(age === 1 ? "1 year" : `${age} years`);
 
   const gender = readText(patient, "gender") || readText(patientUser, "gender");
-  if (gender) parts.push(gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase());
+  if (gender) parts.push(genderLabel(gender));
 
   return parts.join(" · ");
 }
@@ -612,7 +604,7 @@ export function buildDoctorDashboardStats(
     confirmedToday: todayApts.filter((apt: AppointmentWithRelations) => apt.status === "CONFIRMED").length,
     inPersonToday: todayApts.filter((apt: AppointmentWithRelations) => String(apt.type || "").toUpperCase() === "IN_PERSON").length,
     liveQueueCount: liveQueueEntries.length,
-    checkedInPatients: todayApts.filter((apt: AppointmentWithRelations) => Boolean((apt as any).checkedInAt)).length,
+    checkedInPatients: todayApts.filter((apt: AppointmentWithRelations) => Boolean(apt.checkedInAt)).length,
     completedToday: todayApts.filter((apt: AppointmentWithRelations) => apt.status === "COMPLETED").length,
     totalPatients: new Set(appointmentsArray.map((apt: AppointmentWithRelations) => apt.patientId)).size,
     nextAppointment:

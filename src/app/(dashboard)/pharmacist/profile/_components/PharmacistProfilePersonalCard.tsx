@@ -1,11 +1,11 @@
 "use client";
 
-import type { ChangeEvent, FormEvent, ReactNode } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import { AlertCircle, Loader2, Lock, Save, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyBlock, IconBox, Surface } from "@/components/tbd";
+import { EmptyBlock, IconBox, Surface, Field } from "@/components/tbd";
 import type { PharmacistProfileForm } from "./pharmacist-profile.logic";
 
 interface PharmacistProfilePersonalCardProps {
@@ -16,32 +16,6 @@ interface PharmacistProfilePersonalCardProps {
   loading?: boolean;
   /** The profile could not be loaded: no form, so blank fields are never saved over it. */
   unavailable?: boolean;
-}
-
-function Field({
-  label,
-  htmlFor,
-  hint,
-  children,
-}: {
-  label: string;
-  htmlFor: string;
-  hint?: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex min-w-0 flex-col gap-1.5">
-      <label htmlFor={htmlFor} className="flex min-h-5 items-center text-xs font-bold text-ink-soft">
-        {label}
-      </label>
-      {children}
-      {hint ? (
-        <p id={`${htmlFor}-hint`} className="m-0 text-xs text-ink-muted">
-          {hint}
-        </p>
-      ) : null}
-    </div>
-  );
 }
 
 /** "Personal Details" form. Props only — the save lives in the page. */
@@ -89,16 +63,16 @@ export function PharmacistProfilePersonalCard({
       ) : (
         <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
           <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-            <Field label="First Name" htmlFor="firstName">
+            <Field labelClassName="min-h-5" label="First Name" htmlFor="firstName">
               <Input id="firstName" name="firstName" autoComplete="given-name" value={form.firstName} onChange={handleChange} />
             </Field>
-            <Field label="Last Name" htmlFor="lastName">
+            <Field labelClassName="min-h-5" label="Last Name" htmlFor="lastName">
               <Input id="lastName" name="lastName" autoComplete="family-name" value={form.lastName} onChange={handleChange} />
             </Field>
           </div>
 
           <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-            <Field label="Email Address" htmlFor="email" hint="Email cannot be changed directly">
+            <Field labelClassName="min-h-5" label="Email Address" htmlFor="email" hint="Email cannot be changed directly">
               <div className="relative">
                 <Input
                   id="email"
@@ -116,29 +90,29 @@ export function PharmacistProfilePersonalCard({
                 />
               </div>
             </Field>
-            <Field label="Phone Number" htmlFor="phone">
+            <Field labelClassName="min-h-5" label="Phone Number" htmlFor="phone">
               <Input id="phone" name="phone" type="tel" autoComplete="tel" value={form.phone} onChange={handleChange} />
             </Field>
           </div>
 
-          <Field label="Address" htmlFor="address">
+          <Field labelClassName="min-h-5" label="Address" htmlFor="address">
             <Input id="address" name="address" autoComplete="street-address" value={form.address} onChange={handleChange} />
           </Field>
 
           <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
-            <Field label="City" htmlFor="city">
+            <Field labelClassName="min-h-5" label="City" htmlFor="city">
               <Input id="city" name="city" autoComplete="address-level2" value={form.city} onChange={handleChange} />
             </Field>
-            <Field label="State" htmlFor="state">
+            <Field labelClassName="min-h-5" label="State" htmlFor="state">
               <Input id="state" name="state" autoComplete="address-level1" value={form.state} onChange={handleChange} />
             </Field>
-            <Field label="Zip Code" htmlFor="zipCode">
+            <Field labelClassName="min-h-5" label="Zip Code" htmlFor="zipCode">
               <Input id="zipCode" name="zipCode" autoComplete="postal-code" value={form.zipCode} onChange={handleChange} />
             </Field>
           </div>
 
           <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-            <Field label="Specialization" htmlFor="specialization">
+            <Field labelClassName="min-h-5" label="Specialization" htmlFor="specialization">
               <Input
                 id="specialization"
                 name="specialization"
@@ -147,7 +121,7 @@ export function PharmacistProfilePersonalCard({
                 onChange={handleChange}
               />
             </Field>
-            <Field label="Years of Experience" htmlFor="experience">
+            <Field labelClassName="min-h-5" label="Years of Experience" htmlFor="experience">
               <Input
                 id="experience"
                 name="experience"

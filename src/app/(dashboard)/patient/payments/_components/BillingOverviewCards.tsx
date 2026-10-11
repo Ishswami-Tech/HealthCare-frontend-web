@@ -12,9 +12,6 @@ import type { Invoice, Subscription } from "@/types/billing.types";
 import {
   TRANSACTIONS_ROUTE,
   cycleLabel,
-  formatAmount,
-  formatAmountExact,
-  formatDate,
   getPeriodEndLabel,
   getVisitProgress,
   invoiceRoute,
@@ -24,6 +21,8 @@ import {
   type SpendCategoryKey,
   type SpendSummary,
 } from "./patientBilling.logic";
+import { formatRupees } from "@/lib/utils/currency";
+import { EMPTY_DATE_LABEL, formatDateLabel } from "@/lib/utils/date-time";
 
 /** The pay control for an invoice. The container supplies the real payment button. */
 export type RenderInvoicePay = (invoice: Invoice, placement: "hero" | "row" | "page") => ReactNode;
@@ -64,7 +63,7 @@ export function BillingDueCard({
           <Skeleton className="my-1 h-8 w-44 rounded-lg" />
         ) : (
           <span className="text-[30px] font-extrabold leading-[1.2] tracking-[-0.5px] text-ink">
-            {failed ? "–" : formatAmountExact(due.total)}
+            {failed ? "–" : formatRupees(due.total, { paise: "always" })}
           </span>
         )}
         {loading ? (
@@ -74,7 +73,7 @@ export function BillingDueCard({
             {failed
               ? "Your invoices could not be loaded."
               : next
-                ? `Next: ${invoiceNumberLabel(next)} · due ${formatDate(next.dueDate)}`
+                ? `Next: ${invoiceNumberLabel(next)} · due ${formatDateLabel(next.dueDate, EMPTY_DATE_LABEL)}`
                 : "You have nothing to pay right now."}
           </span>
         )}
@@ -195,7 +194,7 @@ export function BillingSpendCard({
             <Skeleton className="my-0.5 h-7 w-28 rounded-lg" />
           ) : (
             <span className="text-2xl font-extrabold leading-[1.2] text-ink">
-              {failed ? "–" : formatAmount(spend.current.total)}
+              {failed ? "–" : formatRupees(spend.current.total)}
             </span>
           )}
         </div>
@@ -205,7 +204,7 @@ export function BillingSpendCard({
               "flex items-center gap-1 rounded-[8px] px-[9px] py-[5px] text-xs font-bold",
               change < 0
                 ? "bg-[#d1fae5] text-[#047857] dark:bg-emerald-500/15 dark:text-emerald-300"
-                : "bg-[#f1f5f9] text-[#334155] dark:bg-slate-500/20 dark:text-slate-300",
+                : "bg-well text-[#334155] dark:text-slate-300",
             )}
           >
             {change < 0 ? (
@@ -238,9 +237,9 @@ export function BillingSpendCard({
                     width={CHART.bar}
                     height={height}
                     rx="8"
-                    className={month.current ? "fill-[#059669]" : "fill-[#d1fae5] dark:fill-emerald-500/25"}
+                    className={month.current ? "fill-[#059669]" : "fill-mint"}
                   >
-                    <title>{`${month.name}: ${formatAmount(month.total)}`}</title>
+                    <title>{`${month.name}: ${formatRupees(month.total)}`}</title>
                   </rect>
                 ) : null}
                 <text
@@ -284,7 +283,7 @@ export function BillingSpendCard({
                   <li key={category.key} className="flex items-center gap-2">
                     <span className={cn("size-2.5 shrink-0 rounded-[3px]", CATEGORY_COLORS[category.key])} aria-hidden="true" />
                     <span className="flex-1">{category.label}</span>
-                    <span className="font-bold">{formatAmount(category.amount)}</span>
+                    <span className="font-bold">{formatRupees(category.amount)}</span>
                   </li>
                 ))}
               </ul>
@@ -348,7 +347,7 @@ export function BillingPendingInvoicesCard({
               >
                 <span className="truncate text-sm font-bold text-ink">{invoiceNumberLabel(invoice)}</span>
                 <span className="truncate text-xs text-ink-muted">
-                  Due {formatDate(invoice.dueDate)} · {invoiceSubject(invoice)}
+                  Due {formatDateLabel(invoice.dueDate, EMPTY_DATE_LABEL)} · {invoiceSubject(invoice)}
                 </span>
               </Link>
               {renderPay(invoice, "row")}
@@ -358,7 +357,7 @@ export function BillingPendingInvoicesCard({
       )}
       {more > 0 ? (
         <p className="m-0 pt-1 text-[13px] text-ink-muted">
-          And {more} more in the invoices list below ({formatAmount(invoices.slice(4).reduce((sum, invoice) => sum + invoiceTotal(invoice), 0))}).
+          And {more} more in the invoices list below ({formatRupees(invoices.slice(4).reduce((sum, invoice) => sum + invoiceTotal(invoice), 0))}).
         </p>
       ) : null}
     </Surface>

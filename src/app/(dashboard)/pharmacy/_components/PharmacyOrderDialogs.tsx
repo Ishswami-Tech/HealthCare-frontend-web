@@ -3,25 +3,28 @@
 import { useId } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Mail, Phone, Plus, Truck, X } from "lucide-react";
+import { CircleAlert, Mail, Phone, Plus, Truck, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Divider, Kv, Note, Pill, SummaryLine, statusLabel } from "@/components/tbd";
 import {
+  Divider,
+  Kv,
+  Note,
+  Pill,
+  SummaryLine,
+  statusLabel,
+  DialogActions,
+  DialogBody,
   DialogError,
+  DialogShell,
   Field,
-  PharmacyDialog,
-  PharmacyDialogActions,
-  PharmacyDialogBody,
-  RupeeField,
   fieldAria,
-} from "./PharmacyDialogParts";
+} from "@/components/tbd";
+import { RupeeField } from "./PharmacyDialogParts";
 import {
-  dateTimeLabel,
-  dayLabel,
-  formatRupees,
+  CAN_PLACE_ORDER,
   orderTone,
   todayKey,
   type MedicineRow,
@@ -29,6 +32,8 @@ import {
   type SupplierCard,
 } from "./pharmacy-inventory.logic";
 import { newOrderSchema, type NewOrderValues } from "./pharmacy-inventory.schemas";
+import { formatRupees } from "@/lib/utils/currency";
+import { formatDateLabel, formatDateTimeLabel } from "@/lib/utils/date-time";
 
 const ROW_GRID = "sm:grid-cols-[minmax(0,1fr)_96px_110px_90px_36px]";
 const EMPTY_LINE = { medicineId: "", quantity: "", unitPrice: "" };
@@ -75,7 +80,7 @@ export function PharmacyNewOrderDialog({
   onClose,
 }: PharmacyNewOrderDialogProps) {
   return (
-    <PharmacyDialog
+    <DialogShell
       open={open}
       onClose={onClose}
       busy={isPlacing}
@@ -95,7 +100,7 @@ export function PharmacyNewOrderDialog({
           onClose={onClose}
         />
       ) : null}
-    </PharmacyDialog>
+    </DialogShell>
   );
 }
 
@@ -154,8 +159,21 @@ function NewOrderForm({
   const itemsError = errors.items?.root?.message ?? errors.items?.message;
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate>
-      <PharmacyDialogBody>
+    <form
+      onSubmit={handleSubmit((values) => {
+        if (CAN_PLACE_ORDER) onSubmit(values);
+      })}
+      noValidate
+    >
+      <DialogBody>
+        {CAN_PLACE_ORDER ? null : (
+          <Note tone="amber" icon={CircleAlert}>
+            <span role="status">
+              An order cannot be placed from here yet. The server does not let the pharmacy role create
+              purchase orders, so it refuses every order. Ask the clinic admin to order from the supplier.
+            </span>
+          </Note>
+        )}
         {suppliers.length === 0 ? (
           <Note tone="amber">
             No suppliers are set up for this clinic yet, so an order cannot be placed. A clinic admin can add
@@ -337,17 +355,22 @@ function NewOrderForm({
         </Field>
 
         <DialogError lead="The order was not placed." message={errorMessage} />
-      </PharmacyDialogBody>
+      </DialogBody>
 
-      <PharmacyDialogActions>
+      <DialogActions>
         <Button size="md" variant="outline" onClick={onClose} disabled={isPlacing}>
           Cancel
         </Button>
-        <Button size="md" variant="action" type="submit" disabled={isPlacing || suppliers.length === 0}>
+        <Button
+          size="md"
+          variant="action"
+          type="submit"
+          disabled={isPlacing || suppliers.length === 0 || !CAN_PLACE_ORDER}
+        >
           <Truck aria-hidden="true" />
           {isPlacing ? "Placing order…" : "Place order"}
         </Button>
-      </PharmacyDialogActions>
+      </DialogActions>
     </form>
   );
 }
@@ -357,7 +380,7 @@ function NewOrderForm({
 /** Everything the API holds about one purchase order. */
 export function PharmacyOrderDetailsDialog({ order, onClose }: { order: OrderRow | null; onClose: () => void }) {
   return (
-    <PharmacyDialog
+    <DialogShell
       open={order !== null}
       onClose={onClose}
       title={order ? `Order ${order.reference}` : "Order"}
@@ -366,13 +389,13 @@ export function PharmacyOrderDetailsDialog({ order, onClose }: { order: OrderRow
     >
       {order ? (
         <>
-          <PharmacyDialogBody>
+          <DialogBody>
             <div className="flex flex-wrap items-center gap-2">
               <Pill tone={orderTone(order.status)}>{statusLabel(order.status)}</Pill>
             </div>
             <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-              <Kv label="Order date" value={dateTimeLabel(order.orderedAt) || "—"} strong={false} />
-              <Kv label="Expected" value={dayLabel(order.expectedAt) || "Not set"} />
+              <Kv label="Order date" value={formatDateTimeLabel(order.orderedAt) || "—"} strong={false} />
+              <Kv label="Expected" value={formatDateLabel(order.expectedAt) || "Not set"} />
             </div>
             <div className="flex flex-col gap-2.5 rounded-[14px] border border-line px-4 py-3.5">
               {order.lines.map((line) => (
@@ -390,15 +413,15 @@ export function PharmacyOrderDetailsDialog({ order, onClose }: { order: OrderRow
               <SummaryLine bold label="Total" value={order.total !== null ? formatRupees(order.total) : "—"} />
             </div>
             {order.notes ? <Kv label="Notes" value={order.notes} strong={false} /> : null}
-          </PharmacyDialogBody>
-          <PharmacyDialogActions>
+          </DialogBody>
+          <DialogActions>
             <Button size="md" variant="outline" onClick={onClose}>
               Close
             </Button>
-          </PharmacyDialogActions>
+          </DialogActions>
         </>
       ) : null}
-    </PharmacyDialog>
+    </DialogShell>
   );
 }
 
@@ -419,7 +442,7 @@ export function PharmacySupplierDetailsDialog({
   onClose,
 }: PharmacySupplierDetailsDialogProps) {
   return (
-    <PharmacyDialog
+    <DialogShell
       open={supplier !== null}
       onClose={onClose}
       title={supplier?.name ?? "Partner pharmacy"}
@@ -428,7 +451,7 @@ export function PharmacySupplierDetailsDialog({
     >
       {supplier ? (
         <>
-          <PharmacyDialogBody>
+          <DialogBody>
             <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
               <Kv label="Contact person" value={supplier.contactPerson || "Not given"} />
               <Kv label="Phone" value={supplier.phone || "Not given"} />
@@ -443,7 +466,7 @@ export function PharmacySupplierDetailsDialog({
                   {supplier.medicines.map((medicine) => (
                     <span
                       key={medicine.id}
-                      className="rounded-lg bg-mint-soft px-[9px] py-[5px] text-xs font-semibold text-[#065f46] dark:text-emerald-300"
+                      className="rounded-lg bg-mint-soft px-[9px] py-[5px] text-xs font-semibold text-brand-dark"
                     >
                       {medicine.name}
                     </span>
@@ -453,8 +476,8 @@ export function PharmacySupplierDetailsDialog({
                 <span className="text-[13px] text-ink-muted">No medicine in the stock list names this supplier.</span>
               )}
             </div>
-          </PharmacyDialogBody>
-          <PharmacyDialogActions>
+          </DialogBody>
+          <DialogActions>
             {supplier.email ? (
               <Button asChild size="md" variant="outline">
                 <a href={`mailto:${supplier.email}`}>
@@ -477,9 +500,9 @@ export function PharmacySupplierDetailsDialog({
                 Order
               </Button>
             ) : null}
-          </PharmacyDialogActions>
+          </DialogActions>
         </>
       ) : null}
-    </PharmacyDialog>
+    </DialogShell>
   );
 }

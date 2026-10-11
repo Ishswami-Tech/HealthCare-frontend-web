@@ -13,16 +13,15 @@ import type { HealthLibraryListFilters } from "@/lib/actions/health-library.serv
 import { useFamilyIdentity } from "../../family/_components/useFamilyIdentity";
 import { PatientHealthHubView, type HealthHubCard } from "./PatientHealthHubView";
 import {
-  asList,
-  asRecord,
   buildPrescriptions,
   buildReportRows,
   buildVitalTiles,
   latestPrescriptionLabel,
   reportsSummaryLabel,
   vitalsUpdatedLabel,
-} from "./patient-health.logic";
-import { usePatientUploads } from "./usePatientUploads";
+} from "@/components/patient/health/patient-health.logic";
+import { asRecordOrEmpty, unwrapRecords } from "@/lib/utils/coerce";
+import { usePatientUploads } from "@/hooks/query/usePatientUploads";
 
 const LIBRARY_STRIP_SIZE = 3;
 const LIBRARY_FILTERS: HealthLibraryListFilters = { limit: LIBRARY_STRIP_SIZE };
@@ -60,12 +59,12 @@ export default function PatientHealthContent() {
   }, [initialHash, router]);
 
   const model = useMemo(() => {
-    const record = asRecord(healthData);
+    const record = asRecordOrEmpty(healthData);
     const vitals = buildVitalTiles(record.vitals);
     const reports = buildReportRows({
       labReports: record.labReports,
       radiologyReports: record.radiologyReports,
-      uploads: [...asList(record.documents), ...asList(uploadsData)],
+      uploads: [...unwrapRecords(record.documents), ...unwrapRecords(uploadsData)],
       prescriptions: buildPrescriptions(record.prescriptions),
       userId,
     });

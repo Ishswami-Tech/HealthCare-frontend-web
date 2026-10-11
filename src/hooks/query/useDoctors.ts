@@ -7,9 +7,12 @@ import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import { TOAST_IDS } from '../utils/use-toast';
 import { CACHE_TIMES, GC_TIMES } from './config';
 import { useAuth } from '@/hooks/auth/useAuth';
-import { clinicApiClient } from '@/lib/api/client';
+import { ApiError, clinicApiClient } from '@/lib/api/client';
 import { API_ENDPOINTS, APP_CONFIG } from '@/lib/config/config';
-import { getDoctors as getDoctorsServerAction } from '@/lib/actions/doctors.server';
+import {
+  getDoctors as getDoctorsServerAction,
+  updateDoctorSchedule as updateDoctorScheduleServerAction,
+} from '@/lib/actions/doctors.server';
 import { resolveDisplayNameAndInitials } from '@/lib/utils/display-name';
 import { usePatientStore } from '@/stores';
 import { useAuthStore } from '@/stores/auth.store';
@@ -95,6 +98,13 @@ const normalizeDoctorRows = (payload: unknown): any[] => {
   });
 };
 // ===== DOCTORS QUERY HOOKS =====
+//
+// Backend doctor routes (doctors.controller.ts, verified by reading): POST /doctors (CLINIC_ADMIN,
+// SUPER_ADMIN), GET /doctors and GET /doctors/:id (`:id` is the doctor's USER id). Clinic lists come
+// from GET /clinics/:id/doctors and GET /clinics/:id/doctors/:doctorUserId/patients.
+// There are NO routes for a doctor's reviews, stats, performance, earnings, specializations, search,
+// export, profile, schedule (other than GET /appointments/doctor/:id/availability), or for
+// updating / deleting a doctor: the hooks below that name such a route cannot succeed.
 
 /**
  * Hook to get all doctors for a clinic
@@ -198,7 +208,10 @@ export const useDoctors = (clinicId: string, filters?: {
 };
 
 /**
- * Hook to get doctor by ID
+ * Hook to get doctor by ID.
+ * Backend: GET /doctors/:id — `doctorId` must be the doctor's USER id (User.id). A Doctor-record id
+ * (Appointment.doctorId, PatientVisit.doctorId, Prescription.doctorId) finds nothing: resolve it
+ * through `useDoctors` (each row carries `id` and `userId`) instead.
  */
 export const useDoctor = (doctorId: string) => {
   return useQueryData(['doctor', doctorId], async () => {
@@ -223,7 +236,10 @@ export const useDoctor = (doctorId: string) => {
 };
 
 /**
- * Hook to get doctor schedule
+ * Hook to get doctor schedule.
+ * NOT WIRED: the backend has no GET /clinics/:clinicId/doctors/:doctorId/schedule route (it only
+ * serves the slots of one date: GET /appointments/doctor/:doctorId/availability?date=), so this
+ * request is answered 404.
  */
 export const useDoctorSchedule = (clinicId: string, doctorId: string, date?: string) => {
   const { isConnected } = useWebSocketStatus();
@@ -307,7 +323,10 @@ export const useDoctorAppointments = (doctorId: string, filters?: {
 };
 
 /**
- * Hook to get patients for the active authenticated doctor in a clinic
+ * Hook to get patients for the active authenticated doctor in a clinic.
+ * Backend: GET /clinics/:clinicId/doctors/:doctorId/patients?search=&limit=&offset= — `:doctorId` is
+ * the doctor's USER id. SUPER_ADMIN, CLINIC_ADMIN, RECEPTIONIST, DOCTOR, ASSISTANT_DOCTOR, NURSE.
+ * Rows are Patient records (`id` = Patient.id) with the person under `user` (`userId` = User.id).
  */
 export const useDoctorPatients = (clinicId: string, filters?: {
   search?: string;
@@ -376,24 +395,25 @@ export const useDoctorStats = (doctorId: string, period?: 'day' | 'week' | 'mont
 };
 
 /**
- * Hook to get doctor reviews
+ * Hook to get doctor reviews.
+ * The backend has no reviews route (a patient's star rating is saved with
+ * POST /video/consultation/:appointmentId/rate, and nothing reads the ratings back per doctor).
+ * No request is sent: the query settles at once with a "not found" error (`statusCode` 404), which
+ * is what the doctor profile screen shows as "reviews are not available".
  */
 export const useDoctorReviews = (doctorId: string, limit: number = 10) => {
-  const { isConnected } = useWebSocketStatus();
-
-  return useQueryData(['doctorReviews', doctorId, limit], async () => {
-    try {
-      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.REVIEWS.GET(doctorId), { limit });
-    } catch (error) {
-      if (isSessionInvalidError(error)) {
-        return [];
-      }
-      throw error;
-    }
+  return useQueryData(['doctorReviews', doctorId, limit], async (): Promise<unknown[]> => {
+    throw new ApiError(
+      'Doctor reviews are not available yet: the server has no reviews service.',
+      404,
+      'NOT_FOUND'
+    );
   }, {
     enabled: !!doctorId,
-    refetchInterval: isConnected ? false : 300_000,
-    retry: doctorQueryRetry,
+    retry: false,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 };
 
@@ -589,7 +609,10 @@ export const useDeleteDoctor = () => {
 };
 
 /**
- * Hook to update doctor schedule
+ * Hook to update doctor schedule.
+ * The backend has no PUT /doctors/:id/schedule route. Weekly working hours are stored with
+ * POST /doctors (`workingHours`), which only CLINIC_ADMIN and SUPER_ADMIN may call; `doctorId` is the
+ * doctor's USER id.
  */
 export const useUpdateDoctorSchedule = () => {
   return useMutationOperation(
@@ -603,7 +626,7 @@ export const useUpdateDoctorSchedule = () => {
         isAvailable: boolean;
       }[];
     }) => {
-      return await clinicApiClient.put(API_ENDPOINTS.DOCTORS.SCHEDULE.UPDATE(doctorId), { schedule, clinicId });
+      return await updateDoctorScheduleServerAction(doctorId, schedule, clinicId);
     },
     {
       toastId: TOAST_IDS.DOCTOR.UPDATE,

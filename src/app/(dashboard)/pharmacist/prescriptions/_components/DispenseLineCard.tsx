@@ -6,10 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Pill } from "@/components/tbd";
+import { Pill, FIELD_LABEL_SMALL } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import {
-  dateLabel,
   describeLine,
   getEffectiveStock,
   getRemainingQuantity,
@@ -19,6 +18,7 @@ import {
   type DispenseLineState,
 } from "./pharmacist-prescriptions.logic";
 import type { LineField } from "./usePharmacistPrescriptionsState";
+import { formatDateLabel } from "@/lib/utils/date-time";
 
 interface DispenseLineCardProps {
   /** Position of the medicine on the prescription, from 0. */
@@ -36,7 +36,6 @@ interface DispenseLineCardProps {
   onClearSubstitute: () => void;
 }
 
-const FIELD_LABEL = "text-[11px] font-bold text-ink-muted";
 const FIELD_INPUT = "h-[42px] rounded-[11px] px-3 text-sm font-bold md:text-sm";
 const CHECK_TONE = {
   ok: "text-brand",
@@ -124,7 +123,7 @@ export function DispenseLineCard({
               {[
                 String(entry.quantity),
                 entry.batchNumber ? `batch ${entry.batchNumber}` : "",
-                entry.expiryDate ? `exp ${dateLabel(entry.expiryDate)}` : "",
+                entry.expiryDate ? `exp ${formatDateLabel(entry.expiryDate)}` : "",
                 relativeDateTimeLabel(entry.dispensedAt),
               ]
                 .filter(Boolean)
@@ -173,7 +172,7 @@ export function DispenseLineCard({
                 className={cn(
                   substitute && stock <= 0
                     ? "text-[#e11d48] dark:text-rose-300"
-                    : "text-[#065f46] dark:text-emerald-300",
+                    : "text-brand-dark",
                 )}
               >
                 {substitute ? `${stock} in stock` : ""}
@@ -213,7 +212,7 @@ export function DispenseLineCard({
       {remaining > 0 ? (
         <div className="flex flex-col gap-2">
           {line.batches.map((batch, batchIndex) => {
-            const labelClass = cn(FIELD_LABEL, batchIndex > 0 && "sm:sr-only");
+            const labelClass = cn(FIELD_LABEL_SMALL, batchIndex > 0 && "sm:sr-only");
             return (
               <div
                 key={batch.id}

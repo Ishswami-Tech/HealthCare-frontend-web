@@ -1,11 +1,12 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { AlertCircle, Clock, CreditCard, FileText, Plus, RotateCcw, Wallet } from "lucide-react";
+import Link from "next/link";
+import { AlertCircle, ArrowRight, Clock, CreditCard, FileText, Lock, Plus, RotateCcw, Wallet } from "lucide-react";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Kpi, Kv, Note, SectionTitle, Surface } from "@/components/tbd";
+import { EmptyBlock, Kpi, Kv, Note, SectionTitle, Surface } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import type {
   BillingAnalytics,
@@ -33,15 +34,21 @@ import {
   buildBillingTotals,
   filterInvoices,
   filterPayments,
-  formatRupees,
   invoiceBreakdownLabel,
   type BillingAccess,
+  type BillingClosedNotice,
   type BillingFilterState,
 } from "./billing.logic";
+import { formatRupees } from "@/lib/utils/currency";
 
 export interface BillingDashboardViewProps {
   access: BillingAccess;
   header: { eyebrow: string; title: string; description: string };
+  /**
+   * Set for a staff role the billing lists are not open to (pharmacist, nurse …). The screen
+   * then shows this note instead of stat cards and empty tables; nothing was requested.
+   */
+  closed?: BillingClosedNotice | null | undefined;
 
   /** Tab ids for this role, in order (staff: overview, invoices, payments [, ledger]). */
   tabs: readonly string[];
@@ -105,6 +112,7 @@ function isFiltered(filters: BillingFilterState, scope: "invoices" | "payments")
 export function BillingDashboardView({
   access,
   header,
+  closed,
   tabs,
   activeTab,
   onTabChange,
@@ -146,6 +154,32 @@ export function BillingDashboardView({
   const blank = loading || failed;
   const blankHint = loading ? "Loading" : "Not loaded";
 
+  if (closed) {
+    return (
+      <DashboardPageShell>
+        <DashboardPageHeader eyebrow={header.eyebrow} title={header.title} description={header.description} />
+        <Surface as="section">
+          <EmptyBlock
+            icon={Lock}
+            tone="slate"
+            title={closed.title}
+            description={closed.description}
+            action={
+              closed.action ? (
+                <Button size="md" asChild>
+                  <Link href={closed.action.href}>
+                    {closed.action.label}
+                    <ArrowRight aria-hidden="true" />
+                  </Link>
+                </Button>
+              ) : undefined
+            }
+          />
+        </Surface>
+      </DashboardPageShell>
+    );
+  }
+
   return (
     <DashboardPageShell>
       <DashboardPageHeader
@@ -178,6 +212,13 @@ export function BillingDashboardView({
               Try again
             </Button>
           </div>
+        </Note>
+      ) : null}
+
+      {access.isReceptionist && !access.canMarkInvoicesPaid ? (
+        <Note tone="blue">
+          New invoices and “Mark paid” are done by the clinic admin or finance for now. You can still take a
+          payment on a pending invoice.
         </Note>
       ) : null}
 

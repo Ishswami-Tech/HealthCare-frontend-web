@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Check, Save } from "lucide-react";
+import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/tbd";
 import { cn } from "@/lib/utils";
@@ -86,49 +86,6 @@ export function ExamEyebrow({ id, className, children }: { id?: string; classNam
     >
       {children}
     </span>
-  );
-}
-
-const CHIP_SIZES = {
-  /** 30 px — inside the small tiles (Pain, Personal, Prakruti). */
-  sm: "min-h-[30px] text-xs",
-  /** 34 px — Sleep / Bowel / Appetite on General Exam. */
-  md: "min-h-[34px] text-[13px]",
-  /** 36 px — the Devanagari option lists of the classical examinations. */
-  lg: "min-h-9 text-sm",
-} as const;
-
-export type ExamChipSize = keyof typeof CHIP_SIZES;
-
-/** Option chip. Selected = emerald with a tick, so the state never depends on colour alone. */
-export function ExamOptionChip({
-  label,
-  active,
-  onClick,
-  size = "lg",
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-  size?: ExamChipSize;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-[13px] transition-colors",
-        "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40",
-        CHIP_SIZES[size],
-        active
-          ? "border-[#047857] bg-[#047857] font-bold text-white"
-          : "border-line bg-card font-medium text-ink hover:bg-mint-soft",
-      )}
-    >
-      {active ? <Check className="size-[13px] shrink-0" strokeWidth={3} aria-hidden="true" /> : null}
-      {label}
-    </button>
   );
 }
 

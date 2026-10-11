@@ -110,7 +110,6 @@ import {
   bookingOptionClass,
   buildSlotPeriods,
   downloadBookingCalendarFile,
-  formatRupees,
   formatSlotLabel,
   readBookedSlots,
   shortBookingRef,
@@ -152,6 +151,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
+import { formatRupees } from "@/lib/utils/currency";
 
 function isProfileCompletionError(error: unknown): boolean {
   if (!error) {
@@ -4356,7 +4356,7 @@ export function BookAppointmentDialog({
           }
           
           showInfoToast(
-            "Appointment created. Complete payment in in the confirm screen to finish booking.",
+            "Appointment created. Complete the payment on the confirm screen to finish booking.",
           );
           return;
         }
